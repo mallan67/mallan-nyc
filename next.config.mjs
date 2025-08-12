@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  async rewrites() {
+    return [
+      // Route anything hitting /api/acris to our known-good route
+      { source: '/api/acris', destination: '/api/acris2' },
+    ];
+  },
 };
-export default nextConfig;
+
+module.exports = nextConfig;
