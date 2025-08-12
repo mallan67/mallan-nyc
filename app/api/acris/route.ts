@@ -1,39 +1,44 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-const DATASET = 'bnx9-e6tj'; // ACRIS Real Property Master
-const BASE = `https://data.cityofnewyork.us/resource/${DATASET}.json`;
+const DATASET_URL = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
+  const sp = new URL(req.url).searchParams;
 
-  // Accept either our short names or the plain ones
-  const borough = searchParams.get('borough') || searchParams.get('b') || '';
-  const block   = searchParams.get('block')   || searchParams.get('bl') || '';
-  const lot     = searchParams.get('lot')     || searchParams.get('lt') || '';
+  // Accept common synonyms; do NOT reject unknown keys
+  const borough = sp.get('borough') ?? sp.get('b') ?? sp.get('boro') ?? '';
+  const block   = sp.get('block')   ?? sp.get('bl') ?? '';
+  const lot     = sp.get('lot')     ?? sp.get('lt') ?? '';
 
   if (!borough || !block || !lot) {
-    return Response.json(
+    return NextResponse.json(
       { error: true, message: 'Missing borough, block, or lot' },
       { status: 400 }
     );
   }
 
-  const qs = new URLSearchParams({
-    borough,
-    block,
-    lot,
-    '$limit': searchParams.get('$limit') || '50',
-    '$order': searchParams.get('$order') || 'recorded_datetime DESC',
-  });
+  // Build the Socrata query
+  const qs = new URLSearchParams();
+  qs.set('borough', borough);
+  qs.set('block', block);
+  qs.set('lot', lot);
 
-  const headers: Record<string, string> = { accept: 'application/json' };
+  // Pass through useful Socrata params if provided
+  for (const k of ['$limit', '$order', '$select', '$offset', '$where']) {
+    const v = sp.get(k);
+    if (v) qs.set(k, v);
+  }
+  // Sensible defaults
+  if (!qs.has('$limit')) qs.set('$limit', '50');
+  if (!qs.has('$order')) qs.set('$order', 'recorded_datetime DESC');
+
+  const headers: Record<string, string> = { Accept: 'application/json' };
   const token = process.env.SOCRATA_APP_TOKEN;
   if (token) headers['X-App-Token'] = token;
 
-  // Cache briefly at the edge
-  const r = await fetch(`${BASE}?${qs.toString()}`, {
+  const r = await fetch(`${DATASET_URL}?${qs.toString()}`, {
     headers,
-    next: { revalidate: 60 },
+    cache: 'no-store',
   });
 
   const text = await r.text();
