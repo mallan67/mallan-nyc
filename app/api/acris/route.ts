@@ -1,57 +1,99 @@
-// app/api/acris/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-const BASE = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
-const SOCRATA_TOKEN = process.env.SOCRATA_APP_TOKEN || '';
+const SODA = 'https://data.cityofnewyork.us/resource';
+const LEGALS = `${SODA}/8h5j-fqxa.json`;  // Real Property Legals (has borough/block/lot + document_id)
+const MASTER = `${SODA}/bnx9-e6tj.json`;  // Real Property Master (join via document_id)
 
-function n(x: string | null) {
-  const v = Number(x ?? '');
-  return Number.isFinite(v) ? v : undefined;
+function json(u: string) {
+  const headers: Record<string, string> = { accept: 'application/json' };
+  const tok = process.env.SOCRATA_APP_TOKEN;
+  if (tok) headers['X-App-Token'] = tok;
+  return fetch(u, { headers });
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-
-  // Health check
-  if (searchParams.get('ping')) {
-    return NextResponse.json({ ok: true, handler: 'acris-app-simplified' });
+  const url = new URL(req.url);
+  if (url.searchParams.get('ping')) {
+    return Response.json({ ok: true, handler: 'acris-app-v8' });
   }
 
-  // Accept either bbl=1013360066 OR borough+block+lot
-  let borough = n(searchParams.get('borough'));
-  let block   = n(searchParams.get('block'));
-  let lot     = n(searchParams.get('lot'));
+  const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('$limit') || '25')));
+  const debug = url.searchParams.has('debug');
 
-  const bblRaw = (searchParams.get('bbl') || '').replace(/\D/g, '');
-  if (!borough && !block && !lot && bblRaw.length >= 8) {
-    borough = Number(bblRaw.slice(0, 1));
-    block   = Number(bblRaw.slice(1, 6));
-    lot     = Number(bblRaw.slice(6));
+  // Accept either ?bbl=########## or ?borough=&block=&lot=
+  let borough = (url.searchParams.get('borough') || '').trim();
+  let block   = (url.searchParams.get('block') || '').trim().replace(/^0+/, '');
+  let lot     = (url.searchParams.get('lot') || '').trim().replace(/^0+/, '');
+  const bblIn = (url.searchParams.get('bbl') || '').replace(/[^0-9]/g, '');
+
+  if (bblIn && (!borough || !block || !lot)) {
+    if (bblIn.length >= 7) {
+      borough = bblIn.slice(0, 1);
+      block   = String(Number(bblIn.slice(1, 6)));
+      lot     = String(Number(bblIn.slice(6)));
+    }
   }
 
   if (!borough || !block || !lot) {
-    return NextResponse.json(
-      { error: true, message: 'Provide bbl=<10digits> OR borough+block+lot' },
+    return Response.json(
+      { error: true, message: 'Provide ?bbl=########## OR ?borough=&block=&lot=' },
       { status: 400 }
     );
   }
 
-  const qs = new URLSearchParams({
-    borough: String(borough),
-    block: String(block),
-    lot: String(lot),
-    $order: 'recorded_datetime DESC',
-    $limit: searchParams.get('$limit') || '25',
-  });
+  // Normalize + try both padded and unpadded values for block/lot
+  const b = String(Number(borough));
+  const bl = String(Number(block));
+  const lt = String(Number(lot));
+  const blP = bl.padStart(5, '0');
+  const ltP = lt.padStart(4, '0');
 
-  const headers: Record<string, string> = { accept: 'application/json' };
-  if (SOCRATA_TOKEN) headers['X-App-Token'] = SOCRATA_TOKEN;
+  // 1) Pull document_ids from LEGALS for this BBL
+  const whereLegals =
+    `borough = ${b} AND (block = '${bl}' OR block = '${blP}') AND (lot = '${lt}' OR lot = '${ltP}')`;
+  const legalsURL =
+    `${LEGALS}?$select=document_id&$where=${encodeURIComponent(whereLegals)}&$limit=5000`;
 
-  const r = await fetch(`${BASE}?${qs.toString()}`, { headers, cache: 'no-store' });
-  if (!r.ok) {
-    const body = await r.text();
-    return NextResponse.json({ error: true, status: r.status, details: body }, { status: r.status });
+  let docs: string[] = [];
+  try {
+    const r = await json(legalsURL);
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const arr = await r.json();
+    docs = Array.from(new Set((arr || []).map((x: any) => x.document_id).filter(Boolean)));
+  } catch (e: any) {
+    return Response.json({ error: true, step: 'LEGALS', details: String(e) }, { status: 502 });
   }
-  const data = await r.json();
-  return NextResponse.json(Array.isArray(data) ? data : []);
+
+  if (!docs.length) {
+    const payload: any = {
+      results: [],
+      note:
+        'No ACRIS Real Property filings found for that BBL. Co-op transactions are often recorded as Personal Property (UCC) and are not searchable by BBL via Open Data.',
+    };
+    if (debug) payload.debug = [{ step: 'LEGALS', where: whereLegals, count: 0 }];
+    return Response.json(payload);
+  }
+
+  // 2) Join to MASTER by document_id (chunk IN lists to keep URLs sane)
+  const chunks: string[][] = [];
+  for (let i = 0; i < docs.length; i += 80) chunks.push(docs.slice(i, i + 80));
+
+  let rows: any[] = [];
+  for (const ch of chunks) {
+    if (rows.length >= limit) break;
+    const whereMaster = `document_id in (${ch.map((id) => `'${id}'`).join(',')})`;
+    const masterURL = `${MASTER}?$where=${encodeURIComponent(whereMaster)}&$order=recorded_datetime DESC&$limit=${limit}`;
+    try {
+      const r = await json(masterURL);
+      if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+      const part = await r.json();
+      rows = rows.concat(part || []);
+    } catch (e: any) {
+      return Response.json({ error: true, step: 'MASTER', details: String(e) }, { status: 502 });
+    }
+  }
+
+  const out: any = { results: rows.slice(0, limit) };
+  if (debug) out.debug = [{ step: 'LEGALS', where: whereLegals, count: docs.length }];
+  return Response.json(out);
 }
