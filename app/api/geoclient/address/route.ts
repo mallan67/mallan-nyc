@@ -20,3 +20,4 @@ export async function GET(req: NextRequest) {
   const data = await r.json();
   return NextResponse.json(data, { status: r.status });
 }
+
