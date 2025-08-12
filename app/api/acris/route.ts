@@ -1,14 +1,19 @@
-import { NextRequest } from "next/server";
-const APP_TOKEN = process.env.SOCRATA_APP_TOKEN;
+import { NextRequest, NextResponse } from "next/server";
+
+const DATASET = "https://data.cityofnewyork.us/resource/bnx9-e6tj.json";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const endpoint = "https://data.cityofnewyork.us/resource/bnx9-e6tj.json";
-  const url = new URL(endpoint);
-  searchParams.forEach((v, k) => url.searchParams.set(k, v));
-  const headers: Record<string,string> = { accept: "application/json" };
-  if (APP_TOKEN) headers["X-App-Token"] = APP_TOKEN;
-  const r = await fetch(url, { headers });
-  const data = await r.json();
-  return new Response(JSON.stringify(data), { status: r.status, headers: { "content-type": "application/json" } });
+  const sp = new URL(req.url).searchParams;
+  const params = new URLSearchParams();
+  for (const k of ["borough","block","lot","$limit","$order","$select"]) {
+    const v = sp.get(k);
+    if (v) params.set(k, v);
+  }
+  const headers: Record<string,string> = { Accept: "application/json" };
+  const token = process.env.SOCRATA_APP_TOKEN;
+  if (token) headers["X-App-Token"] = token;
+
+  const r = await fetch(`${DATASET}?${params.toString()}`, { headers, cache: "no-store" });
+  const j = await r.json();
+  return NextResponse.json(j, { status: r.status });
 }
