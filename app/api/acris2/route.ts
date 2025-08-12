@@ -4,23 +4,15 @@ const DATASET_URL = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
 export async function GET(req: NextRequest) {
   const sp = new URL(req.url).searchParams;
 
-  // quick ping so we can prove this file is serving
   if (sp.get('ping') === '1') {
-    return new Response(JSON.stringify({ ok: true, handler: 'v2-acris2' }), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'x-acris-handler': 'v2-acris2' },
-    });
+    return new Response(JSON.stringify({ ok: true, handler: 'v2-acris2' }), { status: 200, headers: { 'content-type': 'application/json', 'x-acris-handler': 'v2-acris2' } });
   }
 
   const borough = sp.get('borough') ?? sp.get('b') ?? sp.get('boro') ?? '';
   const block   = sp.get('block')   ?? sp.get('bl') ?? '';
   const lot     = sp.get('lot')     ?? sp.get('lt') ?? '';
-
   if (!borough || !block || !lot) {
-    return new Response(JSON.stringify({ error: true, message: 'Missing borough, block, or lot' }), {
-      status: 400,
-      headers: { 'content-type': 'application/json', 'x-acris-handler': 'v2-acris2' },
-    });
+    return new Response(JSON.stringify({ error: true, message: 'Missing borough, block, or lot' }), { status: 400, headers: { 'content-type': 'application/json', 'x-acris-handler': 'v2-acris2' } });
   }
 
   const qs = new URLSearchParams();
