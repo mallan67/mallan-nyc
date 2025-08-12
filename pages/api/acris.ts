@@ -1,15 +1,31 @@
 // pages/api/acris.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const BASE = 'https://data.cityofnewyork.us';
-const LEGALS = '/resource/8h5j-fqxa.json'; // has borough, block, lot -> document_id
+const BASE   = 'https://data.cityofnewyork.us';
+const LEGALS = '/resource/8h5j-fqxa.json'; // borough, block, lot -> document_id
 const MASTER = '/resource/bnx9-e6tj.json'; // details by document_id
-const TOKEN = process.env.SOCRATA_APP_TOKEN || '';
+const TOKEN  = process.env.SOCRATA_APP_TOKEN || '';
 
 function headers() {
   const h: Record<string, string> = { accept: 'application/json' };
   if (TOKEN) h['X-App-Token'] = TOKEN;
   return h;
+}
+
+function parseParams(q: any) {
+  let borough = String(q.borough || '').trim();
+  let block   = String(q.block || '').trim();
+  let lot     = String(q.lot || '').trim();
+
+  const bblRaw = String(q.bbl || '').replace(/\D/g, '');
+  if (bblRaw && (!borough || !block || !lot)) {
+    if (bblRaw.length < 8) throw new Error('BBL must be at least 8 digits');
+    borough = bblRaw.slice(0, 1);
+    block   = String(Number(bblRaw.slice(1, 6))); // strip leading zeros
+    lot     = String(Number(bblRaw.slice(6)));
+  }
+  if (!borough || !block || !lot) throw new Error('Missing borough, block, or lot');
+  return { borough, block, lot };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -19,52 +35,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Health check
     if (q.ping === '1') return res.status(200).json({ ok: true, handler: 'acris-v2' });
 
-    // Accept either bbl or borough+block+lot
-    const bblRaw = String(q.bbl || '').replace(/\D/g, '');
-    let borough = String(q.borough || '');
-    let block   = String(q.block || '');
-    let lot     = String(q.lot || '');
+    const { borough, block, lot } = parseParams(q);
 
-    if (bblRaw && !(borough && block && lot) && bblRaw.length >= 8) {
-      borough = bblRaw.slice(0, 1);
-      block   = String(Number(bblRaw.slice(1, 6)));
-      lot     = String(Number(bblRaw.slice(6)));
+    // STEP 1: find document_ids in LEGALS for the given BBL
+    const legUrl = new URL(BASE + LEGALS);
+    legUrl.searchParams.set('$select', 'document_id');
+    legUrl.searchParams.set('$where', `borough='${borough}' AND block='${block}' AND lot='${lot}'`);
+    legUrl.searchParams.set('$limit', '5000');
+
+    const legResp = await fetch(legUrl.toString(), { headers: headers() });
+    if (!legResp.ok) throw new Error(`LEGALS ${legResp.status}`);
+    const legRows: { document_id: string }[] = await legResp.json();
+    if (!Array.isArray(legRows) || !legRows.length) return res.status(200).json([]);
+
+    const ids = legRows.map(r => r.document_id).filter(Boolean);
+
+    // STEP 2: fetch details from MASTER using IN (...) — chunk to keep URLs safe
+    const out: any[] = [];
+    const chunkSize = 75;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize)
+        .map(id => `'${String(id).replace(/'/g, "''")}'`)
+        .join(',');
+
+      const mUrl = new URL(BASE + MASTER);
+      mUrl.searchParams.set('$select', 'recorded_datetime, doc_type, consideration_amount, document_id');
+      mUrl.searchParams.set('$where', `document_id IN (${chunk})`);
+      mUrl.searchParams.set('$order', String(q.$order || 'recorded_datetime DESC'));
+      mUrl.searchParams.set('$limit', String(q.$limit || '25'));
+
+      const mResp = await fetch(mUrl.toString(), { headers: headers() });
+      if (!mResp.ok) throw new Error(`MASTER ${mResp.status}`);
+      out.push(...await mResp.json());
     }
 
-    if (!(borough && block && lot)) {
-      return res.status(400).json({ error: true, message: 'Provide bbl=######### OR borough+block+lot' });
-    }
-
-    const limit = Math.min(Number(q.$limit || '25'), 100);
-    const order = String(q.$order || 'recorded_datetime DESC');
-
-    // 1) Legals → get document_id list
-    const where = encodeURIComponent(`borough='${borough}' AND block='${block}' AND lot='${lot}'`);
-    const legalsUrl = `${BASE}${LEGALS}?$select=document_id,good_through_date&$where=${where}&$order=good_through_date DESC&$limit=${limit}`;
-    const legalsResp = await fetch(legalsUrl, { headers: headers(), cache: 'no-store' });
-    if (!legalsResp.ok) {
-      const text = await legalsResp.text();
-      return res.status(legalsResp.status).json({ error: true, message: `Legals query failed: ${text || legalsResp.status}` });
-    }
-    const legals = (await legalsResp.json()) as Array<{ document_id?: string }>;
-    const docIds = Array.from(new Set(legals.map(r => r.document_id).filter(Boolean))) as string[];
-
-    if (!docIds.length) return res.status(200).json([]); // no filings
-
-    // 2) Master → hydrate those document_ids
-    const inList = docIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
-    const masterUrl = `${BASE}${MASTER}?$where=document_id in (${inList})&$order=${encodeURIComponent(order)}&$limit=${limit}`;
-    const masterResp = await fetch(masterUrl, { headers: headers(), cache: 'no-store' });
-    if (!masterResp.ok) {
-      const text = await masterResp.text();
-      return res.status(masterResp.status).json({ error: true, message: `Master query failed: ${text || masterResp.status}` });
-    }
-
-    const rows = await masterResp.json();
-    return res.status(200).json(Array.isArray(rows) ? rows : []);
-  } catch (e: any) {
-    return res.status(500).json({ error: true, message: e?.message || String(e) });
+    // Final sort (in case chunking shuffled order)
+    out.sort((a, b) => String(b.recorded_datetime || '').localeCompare(String(a.recorded_datetime || '')));
+    return res.status(200).json(out);
+  } catch (err: any) {
+    return res.status(400).json({ error: true, message: err.message || String(err) });
   }
-}
-
 }
