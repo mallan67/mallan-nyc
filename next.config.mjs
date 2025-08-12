@@ -2,7 +2,7 @@
 const nextConfig = {
   async rewrites() {
     return [
-      // Route anything hitting /api/acris to our known-good route
+      // Send /api/acris to our working handler
       { source: '/api/acris', destination: '/api/acris2' },
     ];
   },
