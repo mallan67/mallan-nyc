@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     headers: {
       'content-type': 'application/json',
       'cache-control': 'no-store',
-      'x-acris-handler': 'v2'      // <— prove the new route is live
+      'x-acris-handler': 'v2'  // proves new route is live
     },
   });
 }
