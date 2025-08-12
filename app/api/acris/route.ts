@@ -11,9 +11,7 @@ async function soql(dataset: string, params: Record<string, string>, token?: str
   const url = `${SOCRATA_DOMAIN}/resource/${dataset}.json?${new URLSearchParams(params)}`;
   const headers: Record<string, string> = { accept: 'application/json' };
   if (token) headers['X-App-Token'] = token;
-  const r = await fetch(url, { headers, // helpful cache
-    next: { revalidate: 60 }
-  });
+  const r = await fetch(url, { headers, next: { revalidate: 60 } });
   const text = await r.text();
   let json: any;
   try { json = JSON.parse(text); } catch { throw new Error(`${dataset} ${r.status}`); }
@@ -49,7 +47,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // --- 1) LEGALS → get document_id list (NUMERIC filters only) ---
+    // 1) LEGALS → numeric filters only
     const whereLegals = `borough=${borough} AND block=${block} AND lot=${lot}`;
     const legals = await soql(DS_LEGALS, {
       '$select': 'document_id',
@@ -61,11 +59,13 @@ export async function GET(req: NextRequest) {
     debug.push({ step: 'LEGALS', where: whereLegals, count: docIds.length });
 
     if (!docIds.length) {
-      return Response.json({ debug, results: [] }); // nothing for that BBL
+      return Response.json({ debug, results: [] });
     }
 
-    // --- 2) MASTER → by document_id IN (…) ---
-    const inList = docIds.slice(0, 1000).map(id => `'${String(id).replace(/'/g, "''")}'`).join(',');
+    // 2) MASTER → by document_id IN (…)
+    const inList = docIds.slice(0, 1000)
+      .map(id => `'${String(id).replace(/'/g, "''")}'`)
+      .join(',');
     const whereMaster = `document_id in (${inList})`;
 
     const master = await soql(DS_MASTER, {
