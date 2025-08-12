@@ -5,7 +5,7 @@ const DATASET_URL = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
 export async function GET(req: NextRequest) {
   const sp = new URL(req.url).searchParams;
 
-  // Accept common synonyms; do NOT reject unknown keys
+  // Accept common names and short aliases; don't reject unknown keys.
   const borough = sp.get('borough') ?? sp.get('b') ?? sp.get('boro') ?? '';
   const block   = sp.get('block')   ?? sp.get('bl') ?? '';
   const lot     = sp.get('lot')     ?? sp.get('lt') ?? '';
@@ -13,11 +13,10 @@ export async function GET(req: NextRequest) {
   if (!borough || !block || !lot) {
     return NextResponse.json(
       { error: true, message: 'Missing borough, block, or lot' },
-      { status: 400 }
+      { status: 400, headers: { 'x-acris-handler': 'v2' } }
     );
   }
 
-  // Build the Socrata query
   const qs = new URLSearchParams();
   qs.set('borough', borough);
   qs.set('block', block);
@@ -28,7 +27,6 @@ export async function GET(req: NextRequest) {
     const v = sp.get(k);
     if (v) qs.set(k, v);
   }
-  // Sensible defaults
   if (!qs.has('$limit')) qs.set('$limit', '50');
   if (!qs.has('$order')) qs.set('$order', 'recorded_datetime DESC');
 
@@ -44,6 +42,10 @@ export async function GET(req: NextRequest) {
   const text = await r.text();
   return new Response(text, {
     status: r.status,
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      'x-acris-handler': 'v2'      // <— prove the new route is live
+    },
   });
 }
