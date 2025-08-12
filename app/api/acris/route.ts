@@ -1,124 +1,57 @@
 // app/api/acris/route.ts
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export const runtime = 'nodejs'; // keep Node runtime for clean server fetch
+const BASE = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
+const SOCRATA_TOKEN = process.env.SOCRATA_APP_TOKEN || '';
 
-// NYC Open Data datasets
-const DS_LEGALS = '8h5j-fqxa';  // ACRIS Real Property Legals
-const DS_MASTER = 'bnx9-e6tj';  // ACRIS Real Property Master
-
-const BASE = 'https://data.cityofnewyork.us/resource';
-
-function n(v: any) {
-  const x = Number(String(v || '').replace(/[^0-9]/g, ''));
-  return Number.isFinite(x) ? x : undefined;
-}
-
-function parseBBL(bblRaw?: string) {
-  if (!bblRaw) return {};
-  const s = String(bblRaw).replace(/[^0-9]/g, '');
-  if (s.length < 7) return {};
-  const borough = n(s.slice(0, 1));
-  const block   = n(s.slice(1, 6));
-  const lot     = n(s.slice(6));
-  return { borough, block, lot };
-}
-
-async function soql(dataset: string, params: Record<string, string>, token?: string) {
-  const url = new URL(`${BASE}/${dataset}.json`);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const headers: Record<string, string> = { accept: 'application/json' };
-  if (token) headers['X-App-Token'] = token;
-  const r = await fetch(url.toString(), { headers, cache: 'no-store' });
-  if (!r.ok) {
-    const text = await r.text().catch(() => '');
-    throw new Error(`/${dataset}.json ${r.status} ${text || ''}`.trim());
-  }
-  return r.json();
+function n(x: string | null) {
+  const v = Number(x ?? '');
+  return Number.isFinite(v) ? v : undefined;
 }
 
 export async function GET(req: NextRequest) {
-  const u = new URL(req.url);
-  const token = process.env.SOCRATA_APP_TOKEN || undefined;
+  const { searchParams } = new URL(req.url);
 
   // Health check
-  if (u.searchParams.get('ping')) {
-    return Response.json({ ok: true, handler: 'acris-app-v7' });
+  if (searchParams.get('ping')) {
+    return NextResponse.json({ ok: true, handler: 'acris-app-simplified' });
   }
 
-  // Inputs
-  const limit = String(n(u.searchParams.get('$limit')) || 25);
-  const debugFlag = u.searchParams.get('debug');
-  const debug: any[] = [];
+  // Accept either bbl=1013360066 OR borough+block+lot
+  let borough = n(searchParams.get('borough'));
+  let block   = n(searchParams.get('block'));
+  let lot     = n(searchParams.get('lot'));
 
-  // Accept either BBL… or borough+block+lot
-  let borough = n(u.searchParams.get('borough'));
-  let block   = n(u.searchParams.get('block'));
-  let lot     = n(u.searchParams.get('lot'));
-
-  if (!borough || !block || !lot) {
-    const fromBBL = parseBBL(u.searchParams.get('bbl') || undefined);
-    borough = borough || (fromBBL as any).borough;
-    block   = block   || (fromBBL as any).block;
-    lot     = lot     || (fromBBL as any).lot;
+  const bblRaw = (searchParams.get('bbl') || '').replace(/\D/g, '');
+  if (!borough && !block && !lot && bblRaw.length >= 8) {
+    borough = Number(bblRaw.slice(0, 1));
+    block   = Number(bblRaw.slice(1, 6));
+    lot     = Number(bblRaw.slice(6));
   }
 
   if (!borough || !block || !lot) {
-    return Response.json(
-      { error: true, message: 'Missing borough, block, or lot' },
+    return NextResponse.json(
+      { error: true, message: 'Provide bbl=<10digits> OR borough+block+lot' },
       { status: 400 }
     );
   }
 
-  // 1) LEGALS → get document_id list for this BBL (numeric SoQL)
-  const whereN = `borough=${borough} AND block=${block} AND lot=${lot}`;
-  let docIds: string[] = [];
-  try {
-    const legals = await soql(DS_LEGALS, {
-      '$select': 'document_id',
-      '$where' : whereN,
-      '$limit' : '5000'
-    }, token);
+  const qs = new URLSearchParams({
+    borough: String(borough),
+    block: String(block),
+    lot: String(lot),
+    $order: 'recorded_datetime DESC',
+    $limit: searchParams.get('$limit') || '25',
+  });
 
-    const count = Array.isArray(legals) ? legals.length : 0;
-    debug.push({ step: 'LEGALS', where: whereN, count });
+  const headers: Record<string, string> = { accept: 'application/json' };
+  if (SOCRATA_TOKEN) headers['X-App-Token'] = SOCRATA_TOKEN;
 
-    if (count) {
-      docIds = [...new Set(legals.map((r: any) => String(r.document_id).trim()).filter(Boolean))];
-    }
-  } catch (e: any) {
-    debug.push({ step: 'LEGALS_ERROR', where: whereN, error: e.message || String(e) });
+  const r = await fetch(`${BASE}?${qs.toString()}`, { headers, cache: 'no-store' });
+  if (!r.ok) {
+    const body = await r.text();
+    return NextResponse.json({ error: true, status: r.status, details: body }, { status: r.status });
   }
-
-  // 2) If we found document_ids in LEGALS → query MASTER by those ids
-  if (docIds.length) {
-    // conservative cap to keep query small
-    const ids = docIds.slice(0, 500).map(id => `'${id.replace(/'/g, "''")}'`).join(',');
-    const whereMaster = `document_id IN (${ids})`;
-    try {
-      const master = await soql(DS_MASTER, {
-        '$where': whereMaster,
-        '$order': 'recorded_datetime DESC',
-        '$limit': limit
-      }, token);
-      debug.push({ step: 'MASTER_BY_DOCUMENT_ID', returned: Array.isArray(master) ? master.length : 0 });
-      return Response.json(debugFlag ? { debug, results: master } : master);
-    } catch (e: any) {
-      debug.push({ step: 'MASTER_BY_DOCUMENT_ID_ERROR', where: whereMaster, error: e.message || String(e) });
-    }
-  }
-
-  // 3) Fallback: MASTER by numeric BBL (covers co-ops / legals gaps)
-  try {
-    const masterFallback = await soql(DS_MASTER, {
-      '$where': whereN,
-      '$order': 'recorded_datetime DESC',
-      '$limit': limit
-    }, token);
-    debug.push({ step: 'MASTER_FALLBACK_BY_BBL', where: whereN, returned: Array.isArray(masterFallback) ? masterFallback.length : 0 });
-    return Response.json(debugFlag ? { debug, results: masterFallback } : masterFallback);
-  } catch (e: any) {
-    debug.push({ step: 'MASTER_FALLBACK_ERROR', where: whereN, error: e.message || String(e) });
-    return Response.json({ error: true, debug }, { status: 500 });
-  }
+  const data = await r.json();
+  return NextResponse.json(Array.isArray(data) ? data : []);
 }
