@@ -1,23 +1,32 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/geoclient/address/route.ts
+import type { NextRequest } from 'next/server';
 
-const BASE = process.env.GEOCLIENT_URL || "https://api.nyc.gov/geoclient/v2";
+export const runtime = 'edge';
+
+const BASE = process.env.GEOCLIENT_URL || 'https://api.nyc.gov/geoclient/v2';
+const KEY  = process.env.GEOCLIENT_KEY!; // set in Vercel env
 
 export async function GET(req: NextRequest) {
-  const KEY = process.env.GEOCLIENT_KEY;
-  if (!KEY) return NextResponse.json({ error: "Missing GEOCLIENT_KEY" }, { status: 500 });
+  const sp = new URL(req.url).searchParams;
+  const params = new URLSearchParams();
+  const houseNumber = sp.get('houseNumber') || '';
+  const street      = sp.get('street') || '';
+  const borough     = sp.get('borough') || '';
+  const zip         = sp.get('zip') || '';
 
-  const { searchParams } = new URL(req.url);
-  const url = new URL(`${BASE}/address.json`);
-  for (const k of ["houseNumber", "street", "borough", "zip"]) {
-    const v = searchParams.get(k);
-    if (v) url.searchParams.set(k, v);
+  if (houseNumber) params.set('houseNumber', houseNumber);
+  if (street)      params.set('street', street);
+  if (borough)     params.set('borough', borough);
+  if (zip)         params.set('zip', zip);
+  params.set('key', KEY);
+
+  const url = `${BASE}/address.json?${params.toString()}`;
+  const r = await fetch(url, { headers: { accept: 'application/json' }, next: { revalidate: 300 } });
+  const text = await r.text();
+  try {
+    const json = JSON.parse(text);
+    return Response.json(json, { status: r.ok ? 200 : 502 });
+  } catch {
+    return new Response(text, { status: r.status });
   }
-
-  const r = await fetch(url.toString(), {
-    headers: { Accept: "application/json", "Ocp-Apim-Subscription-Key": KEY },
-    cache: "no-store",
-  });
-  const data = await r.json();
-  return NextResponse.json(data, { status: r.status });
 }
-
