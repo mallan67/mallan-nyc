@@ -1,32 +1,76 @@
+// app/api/acris/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-const DATASET_URL = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
+
+export const runtime = 'edge'; // fast
+
+const DATASET = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
+const TOKEN = process.env.SOCRATA_APP_TOKEN || '';
+
+function parseBBL(bbl?: string | null) {
+  if (!bbl) return null;
+  const clean = String(bbl).replace(/\D/g, '');
+  if (clean.length < 7) return null;
+  return {
+    borough: clean.slice(0, 1),
+    block: clean.slice(1, 6),
+    lot: clean.slice(6),
+  };
+}
 
 export async function GET(req: NextRequest) {
-  const sp = new URL(req.url).searchParams;
+  try {
+    const { searchParams } = new URL(req.url);
 
-  if (sp.get('ping') === '1') {
-    return NextResponse.json({ ok: true, handler: 'v3' }, { headers: { 'x-acris-handler': 'v3' } });
+    // accept either borough+block+lot or bbl
+    const borough = searchParams.get('borough');
+    const block   = searchParams.get('block');
+    const lot     = searchParams.get('lot');
+    const bblObj  = parseBBL(searchParams.get('bbl'));
+
+    const limit = searchParams.get('$limit') || '25';
+    const order = searchParams.get('$order') || 'recorded_datetime DESC';
+
+    const qs = new URLSearchParams();
+    qs.set('$limit', limit);
+    qs.set('$order', order);
+
+    if (borough && block && lot) {
+      qs.set('borough', String(borough));
+      qs.set('block', String(block));
+      qs.set('lot', String(lot));
+    } else if (bblObj) {
+      qs.set('borough', bblObj.borough);
+      qs.set('block', bblObj.block);
+      qs.set('lot', bblObj.lot);
+    } else {
+      return NextResponse.json(
+        { error: true, message: 'Provide borough+block+lot or bbl' },
+        { status: 400 }
+      );
+    }
+
+    const r = await fetch(`${DATASET}?${qs.toString()}`, {
+      headers: TOKEN ? { 'X-App-Token': TOKEN, accept: 'application/json' } : { accept: 'application/json' },
+      cache: 'no-store',
+      next: { revalidate: 300 },
+    });
+
+    if (!r.ok) {
+      const text = await r.text();
+      return NextResponse.json(
+        { error: true, status: r.status, message: text || 'Socrata error' },
+        { status: r.status }
+      );
+    }
+
+    const data = await r.json();
+    return NextResponse.json(data, {
+      headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=60' },
+    });
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: true, message: e?.message || String(e) },
+      { status: 500 }
+    );
   }
-
-  const borough = sp.get('borough') ?? sp.get('b') ?? sp.get('boro') ?? '';
-  const block   = sp.get('block')   ?? sp.get('bl') ?? '';
-  const lot     = sp.get('lot')     ?? sp.get('lt') ?? '';
-  if (!borough || !block || !lot) {
-    return NextResponse.json({ error: true, message: 'Missing borough, block, or lot' }, { status: 400, headers: { 'x-acris-handler': 'v3' } });
-  }
-
-  const qs = new URLSearchParams();
-  qs.set('borough', borough); qs.set('block', block); qs.set('lot', lot);
-  for (const k of ['$limit', '$order', '$select', '$offset', '$where']) {
-    const v = sp.get(k); if (v) qs.set(k, v);
-  }
-  if (!qs.has('$limit')) qs.set('$limit', '50');
-  if (!qs.has('$order')) qs.set('$order', 'recorded_datetime DESC');
-
-  const headers: Record<string,string> = { Accept: 'application/json' };
-  const token = process.env.SOCRATA_APP_TOKEN; if (token) headers['X-App-Token'] = token;
-
-  const r = await fetch(`${DATASET_URL}?${qs.toString()}`, { headers, cache: 'no-store' });
-  const text = await r.text();
-  return new Response(text, { status: r.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-acris-handler': 'v3' } });
 }
