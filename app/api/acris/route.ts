@@ -4,7 +4,6 @@ const DATASET_URL = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
 export async function GET(req: NextRequest) {
   const sp = new URL(req.url).searchParams;
 
-  // quick ping so we can prove this file is serving
   if (sp.get('ping') === '1') {
     return NextResponse.json({ ok: true, handler: 'v3' }, { headers: { 'x-acris-handler': 'v3' } });
   }
@@ -12,7 +11,6 @@ export async function GET(req: NextRequest) {
   const borough = sp.get('borough') ?? sp.get('b') ?? sp.get('boro') ?? '';
   const block   = sp.get('block')   ?? sp.get('bl') ?? '';
   const lot     = sp.get('lot')     ?? sp.get('lt') ?? '';
-
   if (!borough || !block || !lot) {
     return NextResponse.json({ error: true, message: 'Missing borough, block, or lot' }, { status: 400, headers: { 'x-acris-handler': 'v3' } });
   }
@@ -30,8 +28,5 @@ export async function GET(req: NextRequest) {
 
   const r = await fetch(`${DATASET_URL}?${qs.toString()}`, { headers, cache: 'no-store' });
   const text = await r.text();
-  return new Response(text, {
-    status: r.status,
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-acris-handler': 'v3' },
-  });
+  return new Response(text, { status: r.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-acris-handler': 'v3' } });
 }
