@@ -1,8 +1,7 @@
-// Do NOT add 'use client' here.
-
+// app/layout.tsx
 export const metadata = {
-  title: 'MAllan Real Estate — NYC',
-  description: 'Mallan Real Estate — NYC search & insights',
+  title: 'Mallan Real Estate — NYC search & insights',
+  description: 'mallan.nyc',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
