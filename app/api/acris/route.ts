@@ -1,3 +1,4 @@
+// app/api/acris/route.ts
 import type { NextRequest } from 'next/server';
 
 const SODA = 'https://data.cityofnewyork.us/resource';
@@ -41,14 +42,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Normalize + try both padded and unpadded values for block/lot
+  // Normalize + try padded & unpadded block/lot
   const b = String(Number(borough));
   const bl = String(Number(block));
   const lt = String(Number(lot));
   const blP = bl.padStart(5, '0');
   const ltP = lt.padStart(4, '0');
 
-  // 1) Pull document_ids from LEGALS for this BBL
+  // 1) LEGALS → document_id list for this BBL
   const whereLegals =
     `borough = ${b} AND (block = '${bl}' OR block = '${blP}') AND (lot = '${lt}' OR lot = '${ltP}')`;
   const legalsURL =
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
     return Response.json(payload);
   }
 
-  // 2) Join to MASTER by document_id (chunk IN lists to keep URLs sane)
+  // 2) MASTER → by document_id (chunked IN lists)
   const chunks: string[][] = [];
   for (let i = 0; i < docs.length; i += 80) chunks.push(docs.slice(i, i + 80));
 
