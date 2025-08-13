@@ -1,4 +1,3 @@
-// app/api/acris/route.ts
 import type { NextRequest } from 'next/server';
 
 const SODA = 'https://data.cityofnewyork.us/resource';
