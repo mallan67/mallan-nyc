@@ -1,215 +1,338 @@
-// app/page.tsx
-import React from "react";
+'use client';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+/**
+ * Mallan Real Estate — App Router Home Page (ready-to-paste)
+ * - Matches your mock: hero photo + translucent left rail
+ * - Residential / Commercial / Global search scaffold
+ * - Featured in-house listings shown first
+ * - Buyer’s Agent Comp / Owner Pays Tenant’s Agent flags
+ * - Lightbox viewer (15+ photos), mortgage calculator
+ * - Geoclient auto-BBL + ACRIS block (expects /api/geoclient/address and /api/acris)
+ * - SOP + Fair Housing/Privacy + Wire-fraud in footer
+ */
+
+// ----------------------------
+// Types & Mock Data
+// ----------------------------
+
+type MediaItem = { src: string; alt?: string; type?: "photo" | "floorplan" | "video" | "tour3d" };
 
 type Listing = {
   id: string;
-  price: number;
   address: string;
   neighborhood: string;
+  zip: string;
+  price: number; // sale price or monthly rent
+  isRent: boolean;
   beds: number;
   baths: number;
-  image: string;
-  exclusive?: boolean;
+  sqft?: number;
+  ppsf?: number;
+  media: MediaItem[];
+  buildingAmenities?: string[];
+  unitFeatures?: string[];
+  buildingPetPolicy?: string;
+  unitPetPolicy?: string;
+  maintenance?: number;
+  taxes?: number;
+  brokerageName: string;
+  source?: "IN_HOUSE" | "RLS" | "OTHER";
+  rlsAgentName?: string;
+  rlsBrokerageName?: string;
+  buyerAgentComp?: { type: "percent" | "flat"; value: number } | null; // sale
+  ownerPaysTenantAgent?: boolean | null; // rent
+  boroughCode?: number; // 1–4
+  block?: number;
+  lot?: number;
+  propertyType?: "coop" | "condo" | "condop" | "land" | "townhouse" | "multifamily_1_4" | "rental_building";
+  landLease?: boolean;
 };
 
-// TODO: Replace these with your real, in-house listings.
-// (You can add as many as you want)
-const MY_LISTINGS: Listing[] = [
+const IN_HOUSE = "Mallan Real Estate Inc";
+
+const mockListings: Listing[] = [
   {
-    id: "m1",
-    price: 1795000,
-    address: "333 E 46th St, #12A",
+    id: "in1",
+    address: "333 E 46th St #12A",
     neighborhood: "Murray Hill",
-    beds: 2,
-    baths: 2,
-    image:
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=1600&auto=format&fit=crop",
-    exclusive: true,
+    zip: "10017",
+    price: 799000,
+    isRent: false,
+    beds: 1,
+    baths: 1,
+    sqft: 720,
+    ppsf: 1110,
+    maintenance: 850,
+    taxes: 6500,
+    media: Array.from({ length: 16 }).map((_, i) => ({ src: `https://picsum.photos/seed/in1_${i}/800/520`, type: "photo" as const })),
+    buildingAmenities: ["Doorman", "Elevator", "Gym"],
+    unitFeatures: ["Washer/Dryer", "Balcony"],
+    buildingPetPolicy: "Cats/Dogs Allowed",
+    unitPetPolicy: "Dogs on approval",
+    brokerageName: IN_HOUSE,
+    source: "IN_HOUSE",
+    buyerAgentComp: { type: "percent", value: 2.5 },
+    ownerPaysTenantAgent: null,
+    propertyType: "condo",
+    landLease: false,
   },
   {
-    id: "m2",
-    price: 4295000,
-    address: "245 E 47th St, #PH",
+    id: "rls1",
+    address: "245 E 47th St #9F",
     neighborhood: "Midtown East",
-    beds: 3,
-    baths: 3,
-    image:
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?q=80&w=1600&auto=format&fit=crop",
+    zip: "10017",
+    price: 725000,
+    isRent: false,
+    beds: 1,
+    baths: 1,
+    sqft: 700,
+    ppsf: 1036,
+    maintenance: 910,
+    taxes: 5980,
+    media: Array.from({ length: 15 }).map((_, i) => ({ src: `https://picsum.photos/seed/rls1_${i}/800/520`, type: "photo" as const })),
+    buildingAmenities: ["Elevator", "Laundry in Bldg"],
+    unitFeatures: ["Renovated"],
+    buildingPetPolicy: "Cats/Dogs Case by Case",
+    unitPetPolicy: "Cats ok",
+    brokerageName: "Example External Brokerage",
+    source: "RLS",
+    rlsAgentName: "Alex Example",
+    rlsBrokerageName: "Example External Brokerage",
+    buyerAgentComp: { type: "flat", value: 5000 },
+    ownerPaysTenantAgent: null,
+    propertyType: "coop",
+    landLease: false,
   },
   {
-    id: "m3",
-    price: 3495000,
-    address: "301 W 13th St, #7C",
-    neighborhood: "West Village",
-    beds: 2,
-    baths: 2,
-    image:
-      "https://images.unsplash.com/photo-1505691723518-36a5ac3b2a9b?q=80&w=1600&auto=format&fit=crop",
+    id: "rent1",
+    address: "301 E 48th St #5C",
+    neighborhood: "Turtle Bay",
+    zip: "10017",
+    price: 4200,
+    isRent: true,
+    beds: 0,
+    baths: 1,
+    sqft: 550,
+    ppsf: 91,
+    maintenance: 0,
+    taxes: 0,
+    media: Array.from({ length: 18 }).map((_, i) => ({ src: `https://picsum.photos/seed/rent1_${i}/800/520`, type: "photo" as const })),
+    buildingAmenities: ["Doorman", "Elevator", "Laundry in Bldg"],
+    unitFeatures: ["Alcove Studio"],
+    buildingPetPolicy: "Cats/Dogs Allowed",
+    unitPetPolicy: "Dogs on approval",
+    brokerageName: IN_HOUSE,
+    source: "IN_HOUSE",
+    buyerAgentComp: null,
+    ownerPaysTenantAgent: true,
+    propertyType: "rental_building",
+    landLease: false,
   },
 ];
 
-function usd(n: number) {
+// ----------------------------
+// NYC Areas / Neighborhoods (short list; extend anytime)
+// ----------------------------
+
+const NEIGHBORHOODS: Record<string, string[]> = {
+  Bronx: ["Allerton","Baychester","Bedford Park","Belmont","Bronxdale","Bronxwood","Castle Hill","City Island","Claremont","Claremont Village","Clason Point","Co-op City","Concourse","Concourse Village","Country Club","Crotona Park East","East Morrisania","East Tremont","Eastchester","Edenwald","Fordham","Highbridge","Hunts Point","Kingsbridge","Kingsbridge Heights","Laconia","Locust Point","Longwood","Melrose","Morris Heights","Morris Park","Morrisania","Mott Haven","Mount Eden","Mount Hope","North New York","Norwood","Olinville","Parkchester","Pelham Bay","Pelham Gardens","Pelham Parkway","Port Morris","Riverdale","Central Riverdale","Estate Area","Fieldston","North Riverdale","Spuyten Duyvil","Schuylerville","Soundview","Throgs Neck","Tremont","Unionport","University Heights","Van Nest","Wakefield","West Farms","Westchester Square","Westchester Village","Williamsbridge","Woodlawn","Woodstock"],
+  Brooklyn: ["Williamsburg","Greenpoint","Bushwick","Bedford-Stuyvesant","Clinton Hill","Fort Greene","Brooklyn Heights","DUMBO","Downtown Brooklyn","Vinegar Hill","Boerum Hill","Cobble Hill","Carroll Gardens","Gowanus","Red Hook","Park Slope","Prospect Heights","Crown Heights","PLG","Flatbush","Kensington","Windsor Terrace","Sunset Park","Bay Ridge","Bensonhurst","Gravesend","Sheepshead Bay","Brighton Beach","Midwood","Marine Park","Canarsie","East Flatbush","Flatlands","Brownsville","East New York","Coney Island","Sea Gate"],
+  Queens: ["Long Island City","Astoria","Sunnyside","Woodside","Jackson Heights","Elmhurst","Corona","Forest Hills","Kew Gardens","Rego Park","Flushing","Murray Hill","Bayside","Douglaston","Little Neck","Whitestone","College Point","Fresh Meadows","Jamaica","Jamaica Estates","St. Albans","Queens Village","Bellerose","Cambria Heights","Laurelton","Springfield Gardens","Rosedale","Howard Beach","Ozone Park","South Ozone Park","Richmond Hill","South Richmond Hill","Woodhaven","Glendale","Ridgewood","Maspeth","Middle Village","Rockaway Park","Far Rockaway"],
+  "Staten Island": ["St. George","Tompkinsville","Stapleton","Clifton","Rosebank","South Beach","Midland Beach","New Dorp","Oakwood","Great Kills","Eltingville","Annadale","Huguenot","Tottenville","New Springville","Bulls Head","Willowbrook","Mariners Harbor","Port Richmond"],
+};
+
+const AREAS: Record<string, Record<string, string[]>> = {
+  Manhattan: {
+    "Upper Manhattan": ["Central Harlem","South Harlem","East Harlem","Hamilton Heights","Inwood","Morningside Heights","Washington Heights","Marble Hill","Manhattanville"],
+    "Upper West Side": ["Upper West Side","Lincoln Square","Manhattan Valley"],
+    "Upper East Side": ["Upper East Side","Carnegie Hill","Lenox Hill","Yorkville","Roosevelt Island"],
+    "Midtown East": ["Beekman","Midtown East","Murray Hill","Sutton Place","Turtle Bay","Kips Bay"],
+    "Midtown West": ["Central Park South","Hell’s Kitchen","Hudson Yards","Midtown"],
+    "Downtown": ["Battery Park City","Chelsea","Chinatown","East Village","Financial District","Fulton/Seaport","Flatiron","NoMad","Gramercy Park","Greenwich Village","NoHo","Little Italy","Lower East Side","Two Bridges","Meatpacking","Nolita","SoHo","Hudson Square","Stuyvesant Town/PCV","Tribeca","Union Square","West Village"],
+  },
+};
+
+// ----------------------------
+// Utilities
+// ----------------------------
+
+function usd(n?: number) {
+  if (!n && n !== 0) return "—";
   return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
 
-function ListingCard({ l }: { l: Listing }) {
+// ----------------------------
+// Media Lightbox
+// ----------------------------
+
+function Lightbox({ items, startIndex = 0, onClose }: { items: { src: string; alt?: string }[]; startIndex?: number; onClose: () => void }) {
+  const [i, setI] = useState(startIndex);
+  const [scale, setScale] = useState(1);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") setI((v) => (v + 1) % items.length);
+      if (e.key === "ArrowLeft") setI((v) => (v - 1 + items.length) % items.length);
+      if (e.key === "+") setScale((s) => Math.min(6, s + 0.25));
+      if (e.key === "-") setScale((s) => Math.max(1, s - 0.25));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [items.length, onClose]);
+  function openFs() {
+    const el = ref.current as any;
+    if (el?.requestFullscreen) el.requestFullscreen();
+  }
   return (
-    <article className="card">
-      <img src={l.image} alt={l.address} />
-      <div className="cardBody">
-        <div className="row">
-          <h4>{usd(l.price)}</h4>
-          {l.exclusive && <span className="pill">Exclusive</span>}
+    <div role="dialog" aria-modal className="fixed inset-0 bg-black/90 z-50 flex flex-col" ref={ref}>
+      <div className="flex justify-between items-center p-3 text-white text-sm">
+        <div>{i + 1}/{items.length}</div>
+        <div className="flex gap-2">
+          <button className="border px-2 py-1" onClick={() => setScale((s) => Math.max(1, s - 0.25))}>−</button>
+          <button className="border px-2 py-1" onClick={() => setScale((s) => Math.min(6, s + 0.25))}>+</button>
+          <button className="border px-2 py-1" onClick={() => setScale(1)}>Reset</button>
+          <button className="border px-2 py-1" onClick={openFs}>Fullscreen</button>
+          <button className="border px-2 py-1" onClick={onClose}>Close ✕</button>
         </div>
-        <div className="muted">{l.address}</div>
-        <div className="muted">{l.neighborhood}</div>
-        <div className="muted">{l.beds} bd • {l.baths} ba</div>
       </div>
-      <style jsx>{`
-        .card {
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          overflow: hidden;
-          background: #fff;
-        }
-        .card img {
-          width: 100%;
-          height: 180px;
-          object-fit: cover;
-        }
-        .cardBody { padding: 14px; }
-        .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        h4 { margin: 0; font-size: 18px; }
-        .muted { color: #6b7280; font-size: 14px; margin-top: 2px; }
-        .pill {
-          border: 1px solid #111827;
-          border-radius: 9999px;
-          font-size: 11px;
-          padding: 2px 8px;
-        }
-      `}</style>
-    </article>
+      <div className="flex-1 overflow-hidden flex items-center justify-center">
+        <img src={items[i].src} alt={items[i].alt || ""} style={{ transform: `scale(${scale})` }} className="max-h-full max-w-full select-none" />
+      </div>
+      <div className="p-3 overflow-x-auto whitespace-nowrap bg-black/60">
+        {items.map((it, idx) => (
+          <button key={idx} onClick={() => setI(idx)} className={`inline-block mr-2 ${idx === i ? "ring-2 ring-white" : ""}`}>
+            <img src={it.src} alt="" className="h-16 w-24 object-cover" />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
-export default function Page() {
+function ExpandableMedia({ items }: { items: { src: string; alt?: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const [startIndex, setStartIndex] = useState(0);
   return (
-    <main>
-      {/* TOP BAR */}
-      <div className="topbar">
-        <div className="wrap">
-          <div className="brand">
-            <div className="title">Mallan Real Estate Inc</div>
-            <div className="sub">Maya Allan — Licensed Real Estate Broker</div>
-          </div>
-          <nav className="nav">
-            {["Buy","Rent","Sell","Open Houses","Commercial","International","Agents","About Us"].map(label => (
-              <a key={label} href="#">{label}</a>
-            ))}
-          </nav>
-        </div>
-        <div className="subnav">
-          <a href="#">Buyers</a> · <a href="#">Sellers</a> · <a href="#">Investors</a> · <a href="#">List Your Property With Us</a>
-        </div>
+    <div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {items.slice(0, 6).map((m, idx) => (
+          <button key={idx} className="relative group" onClick={() => { setStartIndex(idx); setOpen(true); }}>
+            <img src={m.src} alt={m.alt || "Listing media"} className="rounded-xl w-full h-40 object-cover" />
+            <span className="absolute bottom-2 right-2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100">Expand 🔍</span>
+          </button>
+        ))}
       </div>
-
-      {/* HERO */}
-      <section className="hero">
-        <img
-          className="heroImg"
-          src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?q=80&w=2400&auto=format&fit=crop"
-          alt="Luxury living room overlooking NYC"
-        />
-        {/* Title */}
-        <h1 className="heroTitle">WEST VILLAGE MANHATTAN PROPERTIES</h1>
-
-        {/* LEFT RAIL (translucent tabs) */}
-        <aside className="leftRail">
-          {["BUY","RENT","LUXURY","NEW CONSTRUCTION","COMMERCIAL","ALL LISTINGS"].map((t, i) => (
-            <a className={`railItem ${i === 0 ? "first" : ""}`} href="#" key={t}>
-              {t}
-            </a>
-          ))}
-        </aside>
-      </section>
-
-      {/* MY LISTINGS */}
-      <section className="wrap section">
-        <h2 className="h2">My Listings</h2>
-        <div className="grid">
-          {MY_LISTINGS.map((l) => <ListingCard key={l.id} l={l} />)}
-        </div>
-      </section>
-
-      <style jsx>{`
-        :global(html, body) { margin: 0; color: #0f172a; background: #fff; }
-        .wrap { max-width: 1140px; margin: 0 auto; padding: 0 16px; }
-        .section { padding: 48px 0; }
-
-        /* Top bar */
-        .topbar {
-          position: sticky;
-          top: 0;
-          z-index: 30;
-          backdrop-filter: saturate(1.2) blur(10px);
-          background: rgba(255,255,255,0.78);
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .brand .title { font-weight: 600; font-size: 18px; }
-        .brand .sub { font-size: 12px; color: #64748b; }
-        .topbar .wrap {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 16px;
-        }
-        .nav { display: none; gap: 20px; }
-        .nav a { color: #0f172a; text-decoration: none; font-size: 14px; }
-        .nav a:hover { text-decoration: underline; }
-        @media (min-width: 900px) { .nav { display: flex; } }
-
-        .subnav {
-          font-size: 12px; color: #475569; padding: 0 16px 10px;
-        }
-        .subnav a { color: #334155; text-decoration: none; }
-        .subnav a:hover { text-decoration: underline; }
-
-        /* Hero */
-        .hero { position: relative; height: 70vh; min-height: 520px; }
-        .heroImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .heroTitle {
-          position: absolute; left: 24px; top: -18px;
-          font-family: ui-serif, Georgia, "Times New Roman", Times, serif;
-          font-weight: 600; letter-spacing: .02em;
-          font-size: clamp(20px, 2.7vw, 32px);
-          color: #0f172a;
-          background: transparent;
-          margin: 0; padding: 16px 0;
-        }
-
-        /* Left rail (translucent menu) */
-        .leftRail {
-          position: absolute; left: 24px; top: 100px; width: 260px;
-          background: rgba(0,0,0,.65); color: #fff;
-          border-top-right-radius: 14px; border-bottom-right-radius: 14px;
-          box-shadow: 0 10px 30px rgba(0,0,0,.3);
-          overflow: hidden;
-        }
-        .railItem {
-          display: block; padding: 18px 22px;
-          border-top: 1px solid rgba(255,255,255,.12);
-          color: #fff; text-decoration: none; letter-spacing: .02em;
-        }
-        .railItem.first { border-top: 0; }
-        .railItem:hover { background: rgba(255,255,255,.08); }
-
-        /* Headings & grid */
-        .h2 { font-size: 20px; margin: 0 0 12px 0; }
-        .grid {
-          display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 16px;
-        }
-        @media (min-width: 700px) {
-          .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        }
-      `}</style>
-    </main>
+      <button className="mt-2 text-sm underline" onClick={() => { setStartIndex(0); setOpen(true); }}>View all media</button>
+      {open && <Lightbox items={items} startIndex={startIndex} onClose={() => setOpen(false)} />}
+    </div>
   );
 }
+
+// ----------------------------
+// Save & Share (stub)
+// ----------------------------
+
+function SaveShareBar({ listing, onSelect, selected }: { listing: Listing; onSelect?: (id: string, next: boolean) => void; selected?: boolean }) {
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <button className={`border rounded-full px-3 py-1 text-sm ${selected ? "bg-black text-white" : ""}`} onClick={() => onSelect?.(listing.id, !selected)}>Select</button>
+      <button className="border rounded-full px-3 py-1 text-sm">❤ Save</button>
+      <button className="border rounded-full px-3 py-1 text-sm">Share</button>
+    </div>
+  );
+}
+
+// ----------------------------
+// Mortgage Calculator (inline)
+// ----------------------------
+
+function MortgageCalculator({ price, taxes = 0, maint = 0 }: { price: number; taxes?: number; maint?: number }) {
+  const [down, setDown] = useState(20);
+  const [rate, setRate] = useState(6.5);
+  const [term, setTerm] = useState(30);
+  const loan = useMemo(() => Math.max(0, price * (1 - down / 100)), [price, down]);
+  const monthly = useMemo(() => {
+    const r = rate / 100 / 12;
+    const n = term * 12;
+    const pmt = r === 0 ? loan / n : (loan * r) / (1 - Math.pow(1 + r, -n));
+    return pmt + (taxes / 12) + maint;
+  }, [loan, rate, term, taxes, maint]);
+  return (
+    <div className="rounded-2xl border p-4 mt-4">
+      <div className="font-medium">Monthly Estimate</div>
+      <div className="text-2xl mt-1">{usd(Math.round(monthly))}</div>
+      <div className="grid grid-cols-3 gap-2 text-sm mt-3">
+        <label className="flex flex-col">Down %<input value={down} onChange={(e) => setDown(Number(e.target.value))} type="number" className="border rounded p-2" /></label>
+        <label className="flex flex-col">Rate %<input value={rate} onChange={(e) => setRate(Number(e.target.value))} type="number" className="border rounded p-2" /></label>
+        <label className="flex flex-col">Term (yrs)<input value={term} onChange={(e) => setTerm(Number(e.target.value))} type="number" className="border rounded p-2" /></label>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------
+// Contact bar (email/text) — stub UI
+// ----------------------------
+
+function ContactAgentBar() {
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      <a className="border rounded-full px-3 py-1 text-sm" href="mailto:inquiries@mallan.nyc">Email Agent</a>
+      <a className="border rounded-full px-3 py-1 text-sm" href="sms:+16462584460">Text Agent</a>
+      <button className="border rounded-full px-3 py-1 text-sm">Send via Site</button>
+    </div>
+  );
+}
+
+// ----------------------------
+// Listing Card + RLS attribution
+// ----------------------------
+
+function RLSAttribution({ listing }: { listing: Listing }) {
+  const isInHouse = listing.brokerageName === IN_HOUSE;
+  const isExternalRLS = listing.source === "RLS" && !isInHouse;
+  if (!isExternalRLS) return null;
+  return (
+    <p className="text-xs text-slate-500 mt-1">Listing courtesy of {listing.rlsAgentName || "Agent"}, {listing.rlsBrokerageName || listing.brokerageName} · <span className="inline-block border rounded px-1">RLS</span></p>
+  );
+}
+
+function ListingCard({ listing, onSelect, selected }: { listing: Listing; onSelect?: (id: string, next: boolean) => void; selected?: boolean }) {
+  const media = listing.media.slice(0, 1);
+  return (
+    <div className="rounded-2xl border overflow-hidden">
+      <img src={media[0]?.src} alt={media[0]?.alt || listing.address} className="w-full h-44 object-cover" />
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-lg font-semibold">{usd(listing.price)} {listing.isRent ? "/ mo" : ""}</div>
+          {listing.brokerageName === IN_HOUSE && <span className="text-xs border rounded px-2 py-0.5">Exclusive</span>}
+        </div>
+        <div className="text-sm text-slate-600 mt-1">{listing.address}</div>
+        <div className="text-sm text-slate-600">{listing.neighborhood} {listing.zip ? `• ${listing.zip}` : ""}</div>
+        <div className="text-sm mt-1">{listing.beds} bd • {listing.baths} ba • {listing.sqft ? `${listing.sqft} sf` : "—"}</div>
+        {!listing.isRent && listing.buyerAgentComp && (
+          <div className="text-xs text-slate-600 mt-1">Buyer’s Agent Compensation: {listing.buyerAgentComp.type === "percent" ? `${listing.buyerAgentComp.value}%` : usd(listing.buyerAgentComp.value)}</div>
+        )}
+        {listing.isRent && listing.ownerPaysTenantAgent != null && (
+          <div className="text-xs text-slate-600 mt-1">Owner Pays Tenant’s Agent: {listing.ownerPaysTenantAgent ? "Yes" : "No"}</div>
+        )}
+        <RLSAttribution listing={listing} />
+        <SaveShareBar listing={listing} onSelect={onSelect} selected={!!selected} />
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------
+// Search (Residential/Commercial/Global) — simplified
+// ----------------------------
+
+function FilterBar({ onApply }: { onApply: (f: Record<string, any>) => void }) {
+  const [scope, setScope] = useState<'nyc-res'|'nyc-com'|'global'>('nyc-res');
+  const [isSell, setIsSell] = useState(false);
+  const [tenure, setTenure] = useState<string>('sale');
+
+  const [beds, setBeds] = useState<string>("");
+  the [minPrice? setMinPrice, setMaxPrice?] // (FIX THIS LINE IF YOU SEE A TS ERROR)
