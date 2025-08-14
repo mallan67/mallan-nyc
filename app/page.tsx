@@ -1,338 +1,374 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from 'react';
 
 /**
- * Mallan Real Estate — App Router Home Page (ready-to-paste)
- * - Matches your mock: hero photo + translucent left rail
- * - Residential / Commercial / Global search scaffold
- * - Featured in-house listings shown first
- * - Buyer’s Agent Comp / Owner Pays Tenant’s Agent flags
- * - Lightbox viewer (15+ photos), mortgage calculator
- * - Geoclient auto-BBL + ACRIS block (expects /api/geoclient/address and /api/acris)
- * - SOP + Fair Housing/Privacy + Wire-fraud in footer
+ * Home page (visuals to match your mock):
+ * - Full-bleed hero photo
+ * - Left translucent panel with brand + nav + search scope (Residential / Commercial / Global)
+ * - Area → Neighborhood cascade (includes Murray Hill under Midtown East)
+ * - Buy/Rent toggle
+ * - Featured in-house listings below hero
+ *
+ * NOTE: This is front-end only. It doesn’t require any API to render.
+ * It won’t break your ACRIS/DOB endpoints and can be extended later.
  */
 
-// ----------------------------
-// Types & Mock Data
-// ----------------------------
-
-type MediaItem = { src: string; alt?: string; type?: "photo" | "floorplan" | "video" | "tour3d" };
-
+/* --------------------------
+   Types & Simple Mock Data
+--------------------------- */
 type Listing = {
   id: string;
   address: string;
   neighborhood: string;
+  borough: 'Manhattan' | 'Brooklyn' | 'Queens' | 'Bronx';
   zip: string;
   price: number; // sale price or monthly rent
   isRent: boolean;
   beds: number;
   baths: number;
   sqft?: number;
-  ppsf?: number;
-  media: MediaItem[];
-  buildingAmenities?: string[];
-  unitFeatures?: string[];
-  buildingPetPolicy?: string;
-  unitPetPolicy?: string;
-  maintenance?: number;
-  taxes?: number;
   brokerageName: string;
-  source?: "IN_HOUSE" | "RLS" | "OTHER";
-  rlsAgentName?: string;
-  rlsBrokerageName?: string;
-  buyerAgentComp?: { type: "percent" | "flat"; value: number } | null; // sale
-  ownerPaysTenantAgent?: boolean | null; // rent
-  boroughCode?: number; // 1–4
-  block?: number;
-  lot?: number;
-  propertyType?: "coop" | "condo" | "condop" | "land" | "townhouse" | "multifamily_1_4" | "rental_building";
-  landLease?: boolean;
+  source?: 'IN_HOUSE' | 'RLS' | 'OTHER';
+  media: { src: string; alt?: string }[];
 };
 
-const IN_HOUSE = "Mallan Real Estate Inc";
+const IN_HOUSE = 'Mallan Real Estate Inc';
 
 const mockListings: Listing[] = [
   {
-    id: "in1",
-    address: "333 E 46th St #12A",
-    neighborhood: "Murray Hill",
-    zip: "10017",
+    id: 'in1',
+    address: '333 E 46th St #12A',
+    neighborhood: 'Murray Hill',
+    borough: 'Manhattan',
+    zip: '10017',
     price: 799000,
     isRent: false,
     beds: 1,
     baths: 1,
     sqft: 720,
-    ppsf: 1110,
-    maintenance: 850,
-    taxes: 6500,
-    media: Array.from({ length: 16 }).map((_, i) => ({ src: `https://picsum.photos/seed/in1_${i}/800/520`, type: "photo" as const })),
-    buildingAmenities: ["Doorman", "Elevator", "Gym"],
-    unitFeatures: ["Washer/Dryer", "Balcony"],
-    buildingPetPolicy: "Cats/Dogs Allowed",
-    unitPetPolicy: "Dogs on approval",
     brokerageName: IN_HOUSE,
-    source: "IN_HOUSE",
-    buyerAgentComp: { type: "percent", value: 2.5 },
-    ownerPaysTenantAgent: null,
-    propertyType: "condo",
-    landLease: false,
+    source: 'IN_HOUSE',
+    media: [{ src: 'https://picsum.photos/seed/in1_0/1200/800' }],
   },
   {
-    id: "rls1",
-    address: "245 E 47th St #9F",
-    neighborhood: "Midtown East",
-    zip: "10017",
-    price: 725000,
-    isRent: false,
-    beds: 1,
-    baths: 1,
-    sqft: 700,
-    ppsf: 1036,
-    maintenance: 910,
-    taxes: 5980,
-    media: Array.from({ length: 15 }).map((_, i) => ({ src: `https://picsum.photos/seed/rls1_${i}/800/520`, type: "photo" as const })),
-    buildingAmenities: ["Elevator", "Laundry in Bldg"],
-    unitFeatures: ["Renovated"],
-    buildingPetPolicy: "Cats/Dogs Case by Case",
-    unitPetPolicy: "Cats ok",
-    brokerageName: "Example External Brokerage",
-    source: "RLS",
-    rlsAgentName: "Alex Example",
-    rlsBrokerageName: "Example External Brokerage",
-    buyerAgentComp: { type: "flat", value: 5000 },
-    ownerPaysTenantAgent: null,
-    propertyType: "coop",
-    landLease: false,
-  },
-  {
-    id: "rent1",
-    address: "301 E 48th St #5C",
-    neighborhood: "Turtle Bay",
-    zip: "10017",
+    id: 'in2',
+    address: '301 E 48th St #5C',
+    neighborhood: 'Turtle Bay',
+    borough: 'Manhattan',
+    zip: '10017',
     price: 4200,
     isRent: true,
     beds: 0,
     baths: 1,
     sqft: 550,
-    ppsf: 91,
-    maintenance: 0,
-    taxes: 0,
-    media: Array.from({ length: 18 }).map((_, i) => ({ src: `https://picsum.photos/seed/rent1_${i}/800/520`, type: "photo" as const })),
-    buildingAmenities: ["Doorman", "Elevator", "Laundry in Bldg"],
-    unitFeatures: ["Alcove Studio"],
-    buildingPetPolicy: "Cats/Dogs Allowed",
-    unitPetPolicy: "Dogs on approval",
     brokerageName: IN_HOUSE,
-    source: "IN_HOUSE",
-    buyerAgentComp: null,
-    ownerPaysTenantAgent: true,
-    propertyType: "rental_building",
-    landLease: false,
+    source: 'IN_HOUSE',
+    media: [{ src: 'https://picsum.photos/seed/rent1_0/1200/800' }],
+  },
+  {
+    id: 'rls1',
+    address: '245 E 47th St #9F',
+    neighborhood: 'Midtown East',
+    borough: 'Manhattan',
+    zip: '10017',
+    price: 725000,
+    isRent: false,
+    beds: 1,
+    baths: 1,
+    sqft: 700,
+    brokerageName: 'Example External Brokerage',
+    source: 'RLS',
+    media: [{ src: 'https://picsum.photos/seed/rls1_0/1200/800' }],
   },
 ];
 
-// ----------------------------
-// NYC Areas / Neighborhoods (short list; extend anytime)
-// ----------------------------
-
-const NEIGHBORHOODS: Record<string, string[]> = {
-  Bronx: ["Allerton","Baychester","Bedford Park","Belmont","Bronxdale","Bronxwood","Castle Hill","City Island","Claremont","Claremont Village","Clason Point","Co-op City","Concourse","Concourse Village","Country Club","Crotona Park East","East Morrisania","East Tremont","Eastchester","Edenwald","Fordham","Highbridge","Hunts Point","Kingsbridge","Kingsbridge Heights","Laconia","Locust Point","Longwood","Melrose","Morris Heights","Morris Park","Morrisania","Mott Haven","Mount Eden","Mount Hope","North New York","Norwood","Olinville","Parkchester","Pelham Bay","Pelham Gardens","Pelham Parkway","Port Morris","Riverdale","Central Riverdale","Estate Area","Fieldston","North Riverdale","Spuyten Duyvil","Schuylerville","Soundview","Throgs Neck","Tremont","Unionport","University Heights","Van Nest","Wakefield","West Farms","Westchester Square","Westchester Village","Williamsbridge","Woodlawn","Woodstock"],
-  Brooklyn: ["Williamsburg","Greenpoint","Bushwick","Bedford-Stuyvesant","Clinton Hill","Fort Greene","Brooklyn Heights","DUMBO","Downtown Brooklyn","Vinegar Hill","Boerum Hill","Cobble Hill","Carroll Gardens","Gowanus","Red Hook","Park Slope","Prospect Heights","Crown Heights","PLG","Flatbush","Kensington","Windsor Terrace","Sunset Park","Bay Ridge","Bensonhurst","Gravesend","Sheepshead Bay","Brighton Beach","Midwood","Marine Park","Canarsie","East Flatbush","Flatlands","Brownsville","East New York","Coney Island","Sea Gate"],
-  Queens: ["Long Island City","Astoria","Sunnyside","Woodside","Jackson Heights","Elmhurst","Corona","Forest Hills","Kew Gardens","Rego Park","Flushing","Murray Hill","Bayside","Douglaston","Little Neck","Whitestone","College Point","Fresh Meadows","Jamaica","Jamaica Estates","St. Albans","Queens Village","Bellerose","Cambria Heights","Laurelton","Springfield Gardens","Rosedale","Howard Beach","Ozone Park","South Ozone Park","Richmond Hill","South Richmond Hill","Woodhaven","Glendale","Ridgewood","Maspeth","Middle Village","Rockaway Park","Far Rockaway"],
-  "Staten Island": ["St. George","Tompkinsville","Stapleton","Clifton","Rosebank","South Beach","Midland Beach","New Dorp","Oakwood","Great Kills","Eltingville","Annadale","Huguenot","Tottenville","New Springville","Bulls Head","Willowbrook","Mariners Harbor","Port Richmond"],
-};
-
-const AREAS: Record<string, Record<string, string[]>> = {
+/* -----------------------------------
+   Areas → Neighborhoods (NYC subset)
+   (Extend anytime; Murray Hill included)
+------------------------------------ */
+const AREAS: Record<
+  'Manhattan' | 'Brooklyn' | 'Queens' | 'Bronx',
+  Record<string, string[]>
+> = {
   Manhattan: {
-    "Upper Manhattan": ["Central Harlem","South Harlem","East Harlem","Hamilton Heights","Inwood","Morningside Heights","Washington Heights","Marble Hill","Manhattanville"],
-    "Upper West Side": ["Upper West Side","Lincoln Square","Manhattan Valley"],
-    "Upper East Side": ["Upper East Side","Carnegie Hill","Lenox Hill","Yorkville","Roosevelt Island"],
-    "Midtown East": ["Beekman","Midtown East","Murray Hill","Sutton Place","Turtle Bay","Kips Bay"],
-    "Midtown West": ["Central Park South","Hell’s Kitchen","Hudson Yards","Midtown"],
-    "Downtown": ["Battery Park City","Chelsea","Chinatown","East Village","Financial District","Fulton/Seaport","Flatiron","NoMad","Gramercy Park","Greenwich Village","NoHo","Little Italy","Lower East Side","Two Bridges","Meatpacking","Nolita","SoHo","Hudson Square","Stuyvesant Town/PCV","Tribeca","Union Square","West Village"],
+    'Upper Manhattan': ['Central Harlem', 'South Harlem', 'East Harlem', 'Hamilton Heights', 'Inwood', 'Morningside Heights', 'Washington Heights', 'Marble Hill', 'Manhattanville'],
+    'Upper West Side': ['Upper West Side', 'Lincoln Square', 'Manhattan Valley'],
+    'Upper East Side': ['Upper East Side', 'Carnegie Hill', 'Lenox Hill', 'Yorkville', 'Roosevelt Island'],
+    'Midtown East': ['Beekman', 'Midtown East', 'Murray Hill', 'Sutton Place', 'Turtle Bay', 'Kips Bay'],
+    'Midtown West': ['Central Park South', 'Hell’s Kitchen', 'Hudson Yards', 'Midtown'],
+    Downtown: [
+      'Battery Park City', 'Chelsea', 'Chinatown', 'East Village', 'Financial District', 'Fulton/Seaport',
+      'Flatiron', 'NoMad', 'Gramercy Park', 'Greenwich Village', 'NoHo', 'Little Italy',
+      'Lower East Side', 'Two Bridges', 'Meatpacking', 'Nolita', 'SoHo', 'Hudson Square',
+      'Stuyvesant Town/PCV', 'Tribeca', 'Union Square', 'West Village'
+    ],
+  },
+  Brooklyn: {
+    'North Brooklyn': ['Williamsburg', 'Greenpoint', 'Bushwick'],
+    'Brownstone BK': ['Bedford-Stuyvesant', 'Clinton Hill', 'Fort Greene', 'Brooklyn Heights', 'DUMBO', 'Vinegar Hill', 'Cobble Hill', 'Carroll Gardens', 'Boerum Hill', 'Gowanus', 'Red Hook', 'Park Slope', 'Prospect Heights'],
+  },
+  Queens: {
+    Core: ['Long Island City', 'Astoria', 'Sunnyside', 'Woodside', 'Jackson Heights', 'Elmhurst', 'Forest Hills', 'Flushing'],
+  },
+  Bronx: {
+    Core: ['Allerton','Baychester','Bedford Park','Belmont','Bronxdale','Bronxwood','Castle Hill','City Island','Claremont','Claremont Village','Clason Point','Co-op City','Concourse','Concourse Village','Country Club','Crotona Park East','East Morrisania','East Tremont','Eastchester','Edenwald','Fordham','Highbridge','Hunts Point','Kingsbridge','Kingsbridge Heights','Laconia','Locust Point','Longwood','Melrose','Morris Heights','Morris Park','Morrisania','Mott Haven','Mount Eden','Mount Hope','North New York','Norwood','Olinville','Parkchester','Pelham Bay','Pelham Gardens','Pelham Parkway','Port Morris','Riverdale','Central Riverdale','Estate Area','Fieldston','North Riverdale','Spuyten Duyvil','Schuylerville','Soundview','Throgs Neck','Tremont','Unionport','University Heights','Van Nest','Wakefield','West Farms','Westchester Square','Westchester Village','Williamsbridge','Woodlawn','Woodstock'],
   },
 };
 
-// ----------------------------
-// Utilities
-// ----------------------------
-
+/* --------------------------
+   Small utilities
+--------------------------- */
 function usd(n?: number) {
-  if (!n && n !== 0) return "—";
-  return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  if (n === undefined || n === null) return '—';
+  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
 
-// ----------------------------
-// Media Lightbox
-// ----------------------------
+/* --------------------------
+   Listing card (simple)
+--------------------------- */
+function ListingCard({ l }: { l: Listing }) {
+  const img = l.media[0]?.src;
+  return (
+    <div style={{
+      border: '1px solid #e5e7eb',
+      borderRadius: 16,
+      overflow: 'hidden',
+      background: '#fff'
+    }}>
+      {img && (
+        <img
+          src={img}
+          alt={l.address}
+          style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
+        />
+      )}
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 700 }}>{usd(l.price)}{l.isRent ? ' / mo' : ''}</div>
+          {l.brokerageName === IN_HOUSE && (
+            <span style={{ fontSize: 12, border: '1px solid #111', borderRadius: 999, padding: '2px 8px' }}>
+              Exclusive
+            </span>
+          )}
+        </div>
+        <div style={{ color: '#475569', marginTop: 4, fontSize: 14 }}>{l.address}</div>
+        <div style={{ color: '#475569', fontSize: 13 }}>{l.neighborhood} • {l.borough} {l.zip ? `• ${l.zip}` : ''}</div>
+        <div style={{ marginTop: 4, fontSize: 13 }}>{l.beds} bd • {l.baths} ba • {l.sqft ? `${l.sqft} sf` : '—'}</div>
+        {l.source === 'RLS' && (
+          <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+            <span style={{ border: '1px solid #94a3b8', borderRadius: 4, padding: '0 4px' }}>RLS</span>{' '}
+            Listing courtesy of external brokerage
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-function Lightbox({ items, startIndex = 0, onClose }: { items: { src: string; alt?: string }[]; startIndex?: number; onClose: () => void }) {
-  const [i, setI] = useState(startIndex);
-  const [scale, setScale] = useState(1);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") setI((v) => (v + 1) % items.length);
-      if (e.key === "ArrowLeft") setI((v) => (v - 1 + items.length) % items.length);
-      if (e.key === "+") setScale((s) => Math.min(6, s + 0.25));
-      if (e.key === "-") setScale((s) => Math.max(1, s - 0.25));
+/* --------------------------
+   Left translucent rail
+--------------------------- */
+function LeftRail({
+  scope, setScope,
+  mode, setMode,
+  borough, setBorough,
+  area, setArea,
+  hood, setHood
+}: {
+  scope: 'res' | 'com' | 'global';
+  setScope: (v: 'res' | 'com' | 'global') => void;
+  mode: 'buy' | 'rent';
+  setMode: (v: 'buy' | 'rent') => void;
+  borough: keyof typeof AREAS;
+  setBorough: (b: keyof typeof AREAS) => void;
+  area: string | '';
+  setArea: (a: string | '') => void;
+  hood: string | '';
+  setHood: (h: string | '') => void;
+}) {
+  const areaOptions = useMemo(() => Object.keys(AREAS[borough] || {}), [borough]);
+  const hoodOptions = useMemo(() => (area ? (AREAS[borough]?.[area] || []) : []), [borough, area]);
+
+  return (
+    <div
+      style={{
+        width: 360,
+        maxWidth: '90vw',
+        background: 'rgba(255,255,255,0.82)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: 20,
+        border: '1px solid rgba(0,0,0,0.08)',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+        padding: 20
+      }}
+    >
+      {/* Brand */}
+      <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>Mallan Real Estate Inc</div>
+      <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+        Maya Allan — Licensed Real Estate Broker
+      </div>
+
+      {/* Nav (translucent pills) */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+        {['Home','Buy','Rent','Commercial','New Dev','Open Houses','Agents','Guides','Sell','Contact'].map((t) => (
+          <a
+            key={t}
+            href="#"
+            style={{
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 999,
+              border: '1px solid rgba(0,0,0,0.12)',
+              background: 'rgba(255,255,255,0.6)'
+            }}
+          >
+            {t}
+          </a>
+        ))}
+      </div>
+
+      {/* Scope */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        {([
+          ['res','Residential'],
+          ['com','Commercial'],
+          ['global','Global'],
+        ] as const).map(([val, label])=>(
+          <button
+            key={val}
+            onClick={()=>setScope(val)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1',
+              background: scope===val ? '#111' : '#fff',
+              color: scope===val ? '#fff' : '#111',
+              fontSize: 13
+            }}
+          >{label}</button>
+        ))}
+      </div>
+
+      {/* Buy / Rent */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+        {(['buy','rent'] as const).map(val=>(
+          <button
+            key={val}
+            onClick={()=>setMode(val)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1',
+              background: mode===val ? '#111' : '#fff',
+              color: mode===val ? '#fff' : '#111',
+              fontSize: 13,
+              textTransform: 'capitalize'
+            }}
+          >{val}</button>
+        ))}
+      </div>
+
+      {/* Location selectors */}
+      <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+        {/* Borough */}
+        <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
+          <span>Borough</span>
+          <select
+            value={borough}
+            onChange={(e)=>{ setBorough(e.target.value as keyof typeof AREAS); setArea(''); setHood(''); }}
+            style={{ padding: 10, borderRadius: 10, border: '1px solid #cbd5e1' }}
+          >
+            {(['Manhattan','Brooklyn','Queens','Bronx'] as const).map(b => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+        </label>
+
+        {/* Area */}
+        <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
+          <span>Area</span>
+          <select
+            value={area}
+            onChange={(e)=>{ setArea(e.target.value); setHood(''); }}
+            style={{ padding: 10, borderRadius: 10, border: '1px solid #cbd5e1' }}
+          >
+            <option value="">— Select area —</option>
+            {areaOptions.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </label>
+
+        {/* Neighborhood */}
+        <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
+          <span>Neighborhood</span>
+          <select
+            value={hood}
+            onChange={(e)=>setHood(e.target.value)}
+            style={{ padding: 10, borderRadius: 10, border: '1px solid #cbd5e1' }}
+            disabled={!area}
+          >
+            <option value="">{area ? '— Select neighborhood —' : 'Pick an area first'}</option>
+            {hoodOptions.map(h => <option key={h} value={h}>{h}</option>)}
+          </select>
+        </label>
+
+        <button
+          style={{ marginTop: 6, padding: '10px 14px', borderRadius: 10, border: '1px solid #111', background: '#111', color: '#fff', fontSize: 14 }}
+          onClick={()=>{ /* no-op demo submit */ }}
+        >
+          Search
+        </button>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 12, color: '#475569' }}>
+        Tip: Murray Hill is under <b>Midtown East</b>.
+      </div>
+    </div>
+  );
+}
+/* --------------------------
+   Main page component
+--------------------------- */
+export default function Page() {
+  // Left-rail UI state
+  const [scope, setScope] = useState<'res'|'com'|'global'>('res');
+  const [mode, setMode] = useState<'buy'|'rent'>('buy');
+
+  const [borough, setBorough] = useState<keyof typeof AREAS>('Manhattan');
+  const [area, setArea] = useState<string | ''>('');
+  const [hood, setHood] = useState<string | ''>('');
+
+  // Very basic filtering demo (in-house first)
+  const results = useMemo(() => {
+    let list = [...mockListings];
+
+    // scope/mode
+    if (scope === 'res' || scope === 'global') {
+      // keep all for demo
+    } else if (scope === 'com') {
+      // no commercial mock yet → keep all for preview
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [items.length, onClose]);
-  function openFs() {
-    const el = ref.current as any;
-    if (el?.requestFullscreen) el.requestFullscreen();
-  }
+    if (mode === 'rent') list = list.filter(l => l.isRent);
+    if (mode === 'buy') list = list.filter(l => !l.isRent);
+
+    // borough/area/hood filters (hood beats area; area beats borough)
+    if (hood) list = list.filter(l => l.neighborhood === hood);
+    else if (area) {
+      const all = AREAS[borough]?.[area] || [];
+      list = list.filter(l => all.includes(l.neighborhood));
+    } else if (borough) list = list.filter(l => l.borough === borough);
+
+    // in-house first
+    list.sort((a,b) => {
+      const ai = a.brokerageName === IN_HOUSE ? 1 : 0;
+      const bi = b.brokerageName === IN_HOUSE ? 1 : 0;
+      return bi - ai;
+    });
+    return list;
+  }, [scope, mode, borough, area, hood]);
+
+  const heroUrl = 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=2000&auto=format&fit=crop';
+
   return (
-    <div role="dialog" aria-modal className="fixed inset-0 bg-black/90 z-50 flex flex-col" ref={ref}>
-      <div className="flex justify-between items-center p-3 text-white text-sm">
-        <div>{i + 1}/{items.length}</div>
-        <div className="flex gap-2">
-          <button className="border px-2 py-1" onClick={() => setScale((s) => Math.max(1, s - 0.25))}>−</button>
-          <button className="border px-2 py-1" onClick={() => setScale((s) => Math.min(6, s + 0.25))}>+</button>
-          <button className="border px-2 py-1" onClick={() => setScale(1)}>Reset</button>
-          <button className="border px-2 py-1" onClick={openFs}>Fullscreen</button>
-          <button className="border px-2 py-1" onClick={onClose}>Close ✕</button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-hidden flex items-center justify-center">
-        <img src={items[i].src} alt={items[i].alt || ""} style={{ transform: `scale(${scale})` }} className="max-h-full max-w-full select-none" />
-      </div>
-      <div className="p-3 overflow-x-auto whitespace-nowrap bg-black/60">
-        {items.map((it, idx) => (
-          <button key={idx} onClick={() => setI(idx)} className={`inline-block mr-2 ${idx === i ? "ring-2 ring-white" : ""}`}>
-            <img src={it.src} alt="" className="h-16 w-24 object-cover" />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ExpandableMedia({ items }: { items: { src: string; alt?: string }[] }) {
-  const [open, setOpen] = useState(false);
-  const [startIndex, setStartIndex] = useState(0);
-  return (
-    <div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {items.slice(0, 6).map((m, idx) => (
-          <button key={idx} className="relative group" onClick={() => { setStartIndex(idx); setOpen(true); }}>
-            <img src={m.src} alt={m.alt || "Listing media"} className="rounded-xl w-full h-40 object-cover" />
-            <span className="absolute bottom-2 right-2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100">Expand 🔍</span>
-          </button>
-        ))}
-      </div>
-      <button className="mt-2 text-sm underline" onClick={() => { setStartIndex(0); setOpen(true); }}>View all media</button>
-      {open && <Lightbox items={items} startIndex={startIndex} onClose={() => setOpen(false)} />}
-    </div>
-  );
-}
-
-// ----------------------------
-// Save & Share (stub)
-// ----------------------------
-
-function SaveShareBar({ listing, onSelect, selected }: { listing: Listing; onSelect?: (id: string, next: boolean) => void; selected?: boolean }) {
-  return (
-    <div className="mt-2 flex items-center gap-2">
-      <button className={`border rounded-full px-3 py-1 text-sm ${selected ? "bg-black text-white" : ""}`} onClick={() => onSelect?.(listing.id, !selected)}>Select</button>
-      <button className="border rounded-full px-3 py-1 text-sm">❤ Save</button>
-      <button className="border rounded-full px-3 py-1 text-sm">Share</button>
-    </div>
-  );
-}
-
-// ----------------------------
-// Mortgage Calculator (inline)
-// ----------------------------
-
-function MortgageCalculator({ price, taxes = 0, maint = 0 }: { price: number; taxes?: number; maint?: number }) {
-  const [down, setDown] = useState(20);
-  const [rate, setRate] = useState(6.5);
-  const [term, setTerm] = useState(30);
-  const loan = useMemo(() => Math.max(0, price * (1 - down / 100)), [price, down]);
-  const monthly = useMemo(() => {
-    const r = rate / 100 / 12;
-    const n = term * 12;
-    const pmt = r === 0 ? loan / n : (loan * r) / (1 - Math.pow(1 + r, -n));
-    return pmt + (taxes / 12) + maint;
-  }, [loan, rate, term, taxes, maint]);
-  return (
-    <div className="rounded-2xl border p-4 mt-4">
-      <div className="font-medium">Monthly Estimate</div>
-      <div className="text-2xl mt-1">{usd(Math.round(monthly))}</div>
-      <div className="grid grid-cols-3 gap-2 text-sm mt-3">
-        <label className="flex flex-col">Down %<input value={down} onChange={(e) => setDown(Number(e.target.value))} type="number" className="border rounded p-2" /></label>
-        <label className="flex flex-col">Rate %<input value={rate} onChange={(e) => setRate(Number(e.target.value))} type="number" className="border rounded p-2" /></label>
-        <label className="flex flex-col">Term (yrs)<input value={term} onChange={(e) => setTerm(Number(e.target.value))} type="number" className="border rounded p-2" /></label>
-      </div>
-    </div>
-  );
-}
-
-// ----------------------------
-// Contact bar (email/text) — stub UI
-// ----------------------------
-
-function ContactAgentBar() {
-  return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      <a className="border rounded-full px-3 py-1 text-sm" href="mailto:inquiries@mallan.nyc">Email Agent</a>
-      <a className="border rounded-full px-3 py-1 text-sm" href="sms:+16462584460">Text Agent</a>
-      <button className="border rounded-full px-3 py-1 text-sm">Send via Site</button>
-    </div>
-  );
-}
-
-// ----------------------------
-// Listing Card + RLS attribution
-// ----------------------------
-
-function RLSAttribution({ listing }: { listing: Listing }) {
-  const isInHouse = listing.brokerageName === IN_HOUSE;
-  const isExternalRLS = listing.source === "RLS" && !isInHouse;
-  if (!isExternalRLS) return null;
-  return (
-    <p className="text-xs text-slate-500 mt-1">Listing courtesy of {listing.rlsAgentName || "Agent"}, {listing.rlsBrokerageName || listing.brokerageName} · <span className="inline-block border rounded px-1">RLS</span></p>
-  );
-}
-
-function ListingCard({ listing, onSelect, selected }: { listing: Listing; onSelect?: (id: string, next: boolean) => void; selected?: boolean }) {
-  const media = listing.media.slice(0, 1);
-  return (
-    <div className="rounded-2xl border overflow-hidden">
-      <img src={media[0]?.src} alt={media[0]?.alt || listing.address} className="w-full h-44 object-cover" />
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-lg font-semibold">{usd(listing.price)} {listing.isRent ? "/ mo" : ""}</div>
-          {listing.brokerageName === IN_HOUSE && <span className="text-xs border rounded px-2 py-0.5">Exclusive</span>}
-        </div>
-        <div className="text-sm text-slate-600 mt-1">{listing.address}</div>
-        <div className="text-sm text-slate-600">{listing.neighborhood} {listing.zip ? `• ${listing.zip}` : ""}</div>
-        <div className="text-sm mt-1">{listing.beds} bd • {listing.baths} ba • {listing.sqft ? `${listing.sqft} sf` : "—"}</div>
-        {!listing.isRent && listing.buyerAgentComp && (
-          <div className="text-xs text-slate-600 mt-1">Buyer’s Agent Compensation: {listing.buyerAgentComp.type === "percent" ? `${listing.buyerAgentComp.value}%` : usd(listing.buyerAgentComp.value)}</div>
-        )}
-        {listing.isRent && listing.ownerPaysTenantAgent != null && (
-          <div className="text-xs text-slate-600 mt-1">Owner Pays Tenant’s Agent: {listing.ownerPaysTenantAgent ? "Yes" : "No"}</div>
-        )}
-        <RLSAttribution listing={listing} />
-        <SaveShareBar listing={listing} onSelect={onSelect} selected={!!selected} />
-      </div>
-    </div>
-  );
-}
-
-// ----------------------------
-// Search (Residential/Commercial/Global) — simplified
-// ----------------------------
-
-function FilterBar({ onApply }: { onApply: (f: Record<string, any>) => void }) {
-  const [scope, setScope] = useState<'nyc-res'|'nyc-com'|'global'>('nyc-res');
-  const [isSell, setIsSell] = useState(false);
-  const [tenure, setTenure] = useState<string>('sale');
-
-  const [beds, setBeds] = useState<string>("");
-  the [minPrice? setMinPrice, setMaxPrice?] // (FIX THIS LINE IF YOU SEE A TS ERROR)
+    <main style={{ minHeight: '100vh', background: '#fff', color: '#0f172a' }}>
+      {/* HERO */}
+      <section style={{ position: 'relative', height: '60vh', minHeight: 420, overflow: 'hidden'
