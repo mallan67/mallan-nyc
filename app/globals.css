@@ -31,7 +31,7 @@ body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica
 .tab-row{display:flex;gap:8px;padding:6px}
 .tab{border:none;background:transparent;padding:10px 12px;border-radius:12px;cursor:pointer}
 .tab.active,.tab:hover{background:rgba(0,0,0,.06)}
-.filters{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:8px}
+.filters{display:grid;grid-template-columns: repeat(7, 1fr);gap:8px;padding:8px}
 .filters select,.filters input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
 .btn-primary{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#0f172a;color:#fff}
 .amenities{display:flex;flex-wrap:wrap;gap:8px;padding:6px 8px 8px}
