@@ -1,3 +1,4 @@
+import { useState } from "react";
 // app/page.tsx — Clean homepage with Baths + new amenities
 const HERO_IMG =
   "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=2000&auto=format&fit=crop";
