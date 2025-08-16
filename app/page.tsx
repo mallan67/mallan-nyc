@@ -1,14 +1,15 @@
-// Home = NYC Residential (Buy/Rent) with translucent tabs, hero image,
-// featured Mallan exclusives, and compliance footer.
-// No imports, no client JS — this renders even if nothing else is configured.
+// Home = NYC Residential (Buy/Rent) with centered, translucent search card over a
+// luxury Manhattan living room hero image. Featured Mallan exclusives + compliance footer.
+// No imports, purely server components-safe.
 
 export const metadata = {
   title: "Mallan Real Estate Inc — NYC Residential",
   description: "NYC residential search (buy/rent), Mallan exclusives, and tools.",
 };
 
+// Luxury Manhattan living room with skyline views (randomized but on-theme):
 const HERO_IMG =
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=2000&auto=format&fit=crop";
+  "https://source.unsplash.com/2000x1100/?luxury,manhattan,living-room,interior,skyline";
 
 export default function Page() {
   return (
@@ -52,9 +53,7 @@ function Header() {
             maya@mallan.nyc
           </div>
         </div>
-        <nav
-          style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}
-        >
+        <nav style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {[
             ["Residential (NYC)", "/"],
             ["Commercial", "/commercial"],
@@ -92,7 +91,7 @@ function Hero() {
     <section
       style={{
         position: "relative",
-        minHeight: "44vh",
+        minHeight: "68vh",
         backgroundImage: `url(${HERO_IMG})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -106,18 +105,32 @@ function Hero() {
             "linear-gradient(to top, rgba(0,0,0,.45), rgba(0,0,0,0))",
         }}
       />
+      {/* Center the search card perfectly */}
       <div
         style={{
-          position: "relative",
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "16px 16px 24px",
+          position: "absolute",
+          inset: 0,
           display: "flex",
-          alignItems: "end",
-          minHeight: "44vh",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
         }}
       >
-        <ResidentialSearchNYC />
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 980,
+            background: "rgba(255,255,255,.92)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid #e2e8f0",
+            borderRadius: 18,
+            padding: 14,
+            boxShadow:
+              "0 10px 30px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08)",
+          }}
+        >
+          <ResidentialSearchNYC />
+        </div>
       </div>
     </section>
   );
@@ -153,28 +166,19 @@ function inputStyle() {
   } as const;
 }
 
-function gridCols() {
+function gridCols(colsMin = 150) {
   return {
     display: "grid",
     gap: 8,
-    gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
+    gridTemplateColumns: `repeat(auto-fit,minmax(${colsMin}px,1fr))`,
   } as const;
 }
 
 function ResidentialSearchNYC() {
   return (
-    <div
-      style={{
-        width: "100%",
-        background: "rgba(255,255,255,.92)",
-        backdropFilter: "blur(8px)",
-        border: "1px solid #e2e8f0",
-        borderRadius: 16,
-        padding: 12,
-      }}
-    >
+    <>
       {/* Tabs (translucent) */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
         <button
           style={{
             border: "1px solid #e2e8f0",
@@ -214,8 +218,8 @@ function ResidentialSearchNYC() {
         </a>
       </div>
 
-      {/* Filters */}
-      <div style={gridCols()}>
+      {/* Primary filter row — bigger controls */}
+      <div style={gridCols(180)}>
         <select defaultValue="" style={inputStyle()}>
           <option value="">Buy / Rent</option>
           <option>Buy</option>
@@ -262,16 +266,17 @@ function ResidentialSearchNYC() {
           style={{
             border: "1px solid #000",
             borderRadius: 999,
-            padding: "10px 14px",
+            padding: "12px 16px",
             background: "#000",
             color: "#fff",
+            fontWeight: 600,
           }}
         >
           Search
         </button>
       </div>
 
-      {/* Amenities */}
+      {/* Quick amenities row */}
       <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap" }}>
         {[
           "Balcony",
@@ -289,10 +294,10 @@ function ResidentialSearchNYC() {
         ].map(tagChip)}
       </div>
 
-      {/* Expanded drawer (no JS needed) */}
+      {/* Expanded drawer */}
       <details
         style={{
-          margin: "10px 2px 0",
+          margin: "12px 2px 2px",
           border: "1px solid #e2e8f0",
           borderRadius: 12,
           background: "#fff",
@@ -357,7 +362,7 @@ function ResidentialSearchNYC() {
           </label>
         </div>
       </details>
-    </div>
+    </>
   );
 }
 
@@ -515,10 +520,20 @@ function ComplianceFooter() {
         </div>
         <div>
           <div style={{ fontWeight: 800 }}>Quick Links</div>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, color: "#64748b", fontSize: 13 }}>
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              color: "#64748b",
+              fontSize: 13,
+            }}
+          >
             <li>
-              <a href="/">Residential (NYC)</a> • <a href="/commercial">Commercial</a> •{" "}
-              <a href="/global">Global</a> • <a href="/client-access">Private Client</a>
+              <a href="/">Residential (NYC)</a> •{" "}
+              <a href="/commercial">Commercial</a> •{" "}
+              <a href="/global">Global</a> •{" "}
+              <a href="/client-access">Private Client</a>
             </li>
             <li>
               <a href="#guides">Guides</a> • <a href="#open">Open Houses</a>
