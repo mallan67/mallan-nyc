@@ -7,9 +7,7 @@ export const metadata: Metadata = {
   description: 'Mallan Real Estate — NYC search & insights',
 };
 
-type RootLayoutProps = {
-  children: ReactNode;
-};
+type RootLayoutProps = { children: ReactNode };
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
