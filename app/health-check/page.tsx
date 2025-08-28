@@ -11,7 +11,7 @@ export default function HealthCheck() {
       return;
     }
     fetch(`${base.replace(/\/$/, '')}/search?scope=nyc`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then(r => (r.ok ? r.json() : Promise.reject(r.statusText)))
       .then(() => setMsg(`✅ API reachable at ${base}`))
       .catch(e => setMsg(`❌ API not reachable: ${String(e)}`));
   }, []);
