@@ -12,7 +12,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body>{children}</body>
+      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif' }}>
+        {children}
+      </body>
     </html>
   );
 }
