@@ -1,12 +1,11 @@
-// app/client-access/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 type Role = 'user' | 'assistant' | 'system';
 type Msg = { role: Role; content: string };
 
-export default function ClientAccess() {
+export default function ClientAccessPage() {
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: 'Hi! Ask me something about real estate.' },
   ]);
@@ -17,8 +16,9 @@ export default function ClientAccess() {
     const text = input.trim();
     if (!text || loading) return;
 
-    // Push the user message using a functional update and literal role
-    setMessages(prev => [...prev, { role: 'user' as const, content: text }]);
+    // IMPORTANT: make `next` explicitly Msg[]
+    const next: Msg[] = [...messages, { role: 'user', content: text }];
+    setMessages(next);
     setInput('');
     setLoading(true);
 
@@ -26,50 +26,47 @@ export default function ClientAccess() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, { role: 'user' as const, content: text }] }),
+        body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
-      const replyText = (data?.text ?? '— no reply —').toString();
-
-      // Push assistant message with literal role
-      setMessages(prev => [...prev, { role: 'assistant' as const, content: replyText }]);
-    } catch (e: any) {
-      setMessages(prev => [...prev, { role: 'assistant' as const, content: `(error: ${e?.message || 'network'})` }]);
+      const reply = (data?.text as string) ?? 'No response.';
+      setMessages([...next, { role: 'assistant', content: reply }]);
+    } catch {
+      setMessages([...next, { role: 'assistant', content: 'Error calling API.' }]);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={{ maxWidth: 700, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ marginBottom: 12 }}>Client Access (Demo Chat)</h1>
+    <main style={{ maxWidth: 720, margin: '0 auto', padding: '24px' }}>
+      <h1>Client Access (Demo Chat)</h1>
 
-      <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gap: 12, marginBottom: 12 }}>
         {messages.map((m, i) => (
-          <div key={i} style={{
-            background: m.role === 'user' ? '#eef6ff' : '#f7f7f7',
-            border: '1px solid #e5e5e5',
-            borderRadius: 8,
-            padding: 12,
-          }}>
-            <strong style={{ marginRight: 6 }}>{m.role}:</strong>
-            <span>{m.content}</span>
+          <div key={i} style={{ whiteSpace: 'pre-wrap' }}>
+            <strong>{m.role === 'user' ? 'You' : 'Assistant'}:</strong> {m.content}
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        style={{ display: 'flex', gap: 8 }}
+      >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder="Type a message…"
           style={{ flex: 1, padding: '10px 12px', border: '1px solid #ccc', borderRadius: 8 }}
         />
-        <button onClick={send} disabled={loading || !input.trim()} style={{ padding: '10px 16px', borderRadius: 8 }}>
+        <button disabled={loading} style={{ padding: '10px 16px', borderRadius: 8 }}>
           {loading ? 'Sending…' : 'Send'}
         </button>
-      </div>
+      </form>
     </main>
   );
 }
