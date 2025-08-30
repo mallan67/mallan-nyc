@@ -1,14 +1,14 @@
 // app/client-access/page.tsx
 'use client';
-import React, { useState } from 'react';
+
+import { useState } from 'react';
 
 type Role = 'user' | 'assistant' | 'system';
 type Msg = { role: Role; content: string };
 
 export default function ClientAccess() {
-  // Explicitly type the state as Msg[] and freeze the literal role
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant' as const, content: 'Hi! Ask me something about real estate.' },
+    { role: 'assistant', content: 'Hello! Ask me anything.' },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,49 +17,71 @@ export default function ClientAccess() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const next: Msg[] = [...messages, { role: 'user' as const, content: text }];
+    const next: Msg[] = [...messages, { role: 'user', content: text }];
     setMessages(next);
     setInput('');
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai', {
+      const r = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: next }),
       });
-      const data = await res.json();
-      const replyText: string = typeof data.text === 'string' ? data.text : `(error: ${data.error || 'no reply'})`;
-      const reply: Msg = { role: 'assistant', content: replyText };
-      setMessages([...next, reply]);
+      const data = await r.json();
+      const reply = (data?.text ?? '').toString().trim() || '(no reply)';
+      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } catch {
-      setMessages([...next, { role: 'assistant', content: '(network error)' }]);
+      setMessages((m) => [...m, { role: 'assistant', content: 'Request failed.' }]);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
-      <h1 style={{ marginBottom: 12 }}>Client Access</h1>
-      <div style={{ border: '1px solid #eee', borderRadius: 10, padding: 12, minHeight: 220, marginBottom: 12 }}>
+    <main style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
+        Client Access (Demo Chat)
+      </h1>
+
+      <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ margin: '8px 0' }}>
-            <strong>{m.role === 'user' ? 'You' : 'Agent'}:</strong> {m.content}
+          <div
+            key={i}
+            style={{
+              alignSelf: m.role === 'user' ? 'end' : 'start',
+              background: m.role === 'user' ? '#eef' : '#f6f6f6',
+              border: '1px solid #ddd',
+              borderRadius: 8,
+              padding: '10px 12px',
+            }}
+          >
+            <strong>{m.role}</strong>: {m.content}
           </div>
         ))}
-        {loading && <div>Thinking…</div>}
       </div>
+
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message…"
+          style={{ flex: 1, padding: '10px 12px', border: '1px solid #ccc', borderRadius: 8 }}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder="Type your message…"
-          style={{ flex: 1, padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8 }}
         />
-        <button onClick={send} disabled={loading} style={{ padding: '12px 16px', borderRadius: 8 }}>
-          Send
+        <button
+          onClick={send}
+          disabled={loading}
+          style={{
+            padding: '10px 16px',
+            borderRadius: 8,
+            border: '1px solid #000',
+            background: '#000',
+            color: '#fff',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? 'Sending…' : 'Send'}
         </button>
       </div>
     </main>
