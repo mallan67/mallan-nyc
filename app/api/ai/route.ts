@@ -1,11 +1,15 @@
 // app/api/ai/route.ts
 import { NextResponse } from "next/server";
 
+// Simple GET handler so you can open /api/ai in the browser
+export async function GET() {
+  return NextResponse.json({ ok: true, route: "/api/ai", accepts: ["POST"] });
+}
+
+// POST handler for chat
 export async function POST(req: Request) {
-  // Get chat messages from the request body
   const { messages } = await req.json();
 
-  // Send them to OpenAI Responses API
   const r = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -18,8 +22,7 @@ export async function POST(req: Request) {
     }),
   });
 
-  // Parse the result and return only the text output
   const data = await r.json();
-  const text = data?.output_text || "Sorry—no reply.";
+  const text = (data as any)?.output_text || "Sorry—no reply.";
   return NextResponse.json({ text });
 }
