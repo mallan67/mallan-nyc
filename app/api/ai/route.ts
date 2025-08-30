@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini", // small, fast, good for chat
+      model: "gpt-4o-mini", // fast, good for chat
       input: messages,
     }),
   });
