@@ -3,41 +3,49 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-type Counts = {
-  violations: number;
-  permits: number;
-  complaints: number;
-  ecb_violations: number;
-};
-
-function originFrom(req: Request) {
+/** Build absolute base URL (works in dev & prod) */
+function baseUrlFrom(req: Request) {
   const u = new URL(req.url);
   return `${u.protocol}//${u.host}`;
 }
 
-function asCount(obj: any): number {
-  if (!obj) return 0;
-  if (Array.isArray(obj.items)) return obj.items.length;
-  if (typeof obj.count === "number") return obj.count;
-  const n = Number(obj.count);
-  return Number.isFinite(n) ? n : 0;
-}
+/** Fetch JSON safely. On any HTTP error or exception, return a benign shape. */
+async function safeJson(url: string) {
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    const status = r.status;
+    if (!r.ok) {
+      // Normalize an error response so the aggregator doesn't break
+      return { ok: false, status, count: 0, items: [], error: `HTTP ${status}` };
+    }
+    const data = await r.json();
 
-async function getJSON(url: string) {
-  const r = await fetch(url, { cache: "no-store" });
-  let data: any = null;
-  try { data = await r.json(); } catch {}
-  if (!r.ok) {
-    throw new Error(data?.error || `${r.status} ${r.statusText} for ${url}`);
+    // Normalize count/items even if the upstream shape varies
+    const items = Array.isArray(data?.items) ? data.items : [];
+    const count =
+      typeof data?.count === "number"
+        ? data.count
+        : Array.isArray(items)
+        ? items.length
+        : 0;
+
+    // If upstream includes an error field, treat as soft-fail
+    const ok = data?.ok !== false && !data?.error;
+
+    return { ok, status, count, items, raw: data, error: data?.error };
+  } catch (e: any) {
+    return { ok: false, status: 0, count: 0, items: [], error: e?.message || "fetch_error" };
   }
-  return data;
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const query = (body?.query || "").toString().trim();
-    const origin = originFrom(req);
+    const body = await req.json().catch(() => ({} as any));
+
+    // Accept either { query } or { messages: [...] }
+    const messages = Array.isArray(body?.messages) ? body.messages : [];
+    const lastMsg = messages.length ? messages[messages.length - 1] : null;
+    const query = String(body?.query ?? lastMsg?.content ?? "").trim();
 
     if (!query) {
       return NextResponse.json(
@@ -46,60 +54,51 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1) Resolve BIN from your internal Geoclient helper
-    //    (expects you already set GEOCLIENT_APP_ID / GEOCLIENT_APP_KEY in env)
-    const geo = await getJSON(
-      `${origin}/api/geoclient/address?q=${encodeURIComponent(query)}`
-    );
+    const base = baseUrlFrom(req);
 
-    // Try to extract a BIN from common shapes
-    let bin: string | undefined;
+    // 1) Resolve BIN via your Geoclient helper
+    const geo = await safeJson(`${base}/api/geoclient/address?q=${encodeURIComponent(query)}`);
 
-    // Case A: our helper returned { ok, bin, ... }
-    if (!bin && typeof geo?.bin === "string" && geo.bin.trim()) {
-      bin = geo.bin.trim();
-    }
-
-    // Case B: helper returned { items: [...] } where one has bin
-    if (!bin && Array.isArray(geo?.items)) {
-      for (const it of geo.items) {
-        const candidate = (it?.bin ?? it?.BIN ?? "").toString().trim();
-        if (candidate) { bin = candidate; break; }
-      }
-    }
-
-    // Case C: helper returned { address: {...} }
-    if (!bin && geo?.address?.buildingIdentificationNumber) {
-      bin = String(geo.address.buildingIdentificationNumber).trim();
-    }
+    // Try a few common shapes to find BIN
+    const bin =
+      geo?.raw?.bin ??
+      geo?.bin ??
+      geo?.raw?.address?.buildingIdentificationNumber ??
+      null;
 
     if (!bin) {
-      return NextResponse.json(
-        {
-          text:
-            `I couldn’t resolve a BIN for “${query}”. ` +
-            `Try a fully spelled address like “300 East 90 Street Manhattan 10128”.`
-        },
-        { status: 200 }
-      );
+      return NextResponse.json({
+        text:
+          `I couldn’t resolve a BIN for “${query}”. ` +
+          `Try a fully spelled address like “300 East 90 Street Manhattan 10128”.`,
+      });
     }
 
-    // 2) Pull DOB + ECB/OATH datasets in parallel (via your internal endpoints)
-    const [vios, perms, comps, ecb] = await Promise.all([
-      getJSON(`${origin}/api/dob/violations?bin=${bin}`),
-      getJSON(`${origin}/api/dob/permits?bin=${bin}`),
-      getJSON(`${origin}/api/dob/complaints?bin=${bin}`),
-      getJSON(`${origin}/api/dob/ecb-violations?bin=${bin}`),
+    // 2) Pull DOB data from your own routes — each call is soft-failed & normalized
+    const [viol, permits, complaints, ecb] = await Promise.all([
+      safeJson(`${base}/api/dob/violations?bin=${bin}`),
+      safeJson(`${base}/api/dob/permits?bin=${bin}`),
+      safeJson(`${base}/api/dob/complaints?bin=${bin}`),
+      safeJson(`${base}/api/dob/ecb-violations?bin=${bin}`),
     ]);
 
-    const counts: Counts = {
-      violations: asCount(vios),
-      permits: asCount(perms),
-      complaints: asCount(comps),
-      ecb_violations: asCount(ecb),
+    // 3) Normalize counts; any missing/404 source just contributes 0
+    const counts = {
+      violations: Number.isFinite(viol?.count) ? Number(viol.count) : 0,
+      permits: Number.isFinite(permits?.count) ? Number(permits.count) : 0,
+      complaints: Number.isFinite(complaints?.count) ? Number(complaints.count) : 0,
+      ecb_violations: Number.isFinite(ecb?.count) ? Number(ecb.count) : 0,
     };
 
-    // 3) Build a quick human summary
+    // Optional: expose which sources were unavailable (handy for debugging)
+    const sources = {
+      violations_ok: !!viol?.ok,
+      permits_ok: !!permits?.ok,
+      complaints_ok: !!complaints?.ok,
+      ecb_ok: !!ecb?.ok,
+    };
+
+    // 4) Compose a friendly summary without depending on OpenAI
     const text =
       `BIN ${bin} — quick NYC DOB summary:\n` +
       `• Violations: ${counts.violations}\n` +
@@ -109,17 +108,18 @@ export async function POST(req: Request) {
       `Use the links to inspect details.`;
 
     const links = {
-      violations: `${origin}/api/dob/violations?bin=${bin}`,
-      permits: `${origin}/api/dob/permits?bin=${bin}`,
-      complaints: `${origin}/api/dob/complaints?bin=${bin}`,
-      ecb: `${origin}/api/dob/ecb-violations?bin=${bin}`,
+      violations: `${base}/api/dob/violations?bin=${bin}`,
+      permits: `${base}/api/dob/permits?bin=${bin}`,
+      complaints: `${base}/api/dob/complaints?bin=${bin}`,
+      ecb: `${base}/api/dob/ecb-violations?bin=${bin}`,
     };
 
-    return NextResponse.json({ text, bin, counts, links });
+    return NextResponse.json({ text, bin, counts, links, sources });
   } catch (e: any) {
+    // Final guard: never expose a 500 to the client if we can give something graceful
     return NextResponse.json(
-      { error: e?.message || "Unhandled server error" },
-      { status: 500 }
+      { error: e?.message || "Unhandled server error", text: "Summary unavailable right now." },
+      { status: 200 }
     );
   }
 }
