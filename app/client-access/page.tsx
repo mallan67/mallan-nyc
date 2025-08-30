@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 type Role = 'user' | 'assistant' | 'system';
-type Msg = { role: Role; content: string };
+type Msg = { role: string; content: string };
 
 export default function ClientAccessPage() {
   const [messages, setMessages] = useState<Msg[]>([
