@@ -1,10 +1,13 @@
 'use client';
 import { useState } from 'react';
-type Msg = { role: 'user' | 'assistant' | 'system'; content: string };
+
+type Role = 'user' | 'assistant' | 'system';
+type Msg = { role: Role; content: string };
 
 export default function ClientAccess() {
+  // ✅ Explicitly type the state as Msg[]
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant', content: 'Hi! Ask me something about real estate.' }
+    { role: 'assistant', content: 'Hi! Ask me something about real estate.' },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,16 +15,25 @@ export default function ClientAccess() {
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
-    const next = [...messages, { role: 'user', content: text }];
-    setMessages(next); setInput(''); setLoading(true);
+
+    // ✅ Ensure 'role' is the literal union, not generic string
+    const next: Msg[] = [...messages, { role: 'user', content: text }];
+    setMessages(next);
+    setInput('');
+    setLoading(true);
+
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next })
+        body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
-      setMessages([...next, { role: 'assistant', content: data.text || `(error: ${data.error || 'no reply'})` }]);
+      const reply: Msg = {
+        role: 'assistant',
+        content: data.text || `(error: ${data.error || 'no reply'})`,
+      };
+      setMessages([...next, reply]);
     } catch {
       setMessages([...next, { role: 'assistant', content: '(network error)' }]);
     } finally {
