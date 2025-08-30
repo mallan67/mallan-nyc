@@ -16,7 +16,7 @@ export default function ClientAccessPage() {
     const text = input.trim();
     if (!text || loading) return;
 
-    // ensure correct typing
+    // Make next explicitly Msg[] so TS keeps the union type
     const next: Msg[] = [...messages, { role: 'user', content: text }];
     setMessages(next);
     setInput('');
@@ -29,8 +29,7 @@ export default function ClientAccessPage() {
         body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
-      const reply: string =
-        (data?.text as string | undefined)?.trim() || 'No response.';
+      const reply: string = (data?.text ?? 'No response.').toString();
       setMessages([...next, { role: 'assistant', content: reply }]);
     } catch {
       setMessages([...next, { role: 'assistant', content: 'Error calling API.' }]);
