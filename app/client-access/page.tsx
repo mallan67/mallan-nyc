@@ -1,13 +1,14 @@
+// app/client-access/page.tsx
 'use client';
-
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 type Role = 'user' | 'assistant' | 'system';
-type Msg = { role: string; content: string };
+type Msg = { role: Role; content: string };
 
-export default function ClientAccessPage() {
+export default function ClientAccess() {
+  // Explicitly type the state as Msg[] and freeze the literal role
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant', content: 'Hi! Ask me something about real estate.' },
+    { role: 'assistant' as const, content: 'Hi! Ask me something about real estate.' },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,8 +17,7 @@ export default function ClientAccessPage() {
     const text = input.trim();
     if (!text || loading) return;
 
-    // Make next explicitly Msg[] so TS keeps the union type
-    const next: Msg[] = [...messages, { role: 'user', content: text }];
+    const next: Msg[] = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
     setInput('');
     setLoading(true);
@@ -29,44 +29,39 @@ export default function ClientAccessPage() {
         body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
-      const reply: string = (data?.text ?? 'No response.').toString();
-      setMessages([...next, { role: 'assistant', content: reply }]);
+      const replyText: string = typeof data.text === 'string' ? data.text : `(error: ${data.error || 'no reply'})`;
+      const reply: Msg = { role: 'assistant', content: replyText };
+      setMessages([...next, reply]);
     } catch {
-      setMessages([...next, { role: 'assistant', content: 'Error calling API.' }]);
+      setMessages([...next, { role: 'assistant', content: '(network error)' }]);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
-      <h1>Client Access (Demo Chat)</h1>
-
-      <div style={{ display: 'grid', gap: 12, marginBottom: 12 }}>
+    <main style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+      <h1 style={{ marginBottom: 12 }}>Client Access</h1>
+      <div style={{ border: '1px solid #eee', borderRadius: 10, padding: 12, minHeight: 220, marginBottom: 12 }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ whiteSpace: 'pre-wrap' }}>
-            <strong>{m.role === 'user' ? 'You' : 'Assistant'}:</strong> {m.content}
+          <div key={i} style={{ margin: '8px 0' }}>
+            <strong>{m.role === 'user' ? 'You' : 'Agent'}:</strong> {m.content}
           </div>
         ))}
+        {loading && <div>Thinking…</div>}
       </div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-        style={{ display: 'flex', gap: 8 }}
-      >
+      <div style={{ display: 'flex', gap: 8 }}>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message…"
-          style={{ flex: 1, padding: '10px 12px', border: '1px solid #ccc', borderRadius: 8 }}
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder="Type your message…"
+          style={{ flex: 1, padding: '12px 14px', border: '1px solid #ccc', borderRadius: 8 }}
         />
-        <button disabled={loading} style={{ padding: '10px 16px', borderRadius: 8 }}>
-          {loading ? 'Sending…' : 'Send'}
+        <button onClick={send} disabled={loading} style={{ padding: '12px 16px', borderRadius: 8 }}>
+          Send
         </button>
-      </form>
+      </div>
     </main>
   );
 }
