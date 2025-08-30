@@ -1,60 +1,46 @@
-// app/api/dob/permits/route.ts
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// Socrata dataset: DOB NOW: Build – Issued Permits
+// DOB NOW: Build — Issued Permits
 // https://data.cityofnewyork.us/resource/ipu4-2q9a.json
-const DATASET_URL = "https://data.cityofnewyork.us/resource/ipu4-2q9a.json";
+const DATASET = "https://data.cityofnewyork.us/resource/ipu4-2q9a.json";
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const bin = (url.searchParams.get("bin") || "").trim();
 
-    // simple guardrails
     if (!bin) {
-      return NextResponse.json(
-        { error: "Query param ?bin= is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Query param ?bin= is required" }, { status: 400 });
     }
     if (!/^\d{6,8}$/.test(bin)) {
-      return NextResponse.json(
-        { error: "bin must be 6–8 digits (NYC BIN)" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "bin must be 6–8 digits" }, { status: 400 });
     }
 
+    // Use plain equality (no $where) -> fewer 400s from Socrata
     const params = new URLSearchParams({
-      // IMPORTANT: the permits dataset uses bin__ (double underscore)
-      $where: `bin__='${bin}'`,
-      $order: "issuance_date DESC",
-      $limit: "200",
+      // IMPORTANT: dataset field is bin__ (double underscore)
+      "bin__": bin,
+      "$order": "issuance_date DESC",
+      "$limit": "200",
     });
 
     const headers: Record<string, string> = {};
     const token = (process.env.SOCRATA_APP_TOKEN || "").trim();
     if (token) headers["X-App-Token"] = token;
 
-    const r = await fetch(`${DATASET_URL}?${params.toString()}`, { headers });
-    const raw = await r.json().catch(() => null);
+    const resp = await fetch(`${DATASET}?${params.toString()}`, { headers });
+    const data = await resp.json().catch(() => null);
 
-    if (!r.ok) {
-      // bubble up the Socrata error so it’s easy to debug from logs
+    if (!resp.ok) {
       return NextResponse.json(
-        {
-          error: `Socrata returned ${r.status} ${r.statusText}`,
-          detail: raw || null,
-        },
+        { error: `Socrata ${resp.status} ${resp.statusText}`, detail: data ?? null },
         { status: 502 }
       );
     }
 
-    const items = Array.isArray(raw) ? raw : [];
-
-    // normalize a few fields you’ll likely want to display
-    const normalized = items.map((d: any) => ({
+    const items = (Array.isArray(data) ? data : []).map((d: any) => ({
       bin: d.bin__ ?? null,
       job: d.job__ ?? null,
       borough: d.borough ?? d.boro ?? null,
@@ -70,15 +56,8 @@ export async function GET(req: Request) {
       description: d.work_description ?? null,
     }));
 
-    return NextResponse.json({
-      ok: true,
-      count: normalized.length,
-      items: normalized,
-    });
+    return NextResponse.json({ ok: true, count: items.length, items });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Unhandled server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Unhandled server error" }, { status: 500 });
   }
 }
