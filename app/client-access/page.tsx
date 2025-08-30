@@ -5,9 +5,9 @@ type Role = 'user' | 'assistant' | 'system';
 type Msg = { role: Role; content: string };
 
 export default function ClientAccess() {
-  // ✅ Explicitly type the state as Msg[]
+  // ✅ Make state explicitly Msg[]
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant', content: 'Hi! Ask me something about real estate.' },
+    { role: 'assistant' as const, content: 'Hi! Ask me something about real estate.' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,8 +16,8 @@ export default function ClientAccess() {
     const text = input.trim();
     if (!text || loading) return;
 
-    // ✅ Ensure 'role' is the literal union, not generic string
-    const next: Msg[] = [...messages, { role: 'user', content: text }];
+    // ✅ Ensure the literal type for role so TS doesn’t widen to string
+    const next: Msg[] = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);
     setInput('');
     setLoading(true);
@@ -26,13 +26,11 @@ export default function ClientAccess() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next }) // send just what we need
       });
       const data = await res.json();
-      const reply: Msg = {
-        role: 'assistant',
-        content: data.text || `(error: ${data.error || 'no reply'})`,
-      };
+      const replyText: string = typeof data.text === 'string' ? data.text : `(error: ${data.error || 'no reply'})`;
+      const reply: Msg = { role: 'assistant', content: replyText };
       setMessages([...next, reply]);
     } catch {
       setMessages([...next, { role: 'assistant', content: '(network error)' }]);
