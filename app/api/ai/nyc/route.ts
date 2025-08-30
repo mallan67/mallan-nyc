@@ -1,110 +1,43 @@
-export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    route: "/api/ai/nyc",
-    accepts: ["POST"]
-  });
-}
 // app/api/ai/nyc/route.ts
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 type Counts = {
-  violations?: number;
-  permits?: number;
-  complaints?: number;
-  ecb_violations?: number;
+  violations: number;
+  permits: number;
+  complaints: number;
+  ecb_violations: number;
 };
 
-type NYCGeoAddress = {
-  houseNumber?: string;
-  street?: string;
-  borough?: string;
-};
-
-// ---- Helpers ---------------------------------------------------------------
-
-function parseAddress(input: string): NYCGeoAddress {
-  // Try to pull "300 East 90 Street Manhattan" into parts
-  const s = (input || "").trim().replace(/\s+/g, " ");
-  const boroughMatch = s.match(/\b(Manhattan|Brooklyn|Queens|Bronx|Staten Island)\b/i);
-  const borough = boroughMatch?.[0]?.toLowerCase();
-
-  // leading number = house
-  const m = s.match(/^\s*(\d+)\s+(.*)$/);
-  let houseNumber = m?.[1];
-  let rest = m?.[2] || s;
-
-  // remove borough word from rest
-  const street = borough ? rest.replace(new RegExp(`\\b${borough}\\b`, "i"), "").trim() : rest;
-
-  let normBorough: string | undefined;
-  switch (borough) {
-    case "manhattan": normBorough = "Manhattan"; break;
-    case "brooklyn": normBorough = "Brooklyn"; break;
-    case "queens": normBorough = "Queens"; break;
-    case "bronx": normBorough = "Bronx"; break;
-    case "staten island": normBorough = "Staten Island"; break;
-  }
-  return { houseNumber, street, borough: normBorough };
+function originFrom(req: Request) {
+  const u = new URL(req.url);
+  return `${u.protocol}//${u.host}`;
 }
 
-function originFromReq(req: Request): string {
-  try {
-    const u = new URL(req.url);
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return process.env.NEXT_PUBLIC_API_BASE || "";
-  }
+function asCount(obj: any): number {
+  if (!obj) return 0;
+  if (Array.isArray(obj.items)) return obj.items.length;
+  if (typeof obj.count === "number") return obj.count;
+  const n = Number(obj.count);
+  return Number.isFinite(n) ? n : 0;
 }
 
-async function geoclientAddress(
-  hn: string,
-  street: string,
-  borough: string,
-  key: string
-) {
-  const url = new URL("https://api.nyc.gov/geoclient/v2/address.json");
-  url.searchParams.set("houseNumber", hn);
-  url.searchParams.set("street", street);
-  url.searchParams.set("borough", borough);
-
-  const r = await fetch(url.toString(), {
-    headers: { "Ocp-Apim-Subscription-Key": key },
-    cache: "no-store",
-  });
-  if (!r.ok) return null;
-  const data = await r.json().catch(() => null);
-  return data?.address || null;
-}
-
-async function geoclientSearch(input: string, key: string) {
-  const url = new URL("https://api.nyc.gov/geoclient/v2/search.json");
-  url.searchParams.set("input", input);
-  const r = await fetch(url.toString(), {
-    headers: { "Ocp-Apim-Subscription-Key": key },
-    cache: "no-store",
-  });
-  if (!r.ok) return null;
-  const data = await r.json().catch(() => null);
-  // Geoclient search sometimes returns { results: [{ response: { buildingIdentificationNumber } }] }
-  const first = data?.results?.[0]?.response;
-  return first || null;
-}
-
-async function jsonGET(url: string) {
+async function getJSON(url: string) {
   const r = await fetch(url, { cache: "no-store" });
-  const data = await r.json().catch(() => null);
-  return { ok: r.ok, status: r.status, data };
+  let data: any = null;
+  try { data = await r.json(); } catch {}
+  if (!r.ok) {
+    throw new Error(data?.error || `${r.status} ${r.statusText} for ${url}`);
+  }
+  return data;
 }
-
-// ---- Route ----------------------------------------------------------------
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const query: string = (body?.query ?? "").toString().trim();
+    const query = (body?.query || "").toString().trim();
+    const origin = originFrom(req);
 
     if (!query) {
       return NextResponse.json(
@@ -113,75 +46,76 @@ export async function POST(req: Request) {
       );
     }
 
-    const GEOCLIENT_KEY = (process.env.GEOCLIENT_KEY || "").trim();
-    if (!GEOCLIENT_KEY) {
+    // 1) Resolve BIN from your internal Geoclient helper
+    //    (expects you already set GEOCLIENT_APP_ID / GEOCLIENT_APP_KEY in env)
+    const geo = await getJSON(
+      `${origin}/api/geoclient/address?q=${encodeURIComponent(query)}`
+    );
+
+    // Try to extract a BIN from common shapes
+    let bin: string | undefined;
+
+    // Case A: our helper returned { ok, bin, ... }
+    if (!bin && typeof geo?.bin === "string" && geo.bin.trim()) {
+      bin = geo.bin.trim();
+    }
+
+    // Case B: helper returned { items: [...] } where one has bin
+    if (!bin && Array.isArray(geo?.items)) {
+      for (const it of geo.items) {
+        const candidate = (it?.bin ?? it?.BIN ?? "").toString().trim();
+        if (candidate) { bin = candidate; break; }
+      }
+    }
+
+    // Case C: helper returned { address: {...} }
+    if (!bin && geo?.address?.buildingIdentificationNumber) {
+      bin = String(geo.address.buildingIdentificationNumber).trim();
+    }
+
+    if (!bin) {
       return NextResponse.json(
-        { error: "GEOCLIENT_KEY env var is not set." },
-        { status: 500 }
+        {
+          text:
+            `I couldn’t resolve a BIN for “${query}”. ` +
+            `Try a fully spelled address like “300 East 90 Street Manhattan 10128”.`
+        },
+        { status: 200 }
       );
     }
 
-    // 1) Try robust address parse -> address endpoint
-    const parts = parseAddress(query);
-    let bin: string | undefined;
-
-    if (parts.houseNumber && parts.street && parts.borough) {
-      const addr = await geoclientAddress(parts.houseNumber, parts.street, parts.borough, GEOCLIENT_KEY);
-      bin = addr?.buildingIdentificationNumber;
-    }
-
-    // 2) Fallback to search endpoint if needed
-    if (!bin) {
-      const s = await geoclientSearch(query, GEOCLIENT_KEY);
-      bin = s?.buildingIdentificationNumber || s?.bin || s?.buildingIdentificationNumberMasked;
-    }
-
-    if (!bin) {
-      return NextResponse.json({
-        text:
-          `I couldn’t resolve a BIN for “${query}”. ` +
-          `Try phrasing like “300 East 90 Street Manhattan”.`,
-      });
-    }
-
-    const base = originFromReq(req) || process.env.NEXT_PUBLIC_API_BASE || "";
-    const u = (path: string) => (base ? `${base}${path}` : path);
-
-    // 3) Pull DOB data from your own endpoints
-    const [v, p, c, e] = await Promise.all([
-      jsonGET(u(`/api/dob/violations?bin=${bin}`)),
-      jsonGET(u(`/api/dob/permits?bin=${bin}`)),
-      jsonGET(u(`/api/dob/complaints?bin=${bin}`)),
-      jsonGET(u(`/api/dob/ecb-violations?bin=${bin}`)),
+    // 2) Pull DOB + ECB/OATH datasets in parallel (via your internal endpoints)
+    const [vios, perms, comps, ecb] = await Promise.all([
+      getJSON(`${origin}/api/dob/violations?bin=${bin}`),
+      getJSON(`${origin}/api/dob/permits?bin=${bin}`),
+      getJSON(`${origin}/api/dob/complaints?bin=${bin}`),
+      getJSON(`${origin}/api/dob/ecb-violations?bin=${bin}`),
     ]);
 
     const counts: Counts = {
-      violations: v?.data?.count ?? v?.data?.items?.length ?? 0,
-      permits: p?.data?.count ?? p?.data?.items?.length ?? 0,
-      complaints: c?.data?.count ?? c?.data?.items?.length ?? 0,
-      ecb_violations: e?.data?.count ?? e?.data?.items?.length ?? 0,
+      violations: asCount(vios),
+      permits: asCount(perms),
+      complaints: asCount(comps),
+      ecb_violations: asCount(ecb),
     };
 
-    const textLines = [
-      `BIN ${bin} — quick NYC DOB summary:`,
-      `• Violations: ${counts.violations}`,
-      `• ECB/OATH: ${counts.ecb_violations}`,
-      `• Complaints: ${counts.complaints}`,
-      `• Permits: ${counts.permits}`,
-      `Use the links to inspect details.`,
-    ];
+    // 3) Build a quick human summary
+    const text =
+      `BIN ${bin} — quick NYC DOB summary:\n` +
+      `• Violations: ${counts.violations}\n` +
+      `• ECB/OATH: ${counts.ecb_violations}\n` +
+      `• Complaints: ${counts.complaints}\n` +
+      `• Permits: ${counts.permits}\n` +
+      `Use the links to inspect details.`;
 
-    return NextResponse.json({
-      text: textLines.join("\n"),
-      bin,
-      counts,
-      links: {
-        violations: u(`/api/dob/violations?bin=${bin}`),
-        permits: u(`/api/dob/permits?bin=${bin}`),
-        complaints: u(`/api/dob/complaints?bin=${bin}`),
-        ecb: u(`/api/dob/ecb-violations?bin=${bin}`),
-      },
-    });
+    const links = {
+      violations: `${origin}/api/dob/violations?bin=${bin}`,
+      permits: `${origin}/api/dob/permits?bin=${bin}`,
+      complaints: `${origin}/api/dob/complaints?bin=${bin}`,
+      ecb: `${origin}/api/dob/ecb-violations?bin=${bin}`,
+    };
+
+    return NextResponse.json({ text, bin, counts, links });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Unhandled server error" },
