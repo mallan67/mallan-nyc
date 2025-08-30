@@ -1,3 +1,10 @@
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    route: "/api/ai/nyc",
+    accepts: ["POST"]
+  });
+}
 // app/api/ai/nyc/route.ts
 import { NextResponse } from "next/server";
 
