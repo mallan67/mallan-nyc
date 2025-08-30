@@ -3,55 +3,82 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// NYC Open Data: DOB Permit Issuance (SoQL)
-const BASE = "https://data.cityofnewyork.us/resource/ipu4-2q9a.json";
-
-function digitsOnly(s: string) {
-  return (s || "").replace(/\D/g, "");
-}
+// Socrata dataset: DOB NOW: Build – Issued Permits
+// https://data.cityofnewyork.us/resource/ipu4-2q9a.json
+const DATASET_URL = "https://data.cityofnewyork.us/resource/ipu4-2q9a.json";
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const bin = digitsOnly(url.searchParams.get("bin") || "");
-    const limit = url.searchParams.get("limit") || "50";
+    const bin = (url.searchParams.get("bin") || "").trim();
 
+    // simple guardrails
     if (!bin) {
-      return NextResponse.json({ error: "Missing ?bin= (7-digit BIN)" }, { status: 400 });
-    }
-
-    const params = new URLSearchParams();
-    // SoQL WHERE clause – find by BIN
-    params.set("$where", `bin='${bin}'`);
-    params.set("$order", "issuance_date DESC");
-    params.set("$limit", limit);
-
-    const headers: Record<string, string> = { Accept: "application/json" };
-    const token = (process.env.SOCRATA_APP_TOKEN || "").trim();
-    if (token) headers["X-App-Token"] = token; // optional but helps with throttling
-
-    const r = await fetch(`${BASE}?${params.toString()}`, {
-      headers,
-      cache: "no-store",
-    });
-
-    const data = await r.json().catch(() => null);
-
-    if (!r.ok) {
       return NextResponse.json(
-        {
-          ok: false,
-          status: r.status,
-          error: (data && data.message) || r.statusText || "Upstream error",
-          upstream: data,
-        },
-        { status: r.status }
+        { error: "Query param ?bin= is required" },
+        { status: 400 }
+      );
+    }
+    if (!/^\d{6,8}$/.test(bin)) {
+      return NextResponse.json(
+        { error: "bin must be 6–8 digits (NYC BIN)" },
+        { status: 400 }
       );
     }
 
-    const items = Array.isArray(data) ? data : [];
-    return NextResponse.json({ ok: true, count: items.length, items });
+    const params = new URLSearchParams({
+      // IMPORTANT: the permits dataset uses bin__ (double underscore)
+      $where: `bin__='${bin}'`,
+      $order: "issuance_date DESC",
+      $limit: "200",
+    });
+
+    const headers: Record<string, string> = {};
+    const token = (process.env.SOCRATA_APP_TOKEN || "").trim();
+    if (token) headers["X-App-Token"] = token;
+
+    const r = await fetch(`${DATASET_URL}?${params.toString()}`, { headers });
+    const raw = await r.json().catch(() => null);
+
+    if (!r.ok) {
+      // bubble up the Socrata error so it’s easy to debug from logs
+      return NextResponse.json(
+        {
+          error: `Socrata returned ${r.status} ${r.statusText}`,
+          detail: raw || null,
+        },
+        { status: 502 }
+      );
+    }
+
+    const items = Array.isArray(raw) ? raw : [];
+
+    // normalize a few fields you’ll likely want to display
+    const normalized = items.map((d: any) => ({
+      bin: d.bin__ ?? null,
+      job: d.job__ ?? null,
+      borough: d.borough ?? d.boro ?? null,
+      house_number: d.house__ ?? d.house ?? null,
+      street_name: d.street_name ?? d.streetname ?? null,
+      permit_type: d.permit_type ?? null,
+      permit_status: d.permit_status ?? d.latest_status ?? null,
+      issuance_date: d.issuance_date ?? null,
+      expiration_date: d.expiration_date ?? null,
+      filing_date: d.filing_date ?? null,
+      permittee: d.permittee_business_name ?? d.permittee_s_first__last_name ?? null,
+      owner: d.owner_business_name ?? d.owner_s_first__last_name ?? null,
+      description: d.work_description ?? null,
+    }));
+
+    return NextResponse.json({
+      ok: true,
+      count: normalized.length,
+      items: normalized,
+    });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Unhandled server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || "Unhandled server error" },
+      { status: 500 }
+    );
   }
 }
