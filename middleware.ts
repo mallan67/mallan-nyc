@@ -1,16 +1,15 @@
+// middleware.ts
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-export function middleware(req: NextRequest) {
-  const url = req.nextUrl;
-  if (url.pathname.startsWith("/collection")) {
-    const cookie = req.cookies.get("pc_auth")?.value;
-    if (cookie !== "ok") {
-      const redirect = new URL("/client-access", req.url);
-      redirect.searchParams.set("next", url.pathname);
-      return NextResponse.redirect(redirect);
-    }
-  }
+// Pass-through (does nothing). Add your own checks later if needed.
+export function middleware() {
   return NextResponse.next();
 }
-export const config = { matcher: ["/collection/:path*"] };
+
+// VERY IMPORTANT: don't run middleware on API routes (and Next/static files)
+export const config = {
+  matcher: [
+    // Run on everything EXCEPT these:
+    "/((?!api|_next|static|favicon.ico|robots.txt|sitemap.xml|assets|images).*)",
+  ],
+};
