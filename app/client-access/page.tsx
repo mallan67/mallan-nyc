@@ -1,101 +1,114 @@
 // app/client-access/page.tsx
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 
 type Role = 'user' | 'assistant' | 'system';
 type Msg = { role: Role; content: string };
 
-export default function ClientAccessPage() {
-  const [input, setInput] = useState('');
+export default function ClientAccess() {
   const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: 'assistant',
-      content:
-        'Hi! Ask about a NYC address (e.g., "300 E 90th St Manhattan"). I will pull DOB violations & permits and summarize.',
-    },
+    { role: 'assistant', content: 'Hi! Ask me something about real estate.' },
   ]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  // Scroll to latest message
+  const scrollToEnd = () => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+    });
+  };
 
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
 
+    // Build next message list and update state with correct types
     const next: Msg[] = [...messages, { role: 'user', content: text }];
     setMessages(next);
     setInput('');
     setLoading(true);
-    setError(null);
+    scrollToEnd();
 
     try {
-      const r = await fetch('/api/ai/nyc', {
+      // If user typed something that looks like an address, you could choose /api/ai/nyc.
+      // For now keep it simple and always hit /api/ai (your working endpoint).
+      const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // IMPORTANT: we hit the new NYC-intel endpoint and pass both the query and chat history
-        body: JSON.stringify({ query: text, messages: next }),
+        body: JSON.stringify({ messages: next }),
       });
 
-      const data = await r.json();
-      if (!r.ok) throw new Error(data?.error || r.statusText);
+      const data = await res.json().catch(() => null);
+      const reply: string =
+        (data && (data.text || data.answer || data.message)) || 'Sorry—no reply.';
 
-      const reply: Msg = { role: 'assistant', content: data?.text ?? 'No reply.' };
-      setMessages((prev) => [...prev, reply]);
-    } catch (e: any) {
-      const msg = e?.message || 'Request failed';
-      setError(msg);
-      setMessages((prev) => [...prev, { role: 'assistant', content: `(Error) ${msg}` }]);
+      setMessages([...next, { role: 'assistant', content: reply }]);
+      scrollToEnd();
+    } catch (e) {
+      setMessages([
+        ...next,
+        {
+          role: 'assistant',
+          content:
+            'Hmm, I hit an error talking to the server. Try again, or ping me if it keeps happening.',
+        },
+      ]);
     } finally {
       setLoading(false);
+      scrollToEnd();
     }
   }
 
-  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
       e.preventDefault();
       send();
     }
   }
 
   return (
-    <main style={styles.main}>
-      <div style={styles.card}>
-        <h1 style={{ margin: 0 }}>Client Access (NYC Intel Demo)</h1>
-        <p style={{ marginTop: 8, opacity: 0.7 }}>
-          Ask about any NYC address. I’ll look up DOB violations & permits and summarize.
-        </p>
+    <main style={styles.wrap}>
+      <h1 style={styles.title}>Client Access (Demo Chat)</h1>
 
-        <div ref={listRef} style={styles.feed}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ ...styles.msg, background: m.role === 'user' ? '#eef6ff' : '#f7f7f9' }}>
-              <strong style={{ marginRight: 6 }}>{m.role === 'user' ? 'You' : 'Agent'}:</strong>
-              <span>{m.content}</span>
+      {/* Input row */}
+      <div style={styles.inputRow}>
+        <input
+          placeholder="Type a message…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKey}
+          style={styles.input}
+          aria-label="Message"
+        />
+        <button onClick={send} disabled={loading} style={styles.button}>
+          {loading ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div ref={listRef} style={styles.list}>
+        {messages.map((m, i) => (
+          <div key={i} style={m.role === 'user' ? styles.rowRight : styles.rowLeft}>
+            <div
+              style={{
+                ...(m.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant),
+              }}
+            >
+              <div style={styles.roleLabel}>{m.role}:</div>
+              <div>{m.content}</div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
 
-        <div style={styles.row}>
-          <input
-            style={styles.input}
-            placeholder='e.g. 300 E 90th St Manhattan'
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKey}
-            disabled={loading}
-          />
-          <button style={styles.btn} onClick={send} disabled={loading || !input.trim()}>
-            {loading ? 'Thinking…' : 'Send'}
-          </button>
-        </div>
-
-        {error && (
-          <div style={{ marginTop: 8, color: '#b00020' }}>
-            <small>Error: {error}</small>
+        {loading && (
+          <div style={styles.rowLeft}>
+            <div style={styles.bubbleAssistant}>
+              <div style={styles.roleLabel}>assistant:</div>
+              <div>…</div>
+            </div>
           </div>
         )}
       </div>
@@ -103,56 +116,70 @@ export default function ClientAccessPage() {
   );
 }
 
+/* ===== inline “demo” styles ===== */
 const styles: Record<string, React.CSSProperties> = {
-  main: {
-    minHeight: '100svh',
-    display: 'grid',
-    placeItems: 'center',
-    background: '#fafafa',
-    padding: 20,
+  wrap: {
+    maxWidth: 900,
+    margin: '0 auto',
+    padding: '40px 20px',
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"',
   },
-  card: {
-    width: 'min(900px, 100%)',
-    background: '#fff',
-    border: '1px solid #e7e7ea',
-    borderRadius: 12,
-    padding: 20,
-    boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-  },
-  feed: {
-    marginTop: 12,
-    padding: 12,
-    border: '1px solid #eee',
-    borderRadius: 10,
-    height: 380,
-    overflowY: 'auto',
-    background: '#fff',
-  },
-  msg: {
-    padding: '10px 12px',
-    borderRadius: 8,
-    marginBottom: 10,
-    lineHeight: 1.35,
-    whiteSpace: 'pre-wrap',
-  },
-  row: {
-    marginTop: 12,
+  title: { fontSize: 32, fontWeight: 700, marginBottom: 16 },
+  inputRow: {
     display: 'flex',
     gap: 8,
+    marginBottom: 16,
   },
   input: {
     flex: 1,
     padding: '12px 14px',
-    borderRadius: 8,
-    border: '1px solid #dcdce0',
+    border: '1px solid #ddd',
+    borderRadius: 10,
+    fontSize: 16,
     outline: 'none',
   },
-  btn: {
-    padding: '12px 16px',
-    borderRadius: 8,
-    border: '1px solid #111',
-    background: '#111',
+  button: {
+    padding: '12px 18px',
+    borderRadius: 10,
+    border: '1px solid #000',
+    background: '#000',
     color: '#fff',
     cursor: 'pointer',
+    fontWeight: 600,
+  },
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    maxHeight: 520,
+    overflowY: 'auto',
+    border: '1px solid #eee',
+    borderRadius: 12,
+    padding: 16,
+    background: '#fafafa',
+  },
+  rowLeft: { display: 'flex', justifyContent: 'flex-start' },
+  rowRight: { display: 'flex', justifyContent: 'flex-end' },
+  bubbleAssistant: {
+    maxWidth: '75%',
+    background: '#fff',
+    border: '1px solid #e6e6e6',
+    borderRadius: 14,
+    padding: '10px 12px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+  },
+  bubbleUser: {
+    maxWidth: '75%',
+    background: '#0f172a',
+    color: '#fff',
+    borderRadius: 14,
+    padding: '10px 12px',
+  },
+  roleLabel: {
+    opacity: 0.55,
+    fontSize: 12,
+    marginBottom: 4,
+    textTransform: 'lowercase',
   },
 };
