@@ -16,7 +16,7 @@ export default function ClientAccessPage() {
     const text = input.trim();
     if (!text || loading) return;
 
-    // IMPORTANT: make `next` explicitly Msg[]
+    // ensure correct typing
     const next: Msg[] = [...messages, { role: 'user', content: text }];
     setMessages(next);
     setInput('');
@@ -29,7 +29,8 @@ export default function ClientAccessPage() {
         body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
-      const reply = (data?.text as string) ?? 'No response.';
+      const reply: string =
+        (data?.text as string | undefined)?.trim() || 'No response.';
       setMessages([...next, { role: 'assistant', content: reply }]);
     } catch {
       setMessages([...next, { role: 'assistant', content: 'Error calling API.' }]);
@@ -39,7 +40,7 @@ export default function ClientAccessPage() {
   }
 
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '24px' }}>
+    <main style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
       <h1>Client Access (Demo Chat)</h1>
 
       <div style={{ display: 'grid', gap: 12, marginBottom: 12 }}>
