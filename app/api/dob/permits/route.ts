@@ -1,14 +1,24 @@
-import { NextRequest } from "next/server";
-const APP_TOKEN = process.env.SOCRATA_APP_TOKEN;
+// app/api/dob/permits/route.ts
+import { NextResponse } from "next/server";
+export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
-  const base = "https://data.cityofnewyork.us/resource/ipu4-2q9a.json";
+export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const url = new URL(base);
-  searchParams.forEach((v,k)=>url.searchParams.set(k,v));
-  const headers: Record<string,string> = { accept: "application/json" };
-  if (APP_TOKEN) headers["X-App-Token"] = APP_TOKEN;
-  const r = await fetch(url, { headers });
-  const data = await r.json();
-  return new Response(JSON.stringify(data), { status: r.status, headers: { "content-type": "application/json" } });
+  const bin = (searchParams.get("bin") || "").trim();
+  if (!bin) return NextResponse.json({ error: "missing ?bin" }, { status: 400 });
+
+  const url = new URL("https://data.cityofnewyork.us/resource/ipu4-2q9a.json");
+  url.searchParams.set("$limit", "50");
+  url.searchParams.set("$order", "issuance_date DESC");
+  url.searchParams.set("bin", bin);
+
+  const headers: Record<string, string> = { "Accept": "application/json" };
+  const token = process.env.SOCRATA_APP_TOKEN;
+  if (token) headers["X-App-Token"] = token;
+
+  const r = await fetch(url.toString(), { headers });
+  const data = await r.json().catch(() => null);
+  if (!r.ok) return NextResponse.json({ error: "Socrata error", details: data }, { status: r.status });
+
+  return NextResponse.json({ ok: true, count: Array.isArray(data) ? data.length : 0, items: data });
 }
