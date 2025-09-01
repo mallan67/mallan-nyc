@@ -1,0 +1,5 @@
+New-Item -ItemType Directory -Force -Path "public" | Out-Null
+@'
+User-agent: *
+Disallow: /admin/
+'@ | Set-Content -Path "public\robots.txt" -Encoding UTF8
