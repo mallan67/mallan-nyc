@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type ApiResponse = {
   ok: boolean;
@@ -12,31 +13,53 @@ type ApiResponse = {
   };
   ecb_open_count?: number;
   ecb_balance_due_total?: number;
+  debug?: {
+    request?: {
+      open?: boolean;
+      origin?: string;
+      urls?: { geoclient?: string; ecb?: string };
+    };
+    notes?: string[];
+  };
 };
 
 export default function SearchPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const debugOn = (searchParams.get('debug') ?? '').toLowerCase() === '1' || (searchParams.get('debug') ?? '').toLowerCase() === 'true';
+
   const [q, setQ] = useState('');
   const [openOnly, setOpenOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function toggleDebug() {
+    const url = new URL(window.location.href);
+    if (debugOn) {
+      url.searchParams.delete('debug');
+    } else {
+      url.searchParams.set('debug', '1');
+    }
+    router.replace(url.toString());
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      // Call your aggregator and forward the "open only" choice
       const url = new URL('/api/ai/nyc', window.location.origin);
       if (openOnly) url.searchParams.set('open', '1');
+      if (debugOn) url.searchParams.set('debug', '1'); // forward Dev Mode to API
 
       const r = await fetch(url.toString(), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ query: q, ecbOpen: openOnly }),
+        body: JSON.stringify({ query: q, ecbOpen: openOnly, debug: debugOn }),
       });
 
-      const json = await r.json();
+      const json = (await r.json()) as ApiResponse;
       setData(json);
     } catch (err: any) {
       setError(err?.message ?? String(err));
@@ -59,7 +82,20 @@ export default function SearchPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">NYC Address Lookup</h1>
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">NYC Address Lookup</h1>
+
+        {/* Developer Mode toggle (URL based) */}
+        <button
+          onClick={toggleDebug}
+          className={`text-xs rounded px-2 py-1 border ${
+            debugOn ? 'bg-black text-white' : 'bg-white'
+          }`}
+          title="Toggle Developer Mode (adds ?debug=1 to the URL)"
+        >
+          {debugOn ? 'Developer: ON' : 'Developer: OFF'}
+        </button>
+      </header>
 
       <form onSubmit={onSubmit} className="space-y-3">
         <input
@@ -106,10 +142,21 @@ export default function SearchPage() {
               </a>
             </p>
           )}
+
           <p>Open ECB count: {ecbCount}</p>
           <p>Total ECB balance due: ${ecbBalance}</p>
 
-          {/* Note: the raw JSON debug block has been removed on purpose. */}
+          {/* Developer Mode JSON (hidden unless ?debug=1) */}
+          {debugOn && (
+            <details open className="mt-4">
+              <summary className="cursor-pointer font-medium">
+                Developer data
+              </summary>
+              <pre className="mt-2 overflow-auto rounded border p-3 text-xs">
+                {JSON.stringify(data, null, 2)}
+              </pre>
+            </details>
+          )}
         </section>
       )}
     </main>
