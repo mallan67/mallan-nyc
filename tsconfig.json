@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./*"] }
+  }
+}
+{
+  "compilerOptions": {
     "target": "ES2020",
     "lib": ["dom", "ES2020"],
     "jsx": "preserve",
