@@ -12,8 +12,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: npm run lint
-      - run: npm run type-check || true
+      - run: npm run lint --if-present
+      - run: npm run typecheck --if-present || npm run type-check --if-present || true
       - run: npm run build
       - name: Lighthouse CI (smoke)
         run: npx @lhci/cli autorun --upload.target=temporary-public-storage || true
