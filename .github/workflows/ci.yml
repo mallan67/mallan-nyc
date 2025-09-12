@@ -6,6 +6,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -17,8 +21,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # remove cache to avoid "lock file not found" noise when there is no lockfile
-          # cache: 'npm'
+
+      # Provide safe defaults so the build won't explode if env vars are missing
+      - name: Create CI .env (safe defaults)
+        run: |
+          cat > .env << 'EOF'
+          NEXT_PUBLIC_SITE_URL=https://example.com
+          ADMIN_PROTECT=0
+          EOF
 
       - name: Install deps
         run: |
@@ -37,5 +47,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Lighthouse CI (smoke, non-blocking)
+      - name: Lighthouse (non-blocking)
         run: npx @lhci/cli autorun --upload.target=temporary-public-storage || true
