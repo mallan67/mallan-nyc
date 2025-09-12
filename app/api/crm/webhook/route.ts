@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// Respond to CORS/preflight and avoid 405 on OPTIONS
+// CORS / preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
