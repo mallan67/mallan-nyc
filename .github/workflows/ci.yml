@@ -9,6 +9,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,6 +19,7 @@ jobs:
         with:
           node-version: '20'
 
+      # Keep CI safe even if .env isn't configured locally
       - name: Create safe .env for CI
         run: |
           cat > .env << 'EOF'
@@ -25,6 +27,7 @@ jobs:
           ADMIN_PROTECT=0
           EOF
 
+      # ✅ This is the missing piece — actually install dependencies
       - name: Install deps
         shell: bash
         run: |
@@ -34,6 +37,7 @@ jobs:
             npm install --no-fund --no-audit
           fi
 
+      # Non-blocking checks (won’t fail the job)
       - name: Lint (non-blocking)
         run: npm run -s lint
         continue-on-error: true
@@ -42,6 +46,7 @@ jobs:
         run: npm run -s type-check
         continue-on-error: true
 
+      # Build should not block your PR while you’re wiring things up
       - name: Build (non-blocking)
         run: npm run -s build
         continue-on-error: true
