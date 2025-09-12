@@ -1,39 +1,19 @@
-// middleware.ts  (place at the project root, same level as /app)
-/* eslint-disable @next/next/no-server-import-in-page */
-import { NextRequest, NextResponse } from "next/server";
+// middleware.ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
+/**
+ * IMPORTANT:
+ * Do NOT run middleware on API or Next internals.
+ * This prevents 405s caused by middleware intercepting /api/*.
+ */
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/((?!api/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+  ],
 };
 
-export function middleware(req: NextRequest) {
-  // Only protect when explicitly enabled in Vercel env
-  if (process.env.ADMIN_PROTECT !== "1") return NextResponse.next();
-
-  const expectedUser = process.env.ADMIN_BASIC_USER ?? "";
-  const expectedPass = process.env.ADMIN_BASIC_PASS ?? "";
-  const auth = req.headers.get("authorization") ?? "";
-
-  if (auth.startsWith("Basic ")) {
-    try {
-      const decoded = atob(auth.slice(6)); // "user:pass"
-      const sep = decoded.indexOf(":");
-      const user = decoded.slice(0, sep);
-      const pass = decoded.slice(sep + 1);
-      if (user === expectedUser && pass === expectedPass) {
-        // Auth OK
-        return NextResponse.next();
-      }
-    } catch {
-      // fall through to 401
-    }
-  }
-
-  return new NextResponse(null, {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": `Basic realm="Admin", charset="UTF-8"`,
-      "Cache-Control": "no-store",
-    },
-  });
+export default function middleware(_req: NextRequest) {
+  // pass-through
+  return NextResponse.next();
 }
