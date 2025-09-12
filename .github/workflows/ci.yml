@@ -6,23 +6,18 @@ on:
   push:
     branches: [ main ]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
+      # Keep CI safe even if .env isn't configured yet
       - name: Create safe .env for CI
         run: |
           cat > .env << 'EOF'
@@ -30,7 +25,9 @@ jobs:
           ADMIN_PROTECT=0
           EOF
 
+      # ✅ This is the missing piece — actually install dependencies
       - name: Install deps
+        shell: bash
         run: |
           if [ -f package-lock.json ]; then
             npm ci
@@ -38,15 +35,15 @@ jobs:
             npm install --no-fund --no-audit
           fi
 
-      - name: Lint (non-blocking)
+      # Non-blocking checks (won't fail the job)
+      - name: Lint
         run: npm run -s lint
         continue-on-error: true
 
-      - name: Typecheck (non-blocking)
+      - name: Typecheck
         run: npm run -s type-check
         continue-on-error: true
 
-      - name: Build (non-blocking)
-        run: |
-          npm run -s build || npm run -s next:build || echo "No build script found"
-        continue-on-error: true
+      # Build must pass
+      - name: Build
+        run: npm run -s build
