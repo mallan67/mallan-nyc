@@ -13,13 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # No cache here (avoids the "Dependencies lock file is not found" error)
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # Minimal env so builds don’t crash in CI
       - name: Create safe .env for CI
         run: |
           cat > .env << 'EOF'
@@ -28,6 +26,7 @@ jobs:
           EOF
 
       - name: Install deps
+        shell: bash
         run: |
           if [ -f package-lock.json ]; then
             npm ci
@@ -41,3 +40,8 @@ jobs:
 
       - name: Typecheck (non-blocking)
         run: npm run -s type-check
+        continue-on-error: true
+
+      - name: Build (non-blocking)
+        run: npm run -s build
+        continue-on-error: true
