@@ -1,0 +1,35 @@
+// pages/api/crm/webhook.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+export const config = { api: { bodyParser: true } };
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  // CORS / preflight
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "content-type");
+    return res.status(204).end();
+  }
+
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST,OPTIONS");
+    return res.status(405).end("Method Not Allowed");
+  }
+
+  const secret = String(req.query.secret || "");
+  if (!process.env.CRM_WEBHOOK_SECRET || secret !== process.env.CRM_WEBHOOK_SECRET) {
+    return res.status(401).json({ ok: false, error: "bad secret" });
+  }
+
+  let body: any = {};
+  try { body = req.body ?? {}; } catch {}
+
+  const text =
+    body?.current?.note?.content ??
+    body?.current?.long_description ??
+    body?.current?.title ??
+    "";
+
+  return res.status(200).json({ ok: true, received: !!text, preview: String(text).slice(0, 120) });
+}
