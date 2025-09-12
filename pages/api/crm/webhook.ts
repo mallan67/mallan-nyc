@@ -14,7 +14,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  // For proof: respond to GET so we can confirm the route exists
+  // Return something on GET so we can verify the route exists
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
