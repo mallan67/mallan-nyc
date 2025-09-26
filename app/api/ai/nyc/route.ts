@@ -1,94 +1,101 @@
 import { NextResponse } from "next/server";
+
 export const runtime = "nodejs";
 
-async function safeFetchJSON(url: string, init?: RequestInit) {
+function mask(k?: string | null) {
+  if (!k) return null;
+  const s = (k || "").trim();
+  return s.length >= 8 ? `${s.slice(0,4)}…${s.slice(-4)}` : "****";
+}
+
+// Simple fetch that returns {ok:boolean,status,body}
+async function safeFetch(url: string, init?: RequestInit) {
   try {
-    const r = await fetch(url, init);
-    const t = await r.text();
-    let j: any = null;
-    try { j = t ? JSON.parse(t) : null; } catch {}
-    if (!r.ok) return { ok: false, status: r.status, body: j ?? t, url };
-    return { ok: true, data: j, url };
+    const r = await fetch(url, { ...init, cache: "no-store" });
+    const text = await r.text();
+    let json: any = null;
+    try { json = text ? JSON.parse(text) : null; } catch {}
+    return { ok: r.ok, status: r.status, body: json ?? text };
   } catch (e: any) {
-    return { ok: false, error: e?.message || String(e), url };
+    return { ok: false, status: 0, body: e?.message || String(e) };
   }
 }
 
-// quick parser for strings like: "300 East 90 Street Manhattan 10128"
-function parseNYCAddress(input: string) {
-  const m = input.match(
-    /^\s*(\d+)\s+(.+?)\s+(Manhattan|Brooklyn|Queens|Bronx|Staten Island)(?:\s+(\d{5}))?\s*$/i
-  );
-  if (!m) return null;
-  const [, houseNumber, street, borough, zip] = m;
-  return {
-    houseNumber: houseNumber.trim(),
-    street: street.trim(),       // we will re-normalize inside geoclient route
-    borough: borough?.trim(),
-    zipCode: zip?.trim() || undefined,
-  };
-}
+/**
+ * GET /api/geoclient/address?houseNumber=300&street=EAST%2090%20STREET&borough=MANHATTAN&zipCode=10128&debug=1
+ */
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const hn = searchParams.get("houseNumber")?.trim() || "";
+  const street = searchParams.get("street")?.trim() || "";
+  const borough = searchParams.get("borough")?.trim() || "";
+  const zip = searchParams.get("zipCode")?.trim() || "";
+  const debug = searchParams.get("debug") === "1";
 
-export async function POST(req: Request) {
-  try {
-    const { query, houseNumber, street, borough, zipCode, debug } = await req.json();
-
-    // Prefer explicit fielded body; otherwise parse free text
-    let h = houseNumber, s = street, b = borough, z = zipCode;
-    if ((!h || !s || (!b && !z)) && typeof query === "string") {
-      const p = parseNYCAddress(query);
-      if (p) { h = p.houseNumber; s = p.street; b = p.borough; z = p.zipCode; }
-    }
-
-    if (!h || !s || (!b && !z)) {
-      return NextResponse.json(
-        { ok: false, error: "Provide { houseNumber, street, borough|zipCode } or a parseable query like '300 East 90 Street Manhattan 10128'." },
-        { status: 200 }
-      );
-    }
-
-    const base = process.env.NEXT_PUBLIC_API_BASE ?? "";
-    const geourl = new URL(`${base}/api/geoclient/address`);
-    geourl.searchParams.set("houseNumber", h);
-    geourl.searchParams.set("street", s);
-    if (b) geourl.searchParams.set("borough", b);
-    if (z) geourl.searchParams.set("zipCode", z);
-    if (debug) geourl.searchParams.set("debug", "1");
-
-    const geores = await safeFetchJSON(geourl.toString());
-    const bin = (geores as any)?.data?.bin ?? null;
-    const bbl = (geores as any)?.data?.bbl ?? null;
-
-    const endpoints = bin
-      ? [
-          `/api/dob/violations?bin=${bin}`,
-          `/api/dob/permits?bin=${bin}`,
-          `/api/dob/complaints?bin=${bin}`,
-          `/api/dob/ecb-violations?bin=${bin}`,
-        ]
-      : [];
-
-    const fetches = await Promise.all(
-      endpoints.map((p) => safeFetchJSON(`${base}${p}`))
+  if (!hn || !street || !borough) {
+    return NextResponse.json(
+      { ok: false, error: "Require houseNumber, street, borough" },
+      { status: 400 }
     );
-    const successes = fetches.filter((r) => r.ok);
-    const failures = fetches.filter((r) => !r.ok);
-
-    return NextResponse.json({
-      ok: true,
-      input: query ?? `${h} ${s} ${b ?? ""} ${z ?? ""}`.trim(),
-      geoclient: geores,
-      bin, bbl,
-      sources: {
-        violations: successes.find((x: any) => x.url?.includes("/violations"))?.data ?? null,
-        permits:    successes.find((x: any) => x.url?.includes("/permits"))?.data ?? null,
-        complaints: successes.find((x: any) => x.url?.includes("/complaints"))?.data ?? null,
-        ecb_violations: successes.find((x: any) => x.url?.includes("/ecb-violations"))?.data ?? null,
-      },
-      missingOrErrored: failures,
-      debug: debug ? { notes: ["Debug on"], request: { urls: { geoclient: geourl.toString() } } } : undefined,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err?.message || String(err) }, { status: 200 });
   }
+
+  const v2Key = process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY || process.env.GEOCLIENT_PRIMARY_KEY || "";
+  const v2Url = `https://api.nyc.gov/geo/geoclient/v2/address.json?houseNumber=${encodeURIComponent(hn)}&street=${encodeURIComponent(street)}&borough=${encodeURIComponent(borough)}${zip ? `&zipCode=${encodeURIComponent(zip)}` : ""}`;
+
+  // 1) Try Geoclient v2 (strict address)
+  let mode: "geoclient_v2" | "planning_fallback" | "none" = "none";
+  let bin: string | null = null;
+  let bbl: string | null = null;
+
+  if (v2Key) {
+    const res = await safeFetch(v2Url, {
+      headers: {
+        "Ocp-Apim-Subscription-Key": v2Key,
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+      },
+    });
+
+    if (res.ok && typeof res.body === "object" && res.body?.address) {
+      // success path
+      const a = res.body.address;
+      bin = a.bin || a.buildingIdentificationNumber || null;
+      bbl = a.bbl || null;
+      mode = "geoclient_v2";
+      // If parse returned but no BIN/BBL, we’ll still fallback below
+    } else if (debug) {
+      // keep debug info
+      // res.status 401/403/etc means key not accepted by APIM
+    }
+  }
+
+  // 2) Fallback if v2 missing or didn’t return BIN/BBL
+  if (!bin || !bbl) {
+    // Build Planning Labs query as a single string for sturdiness
+    const oneLine = `${hn} ${street} ${borough}${zip ? " " + zip : ""}`.trim();
+    const planUrl = `https://planninglabs.carto.com/api/v1/sql?q=` +
+      encodeURIComponent(
+        `SELECT bin, bbl FROM geosearch WHERE query='${oneLine.replace(/'/g, "''")}' LIMIT 1`
+      );
+
+    const planRes = await safeFetch(planUrl);
+    if (planRes.ok && typeof planRes.body === "object" && planRes.body?.rows?.length) {
+      const row = planRes.body.rows[0];
+      bin = row.bin?.toString() || bin;
+      bbl = row.bbl?.toString() || bbl;
+      if (!mode) mode = "planning_fallback";
+    }
+  }
+
+  const out: any = { ok: !!(bin || bbl), mode, bin, bbl };
+
+  if (debug) {
+    out.debug = {
+      v2KeyMasked: mask(process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY || process.env.GEOCLIENT_PRIMARY_KEY || ""),
+      triedV2: Boolean(v2Key),
+      v2UrlSample: v2Url.replace(/(subscription-key=)[^&]+/i, "$1***"),
+    };
+  }
+
+  return NextResponse.json(out, { status: 200 });
 }
