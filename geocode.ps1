@@ -8,8 +8,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Script-constant for the API base (avoid any scope/strict-mode issues)
-$Script:GeoBase = 'https://api.nyc.gov/geoclient/v2/address'
+# Use the JSON endpoint and keep it as a proper Uri
+$Script:GeoBase = 'https://api.nyc.gov/geoclient/v2/address.json'
 
 if (-not (Test-Path $In)) {
   throw "Input CSV not found: $In"
@@ -21,12 +21,21 @@ if (-not $env:NYC_GEOCLIENT_KEY) {
 function Invoke-NycGeoClient {
   param([hashtable]$q)
 
-  $qs  = ($q.GetEnumerator() | ForEach-Object {
-    '{0}={1}' -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value)
-  }) -join '&'
+  # Build query string safely
+  $pairs = foreach ($kv in $q.GetEnumerator()) {
+    '{0}={1}' -f [uri]::EscapeDataString($kv.Key),
+                  [uri]::EscapeDataString([string]$kv.Value)
+  }
 
-  $uri = '{0}?{1}' -f $Script:GeoBase, $qs
+  # Combine with UriBuilder to avoid malformed URIs
+  $ub = [System.UriBuilder]$Script:GeoBase
+  $ub.Query = ($pairs -join '&')
+  $uri = $ub.Uri.AbsoluteUri
+
   $hdr = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
+
+  # Optional: log the path without the query (keeps logs clean)
+  Write-Host 'GET ' + ($uri -replace '\?.*$', '?…')
 
   (Invoke-RestMethod -Headers $hdr -Uri $uri -ErrorAction Stop).address
 }
