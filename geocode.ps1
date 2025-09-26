@@ -8,20 +8,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Use the JSON endpoint and a UriBuilder so the URL is always valid
 $base = 'https://api.nyc.gov/geoclient/v2/address.json'
 
-if (-not (Test-Path $In)) {
-  throw "Input CSV not found: $In"
-}
-if (-not $env:NYC_GEOCLIENT_KEY) {
-  throw "NYC_GEOCLIENT_KEY environment variable is missing."
-}
+if (-not (Test-Path $In)) { throw "Input CSV not found: $In" }
+if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY environment variable is missing." }
 
 function Invoke-NycGeoClient {
   param([hashtable]$q)
 
-  # Build query string safely (URL-encode every key/value)
   $pairs = foreach ($kv in $q.GetEnumerator()) {
     '{0}={1}' -f [uri]::EscapeDataString($kv.Key),
                   [uri]::EscapeDataString([string]$kv.Value)
@@ -33,7 +27,6 @@ function Invoke-NycGeoClient {
 
   $h = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
 
-  # log path without query to keep logs clean
   Write-Host ('GET ' + $ub.Uri.Scheme + '://' + $ub.Host + $ub.Path + '?…')
 
   (Invoke-RestMethod -Headers $h -Uri $uri -ErrorAction Stop).address
@@ -47,7 +40,6 @@ $result = foreach ($r in $rows) {
     borough     = $r.borough
     zip         = $r.zip
   }
-
   [pscustomobject]@{
     BBL       = $addr.bbl
     BIN       = $addr.buildingIdentificationNumber
