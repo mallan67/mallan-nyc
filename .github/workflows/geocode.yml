@@ -1,43 +1,41 @@
+# .github/workflows/geocode.yml
+
 name: Geocode NYC addresses
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'addresses.csv'
-      - 'geocode.ps1'
-      - '.github/workflows/geocode.yml'
-
-permissions:
-  contents: write
 
 jobs:
   geocode:
-    runs-on: windows-latest
-    env:
-      NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Sanity check
-        shell: pwsh
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
         run: |
-          if (-not (Test-Path .\addresses.csv)) { throw "addresses.csv not found in repo root" }
-          if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY is missing" }
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run geocode
-        shell: pwsh
-        run: .\geocode.ps1 -In .\addresses.csv -Out .\geoclient_addresses_out.csv
+      - name: Run geocode script
+        run: |
+          python scripts/geocode_nyc.py
+        env:
+          NYC_API_KEY: ${{ secrets.NYC_API_KEY }}
+          MAPBOX_API_KEY: ${{ secrets.MAPBOX_API_KEY }}
 
-      - name: Commit output to repo
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update geoclient_addresses_out.csv (auto)"
-          file_pattern: geoclient_addresses_out.csv
-
-      - name: Upload result artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: geoclient_addresses_out
-          path: geoclient_addresses_out.csv
+      - name: Commit and push geocoded data
+        run: |
+          git config user.name "mallan-ci-bot"
+          git config user.email "ci@mallanrealestate.com"
+          git add output/*.csv
+          git commit -m "Automated geocode run on $(date '+%Y-%m-%d')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
