@@ -18,17 +18,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Sanity check (files & key length)
+      - name: Sanity check (files & key)
         shell: pwsh
         run: |
-          Get-Location
-          Get-ChildItem -Force
-          "addresses.csv exists? " + (Test-Path .\addresses.csv)
-          if ($env:NYC_GEOCLIENT_KEY) {
-            "Key length: $($env:NYC_GEOCLIENT_KEY.Length)"
-          } else {
-            Write-Error 'NYC_GEOCLIENT_KEY is not set'
-          }
+          if (-not (Test-Path .\addresses.csv)) { throw "addresses.csv not found in repo root" }
+          if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY secret is missing" }
+          "addresses.csv exists: $((Test-Path .\addresses.csv))"
+          "Key length: $($env:NYC_GEOCLIENT_KEY.Length)"
 
       - name: Run geocode
         shell: pwsh
