@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
-// Accept multiple env names so naming can't break auth:
+// Accept multiple env names so naming mismatches can't break auth
 const V2_KEY =
   process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY ||
   process.env.GEOCLIENT_SUBSCRIPTION_KEY ||
   process.env.GEOCLIENT_PRIMARY_KEY ||
-  ""; // v2: Azure APIM "Subscription Key"
+  "";
 
 const LEGACY_ID =
   process.env.NYC_GEOCLIENT_APP_ID ||
@@ -18,7 +18,7 @@ const LEGACY_KEY =
   process.env.GEOCLIENT_APP_KEY ||
   "";
 
-// Extract BIN/BBL from either v2 or v1 response shapes
+// Normalize BIN/BBL from either v2 or v1 response
 function pickBinBbl(json: any) {
   const sr = json?.searchResults || json?.results || [];
   const first = Array.isArray(sr) ? sr[0]?.response : null;
@@ -41,36 +41,62 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Missing ?input" }, { status: 200 });
   }
 
-  // Preferred: Geoclient v2 (subscription key header)
+  // Try v2 (subscription key). If it fails, fall back to v1 (if available).
   if (V2_KEY) {
-    const url = `https://api.nyc.gov/geo/geoclient/v2/search.json?input=${encodeURIComponent(input)}`;
-    const r = await fetch(url, { headers: { "Ocp-Apim-Subscription-Key": V2_KEY } });
-    const text = await r.text();
-    let json: any = null; try { json = text ? JSON.parse(text) : null; } catch {}
-    if (!r.ok) {
-      return NextResponse.json({ ok: false, mode: "v2", error: `Geoclient ${r.status}: ${text}` }, { status: 200 });
+    const v2Url = `https://api.nyc.gov/geo/geoclient/v2/search.json?input=${encodeURIComponent(input)}`;
+    const v2Res = await fetch(v2Url, { headers: { "Ocp-Apim-Subscription-Key": V2_KEY } });
+    const v2Text = await v2Res.text();
+    let v2Json: any = null; try { v2Json = v2Text ? JSON.parse(v2Text) : null; } catch {}
+
+    if (v2Res.ok) {
+      const { bin, bbl } = pickBinBbl(v2Json);
+      return NextResponse.json({ ok: true, mode: "v2", input, source: v2Url, bin, bbl, raw: v2Json });
     }
-    const { bin, bbl } = pickBinBbl(json);
-    return NextResponse.json({ ok: true, mode: "v2", input, source: url, bin, bbl, raw: json });
+
+    // v2 failed — if legacy creds exist, try v1 before bailing
+    if (LEGACY_ID && LEGACY_KEY) {
+      const v1Url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(input)}&app_id=${encodeURIComponent(LEGACY_ID)}&app_key=${encodeURIComponent(LEGACY_KEY)}`;
+      const v1Res = await fetch(v1Url);
+      const v1Text = await v1Res.text();
+      let v1Json: any = null; try { v1Json = v1Text ? JSON.parse(v1Text) : null; } catch {}
+      if (v1Res.ok) {
+        const { bin, bbl } = pickBinBbl(v1Json);
+        return NextResponse.json({
+          ok: true, mode: "v1_fallback", input, source: v1Url, bin, bbl,
+          debug: { v2Status: v2Res.status, v2Body: v2Text?.slice(0, 2000) || null },
+          raw: v1Json
+        });
+      }
+      // Both failed
+      return NextResponse.json({
+        ok: false, mode: "v2_then_v1_failed",
+        error: `v2 ${v2Res.status}: ${v2Text?.slice(0, 500)} | v1 ${v1Res.status}: ${v1Text?.slice(0, 500)}`
+      }, { status: 200 });
+    }
+
+    // v2 failed and no legacy creds present
+    return NextResponse.json({
+      ok: false, mode: "v2_only_failed",
+      error: `Geoclient v2 ${v2Res.status}: ${v2Text?.slice(0, 1000)}`
+    }, { status: 200 });
   }
 
-  // Fallback: Geoclient v1 (legacy app_id + app_key)
+  // No v2 key; try v1 directly
   if (LEGACY_ID && LEGACY_KEY) {
-    const url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(input)}&app_id=${encodeURIComponent(LEGACY_ID)}&app_key=${encodeURIComponent(LEGACY_KEY)}`;
-    const r = await fetch(url);
-    const text = await r.text();
-    let json: any = null; try { json = text ? JSON.parse(text) : null; } catch {}
-    if (!r.ok) {
-      return NextResponse.json({ ok: false, mode: "v1", error: `Geoclient ${r.status}: ${text}` }, { status: 200 });
+    const v1Url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(input)}&app_id=${encodeURIComponent(LEGACY_ID)}&app_key=${encodeURIComponent(LEGACY_KEY)}`;
+    const v1Res = await fetch(v1Url);
+    const v1Text = await v1Res.text();
+    let v1Json: any = null; try { v1Json = v1Text ? JSON.parse(v1Text) : null; } catch {}
+    if (!v1Res.ok) {
+      return NextResponse.json({ ok: false, mode: "v1", error: `Geoclient ${v1Res.status}: ${v1Text?.slice(0, 1000)}` }, { status: 200 });
     }
-    const { bin, bbl } = pickBinBbl(json);
-    return NextResponse.json({ ok: true, mode: "v1", input, source: url, bin, bbl, raw: json });
+    const { bin, bbl } = pickBinBbl(v1Json);
+    return NextResponse.json({ ok: true, mode: "v1", input, source: v1Url, bin, bbl, raw: v1Json });
   }
 
   // Nothing configured
   return NextResponse.json({
-    ok: false,
-    mode: "missing",
-    error: "Provide either NYC_GEOCLIENT_SUBSCRIPTION_KEY (v2) OR NYC_GEOCLIENT_APP_ID + NYC_GEOCLIENT_APP_KEY (v1).",
+    ok: false, mode: "missing",
+    error: "Provide either v2 subscription key or v1 app_id + app_key."
   }, { status: 200 });
 }
