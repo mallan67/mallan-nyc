@@ -8,25 +8,22 @@ type ApiResponse = {
   input?: string;
   bin?: string;
   geoclient?: any;
-  sources?: {
-    ecb_violations?: { ok: boolean; count: number; items: any[] };
-  };
+  sources?: { ecb_violations?: { ok: boolean; count: number; items: any[] } };
   ecb_open_count?: number;
   ecb_balance_due_total?: number;
   debug?: {
-    request?: {
-      open?: boolean;
-      origin?: string;
-      urls?: { geoclient?: string; ecb?: string };
-    };
+    request?: { open?: boolean; origin?: string; urls?: { geoclient?: string; ecb?: string } };
     notes?: string[];
   };
 };
 
 export default function SearchPage() {
-  const searchParams = useSearchParams();
+  const sp = useSearchParams(); // ReadonlyURLSearchParams (client-only)
   const router = useRouter();
-  const debugOn = (searchParams.get('debug') ?? '').toLowerCase() === '1' || (searchParams.get('debug') ?? '').toLowerCase() === 'true';
+
+  // Null-safe read of ?debug=1 or ?debug=true
+  const debugParam = (sp?.get('debug') ?? '').toLowerCase();
+  const debugOn = debugParam === '1' || debugParam === 'true';
 
   const [q, setQ] = useState('');
   const [openOnly, setOpenOnly] = useState(true);
@@ -36,11 +33,8 @@ export default function SearchPage() {
 
   function toggleDebug() {
     const url = new URL(window.location.href);
-    if (debugOn) {
-      url.searchParams.delete('debug');
-    } else {
-      url.searchParams.set('debug', '1');
-    }
+    if (debugOn) url.searchParams.delete('debug');
+    else url.searchParams.set('debug', '1');
     router.replace(url.toString());
   }
 
@@ -70,14 +64,10 @@ export default function SearchPage() {
   }
 
   const bin = data?.bin;
-  const ecbCount =
-    data?.ecb_open_count ?? data?.sources?.ecb_violations?.count ?? 0;
+  const ecbCount = data?.ecb_open_count ?? data?.sources?.ecb_violations?.count ?? 0;
   const ecbBalance = data?.ecb_balance_due_total ?? 0;
-
   const bisUrl = bin
-    ? `https://a810-bisweb.nyc.gov/BISWeb/PropertyProfileOverviewServlet?bin=${encodeURIComponent(
-        bin
-      )}`
+    ? `https://a810-bisweb.nyc.gov/BISWeb/PropertyProfileOverviewServlet?bin=${encodeURIComponent(bin)}`
     : null;
 
   return (
@@ -88,9 +78,7 @@ export default function SearchPage() {
         {/* Developer Mode toggle (URL based) */}
         <button
           onClick={toggleDebug}
-          className={`text-xs rounded px-2 py-1 border ${
-            debugOn ? 'bg-black text-white' : 'bg-white'
-          }`}
+          className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}
           title="Toggle Developer Mode (adds ?debug=1 to the URL)"
         >
           {debugOn ? 'Developer: ON' : 'Developer: OFF'}
@@ -105,17 +93,10 @@ export default function SearchPage() {
           className="w-full border rounded px-3 py-2"
         />
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={openOnly}
-            onChange={(e) => setOpenOnly(e.target.checked)}
-          />
+          <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
           Only show likely-open ECBs
         </label>
-        <button
-          disabled={loading}
-          className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-        >
+        <button disabled={loading} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
           {loading ? 'Searching…' : 'Search'}
         </button>
       </form>
@@ -125,33 +106,20 @@ export default function SearchPage() {
       {data && (
         <section className="space-y-2">
           <h2 className="font-semibold">Result</h2>
-          {bin && (
-            <p>
-              BIN: <span className="font-mono">{bin}</span>
-            </p>
-          )}
+          {bin && <p>BIN: <span className="font-mono">{bin}</span></p>}
           {bisUrl && (
             <p>
-              <a
-                className="text-blue-600 underline"
-                href={bisUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="text-blue-600 underline" href={bisUrl} target="_blank" rel="noopener noreferrer">
                 Open DOB Property Profile ↗
               </a>
             </p>
           )}
-
           <p>Open ECB count: {ecbCount}</p>
           <p>Total ECB balance due: ${ecbBalance}</p>
 
-          {/* Developer Mode JSON (hidden unless ?debug=1) */}
           {debugOn && (
             <details open className="mt-4">
-              <summary className="cursor-pointer font-medium">
-                Developer data
-              </summary>
+              <summary className="cursor-pointer font-medium">Developer data</summary>
               <pre className="mt-2 overflow-auto rounded border p-3 text-xs">
                 {JSON.stringify(data, null, 2)}
               </pre>
