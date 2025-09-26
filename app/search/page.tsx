@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-// Optional: prevent SSG trying to prerender this page.
 export const dynamic = 'force-dynamic';
 
 type ApiResponse = {
@@ -68,9 +67,7 @@ function SearchClient() {
   const ecbCount = data?.ecb_open_count ?? data?.sources?.ecb_violations?.count ?? 0;
   const ecbBalance = data?.ecb_balance_due_total ?? 0;
   const bisUrl = bin
-    ? `https://a810-bisweb.nyc.gov/BISWeb/PropertyProfileOverviewServlet?bin=${encodeURIComponent(
-        bin
-      )}`
+    ? `https://a810-bisweb.nyc.gov/BISWeb/PropertyProfileOverviewServlet?bin=${encodeURIComponent(bin)}`
     : null;
 
   return (
@@ -80,7 +77,6 @@ function SearchClient() {
         <button
           onClick={toggleDebug}
           className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}
-          title="Toggle Developer Mode (adds ?debug=1 to the URL)"
         >
           {debugOn ? 'Developer: ON' : 'Developer: OFF'}
         </button>
@@ -94,17 +90,10 @@ function SearchClient() {
           className="w-full border rounded px-3 py-2"
         />
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={openOnly}
-            onChange={(e) => setOpenOnly(e.target.checked)}
-          />
+          <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
           Only show likely-open ECBs
         </label>
-        <button
-          disabled={loading}
-          className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-        >
+        <button disabled={loading} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
           {loading ? 'Searching…' : 'Search'}
         </button>
       </form>
@@ -114,26 +103,16 @@ function SearchClient() {
       {data && (
         <section className="space-y-2">
           <h2 className="font-semibold">Result</h2>
-          {bin && (
-            <p>
-              BIN: <span className="font-mono">{bin}</span>
-            </p>
-          )}
+          {bin && <p>BIN: <span className="font-mono">{bin}</span></p>}
           {bisUrl && (
             <p>
-              <a
-                className="text-blue-600 underline"
-                href={bisUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="text-blue-600 underline" href={bisUrl} target="_blank" rel="noopener noreferrer">
                 Open DOB Property Profile ↗
               </a>
             </p>
           )}
           <p>Open ECB count: {ecbCount}</p>
           <p>Total ECB balance due: ${ecbBalance}</p>
-
           {debugOn && (
             <details open className="mt-4">
               <summary className="cursor-pointer font-medium">Developer data</summary>
@@ -149,7 +128,6 @@ function SearchClient() {
 }
 
 export default function Page() {
-  // Suspense boundary required when using useSearchParams in App Router.
   return (
     <Suspense fallback={<div />}>
       <SearchClient />
