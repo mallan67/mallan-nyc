@@ -1,159 +1,138 @@
+// app/api/geoclient/address/route.ts
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
-// Gather any plausible env names for v2 keys.
-// Put your Primary in NYC_GEOCLIENT_SUBSCRIPTION_KEY (recommended).
-// Add your Secondary as NYC_GEOCLIENT_SUBSCRIPTION_KEY_2 (or the aliases below).
-const V2_KEYS = [
-  process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY,
-  process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2,
-  process.env.GEOCLIENT_PRIMARY_KEY,
-  process.env.GEOCLIENT_SECONDARY_KEY,
-  process.env.GEOCLIENT_SUBSCRIPTION_KEY,
-].filter((s): s is string => !!(s && s.trim())).map(s => s.trim());
+type Attempt = {
+  url: string;
+  style: "header" | "query" | "both" | "v1";
+  keyMasked: string | null;
+  status: number | null;
+  body?: any;
+};
 
-// (Optional) legacy fallback if you ever add these later:
-const LEGACY_ID = (process.env.NYC_GEOCLIENT_APP_ID || process.env.GEOCLIENT_APP_ID || "").trim();
-const LEGACY_KEY = (process.env.NYC_GEOCLIENT_APP_KEY || process.env.GEOCLIENT_APP_KEY || "").trim();
-
-// Normalize BIN/BBL from either response shape
-function pickBinBbl(json: any) {
-  const sr = json?.searchResults || json?.results || [];
-  const first = Array.isArray(sr) ? sr[0]?.response : null;
-
-  const bin =
-    first?.bin ||
-    first?.buildingIdentificationNumber ||
-    null;
-
-  const bbl =
-    first?.bbl ||
-    (first?.boroughCode && first?.block && first?.lot
-      ? `${first.boroughCode}${first.block}${first.lot}`
-      : null);
-
-  return { bin, bbl };
+function mask(k: string | null | undefined) {
+  return k ? `${k.slice(0, 4)}…${k.slice(-4)}` : null;
 }
 
-async function tryV2Once(baseUrl: string, input: string, key: string, style: "header" | "query" | "both") {
-  const url = new URL(baseUrl);
-  url.searchParams.set("input", input);
-
-  // support both /search.json and /search?format=json
-  if (!url.pathname.endsWith(".json")) {
-    url.searchParams.set("format", "json");
-  }
-
-  if (style !== "header") {
-    url.searchParams.set("subscription-key", key);
-  }
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Cache-Control": "no-cache",
-  };
-  if (style !== "query") {
-    headers["Ocp-Apim-Subscription-Key"] = key;
-  }
-
-  const res = await fetch(url.toString(), { headers });
-  const text = await res.text();
-  let json: any = null; try { json = text ? JSON.parse(text) : null; } catch {}
-  return { ok: res.ok, status: res.status, url: url.toString(), style, body: json ?? text };
-}
-
-async function tryV2All(input: string, keys: string[]) {
-  const bases = [
-    "https://api.nyc.gov/geo/geoclient/v2/search.json",
-    "https://api.nyc.gov/geo/geoclient/v2/search",
-  ] as const;
-  const styles: Array<"header" | "query" | "both"> = ["header", "query", "both"];
-
-  const attempts: Array<{ok:boolean;status:number;url:string;style:string;body:any;keyMasked:string}> = [];
-  for (const key of keys) {
-    const keyMasked = `${key.slice(0,4)}…${key.slice(-4)}`;
-    for (const base of bases) {
-      for (const style of styles) {
-        const r = await tryV2Once(base, input, key, style);
-        attempts.push({ ...r, keyMasked });
-        if (r.ok) return { success: true as const, hit: { ...r, keyMasked }, attempts };
-      }
-    }
-  }
-  return { success: false as const, attempts };
+async function tryFetch(url: string, init?: RequestInit): Promise<{ ok: boolean; status: number; json: any }> {
+  const r = await fetch(url, init);
+  const t = await r.text();
+  let j: any = null;
+  try { j = t ? JSON.parse(t) : null; } catch { j = t; }
+  return { ok: r.ok, status: r.status, json: j };
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const input = (searchParams.get("input") || searchParams.get("q") || "").trim();
+  const input = searchParams.get("input")?.trim();
+  const debug = (searchParams.get("debug") ?? "").toLowerCase() === "1";
 
   if (!input) {
     return NextResponse.json({ ok: false, error: "Missing ?input" }, { status: 200 });
   }
 
-  // Prefer v2 with multi-key, multi-auth attempts
-  if (V2_KEYS.length > 0) {
-    const v2 = await tryV2All(input, V2_KEYS);
-    if (v2.success) {
-      const { body } = v2.hit;
-      const { bin, bbl } = pickBinBbl(body);
-      return NextResponse.json({
-        ok: true,
-        mode: "v2",
-        input,
-        bin, bbl,
-        source: v2.hit.url,
-        authStyle: v2.hit.style,
-        key: v2.hit.keyMasked,
-        raw: body,
-      });
-    }
+  // ---- Keys (v2) – primary + secondary, exactly as you configured in Vercel
+  const v2Primary =
+    process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY ||
+    process.env.GEOCLIENT_PRIMARY_KEY ||
+    null;
 
-    // If we have legacy creds, try them before bailing
-    if (LEGACY_ID && LEGACY_KEY) {
-      const v1Url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(input)}&app_id=${encodeURIComponent(LEGACY_ID)}&app_key=${encodeURIComponent(LEGACY_KEY)}`;
-      const r = await fetch(v1Url);
-      const t = await r.text();
-      let j: any = null; try { j = t ? JSON.parse(t) : null; } catch {}
-      if (r.ok) {
-        const { bin, bbl } = pickBinBbl(j);
-        return NextResponse.json({
-          ok: true, mode: "v1_fallback", input, bin, bbl, source: v1Url,
-          debug: { v2Tried: v2.attempts.map(a => ({ status: a.status, style: a.style, key: a.keyMasked, url: a.url })) },
-          raw: j,
-        });
-      }
-      return NextResponse.json({
-        ok: false, mode: "v2_failed_then_v1_failed",
-        error: "All v2 attempts failed and v1 failed too.",
-        v2: v2.attempts.map(a => ({ status: a.status, style: a.style, key: a.keyMasked, url: a.url, body: (typeof a.body === "string" ? a.body.slice(0,400) : a.body) })),
-        v1: { status: r.status, url: v1Url, body: t.slice(0,400) },
-      }, { status: 200 });
-    }
+  const v2Secondary =
+    process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2 ||
+    process.env.GEOCLIENT_SECONDARY_KEY ||
+    null;
 
-    // No legacy creds—report v2 failures for diagnosis
-    return NextResponse.json({
-      ok: false, mode: "v2_all_failed",
-      error: "All v2 auth/url variants failed.",
-      attempts: v2.attempts.map(a => ({ status: a.status, style: a.style, key: a.keyMasked, url: a.url, body: (typeof a.body === "string" ? a.body.slice(0,400) : a.body) })),
-    }, { status: 200 });
+  // ---- Optional legacy v1 (App ID/Key) – only used if provided
+  const v1Id =
+    process.env.NYC_GEOCLIENT_APP_ID ||
+    process.env.GEOCLIENT_APP_ID ||
+    null;
+
+  const v1Key =
+    process.env.NYC_GEOCLIENT_APP_KEY ||
+    process.env.GEOCLIENT_APP_KEY ||
+    null;
+
+  const attempts: Attempt[] = [];
+
+  // Helper to record each attempt
+  const record = async (url: string, style: Attempt["style"], key: string | null, init?: RequestInit) => {
+    try {
+      const { ok, status, json } = await tryFetch(url, init);
+      attempts.push({ url, style, keyMasked: mask(key), status, body: json });
+      if (ok) return json;
+      return null;
+    } catch (e: any) {
+      attempts.push({ url, style, keyMasked: mask(key), status: null, body: String(e?.message ?? e) });
+      return null;
+    }
+  };
+
+  // -------- v2 (subscription) tries ----------
+  const baseJson = `https://api.nyc.gov/geo/geoclient/v2/search.json?input=${encodeURIComponent(input)}`;
+  const baseNoExt = `https://api.nyc.gov/geo/geoclient/v2/search?input=${encodeURIComponent(input)}&format=json`;
+
+  const v2Keys = [v2Primary, v2Secondary].filter(Boolean) as string[];
+
+  for (const key of v2Keys) {
+    // header
+    let data =
+      (await record(baseJson, "header", key, { headers: { "Ocp-Apim-Subscription-Key": key } })) ||
+      // query
+      (await record(`${baseJson}&subscription-key=${encodeURIComponent(key)}`, "query", key)) ||
+      // both
+      (await record(`${baseJson}&subscription-key=${encodeURIComponent(key)}`, "both", key, {
+        headers: { "Ocp-Apim-Subscription-Key": key },
+      })) ||
+      // alt path without .json
+      (await record(baseNoExt, "header", key, { headers: { "Ocp-Apim-Subscription-Key": key } })) ||
+      (await record(`${baseNoExt}&subscription-key=${encodeURIComponent(key)}`, "query", key)) ||
+      (await record(`${baseNoExt}&subscription-key=${encodeURIComponent(key)}`, "both", key, {
+        headers: { "Ocp-Apim-Subscription-Key": key },
+      }));
+
+    if (data && (data.result || data.response || data.address || data.features || data)) {
+      // Shape varies; try to pull BIN/BBL if present
+      const first =
+        (data?.result && data.result[0]) ||
+        data?.response ||
+        data;
+
+      const bin = first?.bin || first?.bldgId || first?.buildingIdentificationNumber || null;
+      const bbl = first?.bbl || null;
+
+      const out: any = { ok: true, input, data, bin, bbl };
+      if (debug) out.attempts = attempts;
+      return NextResponse.json(out, { status: 200 });
+    }
   }
 
-  // No v2 keys; try v1 if present
-  if (LEGACY_ID && LEGACY_KEY) {
-    const v1Url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(input)}&app_id=${encodeURIComponent(LEGACY_ID)}&app_key=${encodeURIComponent(LEGACY_KEY)}`;
-    const r = await fetch(v1Url);
-    const t = await r.text();
-    let j: any = null; try { j = t ? JSON.parse(t) : null; } catch {}
-    if (!r.ok) {
-      return NextResponse.json({ ok: false, mode: "v1", error: `Geoclient ${r.status}: ${t.slice(0,400)}` }, { status: 200 });
+  // -------- v1 (legacy) fallback ----------
+  if (v1Id && v1Key) {
+    const v1Url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(
+      input
+    )}&app_id=${encodeURIComponent(v1Id)}&app_key=${encodeURIComponent(v1Key)}`;
+
+    const v1 = await record(v1Url, "v1", `${mask(v1Id)}:${mask(v1Key)}`, undefined);
+    if (v1 && (v1.result || v1.response || v1.address || v1.features || v1)) {
+      const first =
+        (v1?.result && v1.result[0]) ||
+        v1?.response ||
+        v1;
+      const bin = first?.bin || first?.bldgId || first?.buildingIdentificationNumber || null;
+      const bbl = first?.bbl || null;
+
+      const out: any = { ok: true, input, data: v1, bin, bbl, mode: "v1" };
+      if (debug) out.attempts = attempts;
+      return NextResponse.json(out, { status: 200 });
     }
-    const { bin, bbl } = pickBinBbl(j);
-    return NextResponse.json({ ok: true, mode: "v1", input, bin, bbl, source: v1Url, raw: j });
   }
 
-  return NextResponse.json({
-    ok: false, mode: "missing",
-    error: "Provide at least one v2 subscription key or a v1 app_id + app_key."
-  }, { status: 200 });
+  // Nothing worked
+  const out: any = {
+    ok: false,
+    error: "All Geoclient attempts failed. If you’re sure the keys are correct, your subscription may be inactive/rotated.",
+  };
+  if (debug) out.attempts = attempts;
+  return NextResponse.json(out, { status: 200 });
 }
