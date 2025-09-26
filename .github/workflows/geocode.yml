@@ -8,7 +8,6 @@ on:
       - 'geocode.ps1'
       - '.github/workflows/geocode.yml'
 
-# allow this workflow to push back to the repo
 permissions:
   contents: write
 
@@ -17,29 +16,28 @@ jobs:
     runs-on: windows-latest
     env:
       NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Sanity check (files & key)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sanity check
         shell: pwsh
         run: |
           if (-not (Test-Path .\addresses.csv)) { throw "addresses.csv not found in repo root" }
-          if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY is not set" }
-          "Key length: $($env:NYC_GEOCLIENT_KEY.Length)"
+          if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY is missing" }
 
       - name: Run geocode
         shell: pwsh
         run: .\geocode.ps1 -In .\addresses.csv -Out .\geoclient_addresses_out.csv
 
-      - name: Move CSV where the site can read it
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path .\public\data | Out-Null
-          Move-Item -Force .\geoclient_addresses_out.csv .\public\data\geoclient_addresses_out.csv
-
-      - name: Commit CSV back to repo
+      - name: Commit output to repo
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(geocode): update public/data/geoclient_addresses_out.csv"
-          file_pattern: public/data/geoclient_addresses_out.csv
+          commit_message: "chore: update geoclient_addresses_out.csv (auto)"
+          file_pattern: geoclient_addresses_out.csv
+
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: geoclient_addresses_out
+          path: geoclient_addresses_out.csv
