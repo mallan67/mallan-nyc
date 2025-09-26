@@ -19,7 +19,6 @@ export async function GET(req: Request) {
 
     const first = json?.results?.[0]?.response || {};
     const bin = first?.buildingIdentificationNumber || undefined;
-
     const bbl =
       first?.bbl ||
       (first?.bblBoroughCode && first?.bblBlock && first?.bblLot
