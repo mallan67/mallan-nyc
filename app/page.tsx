@@ -7,21 +7,19 @@ type ApiResponse = {
   ok: boolean;
   input?: string;
   bin?: string;
+  bbl?: string;
   geoclient?: any;
-  sources?: { ecb_violations?: { ok: boolean; count: number; items: any[] } };
+  sources?: { ecb_violations?: any; violations?: any; permits?: any; complaints?: any };
+  missingOrErrored?: any[];
   ecb_open_count?: number;
   ecb_balance_due_total?: number;
-  debug?: {
-    request?: { open?: boolean; origin?: string; urls?: { geoclient?: string; ecb?: string } };
-    notes?: string[];
-  };
+  debug?: any;
 };
 
 function HomeClient() {
-  const sp = useSearchParams(); // client-only
+  const sp = useSearchParams();
   const router = useRouter();
 
-  // Null-safe read of ?debug=1 / ?debug=true
   const debugParam = (sp?.get('debug') ?? '').toLowerCase();
   const debugOn = debugParam === '1' || debugParam === 'true';
 
@@ -39,12 +37,11 @@ function HomeClient() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
+    setError(null); setLoading(true);
     try {
       const url = new URL('/api/ai/nyc', window.location.origin);
       if (openOnly) url.searchParams.set('open', '1');
-      if (debugOn) url.searchParams.set('debug', '1');
+      if (debugOn)  url.searchParams.set('debug', '1');
 
       const r = await fetch(url.toString(), {
         method: 'POST',
@@ -55,56 +52,29 @@ function HomeClient() {
       const json = (await r.json()) as ApiResponse;
       setData(json);
     } catch (err: any) {
-      setError(err?.message ?? String(err));
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
+      setError(err?.message ?? String(err)); setData(null);
+    } finally { setLoading(false); }
   }
 
   const bin = data?.bin;
-  const ecbCount = data?.ecb_open_count ?? data?.sources?.ecb_violations?.count ?? 0;
-  const ecbBalance = data?.ecb_balance_due_total ?? 0;
-  const bisUrl = bin
-    ? `https://a810-bisweb.nyc.gov/BISWeb/PropertyProfileOverviewServlet?bin=${encodeURIComponent(
-        bin
-      )}`
-    : null;
+  const bbl = data?.bbl;
 
   return (
     <main className="mx-auto max-w-2xl p-6 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">NYC Address Lookup</h1>
-        <button
-          onClick={toggleDebug}
-          className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}
-          title="Toggle Developer Mode (adds ?debug=1 to the URL)"
-        >
+        <button onClick={toggleDebug} className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}>
           {debugOn ? 'Developer: ON' : 'Developer: OFF'}
         </button>
       </header>
 
       <form onSubmit={onSubmit} className="space-y-3">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="e.g., 300 East 90 Street Manhattan 10128"
-          className="w-full border rounded px-3 py-2"
-        />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g., 300 East 90 Street Manhattan 10128" className="w-full border rounded px-3 py-2" />
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={openOnly}
-            onChange={(e) => setOpenOnly(e.target.checked)}
-          />
+          <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
           Only show likely-open ECBs
         </label>
-        <button
-          disabled={loading}
-          className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-        >
-          {loading ? 'Searching…' : 'Search'}
-        </button>
+        <button disabled={loading} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">{loading ? 'Searching…' : 'Search'}</button>
       </form>
 
       {error && <p className="text-red-600">Error: {error}</p>}
@@ -112,32 +82,19 @@ function HomeClient() {
       {data && (
         <section className="space-y-2">
           <h2 className="font-semibold">Result</h2>
-          {bin && (
+          {bin && <p>BIN: <span className="font-mono">{bin}</span></p>}
+          {bbl && <p>BBL: <span className="font-mono">{bbl}</span></p>}
+
+          {data.sources?.ecb_violations && (
             <p>
-              BIN: <span className="font-mono">{bin}</span>
+              Open ECB count: {data.sources.ecb_violations.openCount} · Balance Due: ${data.sources.ecb_violations.balance}
             </p>
           )}
-          {bisUrl && (
-            <p>
-              <a
-                className="text-blue-600 underline"
-                href={bisUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open DOB Property Profile ↗
-              </a>
-            </p>
-          )}
-          <p>Open ECB count: {ecbCount}</p>
-          <p>Total ECB balance due: ${ecbBalance}</p>
 
           {debugOn && (
             <details open className="mt-4">
               <summary className="cursor-pointer font-medium">Developer data</summary>
-              <pre className="mt-2 overflow-auto rounded border p-3 text-xs">
-                {JSON.stringify(data, null, 2)}
-              </pre>
+              <pre className="mt-2 overflow-auto rounded border p-3 text-xs">{JSON.stringify(data, null, 2)}</pre>
             </details>
           )}
         </section>
@@ -147,7 +104,6 @@ function HomeClient() {
 }
 
 export default function Page() {
-  // Suspense boundary fixes: “useSearchParams() should be wrapped …”
   return (
     <Suspense fallback={<div />}>
       <HomeClient />
