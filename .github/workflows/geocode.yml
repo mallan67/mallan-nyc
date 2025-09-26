@@ -4,27 +4,29 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "addresses.csv"
-      - "geocode.ps1"
-      - ".github/workflows/geocode.yml"
+      - 'addresses.csv'
+      - 'geocode.ps1'
+      - '.github/workflows/geocode.yml'
 
 jobs:
   geocode:
     runs-on: windows-latest
+    env:
+      NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run geocoder
+      - name: Sanity check (files & key length)
         shell: pwsh
-        # If you renamed the secret to NYC_GEOCLIENT_KEY, use the line below:
-        env:
-          NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
-        # If you kept the typo, use this instead:
-        # env:
-        #   NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCILENT_KEY }}
         run: |
-          $ErrorActionPreference = 'Stop'
-          ./geocode.ps1 -In ./addresses.csv -Out ./geoclient_addresses_out.csv
+          Get-Location
+          Get-ChildItem -Force
+          "addresses.csv exists? " + (Test-Path .\addresses.csv)
+          "Key length: " + $env:NYC_GEOCLIENT_KEY.Length
+
+      - name: Run geocode
+        shell: pwsh
+        run: .\geocode.ps1 -In .\addresses.csv -Out .\geoclient_addresses_out.csv
 
       - name: Upload result
         uses: actions/upload-artifact@v4
