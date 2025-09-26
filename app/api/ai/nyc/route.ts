@@ -1,74 +1,94 @@
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
-// Helper that NEVER throws; always returns a {ok:boolean, ...}
 async function safeFetchJSON(url: string, init?: RequestInit) {
   try {
     const r = await fetch(url, init);
     const t = await r.text();
     let j: any = null;
     try { j = t ? JSON.parse(t) : null; } catch {}
-    if (!r.ok) {
-      return { ok: false, source: url, status: r.status, statusText: r.statusText, body: j ?? t };
-    }
-    return { ok: true, source: url, data: j };
+    if (!r.ok) return { ok: false, status: r.status, body: j ?? t, url };
+    return { ok: true, data: j, url };
   } catch (e: any) {
-    return { ok: false, source: url, error: e?.message || String(e) };
+    return { ok: false, error: e?.message || String(e), url };
   }
+}
+
+// quick parser for strings like: "300 East 90 Street Manhattan 10128"
+function parseNYCAddress(input: string) {
+  const m = input.match(
+    /^\s*(\d+)\s+(.+?)\s+(Manhattan|Brooklyn|Queens|Bronx|Staten Island)(?:\s+(\d{5}))?\s*$/i
+  );
+  if (!m) return null;
+  const [, houseNumber, street, borough, zip] = m;
+  return {
+    houseNumber: houseNumber.trim(),
+    street: street.trim(),       // we will re-normalize inside geoclient route
+    borough: borough?.trim(),
+    zipCode: zip?.trim() || undefined,
+  };
 }
 
 export async function POST(req: Request) {
   try {
-    const { query, ecbOpen, debug } = await req.json();
-    if (!query || typeof query !== "string") {
-      return NextResponse.json({ ok: false, error: "Body must include { query: string }" }, { status: 200 });
+    const { query, houseNumber, street, borough, zipCode, debug } = await req.json();
+
+    // Prefer explicit fielded body; otherwise parse free text
+    let h = houseNumber, s = street, b = borough, z = zipCode;
+    if ((!h || !s || (!b && !z)) && typeof query === "string") {
+      const p = parseNYCAddress(query);
+      if (p) { h = p.houseNumber; s = p.street; b = p.borough; z = p.zipCode; }
     }
 
-    // Absolute base so Node fetch never chokes on relative paths
-    const origin = new URL(req.url).origin;
-    const base = process.env.NEXT_PUBLIC_API_BASE || origin;
+    if (!h || !s || (!b && !z)) {
+      return NextResponse.json(
+        { ok: false, error: "Provide { houseNumber, street, borough|zipCode } or a parseable query like '300 East 90 Street Manhattan 10128'." },
+        { status: 200 }
+      );
+    }
 
-    // 1) Resolve address → BIN + BBL (accepts ?input or ?q)
-    const geores = await safeFetchJSON(`${base}/api/geoclient/address?input=${encodeURIComponent(query)}`);
+    const base = process.env.NEXT_PUBLIC_API_BASE ?? "";
+    const geourl = new URL(`${base}/api/geoclient/address`);
+    geourl.searchParams.set("houseNumber", h);
+    geourl.searchParams.set("street", s);
+    if (b) geourl.searchParams.set("borough", b);
+    if (z) geourl.searchParams.set("zipCode", z);
+    if (debug) geourl.searchParams.set("debug", "1");
+
+    const geores = await safeFetchJSON(geourl.toString());
     const bin = (geores as any)?.data?.bin ?? null;
     const bbl = (geores as any)?.data?.bbl ?? null;
 
-    // 2) Pull DOB/Finance data (guarded)
-    const endpoints: string[] = [];
-    if (bin) {
-      endpoints.push(`/api/dob/violations?bin=${bin}`);
-      endpoints.push(`/api/dob/permits?bin=${bin}`);
-      endpoints.push(`/api/dob/complaints?bin=${bin}`);
-    }
-    if (bbl) {
-      const open = ecbOpen === false ? '0' : '1';
-      endpoints.push(`/api/dob/ecb-violations?bbl=${bbl}&open=${open}`);
-    }
+    const endpoints = bin
+      ? [
+          `/api/dob/violations?bin=${bin}`,
+          `/api/dob/permits?bin=${bin}`,
+          `/api/dob/complaints?bin=${bin}`,
+          `/api/dob/ecb-violations?bin=${bin}`,
+        ]
+      : [];
 
-    const fetches = await Promise.all(endpoints.map((p) => safeFetchJSON(`${base}${p}`)));
+    const fetches = await Promise.all(
+      endpoints.map((p) => safeFetchJSON(`${base}${p}`))
+    );
     const successes = fetches.filter((r) => r.ok);
-    const failures  = fetches.filter((r) => !r.ok);
+    const failures = fetches.filter((r) => !r.ok);
 
-    // 3) Build a summary skeleton WITHOUT throwing
-    const out = {
+    return NextResponse.json({
       ok: true,
-      input: query,
+      input: query ?? `${h} ${s} ${b ?? ""} ${z ?? ""}`.trim(),
       geoclient: geores,
-      bin,
-      bbl,
+      bin, bbl,
       sources: {
-        violations: successes.find((x: any) => x.source?.includes("/dob/violations"))?.data ?? null,
-        permits:    successes.find((x: any) => x.source?.includes("/dob/permits"))?.data ?? null,
-        complaints: successes.find((x: any) => x.source?.includes("/dob/complaints"))?.data ?? null,
-        ecb_violations: successes.find((x: any) => x.source?.includes("/dob/ecb-violations"))?.data ?? null,
+        violations: successes.find((x: any) => x.url?.includes("/violations"))?.data ?? null,
+        permits:    successes.find((x: any) => x.url?.includes("/permits"))?.data ?? null,
+        complaints: successes.find((x: any) => x.url?.includes("/complaints"))?.data ?? null,
+        ecb_violations: successes.find((x: any) => x.url?.includes("/ecb-violations"))?.data ?? null,
       },
       missingOrErrored: failures,
-      debug: debug ? { notes: ["Debug on"], request: { open: ecbOpen !== false, origin: base } } : undefined
-    };
-
-    return NextResponse.json(out);
+      debug: debug ? { notes: ["Debug on"], request: { urls: { geoclient: geourl.toString() } } } : undefined,
+    });
   } catch (err: any) {
-    // Last-resort guard: never 500
     return NextResponse.json({ ok: false, error: err?.message || String(err) }, { status: 200 });
   }
 }
