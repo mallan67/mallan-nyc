@@ -1,30 +1,54 @@
-export const SODA_APP_TOKEN =
-  process.env.NYC_SODA_APP_TOKEN ||
-  process.env.SOCRATA_APP_TOKEN || ""; // accept either name
+// lib/soda.ts
+const SODA_HOST = "https://data.cityofnewyork.us";
+const RAW_TOKEN =
+  (process.env.NYC_SODA_APP_TOKEN || process.env.SOCRATA_APP_TOKEN || "").trim();
 
-const BASE = "https://data.cityofnewyork.us/resource";
+const HEADERS: Record<string, string> = RAW_TOKEN
+  ? { "X-App-Token": RAW_TOKEN, Accept: "application/json" }
+  : { Accept: "application/json" };
 
-function err(msg: string, body?: any) {
-  return {
-    ok: false,
-    error: body ? `${msg}: ${JSON.stringify(body, null, 2)}` : msg,
-  };
+const mask = (s?: string | null) => (s ? `${s.slice(0, 4)}…${s.slice(-4)}` : null);
+
+export function sodaTokenMasked() {
+  return mask(RAW_TOKEN);
 }
 
-export async function soda(dataset: string, params: Record<string, string> = {}) {
-  if (!dataset) return err("Missing dataset id");
-  const url = new URL(`${BASE}/${dataset}.json`);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+export async function sodaFetch(dataset: string, qs: Record<string, any> = {}) {
+  if (!dataset) {
+    return { ok: false, error: "Missing dataset id" };
+  }
+  if (!RAW_TOKEN) {
+    return { ok: false, error: "Missing NYC_SODA_APP_TOKEN" };
+  }
 
-  const headers: Record<string, string> = {};
-  if (SODA_APP_TOKEN) headers["X-App-Token"] = SODA_APP_TOKEN;
+  const url = new URL(`${SODA_HOST}/resource/${dataset}.json`);
+  // default limit if caller didn't set one
+  if (!("$limit" in qs)) qs["$limit"] = "50";
+  for (const [k, v] of Object.entries(qs)) {
+    url.searchParams.set(k, String(v));
+  }
 
-  const r = await fetch(url.toString(), { headers });
-  const text = await r.text();
-  let json: any = null;
   try {
-    json = text ? JSON.parse(text) : null;
-  } catch {}
-  if (!r.ok) return err(`SODA ${dataset} ${r.status}`, json ?? text);
-  return { ok: true, data: json, source: url.toString() };
+    const res = await fetch(url.toString(), {
+      headers: HEADERS,
+      cache: "no-store",
+    });
+    const text = await res.text();
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch (_) {}
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        url: url.toString(),
+        error: `SODA ${dataset} ${res.status}: ${text.slice(0, 400)}`,
+      };
+    }
+    return { ok: true, url: url.toString(), data: json };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
 }
