@@ -1,99 +1,32 @@
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import { soda } from "../../../../lib/soda";
+export const runtime = "nodejs";
 
-const SODA = 'https://data.cityofnewyork.us/resource';
-const LEGALS = `${SODA}/8h5j-fqxa.json`;  // Real Property Legals (has borough/block/lot + document_id)
-const MASTER = `${SODA}/bnx9-e6tj.json`;  // Real Property Master (join via document_id)
+const MASTER   = process.env.SODA_DATASET_ACRIS_MASTER!;
+const REALPROP = process.env.SODA_DATASET_ACRIS_REALPROPERTY!;
 
-function json(u: string) {
-  const headers: Record<string, string> = { accept: 'application/json' };
-  const tok = process.env.SOCRATA_APP_TOKEN;
-  if (tok) headers['X-App-Token'] = tok;
-  return fetch(u, { headers });
-}
-
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  if (url.searchParams.get('ping')) {
-    return Response.json({ ok: true, handler: 'acris-app-v8' });
-  }
-
-  const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('$limit') || '25')));
-  const debug = url.searchParams.has('debug');
-
-  // Accept either ?bbl=########## or ?borough=&block=&lot=
-  let borough = (url.searchParams.get('borough') || '').trim();
-  let block   = (url.searchParams.get('block') || '').trim().replace(/^0+/, '');
-  let lot     = (url.searchParams.get('lot') || '').trim().replace(/^0+/, '');
-  const bblIn = (url.searchParams.get('bbl') || '').replace(/[^0-9]/g, '');
-
-  if (bblIn && (!borough || !block || !lot)) {
-    if (bblIn.length >= 7) {
-      borough = bblIn.slice(0, 1);
-      block   = String(Number(bblIn.slice(1, 6)));
-      lot     = String(Number(bblIn.slice(6)));
-    }
-  }
-
-  if (!borough || !block || !lot) {
-    return Response.json(
-      { error: true, message: 'Provide ?bbl=########## OR ?borough=&block=&lot=' },
-      { status: 400 }
-    );
-  }
-
-  // Normalize + try padded & unpadded block/lot
-  const b = String(Number(borough));
-  const bl = String(Number(block));
-  const lt = String(Number(lot));
-  const blP = bl.padStart(5, '0');
-  const ltP = lt.padStart(4, '0');
-
-  // 1) LEGALS → document_id list for this BBL
-  const whereLegals =
-    `borough = ${b} AND (block = '${bl}' OR block = '${blP}') AND (lot = '${lt}' OR lot = '${ltP}')`;
-  const legalsURL =
-    `${LEGALS}?$select=document_id&$where=${encodeURIComponent(whereLegals)}&$limit=5000`;
-
-  let docs: string[] = [];
+export async function GET(req: Request) {
   try {
-    const r = await json(legalsURL);
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const arr = await r.json();
-    docs = Array.from(new Set((arr || []).map((x: any) => x.document_id).filter(Boolean)));
-  } catch (e: any) {
-    return Response.json({ error: true, step: 'LEGALS', details: String(e) }, { status: 502 });
+    const u = new URL(req.url);
+    const bbl = (u.searchParams.get('bbl') || '').trim();
+    if (!bbl) return NextResponse.json({ ok:false, error:'bbl required' }, { status: 400 });
+
+    const ids = await soda<{ document_id: string }>({
+      resource: REALPROP,
+      where: `bbl='${bbl}'`,
+      select: 'document_id',
+      order: 'document_id DESC',
+      limit: 50,
+    });
+
+    const docIds = ids.map(r => r.document_id);
+    if (!docIds.length) return NextResponse.json({ ok:true, count:0, items:[] });
+
+    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')})`;
+    const docs = await soda({ resource: MASTER, where, order: 'recordedfiledate DESC', limit: docIds.length });
+
+    return NextResponse.json({ ok:true, count: docs.length, items: docs });
+  } catch (e:any) {
+    return NextResponse.json({ ok:false, error:e.message }, { status: 200 });
   }
-
-  if (!docs.length) {
-    const payload: any = {
-      results: [],
-      note:
-        'No ACRIS Real Property filings found for that BBL. Co-op transactions are often recorded as Personal Property (UCC) and are not searchable by BBL via Open Data.',
-    };
-    if (debug) payload.debug = [{ step: 'LEGALS', where: whereLegals, count: 0 }];
-    return Response.json(payload);
-  }
-
-  // 2) MASTER → by document_id (chunked IN lists)
-  const chunks: string[][] = [];
-  for (let i = 0; i < docs.length; i += 80) chunks.push(docs.slice(i, i + 80));
-
-  let rows: any[] = [];
-  for (const ch of chunks) {
-    if (rows.length >= limit) break;
-    const whereMaster = `document_id in (${ch.map((id) => `'${id}'`).join(',')})`;
-    const masterURL = `${MASTER}?$where=${encodeURIComponent(whereMaster)}&$order=recorded_datetime DESC&$limit=${limit}`;
-    try {
-      const r = await json(masterURL);
-      if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-      const part = await r.json();
-      rows = rows.concat(part || []);
-    } catch (e: any) {
-      return Response.json({ error: true, step: 'MASTER', details: String(e) }, { status: 502 });
-    }
-  }
-
-  const out: any = { results: rows.slice(0, limit) };
-  if (debug) out.debug = [{ step: 'LEGALS', where: whereLegals, count: docs.length }];
-  return Response.json(out);
 }
