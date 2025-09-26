@@ -1,121 +1,73 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+export const runtime = "nodejs";
 
-export const runtime = 'nodejs';
-
-function ok(data: any, status = 200) {
-  return NextResponse.json(data, { status });
+// Helper that NEVER throws; always returns a {ok:boolean, ...}
+async function safeFetchJSON(url: string, init?: RequestInit) {
+  try {
+    const r = await fetch(url, init);
+    const t = await r.text();
+    let j: any = null;
+    try { j = t ? JSON.parse(t) : null; } catch {}
+    if (!r.ok) {
+      return { ok: false, source: url, status: r.status, statusText: r.statusText, body: j ?? t };
+    }
+    return { ok: true, source: url, data: j };
+  } catch (e: any) {
+    return { ok: false, source: url, error: e?.message || String(e) };
+  }
 }
 
 export async function POST(req: Request) {
   try {
-    // Parse URL & body
-    const url = new URL(req.url);
-    const wantOpen =
-      url.searchParams.has('open') ||
-      (url.searchParams.get('open') ?? '').toLowerCase() === '1';
-    const debugQS =
-      (url.searchParams.get('debug') ?? '').toLowerCase() === '1' ||
-      (url.searchParams.get('debug') ?? '').toLowerCase() === 'true';
-
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {}
-    const query: string = (body?.query ?? body?.q ?? '').toString().trim();
-    const debugBody = !!body?.debug;
-    const wantOpenBody = !!body?.ecbOpen;
-
-    const open = wantOpen || wantOpenBody;
-    const debug = debugQS || debugBody;
-
-    if (!query) {
-      return ok({ ok: false, error: 'missing query' }, 400);
+    const { query, ecbOpen, debug } = await req.json();
+    if (!query || typeof query !== "string") {
+      return NextResponse.json({ ok: false, error: "Body must include { query: string }" }, { status: 200 });
     }
 
-    // Figure out absolute origin
-    const origin =
-      (process.env.NEXT_PUBLIC_BASE_URL || '').trim() ||
-      new URL(req.url).origin;
+    const base = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
-    // 1) Geocode (your own geoclient endpoint)
-    const geoUrl = new URL(`${origin}/api/geoclient/address`);
-    geoUrl.searchParams.set('q', query);
-    if (debug) geoUrl.searchParams.set('debug', '1');
+    // 1) Resolve address → BIN + BBL (accepts ?q or ?input)
+    const geores = await safeFetchJSON(`${base}/api/geoclient/address?input=${encodeURIComponent(query)}`);
+    const bin = (geores as any)?.data?.bin ?? null;
+    const bbl = (geores as any)?.data?.bbl ?? null;
 
-    const geoRes = await fetch(geoUrl.toString(), {
-      headers: { accept: 'application/json' },
-    });
-    const geo = await geoRes.json();
-    const bin: string | null =
-      geo?.bin ?? geo?.data?.bin ?? geo?.address?.buildingIdentificationNumber ?? null;
-
-    // 2) DOB ECB violations (forward open + debug)
-    let ecb: any = { ok: false, count: 0, items: [] as any[] };
+    // 2) Pull DOB/Finance data (guarded)
+    const endpoints: string[] = [];
     if (bin) {
-      const ecbUrl = new URL(`${origin}/api/dob/ecb-violations`);
-      ecbUrl.searchParams.set('bin', bin);
-      if (open) ecbUrl.searchParams.set('open', '1');
-      if (debug) ecbUrl.searchParams.set('debug', '1');
-
-      const ecbRes = await fetch(ecbUrl.toString(), {
-        headers: { accept: 'application/json' },
-      });
-      ecb = await ecbRes.json();
+      endpoints.push(`/api/dob/violations?bin=${bin}`);
+      endpoints.push(`/api/dob/permits?bin=${bin}`);
+      endpoints.push(`/api/dob/complaints?bin=${bin}`);
+    }
+    if (bbl) {
+      // ECB needs BBL
+      const open = ecbOpen === false ? '0' : '1';
+      endpoints.push(`/api/dob/ecb-violations?bbl=${bbl}&open=${open}`);
     }
 
-    // Quick totals for UI (only when "open" is requested)
-    const ecbItems: any[] = Array.isArray(ecb?.items) ? ecb.items : [];
-    const ecbBalanceDueTotal = ecbItems.reduce((sum, r) => {
-      const n = Number(r?.balance_due ?? 0);
-      return sum + (isNaN(n) ? 0 : n);
-    }, 0);
+    const fetches = await Promise.all(endpoints.map((p) => safeFetchJSON(`${base}${p}`)));
+    const successes = fetches.filter((r) => r.ok);
+    const failures  = fetches.filter((r) => !r.ok);
 
-    const result: any = {
+    // 3) Build a summary skeleton WITHOUT throwing
+    const out = {
       ok: true,
       input: query,
-      geoclient: { ok: !!geo?.ok || !!bin, source: geoUrl.toString(), data: geo },
-      bin: bin ?? undefined,
+      geoclient: geores,
+      bin,
+      bbl,
       sources: {
-        ecb_violations: ecb,
+        violations: successes.find((x: any) => x.source?.includes("/dob/violations"))?.data ?? null,
+        permits:    successes.find((x: any) => x.source?.includes("/dob/permits"))?.data ?? null,
+        complaints: successes.find((x: any) => x.source?.includes("/dob/complaints"))?.data ?? null,
+        ecb_violations: successes.find((x: any) => x.source?.includes("/dob/ecb-violations"))?.data ?? null,
       },
-      ecb_open_count: open ? ecb?.count ?? 0 : undefined,
-      ecb_balance_due_total: open ? ecbBalanceDueTotal : undefined,
+      missingOrErrored: failures,
+      debug: debug ? { notes: ["Debug on"], request: { open: ecbOpen !== false, origin: base } } : undefined
     };
 
-    if (debug) {
-      result.debug = {
-        request: {
-          open,
-          origin,
-          urls: {
-            geoclient: geoUrl.toString(),
-            ecb:
-              bin &&
-              (() => {
-                const u = new URL(`${origin}/api/dob/ecb-violations`);
-                u.searchParams.set('bin', bin);
-                if (open) u.searchParams.set('open', '1');
-                u.searchParams.set('debug', '1');
-                return u.toString();
-              })(),
-          },
-        },
-        notes: [
-          'Developer Mode is on. These fields exist only when ?debug=1 or body.debug=true.',
-        ],
-      };
-    }
-
-    return ok(result);
-  } catch (e: any) {
-    return ok({ ok: false, error: e?.message || String(e) }, 500);
+    return NextResponse.json(out);
+  } catch (err: any) {
+    // Last-resort guard: never 500
+    return NextResponse.json({ ok: false, error: err?.message || String(err) }, { status: 200 });
   }
-}
-
-export async function GET(req: Request) {
-  // Allow GET with ?q=... as a convenience for quick tests
-  const url = new URL(req.url);
-  const q = (url.searchParams.get('q') || '').trim();
-  const body = { query: q, debug: url.searchParams.get('debug') === '1', ecbOpen: url.searchParams.get('open') === '1' };
-  return POST(new Request(req.url, { method: 'POST', body: JSON.stringify(body) }));
 }
