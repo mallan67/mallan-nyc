@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { soda } from "../../../../lib/soda";
+import { soda } from "@/lib/soda";
 export const runtime = "nodejs";
 
 const MASTER   = process.env.SODA_DATASET_ACRIS_MASTER!;
