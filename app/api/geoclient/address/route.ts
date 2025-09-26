@@ -1,56 +1,96 @@
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
-async function fetchGeoclient(input: string) {
-  const SUB_KEY = process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY || "";
-  const APP_ID  = process.env.NYC_GEOCLIENT_APP_ID || "";
-  const APP_KEY = process.env.NYC_GEOCLIENT_APP_KEY || "";
+const V2_KEY =
+  process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY ||
+  process.env.GEOCLIENT_APP_KEY || ""; // accept either name
 
-  // Preferred: subscription key header
-  if (SUB_KEY) {
-    const u = new URL("https://api.nyc.gov/geo/geoclient/v1/search.json");
-    u.searchParams.set("input", input);
-    const r = await fetch(u.toString(), {
-      headers: { "Ocp-Apim-Subscription-Key": SUB_KEY },
-      cache: "no-store",
-    });
-    if (!r.ok) throw new Error(`Geoclient ${r.status}: ${await r.text()}`);
-    return r.json();
-  }
+const LEGACY_ID = process.env.NYC_GEOCLIENT_APP_ID || "";
+const LEGACY_KEY = process.env.NYC_GEOCLIENT_APP_KEY || "";
 
-  // Legacy pair fallback
-  if (APP_ID && APP_KEY) {
-    const u = new URL("https://api.cityofnewyork.us/geoclient/v1/search.json");
-    u.searchParams.set("input", input);
-    u.searchParams.set("app_id", APP_ID);
-    u.searchParams.set("app_key", APP_KEY);
-    const r = await fetch(u.toString(), { cache: "no-store" });
-    if (!r.ok) throw new Error(`Geoclient-legacy ${r.status}: ${await r.text()}`);
-    return r.json();
-  }
+function pickBinBbl(json: any) {
+  let bin: string | null = null;
+  let bbl: string | null = null;
 
-  throw new Error(
-    "Missing NYC Geoclient credentials. Provide NYC_GEOCLIENT_SUBSCRIPTION_KEY (preferred) or NYC_GEOCLIENT_APP_ID + NYC_GEOCLIENT_APP_KEY."
-  );
+  const sr = json?.searchResults || json?.results || [];
+  const first = Array.isArray(sr) ? sr[0]?.response : null;
+
+  bin =
+    first?.bin ||
+    first?.buildingIdentificationNumber ||
+    null;
+
+  bbl =
+    first?.bbl ||
+    (first?.boroughCode && first?.block && first?.lot
+      ? `${first.boroughCode}${first.block}${first.lot}`
+      : null);
+
+  return { bin, bbl };
 }
 
 export async function GET(req: Request) {
-  try {
-    const url = new URL(req.url);
-    const input = (url.searchParams.get("input") || url.searchParams.get("q") || "").trim();
-    if (!input) return NextResponse.json({ ok: false, error: "missing input" }, { status: 400 });
-
-    const json = await fetchGeoclient(input);
-    const first = json?.results?.[0]?.response || {};
-    const bin = first?.buildingIdentificationNumber || undefined;
-    const bbl =
-      first?.bbl ||
-      (first?.bblBoroughCode && first?.bblBlock && first?.bblLot
-        ? `${first.bblBoroughCode}${first.bblBlock}${first.bblLot}`
-        : undefined);
-
-    return NextResponse.json({ ok: true, input, bin, bbl, raw: json });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 200 });
+  const { searchParams } = new URL(req.url);
+  const input = searchParams.get("input") || searchParams.get("q") || "";
+  if (!input) {
+    return NextResponse.json(
+      { ok: false, error: "Missing ?input" },
+      { status: 200 }
+    );
   }
+
+  // Preferred: Geoclient v2 via subscription key
+  if (V2_KEY) {
+    const url = `https://api.nyc.gov/geo/geoclient/v2/search.json?input=${encodeURIComponent(
+      input
+    )}`;
+    const r = await fetch(url, {
+      headers: { "Ocp-Apim-Subscription-Key": V2_KEY },
+    });
+    const text = await r.text();
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {}
+    if (!r.ok) {
+      return NextResponse.json(
+        { ok: false, error: `Geoclient ${r.status}: ${text}` },
+        { status: 200 }
+      );
+    }
+    const { bin, bbl } = pickBinBbl(json);
+    return NextResponse.json({ ok: true, input, source: url, bin, bbl, raw: json });
+  }
+
+  // Legacy v1 fallback (app_id/app_key)
+  if (LEGACY_ID && LEGACY_KEY) {
+    const url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(
+      input
+    )}&app_id=${encodeURIComponent(LEGACY_ID)}&app_key=${encodeURIComponent(
+      LEGACY_KEY
+    )}`;
+    const r = await fetch(url);
+    const text = await r.text();
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {}
+    if (!r.ok) {
+      return NextResponse.json(
+        { ok: false, error: `Geoclient ${r.status}: ${text}` },
+        { status: 200 }
+      );
+    }
+    const { bin, bbl } = pickBinBbl(json);
+    return NextResponse.json({ ok: true, input, source: url, bin, bbl, raw: json });
+  }
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error:
+        "Missing NYC Geoclient credentials. Provide NYC_GEOCLIENT_SUBSCRIPTION_KEY (preferred) or NYC_GEOCLIENT_APP_ID + NYC_GEOCLIENT_APP_KEY.",
+    },
+    { status: 200 }
+  );
 }
