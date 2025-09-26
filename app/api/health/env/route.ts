@@ -10,11 +10,12 @@ export async function GET() {
     "SODA_DATASET_OATH_ECB",
     "SODA_DATASET_ACRIS_MASTER",
     "SODA_DATASET_ACRIS_REALPROPERTY",
+    // Geoclient: either the subscription key OR the legacy pair
     "NYC_GEOCLIENT_SUBSCRIPTION_KEY",
     "NYC_GEOCLIENT_APP_ID",
     "NYC_GEOCLIENT_APP_KEY",
   ];
 
-  const env = Object.fromEntries(need.map((k) => [k, !!process.env[k]]));
+  const env = Object.fromEntries(need.map((k) => [k, Boolean(process.env[k])]));
   return NextResponse.json({ ok: true, env });
 }
