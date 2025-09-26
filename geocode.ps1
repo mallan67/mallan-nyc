@@ -8,7 +8,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-if (-not (Test-Path -LiteralPath $In)) {
+if (-not (Test-Path $In)) {
   throw "Input CSV not found: $In"
 }
 if (-not $env:NYC_GEOCLIENT_KEY) {
@@ -16,22 +16,19 @@ if (-not $env:NYC_GEOCLIENT_KEY) {
 }
 
 function Invoke-NycGeoClient {
-  [CmdletBinding()]
   param([hashtable]$q)
 
   $base = 'https://api.nyc.gov/geoclient/v2/address'
-  $qs = ($q.GetEnumerator() | ForEach-Object {
+  $qs   = ($q.GetEnumerator() | ForEach-Object {
     '{0}={1}' -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value)
   }) -join '&'
+  $uri  = "$base?$qs"
+  $h    = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
 
-  $uri = "$base?$qs"
-  $headers = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
-
-  (Invoke-RestMethod -Headers $headers -Uri $uri -ErrorAction Stop).address
+  (Invoke-RestMethod -Headers $h -Uri $uri -ErrorAction Stop).address
 }
 
-$rows = Import-Csv -LiteralPath $In -ErrorAction Stop
-
+$rows = Import-Csv $In
 $result = foreach ($r in $rows) {
   $addr = Invoke-NycGeoClient @{
     houseNumber = $r.houseNumber
@@ -50,5 +47,5 @@ $result = foreach ($r in $rows) {
   }
 }
 
-$result | Export-Csv -LiteralPath $Out -NoTypeInformation -Encoding UTF8
+$result | Export-Csv $Out -NoTypeInformation -Encoding UTF8
 Write-Host "Wrote '$Out' with $($result.Count) rows."
