@@ -1,89 +1,34 @@
-[CmdletBinding()]
 param(
-  [string]$Input  = ".\addresses.csv",
-  [string]$OutCsv = ".\geoclient_addresses_out.csv",
-  [string]$OutXlsx = ".\geoclient_addresses_out.xlsx",
-  [string]$Key    # optional: if not set, will use env var NYC_GEOCLIENT_SUBSCRIPTION_KEY
+  [string]$In  = "addresses.csv",
+  [string]$Out = "geoclient_addresses_out.csv"
 )
 
-# ---- Minimal helpers (no profile/module required) ----
+if (-not (Test-Path $In)) { throw "Input CSV not found: $In" }
+if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY environment variable is missing." }
+
 function Invoke-NycGeoClient {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory)][string]$Path,   # address|search|bbl|bin|intersection|place
-    [Parameter(Mandatory)][object]$Query,  # hashtable or raw query string
-    [string]$Key,
-    [string]$Base = 'https://api.nyc.gov/geoclient/v2'
-  )
+  param([hashtable]$q)
+  $base = 'https://api.nyc.gov/geoclient/v2/address'
+  $qs   = ($q.GetEnumerator() | ForEach-Object { '{0}={1}' -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value) }) -join '&'
+  $uri  = "$base?$qs"
+  $h    = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
+  (Invoke-RestMethod -Headers $h -Uri $uri -ErrorAction Stop).address
+}
 
-  if (-not $Key) { $Key = $script:Key }
-  if (-not $Key) { $Key = $env:NYC_GEOCLIENT_SUBSCRIPTION_KEY }
-  if (-not $Key) { throw "No API key. Pass -Key or set `$env:NYC_GEOCLIENT_SUBSCRIPTION_KEY." }
-
-  if ($Query -is [string]) {
-    $qs = $Query
-  } elseif ($Query -is [hashtable]) {
-    Add-Type -AssemblyName System.Web
-    $nv = [System.Web.HttpUtility]::ParseQueryString([string]::Empty)
-    foreach ($k in $Query.Keys) {
-      $nv[[string]$k] = [string]$Query[$k]
-    }
-    $qs = $nv.ToString()
-  } else { throw "Query must be hashtable or string." }
-
-  $url = ("{0}/{1}?{2}" -f $Base.TrimEnd('/'), $Path.Trim('/'), $qs)
-  $headers = @{ 'Ocp-Apim-Subscription-Key' = $Key }
-
-  try {
-    $r = Invoke-WebRequest -Headers $headers -Uri $url -ErrorAction Stop
-    $r.Content | ConvertFrom-Json
-  } catch {
-    $resp = $_.Exception.Response
-    if ($resp) {
-      $sr = New-Object IO.StreamReader($resp.GetResponseStream()); $body = $sr.ReadToEnd(); $sr.Close()
-      throw "HTTP $([int]$resp.StatusCode) – $body"
-    }
-    throw
+Import-Csv $In | ForEach-Object {
+  $addr = Invoke-NycGeoClient @{
+    houseNumber = $_.houseNumber
+    street      = $_.street
+    borough     = $_.borough
+    zip         = $_.zip
   }
-}
 
-function New-NycQuery {
-  param([string]$HouseNumber,[string]$Street,[string]$Borough,[string]$Zip)
-  @{ houseNumber=$HouseNumber; street=$Street; borough=$Borough; zip=$Zip }
-}
-
-# ---- Run ----
-if (-not (Test-Path $Input)) { throw "Input not found: $Input" }
-
-$rows = Import-Csv $Input
-$results = foreach ($r in $rows) {
-  try {
-    $addr = (Invoke-NycGeoClient -Path address -Query (New-NycQuery $r.houseNumber $r.street $r.borough $r.zip) -Key $Key).address
-    # Prefix BBL/BIN with ' in CSV to preserve leading zeros everywhere
-    [pscustomobject]@{
-      BBL        = "'" + $addr.bbl
-      BIN        = "'" + $addr.buildingIdentificationNumber
-      Borough    = $addr.firstBoroughName
-      Latitude   = $addr.latitude
-      Longitude  = $addr.longitude
-      Precinct   = $addr.policePrecinct
-    }
-  } catch {
-    [pscustomobject]@{
-      BBL="'"; BIN="'"; Borough=$null; Latitude=$null; Longitude=$null; Precinct=$null
-      Error=$_.Exception.Message
-    }
+  [pscustomobject]@{
+    BBL        = $addr.bbl
+    BIN        = $addr.buildingIdentificationNumber
+    Borough    = $addr.firstBoroughName
+    Latitude   = $addr.latitude
+    Longitude  = $addr.longitude
+    Precinct   = $addr.policePrecinct
   }
-  Start-Sleep -Milliseconds 150  # be polite to the API
-}
-
-$results | Export-Csv $OutCsv -NoTypeInformation
-
-# Optional XLSX if ImportExcel is installed
-if (Get-Module -ListAvailable -Name ImportExcel) {
-  $results | Export-Excel $OutXlsx -WorksheetName Geo -AutoSize `
-            -NoNumberConversion BBL,BIN -TableName Geo -TableStyle Medium6
-  Write-Host "Wrote Excel: $OutXlsx"
-} else {
-  Write-Host "ImportExcel module not found. CSV written to $OutCsv"
-}
+} | Export-Csv $Out -NoTypeInformation -Encoding UTF8
