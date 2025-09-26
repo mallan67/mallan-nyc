@@ -1,54 +1,53 @@
 // lib/soda.ts
-const SODA_HOST = "https://data.cityofnewyork.us";
-const RAW_TOKEN =
-  (process.env.NYC_SODA_APP_TOKEN || process.env.SOCRATA_APP_TOKEN || "").trim();
+export type SodaResult<T = any> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status?: number; body?: any };
 
-const HEADERS: Record<string, string> = RAW_TOKEN
-  ? { "X-App-Token": RAW_TOKEN, Accept: "application/json" }
-  : { Accept: "application/json" };
-
-const mask = (s?: string | null) => (s ? `${s.slice(0, 4)}…${s.slice(-4)}` : null);
-
-export function sodaTokenMasked() {
-  return mask(RAW_TOKEN);
+function buildUrl(datasetId: string, params?: Record<string, string | number | boolean | undefined>) {
+  const u = new URL(`https://data.cityofnewyork.us/resource/${datasetId}.json`);
+  Object.entries(params ?? {}).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    u.searchParams.set(k, String(v));
+  });
+  return u.toString();
 }
 
-export async function sodaFetch(dataset: string, qs: Record<string, any> = {}) {
-  if (!dataset) {
-    return { ok: false, error: "Missing dataset id" };
-  }
-  if (!RAW_TOKEN) {
-    return { ok: false, error: "Missing NYC_SODA_APP_TOKEN" };
+async function fetchJSON(url: string, init?: RequestInit) {
+  const r = await fetch(url, init);
+  const txt = await r.text();
+  let j: any = null;
+  try { j = txt ? JSON.parse(txt) : null; } catch { j = txt; }
+  return { ok: r.ok, status: r.status, json: j };
+}
+
+/**
+ * Robust Socrata GET:
+ * - Tries with NYC_SODA_APP_TOKEN header if present.
+ * - If 403 permission_denied (invalid app_token), retries WITHOUT a token.
+ */
+export async function sodaGet<T = any>(
+  datasetId: string,
+  params?: Record<string, string | number | boolean | undefined>
+): Promise<SodaResult<T>> {
+  const url = buildUrl(datasetId, params);
+  const token = process.env.NYC_SODA_APP_TOKEN || process.env.SOCRATA_APP_TOKEN || undefined;
+
+  const doFetch = async (withToken: boolean) =>
+    fetchJSON(url, withToken && token ? { headers: { "X-App-Token": token } } : undefined);
+
+  // 1) with token (if provided)
+  let r = await doFetch(true);
+
+  // 403 with "permission_denied" → try again without token
+  if (!r.ok && r.status === 403 && typeof r.json === "object" && r.json?.code === "permission_denied") {
+    r = await doFetch(false);
   }
 
-  const url = new URL(`${SODA_HOST}/resource/${dataset}.json`);
-  // default limit if caller didn't set one
-  if (!("$limit" in qs)) qs["$limit"] = "50";
-  for (const [k, v] of Object.entries(qs)) {
-    url.searchParams.set(k, String(v));
-  }
-
-  try {
-    const res = await fetch(url.toString(), {
-      headers: HEADERS,
-      cache: "no-store",
-    });
-    const text = await res.text();
-    let json: any = null;
-    try {
-      json = text ? JSON.parse(text) : null;
-    } catch (_) {}
-
-    if (!res.ok) {
-      return {
-        ok: false,
-        status: res.status,
-        url: url.toString(),
-        error: `SODA ${dataset} ${res.status}: ${text.slice(0, 400)}`,
-      };
-    }
-    return { ok: true, url: url.toString(), data: json };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || String(e) };
-  }
+  if (r.ok) return { ok: true, data: r.json as T };
+  return {
+    ok: false,
+    error: `SODA ${datasetId} ${r.status}: ${typeof r.json === "string" ? r.json : JSON.stringify(r.json, null, 2)}`,
+    status: r.status,
+    body: r.json,
+  };
 }
