@@ -1,138 +1,195 @@
-// app/api/geoclient/address/route.ts
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
+/**
+ * Robust Geoclient v2 handler that:
+ * 1) Accepts either ?input=free text OR houseNumber/street/& (borough|zip)
+ * 2) Tries /v2/address.json (fielded) when possible
+ * 3) Falls back to /v2/search.json (free-text)
+ * 4) Returns { ok, bin, bbl, raw, attempts[] } and never throws
+ *
+ * Env:
+ *   NYC_GEOCLIENT_SUBSCRIPTION_KEY        (primary v2 key)
+ *   NYC_GEOCLIENT_SUBSCRIPTION_KEY_2      (optional secondary)
+ *   (legacy names are ignored on purpose)
+ */
+
+const BASE = "https://api.nyc.gov/geo/geoclient/v2";
+
+function getV2Key(): string | null {
+  return (
+    process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY ||
+    process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2 ||
+    null
+  );
+}
+
+function mask(s?: string | null) {
+  if (!s) return null;
+  return s.length <= 8 ? "••••" : `${s.slice(0, 4)}…${s.slice(-4)}`;
+}
+
 type Attempt = {
   url: string;
-  style: "header" | "query" | "both" | "v1";
-  keyMasked: string | null;
-  status: number | null;
+  style: "address" | "search";
+  status: number;
   body?: any;
 };
 
-function mask(k: string | null | undefined) {
-  return k ? `${k.slice(0, 4)}…${k.slice(-4)}` : null;
+async function hit(url: string, key: string) {
+  const r = await fetch(url, {
+    headers: { "Ocp-Apim-Subscription-Key": key },
+  });
+  const t = await r.text();
+  let body: any = null;
+  try {
+    body = t ? JSON.parse(t) : null;
+  } catch {}
+  return { ok: r.ok, status: r.status, body };
 }
 
-async function tryFetch(url: string, init?: RequestInit): Promise<{ ok: boolean; status: number; json: any }> {
-  const r = await fetch(url, init);
-  const t = await r.text();
-  let j: any = null;
-  try { j = t ? JSON.parse(t) : null; } catch { j = t; }
-  return { ok: r.ok, status: r.status, json: j };
+/** very light parser to split a free-text input into components */
+function parseInput(input: string) {
+  const z = (input.match(/\b\d{5}(?:-\d{4})?\b/) || [])[0]; // zip
+  const boroList = ["manhattan", "bronx", "brooklyn", "queens", "staten island"];
+  const lower = input.toLowerCase();
+  const borough = boroList.find((b) => lower.includes(b));
+  const cleaned = input.replace(/,/g, " ").replace(/\s{2,}/g, " ").trim();
+  const parts = cleaned.split(/\s+/);
+
+  const houseNumber = /^\d+[a-z\-]?\d*$/i.test(parts[0]) ? parts[0] : undefined;
+
+  // street = everything after house number up to borough/zip
+  let street: string | undefined;
+  if (houseNumber) {
+    let cut = cleaned.length;
+    if (borough) {
+      const iB = lower.indexOf(borough);
+      if (iB > 0) cut = Math.min(cut, iB);
+    }
+    if (z) {
+      const iZ = cleaned.indexOf(z);
+      if (iZ > 0) cut = Math.min(cut, iZ);
+    }
+    street = cleaned.slice(houseNumber.length).slice(0, cut - houseNumber.length).trim();
+  }
+
+  return { houseNumber, street, borough, zip: z };
+}
+
+/** pick first result’s bin/bbl from v2 payloads */
+function extractBinBbl(body: any) {
+  // /v2/address.json and /v2/search.json both return {results:[{response:{ bin, bbl, ...}}]}
+  const res = body?.results?.[0]?.response ?? null;
+  const bin = res?.bin ?? null;
+  const bbl = res?.bbl ?? null;
+  return { bin, bbl };
 }
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const input = searchParams.get("input")?.trim();
-  const debug = (searchParams.get("debug") ?? "").toLowerCase() === "1";
+  const u = new URL(req.url);
+  const input = (u.searchParams.get("input") || "").trim();
 
-  if (!input) {
-    return NextResponse.json({ ok: false, error: "Missing ?input" }, { status: 200 });
+  // allow explicit fielded params
+  const houseNumber = u.searchParams.get("houseNumber") || "";
+  const street = u.searchParams.get("street") || "";
+  const borough = u.searchParams.get("borough") || "";
+  const zip = u.searchParams.get("zip") || u.searchParams.get("zipCode") || "";
+
+  const force = u.searchParams.get("mode"); // "address" | "search"
+  const debug = u.searchParams.get("debug") === "1";
+
+  const key = getV2Key();
+  if (!key) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Missing NYC_GEOCLIENT_SUBSCRIPTION_KEY. Add it in Vercel env and redeploy.",
+      },
+      { status: 200 }
+    );
   }
-
-  // ---- Keys (v2) – primary + secondary, exactly as you configured in Vercel
-  const v2Primary =
-    process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY ||
-    process.env.GEOCLIENT_PRIMARY_KEY ||
-    null;
-
-  const v2Secondary =
-    process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2 ||
-    process.env.GEOCLIENT_SECONDARY_KEY ||
-    null;
-
-  // ---- Optional legacy v1 (App ID/Key) – only used if provided
-  const v1Id =
-    process.env.NYC_GEOCLIENT_APP_ID ||
-    process.env.GEOCLIENT_APP_ID ||
-    null;
-
-  const v1Key =
-    process.env.NYC_GEOCLIENT_APP_KEY ||
-    process.env.GEOCLIENT_APP_KEY ||
-    null;
 
   const attempts: Attempt[] = [];
+  let found: { bin: string | null; bbl: string | null } | null = null;
 
-  // Helper to record each attempt
-  const record = async (url: string, style: Attempt["style"], key: string | null, init?: RequestInit) => {
-    try {
-      const { ok, status, json } = await tryFetch(url, init);
-      attempts.push({ url, style, keyMasked: mask(key), status, body: json });
-      if (ok) return json;
-      return null;
-    } catch (e: any) {
-      attempts.push({ url, style, keyMasked: mask(key), status: null, body: String(e?.message ?? e) });
-      return null;
+  // Build candidate calls in order
+  const candidateCalls: { style: "address" | "search"; url: string }[] = [];
+
+  // 1) ADDRESS mode if we have fielded parts (from query or parsed from input)
+  let addr = { houseNumber, street, borough, zip };
+  if (!addr.houseNumber || !addr.street || (!addr.borough && !addr.zip)) {
+    if (input) {
+      const p = parseInput(input);
+      addr = {
+        houseNumber: addr.houseNumber || p.houseNumber || "",
+        street: addr.street || p.street || "",
+        borough: addr.borough || p.borough || "",
+        zip: addr.zip || p.zip || "",
+      };
     }
-  };
+  }
+  const haveAddress = !!(addr.houseNumber && addr.street && (addr.borough || addr.zip));
+  if (force !== "search" && haveAddress) {
+    // try with zipCode first (v2) then zip (just in case)
+    const q1 = new URLSearchParams({
+      houseNumber: addr.houseNumber,
+      street: addr.street,
+      ...(addr.zip ? { zipCode: addr.zip } : {}),
+      ...(addr.borough ? { borough: addr.borough } : {}),
+    }).toString();
+    candidateCalls.push({ style: "address", url: `${BASE}/address.json?${q1}` });
 
-  // -------- v2 (subscription) tries ----------
-  const baseJson = `https://api.nyc.gov/geo/geoclient/v2/search.json?input=${encodeURIComponent(input)}`;
-  const baseNoExt = `https://api.nyc.gov/geo/geoclient/v2/search?input=${encodeURIComponent(input)}&format=json`;
-
-  const v2Keys = [v2Primary, v2Secondary].filter(Boolean) as string[];
-
-  for (const key of v2Keys) {
-    // header
-    let data =
-      (await record(baseJson, "header", key, { headers: { "Ocp-Apim-Subscription-Key": key } })) ||
-      // query
-      (await record(`${baseJson}&subscription-key=${encodeURIComponent(key)}`, "query", key)) ||
-      // both
-      (await record(`${baseJson}&subscription-key=${encodeURIComponent(key)}`, "both", key, {
-        headers: { "Ocp-Apim-Subscription-Key": key },
-      })) ||
-      // alt path without .json
-      (await record(baseNoExt, "header", key, { headers: { "Ocp-Apim-Subscription-Key": key } })) ||
-      (await record(`${baseNoExt}&subscription-key=${encodeURIComponent(key)}`, "query", key)) ||
-      (await record(`${baseNoExt}&subscription-key=${encodeURIComponent(key)}`, "both", key, {
-        headers: { "Ocp-Apim-Subscription-Key": key },
-      }));
-
-    if (data && (data.result || data.response || data.address || data.features || data)) {
-      // Shape varies; try to pull BIN/BBL if present
-      const first =
-        (data?.result && data.result[0]) ||
-        data?.response ||
-        data;
-
-      const bin = first?.bin || first?.bldgId || first?.buildingIdentificationNumber || null;
-      const bbl = first?.bbl || null;
-
-      const out: any = { ok: true, input, data, bin, bbl };
-      if (debug) out.attempts = attempts;
-      return NextResponse.json(out, { status: 200 });
+    if (addr.zip) {
+      const q2 = new URLSearchParams({
+        houseNumber: addr.houseNumber,
+        street: addr.street,
+        zip: addr.zip,
+        ...(addr.borough ? { borough: addr.borough } : {}),
+      }).toString();
+      candidateCalls.push({ style: "address", url: `${BASE}/address.json?${q2}` });
     }
   }
 
-  // -------- v1 (legacy) fallback ----------
-  if (v1Id && v1Key) {
-    const v1Url = `https://api.cityofnewyork.us/geoclient/v1/search.json?input=${encodeURIComponent(
-      input
-    )}&app_id=${encodeURIComponent(v1Id)}&app_key=${encodeURIComponent(v1Key)}`;
+  // 2) SEARCH mode
+  if (force !== "address" && input) {
+    const q = new URLSearchParams({ input }).toString();
+    candidateCalls.push({ style: "search", url: `${BASE}/search.json?${q}` });
+  }
 
-    const v1 = await record(v1Url, "v1", `${mask(v1Id)}:${mask(v1Key)}`, undefined);
-    if (v1 && (v1.result || v1.response || v1.address || v1.features || v1)) {
-      const first =
-        (v1?.result && v1.result[0]) ||
-        v1?.response ||
-        v1;
-      const bin = first?.bin || first?.bldgId || first?.buildingIdentificationNumber || null;
-      const bbl = first?.bbl || null;
+  // Execute in order until we get a 200 with bin/bbl
+  for (const c of candidateCalls) {
+    const r = await hit(c.url, key);
+    attempts.push({ url: c.url, style: c.style, status: r.status, body: debug ? r.body : undefined });
 
-      const out: any = { ok: true, input, data: v1, bin, bbl, mode: "v1" };
-      if (debug) out.attempts = attempts;
-      return NextResponse.json(out, { status: 200 });
+    if (r.ok) {
+      const { bin, bbl } = extractBinBbl(r.body);
+      if (bin || bbl) {
+        found = { bin: bin ?? null, bbl: bbl ?? null };
+        break;
+      }
     }
   }
 
-  // Nothing worked
-  const out: any = {
-    ok: false,
-    error: "All Geoclient attempts failed. If you’re sure the keys are correct, your subscription may be inactive/rotated.",
-  };
-  if (debug) out.attempts = attempts;
-  return NextResponse.json(out, { status: 200 });
+  if (found) {
+    return NextResponse.json({
+      ok: true,
+      keyMasked: mask(key),
+      bin: found.bin,
+      bbl: found.bbl,
+      raw: debug ? attempts : undefined,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error:
+        "No BIN/BBL returned from Geoclient v2. If your key works in the portal, try supplying borough or zip, e.g. ?houseNumber=300&street=East%2090%20Street&borough=Manhattan",
+      keyMasked: mask(key),
+      attempts,
+    },
+    { status: 200 }
+  );
 }
