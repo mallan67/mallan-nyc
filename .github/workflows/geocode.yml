@@ -1,7 +1,7 @@
 name: Geocode NYC addresses
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # allow manual runs
   push:
     paths:
       - 'addresses.csv'
@@ -13,8 +13,10 @@ jobs:
     runs-on: windows-latest
     env:
       NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Sanity check (files & key length)
         shell: pwsh
@@ -22,7 +24,11 @@ jobs:
           Get-Location
           Get-ChildItem -Force
           "addresses.csv exists? " + (Test-Path .\addresses.csv)
-          "Key length: " + $env:NYC_GEOCLIENT_KEY.Length
+          if ($env:NYC_GEOCLIENT_KEY) {
+            "Key length: $($env:NYC_GEOCLIENT_KEY.Length)"
+          } else {
+            Write-Error 'NYC_GEOCLIENT_KEY is not set'
+          }
 
       - name: Run geocode
         shell: pwsh
