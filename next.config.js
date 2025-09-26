@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // TEMPORARY: allow shipping while we fix TS/ESLint issues
-  typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true }, // TEMP — remove when green
+  eslint: { ignoreDuringBuilds: true },    // TEMP — remove when green
 };
-
 module.exports = nextConfig;
