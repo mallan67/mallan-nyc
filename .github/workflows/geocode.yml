@@ -13,26 +13,14 @@ jobs:
     runs-on: windows-latest
     env:
       NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
-
     steps:
-      - name: Checkout repository (always latest main)
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 1
-
-      - name: Show commit + script head
-        shell: pwsh
-        run: |
-          git log -1 --oneline
-          "----- geocode.ps1 (first 40 lines) -----"
-          Get-Content .\geocode.ps1 -Head 40 | % { '  ' + $_ }
+      - uses: actions/checkout@v4
 
       - name: Sanity check (files & key)
         shell: pwsh
         run: |
           if (-not (Test-Path .\addresses.csv)) { throw "addresses.csv not found in repo root" }
-          "Key length: $($env:NYC_GEOCLIENT_KEY.Length)"
+          "Key length: $($env:NYC_GEOCLIENT_KEY.Trim().Length)"
 
       - name: Run geocode
         shell: pwsh
