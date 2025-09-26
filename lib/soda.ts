@@ -22,8 +22,8 @@ async function fetchJSON(url: string, init?: RequestInit) {
 
 /**
  * Robust Socrata GET:
- * - Tries with NYC_SODA_APP_TOKEN header if present.
- * - If 403 permission_denied (invalid app_token), retries WITHOUT a token.
+ * - Uses NYC_SODA_APP_TOKEN (or SOCRATA_APP_TOKEN) if present.
+ * - If 403 permission_denied (invalid app_token), retries WITHOUT token so you can still test.
  */
 export async function sodaGet<T = any>(
   datasetId: string,
@@ -38,7 +38,7 @@ export async function sodaGet<T = any>(
   // 1) with token (if provided)
   let r = await doFetch(true);
 
-  // 403 with "permission_denied" → try again without token
+  // 2) token rejected? retry without
   if (!r.ok && r.status === 403 && typeof r.json === "object" && r.json?.code === "permission_denied") {
     r = await doFetch(false);
   }
@@ -51,3 +51,7 @@ export async function sodaGet<T = any>(
     body: r.json,
   };
 }
+
+// Back-compat aliases so existing imports keep working:
+export const soda = sodaGet;
+export default sodaGet;
