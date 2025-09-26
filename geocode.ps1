@@ -1,52 +1,44 @@
 # geocode.ps1
 [CmdletBinding()]
 param(
-  [string]$In  = "addresses.csv",
-  [string]$Out = "geoclient_addresses_out.csv"
+  [string]$In  = ".\addresses.csv",
+  [string]$Out = ".\geoclient_addresses_out.csv"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$base = 'https://api.nyc.gov/geoclient/v2/address.json'
-
 if (-not (Test-Path $In)) { throw "Input CSV not found: $In" }
-if (-not $env:NYC_GEOCLIENT_KEY) { throw "NYC_GEOCLIENT_KEY environment variable is missing." }
 
-function Invoke-NycGeoClient {
-  param([hashtable]$q)
+# Trim the secret to remove accidental spaces/newlines
+$Key = ($env:NYC_GEOCLIENT_KEY ?? '').Trim()
+if ([string]::IsNullOrWhiteSpace($Key)) { throw "NYC_GEOCLIENT_KEY environment variable is missing." }
+if ($Key.Length -ne 32) { Write-Warning "NYC_GEOCLIENT_KEY length is $($Key.Length); expected 32. Check for extra spaces/newlines." }
 
-  $pairs = foreach ($kv in $q.GetEnumerator()) {
-    '{0}={1}' -f [uri]::EscapeDataString($kv.Key),
-                  [uri]::EscapeDataString([string]$kv.Value)
-  }
-
-  $ub = [System.UriBuilder]$base
-  $ub.Query = ($pairs -join '&')
-  $uri = $ub.Uri.AbsoluteUri
-
-  $h = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
-
-  Write-Host ('GET ' + $ub.Uri.Scheme + '://' + $ub.Host + $ub.Path + '?…')
-
-  (Invoke-RestMethod -Headers $h -Uri $uri -ErrorAction Stop).address
-}
+$base    = 'https://api.nyc.gov/geoclient/v2/address.json'
+$headers = @{ 'Ocp-Apim-Subscription-Key' = $Key }
 
 $rows   = Import-Csv $In
 $result = foreach ($r in $rows) {
-  $addr = Invoke-NycGeoClient @{
+  $q = @{
     houseNumber = $r.houseNumber
     street      = $r.street
     borough     = $r.borough
     zip         = $r.zip
   }
+  $qs  = ($q.GetEnumerator() | ForEach-Object { '{0}={1}' -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value) }) -join '&'
+  $uri = "$base`?$qs"
+  Write-Host "GET $uri"
+
+  $resp = Invoke-RestMethod -Headers $headers -Uri $uri -ErrorAction Stop
+  $a = $resp.address
   [pscustomobject]@{
-    BBL       = $addr.bbl
-    BIN       = $addr.buildingIdentificationNumber
-    Borough   = $addr.firstBoroughName
-    Latitude  = $addr.latitude
-    Longitude = $addr.longitude
-    Precinct  = $addr.policePrecinct
+    BBL       = $a.bbl
+    BIN       = $a.buildingIdentificationNumber
+    Borough   = $a.firstBoroughName
+    Latitude  = $a.latitude
+    Longitude = $a.longitude
+    Precinct  = $a.policePrecinct
   }
 }
 
