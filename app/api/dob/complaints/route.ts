@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { soda } from "../../../../lib/soda";
+import { soda } from "@/lib/soda";
 export const runtime = "nodejs";
 
 const DATASET = process.env.SODA_DATASET_DOB_COMPLAINTS!;
