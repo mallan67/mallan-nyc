@@ -1,57 +1,77 @@
 // lib/soda.ts
-export type SodaResult<T = any> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; status?: number; body?: any };
+const BASE = "https://data.cityofnewyork.us";
 
-function buildUrl(datasetId: string, params?: Record<string, string | number | boolean | undefined>) {
-  const u = new URL(`https://data.cityofnewyork.us/resource/${datasetId}.json`);
-  Object.entries(params ?? {}).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    u.searchParams.set(k, String(v));
-  });
-  return u.toString();
+export function getSocrataToken(): string | undefined {
+  return (
+    process.env.NYC_SODA_APP_TOKEN ||
+    process.env.SOCRATA_APP_TOKEN ||          // alternate name you created
+    process.env.NYC_SODA_TOKEN ||             // legacy fallback
+    undefined
+  );
 }
 
-async function fetchJSON(url: string, init?: RequestInit) {
-  const r = await fetch(url, init);
-  const txt = await r.text();
-  let j: any = null;
-  try { j = txt ? JSON.parse(txt) : null; } catch { j = txt; }
-  return { ok: r.ok, status: r.status, json: j };
+export function sodaTokenMasked(): string | null {
+  const t = getSocrataToken();
+  return t ? `${t.slice(0, 4)}…${t.slice(-4)}` : null;
+}
+
+function buildUrl(pathOrUrl: string, query?: Record<string, any>) {
+  const url =
+    /^https?:\/\//i.test(pathOrUrl)
+      ? new URL(pathOrUrl)
+      : new URL(`/resource/${pathOrUrl}`, BASE);
+
+  if (query) {
+    for (const [k, v] of Object.entries(query)) {
+      if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+    }
+  }
+  return url;
 }
 
 /**
- * Robust Socrata GET:
- * - Uses NYC_SODA_APP_TOKEN (or SOCRATA_APP_TOKEN) if present.
- * - If 403 permission_denied (invalid app_token), retries WITHOUT token so you can still test.
+ * Fetch JSON from Socrata. Automatically adds X-App-Token when available.
+ *
+ * Usage:
+ *   const rows = await sodaFetch("3h2n-5cm9.json", { query: { "$limit": 1 } });
  */
-export async function sodaGet<T = any>(
-  datasetId: string,
-  params?: Record<string, string | number | boolean | undefined>
-): Promise<SodaResult<T>> {
-  const url = buildUrl(datasetId, params);
-  const token = process.env.NYC_SODA_APP_TOKEN || process.env.SOCRATA_APP_TOKEN || undefined;
+export async function sodaFetch(
+  pathOrUrl: string,
+  opts?: { query?: Record<string, any>; init?: RequestInit }
+) {
+  const token = getSocrataToken();
+  const url = buildUrl(pathOrUrl, opts?.query);
 
-  const doFetch = async (withToken: boolean) =>
-    fetchJSON(url, withToken && token ? { headers: { "X-App-Token": token } } : undefined);
+  const init: RequestInit = {
+    ...(opts?.init || {}),
+    headers: {
+      accept: "application/json",
+      ...(token ? { "X-App-Token": token } : {}),
+      ...(opts?.init?.headers || {}),
+    },
+  };
 
-  // 1) with token (if provided)
-  let r = await doFetch(true);
+  const r = await fetch(url.toString(), init);
+  const text = await r.text();
+  let json: any = undefined;
+  try {
+    json = text ? JSON.parse(text) : undefined;
+  } catch {}
 
-  // 2) token rejected? retry without
-  if (!r.ok && r.status === 403 && typeof r.json === "object" && r.json?.code === "permission_denied") {
-    r = await doFetch(false);
+  if (!r.ok) {
+    const body = json ?? text;
+    const code =
+      (json && (json.code || json.message)) || `${r.status} ${r.statusText}`;
+    throw new Error(
+      `SODA ${code}: ${
+        typeof body === "string" ? body : JSON.stringify(body, null, 2)
+      }`
+    );
   }
 
-  if (r.ok) return { ok: true, data: r.json as T };
-  return {
-    ok: false,
-    error: `SODA ${datasetId} ${r.status}: ${typeof r.json === "string" ? r.json : JSON.stringify(r.json, null, 2)}`,
-    status: r.status,
-    body: r.json,
-  };
+  return json;
 }
 
-// Back-compat aliases so existing imports keep working:
-export const soda = sodaGet;
-export default sodaGet;
+// Back-compat aliases so older imports don't break
+export const soda = sodaFetch;
+export default { sodaFetch, getSocrataToken, sodaTokenMasked };
