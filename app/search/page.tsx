@@ -1,32 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+
+// Optional: prevent SSG trying to prerender this page.
+export const dynamic = 'force-dynamic';
 
 type ApiResponse = {
   ok: boolean;
   input?: string;
   bin?: string;
   geoclient?: any;
-  sources?: {
-    ecb_violations?: { ok: boolean; count: number; items: any[] };
-  };
+  sources?: { ecb_violations?: { ok: boolean; count: number; items: any[] } };
   ecb_open_count?: number;
   ecb_balance_due_total?: number;
   debug?: {
-    request?: {
-      open?: boolean;
-      origin?: string;
-      urls?: { geoclient?: string; ecb?: string };
-    };
+    request?: { open?: boolean; origin?: string; urls?: { geoclient?: string; ecb?: string } };
     notes?: string[];
   };
 };
 
-export default function SearchPage() {
-  const searchParams = useSearchParams();
+function SearchClient() {
+  const sp = useSearchParams();
   const router = useRouter();
-  const debugOn = (searchParams.get('debug') ?? '').toLowerCase() === '1' || (searchParams.get('debug') ?? '').toLowerCase() === 'true';
+
+  const debugParam = (sp?.get('debug') ?? '').toLowerCase();
+  const debugOn = debugParam === '1' || debugParam === 'true';
 
   const [q, setQ] = useState('');
   const [openOnly, setOpenOnly] = useState(true);
@@ -36,11 +35,7 @@ export default function SearchPage() {
 
   function toggleDebug() {
     const url = new URL(window.location.href);
-    if (debugOn) {
-      url.searchParams.delete('debug');
-    } else {
-      url.searchParams.set('debug', '1');
-    }
+    debugOn ? url.searchParams.delete('debug') : url.searchParams.set('debug', '1');
     router.replace(url.toString());
   }
 
@@ -51,7 +46,7 @@ export default function SearchPage() {
     try {
       const url = new URL('/api/ai/nyc', window.location.origin);
       if (openOnly) url.searchParams.set('open', '1');
-      if (debugOn) url.searchParams.set('debug', '1'); // forward Dev Mode to API
+      if (debugOn) url.searchParams.set('debug', '1');
 
       const r = await fetch(url.toString(), {
         method: 'POST',
@@ -70,10 +65,8 @@ export default function SearchPage() {
   }
 
   const bin = data?.bin;
-  const ecbCount =
-    data?.ecb_open_count ?? data?.sources?.ecb_violations?.count ?? 0;
+  const ecbCount = data?.ecb_open_count ?? data?.sources?.ecb_violations?.count ?? 0;
   const ecbBalance = data?.ecb_balance_due_total ?? 0;
-
   const bisUrl = bin
     ? `https://a810-bisweb.nyc.gov/BISWeb/PropertyProfileOverviewServlet?bin=${encodeURIComponent(
         bin
@@ -83,14 +76,10 @@ export default function SearchPage() {
   return (
     <main className="mx-auto max-w-2xl p-6 space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">NYC Address Lookup</h1>
-
-        {/* Developer Mode toggle (URL based) */}
+        <h1 className="text-2xl font-semibold">Search – NYC Address Lookup</h1>
         <button
           onClick={toggleDebug}
-          className={`text-xs rounded px-2 py-1 border ${
-            debugOn ? 'bg-black text-white' : 'bg-white'
-          }`}
+          className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}
           title="Toggle Developer Mode (adds ?debug=1 to the URL)"
         >
           {debugOn ? 'Developer: ON' : 'Developer: OFF'}
@@ -142,16 +131,12 @@ export default function SearchPage() {
               </a>
             </p>
           )}
-
           <p>Open ECB count: {ecbCount}</p>
           <p>Total ECB balance due: ${ecbBalance}</p>
 
-          {/* Developer Mode JSON (hidden unless ?debug=1) */}
           {debugOn && (
             <details open className="mt-4">
-              <summary className="cursor-pointer font-medium">
-                Developer data
-              </summary>
+              <summary className="cursor-pointer font-medium">Developer data</summary>
               <pre className="mt-2 overflow-auto rounded border p-3 text-xs">
                 {JSON.stringify(data, null, 2)}
               </pre>
@@ -160,5 +145,14 @@ export default function SearchPage() {
         </section>
       )}
     </main>
+  );
+}
+
+export default function Page() {
+  // Suspense boundary required when using useSearchParams in App Router.
+  return (
+    <Suspense fallback={<div />}>
+      <SearchClient />
+    </Suspense>
   );
 }
