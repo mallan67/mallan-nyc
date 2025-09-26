@@ -3,6 +3,11 @@
 name: Geocode NYC addresses
 
 on:
+  schedule:
+    - cron: '0 14 * * *'  # every day at 9am ET
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -34,8 +39,8 @@ jobs:
         run: |
           git config user.name "mallan-ci-bot"
           git config user.email "ci@mallanrealestate.com"
-          git add output/*.csv
-          git commit -m "Automated geocode run on $(date '+%Y-%m-%d')"
+          git add output/*.csv || echo "No CSV files to commit."
+          git diff --cached --quiet || git commit -m "Automated geocode run on $(date '+%Y-%m-%d')"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
