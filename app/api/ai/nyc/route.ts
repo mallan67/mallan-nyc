@@ -24,9 +24,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Body must include { query: string }" }, { status: 200 });
     }
 
-    const base = process.env.NEXT_PUBLIC_API_BASE ?? "";
+    // Absolute base so Node fetch never chokes on relative paths
+    const origin = new URL(req.url).origin;
+    const base = process.env.NEXT_PUBLIC_API_BASE || origin;
 
-    // 1) Resolve address → BIN + BBL (accepts ?q or ?input)
+    // 1) Resolve address → BIN + BBL (accepts ?input or ?q)
     const geores = await safeFetchJSON(`${base}/api/geoclient/address?input=${encodeURIComponent(query)}`);
     const bin = (geores as any)?.data?.bin ?? null;
     const bbl = (geores as any)?.data?.bbl ?? null;
@@ -39,7 +41,6 @@ export async function POST(req: Request) {
       endpoints.push(`/api/dob/complaints?bin=${bin}`);
     }
     if (bbl) {
-      // ECB needs BBL
       const open = ecbOpen === false ? '0' : '1';
       endpoints.push(`/api/dob/ecb-violations?bbl=${bbl}&open=${open}`);
     }
