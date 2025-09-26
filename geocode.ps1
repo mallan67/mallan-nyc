@@ -8,6 +8,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Script-constant for the API base (avoid any scope/strict-mode issues)
+$Script:GeoBase = 'https://api.nyc.gov/geoclient/v2/address'
+
 if (-not (Test-Path $In)) {
   throw "Input CSV not found: $In"
 }
@@ -18,17 +21,17 @@ if (-not $env:NYC_GEOCLIENT_KEY) {
 function Invoke-NycGeoClient {
   param([hashtable]$q)
 
-  $base = 'https://api.nyc.gov/geoclient/v2/address'
-  $qs   = ($q.GetEnumerator() | ForEach-Object {
+  $qs  = ($q.GetEnumerator() | ForEach-Object {
     '{0}={1}' -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value)
   }) -join '&'
-  $uri  = "$base?$qs"
-  $h    = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
 
-  (Invoke-RestMethod -Headers $h -Uri $uri -ErrorAction Stop).address
+  $uri = '{0}?{1}' -f $Script:GeoBase, $qs
+  $hdr = @{ 'Ocp-Apim-Subscription-Key' = $env:NYC_GEOCLIENT_KEY }
+
+  (Invoke-RestMethod -Headers $hdr -Uri $uri -ErrorAction Stop).address
 }
 
-$rows = Import-Csv $In
+$rows   = Import-Csv $In
 $result = foreach ($r in $rows) {
   $addr = Invoke-NycGeoClient @{
     houseNumber = $r.houseNumber
