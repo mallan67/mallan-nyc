@@ -1,32 +1,30 @@
-// lib/soda.ts  (copy all / replace all)
-const SODA_TOKEN =
+export const SODA_APP_TOKEN =
   process.env.NYC_SODA_APP_TOKEN ||
-  process.env.SOCRATA_APP_TOKEN ||      // NYC portal name
-  process.env.SODA_APP_TOKEN ||          // common alt
-  "";
+  process.env.SOCRATA_APP_TOKEN || ""; // accept either name
 
-export async function sodaFetch(dataset: string, qs: Record<string, string | number> = {}, init: RequestInit = {}) {
-  const base = `https://data.cityofnewyork.us/resource/${dataset}.json`;
+const BASE = "https://data.cityofnewyork.us/resource";
 
-  const search = new URLSearchParams();
-  for (const [k, v] of Object.entries(qs)) if (v !== undefined && v !== null) search.set(k, String(v));
-  const url = `${base}${search.toString() ? "?" + search.toString() : ""}`;
-
-  const headers: Record<string, string> = {
-    ...(init.headers as any),
-    ...(SODA_TOKEN ? { "X-App-Token": SODA_TOKEN } : {}),
+function err(msg: string, body?: any) {
+  return {
+    ok: false,
+    error: body ? `${msg}: ${JSON.stringify(body, null, 2)}` : msg,
   };
+}
 
-  const res = await fetch(url, { ...init, headers });
-  const text = await res.text();
+export async function soda(dataset: string, params: Record<string, string> = {}) {
+  if (!dataset) return err("Missing dataset id");
+  const url = new URL(`${BASE}/${dataset}.json`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
+  const headers: Record<string, string> = {};
+  if (SODA_APP_TOKEN) headers["X-App-Token"] = SODA_APP_TOKEN;
+
+  const r = await fetch(url.toString(), { headers });
+  const text = await r.text();
   let json: any = null;
-  try { json = text ? JSON.parse(text) : null; } catch {}
-
-  if (!res.ok) {
-    throw new Error(
-      `SODA ${dataset} ${res.status}: ${text || res.statusText}`
-    );
-  }
-  return json;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {}
+  if (!r.ok) return err(`SODA ${dataset} ${r.status}`, json ?? text);
+  return { ok: true, data: json, source: url.toString() };
 }
