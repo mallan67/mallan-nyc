@@ -17,7 +17,7 @@ function Invoke-NycGeoClient {
   $base = 'https://api.nyc.gov/geoclient/v2/address.json'
   $qs   = ($q.GetEnumerator() |
            ForEach-Object { '{0}={1}' -f [uri]::EscapeDataString($_.Key), [uri]::EscapeDataString([string]$_.Value) }) -join '&'
-  $uri  = "$base?$qs"
+  $uri = "$base" + "?" + "$qs"
 
   $key  = $env:NYC_GEOCLIENT_KEY.Trim()     # guard against trailing newline in secret
   $h    = @{ 'Ocp-Apim-Subscription-Key' = $key }
