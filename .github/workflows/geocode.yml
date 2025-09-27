@@ -1,31 +1,31 @@
 name: Geocode NYC addresses
 
 on:
+  workflow_dispatch:  # Manual trigger
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2am UTC
   push:
     paths:
-      - 'addresses.csv'
-  workflow_dispatch:
+      - 'addresses.csv'  # When address data is updated
+      - '.github/workflows/geocode.yml'
 
 jobs:
   geocode:
     runs-on: windows-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run PowerShell Geocode Script
+        run: ./geocode.ps1 -In addresses.csv -Out geoclient_addresses_out.csv
+        shell: pwsh
         env:
-          NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}  # <-- THIS IS WHAT YOU MISSED
-        run: |
-          ./geocode.ps1 -In addresses.csv -Out geoclient_addresses_out.csv
+          NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
 
       - name: Commit and push geocoded data
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "mallan-ci-bot"
-          git config user.email "ci@mallanrealestate.com"
-          git add geoclient_addresses_out.csv || echo "Nothing to commit."
-          git diff --cached --quiet || git commit -m "Automated geocode update"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git config user.email "github-actions@github.com"
+          git add geoclient_addresses_out.csv
+          git commit -m "Auto: update geoclient_addresses_out.csv"
+          git push
