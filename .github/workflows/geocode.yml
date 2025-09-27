@@ -2,7 +2,7 @@ name: Geocode NYC addresses
 
 on:
   schedule:
-    - cron: '0 14 * * *' # Daily at 2pm UTC (10am EST)
+    - cron: '0 14 * * *' # Every day at 2pm UTC (10am EST)
   workflow_dispatch:
 
 jobs:
@@ -36,10 +36,10 @@ jobs:
       - name: Commit and Push geocoded data
         if: steps.check_diff.outputs.changed == 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git add geoclient_addresses_out.csv
-          git commit -m "Auto-update geocoded CSV"
+          git commit -m "Updated geocoded addresses"
           git push
 
       - name: Send email with updated CSV
@@ -52,8 +52,6 @@ jobs:
           password: ${{ secrets.SMTP_PASS }}
           subject: "✅ NYC Geocoded CSV Updated"
           to: mallangithub@gmail.com
-          from: "Geocoder Bot <${{ secrets.SMTP_USER }}>"
-          body: |
-            The file geoclient_addresses_out.csv has been updated.
-            It is attached to this email.
+          from: "GitHub Bot <${{ secrets.SMTP_USER }}>"
+          body: "The geoclient_addresses_out.csv file has been updated and committed."
           attachments: geoclient_addresses_out.csv
