@@ -12,34 +12,24 @@ on:
 
 jobs:
   geocode:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Run PowerShell Geocode Script
+        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run geocode script
-        run: |
-          python scripts/geocode_nyc.py
+          ./scripts/geocode.ps1 -In data/addresses.csv -Out data/geoclient_addresses_out.csv
         env:
-          NYC_API_KEY: ${{ secrets.NYC_API_KEY }}
-          MAPBOX_API_KEY: ${{ secrets.MAPBOX_API_KEY }}
+          NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
 
       - name: Commit and push geocoded data
         run: |
           git config user.name "mallan-ci-bot"
           git config user.email "ci@mallanrealestate.com"
-          git add output/*.csv || echo "No CSV files to commit."
+          git add data/geoclient_addresses_out.csv || echo "No file to commit."
           git diff --cached --quiet || git commit -m "Automated geocode run on $(date '+%Y-%m-%d')"
           git push
         env:
