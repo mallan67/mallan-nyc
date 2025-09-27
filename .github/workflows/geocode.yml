@@ -36,10 +36,10 @@ jobs:
       - name: Commit and Push geocoded data
         if: steps.check_diff.outputs.changed == 'true'
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add geoclient_addresses_out.csv
-          git commit -m "Updated geocoded addresses"
+          git commit -m "Auto-update geocoded CSV"
           git push
 
       - name: Send email with updated CSV
@@ -51,7 +51,9 @@ jobs:
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
           subject: "✅ NYC Geocoded CSV Updated"
-          to: mallangithub@gmail.com
-          from: "GitHub Bot <${{ secrets.SMTP_USER }}>"
-          body: "The geoclient_addresses_out.csv file has been updated and committed."
+          to: mallangithub@gmail.com, nycmallan@gmail.com
+          from: mallangithub@gmail.com
+          body: |
+            ✅ The geocoded CSV has been updated and is attached.
+            Triggered by GitHub Actions automation.
           attachments: geoclient_addresses_out.csv
