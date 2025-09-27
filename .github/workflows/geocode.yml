@@ -35,6 +35,7 @@ jobs:
 
       - name: Send Email if geocoded file updated
         if: steps.check_diff.outputs.changed == 'true'
+        shell: bash
         run: |
           curl --url 'smtps://smtp.gmail.com:465' \
                --ssl-reqd \
