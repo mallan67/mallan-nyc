@@ -35,15 +35,14 @@ jobs:
 
       - name: Send Email if geocoded file updated
         if: steps.check_diff.outputs.changed == 'true'
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASS }}
-          subject: "✅ NYC Geocoded CSV Updated"
-          to: your@email.com
-          from: GitHub Bot <your@email.com>
-          body: |
-            The geocoded output has changed. See the updated file attached.
-          attachments: geoclient_addresses_out.csv
+        run: |
+          curl --url 'smtps://smtp.gmail.com:465' \
+               --ssl-reqd \
+               --mail-from "${{ secrets.SMTP_USER }}" \
+               --mail-rcpt "mallangithub@gmail.com" \
+               --user "${{ secrets.SMTP_USER }}:${{ secrets.SMTP_PASS }}" \
+               --upload-file geoclient_addresses_out.csv \
+               --header "Subject: 🗽 NYC Geocode CSV Update" \
+               --header "From: GitHub Bot <${{ secrets.SMTP_USER }}>" \
+               --header "To: mallangithub@gmail.com" \
+               --header "Content-Type: text/plain"
