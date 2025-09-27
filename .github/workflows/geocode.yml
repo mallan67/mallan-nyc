@@ -51,9 +51,9 @@ jobs:
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
           subject: "✅ NYC Geocoded CSV Updated"
-          to: mallangithub@gmail.com, nycmallan@gmail.com
+          to: mallangithub@gmail.com
           from: mallangithub@gmail.com
           body: |
-            ✅ The geocoded CSV has been updated and is attached.
+            ✅ Your NYC geocoded CSV has been updated and is attached.
             Triggered by GitHub Actions automation.
           attachments: geoclient_addresses_out.csv
