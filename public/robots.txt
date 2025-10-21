@@ -1,5 +1,7 @@
-New-Item -ItemType Directory -Force -Path "public" | Out-Null
-@'
+# public/robots.txt
+# Allow everything except admin area
 User-agent: *
 Disallow: /admin/
-'@ | Set-Content -Path "public\robots.txt" -Encoding UTF8
+
+# Sitemap tells Google where every listing page lives
+Sitemap: https://mallan.nyc/sitemap.xml
