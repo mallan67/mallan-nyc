@@ -5,7 +5,9 @@
   "author": "Mallan Real Estate Inc. <hello@mallan.nyc> (https://mallan.nyc)",
   "license": "MIT",
   "homepage": "https://mallan.nyc",
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,12 +17,14 @@
     "ci": "npm run -s lint && npm run -s type-check && npm run -s build"
   },
   "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "bcryptjs": "^3.0.2",
     "next": "14.2.4",
     "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "@sendgrid/mail": "^7.7.0"
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.11.30",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
