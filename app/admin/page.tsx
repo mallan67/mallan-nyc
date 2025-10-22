@@ -1,65 +1,88 @@
-'use client'
-import { useEffect, useState } from 'react'
+'use client';
 
-type Metric = { totalDeals: number; unpaid: number; expiring: number }
-type NewAgent = { firstName: string; lastName: string; email: string; licenseNo: string; expiry: string; splitPlan: string }
+import { useEffect, useState } from 'react';
 
-export default function AdminPanel() {
-  const [metrics, setMetrics] = useState<Metric>({ totalDeals: 0, unpaid: 0, expiring: 0 })
-  const [form, setForm] = useState<NewAgent>({ firstName: '', lastName: '', email: '', licenseNo: '', expiry: '', splitPlan: '70-30' })
+type Agent = {
+  id: string;
+  firstName: string; lastName: string;
+  email: string; email2?: string | null;
+  licenseNo: string;
+  licenseExpiry?: string | null;
+  saleSplit?: number | null;
+  rentSplit?: number | null;
+};
 
-  // load metrics
-  useEffect(() => {
-    fetch('/api/crm/admin/metrics', { headers: { Authorization: `Bearer ${document.cookie.at}` } })
-      .then((r) => r.json())
-      .then(setMetrics)
-      .catch(() => window.location.href = '/agent/login')
-  }, [])
+export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [form, setForm] = useState({
+    firstName: '', lastName: '',
+    email: '', email2: '',
+    licenseNo: '', licenseExpiry: '',
+    saleSplit: '', rentSplit: '',
+  });
+  const [q, setQ] = useState('');
 
-  // create agent
-  const handleAdd = async () => {
-    if (!form.firstName || !form.lastName || !form.email || !form.licenseNo || !form.expiry) {
-      alert('Please fill all fields'); return
-    }
-    const res = await fetch('/api/crm/admin/agents', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    if (res.ok) {
-      alert('Agent added + Neon-Auth user created')
-      setForm({ firstName: '', lastName: '', email: '', licenseNo: '', expiry: '', splitPlan: '70-30' })
-    } else {
-      alert(await res.text())
-    }
+  async function load() {
+    const res = await fetch(`/api/crm/agents${q ? `?q=${encodeURIComponent(q)}` : ''}`, { cache: 'no-store' });
+    const data = await res.json();
+    setAgents(Array.isArray(data) ? data : []);
+  }
+
+  useEffect(() => { load(); /* on first mount */ }, []);
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = {
+      ...form,
+      saleSplit: form.saleSplit ? Number(form.saleSplit) : undefined,
+      rentSplit: form.rentSplit ? Number(form.rentSplit) : undefined,
+      licenseExpiry: form.licenseExpiry || undefined,
+      email2: form.email2 || undefined,
+    };
+    const r = await fetch('/api/crm/agents', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) { alert(j?.error || 'Failed'); return; }
+    setForm({ firstName:'', lastName:'', email:'', email2:'', licenseNo:'', licenseExpiry:'', saleSplit:'', rentSplit:'' });
+    await load();
   }
 
   return (
-    <main className="container mx-auto p-6">
-      {/* ===== EXISTING METRICS CARDS ===== */}
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="border rounded p-4"><div className="text-sm text-gray-500">Total Deals</div><div className="text-3xl font-bold">{metrics.totalDeals}</div></div>
-        <div className="border rounded p-4"><div className="text-sm text-gray-500">Unpaid Commission</div><div className="text-3xl font-bold">${metrics.unpaid.toLocaleString()}</div></div>
-        <div className="border rounded p-4"><div className="text-sm text-gray-500">Licences Expiring &lt; 30 d</div><div className="text-3xl font-bold">{metrics.expiring}</div></div>
+    <div className="max-w-3xl mx-auto p-6 space-y-8">
+      <h1 className="text-2xl font-semibold">Agents</h1>
+
+      <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input placeholder="First Name" value={form.firstName} onChange={e=>setForm(s=>({...s, firstName:e.target.value}))} className="border p-2 rounded" required />
+        <input placeholder="Last Name" value={form.lastName} onChange={e=>setForm(s=>({...s, lastName:e.target.value}))} className="border p-2 rounded" required />
+        <input type="email" placeholder="Email" value={form.email} onChange={e=>setForm(s=>({...s, email:e.target.value}))} className="border p-2 rounded md:col-span-2" required />
+        <input type="email" placeholder="2nd email (optional)" value={form.email2} onChange={e=>setForm(s=>({...s, email2:e.target.value}))} className="border p-2 rounded md:col-span-2" />
+        <input placeholder="License #" value={form.licenseNo} onChange={e=>setForm(s=>({...s, licenseNo:e.target.value}))} className="border p-2 rounded" required />
+        <input type="date" placeholder="License Expiry" value={form.licenseExpiry} onChange={e=>setForm(s=>({...s, licenseExpiry:e.target.value}))} className="border p-2 rounded" />
+        <input placeholder="Sale Split % (e.g. 60)" value={form.saleSplit} onChange={e=>setForm(s=>({...s, saleSplit:e.target.value}))} className="border p-2 rounded" />
+        <input placeholder="Rental Split % (e.g. 60)" value={form.rentSplit} onChange={e=>setForm(s=>({...s, rentSplit:e.target.value}))} className="border p-2 rounded" />
+        <button className="bg-black text-white rounded px-4 py-2 md:col-span-2">Add Agent</button>
+      </form>
+
+      <div className="flex items-center gap-2">
+        <input placeholder="Search agents…" value={q} onChange={e=>setQ(e.target.value)} className="border p-2 rounded w-full" />
       </div>
 
-      {/* ===== NEW: ADD AGENT FORM ===== */}
-      <section className="border rounded p-6 max-w-3xl">
-        <h2 className="text-xl font-semibold mb-4">Add New Agent</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input className="input" placeholder="First Name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-          <input className="input" placeholder="Last Name" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
-          <input className="input" placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input className="input" placeholder="License #" value={form.licenseNo} onChange={(e) => setForm({ ...form, licenseNo: e.target.value })} />
-          <input className="input" placeholder="Licence Expiry (YYYY-MM-DD)" value={form.expiry} onChange={(e) => setForm({ ...form, expiry: e.target.value })} />
-          <select className="input" value={form.splitPlan} onChange={(e) => setForm({ ...form, splitPlan: e.target.value })}>
-            <option value="80-20">80-20 (Broker)</option>
-            <option value="70-30">70-30 (Agent)</option>
-          </select>
-        </div>
-        <button onClick={handleAdd} className="btn-primary mt-4">Create Agent</button>
-      </section>
-    </main>
-  )
+      <ul className="divide-y">
+        {agents.map(a => (
+          <li key={a.id} className="py-3">
+            <div className="font-medium">{a.firstName} {a.lastName}</div>
+            <div className="text-sm text-gray-600">{a.email}{a.email2 ? ` • ${a.email2}` : ''}</div>
+            <div className="text-sm text-gray-600">
+              Lic {a.licenseNo}{a.licenseExpiry ? ` • exp ${new Date(a.licenseExpiry).toLocaleDateString()}` : ''}
+              {typeof a.saleSplit === 'number' ? ` • Sale ${a.saleSplit}%` : ''}{typeof a.rentSplit === 'number' ? ` • Rent ${a.rentSplit}%` : ''}
+            </div>
+          </li>
+        ))}
+        {agents.length === 0 && <li className="py-6 text-gray-500">No agents yet.</li>}
+      </ul>
+    </div>
+  );
 }
