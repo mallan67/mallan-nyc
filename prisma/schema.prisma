@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,94 +7,183 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum DealType {
-  SALE
-  RENT
-}
-
+// --------------------------------------------------
+// AGENT (natural key = email)
+// --------------------------------------------------
 model Agent {
-  id            String    @id @default(cuid()) // internal; not shown in UI
-  firstName     String
-  lastName      String
-  email         String    @unique
-  email2        String?
-  licenseNo     String    @unique
-  licenseExpiry DateTime?
+  email            String   @id                      // natural key
+  firstName        String
+  lastName         String
+  secondEmail      String?
+  licenseNo        String   @unique
+  licenseExpiry    DateTime
+  saleSplit        Int      // basis points (8000 = 80 %)
+  rentalSplit      Int      // basis points (7000 = 70 %)
+  saleDeals        Int      @default(0)
+  rentalDeals      Int      @default(0)
+  role             Role     @default(AGENT)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  // default splits for this agent (0.60 = 60% to agent)
-  saleSplit     Float     @default(0.60)
-  rentSplit     Float     @default(0.60)
+  listings    Listing[]
+  leads       Lead[]
+  deals       Deal[]
+  commissions Commission[]
+  splits      Split[]
+  profile     AgentProfile?
 
-  deals         Deal[]
-  splitHistory  SplitHistory[]
-  tax1099       Tax1099[]
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([lastName, firstName])
+  @@map("agents")
 }
 
+// --------------------------------------------------
+// AGENT PROFILE (same natural key)
+// --------------------------------------------------
+model AgentProfile {
+  email            String   @id                      // same as Agent
+  agent            Agent    @relation(fields: [email], references: [email], onDelete: Cascade)
+  secondEmail      String?
+  saleSplit        Int
+  rentalSplit      Int
+  saleDeals        Int      @default(0)
+  rentalDeals      Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@map("agent_profiles")
+}
+
+// --------------------------------------------------
+// DEAL (natural key = address + agentEmail + contractSigned)
+// --------------------------------------------------
 model Deal {
-  id            String    @id @default(cuid()) // internal; not shown in UI
+  address          String
+  agentEmail       String
+  agent            Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
+  type             String   // SALE or RENTAL
+  status           DealStatus @default(LEAD)
+  price            Int
+  closingDate      DateTime?
+  contractSigned   DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  // Agent selection is by license/email/ID in the API; we store the relation + a denormalized license
-  agentId       String
-  agent         Agent     @relation(fields: [agentId], references: [id])
-  licenseNo     String?   // copied from Agent at create-time (for faster reporting)
+  commissions      Commission[]
+  dealDetails      DealDetail?
 
-  type          DealType
-  address       String
-
-  // “Sale / Rental Price” (whole dollars)
-  price         Int
-
-  // Commission fields typed in the form
-  // If your commission base = price (or another base), we compute $ automatically
-  agentCommissionPercent Float  // 0.60 for 60% to the agent
-  agentCommissionAmount  Int    // computed dollars
-
-  // Snapshot of the split used for this deal (so future changes don’t affect history)
-  splitPercent          Float   // agent split used (0–1)
-
-  // Dates
-  contractSignedAt     DateTime?
-  contractClosedAt     DateTime?
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([type, contractClosedAt])
-  @@index([licenseNo])
+  @@id([address, agentEmail, contractSigned])   // natural composite key
+  @@map("deals")
 }
 
-model SplitHistory {
-  id            String   @id @default(cuid())
-  agentId       String
-  agent         Agent    @relation(fields: [agentId], references: [id])
+// --------------------------------------------------
+// DEAL DETAIL (same natural key)
+// --------------------------------------------------
+model DealDetail {
+  address            String
+  agentEmail         String
+  contractSigned     DateTime
+  deal               Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
+  agentFirstName     String
+  agentLastName      String
+  agentLicense       String
+  type               String   // SALE or RENTAL
+  price              Int
+  agentCommissionPct Int      // basis points (300 = 3 %)
+  agentCommissionUsd Int      // dollar amount
+  split              Int      // basis points (8000 = 80 %)
+  contractClosed     DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  // Historical split settings (snapshotted by effective date)
-  effectiveDate DateTime
-  saleSplit     Float
-  rentSplit     Float
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([agentId, effectiveDate], name: "byAgentDate")
+  @@id([address, agentEmail, contractSigned])   // same composite key
+  @@map("deal_details")
 }
 
-model Tax1099 {
-  id           String   @id @default(cuid())
-  agentId      String
-  agent        Agent    @relation(fields: [agentId], references: [id])
+// --------------------------------------------------
+// COMMISSION (natural key = same composite key)
+// --------------------------------------------------
+model Commission {
+  address          String
+  agentEmail       String
+  contractSigned   DateTime
+  deal             Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
+  gross            Int
+  companyFee       Int
+  agentFee         Int
+  paid             Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  year         Int
-  totalSales   Int      @default(0) // dollars paid-out counted for 1099
-  totalRentals Int      @default(0)
+  @@id([address, agentEmail, contractSigned])   // same composite key
+  @@map("commissions")
+}
 
+// --------------------------------------------------
+// SPLIT (natural key = agentEmail + year)
+// --------------------------------------------------
+model Split {
+  agentEmail       String
+  year             Int      // 2025, 2026, …
+  agent            Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
+  saleSplit        Int
+  rentalSplit      Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@id([agentEmail, year])
+  @@map("splits")
+}
+
+// --------------------------------------------------
+// SUPPORTING TABLES (no id)
+// --------------------------------------------------
+model SplitPlan {
+  name         String @id   // natural key: "80-20", "70-30"
+  companySplit Int
+  agentSplit   Int
+  agents       Agent[]
+  @@map("split_plans")
+}
+
+model Lead {
+  email        String   @id   // natural key
+  name         String
+  phone        String?
+  consentSms   Boolean  @default(false)
+  consentEmail Boolean  @default(false)
+  note         String?
+  assignedToId String?   // can be null
+  assignedTo   Agent?    @relation(fields: [assignedToId], references: [email])
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([agentId, year])
+  @@map("leads")
 }
+
+model Listing {
+  address   String        @id   // natural key
+  price     Int
+  beds      Float?
+  baths     Float?
+  sqft      Int?
+  status    ListingStatus @default(DRAFT)
+  agentId   String        // agent email
+  agent     Agent         @relation(fields: [agentId], references: [email])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  @@map("listings")
+}
+
+model Document {
+  filename    String    @id   // natural key (unique per folder)
+  category    DocCategory
+  url         String
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+  @@map("documents")
+}
+
+// --------------------------------------------------
+// ENUMS (unchanged)
+// --------------------------------------------------
+enum Role            { ADMIN AGENT }
+enum ListingStatus   { DRAFT ACTIVE PENDING CLOSED }
+enum DealSide        { BUY SELL RENT }
+enum DealStatus      { LEAD SHOWING OFFER CONTRACT_NEGOTIATION CLOSED }
+enum DocCategory     { OFFERING_PLAN AGENCY_DISCLOSURE LEAD_PAINT WINDOW_GUARD 1099 MISC }
