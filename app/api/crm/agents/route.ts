@@ -34,6 +34,11 @@ export async function GET(req: Request) {
         licenseExpiry: true,
         saleSplit: true,
         rentSplit: true,
+        // include counters if you added them to the schema
+        saleDealsCount: true,
+        rentDealsCount: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -87,6 +92,7 @@ export async function POST(req: Request) {
     return NextResponse.json(agent, { status: 201 });
   } catch (e: any) {
     if (e?.code === "P2002") {
+      // unique constraint (email or licenseNo)
       return NextResponse.json(
         { error: "Email or license already exists." },
         { status: 409 }

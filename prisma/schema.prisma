@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,44 +9,94 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model SplitPlan {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  buyPercent  Float
-  rentPercent Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  agents      Agent[]
-}
-
-model Agent {
-  id            String     @id @default(cuid())
-  firstName     String
-  lastName      String
-  email         String     @unique
-  licenseNo     String?
-  licenseExpiry DateTime?
-  splitPlanId   String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  splitPlan     SplitPlan? @relation(fields: [splitPlanId], references: [id])
-  deals         Deal[]
-}
-
-model Deal {
-  id         String   @id @default(cuid())
-  type       DealType
-  address    String
-  price      Int
-  commission Int
-  paid       Int      @default(0)
-  agentId    String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  agent      Agent    @relation(fields: [agentId], references: [id])
-}
-
 enum DealType {
   SALE
   RENT
+}
+
+model Agent {
+  id            String    @id @default(cuid()) // internal; not shown in UI
+  firstName     String
+  lastName      String
+  email         String    @unique
+  email2        String?
+  licenseNo     String    @unique
+  licenseExpiry DateTime?
+
+  // default splits for this agent (0.60 = 60% to agent)
+  saleSplit     Float     @default(0.60)
+  rentSplit     Float     @default(0.60)
+
+  deals         Deal[]
+  splitHistory  SplitHistory[]
+  tax1099       Tax1099[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([lastName, firstName])
+}
+
+model Deal {
+  id            String    @id @default(cuid()) // internal; not shown in UI
+
+  // Agent selection is by license/email/ID in the API; we store the relation + a denormalized license
+  agentId       String
+  agent         Agent     @relation(fields: [agentId], references: [id])
+  licenseNo     String?   // copied from Agent at create-time (for faster reporting)
+
+  type          DealType
+  address       String
+
+  // “Sale / Rental Price” (whole dollars)
+  price         Int
+
+  // Commission fields typed in the form
+  // If your commission base = price (or another base), we compute $ automatically
+  agentCommissionPercent Float  // 0.60 for 60% to the agent
+  agentCommissionAmount  Int    // computed dollars
+
+  // Snapshot of the split used for this deal (so future changes don’t affect history)
+  splitPercent          Float   // agent split used (0–1)
+
+  // Dates
+  contractSignedAt     DateTime?
+  contractClosedAt     DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([type, contractClosedAt])
+  @@index([licenseNo])
+}
+
+model SplitHistory {
+  id            String   @id @default(cuid())
+  agentId       String
+  agent         Agent    @relation(fields: [agentId], references: [id])
+
+  // Historical split settings (snapshotted by effective date)
+  effectiveDate DateTime
+  saleSplit     Float
+  rentSplit     Float
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([agentId, effectiveDate], name: "byAgentDate")
+}
+
+model Tax1099 {
+  id           String   @id @default(cuid())
+  agentId      String
+  agent        Agent    @relation(fields: [agentId], references: [id])
+
+  year         Int
+  totalSales   Int      @default(0) // dollars paid-out counted for 1099
+  totalRentals Int      @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([agentId, year])
 }
