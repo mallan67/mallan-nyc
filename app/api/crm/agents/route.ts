@@ -1,35 +1,105 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+// app/api/crm/agents/route.ts
+export const runtime = "nodejs";
 
-const prisma = new PrismaClient()
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
-export async function POST(req: NextRequest) {
-  const { firstName, lastName, email, licenseNo, expiry, splitPlan } = await req.json()
-  if (!firstName || !lastName || !email || !licenseNo || !expiry) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+// GET /api/crm/agents?q=maya
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const q = (searchParams.get("q") || "").trim();
+
+    const where = q
+      ? {
+          OR: [
+            { email: { contains: q, mode: "insensitive" } },
+            { licenseNo: { contains: q, mode: "insensitive" } },
+            { firstName: { contains: q, mode: "insensitive" } },
+            { lastName: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {};
+
+    const agents = await prisma.agent.findMany({
+      where,
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        email2: true,
+        licenseNo: true,
+        licenseExpiry: true,
+        saleSplit: true,
+        rentSplit: true,
+      },
+    });
+
+    return NextResponse.json(agents, { status: 200 });
+  } catch (e: any) {
+    console.error("GET /api/crm/agents error:", e);
+    return NextResponse.json(
+      {
+        error: "Server error in /api/crm/agents",
+        message: e?.message ?? null,
+        code: e?.code ?? null,
+      },
+      { status: 500 }
+    );
   }
-  const split = await prisma.splitPlan.findFirst({ where: { name: splitPlan } })
-  if (!split) return NextResponse.json({ error: 'Split plan not found' }, { status: 400 })
+}
 
-  const agent = await prisma.agent.create({
-    data: {
-      email,
-      password: await bcrypt.hash('GoogleSignInDummyPassword', 10),
+// POST /api/crm/agents
+// body: { firstName, lastName, email, email2?, licenseNo, licenseExpiry?, saleSplit?, rentSplit? }
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const {
       firstName,
       lastName,
+      email,
+      email2,
       licenseNo,
-      licenseExpiry: new Date(expiry),
-      splitPlanId: split.id,
-      role: splitPlan === '80-20' ? 'ADMIN' : 'AGENT',
-    },
-  })
+      licenseExpiry,
+      saleSplit,
+      rentSplit,
+    } = body || {};
 
-  await prisma.$executeRaw`
-    INSERT INTO neon_auth.users_sync (id, email, name, created_at, updated_at)
-    VALUES (gen_random_uuid(), ${email}, ${firstName || ''} || ' ' || ${lastName || ''}, now(), now())
-    ON CONFLICT (email) DO NOTHING;
-  `
+    if (!firstName || !lastName || !email || !licenseNo) {
+      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    }
 
-  return NextResponse.json({ id: agent.id })
+    const agent = await prisma.agent.create({
+      data: {
+        firstName: String(firstName).trim(),
+        lastName: String(lastName).trim(),
+        email: String(email).trim().toLowerCase(),
+        email2: email2 ? String(email2).trim().toLowerCase() : null,
+        licenseNo: String(licenseNo).trim(),
+        licenseExpiry: licenseExpiry ? new Date(licenseExpiry) : null,
+        saleSplit: saleSplit != null ? Number(saleSplit) : undefined,
+        rentSplit: rentSplit != null ? Number(rentSplit) : undefined,
+      },
+    });
+
+    return NextResponse.json(agent, { status: 201 });
+  } catch (e: any) {
+    if (e?.code === "P2002") {
+      return NextResponse.json(
+        { error: "Email or license already exists." },
+        { status: 409 }
+      );
+    }
+    console.error("POST /api/crm/agents error:", e);
+    return NextResponse.json(
+      {
+        error: "Server error in /api/crm/agents",
+        message: e?.message ?? null,
+        code: e?.code ?? null,
+      },
+      { status: 500 }
+    );
+  }
 }
