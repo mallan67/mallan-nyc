@@ -34,9 +34,6 @@ export async function GET(req: Request) {
         licenseExpiry: true,
         saleSplit: true,
         rentSplit: true,
-        // include counters if you added them to the schema
-        saleDealsCount: true,
-        rentDealsCount: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -47,6 +44,7 @@ export async function GET(req: Request) {
     console.error("GET /api/crm/agents error:", e);
     return NextResponse.json(
       {
+        ok: false,
         error: "Server error in /api/crm/agents",
         message: e?.message ?? null,
         code: e?.code ?? null,
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
     } = body || {};
 
     if (!firstName || !lastName || !email || !licenseNo) {
-      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Missing required fields." }, { status: 400 });
     }
 
     const agent = await prisma.agent.create({
@@ -89,18 +87,16 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(agent, { status: 201 });
+    return NextResponse.json({ ok: true, agent }, { status: 201 });
   } catch (e: any) {
     if (e?.code === "P2002") {
       // unique constraint (email or licenseNo)
-      return NextResponse.json(
-        { error: "Email or license already exists." },
-        { status: 409 }
-      );
+      return NextResponse.json({ ok: false, error: "Email or license already exists." }, { status: 409 });
     }
     console.error("POST /api/crm/agents error:", e);
     return NextResponse.json(
       {
+        ok: false,
         error: "Server error in /api/crm/agents",
         message: e?.message ?? null,
         code: e?.code ?? null,
