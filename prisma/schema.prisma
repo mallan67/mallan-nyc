@@ -1,0 +1,114 @@
+﻿generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  firstName     String
+  lastName      String
+  licenseNo     String   @unique
+  licenseExpiry DateTime
+  phone         String?
+  splitPlanId   String?
+  role          Role     @default(AGENT)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  listings    Listing[]
+  leads       Lead[]
+  deals       Deal[]
+  commissions Commission[]
+  split       SplitPlan? @relation(fields: [splitPlanId], references: [id])
+
+  @@map("agents")
+}
+
+model SplitPlan {
+  id           String  @id @default(cuid())
+  name         String
+  companySplit Int
+  agentSplit   Int
+  agents       Agent[]
+  @@map("split_plans")
+}
+
+model Lead {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  consentSms   Boolean  @default(false)
+  consentEmail Boolean  @default(false)
+  note         String?
+  assignedToId String?
+  assignedTo   Agent?   @relation(fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  @@map("leads")
+}
+
+model Listing {
+  id        String        @id @default(cuid())
+  address   String
+  price     Int
+  beds      Float?
+  baths     Float?
+  sqft      Int?
+  status    ListingStatus @default(DRAFT)
+  agentId   String
+  agent     Agent         @relation(fields: [agentId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  @@map("listings")
+}
+
+model Deal {
+  id          String     @id @default(cuid())
+  address     String
+  side        DealSide
+  status      DealStatus @default(LEAD)
+  price       Int
+  closingDate DateTime?
+  agentId     String
+  agent       Agent      @relation(fields: [agentId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  commissions Commission[]
+  @@map("deals")
+}
+
+model Commission {
+  id         String  @id @default(cuid())
+  dealId     String
+  deal       Deal    @relation(fields: [dealId], references: [id])
+  agentId    String
+  agent      Agent   @relation(fields: [agentId], references: [id])
+  gross      Int
+  companyFee Int
+  agentFee   Int
+  paid       Boolean @default(false)
+  createdAt  DateTime @default(now())
+  @@map("commissions")
+}
+
+model Document {
+  id          String     @id @default(cuid())
+  filename    String
+  category    DocCategory
+  url         String
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+  @@map("documents")
+}
+
+enum Role            { ADMIN AGENT }
+enum ListingStatus   { DRAFT ACTIVE PENDING CLOSED }
+enum DealSide        { BUY SELL RENT }
+enum DealStatus      { LEAD SHOWING OFFER CONTRACT_NEGOTIATION CLOSED }
+enum DocCategory     { OFFERING_PLAN AGENCY_DISCLOSURE LEAD_PAINT WINDOW_GUARD 1099 MISC }
