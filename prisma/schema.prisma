@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SplitPlan {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  buyPercent  Float
+  rentPercent Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agents      Agent[]
+}
+
+model Agent {
+  id            String     @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String     @unique
+  licenseNo     String?
+  licenseExpiry DateTime?
+  splitPlanId   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  splitPlan     SplitPlan? @relation(fields: [splitPlanId], references: [id])
+  deals         Deal[]
+}
+
+model Deal {
+  id         String   @id @default(cuid())
+  type       DealType
+  address    String
+  price      Int
+  commission Int
+  paid       Int      @default(0)
+  agentId    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  agent      Agent    @relation(fields: [agentId], references: [id])
+}
+
+enum DealType {
+  SALE
+  RENT
+}
