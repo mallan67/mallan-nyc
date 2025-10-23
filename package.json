@@ -15,7 +15,7 @@
                     "lint":  "next lint",
                     "type-check":  "tsc --noEmit",
                     "ci":  "npm run -s lint \u0026\u0026 npm run -s type-check \u0026\u0026 npm run -s build",
-                    "postinstall":  "prisma generate || node -e \"console.log(\\\"(skipping prisma)\\\")\""
+                    "postinstall":  "node -e \"console.log(\\\"(prisma skipped on build)\\\")\""
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.17.1",
