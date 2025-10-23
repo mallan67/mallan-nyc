@@ -1,124 +1,50 @@
-// app/api/crm/deals/route.ts
-import { NextResponse } from "next/server";
-import { PrismaClient, DealType } from "@prisma/client";
-import { computeAgentCommission, pctToUnit } from "@/lib/commission";
+﻿import { NextResponse } from "next/server";
+import { q } from "@/lib/db";
 
-const prisma = new PrismaClient();
-
-// GET /api/crm/deals?agent=licenseNo_or_email_or_id
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const agentParam = (searchParams.get("agent") || "").trim();
-
-  let agent = null;
-  if (agentParam) {
-    // try id
-    agent = await prisma.agent.findUnique({ where: { id: agentParam } });
-    if (!agent) agent = await prisma.agent.findUnique({ where: { licenseNo: agentParam } });
-    if (!agent) agent = await prisma.agent.findUnique({ where: { email: agentParam.toLowerCase() } });
-  }
-
-  const where = agent ? { agentId: agent.id } : {};
-  const deals = await prisma.deal.findMany({
-    where,
-    orderBy: [{ contractClosedAt: "desc" }, { createdAt: "desc" }],
-    include: {
-      agent: {
-        select: { firstName: true, lastName: true, licenseNo: true, email: true },
-      },
-    },
-  });
-
-  return NextResponse.json(deals);
-}
+// Keep Next from trying to pre-render statically
+export const dynamic = "force-dynamic";
 
 /**
- * POST /api/crm/deals
- * body: {
- *   agentLookup: { licenseNo?: string, email?: string, id?: string },
- *   type: "SALE" | "RENT",
- *   address: string,
- *   price: number, // whole dollars
- *   // Either send one of these:
- *   agentCommissionPercent?: number, // 60 or 0.6
- *   splitOverridePercent?: number,    // 60 or 0.6 (if you want to force split for this deal)
- *   contractSignedAt?: string (ISO),
- *   contractClosedAt?: string (ISO)
- * }
+ * GET /api/crm/deals?agent_full_name=...&representation=LISTING_SALE|BUYER_REP|LISTING_RENT|RENTER_REP
+ * Returns rows from agent_deals_v with MM/DD/YYYY dates and computed $ fields.
  */
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { agentLookup } = body || {};
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const agent = url.searchParams.get("agent_full_name");
+  const rep   = url.searchParams.get("representation");
 
-    // 1) resolve agent
-    let agent = null;
-    if (agentLookup?.id) {
-      agent = await prisma.agent.findUnique({ where: { id: String(agentLookup.id) } });
-    }
-    if (!agent && agentLookup?.licenseNo) {
-      agent = await prisma.agent.findUnique({ where: { licenseNo: String(agentLookup.licenseNo) } });
-    }
-    if (!agent && agentLookup?.email) {
-      agent = await prisma.agent.findUnique({ where: { email: String(agentLookup.email).toLowerCase() } });
-    }
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found." }, { status: 404 });
-    }
+  const where: string[] = [];
+  const params: any[] = [];
 
-    // 2) validate input
-    const type = String(body.type) as DealType;
-    if (!["SALE", "RENT"].includes(type)) {
-      return NextResponse.json({ error: "type must be SALE or RENT" }, { status: 400 });
-    }
-    const address = String(body.address || "").trim();
-    const price = Number(body.price);
-    if (!address || !Number.isFinite(price) || price <= 0) {
-      return NextResponse.json({ error: "Invalid address or price" }, { status: 400 });
-    }
+  if (agent) { params.push(agent); where.push(`agent_full_name = $${params.length}`); }
+  if (rep)   { params.push(rep);   where.push(`representation_code = $${params.length}`); }
 
-    // 3) split to use (override > agent default)
-    const splitUnit = body.splitOverridePercent != null
-      ? pctToUnit(Number(body.splitOverridePercent))
-      : type === "SALE"
-        ? pctToUnit(agent.saleSplit ?? 0.6)
-        : pctToUnit(agent.rentSplit ?? 0.6);
+  const sql = `
+    SELECT
+      agent_full_name,
+      representation_code,
+      CASE representation_code
+        WHEN 'LISTING_SALE' THEN 'Sale Exclusive'
+        WHEN 'BUYER_REP'    THEN 'Buyer Representation'
+        WHEN 'LISTING_RENT' THEN 'Rental Exclusive'
+        WHEN 'RENTER_REP'   THEN 'Renter Representation'
+        ELSE NULL
+      END AS representation_label,
+      property_address,
+      price_usd,
+      commission_rate_percent,
+      split_percent,
+      agent_fee_usd,
+      company_fee_usd,
+      gross_commission_usd,
+      contract_signed,
+      contract_closed
+    FROM agent_deals_v
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY TO_DATE(contract_closed,'MM/DD/YYYY') DESC NULLS LAST,
+             TO_DATE(contract_signed,'MM/DD/YYYY') DESC
+  `;
 
-    // 4) agent commission percent on commission base
-    const agentCommissionPercentUnit = body.agentCommissionPercent != null
-      ? pctToUnit(Number(body.agentCommissionPercent))
-      : splitUnit;
-
-    // Define commission base rule:
-    // For now, use price as the base. If your brokerage uses a rate (e.g., 6% of price),
-    // change this to: const commissionBase = Math.round(price * 0.06);
-    const commissionBase = price;
-
-    const { unit: finalUnit, agentAmt } = computeAgentCommission(
-      commissionBase,
-      agentCommissionPercentUnit
-    );
-
-    const deal = await prisma.deal.create({
-      data: {
-        type,
-        address,
-        price,
-        agentId: agent.id,
-        licenseNo: agent.licenseNo,
-        agentCommissionPercent: finalUnit,
-        agentCommissionAmount: agentAmt,
-        splitPercent: splitUnit,
-        contractSignedAt: body.contractSignedAt ? new Date(body.contractSignedAt) : null,
-        contractClosedAt: body.contractClosedAt ? new Date(body.contractClosedAt) : null,
-      },
-      include: {
-        agent: { select: { firstName: true, lastName: true, licenseNo: true, email: true } },
-      },
-    });
-
-    return NextResponse.json(deal, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
-  }
+  const rows = await q(sql, params);
+  return NextResponse.json(rows);
 }
