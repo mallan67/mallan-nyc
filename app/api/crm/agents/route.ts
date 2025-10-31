@@ -9,16 +9,24 @@ export async function GET() {
   try {
     const rows = await q(`
       SELECT
-        first_name, last_name, (first_name || ' ' || last_name) AS full_name,
-        email, license_no, license_expiry, sale_split, rental_split, role
+        first_name,
+        last_name,
+        (first_name || ' ' || last_name) AS full_name,
+        email,
+        license_no,
+        license_expiry,
+        sale_split,
+        rental_split,
+        role
       FROM agents
       ORDER BY last_name, first_name
     `);
     return NextResponse.json(rows);
   } catch (e: any) {
+    // Soft-fail so we can see the DB error body during debugging
     return NextResponse.json(
-      { ok: false, error: String(e?.message ?? e) },
-      { status: 500 }
+      { ok: false, reason: "agents query failed", error: String(e?.message ?? e) },
+      { status: 200 }
     );
   }
 }
