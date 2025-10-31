@@ -1,12 +1,10 @@
+'use client';
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
-'use client';
 
 import React, { useEffect, useState } from 'react';
-
-export const dynamic = 'force-dynamic';
-
 
 type Deal = {
   property_address: string;
@@ -43,7 +41,7 @@ export default function DealsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <main style={{padding:16}}>Loading deals…</main>;
+  if (loading) return <main style={{padding:16}}>Loading dealsâ€¦</main>;
   if (error)   return <main style={{padding:16}}>Failed to load: {error}</main>;
 
   return (
