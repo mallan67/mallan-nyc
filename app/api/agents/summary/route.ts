@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { q } from "@/lib/db";
 
-// run on request, do not prerender/export
+// Never prerender; always run per-request
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
@@ -20,9 +20,9 @@ export async function GET() {
     `);
     return NextResponse.json(rows);
   } catch (e: any) {
-    // soft-fail so export doesn't crash if the view isn’t created yet
+    // Soft-fail so builds don’t break if the view isn’t ready
     return NextResponse.json(
-      { ok: false, reason: "agent_deals_summary_v missing or DB not ready", error: String(e?.message || e) },
+      { ok: false, reason: "agent_deals_summary_v missing or DB not ready", error: String(e?.message ?? e) },
       { status: 200 }
     );
   }
