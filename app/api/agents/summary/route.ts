@@ -1,26 +1,29 @@
-import { NextResponse } from 'next/server';
-import { q } from '@/lib/db';
+﻿import { NextResponse } from "next/server";
+import { q } from "@/lib/db";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+// Never prerender; always run per-request
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const rows = await q`
+    const rows = await q(`
       SELECT
-        a.full_name,
-        COUNT(d.*)::int AS deals_count,
-        COALESCE(SUM(d.gross_commission_usd), 0)::int AS gross_commission_usd
-      FROM agents a
-      LEFT JOIN deals d
-        ON d.agent_full_name = a.full_name
-      GROUP BY a.full_name
-      ORDER BY a.full_name;
-    `;
+        agent_full_name,
+        deal_count,
+        gross_commission_usd,
+        agent_fee_usd,
+        company_fee_usd
+      FROM agent_deals_summary_v
+      ORDER BY agent_full_name
+    `);
     return NextResponse.json(rows);
-  } catch (err) {
-    console.error('GET /api/agents/summary error:', err);
-    // Don’t block builds if the DB is empty—return an empty list.
-    return NextResponse.json([]);
+  } catch (e: any) {
+    // Soft-fail so builds don’t break if the view isn’t ready
+    return NextResponse.json(
+      { ok: false, reason: "agent_deals_summary_v missing or DB not ready", error: String(e?.message ?? e) },
+      { status: 200 }
+    );
   }
 }
