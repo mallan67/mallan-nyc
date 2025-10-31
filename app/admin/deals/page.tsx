@@ -1,9 +1,12 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 'use client';
 
 import React, { useEffect, useState } from 'react';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
 
 type Deal = {
   property_address: string;
@@ -81,3 +84,4 @@ export default function DealsPage() {
     </main>
   );
 }
+
