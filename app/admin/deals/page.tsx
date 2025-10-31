@@ -1,113 +1,101 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
+type Agent = { id: string; firstName: string; lastName: string; email: string; licenseNo: string; };
 type Deal = {
-  agent_full_name: string;
-  representation_code: string;
-  representation_label: string;
-  property_address: string;
-  price_usd: number | string;
-  commission_rate_percent: string; // e.g. "1.750"
-  split_percent: string;           // e.g. "75.500"
-  agent_fee_usd: string;
-  company_fee_usd: string;
-  gross_commission_usd: string;
-  contract_signed: string; // "MM/DD/YYYY"
-  contract_closed: string; // "MM/DD/YYYY"
-};
-
-const styles = {
-  thL: { padding: "8px 12px", textAlign: "left"  as const, borderBottom: "1px solid #eee", whiteSpace: "nowrap" as const },
-  thR: { padding: "8px 12px", textAlign: "right" as const, borderBottom: "1px solid #eee", whiteSpace: "nowrap" as const },
-  tdL: { padding: "8px 12px", textAlign: "left"  as const, borderBottom: "1px solid #f2f2f2", whiteSpace: "nowrap" as const, verticalAlign: "top" as const },
-  tdR: { padding: "8px 12px", textAlign: "right" as const, borderBottom: "1px solid #f2f2f2", whiteSpace: "nowrap" as const, verticalAlign: "top" as const },
-};
-
-const fmt = {
-  money(v: unknown, digits = 2) {
-    const n = Number(String(v ?? "").replace(/[^0-9.-]/g, ""));
-    return Number.isFinite(n)
-      ? n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })
-      : String(v ?? "");
-  },
-  pct(v: unknown) {
-    const s = String(v ?? "");
-    // trim trailing zeros like "75.500" -> "75.5"
-    const trimmed = s.replace(/\.?0+$/, "");
-    return trimmed ? `${trimmed}%` : "";
-  },
+  id: string;
+  agentId: string;
+  type: 'SALE' | 'RENT';
+  address: string;
+  price: number | null;
+  agentCommissionPct?: number | null;
+  agentCommissionUsd?: number | null;
+  splitPct?: number | null;
+  signedAt?: string | null;
+  closedAt?: string | null;
 };
 
 export default function DealsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    agentId: '', type: 'SALE',
+    address: '', price: '',
+    agentCommissionPct: '', agentCommissionUsd: '',
+    splitPct: '', signedAt: '', closedAt: ''
+  });
 
   useEffect(() => {
-    let cancelled = false;
     (async () => {
-      try {
-        setLoading(true);
-        const res = await fetch("/api/crm/deals", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as Deal[];
-        if (!cancelled) setDeals(json);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (!cancelled) setErr(msg);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const a = await fetch('/api/crm/agents').then(r=>r.json());
+      setAgents(Array.isArray(a) ? a : []);
+      const d = await fetch('/api/crm/deals').then(r=>r.json());
+      setDeals(Array.isArray(d) ? d : []);
     })();
-    return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <p style={{ padding: 16 }}>Loading...</p>;
-  if (err)      return <p style={{ color: "crimson", padding: 16 }}>Error: {err}</p>;
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = {
+      ...form,
+      price: form.price ? Number(form.price) : undefined,
+      agentCommissionPct: form.agentCommissionPct ? Number(form.agentCommissionPct) : undefined,
+      agentCommissionUsd: form.agentCommissionUsd ? Number(form.agentCommissionUsd) : undefined,
+      splitPct: form.splitPct ? Number(form.splitPct) : undefined,
+      signedAt: form.signedAt || undefined,
+      closedAt: form.closedAt || undefined,
+    };
+    const r = await fetch('/api/crm/deals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const j = await r.json();
+    if (!r.ok) { alert(j?.error || 'Failed'); return; }
+    setForm({ agentId:'', type:'SALE', address:'', price:'', agentCommissionPct:'', agentCommissionUsd:'', splitPct:'', signedAt:'', closedAt:'' });
+    const d = await fetch('/api/crm/deals').then(r=>r.json());
+    setDeals(Array.isArray(d) ? d : []);
+  }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Deals</h1>
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <h1 className="text-2xl font-semibold">Deals</h1>
 
-      {deals.length === 0 ? (
-        <p>No deals yet.</p>
-      ) : (
-        <table style={{ borderCollapse: "separate", borderSpacing: 0, width: "100%" }}>
-          <thead>
-            <tr>
-              <th style={styles.thL}>Agent</th>
-              <th style={styles.thL}>Type</th>
-              <th style={styles.thL}>Address</th>
-              <th style={styles.thR}>Price</th>
-              <th style={styles.thR}>Comm&nbsp;%</th>
-              <th style={styles.thR}>Split&nbsp;%</th>
-              <th style={styles.thR}>Agent Fee</th>
-              <th style={styles.thR}>Company Fee</th>
-              <th style={styles.thR}>Gross</th>
-              <th style={styles.thL}>Signed</th>
-              <th style={styles.thL}>Closed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deals.map((d, i) => (
-              <tr key={i}>
-                <td style={styles.tdL}>{d.agent_full_name}</td>
-                <td style={styles.tdL}>{d.representation_label}</td>
-                <td style={styles.tdL}>{d.property_address}</td>
-                <td style={styles.tdR}>{fmt.money(d.price_usd, 2)}</td>
-                <td style={styles.tdR}>{fmt.pct(d.commission_rate_percent)}</td>
-                <td style={styles.tdR}>{fmt.pct(d.split_percent)}</td>
-                <td style={styles.tdR}>{fmt.money(d.agent_fee_usd, 0)}</td>
-                <td style={styles.tdR}>{fmt.money(d.company_fee_usd, 0)}</td>
-                <td style={styles.tdR}>{fmt.money(d.gross_commission_usd, 0)}</td>
-                <td style={styles.tdL}>{d.contract_signed}</td>
-                <td style={styles.tdL}>{d.contract_closed}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <select value={form.agentId} onChange={e=>setForm(s=>({...s, agentId:e.target.value}))} className="border p-2 rounded" required>
+          <option value="">Select Agent…</option>
+          {agents.map(a => <option key={a.id} value={a.id}>{a.firstName} {a.lastName} — {a.licenseNo}</option>)}
+        </select>
+        <select value={form.type} onChange={e=>setForm(s=>({...s, type:e.target.value as 'SALE'|'RENT'}))} className="border p-2 rounded">
+          <option value="SALE">SALE</option>
+          <option value="RENT">RENT</option>
+        </select>
+
+        <input placeholder="Address" value={form.address} onChange={e=>setForm(s=>({...s, address:e.target.value}))} className="border p-2 rounded md:col-span-2" required />
+        <input placeholder="Price" value={form.price} onChange={e=>setForm(s=>({...s, price:e.target.value}))} className="border p-2 rounded" />
+
+        <input placeholder="Agent commission % (e.g. 3)" value={form.agentCommissionPct} onChange={e=>setForm(s=>({...s, agentCommissionPct:e.target.value}))} className="border p-2 rounded" />
+        <input placeholder="Agent commission $ (e.g. 36000)" value={form.agentCommissionUsd} onChange={e=>setForm(s=>({...s, agentCommissionUsd:e.target.value}))} className="border p-2 rounded" />
+        <input placeholder="Split % (e.g. 60 for agent, 40 broker)" value={form.splitPct} onChange={e=>setForm(s=>({...s, splitPct:e.target.value}))} className="border p-2 rounded" />
+
+        <input type="date" placeholder="Signed date" value={form.signedAt} onChange={e=>setForm(s=>({...s, signedAt:e.target.value}))} className="border p-2 rounded" />
+        <input type="date" placeholder="Closed date" value={form.closedAt} onChange={e=>setForm(s=>({...s, closedAt:e.target.value}))} className="border p-2 rounded" />
+
+        <button className="bg-black text-white rounded px-4 py-2 md:col-span-2">Add Deal</button>
+      </form>
+
+      <ul className="divide-y">
+        {deals.map(d => (
+          <li key={d.id} className="py-3">
+            <div className="font-medium">{d.type} — {d.address}</div>
+            <div className="text-sm text-gray-600">
+              Agent {agents.find(a=>a.id===d.agentId)?.firstName} {agents.find(a=>a.id===d.agentId)?.lastName} •
+              {d.price ? ` $${d.price.toLocaleString()}` : ' n/a'}
+              {typeof d.agentCommissionPct === 'number' ? ` • ${d.agentCommissionPct}%` : ''}
+              {typeof d.agentCommissionUsd === 'number' ? ` • $${d.agentCommissionUsd.toLocaleString()}` : ''}
+              {typeof d.splitPct === 'number' ? ` • split ${d.splitPct}%` : ''}
+            </div>
+          </li>
+        ))}
+        {deals.length === 0 && <li className="py-6 text-gray-500">No deals yet.</li>}
+      </ul>
     </div>
   );
 }

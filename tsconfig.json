@@ -1,18 +1,32 @@
+<<<<<<< HEAD
 ﻿{
     "compilerOptions":  {
                             "target":  "ES2020",
+=======
+{
+    "compilerOptions":  {
+                            "target":  "ES2020",
+                            "lib":  [
+                                        "dom",
+                                        "es2020"
+                                    ],
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
                             "module":  "ESNext",
                             "moduleResolution":  "Bundler",
                             "jsx":  "preserve",
                             "strict":  true,
                             "skipLibCheck":  true,
+<<<<<<< HEAD
                             "esModuleInterop":  true,
+=======
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
                             "baseUrl":  ".",
                             "paths":  {
                                           "@/*":  [
                                                       "./*"
                                                   ]
                                       },
+<<<<<<< HEAD
                             "typeRoots":  [
                                               "./types",
                                               "./node_modules/@types"
@@ -25,6 +39,16 @@
                             "allowJs":  true,
                             "noEmit":  true,
                             "incremental":  true,
+=======
+                            "types":  [
+                                          "react",
+                                          "react-dom"
+                                      ],
+                            "allowJs":  true,
+                            "noEmit":  true,
+                            "incremental":  true,
+                            "esModuleInterop":  true,
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
                             "resolveJsonModule":  true,
                             "isolatedModules":  true,
                             "plugins":  [
@@ -40,6 +64,7 @@
                     ".next/types/**/*.ts"
                 ],
     "exclude":  [
+<<<<<<< HEAD
                     "node_modules",
                     "4",
                     ".next",
@@ -54,5 +79,8 @@
                     "lint_fix_backup_*",
                     "app_api*",
                     "lib_bak_*"
+=======
+                    "node_modules"
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
                 ]
 }

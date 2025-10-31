@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* prisma/seed.js — robust seeding that handles existing rows (by email or fullName) */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -56,10 +57,32 @@ async function main() {
 
   const maya = await ensureAgent(agentPayload);
   console.log("Agent ensured:", maya.email, maya.fullName);
+=======
+// prisma/seed.js
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+async function main() {
+  const maya = await prisma.agent.upsert({
+    where: { email: 'maya@mallannyhomes.com' },
+    update: {},
+    create: {
+      firstName: 'Maya',
+      lastName: 'Allan',
+      email: 'maya@mallannyhomes.com',
+      email2: null,
+      licenseNo: 'NY123456',
+      licenseExpiry: new Date('2026-12-31'),
+      saleSplit: 60,
+      rentSplit: 60,
+    },
+  });
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
 
   await prisma.deal.createMany({
     data: [
       {
+<<<<<<< HEAD
         address: "300 E 90th St, New York, NY",
         agentEmail: maya.email,
         type: "SALE",
@@ -110,10 +133,33 @@ async function main() {
         agentCommissionUsd: 525,
         split: 60,
         contractClosed: new Date("2025-05-25"),
+=======
+        agentId: maya.id,
+        type: 'SALE',                // change if your enum differs
+        address: '300 E 90th St, New York, NY',
+        price: 1200000,
+        agentCommissionPct: 3,
+        agentCommissionUsd: 36000,
+        splitPct: 60,
+        signedAt: new Date('2025-06-01'),
+        closedAt: new Date('2025-09-01'),
+      },
+      {
+        agentId: maya.id,
+        type: 'RENT',                // change if your enum differs
+        address: '1600 Fulton St, Brooklyn, NY',
+        price: 3500,
+        agentCommissionPct: 15,
+        agentCommissionUsd: 6300,
+        splitPct: 60,
+        signedAt: new Date('2025-05-10'),
+        closedAt: new Date('2025-05-25'),
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
       },
     ],
     skipDuplicates: true,
   });
+<<<<<<< HEAD
 
   await prisma.commission.createMany({
     data: [
@@ -150,3 +196,13 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+=======
+}
+
+main().catch(e => {
+  console.error(e);
+  process.exit(1);
+}).finally(async () => {
+  await prisma.$disconnect();
+});
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)

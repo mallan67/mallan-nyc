@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
     "name": "mallan-nyc",
     "version": "0.1.0",
     "private": true,
@@ -44,3 +45,47 @@
         "seed": "node prisma/seed.js"
     }
 }
+=======
+    "name":  "mallan-nyc",
+    "version":  "0.1.0",
+    "private":  true,
+    "author":  "Mallan Real Estate Inc. \u003chello@mallan.nyc\u003e (https://mallan.nyc)",
+    "license":  "MIT",
+    "homepage":  "https://mallan.nyc",
+    "engines":  {
+                    "node":  "20.x"
+                },
+    "scripts":  {
+                    "dev":  "next dev",
+                    "build":  "next build",
+                    "start":  "next start",
+                    "lint":  "next lint",
+                    "type-check":  "tsc --noEmit",
+                    "ci":  "npm run -s lint \u0026\u0026 npm run -s type-check \u0026\u0026 npm run -s build",
+                    "postinstall":  "node -e \"console.log(\\\"(prisma skipped on build)\\\")\""
+                },
+    "dependencies":  {
+                         "@prisma/client":  "^6.17.1",
+                         "@sendgrid/mail":  "^8.1.6",
+                         "bcryptjs":  "^3.0.2",
+                         "next":  "14.2.33",
+                         "pg":  "^8.16.3",
+                         "prisma":  "^6.17.1",
+                         "react":  "18.2.0",
+                         "react-dom":  "18.2.0",
+                         "swr":  "^2.3.6"
+                     },
+    "devDependencies":  {
+                            "@types/bcryptjs":  "^2.4.6",
+                            "@types/node":  "^20.11.30",
+                            "@types/react":  "^18.3.3",
+                            "@types/react-dom":  "^18.3.0",
+                            "eslint":  "^8.57.0",
+                            "eslint-config-next":  "14.2.33",
+                            "typescript":  "^5.4.0"
+                        },
+    "prisma":  {
+                   "seed":  "node prisma/seed.js"
+               }
+}
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
