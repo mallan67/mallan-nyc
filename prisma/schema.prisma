@@ -11,6 +11,7 @@ datasource db {
 // AGENT (natural key = email)
 // --------------------------------------------------
 model Agent {
+<<<<<<< HEAD
   email         String   @id
   fullName      String   @unique @map("full_name")
   firstName     String   @map("first_name")
@@ -34,6 +35,28 @@ model Agent {
   profile       AgentProfile?
   SplitPlan     SplitPlan?    @relation(fields: [splitPlanName], references: [name])
   splitPlanName String?
+=======
+  email            String   @id                      // natural key
+  firstName        String
+  lastName         String
+  secondEmail      String?
+  licenseNo        String   @unique
+  licenseExpiry    DateTime
+  saleSplit        Int      // basis points (8000 = 80 %)
+  rentalSplit      Int      // basis points (7000 = 70 %)
+  saleDeals        Int      @default(0)
+  rentalDeals      Int      @default(0)
+  role             Role     @default(AGENT)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  listings    Listing[]
+  leads       Lead[]
+  deals       Deal[]
+  commissions Commission[]
+  splits      Split[]
+  profile     AgentProfile?
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
 
   @@map("agents")
 }
@@ -42,6 +65,7 @@ model Agent {
 // AGENT PROFILE (same natural key)
 // --------------------------------------------------
 model AgentProfile {
+<<<<<<< HEAD
   email       String   @id // same as Agent
   agent       Agent    @relation(fields: [email], references: [email], onDelete: Cascade)
   secondEmail String?  @map("second_email")
@@ -52,6 +76,17 @@ model AgentProfile {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+=======
+  email            String   @id                      // same as Agent
+  agent            Agent    @relation(fields: [email], references: [email], onDelete: Cascade)
+  secondEmail      String?
+  saleSplit        Int
+  rentalSplit      Int
+  saleDeals        Int      @default(0)
+  rentalDeals      Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("agent_profiles")
 }
 
@@ -59,6 +94,7 @@ model AgentProfile {
 // DEAL (natural key = address + agentEmail + contractSigned)
 // --------------------------------------------------
 model Deal {
+<<<<<<< HEAD
   address        String
   agentEmail     String     @map("agent_email")
   agent          Agent      @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
@@ -74,6 +110,23 @@ model Deal {
   dealDetails DealDetail?
 
   @@id([address, agentEmail, contractSigned])
+=======
+  address          String
+  agentEmail       String
+  agent            Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
+  type             String   // SALE or RENTAL
+  status           DealStatus @default(LEAD)
+  price            Int
+  closingDate      DateTime?
+  contractSigned   DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  commissions      Commission[]
+  dealDetails      DealDetail?
+
+  @@id([address, agentEmail, contractSigned])   // natural composite key
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("deals")
 }
 
@@ -82,6 +135,7 @@ model Deal {
 // --------------------------------------------------
 model DealDetail {
   address            String
+<<<<<<< HEAD
   agentEmail         String    @map("agent_email")
   contractSigned     DateTime  @map("contract_signed")
   deal               Deal      @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
@@ -98,6 +152,24 @@ model DealDetail {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   @@id([address, agentEmail, contractSigned])
+=======
+  agentEmail         String
+  contractSigned     DateTime
+  deal               Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
+  agentFirstName     String
+  agentLastName      String
+  agentLicense       String
+  type               String   // SALE or RENTAL
+  price              Int
+  agentCommissionPct Int      // basis points (300 = 3 %)
+  agentCommissionUsd Int      // dollar amount
+  split              Int      // basis points (8000 = 80 %)
+  contractClosed     DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@id([address, agentEmail, contractSigned])   // same composite key
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("deal_details")
 }
 
@@ -105,6 +177,7 @@ model DealDetail {
 // COMMISSION (natural key = same composite key)
 // --------------------------------------------------
 model Commission {
+<<<<<<< HEAD
   address        String
   agentEmail     String   @map("agent_email")
   contractSigned DateTime @map("contract_signed")
@@ -118,6 +191,20 @@ model Commission {
   Agent          Agent    @relation(fields: [agentEmail], references: [email])
 
   @@id([address, agentEmail, contractSigned])
+=======
+  address          String
+  agentEmail       String
+  contractSigned   DateTime
+  deal             Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
+  gross            Int
+  companyFee       Int
+  agentFee         Int
+  paid             Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@id([address, agentEmail, contractSigned])   // same composite key
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("commissions")
 }
 
@@ -125,6 +212,7 @@ model Commission {
 // SPLIT (natural key = agentEmail + year)
 // --------------------------------------------------
 model Split {
+<<<<<<< HEAD
   agentEmail     String   @map("agent_email")
   year           Int // 2025, 2026, â€¦
   agent          Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
@@ -134,6 +222,15 @@ model Split {
   rentalSplitPct Float?   @map("rental_split_pct")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+=======
+  agentEmail       String
+  year             Int      // 2025, 2026, …
+  agent            Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
+  saleSplit        Int
+  rentalSplit      Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
 
   @@id([agentEmail, year])
   @@map("splits")
@@ -143,15 +240,23 @@ model Split {
 // SUPPORTING TABLES (no id)
 // --------------------------------------------------
 model SplitPlan {
+<<<<<<< HEAD
   name         String  @id // natural key: "80-20", "70-30"
   companySplit Int     @map("company_split")
   agentSplit   Int     @map("agent_split")
   agents       Agent[]
 
+=======
+  name         String @id   // natural key: "80-20", "70-30"
+  companySplit Int
+  agentSplit   Int
+  agents       Agent[]
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("split_plans")
 }
 
 model Lead {
+<<<<<<< HEAD
   email        String   @id // natural key
   name         String
   phone        String?
@@ -162,35 +267,66 @@ model Lead {
   assignedTo   Agent?   @relation(fields: [assignedToId], references: [email])
   createdAt    DateTime @default(now()) @map("created_at")
 
+=======
+  email        String   @id   // natural key
+  name         String
+  phone        String?
+  consentSms   Boolean  @default(false)
+  consentEmail Boolean  @default(false)
+  note         String?
+  assignedToId String?   // can be null
+  assignedTo   Agent?    @relation(fields: [assignedToId], references: [email])
+  createdAt    DateTime @default(now())
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("leads")
 }
 
 model Listing {
+<<<<<<< HEAD
   address   String        @id // natural key
+=======
+  address   String        @id   // natural key
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   price     Int
   beds      Float?
   baths     Float?
   sqft      Int?
   status    ListingStatus @default(DRAFT)
+<<<<<<< HEAD
   agentId   String        @map("agent_id") // agent email
   agent     Agent         @relation(fields: [agentId], references: [email])
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
+=======
+  agentId   String        // agent email
+  agent     Agent         @relation(fields: [agentId], references: [email])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("listings")
 }
 
 model Document {
+<<<<<<< HEAD
   filename   String      @id // natural key (unique per folder)
   category   DocCategory
   url        String
   uploadedBy String      @map("uploaded_by")
   createdAt  DateTime    @default(now()) @map("created_at")
 
+=======
+  filename    String    @id   // natural key (unique per folder)
+  category    DocCategory
+  url         String
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
   @@map("documents")
 }
 
 // --------------------------------------------------
+<<<<<<< HEAD
 // ENUMS (explicit multi-line format to avoid parser issues)
 // --------------------------------------------------
 enum Role {
@@ -227,3 +363,12 @@ enum DocCategory {
   FORM_1099
   MISC
 }
+=======
+// ENUMS (unchanged)
+// --------------------------------------------------
+enum Role            { ADMIN AGENT }
+enum ListingStatus   { DRAFT ACTIVE PENDING CLOSED }
+enum DealSide        { BUY SELL RENT }
+enum DealStatus      { LEAD SHOWING OFFER CONTRACT_NEGOTIATION CLOSED }
+enum DocCategory     { OFFERING_PLAN AGENCY_DISCLOSURE LEAD_PAINT WINDOW_GUARD 1099 MISC }
+>>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)

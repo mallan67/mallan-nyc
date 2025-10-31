@@ -1,4 +1,5 @@
-﻿export const runtime = "nodejs";
+// app/api/ai/nyc/route.ts
+export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 
@@ -11,15 +12,8 @@ async function safeJson<T = any>(req: Request): Promise<T | null> {
 }
 
 export async function POST(req: Request) {
-  // Don't run placeholder in production
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ ok: false, error: "NYC lookup not enabled in production." }, { status: 404 });
-  }
-
-  // Accept either `{ q }` or `{ query }` from clients
-  const body = await safeJson<{ q?: string; query?: string }>(req);
-const raw = (body as any)?.q ?? (body as any)?.query ?? "";
-const q = typeof raw === "string" ? raw.trim() : "";
+  const body = await safeJson<{ q?: string }>(req);
+  const q = body?.q?.trim() || "";
 
   const hasGeoclientId = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY;
   const hasGeoclientKey = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2;
@@ -49,4 +43,3 @@ export async function GET() {
     { status: 200 }
   );
 }
-

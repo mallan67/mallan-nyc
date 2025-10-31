@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { soda } from "@/lib/soda";
 export const runtime = "nodejs";
 
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const where = [`bbl='${bbl}'`, openOnly ? `violation_status='OPEN'` : ""]
       .filter(Boolean).join(" AND ");
 
-    const items = await (soda as any)({ resource: DATASET, where, limit: 200, order: "violation_date DESC" });
+    const items = await soda({ resource: DATASET, where, limit: 200, order: "violation_date DESC" });
     const openCount = items.length;
     const balance = items.reduce((sum: number, it: any) => sum + (Number(it?.balance_due) || 0), 0);
 
@@ -25,4 +25,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 200 });
   }
 }
-
