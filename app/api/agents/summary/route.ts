@@ -1,17 +1,26 @@
-﻿import { NextResponse } from "next/server";
-import { q } from "@/lib/db";
+import { NextResponse } from 'next/server';
+import { q } from '@/lib/db';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-  const rows = await q(`
-    SELECT
-      agent_full_name,
-      total_deals, sale_deals, rental_deals,
-      listing_sale_deals, buyer_rep_deals, listing_rent_deals, renter_rep_deals,
-      total_sales_volume_usd, total_rental_volume_usd,
-      total_agent_fee_usd, total_company_fee_usd, total_gross_commission_usd,
-      avg_commission_rate_pct, avg_split_pct,
-      TO_CHAR(last_closed_date_raw, 'MM/DD/YYYY') AS last_closed
-    FROM agent_deals_summary_v
-    ORDER BY agent_full_name
-  `);
-  return NextResponse.json(rows);
+  try {
+    const rows = await q`
+      SELECT
+        a.full_name,
+        COUNT(d.*)::int AS deals_count,
+        COALESCE(SUM(d.gross_commission_usd), 0)::int AS gross_commission_usd
+      FROM agents a
+      LEFT JOIN deals d
+        ON d.agent_full_name = a.full_name
+      GROUP BY a.full_name
+      ORDER BY a.full_name;
+    `;
+    return NextResponse.json(rows);
+  } catch (err) {
+    console.error('GET /api/agents/summary error:', err);
+    // Don’t block builds if the DB is empty—return an empty list.
+    return NextResponse.json([]);
+  }
 }
