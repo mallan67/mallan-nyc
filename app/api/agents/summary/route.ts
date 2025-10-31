@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { q } from "@/lib/db";
 
 // Never prerender; always run per-request
