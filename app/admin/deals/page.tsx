@@ -2,10 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
-
 type Deal = {
   agent_full_name: string;
   representation_code: string;
@@ -28,7 +24,8 @@ export default function DealsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+
+    (async () => {
       try {
         setLoading(true);
         const res = await fetch('/api/crm/deals', { cache: 'no-store' });
@@ -40,15 +37,13 @@ export default function DealsPage() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <p style={{ padding: 16 }}>Loading…</p>;
-  if (err) return <p style={{ color: 'crimson', padding: 16 }}>Error: {err}</p>;
+  if (loading) return <main style={{ padding: 16 }}>Loading…</main>;
+  if (err)     return <main style={{ padding: 16, color: 'crimson' }}>Error: {err}</main>;
 
   return (
     <div style={{ padding: 16 }}>
@@ -76,7 +71,9 @@ export default function DealsPage() {
                 <td>{d.agent_full_name}</td>
                 <td>{d.representation_label}</td>
                 <td>{d.property_address}</td>
-                <td align="right">{d.price_usd?.toLocaleString?.() ?? d.price_usd}</td>
+                <td align="right">
+                  {typeof d.price_usd === 'number' ? d.price_usd.toLocaleString() : d.price_usd}
+                </td>
                 <td align="right">{d.agent_fee_usd}</td>
                 <td align="right">{d.company_fee_usd}</td>
                 <td align="right">{d.gross_commission_usd}</td>
