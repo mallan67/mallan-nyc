@@ -1,87 +1,92 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
 'use client';
 
 import React, { useEffect, useState } from 'react';
 
 export const dynamic = 'force-dynamic';
-
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 type Deal = {
-  property_address: string;
+  agent_full_name: string;
+  representation_code: string;
   representation_label: string;
+  property_address: string;
   price_usd: number;
   commission_rate_percent: string;
   split_percent: string;
-  agent_fee_usd: number | string;
-  company_fee_usd: number | string;
-  gross_commission_usd: number | string;
+  agent_fee_usd: string;
+  company_fee_usd: string;
+  gross_commission_usd: string;
   contract_signed: string;
   contract_closed: string;
 };
 
 export default function DealsPage() {
-  const [rows, setRows] = useState<Deal[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    async function load() {
       try {
-        const r = await fetch('/api/crm/deals', { cache: 'no-store' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        if (!cancelled) setRows(data);
+        setLoading(true);
+        const res = await fetch('/api/crm/deals', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as Deal[];
+        if (!cancelled) setDeals(json);
       } catch (e: any) {
-        if (!cancelled) setError(e.message ?? 'Failed to load');
+        if (!cancelled) setErr(String(e?.message ?? e));
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (loading) return <main style={{padding:16}}>Loading deals…</main>;
-  if (error)   return <main style={{padding:16}}>Failed to load: {error}</main>;
+  if (loading) return <p style={{ padding: 16 }}>Loading…</p>;
+  if (err) return <p style={{ color: 'crimson', padding: 16 }}>Error: {err}</p>;
 
   return (
-    <main style={{ padding: 16 }}>
+    <div style={{ padding: 16 }}>
       <h1>Deals</h1>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th align="left">Address</th>
-            <th align="left">Type</th>
-            <th align="right">Price</th>
-            <th align="right">Comm %</th>
-            <th align="right">Split %</th>
-            <th align="right">Agent Fee</th>
-            <th align="right">Company Fee</th>
-            <th align="right">Gross</th>
-            <th align="left">Signed</th>
-            <th align="left">Closed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((d, i) => (
-            <tr key={i}>
-              <td>{d.property_address}</td>
-              <td>{d.representation_label}</td>
-              <td align="right">{d.price_usd}</td>
-              <td align="right">{d.commission_rate_percent}</td>
-              <td align="right">{d.split_percent}</td>
-              <td align="right">{d.agent_fee_usd}</td>
-              <td align="right">{d.company_fee_usd}</td>
-              <td align="right">{d.gross_commission_usd}</td>
-              <td>{d.contract_signed}</td>
-              <td>{d.contract_closed}</td>
+      {deals.length === 0 ? (
+        <p>No deals yet.</p>
+      ) : (
+        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <thead>
+            <tr>
+              <th align="left">Agent</th>
+              <th align="left">Type</th>
+              <th align="left">Address</th>
+              <th align="right">Price</th>
+              <th align="right">Agent Fee</th>
+              <th align="right">Company Fee</th>
+              <th align="right">Gross</th>
+              <th align="left">Signed</th>
+              <th align="left">Closed</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+          </thead>
+          <tbody>
+            {deals.map((d, i) => (
+              <tr key={i}>
+                <td>{d.agent_full_name}</td>
+                <td>{d.representation_label}</td>
+                <td>{d.property_address}</td>
+                <td align="right">{d.price_usd?.toLocaleString?.() ?? d.price_usd}</td>
+                <td align="right">{d.agent_fee_usd}</td>
+                <td align="right">{d.company_fee_usd}</td>
+                <td align="right">{d.gross_commission_usd}</td>
+                <td>{d.contract_signed}</td>
+                <td>{d.contract_closed}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
-
