@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 
 type Deal = {
   agent_full_name: string;
@@ -24,12 +24,11 @@ export default function DealsPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/crm/deals', { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await fetch("/api/crm/deals", { cache: "no-store" });
+        if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
         const json = (await res.json()) as Deal[];
         if (!cancelled) setDeals(json);
       } catch (e: any) {
@@ -38,12 +37,11 @@ export default function DealsPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <main style={{ padding: 16 }}>Loading…</main>;
-  if (err)     return <main style={{ padding: 16, color: 'crimson' }}>Error: {err}</main>;
+  if (loading) return <p style={{ padding: 16 }}>Loading…</p>;
+  if (err)     return <p style={{ color: "crimson", padding: 16 }}>Error: {err}</p>;
 
   return (
     <div style={{ padding: 16 }}>
@@ -51,7 +49,7 @@ export default function DealsPage() {
       {deals.length === 0 ? (
         <p>No deals yet.</p>
       ) : (
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <table style={{ borderCollapse: "collapse", width: "100%" }}>
           <thead>
             <tr>
               <th align="left">Agent</th>
@@ -71,9 +69,7 @@ export default function DealsPage() {
                 <td>{d.agent_full_name}</td>
                 <td>{d.representation_label}</td>
                 <td>{d.property_address}</td>
-                <td align="right">
-                  {typeof d.price_usd === 'number' ? d.price_usd.toLocaleString() : d.price_usd}
-                </td>
+                <td align="right">{d.price_usd?.toLocaleString?.() ?? d.price_usd}</td>
                 <td align="right">{d.agent_fee_usd}</td>
                 <td align="right">{d.company_fee_usd}</td>
                 <td align="right">{d.gross_commission_usd}</td>
