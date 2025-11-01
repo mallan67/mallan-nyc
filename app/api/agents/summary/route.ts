@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { q } from "@/lib/db";
 
-// Never prerender; always run per-request
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
@@ -11,19 +10,19 @@ export async function GET() {
     const rows = await q(`
       SELECT
         agent_full_name,
-        deal_count,
-        gross_commission_usd,
-        agent_fee_usd,
-        company_fee_usd
-      FROM agent_deals_summary_v
+        COUNT(*)::INT                                       AS deal_count,
+        SUM(gross_commission_usd)::NUMERIC(14,2)            AS gross_commission_usd,
+        SUM(agent_fee_usd)::NUMERIC(14,2)                   AS agent_fee_usd,
+        SUM(company_fee_usd)::NUMERIC(14,2)                 AS company_fee_usd
+      FROM deals
+      GROUP BY agent_full_name
       ORDER BY agent_full_name
     `);
     return NextResponse.json(rows);
   } catch (e: any) {
-    // Soft-fail so builds don’t break if the view isn’t ready
     return NextResponse.json(
-      { ok: false, reason: "agent_deals_summary_v missing or DB not ready", error: String(e?.message ?? e) },
-      { status: 200 }
+      { ok: false, reason: "summary query failed", error: String(e?.message ?? e) },
+      { status: 500 }
     );
   }
 }
