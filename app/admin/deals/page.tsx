@@ -28,11 +28,12 @@ export default function DealsPage() {
       try {
         setLoading(true);
         const res = await fetch("/api/crm/deals", { cache: "no-store" });
-        if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as Deal[];
         if (!cancelled) setDeals(json);
-      } catch (e: any) {
-        if (!cancelled) setErr(String(e?.message ?? e));
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!cancelled) setErr(msg);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -40,8 +41,8 @@ export default function DealsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <p style={{ padding: 16 }}>Loading…</p>;
-  if (err)     return <p style={{ color: "crimson", padding: 16 }}>Error: {err}</p>;
+  if (loading) return <p style={{ padding: 16 }}>Loading...</p>;
+  if (err) return <p style={{ color: "crimson", padding: 16 }}>Error: {err}</p>;
 
   return (
     <div style={{ padding: 16 }}>
