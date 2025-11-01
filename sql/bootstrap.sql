@@ -1,0 +1,62 @@
+-- ============================================
+-- Minimal CRM schema + seed
+-- ============================================
+
+-- 1) Agents table
+CREATE TABLE IF NOT EXISTS agents (
+  id BIGSERIAL PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name  TEXT NOT NULL,
+  full_name  TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+  email TEXT UNIQUE,
+  license_no TEXT,
+  license_expiry DATE,
+  sale_split NUMERIC(6,3),
+  rental_split NUMERIC(6,3),
+  role TEXT CHECK (role IN ('ADMIN','AGENT')) DEFAULT 'AGENT'
+);
+
+-- 2) Deals table
+CREATE TABLE IF NOT EXISTS deals (
+  id BIGSERIAL PRIMARY KEY,
+  agent_full_name TEXT NOT NULL,
+  representation_code TEXT CHECK (representation_code IN ('LISTING_SALE','BUYER_REP','LISTING_RENT','RENTER_REP')),
+  property_address TEXT,
+  price_usd NUMERIC(14,2),
+  commission_rate_percent NUMERIC(6,3),
+  split_percent NUMERIC(6,3),
+  agent_fee_usd NUMERIC(14,2),
+  company_fee_usd NUMERIC(14,2),
+  gross_commission_usd NUMERIC(14,2),
+  contract_signed DATE,
+  contract_closed DATE
+);
+
+-- 3) Summary view used by /api/agents/summary
+CREATE OR REPLACE VIEW agent_deals_summary_v AS
+SELECT
+  agent_full_name,
+  COUNT(*)::INT AS deal_count,
+  SUM(gross_commission_usd)::NUMERIC(14,2) AS gross_commission_usd,
+  SUM(agent_fee_usd)::NUMERIC(14,2)        AS agent_fee_usd,
+  SUM(company_fee_usd)::NUMERIC(14,2)      AS company_fee_usd
+FROM deals
+GROUP BY agent_full_name
+ORDER BY agent_full_name;
+
+-- 4) Seed one admin agent if missing
+INSERT INTO agents (first_name, last_name, email, license_no, license_expiry, sale_split, rental_split, role)
+SELECT 'Maya','Allan','mayad67@gmail.com','10401234567','2025-06-30',80.000,80.000,'ADMIN'
+WHERE NOT EXISTS (SELECT 1 FROM agents WHERE email='mayad67@gmail.com');
+
+-- 5) Seed two sample deals only if table empty
+INSERT INTO deals (
+  agent_full_name, representation_code, property_address, price_usd,
+  commission_rate_percent, split_percent, agent_fee_usd, company_fee_usd, gross_commission_usd,
+  contract_signed, contract_closed
+)
+SELECT * FROM (VALUES
+  ('Maya Allan','LISTING_SALE','123 Park Ave, NYC',1200000, 1.750, 75.500, 28800,  7200,  36000, DATE '2025-06-01', DATE '2025-07-15'),
+  ('Maya Allan','RENTER_REP',  '456 Lex Ave, NYC',  850000,15.000, 80.000, 20400,  5100,  25500, DATE '2025-05-15', DATE '2025-05-15')
+) AS t(agent_full_name,representation_code,property_address,price_usd,commission_rate_percent,split_percent,agent_fee_usd,company_fee_usd,gross_commission_usd,contract_signed,contract_closed)
+WHERE NOT EXISTS (SELECT 1 FROM deals);
