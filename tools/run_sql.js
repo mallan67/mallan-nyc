@@ -3,10 +3,7 @@ const { Client } = require("pg");
 
 async function main() {
   const file = process.argv[2];
-  if (!file) {
-    console.error("Usage: node tools/run_sql.js <path-to-sql>");
-    process.exit(1);
-  }
+  if (!file) { console.error("Usage: node tools/run_sql.js <path-to-sql>"); process.exit(1); }
   const sql = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "");
   const cs  = process.env.DATABASE_URL;
   if (!cs) { console.error("DATABASE_URL not set"); process.exit(1); }
