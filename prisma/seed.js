@@ -1,55 +1,161 @@
-// prisma/seed.js
-const { PrismaClient } = require('@prisma/client');
+﻿// prisma/seed.js — robust seeding that handles existing rows (by email or fullName)
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-async function main() {
-  const maya = await prisma.agent.upsert({
-    where: { email: 'maya@mallannyhomes.com' },
-    update: {},
-    create: {
-      firstName: 'Maya',
-      lastName: 'Allan',
-      email: 'maya@mallannyhomes.com',
-      email2: null,
-      licenseNo: 'NY123456',
-      licenseExpiry: new Date('2026-12-31'),
-      saleSplit: 60,
-      rentSplit: 60,
-    },
-  });
+async function ensureAgent(agentData) {
+  // 1) Try find by email
+  let a = await prisma.agent.findUnique({ where: { email: agentData.email } });
+  if (a) {
+    // update everything for the email-holder
+    await prisma.agent.update({
+      where: { email: agentData.email },
+      data: {
+        fullName: agentData.fullName,
+        firstName: agentData.firstName,
+        lastName: agentData.lastName,
+        secondEmail: agentData.secondEmail,
+        licenseNo: agentData.licenseNo,
+        licenseExpiry: agentData.licenseExpiry,
+        saleSplit: agentData.saleSplit,
+        rentalSplit: agentData.rentalSplit,
+      },
+    });
+    return await prisma.agent.findUnique({ where: { email: agentData.email } });
+  }
 
+  // 2) If not found by email, try find by fullName (unique in schema)
+  a = await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
+  if (a) {
+    // update fields except email to avoid clobbering someone else's email
+    await prisma.agent.update({
+      where: { fullName: agentData.fullName },
+      data: {
+        firstName: agentData.firstName,
+        lastName: agentData.lastName,
+        secondEmail: agentData.secondEmail,
+        licenseNo: agentData.licenseNo,
+        licenseExpiry: agentData.licenseExpiry,
+        saleSplit: agentData.saleSplit,
+        rentalSplit: agentData.rentalSplit,
+      },
+    });
+    return await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
+  }
+
+  // 3) Else create new agent
+  return await prisma.agent.create({ data: agentData });
+}
+
+async function main() {
+  // Agent we want to ensure exists; adjust as needed
+  const agentPayload = {
+    email: "maya@mallannyhomes.com",
+    fullName: "Maya Allan",
+    firstName: "Maya",
+    lastName: "Allan",
+    secondEmail: null,
+    licenseNo: "NY123456",
+    licenseExpiry: new Date("2026-12-31"),
+    saleSplit: 60,
+    rentalSplit: 60,
+  };
+
+  const maya = await ensureAgent(agentPayload);
+  console.log("Agent ensured:", maya.email, maya.fullName);
+
+  // Create deals for that agent (using maya.fullName as join key)
   await prisma.deal.createMany({
     data: [
       {
-        agentId: maya.id,
-        type: 'SALE',                // change if your enum differs
-        address: '300 E 90th St, New York, NY',
+        address: "300 E 90th St, New York, NY",
+        agentFullName: maya.fullName,
+        type: "SALE",
+        status: "CLOSED",
         price: 1200000,
-        agentCommissionPct: 3,
-        agentCommissionUsd: 36000,
-        splitPct: 60,
-        signedAt: new Date('2025-06-01'),
-        closedAt: new Date('2025-09-01'),
+        contractSigned: new Date("2025-06-01"),
+        closingDate: new Date("2025-09-01"),
       },
       {
-        agentId: maya.id,
-        type: 'RENT',                // change if your enum differs
-        address: '1600 Fulton St, Brooklyn, NY',
+        address: "1600 Fulton St, Brooklyn, NY",
+        agentFullName: maya.fullName,
+        type: "RENTAL",
+        status: "CLOSED",
         price: 3500,
-        agentCommissionPct: 15,
-        agentCommissionUsd: 6300,
-        splitPct: 60,
-        signedAt: new Date('2025-05-10'),
-        closedAt: new Date('2025-05-25'),
+        contractSigned: new Date("2025-05-10"),
+        closingDate: new Date("2025-05-25"),
       },
     ],
     skipDuplicates: true,
   });
+
+  // Deal details
+  await prisma.dealDetail.createMany({
+    data: [
+      {
+        address: "300 E 90th St, New York, NY",
+        agentFullName: maya.fullName,
+        contractSigned: new Date("2025-06-01"),
+        agentFirstName: "Maya",
+        agentLastName: "Allan",
+        agentLicense: "NY123456",
+        type: "SALE",
+        price: 1200000,
+        agentCommissionPct: 3,
+        agentCommissionUsd: 36000,
+        split: 60,
+        contractClosed: new Date("2025-09-01"),
+      },
+      {
+        address: "1600 Fulton St, Brooklyn, NY",
+        agentFullName: maya.fullName,
+        contractSigned: new Date("2025-05-10"),
+        agentFirstName: "Maya",
+        agentLastName: "Allan",
+        agentLicense: "NY123456",
+        type: "RENTAL",
+        price: 3500,
+        agentCommissionPct: 15,
+        agentCommissionUsd: 6300,
+        split: 60,
+        contractClosed: new Date("2025-05-25"),
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Commissions
+  await prisma.commission.createMany({
+    data: [
+      {
+        address: "300 E 90th St, New York, NY",
+        agentFullName: maya.fullName,
+        contractSigned: new Date("2025-06-01"),
+        gross: 36000,
+        companyFee: Math.round(36000 * 0.2),
+        agentFee: Math.round(36000 * 0.8),
+        paid: false,
+      },
+      {
+        address: "1600 Fulton St, Brooklyn, NY",
+        agentFullName: maya.fullName,
+        contractSigned: new Date("2025-05-10"),
+        gross: 6300,
+        companyFee: Math.round(6300 * 0.4),
+        agentFee: Math.round(6300 * 0.6),
+        paid: false,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  console.log("Seed complete");
 }
 
-main().catch(e => {
-  console.error(e);
-  process.exit(1);
-}).finally(async () => {
-  await prisma.$disconnect();
-});
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
