@@ -1,4 +1,9 @@
-﻿import { Pool } from "pg";
+﻿// prefer Vercel's DATABASE_URL_UNPOOLED if present so code always sees DATABASE_URL
+if (!process.env.DATABASE_URL && process.env.DATABASE_URL_UNPOOLED) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL_UNPOOLED;
+}
+
+import { Pool } from "pg";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
