@@ -148,3 +148,7 @@ vite.config.ts.timestamp-*
 prisma/schema.prisma.bak
 backup_api_pages/
 sql/bootstrap.sql
+
+# local env backups
+env backup/
+
