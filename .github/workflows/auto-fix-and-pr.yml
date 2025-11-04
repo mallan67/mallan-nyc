@@ -60,35 +60,18 @@ jobs:
       - name: Apply Prisma schema (db push)
         run: npx prisma db push --accept-data-loss
 
-      # --- begin: install psql and create shim ---
       - name: Install psql client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client --no-install-recommends
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Create round(double,int) shim in DB
-        # NOTE: for security you can replace the literal dev_password with ${{ secrets.DEV_DB_PASSWORD }}
         env:
           PGPASSWORD: dev_password
         run: |
-          set -euo pipefail
-          # create compatibility function so ROUND(double precision, integer) works
-          psql -h 127.0.0.1 -U dev_user -d mallan -v ON_ERROR_STOP=1 <<'SQL'
-          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
-            RETURNS numeric
-            LANGUAGE SQL IMMUTABLE
-          AS $$
-            SELECT ROUND(CAST(x AS numeric), s);
-          $$;
-          SQL
-
-      - name: Verify round() shim
-        env:
-          PGPASSWORD: dev_password
-        run: |
-          set -euo pipefail
-          psql -h 127.0.0.1 -U dev_user -d mallan -c "\df+ public.round"
-      # --- end: shim ---
+          psql -h postgres -U dev_user -d mallan -c "\
+          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer) \
+            RETURNS numeric \
+            LANGUAGE SQL IMMUTABLE \
+          AS $$ SELECT ROUND(CAST(x AS numeric), s); $$;"
 
       - name: Apply SQL views / constraints (if present)
         run: |
