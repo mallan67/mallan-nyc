@@ -46,23 +46,29 @@ jobs:
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h postgres -U dev_user -d mallan; then
+              echo "Postgres is ready"
+              break
+            fi
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+
       - name: Create round(double,int) shim in DB
         env:
           PGPASSWORD: dev_password
         run: |
-          psql -h postgres -U dev_user -d mallan -c "\
-          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer) \
-            RETURNS numeric \
-            LANGUAGE SQL IMMUTABLE \
-          AS $$ SELECT ROUND(CAST(x AS numeric), s); $$;"
-
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            pg_isready -U dev_user -d mallan -h 127.0.0.1 && break
-            echo "Waiting for postgres..."
-            sleep 2
-          done
+          psql -h postgres -U dev_user -d mallan -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
+            RETURNS numeric
+            LANGUAGE SQL IMMUTABLE
+          AS $$
+            SELECT ROUND(CAST(x AS numeric), s);
+          $$;
+          SQL
 
       - name: Install dependencies
         run: npm ci
