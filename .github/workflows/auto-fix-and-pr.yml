@@ -1,0 +1,726 @@
+name: Auto Fix Schema / Seed / Test / PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'If true, run tests but do not commit/push or create PR. Useful for testing.'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Safety check - DEV_DATABASE_URL present
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DEV_DATABASE_URL secret is not set. Add it in Settings → Secrets and rerun."
+            exit 1
+          fi
+          echo "DEV_DATABASE_URL is set."
+
+      - name: Safety check - do not run against obvious production
+        run: |
+          if echo "$DATABASE_URL" | grep -Ei 'prod|production|live|live-' >/dev/null; then
+            echo "::error::DEV_DATABASE_URL looks like a production DB. Aborting."
+            exit 1
+          fi
+          echo "DB target appears non-production."
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Write corrected files
+        run: |
+          echo "Writing corrected files..."
+
+          mkdir -p prisma sql app/api/debug app/api/ai/nyc
+
+          # prisma/schema.prisma
+          cat > prisma/schema.prisma <<'PRISMA'
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------
+// AGENT (natural key = email)
+// --------------------------------------------------
+model Agent {
+  email            String   @id
+  fullName         String   @unique @map("full_name")
+  firstName        String   @map("first_name")
+  lastName         String   @map("last_name")
+  secondEmail      String?  @map("second_email")
+  licenseNo        String   @unique @map("license_no")
+  licenseExpiry    DateTime @map("license_expiry")
+  saleSplit        Int      @map("sale_split")
+  rentalSplit      Int      @map("rental_split")
+  saleDeals        Int      @default(0) @map("sale_deals")
+  rentalDeals      Int      @default(0) @map("rental_deals")
+  role             Role     @default(AGENT)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  listings    Listing[]
+  leads       Lead[]
+  deals       Deal[]
+  commissions Commission[]
+  splits      Split[]
+  profile     AgentProfile?
+
+  @@map("agents")
+}
+
+// --------------------------------------------------
+// AGENT PROFILE (same natural key)
+// --------------------------------------------------
+model AgentProfile {
+  email            String   @id                      // same as Agent
+  agent            Agent    @relation(fields: [email], references: [email], onDelete: Cascade)
+  secondEmail      String?  @map("second_email")
+  saleSplit        Int      @map("sale_split")
+  rentalSplit      Int      @map("rental_split")
+  saleDeals        Int      @default(0) @map("sale_deals")
+  rentalDeals      Int      @default(0) @map("rental_deals")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("agent_profiles")
+}
+
+// --------------------------------------------------
+// DEAL (natural key = address + agentEmail + contractSigned)
+// --------------------------------------------------
+model Deal {
+  address          String
+  agentEmail       String   @map("agent_email")
+  agent            Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
+  type             String   // SALE or RENTAL
+  status           DealStatus @default(LEAD)
+  price            Int
+  closingDate      DateTime? @map("closing_date")
+  contractSigned   DateTime  @map("contract_signed")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  commissions      Commission[]
+  dealDetails      DealDetail?
+
+  @@id([address, agentEmail, contractSigned])
+  @@map("deals")
+}
+
+// --------------------------------------------------
+// DEAL DETAIL (same natural key)
+// --------------------------------------------------
+model DealDetail {
+  address            String
+  agentEmail         String   @map("agent_email")
+  contractSigned     DateTime @map("contract_signed")
+  deal               Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
+  agentFirstName     String   @map("agent_first_name")
+  agentLastName      String   @map("agent_last_name")
+  agentLicense       String   @map("agent_license")
+  type               String   // SALE or RENTAL
+  price              Int
+  agentCommissionPct Int      @map("agent_commission_pct") // basis points (300 = 3 %)
+  agentCommissionUsd Int      @map("agent_commission_usd")
+  split              Int
+  contractClosed     DateTime? @map("contract_closed")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@id([address, agentEmail, contractSigned])
+  @@map("deal_details")
+}
+
+// --------------------------------------------------
+// COMMISSION (natural key = same composite key)
+// --------------------------------------------------
+model Commission {
+  address          String
+  agentEmail       String   @map("agent_email")
+  contractSigned   DateTime @map("contract_signed")
+  deal             Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
+  gross            Int
+  companyFee       Int      @map("company_fee")
+  agentFee         Int      @map("agent_fee")
+  paid             Boolean  @default(false)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@id([address, agentEmail, contractSigned])
+  @@map("commissions")
+}
+
+// --------------------------------------------------
+// SPLIT (natural key = agentEmail + year)
+// --------------------------------------------------
+model Split {
+  agentEmail       String   @map("agent_email")
+  year             Int      // 2025, 2026, …
+  agent            Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
+  saleSplit        Int      @map("sale_split")
+  rentalSplit      Int      @map("rental_split")
+  saleSplitPct     Float?   @map("sale_split_pct")
+  rentalSplitPct   Float?   @map("rental_split_pct")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@id([agentEmail, year])
+  @@map("splits")
+}
+
+// --------------------------------------------------
+// SUPPORTING TABLES (no id)
+// --------------------------------------------------
+model SplitPlan {
+  name         String @id   // natural key: "80-20", "70-30"
+  companySplit Int    @map("company_split")
+  agentSplit   Int    @map("agent_split")
+  agents       Agent[]
+
+  @@map("split_plans")
+}
+
+model Lead {
+  email        String   @id   // natural key
+  name         String
+  phone        String?
+  consentSms   Boolean  @default(false) @map("consent_sms")
+  consentEmail Boolean  @default(false) @map("consent_email")
+  note         String?
+  assignedToId String?  @map("assigned_to_id")
+  assignedTo   Agent?   @relation(fields: [assignedToId], references: [email])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("leads")
+}
+
+model Listing {
+  address   String        @id   // natural key
+  price     Int
+  beds      Float?
+  baths     Float?
+  sqft      Int?
+  status    ListingStatus @default(DRAFT)
+  agentId   String        @map("agent_id") // agent email
+  agent     Agent         @relation(fields: [agentId], references: [email])
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@map("listings")
+}
+
+model Document {
+  filename    String    @id   // natural key (unique per folder)
+  category    DocCategory
+  url         String
+  uploadedBy  String    @map("uploaded_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("documents")
+}
+
+// --------------------------------------------------
+// ENUMS (unchanged)
+// --------------------------------------------------
+enum Role            { ADMIN AGENT }
+enum ListingStatus   { DRAFT ACTIVE PENDING CLOSED }
+enum DealSide        { BUY SELL RENT }
+enum DealStatus      { LEAD SHOWING OFFER CONTRACT_NEGOTIATION CLOSED }
+enum DocCategory     { OFFERING_PLAN AGENCY_DISCLOSURE LEAD_PAINT WINDOW_GUARD 1099 MISC }
+PRISMA
+
+          # prisma/seed.js
+          cat > prisma/seed.js <<'SEED'
+/* prisma/seed.js — robust seeding that handles existing rows (by email or fullName) */
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+
+async function ensureAgent(agentData) {
+  // 1) Try find by email
+  let a = await prisma.agent.findUnique({ where: { email: agentData.email } });
+  if (a) {
+    // update everything for the email-holder
+    await prisma.agent.update({
+      where: { email: agentData.email },
+      data: {
+        fullName: agentData.fullName,
+        firstName: agentData.firstName,
+        lastName: agentData.lastName,
+        secondEmail: agentData.secondEmail,
+        licenseNo: agentData.licenseNo,
+        licenseExpiry: agentData.licenseExpiry,
+        saleSplit: agentData.saleSplit,
+        rentalSplit: agentData.rentalSplit,
+      },
+    });
+    return await prisma.agent.findUnique({ where: { email: agentData.email } });
+  }
+
+  // 2) If not found by email, try find by fullName (unique in schema)
+  a = await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
+  if (a) {
+    // update fields except email to avoid clobbering someone else's email
+    await prisma.agent.update({
+      where: { fullName: agentData.fullName },
+      data: {
+        firstName: agentData.firstName,
+        lastName: agentData.lastName,
+        secondEmail: agentData.secondEmail,
+        licenseNo: agentData.licenseNo,
+        licenseExpiry: agentData.licenseExpiry,
+        saleSplit: agentData.saleSplit,
+        rentalSplit: agentData.rentalSplit,
+      },
+    });
+    return await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
+  }
+
+  // 3) Else create new agent
+  return await prisma.agent.create({ data: agentData });
+}
+
+async function main() {
+  // Agent we want to ensure exists; adjust as needed
+  const agentPayload = {
+    email: "maya@mallannyhomes.com",
+    fullName: "Maya Allan",
+    firstName: "Maya",
+    lastName: "Allan",
+    secondEmail: null,
+    licenseNo: "NY123456",
+    licenseExpiry: new Date("2026-12-31"),
+    saleSplit: 60,
+    rentalSplit: 60,
+  };
+
+  const maya = await ensureAgent(agentPayload);
+  console.log("Agent ensured:", maya.email, maya.fullName);
+
+  // Create deals for that agent (use agentEmail for joins)
+  await prisma.deal.createMany({
+    data: [
+      {
+        address: "300 E 90th St, New York, NY",
+        agentEmail: maya.email,
+        type: "SALE",
+        status: "CLOSED",
+        price: 1200000,
+        contractSigned: new Date("2025-06-01"),
+        closingDate: new Date("2025-09-01"),
+      },
+      {
+        address: "1600 Fulton St, Brooklyn, NY",
+        agentEmail: maya.email,
+        type: "RENTAL",
+        status: "CLOSED",
+        price: 3500,
+        contractSigned: new Date("2025-05-10"),
+        closingDate: new Date("2025-05-25"),
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Deal details
+  await prisma.dealDetail.createMany({
+    data: [
+      {
+        address: "300 E 90th St, New York, NY",
+        agentEmail: maya.email,
+        contractSigned: new Date("2025-06-01"),
+        agentFirstName: "Maya",
+        agentLastName: "Allan",
+        agentLicense: "NY123456",
+        type: "SALE",
+        price: 1200000,
+        agentCommissionPct: 3,
+        agentCommissionUsd: 36000,
+        split: 60,
+        contractClosed: new Date("2025-09-01"),
+      },
+      {
+        address: "1600 Fulton St, Brooklyn, NY",
+        agentEmail: maya.email,
+        contractSigned: new Date("2025-05-10"),
+        agentFirstName: "Maya",
+        agentLastName: "Allan",
+        agentLicense: "NY123456",
+        type: "RENTAL",
+        price: 3500,
+        agentCommissionPct: 15,
+        agentCommissionUsd: 6300,
+        split: 60,
+        contractClosed: new Date("2025-05-25"),
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Commissions
+  await prisma.commission.createMany({
+    data: [
+      {
+        address: "300 E 90th St, New York, NY",
+        agentEmail: maya.email,
+        contractSigned: new Date("2025-06-01"),
+        gross: 36000,
+        companyFee: Math.round(36000 * 0.2),
+        agentFee: Math.round(36000 * 0.8),
+        paid: false,
+      },
+      {
+        address: "1600 Fulton St, Brooklyn, NY",
+        agentEmail: maya.email,
+        contractSigned: new Date("2025-05-10"),
+        gross: 6300,
+        companyFee: Math.round(6300 * 0.4),
+        agentFee: Math.round(6300 * 0.6),
+        paid: false,
+      },
+    ],
+    skipDuplicates: true,
+  });
+
+  console.log("Seed complete");
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+SEED
+
+          # sql/apply_all.sql
+          cat > sql/apply_all.sql <<'SQL'
+BEGIN;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='splits' AND column_name='sale_split' AND is_nullable='NO') THEN
+    ALTER TABLE splits ALTER COLUMN sale_split DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='splits' AND column_name='rental_split' AND is_nullable='NO') THEN
+    ALTER TABLE splits ALTER COLUMN rental_split DROP NOT NULL;
+  END IF;
+END $$;
+
+ALTER TABLE deal_details
+  ADD COLUMN IF NOT EXISTS deal_commission_rate_pct numeric(7,3),
+  ADD COLUMN IF NOT EXISTS deal_split_percent       numeric(6,3);
+
+ALTER TABLE splits
+  ADD COLUMN IF NOT EXISTS sale_split_pct   numeric(6,3),
+  ADD COLUMN IF NOT EXISTS rental_split_pct numeric(6,3);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_deal_comm_rate_0_100') THEN
+    ALTER TABLE deal_details
+      ADD CONSTRAINT chk_deal_comm_rate_0_100
+      CHECK (deal_commission_rate_pct IS NULL OR (deal_commission_rate_pct BETWEEN 0 AND 100));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_deal_split_pct_0_100') THEN
+    ALTER TABLE deal_details
+      ADD CONSTRAINT chk_deal_split_pct_0_100
+      CHECK (deal_split_percent IS NULL OR (deal_split_percent BETWEEN 0 AND 100));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_splits_sale_pct_0_100') THEN
+    ALTER TABLE splits
+      ADD CONSTRAINT chk_splits_sale_pct_0_100
+      CHECK (sale_split_pct IS NULL OR (sale_split_pct BETWEEN 0 AND 100));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_splits_rental_pct_0_100') THEN
+    ALTER TABLE splits
+      ADD CONSTRAINT chk_splits_rental_pct_0_100
+      CHECK (rental_split_pct IS NULL OR (rental_split_pct BETWEEN 0 AND 100));
+  END IF;
+END $$;
+
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS representation text;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_deals_representation') THEN
+    ALTER TABLE deals ADD CONSTRAINT chk_deals_representation
+    CHECK (representation IN ('LISTING_SALE','BUYER_REP','LISTING_RENT','RENTER_REP'));
+  END IF;
+END $$;
+
+DROP VIEW IF EXISTS agent_deals_summary_v;
+DROP VIEW IF EXISTS agent_deals_v;
+
+CREATE VIEW agent_deals_v AS
+WITH base AS (
+  SELECT
+    a.email AS agent_email,
+    COALESCE(a.full_name, (a.first_name || ' ' || a.last_name)) AS agent_full_name,
+    a.first_name AS agent_first_name,
+    a.last_name  AS agent_last_name,
+    a.license_no AS agent_license,
+    CASE WHEN d.type IN ('RENT','RENTAL') THEN 'RENTAL' ELSE 'SALE' END AS deal_category,
+    d.representation AS representation_code,
+    d.address AS property_address,
+    d.price   AS price_usd,
+    d.contract_signed AS contract_signed_raw,
+    dd.contract_closed             AS contract_closed_raw,
+    dd.deal_commission_rate_pct    AS deal_rate_pct,
+    dd.agent_commission_usd        AS agent_commission_usd,
+    dd.deal_split_percent          AS deal_split_pct,
+    dd.split                       AS split_override_bps,
+    s.year as split_year,
+    s.sale_split_pct, s.rental_split_pct,
+    s.sale_split,     s.rental_split,
+    a.sale_split   AS fallback_sale_split_bps,
+    a.rental_split AS fallback_rental_split_bps,
+    c.gross, c.company_fee, c.agent_fee, COALESCE(c.paid,false) AS commission_paid
+  FROM deals d
+  JOIN agents a
+    ON a.email = d.agent_email
+  LEFT JOIN deal_details dd
+    ON dd.address = d.address
+   AND dd.agent_email = d.agent_email
+   AND dd.contract_signed = d.contract_signed
+  LEFT JOIN splits s
+    ON s.agent_email = d.agent_email
+   AND s.year = EXTRACT(YEAR FROM d.contract_signed)
+  LEFT JOIN commissions c
+    ON c.address = d.address
+   AND c.agent_email = d.agent_email
+   AND c.contract_signed = d.contract_signed
+),
+calc AS (
+  SELECT
+    b.*,
+    COALESCE(
+      b.deal_split_pct,
+      (b.split_override_bps::numeric / 100.0),
+      CASE WHEN b.deal_category='RENTAL' THEN b.rental_split_pct ELSE b.sale_split_pct END,
+      CASE WHEN b.deal_category='RENTAL' THEN (b.rental_split::numeric / 100.0) ELSE (b.sale_split::numeric / 100.0) END,
+      CASE WHEN b.deal_category='RENTAL' THEN (b.fallback_rental_split_bps::numeric / 100.0) ELSE (b.fallback_sale_split_bps::numeric / 100.0) END
+    ) AS split_percent_raw,
+    b.deal_rate_pct::numeric(7,3) AS commission_rate_input_pct,
+    CASE WHEN b.gross IS NOT NULL AND b.price_usd IS NOT NULL AND b.price_usd <> 0
+         THEN ROUND((b.gross::numeric / b.price_usd) * 100.0, 3)
+         ELSE NULL END AS commission_rate_from_gross_pct
+  FROM base b
+)
+SELECT
+  agent_full_name, agent_first_name, agent_last_name, agent_license,
+  deal_category, representation_code,
+  CASE representation_code
+    WHEN 'LISTING_SALE' THEN 'Sale Exclusive'
+    WHEN 'BUYER_REP'    THEN 'Buyer Representation'
+    WHEN 'LISTING_RENT' THEN 'Rental Exclusive'
+    WHEN 'RENTER_REP'   THEN 'Renter Representation'
+    ELSE CASE WHEN deal_category='RENTAL' THEN 'Rental (Unspecified)' ELSE 'Sale (Default)' END
+  END AS representation_label,
+  property_address, price_usd,
+  ROUND(COALESCE(commission_rate_input_pct, commission_rate_from_gross_pct), 3)                AS commission_rate_percent,
+  TO_CHAR(COALESCE(commission_rate_input_pct, commission_rate_from_gross_pct), 'FM999990.###') AS commission_rate_percent_str,
+  ROUND(split_percent_raw, 3)            AS split_percent,
+  TO_CHAR(split_percent_raw, 'FM999990.###') AS split_percent_str,
+  COALESCE(
+    gross,
+    CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
+         THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
+         ELSE NULL END
+  ) AS gross_commission_usd,
+  COALESCE(
+    agent_fee,
+    agent_commission_usd,
+    CASE WHEN COALESCE(gross,
+                       CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
+                            THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
+                            ELSE NULL END) IS NOT NULL
+              AND split_percent_raw IS NOT NULL
+       THEN ROUND(
+         COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2))
+         * (split_percent_raw / 100.0), 2)
+       ELSE NULL END
+  ) AS agent_fee_usd,
+  COALESCE(
+    company_fee,
+    CASE WHEN COALESCE(gross,
+                       CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
+                            THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
+                            ELSE NULL END) IS NOT NULL
+              AND COALESCE(agent_fee, agent_commission_usd,
+                           CASE WHEN split_percent_raw IS NOT NULL
+                                THEN ROUND(COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)) * (split_percent_raw / 100.0), 2)
+                                ELSE NULL END) IS NOT NULL
+       THEN COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2))
+            - COALESCE(agent_fee, agent_commission_usd,
+                       ROUND(COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)) * (split_percent_raw / 100.0), 2))
+       ELSE NULL END
+  ) AS company_fee_usd,
+  commission_paid,
+  COALESCE(contract_closed_raw, contract_signed_raw) AS contract_closed_raw,
+  TO_CHAR(contract_signed_raw, 'MM/DD/YYYY')         AS contract_signed,
+  TO_CHAR(COALESCE(contract_closed_raw, contract_signed_raw), 'MM/DD/YYYY') AS contract_closed
+FROM calc;
+
+CREATE VIEW agent_deals_summary_v AS
+SELECT
+  agent_full_name,
+  COUNT(*)                                           AS total_deals,
+  COUNT(*) FILTER (WHERE deal_category='SALE')       AS sale_deals,
+  COUNT(*) FILTER (WHERE deal_category='RENTAL')     AS rental_deals,
+  COUNT(*) FILTER (WHERE representation_code='LISTING_SALE')  AS listing_sale_deals,
+  COUNT(*) FILTER (WHERE representation_code='BUYER_REP')     AS buyer_rep_deals,
+  COUNT(*) FILTER (WHERE representation_code='LISTING_RENT')  AS listing_rent_deals,
+  COUNT(*) FILTER (WHERE representation_code='RENTER_REP')    AS renter_rep_deals,
+  SUM(price_usd) FILTER (WHERE deal_category='SALE')   AS total_sales_volume_usd,
+  SUM(price_usd) FILTER (WHERE deal_category='RENTAL') AS total_rental_volume_usd,
+  SUM(COALESCE(agent_fee_usd,   0)) AS total_agent_fee_usd,
+  SUM(COALESCE(company_fee_usd, 0)) AS total_company_fee_usd,
+  SUM(COALESCE(gross_commission_usd, 0)) AS total_gross_commission_usd,
+  ROUND(AVG(commission_rate_percent), 3) AS avg_commission_rate_pct,
+  ROUND(AVG(split_percent), 3)           AS avg_split_pct,
+  MAX(contract_closed_raw)               AS last_closed_date_raw
+FROM agent_deals_v
+GROUP BY agent_full_name;
+
+COMMIT;
+SQL
+
+          # app/api/debug/db/route.ts
+          cat > app/api/debug/db/route.ts <<'TSDBG'
+import { NextResponse } from "next/server";
+import { pool } from "@/lib/db";
+
+export async function GET() {
+  // Do NOT expose DB connection details in production.
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "Not available in production" }, { status: 404 });
+  }
+
+  try {
+    // Try to pick up a connection string from global holder (lib/db) or pool.options or env
+    // @ts-ignore
+    const globalHolder = (global as any).__pgHolder;
+    // @ts-ignore
+    const poolConn = (pool as any)?.options?.connectionString;
+    let cs = (globalHolder && globalHolder.connectionString) || poolConn || process.env.DATABASE_URL || "none";
+
+    // Trim surrounding quotes if present
+    if (typeof cs === "string") {
+      cs = cs.trim();
+      if ((cs.startsWith("'") && cs.endsWith("'")) || (cs.startsWith('"') && cs.endsWith('"'))) {
+        cs = cs.slice(1, -1);
+      }
+    }
+
+    let masked = "none";
+
+    if (cs && cs !== "none") {
+      try {
+        // Use URL parser to safely hide password
+        const u = new URL(cs);
+        if (u.password) {
+          u.password = "******";
+          // URL.toString() may include trailing '/' — that's fine for debug display
+          masked = u.toString();
+        } else {
+          masked = cs;
+        }
+      } catch (err) {
+        // Fallback: simple regex mask (best-effort)
+        try {
+          masked = String(cs).replace(/(postgresql:\/\/[^:]+:)([^@]+)(@.*)/, '$1******$3');
+        } catch (e) {
+          masked = String(cs);
+        }
+      }
+    }
+
+    return NextResponse.json({ ok: true, connectionString: masked });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e?.message ?? e) }, { status: 500 });
+  }
+}
+TSDBG
+
+          # app/api/ai/nyc/route.ts
+          cat > app/api/ai/nyc/route.ts <<'TSNYC'
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+
+async function safeJson<T = any>(req: Request): Promise<T | null> {
+  try {
+    return (await req.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function POST(req: Request) {
+  // Don't run placeholder in production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "NYC lookup not enabled in production." }, { status: 404 });
+  }
+
+  const body = await safeJson<{ q?: string }>(req);
+  const q = body?.q?.trim() || "";
+
+  const hasGeoclientId = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY;
+  const hasGeoclientKey = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2;
+  const hasSocrata = !!process.env.NYC_SODA_APP_TOKEN;
+
+  if (!hasGeoclientId || !hasGeoclientKey || !hasSocrata) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "NYC API env vars missing. Set NYC_GEOCLIENT_SUBSCRIPTION_KEY, NYC_GEOCLIENT_SUBSCRIPTION_KEY_2, NYC_SODA_APP_TOKEN in .env and restart.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // TODO: plug in your real fetch logic here (Geoclient + Socrata).
+  return NextResponse.json(
+    { ok: true, query: q, message: "NYC lookup placeholder — keys detected." },
+    { status: 200 }
+  );
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { ok: true, info: "Use POST with { q } to query this route." },
+    { status: 200 }
+  );
+}
+TSNYC
+
+          echo "Files written."
