@@ -23,8 +23,6 @@ jobs:
           --health-timeout=5s
           --health-retries=20
 
-    # Use the service hostname (postgres) or 127.0.0.1; either can work,
-    # but using the service name is canonical inside the job network.
     env:
       DATABASE_URL: postgresql://dev_user:dev_password@postgres:5432/mallan?schema=public
 
