@@ -57,7 +57,8 @@ DROP VIEW IF EXISTS agent_deals_v;
 CREATE VIEW agent_deals_v AS
 WITH base AS (
   SELECT
-    a.full_name  AS agent_full_name,
+    a.email AS agent_email,
+    COALESCE(a.full_name, (a.first_name || ' ' || a.last_name)) AS agent_full_name,
     a.first_name AS agent_first_name,
     a.last_name  AS agent_last_name,
     a.license_no AS agent_license,
@@ -79,17 +80,17 @@ WITH base AS (
     c.gross, c.company_fee, c.agent_fee, COALESCE(c.paid,false) AS commission_paid
   FROM deals d
   JOIN agents a
-    ON a.full_name = d.agent_full_name
+    ON a.email = d.agent_email
   LEFT JOIN deal_details dd
     ON dd.address = d.address
-   AND dd.agent_full_name = d.agent_full_name
+   AND dd.agent_email = d.agent_email
    AND dd.contract_signed = d.contract_signed
   LEFT JOIN splits s
-    ON s.agent_full_name = d.agent_full_name
+    ON s.agent_email = d.agent_email
    AND s.year = EXTRACT(YEAR FROM d.contract_signed)
   LEFT JOIN commissions c
     ON c.address = d.address
-   AND c.agent_full_name = d.agent_full_name
+   AND c.agent_email = d.agent_email
    AND c.contract_signed = d.contract_signed
 ),
 calc AS (
@@ -104,7 +105,7 @@ calc AS (
     ) AS split_percent_raw,
     b.deal_rate_pct::numeric(7,3) AS commission_rate_input_pct,
     CASE WHEN b.gross IS NOT NULL AND b.price_usd IS NOT NULL AND b.price_usd <> 0
-         THEN ROUND((b.gross::numeric / b.price_usd) * 100.0, 3)
+         THEN ROUND(CAST((((b.gross::numeric / b.price_usd) * 100.0)::numeric) AS numeric), 3)
          ELSE NULL END AS commission_rate_from_gross_pct
   FROM base b
 )
@@ -121,12 +122,12 @@ SELECT
   property_address, price_usd,
   ROUND(COALESCE(commission_rate_input_pct, commission_rate_from_gross_pct), 3)                AS commission_rate_percent,
   TO_CHAR(COALESCE(commission_rate_input_pct, commission_rate_from_gross_pct), 'FM999990.###') AS commission_rate_percent_str,
-  ROUND(split_percent_raw, 3)            AS split_percent,
+  ROUND(CAST(((split_percent_raw)::numeric) AS numeric), 3)            AS split_percent,
   TO_CHAR(split_percent_raw, 'FM999990.###') AS split_percent_str,
   COALESCE(
     gross,
     CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-         THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
+         THEN ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2)
          ELSE NULL END
   ) AS gross_commission_usd,
   COALESCE(
@@ -134,28 +135,28 @@ SELECT
     agent_commission_usd,
     CASE WHEN COALESCE(gross,
                        CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-                            THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
+                            THEN ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2)
                             ELSE NULL END) IS NOT NULL
               AND split_percent_raw IS NOT NULL
-         THEN ROUND(
-           COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2))
-           * (split_percent_raw / 100.0), 2)
-         ELSE NULL END
+       THEN ROUND(
+         COALESCE(gross, ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2))
+         * (split_percent_raw / 100.0), 2)
+       ELSE NULL END
   ) AS agent_fee_usd,
   COALESCE(
     company_fee,
     CASE WHEN COALESCE(gross,
                        CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-                            THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
+                            THEN ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2)
                             ELSE NULL END) IS NOT NULL
               AND COALESCE(agent_fee, agent_commission_usd,
                            CASE WHEN split_percent_raw IS NOT NULL
-                                THEN ROUND(COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)) * (split_percent_raw / 100.0), 2)
+                                THEN ROUND(COALESCE(gross, ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2)) * (split_percent_raw / 100.0), 2)
                                 ELSE NULL END) IS NOT NULL
-         THEN COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2))
-              - COALESCE(agent_fee, agent_commission_usd,
-                         ROUND(COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)) * (split_percent_raw / 100.0), 2))
-         ELSE NULL END
+       THEN COALESCE(gross, ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2))
+            - COALESCE(agent_fee, agent_commission_usd,
+                       ROUND(COALESCE(gross, ROUND(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric), 2)) * (split_percent_raw / 100.0), 2))
+       ELSE NULL END
   ) AS company_fee_usd,
   commission_paid,
   COALESCE(contract_closed_raw, contract_signed_raw) AS contract_closed_raw,
@@ -178,10 +179,12 @@ SELECT
   SUM(COALESCE(agent_fee_usd,   0)) AS total_agent_fee_usd,
   SUM(COALESCE(company_fee_usd, 0)) AS total_company_fee_usd,
   SUM(COALESCE(gross_commission_usd, 0)) AS total_gross_commission_usd,
-  ROUND(AVG(commission_rate_percent), 3) AS avg_commission_rate_pct,
-  ROUND(AVG(split_percent), 3)           AS avg_split_pct,
+  ROUND(CAST(((AVG(commission_rate_percent))::numeric) AS numeric), 3) AS avg_commission_rate_pct,
+  ROUND(CAST(((AVG(split_percent))::numeric) AS numeric), 3)           AS avg_split_pct,
   MAX(contract_closed_raw)               AS last_closed_date_raw
 FROM agent_deals_v
 GROUP BY agent_full_name;
 
 COMMIT;
+
+

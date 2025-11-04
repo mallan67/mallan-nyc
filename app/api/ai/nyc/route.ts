@@ -1,5 +1,4 @@
-// app/api/ai/nyc/route.ts
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 
@@ -12,6 +11,11 @@ async function safeJson<T = any>(req: Request): Promise<T | null> {
 }
 
 export async function POST(req: Request) {
+  // Don't run placeholder in production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "NYC lookup not enabled in production." }, { status: 404 });
+  }
+
   const body = await safeJson<{ q?: string }>(req);
   const q = body?.q?.trim() || "";
 

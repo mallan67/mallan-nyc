@@ -152,3 +152,4 @@ sql/bootstrap.sql
 # local env backups
 env backup/
 
+.vercel

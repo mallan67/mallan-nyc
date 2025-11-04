@@ -1,12 +1,10 @@
-﻿// prisma/seed.js — robust seeding that handles existing rows (by email or fullName)
+/* prisma/seed.js — robust seeding that handles existing rows (by email or fullName) */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function ensureAgent(agentData) {
-  // 1) Try find by email
   let a = await prisma.agent.findUnique({ where: { email: agentData.email } });
   if (a) {
-    // update everything for the email-holder
     await prisma.agent.update({
       where: { email: agentData.email },
       data: {
@@ -23,10 +21,8 @@ async function ensureAgent(agentData) {
     return await prisma.agent.findUnique({ where: { email: agentData.email } });
   }
 
-  // 2) If not found by email, try find by fullName (unique in schema)
   a = await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
   if (a) {
-    // update fields except email to avoid clobbering someone else's email
     await prisma.agent.update({
       where: { fullName: agentData.fullName },
       data: {
@@ -42,12 +38,10 @@ async function ensureAgent(agentData) {
     return await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
   }
 
-  // 3) Else create new agent
   return await prisma.agent.create({ data: agentData });
 }
 
 async function main() {
-  // Agent we want to ensure exists; adjust as needed
   const agentPayload = {
     email: "maya@mallannyhomes.com",
     fullName: "Maya Allan",
@@ -63,12 +57,11 @@ async function main() {
   const maya = await ensureAgent(agentPayload);
   console.log("Agent ensured:", maya.email, maya.fullName);
 
-  // Create deals for that agent (using maya.fullName as join key)
   await prisma.deal.createMany({
     data: [
       {
         address: "300 E 90th St, New York, NY",
-        agentFullName: maya.fullName,
+        agentEmail: maya.email,
         type: "SALE",
         status: "CLOSED",
         price: 1200000,
@@ -77,7 +70,7 @@ async function main() {
       },
       {
         address: "1600 Fulton St, Brooklyn, NY",
-        agentFullName: maya.fullName,
+        agentEmail: maya.email,
         type: "RENTAL",
         status: "CLOSED",
         price: 3500,
@@ -88,12 +81,11 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // Deal details
   await prisma.dealDetail.createMany({
     data: [
       {
         address: "300 E 90th St, New York, NY",
-        agentFullName: maya.fullName,
+        agentEmail: maya.email,
         contractSigned: new Date("2025-06-01"),
         agentFirstName: "Maya",
         agentLastName: "Allan",
@@ -107,7 +99,7 @@ async function main() {
       },
       {
         address: "1600 Fulton St, Brooklyn, NY",
-        agentFullName: maya.fullName,
+        agentEmail: maya.email,
         contractSigned: new Date("2025-05-10"),
         agentFirstName: "Maya",
         agentLastName: "Allan",
@@ -115,7 +107,7 @@ async function main() {
         type: "RENTAL",
         price: 3500,
         agentCommissionPct: 15,
-        agentCommissionUsd: 6300,
+        agentCommissionUsd: 525,
         split: 60,
         contractClosed: new Date("2025-05-25"),
       },
@@ -123,12 +115,11 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // Commissions
   await prisma.commission.createMany({
     data: [
       {
         address: "300 E 90th St, New York, NY",
-        agentFullName: maya.fullName,
+        agentEmail: maya.email,
         contractSigned: new Date("2025-06-01"),
         gross: 36000,
         companyFee: Math.round(36000 * 0.2),
@@ -137,11 +128,11 @@ async function main() {
       },
       {
         address: "1600 Fulton St, Brooklyn, NY",
-        agentFullName: maya.fullName,
+        agentEmail: maya.email,
         contractSigned: new Date("2025-05-10"),
-        gross: 6300,
-        companyFee: Math.round(6300 * 0.4),
-        agentFee: Math.round(6300 * 0.6),
+        gross: 5250,
+        companyFee: Math.round(5250 * 0.4),
+        agentFee: Math.round(5250 * 0.6),
         paid: false,
       },
     ],

@@ -2,6 +2,11 @@
 import { pool } from "@/lib/db";
 
 export async function GET() {
+  // Do NOT expose DB connection details in production.
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "Not available in production" }, { status: 404 });
+  }
+
   try {
     // Try to pick up a connection string from global holder (lib/db) or pool.options or env
     // @ts-ignore
