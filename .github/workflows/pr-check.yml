@@ -60,7 +60,19 @@ jobs:
       - name: Apply Prisma schema (db push)
         run: npx prisma db push --accept-data-loss
 
-      - name: Apply SQL views / constraints (if present)
+            - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create round(double,int) shim in DB
+        env:
+          PGPASSWORD: dev_password
+        run: |
+          psql -h postgres -U dev_user -d mallan -c "\
+          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer) \
+            RETURNS numeric \
+            LANGUAGE SQL IMMUTABLE \
+          AS $$ SELECT ROUND(CAST(x AS numeric), s); $$;"
+- name: Apply SQL views / constraints (if present)
         run: |
           if [ -f tools/apply_sql.js ]; then
             node tools/apply_sql.js
@@ -81,3 +93,4 @@ jobs:
 
       - name: Build
         run: npm run build
+
