@@ -24,6 +24,7 @@ jobs:
           --health-retries=20
 
     env:
+      # Use the service network alias "postgres" inside the job
       DATABASE_URL: postgresql://dev_user:dev_password@postgres:5432/mallan?schema=public
 
     steps:
@@ -33,7 +34,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
 
       - name: Cache node modules
         uses: actions/cache@v4
@@ -51,15 +52,6 @@ jobs:
             sleep 2
           done
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Apply Prisma schema (db push)
-        run: npx prisma db push --accept-data-loss
-
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
@@ -72,6 +64,15 @@ jobs:
             RETURNS numeric \
             LANGUAGE SQL IMMUTABLE \
           AS $$ SELECT ROUND(CAST(x AS numeric), s); $$;"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply Prisma schema (db push)
+        run: npx prisma db push --accept-data-loss
 
       - name: Apply SQL views / constraints (if present)
         run: |
