@@ -1,4 +1,12 @@
-﻿BEGIN;
+﻿-- Compatibility shim: accept round(double precision, integer) by casting to numeric
+CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
+  RETURNS numeric
+  LANGUAGE SQL IMMUTABLE
+AS $$
+  SELECT ROUND(CAST($1 AS numeric), $2);
+$$;
+
+BEGIN;
 
 DO $$
 BEGIN
@@ -325,4 +333,5 @@ SELECT
   MAX(contract_closed_raw)               AS last_closed_date_raw
 FROM agent_deals_v
 GROUP BY agent_full_name;
+
 
