@@ -1,1 +1,1 @@
-﻿<PASTE THE YAML BLOCK ABOVE HERE EXACTLY, INCLUDING THE FIRST and LAST LINES>
+﻿# <-- paste the entire YAML above here, EXACTLY as shown, starting with "name: PR checks" and ending with the final "run: npm run build"
