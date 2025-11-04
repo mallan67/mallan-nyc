@@ -8,7 +8,6 @@ on:
 jobs:
   pr-check:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:15
@@ -25,7 +24,6 @@ jobs:
           --health-retries=20
 
     env:
-      # Prisma + local dev expectation — keep using 127.0.0.1 so Prisma DB push hits the mapped port
       DATABASE_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
 
     steps:
@@ -35,7 +33,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Cache node modules
         uses: actions/cache@v4
@@ -45,39 +43,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # Install the Postgres client (so pg_isready/psql are available)
       - name: Install psql client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      # Wait for Postgres to be ready (use the postgres service host)
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            pg_isready -U dev_user -d mallan -h postgres && break
-            echo "Waiting for postgres..."
-            sleep 2
-          done
-        shell: bash
-
-      # Create the compatibility shim using PowerShell (so the SQL here-string is safe)
       - name: Create round(double,int) shim in DB
-        shell: pwsh
         env:
           PGPASSWORD: dev_password
         run: |
-          $sql = @'
-          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
-            RETURNS numeric
-            LANGUAGE SQL IMMUTABLE
-          AS $$
-            SELECT ROUND(CAST(x AS numeric), s);
-          $$;
-          '@
-          # Pipe the SQL to psql on the postgres service host
-          $sql | psql -h postgres -U dev_user -d mallan -v ON_ERROR_STOP=1 -q -f -
+          psql -h postgres -U dev_user -d mallan -c "\
+          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer) \
+            RETURNS numeric \
+            LANGUAGE SQL IMMUTABLE \
+          AS $$ SELECT ROUND(CAST(x AS numeric), s); $$;"
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            pg_isready -U dev_user -d mallan -h 127.0.0.1 && break
+            echo "Waiting for postgres..."
+            sleep 2
+          done
 
       - name: Install dependencies
         run: npm ci
@@ -95,7 +80,6 @@ jobs:
           else
             echo "tools/apply_sql.js not found; skipped"
           fi
-        shell: bash
 
       - name: Seed the DB
         run: |
@@ -104,12 +88,9 @@ jobs:
           else
             echo "prisma/seed.js not found; skipped"
           fi
-        shell: bash
 
       - name: Type-check
         run: npm run type-check
-        shell: bash
 
       - name: Build
         run: npm run build
-        shell: bash
