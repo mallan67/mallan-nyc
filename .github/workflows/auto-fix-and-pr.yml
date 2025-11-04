@@ -23,8 +23,10 @@ jobs:
           --health-timeout=5s
           --health-retries=20
 
+    # Use the service hostname (postgres) or 127.0.0.1; either can work,
+    # but using the service name is canonical inside the job network.
     env:
-      DATABASE_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
+      DATABASE_URL: postgresql://dev_user:dev_password@postgres:5432/mallan?schema=public
 
     steps:
       - name: Checkout
@@ -46,7 +48,7 @@ jobs:
       - name: Wait for Postgres
         run: |
           for i in {1..30}; do
-            pg_isready -U dev_user -d mallan -h 127.0.0.1 && break
+            pg_isready -U dev_user -d mallan -h postgres && break
             echo "Waiting for postgres..."
             sleep 2
           done
