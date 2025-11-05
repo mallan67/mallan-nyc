@@ -1,7 +1,6 @@
 ﻿/**
- * lib/db.ts
- * Export: named 'pool', default pool, and helper 'q<T>()'.
- * Uses runtime casts to avoid TS namespace/type issues with pg's types in mixed ESM/CJS environments.
+ * lib/db.ts — runtime-safe db pool and helper.
+ * Keeps runtime code untyped to avoid TS2709/TS2347 issues in mixed ESM/CJS environments.
  */
 import pg from 'pg';
 
@@ -12,13 +11,11 @@ const connectionString =
 const PoolConstructor = (pg as any).Pool ?? (pg as any);
 const pool = new (PoolConstructor as any)({
   connectionString,
-  // add pool options here if needed
 });
 
 export { pool };
 export default pool;
 
-/** q<T>(text, params?) - run query and return typed rows */
 export async function q<T = any>(text: string, params?: any[]): Promise<T[]> {
   const res = await (pool as any).query(text, params);
   return (res && res.rows) ? (res.rows as T[]) : ([] as T[]);
