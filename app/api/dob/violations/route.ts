@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { soda } from "@/lib/soda";
 export const runtime = "nodejs";
 
@@ -15,9 +15,10 @@ export async function GET(req: Request) {
     if (bin) where.push(`bin='${bin}'`);
     if (bbl) where.push(`bbl='${bbl}'`);
 
-    const items = await soda({ resource: DATASET, where: where.join(' AND '), limit: 100, order: 'issue_date DESC' });
+    const items = await (soda as any)({ resource: DATASET, where: where.join(' AND '), limit: 100, order: 'issue_date DESC' });
     return NextResponse.json({ ok:true, count: items.length, items });
   } catch (e:any) {
     return NextResponse.json({ ok:false, error:e.message }, { status: 200 });
   }
 }
+
