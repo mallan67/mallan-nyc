@@ -1,4 +1,4 @@
-﻿export const runtime = "nodejs";
+export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 
@@ -17,7 +17,10 @@ export async function POST(req: Request) {
   }
 
   const body = await safeJson<{ q?: string }>(req);
-  const q = body?.q?.trim() || "";
+  
+const body = await safeJson<{ q?: string; query?: string }>(req);
+const raw = body?.q ?? body?.query ?? "";
+const q = typeof raw === "string" ? raw.trim() : "";const q = body?.q?.trim() || "";
 
   const hasGeoclientId = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY;
   const hasGeoclientKey = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2;
@@ -36,7 +39,7 @@ export async function POST(req: Request) {
 
   // TODO: plug in your real fetch logic here (Geoclient + Socrata).
   return NextResponse.json(
-    { ok: true, query: q, message: "NYC lookup placeholder — keys detected." },
+    { ok: true, query: q, message: "NYC lookup placeholder � keys detected." },
     { status: 200 }
   );
 }
@@ -47,3 +50,4 @@ export async function GET() {
     { status: 200 }
   );
 }
+
