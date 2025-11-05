@@ -48,6 +48,7 @@ jobs:
 
       - name: Wait for Postgres
         run: |
+          # Wait for the postgres service to be ready (retry up to ~60s)
           for i in {1..30}; do
             pg_isready -U dev_user -d mallan -h 127.0.0.1 && break
             echo "Waiting for postgres..."
@@ -58,7 +59,26 @@ jobs:
         env:
           PGPASSWORD: dev_password
         run: |
-          psql -h 127.0.0.1 -p 5432 -U dev_user -d mallan -v ON_ERROR_STOP=1 -c "CREATE OR REPLACE FUNCTION public.round(x double precision, s integer) RETURNS numeric LANGUAGE SQL IMMUTABLE AS $$ SELECT ROUND(CAST(x AS numeric), s); $$;"
+          set -euo pipefail
+
+          cat > /tmp/round_shim.sql <<'SQL'
+          CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
+            RETURNS numeric
+            LANGUAGE sql
+            IMMUTABLE
+          AS $$
+            SELECT ROUND(CAST(x AS numeric), s);
+          $$;
+          SQL
+
+          echo "Checking connectivity:"
+          psql -h 127.0.0.1 -U dev_user -d mallan -c "SELECT current_database(), inet_server_addr(), inet_server_port();" -v ON_ERROR_STOP=1
+
+          echo "Applying round() shim..."
+          psql -h 127.0.0.1 -U dev_user -d mallan -v ON_ERROR_STOP=1 -f /tmp/round_shim.sql
+
+          echo "Verify function exists:"
+          psql -h 127.0.0.1 -U dev_user -d mallan -c "\df+ public.round" -v ON_ERROR_STOP=1
 
       - name: Install dependencies
         run: npm ci
