@@ -37,11 +37,12 @@ function HomeClient() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null); setLoading(true);
+    setError(null);
+    setLoading(true);
     try {
       const url = new URL('/api/ai/nyc', window.location.origin);
       if (openOnly) url.searchParams.set('open', '1');
-      if (debugOn)  url.searchParams.set('debug', '1');
+      if (debugOn) url.searchParams.set('debug', '1');
 
       const r = await fetch(url.toString(), {
         method: 'POST',
@@ -49,16 +50,19 @@ function HomeClient() {
         body: JSON.stringify({ q: q, ecbOpen: openOnly, debug: debugOn }),
       });
 
-      const json = await r.json();
-if (!r.ok) {
-  setError((json as any)?.error ?? "Lookup failed");
-  setData(null);
-} else {
-  setData(json as ApiResponse);
-}
+      const json = (await r.json()) as ApiResponse;
+      if (!r.ok) {
+        setError((json as any)?.error ?? 'Lookup failed');
+        setData(null);
+      } else {
+        setData(json);
+      }
     } catch (err: any) {
-      setError(err?.message ?? String(err)); setData(null);
-    } finally { setLoading(false); }
+      setError(err?.message ?? String(err));
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const bin = data?.bin;
@@ -68,18 +72,28 @@ if (!r.ok) {
     <main className="mx-auto max-w-2xl p-6 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">NYC Address Lookup</h1>
-        <button onClick={toggleDebug} className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}>
+        <button
+          onClick={toggleDebug}
+          className={`text-xs rounded px-2 py-1 border ${debugOn ? 'bg-black text-white' : 'bg-white'}`}
+        >
           {debugOn ? 'Developer: ON' : 'Developer: OFF'}
         </button>
       </header>
 
       <form onSubmit={onSubmit} className="space-y-3">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g., 300 East 90 Street Manhattan 10128" className="w-full border rounded px-3 py-2" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="e.g., 300 East 90 Street Manhattan 10128"
+          className="w-full border rounded px-3 py-2"
+        />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
           Only show likely-open ECBs
         </label>
-        <button disabled={loading} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">{loading ? 'Searching…' : 'Search'}</button>
+        <button disabled={loading} className="px-4 py-2 rounded bg-black text-white disabled:opacity-50">
+          {loading ? 'Searching…' : 'Search'}
+        </button>
       </form>
 
       {error && <p className="text-red-600">Error: {error}</p>}
@@ -87,8 +101,16 @@ if (!r.ok) {
       {data && (
         <section className="space-y-2">
           <h2 className="font-semibold">Result</h2>
-          {bin && <p>BIN: <span className="font-mono">{bin}</span></p>}
-          {bbl && <p>BBL: <span className="font-mono">{bbl}</span></p>}
+          {bin && (
+            <p>
+              BIN: <span className="font-mono">{bin}</span>
+            </p>
+          )}
+          {bbl && (
+            <p>
+              BBL: <span className="font-mono">{bbl}</span>
+            </p>
+          )}
 
           {data.sources?.ecb_violations && (
             <p>
@@ -115,4 +137,3 @@ export default function Page() {
     </Suspense>
   );
 }
-
