@@ -24,7 +24,7 @@ jobs:
           --health-retries=20
 
     env:
-      DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+      DATABASE_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
 
     steps:
       - name: Checkout
@@ -110,4 +110,5 @@ jobs:
 
       - name: Build
         run: npm run build
+
 
