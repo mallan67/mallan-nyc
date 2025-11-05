@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿{
   "root": true,
   "parser": "@typescript-eslint/parser",
@@ -28,4 +29,11 @@
     // Next-specific suggestions: warn instead of error
     "@next/next/no-img-element": "warn"
   }
+=======
+{
+  "extends": [
+    "next/core-web-vitals",
+    "next/typescript"
+  ]
+>>>>>>> e693106 (chore(ci): add @types/pg, local pg types, adjust tsconfig, fix lib/db typing)
 }
