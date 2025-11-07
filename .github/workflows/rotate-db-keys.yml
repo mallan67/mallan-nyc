@@ -25,23 +25,23 @@ jobs:
             | jq -r '.password')
 
           if [ -z "$NEW_PASS" ]; then
-            echo "Rotation failed!"
+            echo "❌ Rotation failed!"
             exit 1
           fi
 
           NEW_CONN="postgresql://$USER:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
 
-          echo "Updating GitHub secret..."
-          gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN"
-          gh secret set DATABASE_URL --body "$NEW_CONN"
+          echo "🔐 Updating GitHub secrets..."
+          gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN" --app actions --repos mallan67/mallan-nyc --github-token "${{ secrets.MY_GITHUB_TOKEN }}"
+          gh secret set DATABASE_URL --body "$NEW_CONN" --app actions --repos mallan67/mallan-nyc --github-token "${{ secrets.MY_GITHUB_TOKEN }}"
 
-          echo "Updating Vercel..."
+          echo "🚀 Updating Vercel..."
           curl -X PATCH "https://api.vercel.com/v10/projects/mallan-nyc/env/ASSISTANT_DATABASE_URL" \
             -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"value": "'"$NEW_CONN"'", "target":["production","preview"]}'
 
-          echo "Rotation complete."
+          echo "✅ Rotation complete."
 
       - name: Trigger redeploy
         run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
