@@ -46,11 +46,16 @@ function HomeClient() {
       const r = await fetch(url.toString(), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ query: q, ecbOpen: openOnly, debug: debugOn }),
+        body: JSON.stringify({ q: q, ecbOpen: openOnly, debug: debugOn }),
       });
 
-      const json = (await r.json()) as ApiResponse;
-      setData(json);
+      const json = await r.json();
+if (!r.ok) {
+  setError((json as any)?.error ?? "Lookup failed");
+  setData(null);
+} else {
+  setData(json as ApiResponse);
+}
     } catch (err: any) {
       setError(err?.message ?? String(err)); setData(null);
     } finally { setLoading(false); }
@@ -110,3 +115,4 @@ export default function Page() {
     </Suspense>
   );
 }
+
