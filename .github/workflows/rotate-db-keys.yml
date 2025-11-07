@@ -2,7 +2,7 @@ name: Rotate Neon DB Credentials
 
 on:
   schedule:
-    - cron: "0 5 1,15 * *"  # Every 1st and 15th at 5AM UTC
+    - cron: "0 5 1,15 * *" # Every 1st and 15th at 5AM UTC
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
       id-token: write
 
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
@@ -27,44 +27,28 @@ jobs:
         run: |
           echo "🔄 Rotating Neon DB password..."
           USER="assistant_user"
-          PROJECT_ID="morning-bread-68708332"
-          BRANCH_ID="br-old-tree-admdlb9z"
-          DB_HOST="ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech"
-          DB_NAME="neondb"
+          PROJECT_ID="royal-dawn-ad6eh8t2"
 
           echo "Generating new Neon password..."
           NEW_PASS=$(curl -s -X POST \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"role_name\": \"$USER\"}" \
-            https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$USER/reset_password \
-            | jq -r '.role.password')
+            https://console.neon.tech/api/v2/projects/$PROJECT_ID/roles/$USER/reset_password \
+            | jq -r '.password')
 
           if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
             echo "❌ Neon password rotation failed."
             exit 1
           fi
 
-          NEW_CONN="postgresql://$USER:$NEW_PASS@$DB_HOST:5432/$DB_NAME?sslmode=require&channel_binding=require"
+          NEW_CONN="postgresql://$USER:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
           echo "✅ New password generated."
 
           echo "🔐 Updating GitHub secrets..."
+          gh auth status
           gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
           gh secret set DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
 
-          echo "✅ GitHub secrets updated successfully."
-
-          if [ ! -z "$VERCEL_TOKEN" ]; then
-            echo "🚀 Updating Vercel environment variables..."
-            curl -X PATCH "https://api.vercel.com/v10/projects/mallan-nyc/env/DATABASE_URL" \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"value\": \"$NEW_CONN\"}"
-
-            curl -X PATCH "https://api.vercel.com/v10/projects/mallan-nyc/env/ASSISTANT_DATABASE_URL" \
-              -H "Authorization: Bearer $VERCEL_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"value\": \"$NEW_CONN\"}"
-
-            echo "✅ Vercel environment variables updated."
-          fi
+      - name: Confirm rotation complete
+        run: echo "✅ Rotation job complete."
