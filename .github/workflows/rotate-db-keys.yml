@@ -16,6 +16,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       PROJECT_ID: "morning-bread-68708332"
       BRANCH_ID: "br-old-tree-admdlb9z"
       ROLE: "authenticator"
@@ -50,5 +51,13 @@ jobs:
           echo "$NEW_CONN" | gh secret set DATABASE_URL --repo mallan67/mallan-nyc
           echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo mallan67/mallan-nyc
 
+      - name: Trigger Vercel redeploy
+        run: |
+          echo "🚀 Triggering Vercel redeploy..."
+          curl -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "mallan-nyc"}'
+
       - name: Confirm rotation complete
-        run: echo "✅ Rotation job complete."
+        run: echo "✅ Rotation and redeploy complete."
