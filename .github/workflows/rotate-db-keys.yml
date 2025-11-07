@@ -14,7 +14,7 @@ jobs:
       id-token: write
 
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       PROJECT_ID: "morning-bread-68708332"
@@ -48,8 +48,8 @@ jobs:
           echo "🔗 New connection string created."
 
           echo "🔐 Updating GitHub secrets..."
-          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo mallan67/mallan-nyc
-          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo mallan67/mallan-nyc
+          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo mallan67/mallan-nyc --app actions
+          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo mallan67/mallan-nyc --app actions
 
       - name: Trigger Vercel redeploy
         run: |
