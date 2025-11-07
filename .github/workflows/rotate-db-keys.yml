@@ -12,7 +12,6 @@ jobs:
       contents: write
       actions: write
       id-token: write
-      secrets: write
 
     env:
       GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
@@ -51,27 +50,4 @@ jobs:
           gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
           gh secret set DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
 
-          if [ $? -ne 0 ]; then
-            echo "❌ Failed to update GitHub secrets."
-            exit 1
-          fi
-
-          echo "🚀 Updating Vercel environment variables..."
-          curl -s -X PATCH "https://api.vercel.com/v10/projects/mallan-nyc/env/ASSISTANT_DATABASE_URL" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"value\": \"$NEW_CONN\", \"target\": [\"production\", \"preview\"]}" \
-            | jq
-
-          if [ $? -ne 0 ]; then
-            echo "⚠️ Failed to update Vercel."
-            exit 1
-          fi
-
-          echo "✅ Rotation complete."
-
-      - name: Trigger redeploy
-        if: ${{ success() }}
-        run: |
-          echo "🔁 Triggering redeploy on Vercel..."
-          npx vercel --prod --token=$VERCEL_TOKEN
+          if [ $? -ne 0]()
