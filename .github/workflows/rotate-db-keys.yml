@@ -27,7 +27,9 @@ jobs:
         run: |
           echo "🔄 Rotating Neon DB password..."
           USER="assistant_user"
-          PROJECT_ID="royal-dawn-ad6eh8t2"
+          PROJECT_ID="morning-bread-68708332"
+          DB_HOST="ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech"
+          DB_NAME="neondb"
 
           echo "Generating new Neon password..."
           NEW_PASS=$(curl -s -X POST \
@@ -42,11 +44,10 @@ jobs:
             exit 1
           fi
 
-          NEW_CONN="postgresql://$USER:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
+          NEW_CONN="postgresql://$USER:$NEW_PASS@$DB_HOST:5432/$DB_NAME?sslmode=require&channel_binding=require"
           echo "✅ New password generated."
 
           echo "🔐 Updating GitHub secrets..."
-          gh auth status
           gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
           gh secret set DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
 
