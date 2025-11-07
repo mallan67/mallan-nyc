@@ -1,79 +1,83 @@
-name: Weekly Neon Rotation Summary
+name: Rotate Neon DB Credentials
 
 on:
   schedule:
-    - cron: "0 14 * * 0"   # Every Sunday @ 14:00 UTC
+    - cron: "0 5 1,15 * *" # Every 1st and 15th at 5AM UTC
   workflow_dispatch:
 
 jobs:
-  summary:
+  rotate:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      actions: write
+      id-token: write
 
     env:
+      GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      PROJECT_ID: "morning-bread-68708332"
+      BRANCH_ID: "br-old-tree-admdlb9z"
+      ROLE: "authenticator"
       REPO: "mallan67/mallan-nyc"
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Build summary
-        id: build
+      - name: Rotate Neon password
+        id: rotate
         run: |
-          echo "📋 Building weekly rotation summary..."
+          echo "🔄 Rotating Neon DB password..."
+          echo "Generating new Neon password..."
 
-          LAST_LINE="$(tail -n 1 rotation-history.log 2>/dev/null || true)"
-          if [ -z "$LAST_LINE" ]; then
-            LAST_STATUS="No prior rotations found in rotation-history.log"
-          else
-            LAST_STATUS="$LAST_LINE"
+          NEW_PASS=$(curl -s -X POST \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" \
+            | jq -r '.role.password')
+
+          if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
+            echo "❌ Neon password rotation failed."
+            echo "$(date -u) ❌ Rotation failed." >> rotation-history.log
+            exit 1
           fi
 
-          # Compute next scheduled run for cron: 0 5 1,15 * *
-          NEXT_RUN=$(python - <<'PY'
-from datetime import datetime, timezone
-from calendar import monthrange
+          echo "✅ New password generated."
+          NEW_CONN="postgresql://$ROLE:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
 
-now = datetime.now(timezone.utc)
+          echo "🔐 Updating GitHub secrets..."
+          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo "$REPO" --app actions
+          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
 
-def candidates(start):
-    y, m = start.year, start.month
-    out = []
-    for k in range(3):  # this month + next two (safe buffer)
-        yy = y + (m + k - 1)//12
-        mm = (m + k - 1)%12 + 1
-        for d in (1, 15):
-            if d <= monthrange(yy, mm)[1]:
-                out.append(datetime(yy, mm, d, 5, 0, 0, tzinfo=timezone.utc))
-    return sorted(out)
+          echo "✅ Updated secrets successfully."
+          echo "$(date -u) ✅ Rotation successful." >> rotation-history.log
 
-for dt in candidates(now):
-    if dt > now:
-        print(dt.isoformat())
-        break
-PY
-)
-          echo "next_run=$NEXT_RUN" >> $GITHUB_OUTPUT
-          echo "last_status=$LAST_STATUS" >> $GITHUB_OUTPUT
+      - name: Trigger Vercel redeploy
+        run: |
+          echo "🚀 Triggering redeploy..."
+          curl -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "mallan-nyc"}'
 
-      - name: Send Slack summary (optional)
+      - name: Send Slack notification
         if: always()
         run: |
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
-            STATUS="${{ steps.build.outputs.last_status }}"
-            NEXT="${{ steps.build.outputs.next_run }}"
-            MSG="📬 *Weekly Neon Rotation Summary* for *${REPO}*\n• Last: ${STATUS}\n• Next scheduled: ${NEXT}"
+            STATUS="${{ job.status }}"
+            MSG="🌀 *Neon Rotation ($REPO)* completed with status: *$STATUS*"
             curl -X POST -H 'Content-type: application/json' \
               --data "{\"text\": \"$MSG\"}" "$SLACK_WEBHOOK_URL"
           else
-            echo "No SLACK_WEBHOOK_URL secret set; skipping Slack."
+            echo "No Slack webhook configured."
           fi
 
-      - name: Email summary
+      - name: Send email notification
         if: always()
         uses: dawidd6/action-send-mail@v3
         with:
@@ -81,18 +85,23 @@ PY
           server_port: 587
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "Weekly Neon Rotation Summary — ${{ job.status }}"
+          subject: "Neon DB Rotation (${{ job.status }})"
           to: "maya@mallannyhomes.com"
           from: "Neon Rotation Bot <${{ secrets.SMTP_USER }}>"
           body: |
-            Hi Maya,
+            Hi Maya 👋,
 
-            Here’s your weekly Neon rotation summary for ${REPO}:
+            The Neon database credentials for mallan-nyc were rotated on $(date -u).
+            Status: ${{ job.status }}
 
-            • Last status: ${{ steps.build.outputs.last_status }}
-            • Next scheduled rotation (UTC): ${{ steps.build.outputs.next_run }}
-
-            View runs & logs:
+            View logs here:
             https://github.com/mallan67/mallan-nyc/actions
 
-            — Rotation Bot
+      - name: Commit audit log
+        if: always()
+        run: |
+          git config --global user.name "Rotation Bot"
+          git config --global user.email "bot@users.noreply.github.com"
+          git add rotation-history.log
+          git commit -m "🪵 Rotation log update ($(date -u))" || echo "No changes"
+          git push
