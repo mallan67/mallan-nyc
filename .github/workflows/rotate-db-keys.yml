@@ -17,9 +17,13 @@ jobs:
       GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       PROJECT_ID: "morning-bread-68708332"
       BRANCH_ID: "br-old-tree-admdlb9z"
       ROLE: "authenticator"
+      REPO: "mallan67/mallan-nyc"
 
     steps:
       - name: Checkout repo
@@ -39,25 +43,65 @@ jobs:
 
           if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
             echo "❌ Neon password rotation failed."
+            echo "$(date -u) ❌ Rotation failed." >> rotation-history.log
             exit 1
           fi
 
           echo "✅ New password generated."
-
           NEW_CONN="postgresql://$ROLE:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
-          echo "🔗 New connection string created."
 
           echo "🔐 Updating GitHub secrets..."
-          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo mallan67/mallan-nyc --app actions
-          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo mallan67/mallan-nyc --app actions
+          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo "$REPO" --app actions
+          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
+
+          echo "✅ Updated secrets successfully."
+          echo "$(date -u) ✅ Rotation successful." >> rotation-history.log
 
       - name: Trigger Vercel redeploy
         run: |
-          echo "🚀 Triggering Vercel redeploy..."
+          echo "🚀 Triggering redeploy..."
           curl -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"name": "mallan-nyc"}'
 
-      - name: Confirm rotation complete
-        run: echo "✅ Rotation and redeploy complete."
+      - name: Send Slack notification
+        if: always()
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            STATUS="${{ job.status }}"
+            MSG="🌀 *Neon Rotation ($REPO)* completed with status: *$STATUS*"
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\": \"$MSG\"}" "$SLACK_WEBHOOK_URL"
+          else
+            echo "No Slack webhook configured."
+          fi
+
+      - name: Send email notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "Neon DB Rotation (${{ job.status }})"
+          to: "maya@mallannyhomes.com"
+          from: "Neon Rotation Bot <${{ secrets.SMTP_USER }}>"
+          body: |
+            Hi Maya 👋,
+
+            The Neon database credentials for mallan-nyc were rotated on $(date -u).
+            Status: ${{ job.status }}
+
+            View logs here:
+            https://github.com/mallan67/mallan-nyc/actions
+
+      - name: Commit audit log
+        if: always()
+        run: |
+          git config --global user.name "Rotation Bot"
+          git config --global user.email "bot@users.noreply.github.com"
+          git add rotation-history.log
+          git commit -m "🪵 Rotation log update ($(date -u))" || echo "No changes"
+          git push
