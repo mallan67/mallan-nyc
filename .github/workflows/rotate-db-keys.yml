@@ -16,7 +16,9 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      PROJECT_ID: "morning-bread-68708332"
+      BRANCH_ID: "br-old-tree-admdlb9z"
+      ROLE: "authenticator"
 
     steps:
       - name: Checkout repo
@@ -26,30 +28,27 @@ jobs:
         id: rotate
         run: |
           echo "🔄 Rotating Neon DB password..."
-          USER="assistant_user"
-          PROJECT_ID="morning-bread-68708332"
-          DB_HOST="ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech"
-          DB_NAME="neondb"
-
           echo "Generating new Neon password..."
+
           NEW_PASS=$(curl -s -X POST \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"role_name\": \"$USER\"}" \
-            https://console.neon.tech/api/v2/projects/$PROJECT_ID/roles/$USER/reset_password \
-            | jq -r '.password')
+            "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" \
+            | jq -r '.role.password')
 
           if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
             echo "❌ Neon password rotation failed."
             exit 1
           fi
 
-          NEW_CONN="postgresql://$USER:$NEW_PASS@$DB_HOST:5432/$DB_NAME?sslmode=require&channel_binding=require"
           echo "✅ New password generated."
 
+          NEW_CONN="postgresql://$ROLE:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
+          echo "🔗 New connection string created."
+
           echo "🔐 Updating GitHub secrets..."
-          gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
-          gh secret set DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
+          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo mallan67/mallan-nyc
+          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo mallan67/mallan-nyc
 
       - name: Confirm rotation complete
         run: echo "✅ Rotation job complete."
