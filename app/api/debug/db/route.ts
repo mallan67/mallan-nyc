@@ -1,53 +1,11 @@
 ﻿import { NextResponse } from "next/server";
-import { pool } from "@/lib/db";
 
+/**
+ * Minimal debug route — must be extremely fast and non-blocking.
+ * Returns whether a DB env is present and a masked connection string.
+ */
 export async function GET() {
-  // Do NOT expose DB connection details in production.
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ ok: false, error: "Not available in production" }, { status: 404 });
-  }
-
-  try {
-    // Try to pick up a connection string from global holder (lib/db) or pool.options or env
-    // @ts-ignore
-    const globalHolder = (global as any).__pgHolder;
-    // @ts-ignore
-    const poolConn = (pool as any)?.options?.connectionString;
-    let cs = (globalHolder && globalHolder.connectionString) || poolConn || process.env.DATABASE_URL || "none";
-
-    // Trim surrounding quotes if present
-    if (typeof cs === "string") {
-      cs = cs.trim();
-      if ((cs.startsWith("'") && cs.endsWith("'")) || (cs.startsWith('"') && cs.endsWith('"'))) {
-        cs = cs.slice(1, -1);
-      }
-    }
-
-    let masked = "none";
-
-    if (cs && cs !== "none") {
-      try {
-        // Use URL parser to safely hide password
-        const u = new URL(cs);
-        if (u.password) {
-          u.password = "******";
-          // URL.toString() may include trailing '/' — that's fine for debug display
-          masked = u.toString();
-        } else {
-          masked = cs;
-        }
-      } catch (err) {
-        // Fallback: simple regex mask (best-effort)
-        try {
-          masked = String(cs).replace(/(postgresql:\/\/[^:]+:)([^@]+)(@.*)/, '$1******$3');
-        } catch (e) {
-          masked = String(cs);
-        }
-      }
-    }
-
-    return NextResponse.json({ ok: true, connectionString: masked });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: String(e?.message ?? e) }, { status: 500 });
-  }
+  const dbUrl = process.env.ASSISTANT_DATABASE_URL ?? process.env.DATABASE_URL ?? null;
+  const masked = dbUrl ? dbUrl.replace(/:(?:[^:@]+)@/, ":****@") : null;
+  return NextResponse.json({ ok: !!dbUrl, connectionString: masked });
 }
