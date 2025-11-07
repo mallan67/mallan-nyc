@@ -3,17 +3,26 @@ name: Rotate Neon DB Credentials
 on:
   schedule:
     - cron: "0 5 1,15 * *"  # Every 1st and 15th at 5AM UTC
-  workflow_dispatch:  # allows manual run
+  workflow_dispatch:
 
 jobs:
   rotate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      id-token: write
+      secrets: write
+
     env:
       GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Rotate Neon password
         id: rotate
         run: |
@@ -35,11 +44,12 @@ jobs:
           fi
 
           NEW_CONN="postgresql://$USER:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
+
           echo "✅ New password generated."
 
           echo "🔐 Updating GitHub secrets..."
-          gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN"
-          gh secret set DATABASE_URL --body "$NEW_CONN"
+          gh secret set ASSISTANT_DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
+          gh secret set DATABASE_URL --body "$NEW_CONN" --repo $GITHUB_REPOSITORY
 
           if [ $? -ne 0 ]; then
             echo "❌ Failed to update GitHub secrets."
