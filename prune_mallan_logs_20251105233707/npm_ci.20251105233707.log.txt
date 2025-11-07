@@ -1,5 +1,0 @@
-﻿=== STDOUT ===
-(prisma skipped on build)
-
-=== STDERR ===
-
