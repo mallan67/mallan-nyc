@@ -2,7 +2,6 @@ import httpProxy from "http-proxy";
 
 const proxy = httpProxy.createProxyServer();
 
-// Disable body parsing so the proxy forwards the raw body
 export const config = {
   api: {
     bodyParser: false,
@@ -10,22 +9,31 @@ export const config = {
 };
 
 export default function handler(req, res) {
-  // Remove the /api prefix so backend sees /agents, /leads, etc.
-  // If your frontend requests /api/agents, this turns it into /agents.
-  req.url = req.url.replace(/^\/api/, "") || "/";
+  // DEBUG: quick summarized view
+  console.log("Proxy incoming:", req.method, req.url);
+
+  // show request headers so we can spot who called (host, referrer, x-forwarded headers)
+  try {
+    console.log("Proxy headers:", JSON.stringify(req.headers || {}, null, 2));
+  } catch(e) { console.log("Proxy headers: (unserializable)"); }
+
+  // remote address inside container (useful when debugging from within containers)
+  try {
+    console.log("Proxy remoteAddress:", (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress));
+  } catch(e) {}
+
+  // strip leading /api so backend sees /agents instead of /api/agents
+  req.url = (req.url || "").replace(/^\/api/, "") || "/";
+
+  // DEBUG: show the path we'll forward to backend
+  console.log("Proxy forwarded url:", req.method, req.url);
 
   return new Promise((resolve) => {
-    proxy.web(
-      req,
-      res,
-      { target: "http://api:8000", changeOrigin: true },
-      (err) => {
-        console.error("Proxy error:", err);
-        // Give a useful response for debugging in the UI
-        res.statusCode = 502;
-        res.end("Proxy error");
-        resolve();
-      }
-    );
+    proxy.web(req, res, { target: "http://api:8000", changeOrigin: true }, (err) => {
+      console.error("Proxy error:", err && (err.stack || err));
+      res.statusCode = 502;
+      res.end("Proxy error");
+      resolve();
+    });
   });
 }
