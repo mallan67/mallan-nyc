@@ -153,3 +153,17 @@ sql/bootstrap.sql
 env backup/
 
 .vercel
+mallan_archives_*
+4/
+apply_all_fixes_backup_*/
+pre_fix_*/
+pre_restore_*/
+repair_*/
+lib_bak_*/
+app_api_bak_*/
+**/*.bak*
+
+# Python caches
+__pycache__/\n*.pyc
+# Local logs
+prune_mallan_logs_*/*.txt
