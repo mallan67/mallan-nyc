@@ -50,12 +50,12 @@ function HomeClient() {
       });
 
       const json = await r.json();
-      if (!r.ok) {
-        setError((json as any)?.error ?? "Lookup failed");
-        setData(null);
-      } else {
-        setData(json as ApiResponse);
-      }
+if (!r.ok) {
+  setError((json as any)?.error ?? "Lookup failed");
+  setData(null);
+} else {
+  setData(json as ApiResponse);
+}
     } catch (err: any) {
       setError(err?.message ?? String(err)); setData(null);
     } finally { setLoading(false); }
@@ -115,3 +115,4 @@ export default function Page() {
     </Suspense>
   );
 }
+
