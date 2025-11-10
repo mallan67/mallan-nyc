@@ -1,39 +1,45 @@
-import httpProxy from "http-proxy";
-
-const proxy = httpProxy.createProxyServer();
+import http from "http";
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false, // important: do not let Next parse the body
   },
 };
 
 export default function handler(req, res) {
-  // DEBUG: quick summarized view
+  // quick debug
   console.log("Proxy incoming:", req.method, req.url);
-
-  // show request headers so we can spot who called (host, referrer, x-forwarded headers)
-  try {
-    console.log("Proxy headers:", JSON.stringify(req.headers || {}, null, 2));
-  } catch(e) { console.log("Proxy headers: (unserializable)"); }
-
-  // remote address inside container (useful when debugging from within containers)
-  try {
-    console.log("Proxy remoteAddress:", (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress));
-  } catch(e) {}
+  try { console.log("Proxy headers:", JSON.stringify(req.headers || {}, null, 2)); } catch(e){}
 
   // strip leading /api so backend sees /agents instead of /api/agents
-  req.url = (req.url || "").replace(/^\/api/, "") || "/";
+  const forwardPath = (req.url || "").replace(/^\/api/, "") || "/";
 
-  // DEBUG: show the path we'll forward to backend
-  console.log("Proxy forwarded url:", req.method, req.url);
+  console.log("Proxy forwarding to:", forwardPath);
 
-  return new Promise((resolve) => {
-    proxy.web(req, res, { target: "http://api:8000", changeOrigin: true }, (err) => {
-      console.error("Proxy error:", err && (err.stack || err));
-      res.statusCode = 502;
-      res.end("Proxy error");
-      resolve();
-    });
+  const options = {
+    hostname: "api",    // docker-compose service name
+    port: 8000,
+    path: forwardPath,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: "api:8000", // ensure Host header points to the api service
+    },
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    // forward status and headers
+    res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+    // pipe api response back to client
+    proxyRes.pipe(res, { end: true });
   });
+
+  proxyReq.on("error", (err) => {
+    console.error("Proxy request error:", err && (err.stack || err));
+    res.statusCode = 502;
+    res.end("Proxy error");
+  });
+
+  // pipe the raw incoming req into the proxy request so the body is forwarded intact
+  req.pipe(proxyReq, { end: true });
 }
