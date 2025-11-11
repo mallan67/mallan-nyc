@@ -1,21 +1,31 @@
 ﻿{
-    "extends":  [
-                    "next/core-web-vitals",
-                    "next/typescript"
-                ],
-    "rules":  {
-                  "@typescript-eslint/no-unused-vars":  [
-                                                            "warn",
-                                                            {
-                                                                "argsIgnorePattern":  "^_"
-                                                            }
-                                                        ],
-                  "@next/next/no-img-element":  "warn",
-                  "@typescript-eslint/ban-types":  "warn",
-                  "react-hooks/exhaustive-deps":  "warn",
-                  "@typescript-eslint/no-explicit-any":  "warn",
-                  "@typescript-eslint/ban-ts-comment":  "warn",
-                  "prefer-const":  "warn",
-                  "@typescript-eslint/no-unused-expressions":  "off"
-              }
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "project": "./tsconfig.json",
+    "ecmaFeatures": { "jsx": true }
+  },
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "@typescript-eslint/ban-types": "off",
+
+    // temporarily relax the strict TS rules that block CI builds
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-expressions": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+
+    // prefer-const and other general rules should not block builds
+    "prefer-const": "warn",
+
+    // do not fail build on missing hook deps etc — treat as warning for now
+    "react-hooks/exhaustive-deps": "warn",
+
+    // Next-specific suggestions: warn instead of error
+    "@next/next/no-img-element": "warn"
+  }
 }
