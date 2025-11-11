@@ -2,44 +2,45 @@ import http from "http";
 
 export const config = {
   api: {
-    bodyParser: false, // important: do not let Next parse the body
+    bodyParser: false, // important: we stream the body
   },
 };
 
 export default function handler(req, res) {
-  // quick debug
   console.log("Proxy incoming:", req.method, req.url);
-  try { console.log("Proxy headers:", JSON.stringify(req.headers || {}, null, 2)); } catch(e){}
+  try { console.log("Proxy headers:", JSON.stringify(req.headers || {}, null, 2)); } catch (e) {}
 
-  // strip leading /api so backend sees /agents instead of /api/agents
   const forwardPath = (req.url || "").replace(/^\/api/, "") || "/";
 
-  console.log("Proxy forwarding to:", forwardPath);
+  // clone & sanitize headers
+  const headers = Object.assign({}, req.headers || {});
+  // remove hop-by-hop / problematic headers
+  ["connection","expect","x-invoke-path","x-invoke-query","x-middleware-invoke","x-forwarded-for","x-forwarded-host","x-forwarded-proto","x-forwarded-port"].forEach(h => delete headers[h]);
+  // ensure host points to the backend service name inside docker
+  headers["host"] = "api:8000";
 
   const options = {
-    hostname: "api",    // docker-compose service name
+    hostname: "api",
     port: 8000,
     path: forwardPath,
     method: req.method,
-    headers: {
-      ...req.headers,
-      host: "api:8000", // ensure Host header points to the api service
-    },
+    headers,
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
-    // forward status and headers
+    // forward status + headers
     res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
-    // pipe api response back to client
     proxyRes.pipe(res, { end: true });
   });
 
   proxyReq.on("error", (err) => {
     console.error("Proxy request error:", err && (err.stack || err));
-    res.statusCode = 502;
+    if (!res.headersSent) {
+      res.writeHead(502, { "content-type": "text/plain" });
+    }
     res.end("Proxy error");
   });
 
-  // pipe the raw incoming req into the proxy request so the body is forwarded intact
+  // stream the incoming request body directly to the upstream.
   req.pipe(proxyReq, { end: true });
 }

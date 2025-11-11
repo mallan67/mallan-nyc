@@ -167,3 +167,8 @@ app_api_bak_*/
 __pycache__/\n*.pyc
 # Local logs
 prune_mallan_logs_*/*.txt
+payload.json
+backend/app/__pycache__/
+frontend/.next/
+backend/__pycache__/
+__pycache__/
