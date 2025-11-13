@@ -17,6 +17,7 @@ jobs:
       GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: "prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW"
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -63,7 +64,7 @@ jobs:
           curl -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"name": "mallan-nyc"}'
+            -d "{\"projectId\":\"$VERCEL_PROJECT_ID\"}"
 
       - name: Send Slack notification
         if: always()
@@ -105,6 +106,5 @@ jobs:
           
           # Force-add ignored log file
           git add -f rotation-history.log
-
           git commit -m "🪵 Rotation log update ($(date -u))" || echo "No changes to commit"
           git push || echo "No push needed"
