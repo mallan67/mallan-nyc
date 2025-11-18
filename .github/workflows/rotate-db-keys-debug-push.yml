@@ -1,4 +1,4 @@
-﻿name: Debug Neon Reset (push)
+name: Debug Neon Reset (push)
 
 on:
   push:
