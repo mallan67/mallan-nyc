@@ -172,3 +172,4 @@ backend/app/__pycache__/
 frontend/.next/
 backend/__pycache__/
 __pycache__/
+!.vercel/project.json
