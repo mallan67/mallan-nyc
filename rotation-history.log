@@ -10,3 +10,9 @@ Tue Nov 18 19:49:37 UTC 2025 ❌ Rotation failed.
 Tue Nov 18 22:12:48 UTC 2025 ❌ Rotation failed.
 Tue Nov 18 22:33:50 UTC 2025 ❌ Rotation failed.
 Wed Nov 19 01:10:53 UTC 2025 ❌ Rotation failed.
+NEON_API_KEY_LEN=69
+HTTP_STATUS: 400
+RESPONSE_BODY:
+{"request_id":"e73af4e5-0c20-41c1-8a99-830036ca4616","code":"","message":"endpoint is in the transition state; endpoint_id:\"ep-royal-dawn-ad6eh8t2\", state:\"\"idle\" -> \"active\"\""}
+JQ EXTRACT (.role.password):
+Wed Nov 19 09:08:39 UTC 2025 Γ¥î Rotation failed.
