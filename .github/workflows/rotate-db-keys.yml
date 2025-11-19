@@ -47,7 +47,7 @@ jobs:
             "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" || true)
 
           STATUS=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d'  || true)
+          BODY=$(echo "$RESPONSE" | sed '$d' || true)
 
           echo "HTTP_STATUS: $STATUS"
           echo "RESPONSE_BODY:"
@@ -63,14 +63,17 @@ jobs:
       - name: Debug: persist NEON secret + raw response to rotation-history.log
         run: |
           set -euo pipefail
+          # write NEON_API_KEY length (safe; not the secret itself)
           echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)" >> rotation-history.log
+
+          # Call Neon reset_password and capture body + HTTP status (curl -w writes code on new line)
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
             "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" || true)
 
           STATUS=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d'  || true)
+          BODY=$(echo "$RESPONSE" | sed '$d' || true)
 
           echo "HTTP_STATUS: $STATUS" >> rotation-history.log
           echo "RESPONSE_BODY:" >> rotation-history.log
@@ -81,7 +84,7 @@ jobs:
           fi
 
           echo "JQ EXTRACT (.role.password):" >> rotation-history.log
-          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log  || echo "<jq failed or empty>" >> rotation-history.log
+          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log || echo "<jq failed or empty>" >> rotation-history.log
 
       - name: Rotate Neon password
         id: rotate
