@@ -30,11 +30,39 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Debug: persist NEON secret + raw response to rotation-history.log
+        # Important: this step persists the raw response and the HTTP code to rotation-history.log
+        # so we can inspect failures after the job completes.
+        run: |
+          set -eo pipefail
+          echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)" >> rotation-history.log
+
+          # Call Neon reset_password and capture body + status (curl -w writes the status on a new line)
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" || true)
+
+          STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d' || true)
+
+          echo "HTTP_STATUS: $STATUS" >> rotation-history.log
+          echo "RESPONSE_BODY:" >> rotation-history.log
+          if [ -n "$BODY" ]; then
+            echo "$BODY" >> rotation-history.log
+          else
+            echo "<empty body>" >> rotation-history.log
+          fi
+
+          echo "JQ EXTRACT (.role.password):" >> rotation-history.log
+          # If jq is missing or the field doesn't exist, record a helpful marker
+          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log || echo "<jq failed or empty>" >> rotation-history.log
 
       - name: Rotate Neon password
         id: rotate
         run: |
-          echo "🔄 Rotating Neon DB password..."
+          set -euo pipefail
+          echo "Rotating Neon DB password..."
           echo "Generating new Neon password..."
 
           NEW_PASS=$(curl -s -X POST \
@@ -44,24 +72,24 @@ jobs:
             | jq -r '.role.password')
 
           if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
-            echo "❌ Neon password rotation failed."
-            echo "$(date -u) ❌ Rotation failed." >> rotation-history.log
+            echo "Neon password rotation failed."
+            echo "$(date -u) Rotation failed." >> rotation-history.log
             exit 1
           fi
 
-          echo "✅ New password generated."
+          echo "New password generated."
           NEW_CONN="postgresql://$ROLE:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
 
-          echo "🔐 Updating GitHub secrets..."
+          echo "Updating GitHub secrets..."
           echo "$NEW_CONN" | gh secret set DATABASE_URL --repo "$REPO" --app actions
           echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
 
-          echo "✅ Updated secrets successfully."
-          echo "$(date -u) ✅ Rotation successful." >> rotation-history.log
+          echo "Updated secrets successfully."
+          echo "$(date -u) Rotation successful." >> rotation-history.log
 
       - name: Trigger Vercel redeploy
         run: |
-          echo "🚀 Triggering redeploy..."
+          echo "Triggering redeploy..."
           curl -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
@@ -72,7 +100,7 @@ jobs:
         run: |
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
             STATUS="${{ job.status }}"
-            MSG="🌀 *Neon Rotation ($REPO)* completed with status: *$STATUS*"
+            MSG="Neon Rotation ($REPO) completed with status: $STATUS"
             curl -X POST -H 'Content-type: application/json' \
               --data "{\"text\": \"$MSG\"}" "$SLACK_WEBHOOK_URL"
           else
@@ -91,7 +119,7 @@ jobs:
           to: "maya@mallannyhomes.com"
           from: "Neon Rotation Bot <${{ secrets.SMTP_USER }}>"
           body: |
-            Hi Maya 👋,
+            Hi Maya,
 
             The Neon database credentials for mallan-nyc were rotated on $(date -u).
             Status: ${{ job.status }}
@@ -104,8 +132,6 @@ jobs:
         run: |
           git config --global user.name "Rotation Bot"
           git config --global user.email "bot@users.noreply.github.com"
-          
-          # Force-add ignored log file
           git add -f rotation-history.log
-          git commit -m "🪵 Rotation log update ($(date -u))" || echo "No changes to commit"
+          git commit -m "Rotation log update ($(date -u))" || echo "No changes to commit"
           git push || echo "No push needed"
