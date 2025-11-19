@@ -31,56 +31,6 @@ jobs:
         uses: actions/checkout@v4
 
 
-      - name: Debug: NEON secret presence
-        run: |
-          echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)"
-          if [ -z "$NEON_API_KEY" ]; then
-            echo "ERROR: NEON_API_KEY is empty"
-          fi
-
-      - name: Debug: Call Neon reset (raw response check)
-        run: |
-          set -euo pipefail
-          echo "Calling Neon reset for role: $ROLE ..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \\
-            -H "Authorization: Bearer $NEON_API_KEY" \\
-            -H "Content-Type: application/json" \\
-            "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" || true)
-
-          STATUS=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d'  || true)
-
-          echo "HTTP_STATUS: $STATUS"
-          echo "RESPONSE_BODY:"
-          if [ -n "$BODY" ]; then
-            echo "$BODY"
-          else
-            echo "<empty body>"
-          fi
-
-          echo "JQ EXTRACT (.role.password):"
-          echo "$BODY" | jq -r '.role.password // empty' || echo "<jq failed or empty>"
-      - name: Debug: persist NEON secret + raw response to rotation-history.log
-        run: |
-          echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)" >> rotation-history.log
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer $NEON_API_KEY" \
-            -H "Content-Type: application/json" \
-            "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" || true)
-
-          STATUS=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d'  || true)
-
-          echo "HTTP_STATUS: $STATUS" >> rotation-history.log
-          echo "RESPONSE_BODY:" >> rotation-history.log
-          if [ -n "$BODY" ]; then
-            echo "$BODY" >> rotation-history.log
-          else
-            echo "<empty body>" >> rotation-history.log
-          fi
-
-          echo "JQ EXTRACT (.role.password):" >> rotation-history.log
-          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log  || echo "<jq failed or empty>" >> rotation-history.log
       - name: Rotate Neon password
         id: rotate
         run: |
