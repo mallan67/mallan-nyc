@@ -16,8 +16,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "NYC lookup not enabled in production." }, { status: 404 });
   }
 
-  const body = await safeJson<{ q?: string }>(req);
-  const q = body?.q?.trim() || "";
+  // Accept either `{ q }` or `{ query }` from clients
+  const body = await safeJson<{ q?: string; query?: string }>(req);
+const raw = (body as any)?.q ?? (body as any)?.query ?? "";
+const q = typeof raw === "string" ? raw.trim() : "";
 
   const hasGeoclientId = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY;
   const hasGeoclientKey = !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2;
@@ -47,3 +49,4 @@ export async function GET() {
     { status: 200 }
   );
 }
+

@@ -25,23 +25,23 @@ coverage
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
 
-# Bower dependency directory
+# Bower dependency directory (https://bower.io/)
 bower_components
 
 # node-waf configuration
 .lock-wscript
 
-# Compiled binary addons
+# Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
 # Dependency directories
 node_modules/
 jspm_packages/
 
-# Snowpack dependency directory
+# Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
 # TypeScript cache
@@ -67,11 +67,10 @@ web_modules/
 
 # dotenv environment variable files
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
 
-# parcel-bundler cache
+# parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
 
@@ -85,7 +84,9 @@ dist
 
 # Gatsby files
 .cache/
-# public  # uncomment only if using Gatsby
+# Comment in the public line in if your project uses Gatsby and not Next.js
+# https://nextjs.org/blog/next-9-1#public-directory-support
+# public
 
 # vuepress build output
 .vuepress/dist
@@ -97,8 +98,10 @@ dist
 # Sveltekit cache directory
 .svelte-kit/
 
-# vitepress build output/cache
+# vitepress build output
 **/.vitepress/dist
+
+# vitepress cache directory
 **/.vitepress/cache
 
 # Docusaurus cache and generated files
@@ -135,22 +138,21 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Generated prisma (local)
-generated/prisma
-
-# Local env files and backups
+/generated/prisma
+# Local env files
 .env
 .env.local
 .env.*.local
-prisma/schema.prisma.bak
-env backup/
-env_backup_*
 
 # Prisma backup + other local-only files
+prisma/schema.prisma.bak
 backup_api_pages/
 sql/bootstrap.sql
 
-# local env backups and misc backups
+# local env backups
+env backup/
+
+.vercel
 mallan_archives_*
 4/
 apply_all_fixes_backup_*/
@@ -161,37 +163,13 @@ lib_bak_*/
 app_api_bak_*/
 **/*.bak*
 
-# Local logs and other local-only files
+# Python caches
+__pycache__/\n*.pyc
+# Local logs
 prune_mallan_logs_*/*.txt
 payload.json
-
-# Python caches
-__pycache__/
-*.pyc
 backend/app/__pycache__/
-backend/__pycache__/
-
-# Local logs / rotation history (local only)
-rotation-history.log
-job-*.log
-rotate-job-*.log
-
-# Backend / frontend build artefacts and local dev files
 frontend/.next/
-backend/Dockerfile.bak
-docker-compose.yml.bak
-frontend/package.json.bak
-frontend/pages/api/[...proxy].js.bak
-
-# .vercel (keep project.json if you intentionally track it)
-.vercel
+backend/__pycache__/
+__pycache__/
 !.vercel/project.json
-
-# Misc
-next-env.d.ts
-tsconfig.tsbuildinfo
-
-# Keep lockfiles/tracking out of git when desired (if generated locally)
-# (comment in if you want to ignore them)
-# package-lock.json
-# pnpm-lock.yaml
