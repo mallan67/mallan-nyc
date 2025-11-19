@@ -1,0 +1,15 @@
+vwW1IL0TLd2ZbFXqexjN2pLm
+
+# Replace the example below with the token you copied (paste only the token, no quotes)
+$myToken = vwW1IL0TLd2ZbFXqexjN2pLm
+
+# set it for the current process (child commands will inherit it)
+[System.Environment]::SetEnvironmentVariable('VERCEL_TOKEN', $myToken, 'Process')
+
+# quick check (masked)
+if ($env:VERCEL_TOKEN -and $env:VERCEL_TOKEN.Trim() -ne '') {
+  $t=$env:VERCEL_TOKEN.Trim()
+  Write-Host "VERCEL_TOKEN loaded (masked): $($t.Substring(0,[math]::Min(6,$t.Length)))..."
+} else {
+  Write-Host "VERCEL_TOKEN not set" -ForegroundColor Red
+}

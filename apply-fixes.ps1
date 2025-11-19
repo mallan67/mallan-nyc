@@ -1,0 +1,147 @@
+<#
+apply-fixes.ps1 — corrected version
+Run from repository root in PowerShell.
+#>
+
+[CmdletBinding()]
+param(
+    [string]$RepoRoot = "."
+)
+
+function Write-Ok($msg){ Write-Host "[OK] $msg" -ForegroundColor Green }
+function Write-Warn($msg){ Write-Host "[WARN] $msg" -ForegroundColor Yellow }
+function Write-Err($msg){ Write-Host "[ERROR] $msg" -ForegroundColor Red }
+
+Push-Location $RepoRoot
+
+# --- prepare backup folder ---
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+$backupFolder = "backup_$timestamp"
+if (-not (Test-Path $backupFolder)) {
+    New-Item -ItemType Directory -Path $backupFolder | Out-Null
+}
+Write-Host "Backups will be created in $backupFolder`n"
+
+function Backup-IfExists($path) {
+    if (Test-Path $path) {
+        $dest = Join-Path $backupFolder ([IO.Path]::GetFileName($path) + ".bak")
+        Copy-Item -Path $path -Destination $dest -Force
+        Write-Ok "Backed up $path -> $dest"
+    } else {
+        Write-Warn "File not found (skipping backup): $path"
+    }
+}
+
+function Replace-InFileRegex($path, [string]$pattern, [string]$replacement) {
+    if (-not (Test-Path $path)) {
+        Write-Warn "File not found: $path"
+        return $false
+    }
+    $orig = Get-Content -Raw -Path $path
+    try {
+        $new = [System.Text.RegularExpressions.Regex]::Replace($orig, $pattern, $replacement, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    } catch {
+        Write-Warn "Regex replace failed for $path : $_"
+        return $false
+    }
+    if ($new -ne $orig) {
+        Set-Content -Path $path -Value $new -Force
+        Write-Ok "Patched $path"
+        return $true
+    } else {
+        Write-Warn "No pattern match in $path for pattern: $pattern"
+        return $false
+    }
+}
+
+# --- Paths ---
+$routePath = "app/api/ai/nyc/route.ts"
+$pagePath  = "app/page.tsx"
+$nextConfig = "next.config.js"
+$readme = "README.md"
+$ciDir = ".github/workflows"
+$ciFile = Join-Path $ciDir "ci.yml"
+$envLocal = ".env.local"
+$envExample = ".env.example"
+
+# 1) Patch route.ts --- accept q OR query
+Backup-IfExists $routePath
+if (Test-Path $routePath) {
+    $routeOrig = Get-Content -Raw -Path $routePath
+
+    # Look for typical safeJson + q lines and replace with tolerant version
+    $patternRoute = 'const body = await safeJson\<\{[^\}]*\}\>\(req\);\s*const q = [^\r\n]*;'
+    $replacementRoute = @'
+const body = await safeJson<{ q?: string; query?: string }>(req);
+  const raw = body?.q ?? body?.query ?? "";
+  const q = typeof raw === 'string' ? raw.trim() : "";
+'@
+
+    if ([System.Text.RegularExpressions.Regex]::IsMatch($routeOrig, $patternRoute, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        $routeNew = [System.Text.RegularExpressions.Regex]::Replace($routeOrig, $patternRoute, $replacementRoute, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        Set-Content -Path $routePath -Value $routeNew -Force
+        Write-Ok "Patched $routePath with tolerant q/query handling"
+    } else {
+        Write-Warn "Pattern not found automatically in $routePath. Please ensure the file contains safeJson and a q assignment to replace."
+    }
+} else {
+    Write-Warn "$routePath not found; skipping route patch."
+}
+
+# 2) Patch page.tsx --- send q and handle non-OK responses
+Backup-IfExists $pagePath
+if (Test-Path $pagePath) {
+    $pageOrig = Get-Content -Raw -Path $pagePath
+
+    # Replace JSON.stringify body 'query: q' -> 'q: q'
+    $pageStep1 = [System.Text.RegularExpressions.Regex]::Replace($pageOrig, 'JSON.stringify\(\{\s*query\s*:\s*q\s*,\s*ecbOpen\s*:\s*openOnly\s*,\s*debug\s*:\s*debugOn\s*\}\s*\)', 'JSON.stringify({ q: q, ecbOpen: openOnly, debug: debugOn })', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+
+    # Replace naive setData(json) with robust handling (works if exact pattern present)
+    $pageStep2 = [System.Text.RegularExpressions.Regex]::Replace($pageStep1, 'const\s+json\s*=\s*\(await\s+r\.json\(\)\)\s*as\s*ApiResponse;\s*setData\s*\(\s*json\s*\)\s*;', 'const json = (await r.json());
+        if (!r.ok) {
+          setError((json as any)?.error ?? \"Lookup failed\");
+          setData(null);
+        } else {
+          setData(json as ApiResponse);
+        }', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+
+    if ($pageStep2 -ne $pageOrig) {
+        Set-Content -Path $pagePath -Value $pageStep2 -Force
+        Write-Ok "Patched $pagePath (send q + improved error handling)"
+    } else {
+        Write-Warn "No exact matches for automatic patching in $pagePath. Consider editing the fetch body to send { q: q, ... } and handling non-OK responses as described."
+    }
+} else {
+    Write-Warn "$pagePath not found; skipping page patch."
+}
+
+# 3) Patch next.config.js --- set ignore flags to false (if present)
+Backup-IfExists $nextConfig
+if (Test-Path $nextConfig) {
+    $content = Get-Content -Raw -Path $nextConfig
+    $new = $content
+    $new = $new -replace 'typescript:\s*\{\s*ignoreBuildErrors\s*:\s*true\s*\}', 'typescript: { ignoreBuildErrors: false }'
+    $new = $new -replace 'eslint:\s*\{\s*ignoreDuringBuilds\s*:\s*true\s*\}', 'eslint: { ignoreDuringBuilds: false }'
+    if ($new -ne $content) {
+        Set-Content -Path $nextConfig -Value $new -Force
+        Write-Ok "Patched $nextConfig (set TypeScript/ESLint ignore flags to false)"
+    } else {
+        Write-Warn "Could not find exact ignore flags in $nextConfig. Please adjust manually if needed."
+    }
+} else {
+    Write-Warn "next.config.js not found; skipping."
+}
+
+# 4) README.md skeleton if empty
+Backup-IfExists $readme
+$needReadme = -not (Test-Path $readme) -or ((Get-Content $readme | Measure-Object -Line).Lines -eq 0)
+if ($needReadme) {
+    $readmeContent = @'
+# Mallan NYC
+
+## Local development
+
+1. Copy `.env.example` to `.env.local` and fill in secrets (or use the script to create `.env.local`).
+2. Install:
+```bash
+npm ci
