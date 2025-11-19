@@ -173,3 +173,7 @@ frontend/.next/
 backend/__pycache__/
 __pycache__/
 !.vercel/project.json
+tokens.txt
+multi-token-results.json
+roles.json
+debug-extract.txt
