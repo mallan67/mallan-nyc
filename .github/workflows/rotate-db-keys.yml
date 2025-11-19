@@ -63,10 +63,7 @@ jobs:
       - name: Debug: persist NEON secret + raw response to rotation-history.log
         run: |
           set -euo pipefail
-          # write NEON_API_KEY length (safe, no secret copied)
           echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)" >> rotation-history.log
-
-          # Call Neon reset_password and capture body + HTTP status (curl -w writes code on new line)
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
