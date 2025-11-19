@@ -14,15 +14,15 @@ jobs:
       id-token: write
 
     env:
-      GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}    # if needed
+      GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_PROJECT_ID: "prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW"
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      PROJECT_ID: "morning-bread-68708332"      # replace with your project id
-      BRANCH_ID: "br-old-tree-admdlb9z"         # replace with your branch id
+      PROJECT_ID: "morning-bread-68708332"
+      BRANCH_ID: "br-old-tree-admdlb9z"
       ROLE: "authenticator"
       REPO: "mallan67/mallan-nyc"
 
@@ -30,44 +30,39 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Debug: persist NEON secret + raw response to rotation-history.log (redacted)
-        # We keep this as 'debug' but redact passwords before saving
+
+      - name: Debug: persist NEON secret + raw response to rotation-history.log
         run: |
           set -euo pipefail
-
-          # safe info: length of NEON_API_KEY (useful to confirm presence)
+          # write NEON_API_KEY length (safe, redaction not in the file)
           echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)" >> rotation-history.log
 
-          # Call Neon reset_password and capture body + HTTP status
+          # Call Neon reset_password and capture body + HTTP status (curl -w writes code on new line)
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
             "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" || true)
 
           STATUS=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d' || true)
+          BODY=$(echo "$RESPONSE" | sed '$d'  || true)
 
           echo "HTTP_STATUS: $STATUS" >> rotation-history.log
-
-          # Mask any npg_ tokens in the body before writing to the repo log
-          SAFE_BODY=$(printf "%s\n" "$BODY" | sed -E 's/(npg_[A-Za-z0-9_-]{6,})/<REDACTED_PASSWORD>/g')
-
           echo "RESPONSE_BODY:" >> rotation-history.log
-          if [ -n "$SAFE_BODY" ]; then
-            printf "%s\n" "$SAFE_BODY" >> rotation-history.log
+          if [ -n "$BODY" ]; then
+            echo "$BODY" >> rotation-history.log
           else
             echo "<empty body>" >> rotation-history.log
           fi
 
           echo "JQ EXTRACT (.role.password):" >> rotation-history.log
-          # never write the raw password, only indicate whether it exists
-          echo "$BODY" | jq -r '.role.password // empty' | sed -E 's/.*/<REDACTED_PASSWORD>/' >> rotation-history.log || echo "<jq failed or empty>" >> rotation-history.log
+          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log  || echo "<jq failed or empty>" >> rotation-history.log
 
       - name: Rotate Neon password
         id: rotate
         run: |
-          set -euo pipefail
-          echo "Rotating Neon DB password..."
+          echo "≡ƒöä Rotating Neon DB password..."
+          echo "Generating new Neon password..."
+
           NEW_PASS=$(curl -s -X POST \
             -H "Authorization: Bearer $NEON_API_KEY" \
             -H "Content-Type: application/json" \
@@ -75,21 +70,24 @@ jobs:
             | jq -r '.role.password')
 
           if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
-            echo "Neon password rotation failed."
-            echo "$(date -u) Rotation failed." >> rotation-history.log
+            echo "Γ¥î Neon password rotation failed."
+            echo "$(date -u) Γ¥î Rotation failed." >> rotation-history.log
             exit 1
           fi
 
+          echo "Γ£à New password generated."
           NEW_CONN="postgresql://$ROLE:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
 
-          # Update GH Actions repository secrets (requires MY_GITHUB_PAT or appropriate permission)
+          echo "≡ƒöÉ Updating GitHub secrets..."
           echo "$NEW_CONN" | gh secret set DATABASE_URL --repo "$REPO" --app actions
           echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
 
-          echo "$(date -u) Rotation successful." >> rotation-history.log
+          echo "Γ£à Updated secrets successfully."
+          echo "$(date -u) Γ£à Rotation successful." >> rotation-history.log
 
       - name: Trigger Vercel redeploy
         run: |
+          echo "≡ƒÜÇ Triggering redeploy..."
           curl -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
@@ -100,7 +98,7 @@ jobs:
         run: |
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
             STATUS="${{ job.status }}"
-            MSG="Neon Rotation ($REPO) completed with status: $STATUS"
+            MSG="≡ƒîÇ *Neon Rotation ($REPO)* completed with status: *$STATUS*"
             curl -X POST -H 'Content-type: application/json' \
               --data "{\"text\": \"$MSG\"}" "$SLACK_WEBHOOK_URL"
           else
@@ -119,7 +117,21 @@ jobs:
           to: "maya@mallannyhomes.com"
           from: "Neon Rotation Bot <${{ secrets.SMTP_USER }}>"
           body: |
-            Hi Maya,
+            Hi Maya ≡ƒæï,
+
             The Neon database credentials for mallan-nyc were rotated on $(date -u).
             Status: ${{ job.status }}
-            View logs: https://github.com/mallan67/mallan-nyc/actions
+
+            View logs:
+            https://github.com/mallan67/mallan-nyc/actions
+
+      - name: Commit audit log
+        if: always()
+        run: |
+          git config --global user.name "Rotation Bot"
+          git config --global user.email "bot@users.noreply.github.com"
+
+          # Force-add ignored log file
+          git add -f rotation-history.log
+          git commit -m "≡ƒ¬╡ Rotation log update ($(date -u))" || echo "No changes to commit"
+          git push || echo "No push needed"
