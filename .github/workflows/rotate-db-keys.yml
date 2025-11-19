@@ -27,17 +27,17 @@ jobs:
       REPO: "mallan67/mallan-nyc"
 
     steps:
-      - name: Checkout repo
+      - name: "Checkout repo"
         uses: actions/checkout@v4
 
-      - name: Debug: NEON secret presence
+      - name: "Debug: NEON secret presence"
         run: |
           echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)"
           if [ -z "$NEON_API_KEY" ]; then
             echo "ERROR: NEON_API_KEY is empty"
           fi
 
-      - name: Debug: Call Neon reset (raw response check)
+      - name: "Debug: Call Neon reset (raw response check)"
         run: |
           set -euo pipefail
           echo "Calling Neon reset for role: $ROLE ..."
@@ -60,7 +60,7 @@ jobs:
           echo "JQ EXTRACT (.role.password):"
           echo "$BODY" | jq -r '.role.password // empty' || echo "<jq failed or empty>"
 
-      - name: Debug: persist NEON secret + raw response to rotation-history.log
+      - name: "Debug: persist NEON secret + raw response to rotation-history.log"
         run: |
           set -euo pipefail
           echo "NEON_API_KEY_LEN=$(printf "%s" "$NEON_API_KEY" | wc -c)" >> rotation-history.log
@@ -81,9 +81,9 @@ jobs:
           fi
 
           echo "JQ EXTRACT (.role.password):" >> rotation-history.log
-          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log  || echo "<jq failed or empty>" >> rotation-history.log
+          echo "$BODY" | jq -r '.role.password // empty' >> rotation-history.log || echo "<jq failed or empty>" >> rotation-history.log
 
-      - name: Rotate Neon password
+      - name: "Rotate Neon password"
         id: rotate
         run: |
           echo "≡ƒöä Rotating Neon DB password..."
@@ -111,15 +111,15 @@ jobs:
           echo "Γ£à Updated secrets successfully."
           echo "$(date -u) Γ£à Rotation successful." >> rotation-history.log
 
-      - name: Trigger Vercel redeploy
+      - name: "Trigger Vercel redeploy"
         run: |
-          echo "≡ƒÜÇ Triggering redeploy..."
+          echo "≡ƒöÜÇ Triggering redeploy..."
           curl -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"projectId\":\"$VERCEL_PROJECT_ID\"}"
 
-      - name: Send Slack notification
+      - name: "Send Slack notification"
         if: always()
         run: |
           if [ -n "$SLACK_WEBHOOK_URL" ]; then
@@ -131,7 +131,7 @@ jobs:
             echo "No Slack webhook configured."
           fi
 
-      - name: Send email notification
+      - name: "Send email notification"
         if: always()
         uses: dawidd6/action-send-mail@v3
         with:
@@ -151,7 +151,7 @@ jobs:
             View logs:
             https://github.com/mallan67/mallan-nyc/actions
 
-      - name: Commit audit log
+      - name: "Commit audit log"
         if: always()
         run: |
           git config --global user.name "Rotation Bot"
