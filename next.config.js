@@ -1,27 +1,27 @@
-<<<<<<< HEAD
-﻿const isProd = process.env.NODE_ENV === "production";
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://api:8000";
-
-module.exports = {
-  async rewrites() {
-    // In development we do not rewrite /api -> backend so pages/api/[...proxy] can handle it.
-    if (!isProd) {
-      return [];
-    }
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${apiBase}/:path*`, // NOTE: destination should NOT add an extra '/api'
-      },
-    ];
-  },
-};
-=======
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  typescript: { ignoreBuildErrors: true }, // TEMP — remove when green
-  eslint: { ignoreDuringBuilds: true },    // TEMP — remove when green
+
+  // Keep ESLint/TypeScript build-time checks enabled so the baseline verification
+  // workflow catches issues during CI/build.
+  eslint: {
+    // don't skip ESLint during builds
+    ignoreDuringBuilds: false,
+    // optional: restrict linted dirs if your repo uses the app/ dir
+    dirs: ['app', 'pages', 'components', 'lib'],
+  },
+
+  typescript: {
+    // do not ignore type errors during build — keep CI strict
+    ignoreBuildErrors: false,
+  },
+
+  experimental: {
+    // appDir is recommended for Next 14 if you use app/*
+    appDir: true,
+  },
+
+  swcMinify: true,
 };
+
 module.exports = nextConfig;
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)

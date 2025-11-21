@@ -1,23 +1,13 @@
-<<<<<<< HEAD
-﻿-- Compatibility shim: accept round(double precision, integer) by casting to numeric
+-- sql/apply_all.sql
+-- Compatibility shim: accept round(double precision, integer) by casting to numeric
 CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
   RETURNS numeric
   LANGUAGE SQL IMMUTABLE
 AS $$
   SELECT ROUND(CAST(x AS numeric), s);
 $$;
--- Compatibility shim: accept round(double precision, integer) by casting to numeric
-CREATE OR REPLACE FUNCTION public.round(x double precision, s integer)
-  RETURNS numeric
-  LANGUAGE SQL IMMUTABLE
-AS $$
-  SELECT ROUND(CAST($1 AS numeric), $2);
-$$;
 
 BEGIN;
-=======
-﻿BEGIN;
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
 
 DO $$
 BEGIN
@@ -73,15 +63,11 @@ END $$;
 DROP VIEW IF EXISTS agent_deals_summary_v;
 DROP VIEW IF EXISTS agent_deals_v;
 
+-- Numeric-safe agent_deals_v (uses numeric casts and ROUND in a consistent way)
 CREATE VIEW agent_deals_v AS
 WITH base AS (
   SELECT
-<<<<<<< HEAD
-    a.email AS agent_email,
-    COALESCE(a.full_name, (a.first_name || ' ' || a.last_name)) AS agent_full_name,
-=======
     a.full_name  AS agent_full_name,
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
     a.first_name AS agent_first_name,
     a.last_name  AS agent_last_name,
     a.license_no AS agent_license,
@@ -103,19 +89,6 @@ WITH base AS (
     c.gross, c.company_fee, c.agent_fee, COALESCE(c.paid,false) AS commission_paid
   FROM deals d
   JOIN agents a
-<<<<<<< HEAD
-    ON a.email = d.agent_email
-  LEFT JOIN deal_details dd
-    ON dd.address = d.address
-   AND dd.agent_email = d.agent_email
-   AND dd.contract_signed = d.contract_signed
-  LEFT JOIN splits s
-    ON s.agent_email = d.agent_email
-   AND s.year = EXTRACT(YEAR FROM d.contract_signed)
-  LEFT JOIN commissions c
-    ON c.address = d.address
-   AND c.agent_email = d.agent_email
-=======
     ON a.full_name = d.agent_full_name
   LEFT JOIN deal_details dd
     ON dd.address = d.address
@@ -127,183 +100,6 @@ WITH base AS (
   LEFT JOIN commissions c
     ON c.address = d.address
    AND c.agent_full_name = d.agent_full_name
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-   AND c.contract_signed = d.contract_signed
-),
-calc AS (
-  SELECT
-    b.*,
-    COALESCE(
-      b.deal_split_pct,
-      (b.split_override_bps::numeric / 100.0),
-      CASE WHEN b.deal_category='RENTAL' THEN b.rental_split_pct ELSE b.sale_split_pct END,
-      CASE WHEN b.deal_category='RENTAL' THEN (b.rental_split::numeric / 100.0) ELSE (b.sale_split::numeric / 100.0) END,
-      CASE WHEN b.deal_category='RENTAL' THEN (b.fallback_rental_split_bps::numeric / 100.0) ELSE (b.fallback_sale_split_bps::numeric / 100.0) END
-    ) AS split_percent_raw,
-    b.deal_rate_pct::numeric(7,3) AS commission_rate_input_pct,
-    CASE WHEN b.gross IS NOT NULL AND b.price_usd IS NOT NULL AND b.price_usd <> 0
-<<<<<<< HEAD
-         THEN ROUND(CAST(CAST((((b.gross::numeric / b.price_usd) * 100.0)::numeric) AS numeric) AS numeric), 3)
-=======
-         THEN ROUND((b.gross::numeric / b.price_usd) * 100.0, 3)
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-         ELSE NULL END AS commission_rate_from_gross_pct
-  FROM base b
-)
-SELECT
-  agent_full_name, agent_first_name, agent_last_name, agent_license,
-  deal_category, representation_code,
-  CASE representation_code
-    WHEN 'LISTING_SALE' THEN 'Sale Exclusive'
-    WHEN 'BUYER_REP'    THEN 'Buyer Representation'
-    WHEN 'LISTING_RENT' THEN 'Rental Exclusive'
-    WHEN 'RENTER_REP'   THEN 'Renter Representation'
-    ELSE CASE WHEN deal_category='RENTAL' THEN 'Rental (Unspecified)' ELSE 'Sale (Default)' END
-  END AS representation_label,
-  property_address, price_usd,
-  ROUND(COALESCE(commission_rate_input_pct, commission_rate_from_gross_pct), 3)                AS commission_rate_percent,
-  TO_CHAR(COALESCE(commission_rate_input_pct, commission_rate_from_gross_pct), 'FM999990.###') AS commission_rate_percent_str,
-<<<<<<< HEAD
-  ROUND(CAST(CAST(((split_percent_raw)::numeric) AS numeric) AS numeric), 3)            AS split_percent,
-=======
-  ROUND(split_percent_raw, 3)            AS split_percent,
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-  TO_CHAR(split_percent_raw, 'FM999990.###') AS split_percent_str,
-  COALESCE(
-    gross,
-    CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-<<<<<<< HEAD
-         THEN ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2)
-=======
-         THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-         ELSE NULL END
-  ) AS gross_commission_usd,
-  COALESCE(
-    agent_fee,
-    agent_commission_usd,
-    CASE WHEN COALESCE(gross,
-                       CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-<<<<<<< HEAD
-                            THEN ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2)
-                            ELSE NULL END) IS NOT NULL
-              AND split_percent_raw IS NOT NULL
-       THEN ROUND(
-         COALESCE(gross, ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2))
-         * (split_percent_raw / 100.0), 2)
-       ELSE NULL END
-=======
-                            THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
-                            ELSE NULL END) IS NOT NULL
-              AND split_percent_raw IS NOT NULL
-         THEN ROUND(
-           COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2))
-           * (split_percent_raw / 100.0), 2)
-         ELSE NULL END
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-  ) AS agent_fee_usd,
-  COALESCE(
-    company_fee,
-    CASE WHEN COALESCE(gross,
-                       CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-<<<<<<< HEAD
-                            THEN ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2)
-                            ELSE NULL END) IS NOT NULL
-              AND COALESCE(agent_fee, agent_commission_usd,
-                           CASE WHEN split_percent_raw IS NOT NULL
-                                THEN ROUND(COALESCE(gross, ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2)) * (split_percent_raw / 100.0), 2)
-                                ELSE NULL END) IS NOT NULL
-       THEN COALESCE(gross, ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2))
-            - COALESCE(agent_fee, agent_commission_usd,
-                       ROUND(COALESCE(gross, ROUND(CAST(CAST(((price_usd::numeric * commission_rate_input_pct / 100.0)::numeric) AS numeric) AS numeric), 2)) * (split_percent_raw / 100.0), 2))
-       ELSE NULL END
-=======
-                            THEN ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)
-                            ELSE NULL END) IS NOT NULL
-              AND COALESCE(agent_fee, agent_commission_usd,
-                           CASE WHEN split_percent_raw IS NOT NULL
-                                THEN ROUND(COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)) * (split_percent_raw / 100.0), 2)
-                                ELSE NULL END) IS NOT NULL
-         THEN COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2))
-              - COALESCE(agent_fee, agent_commission_usd,
-                         ROUND(COALESCE(gross, ROUND(price_usd::numeric * commission_rate_input_pct / 100.0, 2)) * (split_percent_raw / 100.0), 2))
-         ELSE NULL END
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-  ) AS company_fee_usd,
-  commission_paid,
-  COALESCE(contract_closed_raw, contract_signed_raw) AS contract_closed_raw,
-  TO_CHAR(contract_signed_raw, 'MM/DD/YYYY')         AS contract_signed,
-  TO_CHAR(COALESCE(contract_closed_raw, contract_signed_raw), 'MM/DD/YYYY') AS contract_closed
-FROM calc;
-
-CREATE VIEW agent_deals_summary_v AS
-SELECT
-  agent_full_name,
-  COUNT(*)                                           AS total_deals,
-  COUNT(*) FILTER (WHERE deal_category='SALE')       AS sale_deals,
-  COUNT(*) FILTER (WHERE deal_category='RENTAL')     AS rental_deals,
-  COUNT(*) FILTER (WHERE representation_code='LISTING_SALE')  AS listing_sale_deals,
-  COUNT(*) FILTER (WHERE representation_code='BUYER_REP')     AS buyer_rep_deals,
-  COUNT(*) FILTER (WHERE representation_code='LISTING_RENT')  AS listing_rent_deals,
-  COUNT(*) FILTER (WHERE representation_code='RENTER_REP')    AS renter_rep_deals,
-  SUM(price_usd) FILTER (WHERE deal_category='SALE')   AS total_sales_volume_usd,
-  SUM(price_usd) FILTER (WHERE deal_category='RENTAL') AS total_rental_volume_usd,
-  SUM(COALESCE(agent_fee_usd,   0)) AS total_agent_fee_usd,
-  SUM(COALESCE(company_fee_usd, 0)) AS total_company_fee_usd,
-  SUM(COALESCE(gross_commission_usd, 0)) AS total_gross_commission_usd,
-<<<<<<< HEAD
-  ROUND(CAST(CAST(((AVG(commission_rate_percent))::numeric) AS numeric) AS numeric), 3) AS avg_commission_rate_pct,
-  ROUND(CAST(CAST(((AVG(split_percent))::numeric) AS numeric) AS numeric), 3)           AS avg_split_pct,
-=======
-  ROUND(AVG(commission_rate_percent), 3) AS avg_commission_rate_pct,
-  ROUND(AVG(split_percent), 3)           AS avg_split_pct,
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-  MAX(contract_closed_raw)               AS last_closed_date_raw
-FROM agent_deals_v
-GROUP BY agent_full_name;
-
-COMMIT;
-<<<<<<< HEAD
-
-
--- Replace agent_deals_v with numeric-safe arithmetic so ROUND(...) always receives numeric.
-CREATE OR REPLACE VIEW agent_deals_v AS
-WITH base AS (
-  SELECT
-    a.email AS agent_email,
-    COALESCE(a.full_name, (a.first_name || ' ' || a.last_name)) AS agent_full_name,
-    a.first_name AS agent_first_name,
-    a.last_name  AS agent_last_name,
-    a.license_no AS agent_license,
-    CASE WHEN d.type IN ('RENT','RENTAL') THEN 'RENTAL' ELSE 'SALE' END AS deal_category,
-    d.representation AS representation_code,
-    d.address AS property_address,
-    d.price   AS price_usd,
-    d.contract_signed AS contract_signed_raw,
-    dd.contract_closed             AS contract_closed_raw,
-    dd.deal_commission_rate_pct    AS deal_rate_pct,
-    dd.agent_commission_usd        AS agent_commission_usd,
-    dd.deal_split_percent          AS deal_split_pct,
-    dd.split                       AS split_override_bps,
-    s.year as split_year,
-    s.sale_split_pct, s.rental_split_pct,
-    s.sale_split,     s.rental_split,
-    a.sale_split   AS fallback_sale_split_bps,
-    a.rental_split AS fallback_rental_split_bps,
-    c.gross, c.company_fee, c.agent_fee, COALESCE(c.paid,false) AS commission_paid
-  FROM deals d
-  JOIN agents a
-    ON a.email = d.agent_email
-  LEFT JOIN deal_details dd
-    ON dd.address = d.address
-   AND dd.agent_email = d.agent_email
-   AND dd.contract_signed = d.contract_signed
-  LEFT JOIN splits s
-    ON s.agent_email = d.agent_email
-   AND s.year = EXTRACT(YEAR FROM d.contract_signed)
-  LEFT JOIN commissions c
-    ON c.address = d.address
-   AND c.agent_email = d.agent_email
    AND c.contract_signed = d.contract_signed
 ),
 calc AS (
@@ -314,97 +110,4 @@ calc AS (
       (b.split_override_bps::numeric / 100::numeric),
       CASE WHEN b.deal_category='RENTAL' THEN b.rental_split_pct::numeric ELSE b.sale_split_pct::numeric END,
       CASE WHEN b.deal_category='RENTAL' THEN (b.rental_split::numeric / 100::numeric) ELSE (b.sale_split::numeric / 100::numeric) END,
-      CASE WHEN b.deal_category='RENTAL' THEN (b.fallback_rental_split_bps::numeric / 100::numeric) ELSE (b.fallback_sale_split_bps::numeric / 100::numeric) END
-    ) AS split_percent_raw,
-    b.deal_rate_pct::numeric AS commission_rate_input_pct,
-    CASE WHEN b.gross IS NOT NULL AND b.price_usd IS NOT NULL AND b.price_usd <> 0
-         THEN ROUND(CAST((b.gross::numeric / b.price_usd::numeric * 100::numeric)::numeric AS numeric), 3)
-         ELSE NULL::numeric END AS commission_rate_from_gross_pct
-  FROM base b
-)
-SELECT
-  agent_full_name, agent_first_name, agent_last_name, agent_license,
-  deal_category, representation_code,
-  CASE representation_code
-    WHEN 'LISTING_SALE' THEN 'Sale Exclusive'
-    WHEN 'BUYER_REP'    THEN 'Buyer Representation'
-    WHEN 'LISTING_RENT' THEN 'Rental Exclusive'
-    WHEN 'RENTER_REP'   THEN 'Renter Representation'
-    ELSE CASE WHEN deal_category='RENTAL' THEN 'Rental (Unspecified)' ELSE 'Sale (Default)' END
-  END AS representation_label,
-  property_address, price_usd,
-  ROUND((COALESCE(commission_rate_input_pct::numeric, commission_rate_from_gross_pct))::numeric, 3) AS commission_rate_percent,
-  TO_CHAR((COALESCE(commission_rate_input_pct::numeric, commission_rate_from_gross_pct))::numeric, 'FM999990.###') AS commission_rate_percent_str,
-  ROUND(CAST(split_percent_raw::numeric AS numeric), 3)            AS split_percent,
-  TO_CHAR(split_percent_raw::numeric, 'FM999990.###') AS split_percent_str,
-  COALESCE(
-    gross::numeric,
-    CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-         THEN ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2)
-         ELSE NULL::numeric END
-  ) AS gross_commission_usd,
-  COALESCE(
-    agent_fee::numeric,
-    agent_commission_usd::numeric,
-    CASE WHEN COALESCE(gross::numeric,
-                      CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-                           THEN ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2)
-                           ELSE NULL::numeric END) IS NOT NULL
-         AND split_percent_raw IS NOT NULL
-    THEN ROUND(
-      (COALESCE(gross::numeric,
-                ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2))
-       * (split_percent_raw::numeric / 100::numeric))::numeric, 2)
-    ELSE NULL::numeric END
-  ) AS agent_fee_usd,
-  COALESCE(
-    company_fee::numeric,
-    CASE WHEN COALESCE(gross::numeric,
-                      CASE WHEN commission_rate_input_pct IS NOT NULL AND price_usd IS NOT NULL
-                           THEN ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2)
-                           ELSE NULL::numeric END) IS NOT NULL
-         AND COALESCE(agent_fee::numeric, agent_commission_usd::numeric,
-                      CASE WHEN split_percent_raw IS NOT NULL
-                           THEN ROUND((COALESCE(gross::numeric,
-                                     ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2))
-                                    * (split_percent_raw::numeric / 100::numeric))::numeric, 2)
-                           ELSE NULL::numeric END) IS NOT NULL
-    THEN COALESCE(gross::numeric,
-                  ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2))
-         - COALESCE(agent_fee::numeric, agent_commission_usd::numeric,
-                    ROUND((COALESCE(gross::numeric,
-                                   ROUND(CAST((price_usd::numeric * commission_rate_input_pct::numeric / 100::numeric)::numeric AS numeric), 2))
-                          * (split_percent_raw::numeric / 100::numeric))::numeric, 2))
-    ELSE NULL::numeric END
-  ) AS company_fee_usd,
-  commission_paid,
-  COALESCE(contract_closed_raw, contract_signed_raw) AS contract_closed_raw,
-  TO_CHAR(contract_signed_raw, 'MM/DD/YYYY')         AS contract_signed,
-  TO_CHAR(COALESCE(contract_closed_raw, contract_signed_raw), 'MM/DD/YYYY') AS contract_closed
-FROM calc;
-
-CREATE OR REPLACE VIEW agent_deals_summary_v AS
-SELECT
-  agent_full_name,
-  COUNT(*)                                           AS total_deals,
-  COUNT(*) FILTER (WHERE deal_category='SALE')       AS sale_deals,
-  COUNT(*) FILTER (WHERE deal_category='RENTAL')     AS rental_deals,
-  COUNT(*) FILTER (WHERE representation_code='LISTING_SALE')  AS listing_sale_deals,
-  COUNT(*) FILTER (WHERE representation_code='BUYER_REP')     AS buyer_rep_deals,
-  COUNT(*) FILTER (WHERE representation_code='LISTING_RENT')  AS listing_rent_deals,
-  COUNT(*) FILTER (WHERE representation_code='RENTER_REP')    AS renter_rep_deals,
-  SUM(price_usd) FILTER (WHERE deal_category='SALE')   AS total_sales_volume_usd,
-  SUM(price_usd) FILTER (WHERE deal_category='RENTAL') AS total_rental_volume_usd,
-  SUM(COALESCE(agent_fee_usd,   0)) AS total_agent_fee_usd,
-  SUM(COALESCE(company_fee_usd, 0)) AS total_company_fee_usd,
-  SUM(COALESCE(gross_commission_usd, 0)) AS total_gross_commission_usd,
-  ROUND(CAST(AVG(commission_rate_percent)::numeric AS numeric), 3) AS avg_commission_rate_pct,
-  ROUND(CAST(AVG(split_percent)::numeric AS numeric), 3)           AS avg_split_pct,
-  MAX(contract_closed_raw)               AS last_closed_date_raw
-FROM agent_deals_v
-GROUP BY agent_full_name;
-
-
-
-=======
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
+      CASE WHEN b.deal_category='RENTAL' THEN (b_

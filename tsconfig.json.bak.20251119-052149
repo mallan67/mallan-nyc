@@ -1,0 +1,58 @@
+﻿{
+    "compilerOptions":  {
+                            "target":  "ES2020",
+                            "module":  "ESNext",
+                            "moduleResolution":  "Bundler",
+                            "jsx":  "preserve",
+                            "strict":  true,
+                            "skipLibCheck":  true,
+                            "esModuleInterop":  true,
+                            "baseUrl":  ".",
+                            "paths":  {
+                                          "@/*":  [
+                                                      "./*"
+                                                  ]
+                                      },
+                            "typeRoots":  [
+                                              "./types",
+                                              "./node_modules/@types"
+                                          ],
+                            "lib":  [
+                                        "dom",
+                                        "dom.iterable",
+                                        "esnext"
+                                    ],
+                            "allowJs":  true,
+                            "noEmit":  true,
+                            "incremental":  true,
+                            "resolveJsonModule":  true,
+                            "isolatedModules":  true,
+                            "plugins":  [
+                                            {
+                                                "name":  "next"
+                                            }
+                                        ]
+                        },
+    "include":  [
+                    "**/*.ts",
+                    "**/*.tsx",
+                    "next-env.d.ts",
+                    ".next/types/**/*.ts"
+                ],
+    "exclude":  [
+                    "node_modules",
+                    "4",
+                    ".next",
+                    "repair_all_*",
+                    "repair_*",
+                    "deeper_repair_*",
+                    "pre_fix_*",
+                    "pre_restore_*",
+                    "apply_all_fixes*",
+                    "apply_all*",
+                    "backup_*",
+                    "lint_fix_backup_*",
+                    "app_api*",
+                    "lib_bak_*"
+                ]
+}
