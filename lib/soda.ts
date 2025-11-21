@@ -31,20 +31,52 @@ function buildUrl(pathOrUrl: string, query?: Record<string, any>) {
 
 /**
  * Generic JSON fetcher for Socrata/SODA. Returns parsed JSON, or throws on non-OK.
+ *
+ * Supports two calling forms:
+ *  - sodaFetch<T>(datasetIdOrUrl, { query: { "$where": "...", "$select": "...", ... } })
+ *  - sodaFetch<T>({ resource: datasetId, where, select, order, limit, query, init })
  */
 export async function sodaFetch<T = any>(
-  pathOrUrl: string,
+  pathOrUrlOrOpts: string | {
+    resource?: string;
+    where?: string;
+    select?: string;
+    order?: string;
+    limit?: number;
+    query?: Record<string, any>;
+    init?: RequestInit;
+  },
   opts?: { query?: Record<string, any>; init?: RequestInit }
 ): Promise<T> {
+  // normalize arguments so callers can supply either a string+opts or a single options object
+  let pathOrUrl = typeof pathOrUrlOrOpts === "string" ? pathOrUrlOrOpts : (pathOrUrlOrOpts?.resource || "");
+  let finalQuery: Record<string, any> | undefined = opts?.query;
+  let finalInit: RequestInit | undefined = opts?.init;
+
+  if (typeof pathOrUrlOrOpts === "object") {
+    const o: any = pathOrUrlOrOpts;
+    // if caller provided a query object, start from that
+    finalQuery = { ...(o.query || {}) };
+
+    // map common helpers to Socrata-style params
+    if (o.where) finalQuery["$where"] = o.where;
+    if (o.select) finalQuery["$select"] = o.select;
+    if (o.order) finalQuery["$order"] = o.order;
+    if (o.limit !== undefined && o.limit !== null) finalQuery["$limit"] = String(o.limit);
+
+    // init may be present on either place
+    finalInit = o.init || finalInit;
+  }
+
   const token = getSocrataToken();
-  const url = buildUrl(pathOrUrl, opts?.query);
+  const url = buildUrl(pathOrUrl, finalQuery);
 
   const init: RequestInit = {
-    ...(opts?.init || {}),
+    ...(finalInit || {}),
     headers: {
       accept: "application/json",
       ...(token ? { "X-App-Token": token } : {}),
-      ...(opts?.init?.headers || {}),
+      ...((finalInit && (finalInit as any).headers) || {}),
     },
   };
 
@@ -71,4 +103,3 @@ export async function sodaFetch<T = any>(
 // Back-compat aliases
 export const soda = sodaFetch;
 export default { sodaFetch, getSocrataToken, sodaTokenMasked };
-
