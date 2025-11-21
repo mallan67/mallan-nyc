@@ -139,37 +139,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 /generated/prisma
-# Local env files
-.env
-.env.local
-.env.*.local
-
-# Prisma backup + other local-only files
-prisma/schema.prisma.bak
-backup_api_pages/
-sql/bootstrap.sql
-
-# local env backups
-env backup/
-
 .vercel
-mallan_archives_*
-4/
-apply_all_fixes_backup_*/
-pre_fix_*/
-pre_restore_*/
-repair_*/
-lib_bak_*/
-app_api_bak_*/
-**/*.bak*
 
-# Python caches
-__pycache__/\n*.pyc
-# Local logs
-prune_mallan_logs_*/*.txt
-payload.json
-backend/app/__pycache__/
-frontend/.next/
-backend/__pycache__/
-__pycache__/
-!.vercel/project.json
+# Vercel local project files
+.vercel
