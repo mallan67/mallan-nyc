@@ -1,208 +1,84 @@
-<<<<<<< HEAD
-/* prisma/seed.js — robust seeding that handles existing rows (by email or fullName) */
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+-- sql/apply_all.sql
+-- Combined DB bootstrap, views and seed to match Prisma schema and the app API expectations.
+-- Safe: uses IF NOT EXISTS and INSERT ... WHERE NOT EXISTS to avoid duplicate inserts.
 
-async function ensureAgent(agentData) {
-  let a = await prisma.agent.findUnique({ where: { email: agentData.email } });
-  if (a) {
-    await prisma.agent.update({
-      where: { email: agentData.email },
-      data: {
-        fullName: agentData.fullName,
-        firstName: agentData.firstName,
-        lastName: agentData.lastName,
-        secondEmail: agentData.secondEmail,
-        licenseNo: agentData.licenseNo,
-        licenseExpiry: agentData.licenseExpiry,
-        saleSplit: agentData.saleSplit,
-        rentalSplit: agentData.rentalSplit,
-      },
-    });
-    return await prisma.agent.findUnique({ where: { email: agentData.email } });
-  }
+-- 1) Agents table
+CREATE TABLE IF NOT EXISTS agents (
+  id BIGSERIAL PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name  TEXT NOT NULL,
+  full_name  TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+  email TEXT UNIQUE,
+  license_no TEXT,
+  license_expiry DATE,
+  sale_split NUMERIC(6,3),
+  rental_split NUMERIC(6,3),
+  role TEXT CHECK (role IN ('ADMIN','AGENT')) DEFAULT 'AGENT'
+);
 
-  a = await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
-  if (a) {
-    await prisma.agent.update({
-      where: { fullName: agentData.fullName },
-      data: {
-        firstName: agentData.firstName,
-        lastName: agentData.lastName,
-        secondEmail: agentData.secondEmail,
-        licenseNo: agentData.licenseNo,
-        licenseExpiry: agentData.licenseExpiry,
-        saleSplit: agentData.saleSplit,
-        rentalSplit: agentData.rentalSplit,
-      },
-    });
-    return await prisma.agent.findUnique({ where: { fullName: agentData.fullName } });
-  }
+-- 2) Deals base table
+CREATE TABLE IF NOT EXISTS deals (
+  id BIGSERIAL PRIMARY KEY,
+  agent_full_name TEXT NOT NULL,
+  representation_code TEXT CHECK (representation_code IN ('LISTING_SALE','BUYER_REP','LISTING_RENT','RENTER_REP')),
+  property_address TEXT,
+  price_usd NUMERIC(14,2),
+  commission_rate_percent NUMERIC(6,3),
+  split_percent NUMERIC(6,3),
+  agent_fee_usd NUMERIC(14,2),
+  company_fee_usd NUMERIC(14,2),
+  gross_commission_usd NUMERIC(14,2),
+  contract_signed DATE,
+  contract_closed DATE
+);
 
-  return await prisma.agent.create({ data: agentData });
-}
+-- 3) Views used by the API
+CREATE OR REPLACE VIEW agent_deals_v AS
+SELECT
+  agent_full_name,
+  representation_code,
+  CASE representation_code
+    WHEN 'LISTING_SALE' THEN 'Sale Exclusive'
+    WHEN 'BUYER_REP'    THEN 'Buyer Representation'
+    WHEN 'LISTING_RENT' THEN 'Rental Exclusive'
+    WHEN 'RENTER_REP'   THEN 'Renter Representation'
+    ELSE NULL
+  END AS representation_label,
+  property_address,
+  price_usd,
+  TO_CHAR(commission_rate_percent, 'FM999999990.000')              AS commission_rate_percent,
+  TO_CHAR(split_percent,            'FM999999990.000')            AS split_percent,
+  TO_CHAR(agent_fee_usd,            'FM9999999990')               AS agent_fee_usd,
+  TO_CHAR(company_fee_usd,          'FM9999999990')               AS company_fee_usd,
+  TO_CHAR(gross_commission_usd,     'FM9999999990')               AS gross_commission_usd,
+  TO_CHAR(contract_signed,          'MM/DD/YYYY')                 AS contract_signed,
+  TO_CHAR(contract_closed,          'MM/DD/YYYY')                 AS contract_closed
+FROM deals;
 
-async function main() {
-  const agentPayload = {
-    email: "maya@mallannyhomes.com",
-    fullName: "Maya Allan",
-    firstName: "Maya",
-    lastName: "Allan",
-    secondEmail: null,
-    licenseNo: "NY123456",
-    licenseExpiry: new Date("2026-12-31"),
-    saleSplit: 60,
-    rentalSplit: 60,
-  };
+CREATE OR REPLACE VIEW agent_deals_summary_v AS
+SELECT
+  agent_full_name,
+  COUNT(*)::INT AS deal_count,
+  SUM(gross_commission_usd)::NUMERIC(14,2) AS gross_commission_usd,
+  SUM(agent_fee_usd)::NUMERIC(14,2)        AS agent_fee_usd,
+  SUM(company_fee_usd)::NUMERIC(14,2)      AS company_fee_usd
+FROM deals
+GROUP BY agent_full_name
+ORDER BY agent_full_name;
 
-  const maya = await ensureAgent(agentPayload);
-  console.log("Agent ensured:", maya.email, maya.fullName);
-=======
-// prisma/seed.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+-- 4) Seed a minimal agent if missing
+INSERT INTO agents (first_name, last_name, email, license_no, license_expiry, sale_split, rental_split, role)
+SELECT 'Maya','Allan','mayad67@gmail.com','10401234567','2025-06-30',80.000,80.000,'ADMIN'
+WHERE NOT EXISTS (SELECT 1 FROM agents WHERE email='mayad67@gmail.com');
 
-async function main() {
-  const maya = await prisma.agent.upsert({
-    where: { email: 'maya@mallannyhomes.com' },
-    update: {},
-    create: {
-      firstName: 'Maya',
-      lastName: 'Allan',
-      email: 'maya@mallannyhomes.com',
-      email2: null,
-      licenseNo: 'NY123456',
-      licenseExpiry: new Date('2026-12-31'),
-      saleSplit: 60,
-      rentSplit: 60,
-    },
-  });
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-
-  await prisma.deal.createMany({
-    data: [
-      {
-<<<<<<< HEAD
-        address: "300 E 90th St, New York, NY",
-        agentEmail: maya.email,
-        type: "SALE",
-        status: "CLOSED",
-        price: 1200000,
-        contractSigned: new Date("2025-06-01"),
-        closingDate: new Date("2025-09-01"),
-      },
-      {
-        address: "1600 Fulton St, Brooklyn, NY",
-        agentEmail: maya.email,
-        type: "RENTAL",
-        status: "CLOSED",
-        price: 3500,
-        contractSigned: new Date("2025-05-10"),
-        closingDate: new Date("2025-05-25"),
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  await prisma.dealDetail.createMany({
-    data: [
-      {
-        address: "300 E 90th St, New York, NY",
-        agentEmail: maya.email,
-        contractSigned: new Date("2025-06-01"),
-        agentFirstName: "Maya",
-        agentLastName: "Allan",
-        agentLicense: "NY123456",
-        type: "SALE",
-        price: 1200000,
-        agentCommissionPct: 3,
-        agentCommissionUsd: 36000,
-        split: 60,
-        contractClosed: new Date("2025-09-01"),
-      },
-      {
-        address: "1600 Fulton St, Brooklyn, NY",
-        agentEmail: maya.email,
-        contractSigned: new Date("2025-05-10"),
-        agentFirstName: "Maya",
-        agentLastName: "Allan",
-        agentLicense: "NY123456",
-        type: "RENTAL",
-        price: 3500,
-        agentCommissionPct: 15,
-        agentCommissionUsd: 525,
-        split: 60,
-        contractClosed: new Date("2025-05-25"),
-=======
-        agentId: maya.id,
-        type: 'SALE',                // change if your enum differs
-        address: '300 E 90th St, New York, NY',
-        price: 1200000,
-        agentCommissionPct: 3,
-        agentCommissionUsd: 36000,
-        splitPct: 60,
-        signedAt: new Date('2025-06-01'),
-        closedAt: new Date('2025-09-01'),
-      },
-      {
-        agentId: maya.id,
-        type: 'RENT',                // change if your enum differs
-        address: '1600 Fulton St, Brooklyn, NY',
-        price: 3500,
-        agentCommissionPct: 15,
-        agentCommissionUsd: 6300,
-        splitPct: 60,
-        signedAt: new Date('2025-05-10'),
-        closedAt: new Date('2025-05-25'),
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
-      },
-    ],
-    skipDuplicates: true,
-  });
-<<<<<<< HEAD
-
-  await prisma.commission.createMany({
-    data: [
-      {
-        address: "300 E 90th St, New York, NY",
-        agentEmail: maya.email,
-        contractSigned: new Date("2025-06-01"),
-        gross: 36000,
-        companyFee: Math.round(36000 * 0.2),
-        agentFee: Math.round(36000 * 0.8),
-        paid: false,
-      },
-      {
-        address: "1600 Fulton St, Brooklyn, NY",
-        agentEmail: maya.email,
-        contractSigned: new Date("2025-05-10"),
-        gross: 5250,
-        companyFee: Math.round(5250 * 0.4),
-        agentFee: Math.round(5250 * 0.6),
-        paid: false,
-      },
-    ],
-    skipDuplicates: true,
-  });
-
-  console.log("Seed complete");
-}
-
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
-=======
-}
-
-main().catch(e => {
-  console.error(e);
-  process.exit(1);
-}).finally(async () => {
-  await prisma.$disconnect();
-});
->>>>>>> 103d01c (chore(db): add bootstrap.sql and BOM-safe run_sql.js)
+-- 5) Seed sample deals if table is empty (keeps the seed idempotent)
+INSERT INTO deals (
+  agent_full_name, representation_code, property_address, price_usd,
+  commission_rate_percent, split_percent, agent_fee_usd, company_fee_usd, gross_commission_usd,
+  contract_signed, contract_closed
+)
+SELECT * FROM (VALUES
+  ('Maya Allan','LISTING_SALE','123 Park Ave, NYC',1200000, 1.750, 75.500, 28800,  7200,  36000, DATE '2025-06-01', DATE '2025-07-15'),
+  ('Maya Allan','RENTER_REP',  '456 Lex Ave, NYC',  850000,15.000, 80.000, 20400,  5100,  25500, DATE '2025-05-15', DATE '2025-05-15')
+) AS t(agent_full_name,representation_code,property_address,price_usd,commission_rate_percent,split_percent,agent_fee_usd,company_fee_usd,gross_commission_usd,contract_signed,contract_closed)
+WHERE NOT EXISTS (SELECT 1 FROM deals);
