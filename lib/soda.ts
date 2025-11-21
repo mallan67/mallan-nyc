@@ -1,12 +1,20 @@
+<<<<<<< HEAD
 ﻿// lib/soda.ts
+=======
+// lib/soda.ts
+>>>>>>> 42ece2aa7ea9f775c94370cc19c2489e2ad4b000
 const BASE = "https://data.cityofnewyork.us";
 
 export function getSocrataToken(): string | undefined {
   return (
     process.env.NYC_SODA_APP_TOKEN ||
+<<<<<<< HEAD
     process.env.NYC_SOCRATA_APP_TOKEN ||
     process.env.SOCRATA_APP_TOKEN ||
     process.env.SODA_APP_TOKEN ||
+=======
+    process.env.SOCRATA_APP_TOKEN ||
+>>>>>>> 42ece2aa7ea9f775c94370cc19c2489e2ad4b000
     process.env.NYC_SODA_TOKEN ||
     undefined
   );
@@ -32,6 +40,7 @@ function buildUrl(pathOrUrl: string, query?: Record<string, any>) {
 }
 
 /**
+<<<<<<< HEAD
  * Generic JSON fetcher for Socrata/SODA. Returns parsed JSON array, or throws on non-OK.
  *
  * Supports:
@@ -67,6 +76,14 @@ export async function sodaFetch<T = any>(
     finalInit = o.init || finalInit;
   }
 
+=======
+ * Generic JSON fetcher for Socrata/SODA. Returns parsed JSON, or throws on non-OK.
+ */
+export async function sodaFetch<T = any>(
+  pathOrUrl: string,
+  opts?: { query?: Record<string, any>; init?: RequestInit }
+): Promise<T> {
+>>>>>>> 42ece2aa7ea9f775c94370cc19c2489e2ad4b000
   const token = getSocrataToken();
   const url = buildUrl(pathOrUrl, finalQuery);
 
@@ -85,12 +102,17 @@ export async function sodaFetch<T = any>(
   try {
     json = text ? JSON.parse(text) : undefined;
   } catch {
+<<<<<<< HEAD
     // ignore parse error; we'll handle below
+=======
+    // ignore parse error, we'll handle below
+>>>>>>> 42ece2aa7ea9f775c94370cc19c2489e2ad4b000
   }
 
   if (!r.ok) {
     const body = json ?? text;
     const code = (json && (json.code || json.message)) || `${r.status} ${r.statusText}`;
+<<<<<<< HEAD
     throw new Error(`SODA ${code}: ${typeof body === "string" ? body : JSON.stringify(body, null, 2)}`);
   }
 
@@ -99,9 +121,20 @@ export async function sodaFetch<T = any>(
   if (Array.isArray(json)) return json as T[];
   // sometimes SODA returns an object for a single record; normalize to an array
   return [json] as T[];
+=======
+    throw new Error(
+      `SODA ${code}: ${typeof body === "string" ? body : JSON.stringify(body, null, 2)}`
+    );
+  }
+
+  return json as T;
+>>>>>>> 42ece2aa7ea9f775c94370cc19c2489e2ad4b000
 }
 
 // Back-compat aliases
 export const soda = sodaFetch;
 export default { sodaFetch, getSocrataToken, sodaTokenMasked };
+<<<<<<< HEAD
 
+=======
+>>>>>>> 42ece2aa7ea9f775c94370cc19c2489e2ad4b000
