@@ -52,7 +52,7 @@ export async function sodaFetch<T = any>(
 ): Promise<T[]> {
   // normalize arguments
   let pathOrUrl = typeof pathOrUrlOrOpts === "string" ? pathOrUrlOrOpts : (pathOrUrlOrOpts?.resource || "");
-  let finalQuery: Record<string, any> | undefined = opts?.query;
+  let finalQuery: Record<string, any> = opts?.query ? { ...opts.query } : {};
   let finalInit: RequestInit | undefined = opts?.init;
 
   if (typeof pathOrUrlOrOpts === "object" && pathOrUrlOrOpts !== null) {
@@ -104,3 +104,4 @@ export async function sodaFetch<T = any>(
 // Back-compat aliases
 export const soda = sodaFetch;
 export default { sodaFetch, getSocrataToken, sodaTokenMasked };
+
