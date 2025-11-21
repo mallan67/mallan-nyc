@@ -4,8 +4,8 @@ const BASE = "https://data.cityofnewyork.us";
 export function getSocrataToken(): string | undefined {
   return (
     process.env.NYC_SODA_APP_TOKEN ||
-    process.env.SOCRATA_APP_TOKEN ||          // alternate name you created
-    process.env.NYC_SODA_TOKEN ||             // legacy fallback
+    process.env.SOCRATA_APP_TOKEN ||
+    process.env.NYC_SODA_TOKEN ||
     undefined
   );
 }
@@ -30,15 +30,12 @@ function buildUrl(pathOrUrl: string, query?: Record<string, any>) {
 }
 
 /**
- * Fetch JSON from Socrata. Automatically adds X-App-Token when available.
- *
- * Usage:
- *   const rows = await sodaFetch("3h2n-5cm9.json", { query: { "$limit": 1 } });
+ * Generic JSON fetcher for Socrata/SODA. Returns parsed JSON, or throws on non-OK.
  */
-export async function sodaFetch(
+export async function sodaFetch<T = any>(
   pathOrUrl: string,
   opts?: { query?: Record<string, any>; init?: RequestInit }
-) {
+): Promise<T> {
   const token = getSocrataToken();
   const url = buildUrl(pathOrUrl, opts?.query);
 
@@ -56,22 +53,21 @@ export async function sodaFetch(
   let json: any = undefined;
   try {
     json = text ? JSON.parse(text) : undefined;
-  } catch {}
+  } catch {
+    // ignore parse error
+  }
 
   if (!r.ok) {
     const body = json ?? text;
-    const code =
-      (json && (json.code || json.message)) || `${r.status} ${r.statusText}`;
+    const code = (json && (json.code || json.message)) || `${r.status} ${r.statusText}`;
     throw new Error(
-      `SODA ${code}: ${
-        typeof body === "string" ? body : JSON.stringify(body, null, 2)
-      }`
+      `SODA ${code}: ${typeof body === "string" ? body : JSON.stringify(body, null, 2)}`
     );
   }
 
-  return json;
+  return json as T;
 }
 
-// Back-compat aliases so older imports don't break
+// Back-compat aliases
 export const soda = sodaFetch;
 export default { sodaFetch, getSocrataToken, sodaTokenMasked };
