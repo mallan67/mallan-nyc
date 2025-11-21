@@ -1,229 +1,40 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
+// prisma/schema.prisma
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// --------------------------------------------------
-// AGENT (natural key = email)
-// --------------------------------------------------
+generator client {
+  provider = "prisma-client-js"
+}
+
 model Agent {
-  email         String   @id
-  fullName      String   @unique @map("full_name")
-  firstName     String   @map("first_name")
-  lastName      String   @map("last_name")
-  secondEmail   String?  @map("second_email")
-  licenseNo     String   @unique @map("license_no")
-  licenseExpiry DateTime @map("license_expiry")
-  saleSplit     Int      @map("sale_split")
-  rentalSplit   Int      @map("rental_split")
-  saleDeals     Int      @default(0) @map("sale_deals")
-  rentalDeals   Int      @default(0) @map("rental_deals")
-  role          Role     @default(AGENT)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  listings      Listing[]
-  leads         Lead[]
-  deals         Deal[]
-  commissions   Commission[]
-  splits        Split[]
-  profile       AgentProfile?
-  SplitPlan     SplitPlan?    @relation(fields: [splitPlanName], references: [name])
-  splitPlanName String?
-
+  id             BigInt    @id @default(autoincrement())
+  first_name     String
+  last_name      String
+  // keep column name as in the SQL bootstrap; generate full_name in DB
+  full_name      String?   @db.Text @default(dbgenerated("first_name || ' ' || last_name"))
+  email          String?   @unique
+  license_no     String?   @map("license_no")
+  license_expiry DateTime? @map("license_expiry")
+  sale_split     Decimal?  @db.Decimal(6,3) @map("sale_split")
+  rental_split   Decimal?  @db.Decimal(6,3) @map("rental_split")
+  role           String    @default("AGENT")
   @@map("agents")
 }
 
-// --------------------------------------------------
-// AGENT PROFILE (same natural key)
-// --------------------------------------------------
-model AgentProfile {
-  email       String   @id // same as Agent
-  agent       Agent    @relation(fields: [email], references: [email], onDelete: Cascade)
-  secondEmail String?  @map("second_email")
-  saleSplit   Int      @map("sale_split")
-  rentalSplit Int      @map("rental_split")
-  saleDeals   Int      @default(0) @map("sale_deals")
-  rentalDeals Int      @default(0) @map("rental_deals")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("agent_profiles")
-}
-
-// --------------------------------------------------
-// DEAL (natural key = address + agentEmail + contractSigned)
-// --------------------------------------------------
 model Deal {
-  address        String
-  agentEmail     String     @map("agent_email")
-  agent          Agent      @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
-  type           String // SALE or RENTAL
-  status         DealStatus @default(LEAD)
-  price          Int
-  closingDate    DateTime?  @map("closing_date")
-  contractSigned DateTime   @map("contract_signed")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
-
-  commissions Commission[]
-  dealDetails DealDetail?
-
-  @@id([address, agentEmail, contractSigned])
+  id                      BigInt    @id @default(autoincrement())
+  agent_full_name         String    @map("agent_full_name")
+  representation_code     String?   @map("representation_code")
+  property_address        String?   @map("property_address")
+  price_usd               Decimal?  @db.Decimal(14,2) @map("price_usd")
+  commission_rate_percent Decimal?  @db.Decimal(6,3)  @map("commission_rate_percent")
+  split_percent           Decimal?  @db.Decimal(6,3)  @map("split_percent")
+  agent_fee_usd           Decimal?  @db.Decimal(14,2) @map("agent_fee_usd")
+  company_fee_usd         Decimal?  @db.Decimal(14,2) @map("company_fee_usd")
+  gross_commission_usd    Decimal?  @db.Decimal(14,2) @map("gross_commission_usd")
+  contract_signed         DateTime? @map("contract_signed")
+  contract_closed         DateTime? @map("contract_closed")
   @@map("deals")
-}
-
-// --------------------------------------------------
-// DEAL DETAIL (same natural key)
-// --------------------------------------------------
-model DealDetail {
-  address            String
-  agentEmail         String    @map("agent_email")
-  contractSigned     DateTime  @map("contract_signed")
-  deal               Deal      @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
-  agentFirstName     String    @map("agent_first_name")
-  agentLastName      String    @map("agent_last_name")
-  agentLicense       String    @map("agent_license")
-  type               String // SALE or RENTAL
-  price              Int
-  agentCommissionPct Int       @map("agent_commission_pct") // basis points (300 = 3 %)
-  agentCommissionUsd Int       @map("agent_commission_usd")
-  split              Int
-  contractClosed     DateTime? @map("contract_closed")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-
-  @@id([address, agentEmail, contractSigned])
-  @@map("deal_details")
-}
-
-// --------------------------------------------------
-// COMMISSION (natural key = same composite key)
-// --------------------------------------------------
-model Commission {
-  address        String
-  agentEmail     String   @map("agent_email")
-  contractSigned DateTime @map("contract_signed")
-  deal           Deal     @relation(fields: [address, agentEmail, contractSigned], references: [address, agentEmail, contractSigned], onDelete: Cascade)
-  gross          Int
-  companyFee     Int      @map("company_fee")
-  agentFee       Int      @map("agent_fee")
-  paid           Boolean  @default(false)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  Agent          Agent    @relation(fields: [agentEmail], references: [email])
-
-  @@id([address, agentEmail, contractSigned])
-  @@map("commissions")
-}
-
-// --------------------------------------------------
-// SPLIT (natural key = agentEmail + year)
-// --------------------------------------------------
-model Split {
-  agentEmail     String   @map("agent_email")
-  year           Int // 2025, 2026, â€¦
-  agent          Agent    @relation(fields: [agentEmail], references: [email], onDelete: Cascade)
-  saleSplit      Int      @map("sale_split")
-  rentalSplit    Int      @map("rental_split")
-  saleSplitPct   Float?   @map("sale_split_pct")
-  rentalSplitPct Float?   @map("rental_split_pct")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  @@id([agentEmail, year])
-  @@map("splits")
-}
-
-// --------------------------------------------------
-// SUPPORTING TABLES (no id)
-// --------------------------------------------------
-model SplitPlan {
-  name         String  @id // natural key: "80-20", "70-30"
-  companySplit Int     @map("company_split")
-  agentSplit   Int     @map("agent_split")
-  agents       Agent[]
-
-  @@map("split_plans")
-}
-
-model Lead {
-  email        String   @id // natural key
-  name         String
-  phone        String?
-  consentSms   Boolean  @default(false) @map("consent_sms")
-  consentEmail Boolean  @default(false) @map("consent_email")
-  note         String?
-  assignedToId String?  @map("assigned_to_id")
-  assignedTo   Agent?   @relation(fields: [assignedToId], references: [email])
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  @@map("leads")
-}
-
-model Listing {
-  address   String        @id // natural key
-  price     Int
-  beds      Float?
-  baths     Float?
-  sqft      Int?
-  status    ListingStatus @default(DRAFT)
-  agentId   String        @map("agent_id") // agent email
-  agent     Agent         @relation(fields: [agentId], references: [email])
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
-
-  @@map("listings")
-}
-
-model Document {
-  filename   String      @id // natural key (unique per folder)
-  category   DocCategory
-  url        String
-  uploadedBy String      @map("uploaded_by")
-  createdAt  DateTime    @default(now()) @map("created_at")
-
-  @@map("documents")
-}
-
-// --------------------------------------------------
-// ENUMS (explicit multi-line format to avoid parser issues)
-// --------------------------------------------------
-enum Role {
-  ADMIN
-  AGENT
-}
-
-enum ListingStatus {
-  DRAFT
-  ACTIVE
-  PENDING
-  CLOSED
-}
-
-enum DealSide {
-  BUY
-  SELL
-  RENT
-}
-
-enum DealStatus {
-  LEAD
-  SHOWING
-  OFFER
-  CONTRACT_NEGOTIATION
-  CLOSED
-}
-
-enum DocCategory {
-  OFFERING_PLAN
-  AGENCY_DISCLOSURE
-  LEAD_PAINT
-  WINDOW_GUARD
-  FORM_1099
-  MISC
 }

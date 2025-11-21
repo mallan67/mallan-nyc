@@ -1,0 +1,35 @@
+import http from "http";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default function handler(req, res) {
+  console.log("Proxy incoming:", req.method, req.url);
+  try { console.log("Proxy headers:", JSON.stringify(req.headers || {}, null, 2)); } catch(e){}
+  const forwardPath = (req.url || "").replace(/^\/api/, "") || "/";
+  console.log("Proxy forwarding to:", forwardPath);
+
+  const options = {
+    hostname: "api",
+    port: 8000,
+    path: forwardPath,
+    method: req.method,
+    headers: {...req.headers, host: "api:8000"},
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error("Proxy request error:", err && (err.stack || err));
+    res.statusCode = 502;
+    res.end("Proxy error");
+  });
+
+  req.pipe(proxyReq, { end: true });
+}
