@@ -1,18 +1,18 @@
-﻿// lib/soda.ts — robust Socrata/SODA helper (safe stub)
+// lib/soda.ts
 const BASE = "https://data.cityofnewyork.us";
 
 export function getSocrataToken(): string | undefined {
   return (
     process.env.NYC_SODA_APP_TOKEN ||
-    process.env.SOCRATA_APP_TOKEN ||          // alternate name you may have created
-    process.env.NYC_SODA_TOKEN ||             // legacy fallback
+    process.env.SOCRATA_APP_TOKEN ||
+    process.env.NYC_SODA_TOKEN ||
     undefined
   );
 }
 
 export function sodaTokenMasked(): string | null {
   const t = getSocrataToken();
-  return t ? `${t.slice(0,4)}…${t.slice(-4)}` : null;
+  return t ? `${t.slice(0, 4)}…${t.slice(-4)}` : null;
 }
 
 function buildUrl(pathOrUrl: string, query?: Record<string, any>) {
@@ -30,13 +30,12 @@ function buildUrl(pathOrUrl: string, query?: Record<string, any>) {
 }
 
 /**
- * Fetch JSON from Socrata. Automatically adds X-App-Token when available.
- * Returns parsed JSON, or null on error.
+ * Generic JSON fetcher for Socrata/SODA. Returns parsed JSON, or throws on non-OK.
  */
-export async function sodaFetch(
+export async function sodaFetch<T = any>(
   pathOrUrl: string,
   opts?: { query?: Record<string, any>; init?: RequestInit }
-): Promise<any | null> {
+): Promise<T> {
   const token = getSocrataToken();
   const url = buildUrl(pathOrUrl, opts?.query);
 
@@ -49,23 +48,26 @@ export async function sodaFetch(
     },
   };
 
+  const r = await fetch(url.toString(), init);
+  const text = await r.text();
+  let json: any = undefined;
   try {
-    const r = await fetch(url.toString(), init);
-    if (!r.ok) return null;
-    try {
-      return await r.json();
-    } catch {
-      // fallback to text parse
-      const txt = await r.text();
-      if (!txt) return null;
-      try { return JSON.parse(txt); } catch { return null; }
-    }
+    json = text ? JSON.parse(text) : undefined;
   } catch {
-    return null;
+    // ignore parse error, we'll handle below
   }
+
+  if (!r.ok) {
+    const body = json ?? text;
+    const code = (json && (json.code || json.message)) || `${r.status} ${r.statusText}`;
+    throw new Error(
+      `SODA ${code}: ${typeof body === "string" ? body : JSON.stringify(body, null, 2)}`
+    );
+  }
+
+  return json as T;
 }
 
-/** Convenience wrapper to match previous API */
-export async function soda(datasetId: string, opts?: { query?: Record<string, any> }) {
-  return sodaFetch(datasetId, opts);
-}
+// Back-compat aliases
+export const soda = sodaFetch;
+export default { sodaFetch, getSocrataToken, sodaTokenMasked };
