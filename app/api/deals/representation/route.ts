@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server";
 import { q } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
+
 const ALLOWED = new Set(["LISTING_SALE","BUYER_REP","LISTING_RENT","RENTER_REP"]);
 export async function POST(req: Request) {
   const { agent_full_name, address, contract_signed, representation } = await req.json();

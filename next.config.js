@@ -15,13 +15,6 @@ const nextConfig = {
     // do not ignore type errors during build — keep CI strict
     ignoreBuildErrors: false,
   },
-
-  experimental: {
-    // appDir is recommended for Next 14 if you use app/*
-    appDir: true,
-  },
-
-  swcMinify: true,
 };
 
 module.exports = nextConfig;

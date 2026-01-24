@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server";
 import { q } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
+
 const inRange = (v: any) => v === null || v === undefined || (Number(v) >= 0 && Number(v) <= 100);
 export async function POST(req: Request) {
   const { agent_full_name, address, contract_signed, deal_commission_rate_pct, deal_split_percent, agent_commission_usd } = await req.json();
