@@ -252,6 +252,7 @@ export default function AdminSettingsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Preview</label>
                 <div className="relative w-full h-40 bg-gray-100 rounded overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={settings.heroImage}
                     alt="Hero preview"
