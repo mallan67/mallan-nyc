@@ -148,3 +148,4 @@ baseline-note.ps1
 dependency-check-output.txt
 run-all-checks.ps1
 run-all-checks.sh
+archive/
