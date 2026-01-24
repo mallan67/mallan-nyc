@@ -61,3 +61,23 @@ To eliminate breakage, routing conflicts, and accidental imports, the following 
 - Ensure **no legacy `pages/` router** is active in the build path
 
 #### Active Next.js Build Path (Strict)
+
+
+## Compliance Requirements
+
+*(See internal compliance documentation for full details.)*
+
+---
+
+## Listings: Types, Visibility, Distribution
+
+*(Listing type definitions, visibility rules, and syndication controls to be documented here.)*
+
+---
+
+## Last Work Completed
+
+- CI guardrails implemented (`scripts/ci/guardrails.mjs`)
+- Legacy `frontend/` and `pages/` directories archived
+- Backup files moved to `archive/`
+- README governance markers added
