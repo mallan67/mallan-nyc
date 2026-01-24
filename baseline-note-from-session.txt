@@ -1,0 +1,52 @@
+﻿Session baseline note — mallan-nyc
+Date: 2025-11-21
+
+Summary of actions taken in this session:
+
+1) Cherry-pick & conflict resolution
+   - Began by cherry-picking commit(s) from feat/bootstrap-db-if-needed into a tmp branch.
+   - Conflicts encountered across many files (package.json, tsconfig.json, prisma/*, sql/*, lib/*, app/*).
+   - Used interactive resolution scripts and manual edits to produce a clean set of resolved files.
+   - Created branch: tmp/merge-feat-bootstrap-db-if-needed and pushed (PR created).
+
+2) package-lock.json & build fix
+   - Observed JSON parse error during next build due to corrupted lockfile.
+   - Restored package-lock.json from origin/main and committed fix: "fix(package-lock): restore clean package-lock.json from origin/main to resolve JSON parse error".
+
+3) lib/soda.ts and API route fixes
+   - Restored/cleaned lib/soda.ts to a robust Socrata helper (accepts multiple env names and throws on failure).
+   - Restored and replaced merge markers in app/api/ai/nyc/route.ts, and added safe guard: NYC lookup disabled by default in production unless ALLOW_NYC_LOOKUP_IN_PROD=true.
+
+4) Prisma seed and SQL
+   - Restored prisma/seed.js from baseline/clean-main-20251120 to correct format.
+   - Restored/cleaned sql/apply_all.sql and added sql/bootstrap.sql.
+
+5) .vercel and Vercel/GitHub secrets
+   - Added .vercel to .gitignore and removed tracked .vercel files from repo.
+   - Re-added/rotated Socrata/NYC secrets (NYC_SODA_APP_TOKEN, SOCRATA_APP_TOKEN, NYC_SODA_TOKEN) to GitHub Actions and Vercel.
+   - Added ALLOW_NYC_LOOKUP_IN_PROD=true to Vercel (explicitly enable only when intended).
+   - Note: a token was briefly entered in a PowerShell session; it was rotated and removed from local session/history. If any token was ever exposed to others, rotate it.
+
+6) Branches, PRs, and merge
+   - tmp/rescue-from-main used for rescue work; PR #25 (tmp/rescue-from-main → main) created and merged after resolving conflicts.
+   - tmp/merge-feat-bootstrap-db-if-needed pushed as tmp/merge-feat-bootstrap-db-if-needed (PR #24).
+   - Created baseline branch/tag: baseline/clean-main-20251120 / baseline-clean-main-20251120 (session baseline).
+
+7) Deploys & tests
+   - Linked repo to Vercel, deployed preview & production builds.
+   - Verified /api/ai/nyc returns info and POST responds with "disabled in production" until ALLOW_NYC_LOOKUP_IN_PROD is set.
+   - Verified Socrata token works via a direct test request.
+
+Artifacts & references:
+ - Baseline branch: baseline/clean-main-20251120
+ - Baseline tag: baseline-clean-main-20251120
+ - Uploaded package-lock snapshot (local to assistant session): /mnt/data/01.txt
+ - Key PR: #25 (merged) — "Merge tmp/rescue-from-main into main (resolved conflicts)"
+
+Notes / Next steps:
+ - Confirm all secrets were rotated and not stored in committed files or local .env files.
+ - Run CI/Next build locally once to ensure no remaining merge markers or TypeScript issues.
+ - Clean up any leftover temporary branches if no longer needed.
+ - Keep ALLOW_NYC_LOOKUP_IN_PROD off unless you explicitly intend to run NYC lookups from production.
+
+End of session note.
