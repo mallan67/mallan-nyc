@@ -20,8 +20,8 @@ export default function SignInPage() {
               Access your Mallan Real Estate account
             </p>
 
-            {/* Placeholder Form */}
-            <form onSubmit={e => e.preventDefault()} className="space-y-4">
+            {/* Placeholder Form - disabled, no submission */}
+            <form className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium mb-1">
                   Email Address
