@@ -133,10 +133,19 @@ const privateCandidates = [
   "app/client-access/page.tsx",
 ];
 
+const metadataPattern = /noindex|nofollow|robots|metadata|generateMetadata/;
+
 const foundPrivate = privateCandidates.find((p) => exists(p));
 if (foundPrivate) {
-  const content = fs.readFileSync(path.join(repoRoot, foundPrivate), "utf8");
-  if (!/noindex|nofollow|robots|metadata|generateMetadata/.test(content)) {
+  const pageContent = fs.readFileSync(path.join(repoRoot, foundPrivate), "utf8");
+  // Also check sibling layout.tsx for metadata (App Router pattern)
+  const dir = foundPrivate.substring(0, foundPrivate.lastIndexOf("/"));
+  const layoutPath = `${dir}/layout.tsx`;
+  const layoutContent = exists(layoutPath)
+    ? fs.readFileSync(path.join(repoRoot, layoutPath), "utf8")
+    : "";
+
+  if (!metadataPattern.test(pageContent) && !metadataPattern.test(layoutContent)) {
     warn(`"${foundPrivate}" may be missing noindex/nofollow metadata.`);
   }
 }

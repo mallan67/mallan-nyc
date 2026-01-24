@@ -11,14 +11,13 @@ export async function GET(req: Request) {
     const bbl = (u.searchParams.get('bbl') || '').trim();
     if (!bbl) return NextResponse.json({ ok:false, error:'bbl required' }, { status: 400 });
 
-    // NOTE: we cast the awaited result to an array so TypeScript understands `ids` is an array:
-    const ids = (await soda<{ document_id: string }>({
+    const ids = await soda<{ document_id: string }>({
       resource: REALPROP,
       where: `bbl='${bbl}'`,
       select: 'document_id',
       order: 'document_id DESC',
       limit: 50,
-    })) as { document_id: string }[];
+    });
 
     const docIds = ids.map(r => r.document_id);
     if (!docIds.length) return NextResponse.json({ ok:true, count:0, items:[] });
