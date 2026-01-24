@@ -1,5 +1,6 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 
 /**
  * Mallan Real Estate — Vision Implementation Sketch
@@ -175,12 +176,14 @@ function Lightbox({ items, startIndex = 0, onClose }: { items: { src: string; al
         </div>
       </div>
       <div className="flex-1 overflow-hidden flex items-center justify-center">
-        <img src={items[i].src} alt={items[i].alt || ""} style={{ transform: `scale(${scale})` }} className="max-h-full max-w-full select-none" />
+        <div className="relative w-full h-full" style={{ transform: `scale(${scale})` }}>
+          <Image src={items[i].src} alt={items[i].alt || ""} fill className="object-contain select-none" unoptimized />
+        </div>
       </div>
       <div className="p-3 overflow-x-auto whitespace-nowrap bg-black/60">
         {items.map((it, idx) => (
           <button key={idx} onClick={() => setI(idx)} className={`inline-block mr-2 ${idx === i ? "ring-2 ring-white" : ""}`}>
-            <img src={it.src} alt="" className="h-16 w-24 object-cover" />
+            <Image src={it.src} alt="" width={96} height={64} className="h-16 w-24 object-cover" unoptimized />
           </button>
         ))}
       </div>
@@ -195,9 +198,9 @@ function ExpandableMedia({ items }: { items: { src: string; alt?: string }[] }) 
     <div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {items.slice(0, 6).map((m, idx) => (
-          <button key={idx} className="relative group" onClick={() => { setStartIndex(idx); setOpen(true); }}>
-            <img src={m.src} alt={m.alt || "Listing media"} className="rounded-xl w-full h-40 object-cover" />
-            <span className="absolute bottom-2 right-2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100">Expand 🔍</span>
+          <button key={idx} className="relative group h-40" onClick={() => { setStartIndex(idx); setOpen(true); }}>
+            <Image src={m.src} alt={m.alt || "Listing media"} fill className="rounded-xl object-cover" unoptimized />
+            <span className="absolute bottom-2 right-2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 z-10">Expand 🔍</span>
           </button>
         ))}
       </div>
@@ -280,7 +283,9 @@ function ListingCard({ listing, onSelect, selected }: { listing: Listing; onSele
   const media = listing.media.slice(0, 1);
   return (
     <div className="rounded-2xl border overflow-hidden">
-      <img src={media[0]?.src} alt={media[0]?.alt || listing.address} className="w-full h-44 object-cover" />
+      <div className="relative w-full h-44">
+        <Image src={media[0]?.src || ""} alt={media[0]?.alt || listing.address} fill className="object-cover" unoptimized />
+      </div>
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="text-lg font-semibold">{usd(listing.price)} {listing.isRent ? "/ mo" : ""}</div>
@@ -437,30 +442,34 @@ function useAutoBBL(listing?: Listing | null) {
   }
 
   useEffect(() => {
+    if (!listing) return;
+    // if listing already has BBL, use it
+    if (listing.boroughCode && listing.block && listing.lot) {
+      setState({ borough: listing.boroughCode, block: listing.block, lot: listing.lot });
+      return;
+    }
+    let cancelled = false;
     (async () => {
-      if (!listing) return;
-      // if listing already has BBL, use it
-      if (listing.boroughCode && listing.block && listing.lot) {
-        setState({ borough: listing.boroughCode, block: listing.block, lot: listing.lot });
-        return;
-      }
       try {
         setLoading(true);
         setError(null);
         // Try Geoclient (proxied)
         const viaGc = await resolveViaGeoclient(listing.address, listing.zip, listing.neighborhood);
+        if (cancelled) return;
         if (viaGc) { setState(viaGc); return; }
         // Fallback: NYC GeoSearch (public, keyless)
         const viaGs = await resolveViaGeoSearch(listing.address, listing.zip, listing.neighborhood);
+        if (cancelled) return;
         if (viaGs) { setState(viaGs); return; }
         throw new Error('Could not resolve BBL automatically');
       } catch (e: any) {
-        setError(e.message || String(e));
+        if (!cancelled) setError(e.message || String(e));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [listing?.address, listing?.zip, listing?.neighborhood]);
+    return () => { cancelled = true; };
+  }, [listing]);
 
   return { ...(state || {}), error, loading };
 }
@@ -477,36 +486,39 @@ function AcrisHistory({ borough, block, lot }: { borough?: number; block?: numbe
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function fetchAcris() {
-    if (!b || !bl || !lt) return;
+  const fetchAcris = useCallback(async (bVal: string, blVal: string, ltVal: string) => {
+    if (!bVal || !blVal || !ltVal) return;
     setLoading(true); setErr(null);
     try {
-      const params = new URLSearchParams({ "$limit": "25", "$order": "recorded_datetime DESC", borough: b, block: bl, lot: lt });
+      const params = new URLSearchParams({ "$limit": "25", "$order": "recorded_datetime DESC", borough: bVal, block: blVal, lot: ltVal });
       async function tryFetch(url: string) {
         const r = await fetch(`${url}?${params.toString()}`, { headers: { 'accept': 'application/json' } });
         if (!r.ok) throw new Error(String(r.status));
         return r.json();
       }
       let data: any[] = [];
-      try { data = await tryFetch('/api/acris'); } catch {}
+      try { data = await tryFetch('/api/acris'); } catch { /* fallback below */ }
       if (!Array.isArray(data) || !data.length) {
         data = await tryFetch('https://data.cityofnewyork.us/resource/bnx9-e6tj.json');
       }
       setRows(Array.isArray(data) ? data : []);
-    } catch (e:any) {
+    } catch (e: any) {
       setErr(e.message || String(e));
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (borough && block && lot) {
-      setB(String(borough)); setBl(String(block)); setLt(String(lot));
-      fetchAcris();
+      const bStr = String(borough);
+      const blStr = String(block);
+      const ltStr = String(lot);
+      setB(bStr); setBl(blStr); setLt(ltStr);
+      fetchAcris(bStr, blStr, ltStr);
     }
-  }, [borough, block, lot]);
+  }, [borough, block, lot, fetchAcris]);
 
   return (
     <div className="mt-6 rounded-2xl border p-4">
@@ -520,7 +532,7 @@ function AcrisHistory({ borough, block, lot }: { borough?: number; block?: numbe
         <label className="flex flex-col">Lot<input value={lt} onChange={(e)=>setLt(e.target.value)} className="border rounded p-2"/></label>
       </div>
       <div className="mt-2">
-        <button className="border rounded px-3 py-2 text-sm" onClick={fetchAcris} disabled={!b||!bl||!lt||loading}>{loading? 'Loading…':'Lookup'}</button>
+        <button className="border rounded px-3 py-2 text-sm" onClick={() => fetchAcris(b, bl, lt)} disabled={!b||!bl||!lt||loading}>{loading? 'Loading…':'Lookup'}</button>
       </div>
       {err && <div className="mt-3 text-xs text-red-600">{err}</div>}
       {rows && (
@@ -666,7 +678,9 @@ export default function MallanApp() {
 
       {/* Hero with search */}
       <section id="home" className="relative">
-        <img src={heroMedia} alt="NYC skyline" className="w-full h-[42vh] object-cover" />
+        <div className="relative w-full h-[42vh]">
+          <Image src={heroMedia} alt="NYC skyline" fill className="object-cover" priority unoptimized />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         <div className="absolute inset-0 flex items-end">
           <div className="max-w-5xl mx-auto w-full px-4 pb-6">
