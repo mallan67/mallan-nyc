@@ -1,0 +1,52 @@
+{
+  "agents": [
+    {
+      "id": "1",
+      "name": "Sarah Chen",
+      "title": "Licensed Real Estate Salesperson",
+      "photo": "/images/agent-placeholder.jpg",
+      "phone": "(646) 555-0101",
+      "email": "sarah@mallan.nyc",
+      "bio": "Sarah brings over 10 years of experience in Manhattan real estate, specializing in luxury condominiums and co-ops on the Upper East Side. Her deep market knowledge and client-first approach have earned her a reputation for exceptional service.",
+      "specialties": ["Upper East Side", "Luxury Condos", "First-Time Buyers"],
+      "languages": ["English", "Mandarin"],
+      "featured": true
+    },
+    {
+      "id": "2",
+      "name": "Michael Rodriguez",
+      "title": "Associate Broker",
+      "photo": "/images/agent-placeholder.jpg",
+      "phone": "(646) 555-0102",
+      "email": "michael@mallan.nyc",
+      "bio": "With a background in finance and 15 years in NYC real estate, Michael excels at helping investors and high-net-worth clients build and optimize their property portfolios. He's known for his analytical approach and keen eye for value.",
+      "specialties": ["Investment Properties", "Portfolio Management", "Commercial"],
+      "languages": ["English", "Spanish"],
+      "featured": true
+    },
+    {
+      "id": "3",
+      "name": "Jennifer Park",
+      "title": "Licensed Real Estate Salesperson",
+      "photo": "/images/agent-placeholder.jpg",
+      "phone": "(646) 555-0103",
+      "email": "jennifer@mallan.nyc",
+      "bio": "Jennifer's passion for architecture and design brings a unique perspective to every transaction. She specializes in helping buyers find properties with character and potential, from pre-war classics to modern new developments.",
+      "specialties": ["New Developments", "Pre-War Properties", "Design-Forward Homes"],
+      "languages": ["English", "Korean"],
+      "featured": false
+    },
+    {
+      "id": "4",
+      "name": "David Thompson",
+      "title": "Licensed Real Estate Salesperson",
+      "photo": "/images/agent-placeholder.jpg",
+      "phone": "(646) 555-0104",
+      "email": "david@mallan.nyc",
+      "bio": "A Brooklyn native with extensive knowledge of the borough's diverse neighborhoods, David helps clients discover the perfect home whether they're looking in Park Slope, Williamsburg, or emerging areas. His local connections and market insights are invaluable.",
+      "specialties": ["Brooklyn", "Brownstones", "Relocation"],
+      "languages": ["English"],
+      "featured": false
+    }
+  ]
+}

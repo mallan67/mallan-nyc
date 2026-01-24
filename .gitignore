@@ -144,8 +144,22 @@ vite.config.ts.timestamp-*
 # Vercel local project files
 .vercel
 .claude/
+# Backup files
+*.bak
+*.backup
+
+# Ad-hoc scripts (moved to /scripts or /archive)
 baseline-note.ps1
 dependency-check-output.txt
 run-all-checks.ps1
 run-all-checks.sh
+geocode.ps1
+smoke-test.ps1
+commit-uploaded-file*.ps1
+process-remaining-prs.ps1
+
+# Temp build files
+build.log
+
+# Archive directory (legacy backups)
 archive/

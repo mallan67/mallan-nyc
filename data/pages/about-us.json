@@ -1,0 +1,36 @@
+{
+  "title": "About Mallan Real Estate",
+  "heroImage": "/images/hero.jpg",
+  "mission": {
+    "title": "Our Mission",
+    "content": "At Mallan Real Estate, we believe finding the perfect property should be an empowering experience. We combine deep local expertise with innovative technology to help our clients navigate New York City's dynamic real estate market with confidence."
+  },
+  "story": {
+    "title": "Our Story",
+    "content": "Founded with a vision to transform the real estate experience in New York City, Mallan Real Estate has grown from a boutique agency into a trusted name in Manhattan real estate. Our team brings together decades of combined experience, market knowledge, and a genuine passion for helping clients achieve their real estate goals.\n\nWe understand that every transaction represents more than just a property—it's a life milestone. Whether you're a first-time buyer navigating the market, an investor seeking opportunities, or a seller looking to maximize your return, we approach each relationship with the personalized attention it deserves."
+  },
+  "values": [
+    {
+      "title": "Client-First Approach",
+      "description": "Your goals are our priority. We listen, advise, and advocate for your best interests at every step."
+    },
+    {
+      "title": "Market Expertise",
+      "description": "Deep knowledge of NYC neighborhoods, market trends, and property values guides our recommendations."
+    },
+    {
+      "title": "Transparency",
+      "description": "Clear communication and honest guidance build the trust that lasting relationships require."
+    },
+    {
+      "title": "Innovation",
+      "description": "We leverage technology and data to provide insights that give our clients a competitive edge."
+    }
+  ],
+  "stats": [
+    { "value": "500+", "label": "Properties Sold" },
+    { "value": "$1B+", "label": "Transaction Volume" },
+    { "value": "15+", "label": "Years of Experience" },
+    { "value": "98%", "label": "Client Satisfaction" }
+  ]
+}
