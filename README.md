@@ -1,4 +1,53 @@
-# Mallan NYC — New York Brokerage Platform (Compliance-First, Fast)
+Mallan NYC — New York Brokerage Platform
+
+Compliance-First · Fast · Scalable
+
+Status: Active Development
+Jurisdiction: New York State / NYC
+Policies: NY DOS Advertising · REBNY RLS Display Rules · Fair Housing · TCPA/CTIA · CAN-SPAM · NY SHIELD · WCAG 2.1 AA
+
+What This Product Is
+
+Mallan NYC is a compliance-first New York brokerage platform designed to support public listing search, lawful lead capture, and internal brokerage operations. The system prioritizes regulatory safety, performance (Core Web Vitals), accessibility (WCAG 2.1 AA), and a clean architecture that can scale without fragmentation.
+
+Executive Summary (3 Pillars)
+1) Compliance by Design
+
+Required notices and SOPs
+
+Lawful advertising and listing display rules
+
+Fair housing safeguards
+
+Consented lead capture
+
+Immutable audit trails
+
+2) Superior Consumer Experience
+
+Fast, mobile-first UX
+
+Accessible (WCAG 2.1 AA)
+
+Deep inventory with map, commute, and school layers
+
+Instant scheduling and transparent documentation
+
+Multilingual support
+
+Core Web Vitals performance targets
+
+3) Revenue & Operations Engine
+
+Automated lead routing and CRM intake
+
+Consent-aware email/SMS nurturing
+
+Listing syndication controls
+
+Analytics and attribution
+
+Offers, disclosures, e-sign, commissions, reporting
 
 Immediate Cleanup & MVP Lock (Required)
 
@@ -7,11 +56,11 @@ We are not restarting the project. We are removing ambiguity.
 
 1) Repository Cleanup (Clean Slate Without Restarting)
 
-To eliminate breakage and accidental imports, the following actions are mandatory:
+To eliminate breakage and accidental imports, the following actions are mandatory.
 
 Delete or Quarantine
 
-Move frontend/ → archive/frontend-legacy/ or delete if unused
+Move frontend/ → archive/frontend-legacy/ (or delete if unused)
 
 Delete all:
 
@@ -19,9 +68,11 @@ backup_* directories
 
 *.bak files
 
-Remove any duplicate or legacy app roots
+Remove any duplicate or legacy application roots
 
-Keep Only These in the Build Path
+Ensure no legacy pages/ router is active
+
+Keep Only These in the Active Build Path
 app/**
 lib/**
 prisma/**
@@ -39,15 +90,15 @@ This repository previously mixed:
 
 an NYC Address Lookup tool
 
-a full brokerage platform
+a brokerage platform
 
 That ambiguity is now resolved.
 
 Chosen MVP (Authoritative)
 
-The MVP for this repository is a Compliance-First New York Brokerage Platform consisting of:
+The MVP is a Compliance-First New York Brokerage Platform consisting of:
 
-Public website
+Public Website
 
 Home
 
@@ -59,21 +110,21 @@ Agents
 
 Compliance pages (Fair Housing, SOPs, Agency, Privacy, Accessibility)
 
-Lead capture
+Lead Capture
 
 Explicit consent (TCPA / CAN-SPAM)
 
 Immutable consent ledger
 
-Basic CRM intake
+Basic CRM Intake
 
 Lead record creation
 
 Lead routing rules
 
-Activity/audit logging
+Activity and audit logging
 
-MLS/RLS
+MLS / RLS
 
 Stubbed only
 
@@ -93,15 +144,15 @@ a lead-magnet landing page
 
 It is not the core product.
 
-3) README as the Single Source of Truth
+README Governance (Single Source of Truth)
 
 This README.md is the authoritative system definition.
 
-It must always answer, in this exact order:
+It must always answer, in this order:
 
-What this product is (one paragraph)
+What the product is
 
-User flows (public users, agents, admins)
+User flows (public, agent, admin)
 
 Pages map (routes)
 
@@ -109,9 +160,9 @@ API surface (/api/*)
 
 Data model (core entities)
 
-Integrations (status: Planned / Stubbed / Live)
+Integrations (Planned / Stubbed / Live)
 
-Compliance requirements & where they are enforced
+Compliance requirements and enforcement points
 
 Environment variables
 
@@ -119,250 +170,277 @@ Runbook (dev, test, deploy)
 
 Last Work Completed (append-only)
 
-4) Change Control Rule (Non-Negotiable)
+Change Control Rule
 
-Any meaningful work must update the Last Work Completed section
+Any meaningful work must update Last Work Completed
 
 History is append-only
 
 No rewriting or deleting prior entries
-
-This prevents architectural drift and contributor confusion.
-
-5) Enforcement Principle
 
 If code contradicts this README:
 
 The README wins
 
 The code is considered incorrect or incomplete
-**Status:** Active Development  
-**Jurisdiction:** New York State / NYC  
-**Policies:** NY DOS Advertising · REBNY RLS Display Rules · Fair Housing · TCPA/CTIA · CAN-SPAM · NY SHIELD · WCAG 2.1 AA  
-**Primary Goal:** Compliance-by-design + best-in-class consumer UX + revenue/ops engine.
 
----
+Non-Negotiables (System Flow)
 
-## Executive Summary (3 Pillars)
+Single system: Next.js App Router is the only frontend and MVP backend surface
 
-1) **Compliance by design**
-- Required notices/SOPs, lawful advertising, listing display rules
-- Fair housing safeguards, consented lead capture, audit trails
+One routing system: app/ only
 
-2) **Superior consumer experience**
-- Fast, accessible (WCAG 2.1 AA), deep inventory (map/commute/schools)
-- Instant scheduling, transparent docs, multilingual, mobile-first, Core Web Vitals
+One source of truth: this README
 
-3) **Revenue engine**
-- Lead routing + CRM + consent-aware nurturing
-- Syndication controls + analytics/attribution + ops (offers/e-sign/commissions/reporting)
+Performance first: server components by default; client components only where required
 
----
+Compliance Requirements (Must-Ship)
+Required Public Pages
 
-## Non-Negotiables (System Flow)
-- **Single system:** Next.js App Router is the only frontend and the MVP backend surface.
-- **One routing system:** `app/` only (no competing `pages/` apps).
-- **One source of truth:** this README defines product + compliance + architecture.
-- **Append-only progress log:** “Last Work Completed” must be updated for meaningful changes.
+Fair Housing Notice (NYS)
 
----
+SOPs page (NYS) with public versioned changelog
 
-## 1) Compliance Requirements (Must-Ship)
+Agency disclosure explanation + downloadable forms + e-sign placement
 
-### Required Public Pages
-- Fair Housing Notice (NYS)
-- SOPs page (NYS) + versioned public change log (timestamp, author, effective date)
-- Agency disclosure explanation + downloadable forms + e-sign workflow placement
-- Broker of Record identity + license; agent license numbers where required
-- Accessibility statement (WCAG 2.1 AA) + accommodation contact
-- Privacy / Terms / Cookie policy (consent banner if non-essential cookies)
-- Do Not Call policy + opt-out language
-- Listing attribution + “as-is” data disclaimer per RLS/MLS rules
+Broker of Record identity and license
 
-### Consent + Contacting Leads
-- TCPA: explicit SMS consent; store artifacts (checkbox, timestamp, IP, UA, form version hash)
-- DNC: suppression list + scrub prior to telemarketing
-- CAN-SPAM: unsubscribe + physical address
-- 10DLC: register A2P texting brand/campaign if sending SMS
+Agent license numbers where required
 
-### Security
-- NY SHIELD Act reasonable safeguards + breach workflow
-- RBAC, encryption, audit logging
+Accessibility statement + accommodation contact
 
----
+Privacy / Terms / Cookie policy
 
-## 2) Site Map (Public + Protected)
+Do-Not-Call policy + opt-out language
 
-### Public
-- Home
-- Search (map + filters; sale/rental; residential + commercial)
-- Neighborhoods / Buildings
-- Listings
-- Agents
-- Sell / Lease with us
-- New Development
-- Resources (guides + calculators)
-- About / Contact
+Listing attribution + “as-is” disclaimer per RLS rules
 
-### Compliance (Always public)
-- Fair Housing, SOPs, Agency, Privacy/Terms, Accessibility/Disability
+Lead Contacting
 
-### Protected (Login required)
-- Member Listings (Private Opportunities)
-- Client collaboration features (saved items, shared searches, etc.)
+TCPA: explicit SMS consent + stored artifacts
 
----
+DNC suppression
 
-## 3) UX Requirements (Fast + Seamless Browsing)
+CAN-SPAM compliance
 
-### Search & Listings
-- Typeahead (address/zip/neighborhood/agent)
-- Map-first: draw polygon, cluster markers, heat layers
-- Commute filters (isochrones)
-- Deep filters: beds/baths, price, fee/no-fee, DOM, open houses, pets, amenities, etc.
-- Listing page richness: media + building profile + trends + disclaimers
-- Sale: show “Owner compensating buyer’s agent: ___%” only when entered
-- Sale: ROI + Cash-on-Cash calculator
-- Rental: Rent vs Buy calculator
-- CTAs: schedule, request info, offer start, save/share/print
+10DLC registration for SMS
 
-### Accessibility + Trust
-- WCAG 2.1 AA (semantic HTML, ARIA, keyboard)
-- Inline compliance links on lead/scheduling forms
-- Multilingual (Spanish/Mandarin/Russian etc.)
+Security
 
-### Performance (Core Web Vitals Targets)
-- LCP < 2.5s, CLS < 0.1, INP optimized
-- Aggressive image optimization, CDN caching, minimized JS
-- Prefer server components for listing pages; client components only for interactive parts
+NY SHIELD Act safeguards
 
-**Caching strategy:** public pages should be cached via ISR/revalidate where possible. Vercel supports ISR in App Router using `revalidate` / `fetch(... next: { revalidate } ...)` .
+RBAC, encryption, audit logging
 
----
+Site Map
+Public
 
-## 4) Listings: Types, Visibility, Distribution (Compliance + Performance)
+Home
 
-This platform supports **three** listing types. The type determines:
-- what can be shown publicly
-- whether the listing can appear in REBNY RLS results
-- SEO indexing rules
-- caching rules for fast browsing
+Search (sale/rental; residential/commercial)
 
-### A) RLS Listings (REBNY)
-- Source: REBNY RLS feed
-- Public: Yes
-- Rules: RLS display rules enforced (attribution, no remark editing, media rights, “as-is” disclaimer, freshness)
-- Performance: Cached via ISR/revalidate where allowed 
+Neighborhoods / Buildings
 
-### B) Mallan Exclusives (Non-RLS)
-- Source: Manual entry by Mallan/Agents/Teams (permissioned + audited)
-- Public: Yes (default), optional gated
-- RLS distribution: Optional only if explicitly promoted to RLS with authorization artifact
-- Performance: Cached via ISR when public
+Listings
 
-**Public label:** “Mallan Exclusives”  
-**Disclaimer:** “Exclusively represented by Mallan Real Estate Inc. and not listed on REBNY RLS or any MLS (unless otherwise noted).”
+Agents
 
-### C) Private Opportunities (Gated; NEVER RLS)
-- Source: Manual entry
-- Public: No
-- Login required: Yes (buyers authenticate)
-- RLS distribution: Not allowed
-- SEO: noindex/nofollow + excluded from sitemaps
-- Performance: authenticated caching only; no public CDN caching
+Sell / Lease with Us
 
-**Public-facing reference label (if needed):** “Member Listings” / “Client Access”
+New Development
 
----
+Resources
 
-### Required Listing Fields (Enforced)
-Every listing must have:
+About / Contact
 
-- `listing_type`: `RLS` | `MALLAN_EXCLUSIVE` | `PRIVATE_OPPORTUNITY`
-- `visibility`: `PUBLIC` | `MEMBERS_ONLY` | `REQUEST_ONLY` | `INTERNAL`
-- `distribution`: `RLS` | `MALLAN_ONLY` | `MLS_OTHER` | `PORTALS`
+Compliance (Always Public)
 
-Hard rules:
-- If `listing_type=PRIVATE_OPPORTUNITY` ⇒ `distribution=MALLAN_ONLY` AND `visibility != PUBLIC`
-- If `distribution=RLS` ⇒ RLS display rules apply and RLS fields are authoritative for public display
-- Search results must visually label the type and never commingle without clear filtering/labels
+Fair Housing
 
----
+SOPs
 
-## 5) Back-End & Ops
+Agency
 
-### Data Ingestion & Sync
-- REBNY RLS ingestion with validator, mapping, media import, CDC
-- Optional MLSs (OneKey etc.) with rules respected
-- Syndication controls per owner opt-in/out
-- PostGIS for geospatial; BBL/BIN mapping; PLUTO join; school zones
-- Data contracts versioned; validation errors routed to QA queue
+Privacy / Terms
 
-### CRM & Workflow
-- Lead routing rules (borough, price, language, source, round robin, performance)
-- Consent-aware nurture journeys (email/SMS)
-- Tasks/checklists for showings/offers
-- Document center + e-sign (DocuSign/Adobe)
-- Offer/deal desk + co-broke tracking
-- Commission module + 1099 totals
+Accessibility / Disability
 
-### Compliance Toolkit
-- Required postings manager (SOP version history)
-- Disclosure templates + auto-merge
-- Ad review queue
-- Consent ledger (immutable)
-- DNC suppression list
-- RLS compliance monitor (attribution integrity, no remark edits, feed freshness)
+Protected (Login Required)
 
-### Security & Privacy
-- RBAC, encryption, SSO for staff
-- NY SHIELD safeguards + incident response
-- Backups + restores tested; rate limits; anti-scraping; logs
+Member Listings (Private Opportunities)
 
----
+Client collaboration features
 
-## 6) Integrations (Status)
+UX & Performance Requirements
+Search & Listings
 
-| Connector | Purpose | Status |
-|---|---|---|
-| REBNY RLS | Listings ingest/display | Planned |
-| Manual Listing Entry | Add listings by agents/groups | Planned |
-| Private Member Listings | Buyer login required | Planned |
-| NYC Socrata | DOB/ECB/complaints | Live |
-| OpenAI | AI assistant | Live |
-| Maps | Google/Mapbox | Planned |
-| Calendar | Scheduling | Planned |
-| E-sign | Disclosures/offers | Planned |
-| SMS | Twilio/Telnyx + 10DLC | Planned |
-| Email | SendGrid/SES | Planned |
-| Analytics | GA4 + server-side | Planned |
-| Accounting | Excel/free tool | Planned |
-| Identity | Clearbit/ZoomInfo | Planned |
+Typeahead (address, zip, neighborhood, agent)
 
----
+Map-first UI with polygons, clusters, heat layers
 
-## 7) Delivery & Stack (Agreed Recommendation for Seamless Browsing)
+Commute filters (isochrones)
 
-### MVP (Phase 1) — Minimum Moving Parts
-- **Front-end:** Next.js/React (App Router), Tailwind, TypeScript
-- **Backend:** Next.js Route Handlers (`app/api/**`) + Prisma
-- **DB:** PostgreSQL (PostGIS later)
-- **Infra:** Vercel (web + API)
-- **Quality:** unit/integration tests, accessibility + Lighthouse in CI
-- **Observability:** Sentry + basic logs/metrics
+Deep filters (beds, baths, price, fees, DOM, pets, amenities)
 
-### Scale (Phase 2+)
-- Redis/queue/workers for feeds and heavy jobs
-- S3/media pipeline as inventory grows
-- WAF/CDN hardening (Cloudflare/CloudFront)
-- Data warehouse/BI
+Rich listing pages with building intelligence
 
----
+Sale listings:
 
-## Last Work Completed (Append-Only)
-### 2026-01-23
-- Repo audited; README found empty; gaps identified
-- Confirmed single-system Next.js App Router architecture for coherence
-- Defined listing taxonomy with strict rules: RLS vs Mallan Exclusives vs Private (login-only, never RLS)
-- Added performance-first caching strategy using ISR/revalidate for public pages 
+Buyer-agent compensation shown only if entered
 
+ROI + Cash-on-Cash calculator
+
+Rentals:
+
+Rent vs Buy calculator
+
+Accessibility & Trust
+
+WCAG 2.1 AA
+
+Inline Fair Housing + SOP links
+
+Multilingual support
+
+Performance Targets
+
+LCP < 2.5s
+
+CLS < 0.1
+
+Minimal JS
+
+Image optimization
+
+CDN caching
+
+Public pages should use ISR / revalidation where appropriate.
+
+Listings: Types, Visibility, Distribution
+A) RLS Listings
+
+Source: REBNY RLS feed
+
+Public: Yes
+
+RLS rules enforced
+
+Cached via ISR where allowed
+
+B) Mallan Exclusives (Non-RLS)
+
+Manually entered
+
+Public by default, optional gating
+
+Clearly labeled as non-RLS
+
+Cached via ISR when public
+
+Label: Mallan Exclusives
+Disclaimer: Exclusively represented by Mallan Real Estate Inc. and not listed on REBNY RLS or any MLS.
+
+C) Private Opportunities (Gated)
+
+Manually entered
+
+Login required
+
+Never distributed to RLS or MLS
+
+No indexing, no sitemaps
+
+Authenticated caching only
+
+Public reference label: Member Listings / Client Access
+
+Required Fields
+
+listing_type: RLS | MALLAN_EXCLUSIVE | PRIVATE_OPPORTUNITY
+
+visibility: PUBLIC | MEMBERS_ONLY | REQUEST_ONLY | INTERNAL
+
+distribution: RLS | MALLAN_ONLY | MLS_OTHER | PORTALS
+
+Hard Rules
+
+Private Opportunities → MALLAN_ONLY + not public
+
+RLS distribution → RLS display rules enforced
+
+No commingling without labels and filters
+
+Back-End & Operations
+
+RLS ingestion (validator, CDC)
+
+Optional MLS feeds
+
+Postgres + PostGIS
+
+Lead routing and CRM workflows
+
+Disclosure templates + e-sign
+
+Offer/deal desk
+
+Commission tracking + 1099 totals
+
+Compliance toolkit
+
+Audit logs
+
+Consent ledger
+
+Integrations (Status)
+Connector	Purpose	Status
+REBNY RLS	Listings feed	Planned
+Manual Listings	Agent entry	Planned
+Private Member Listings	Gated inventory	Planned
+NYC Socrata	Public data	Live
+OpenAI	AI assistance	Live
+Maps	Google / Mapbox	Planned
+Calendar	Scheduling	Planned
+E-sign	Documents	Planned
+SMS	Twilio / Telnyx	Planned
+Email	SendGrid / SES	Planned
+Analytics	GA4 server-side	Planned
+Accounting	Excel / free	Planned
+Delivery & Stack (Agreed)
+MVP
+
+Next.js App Router
+
+Tailwind + TypeScript
+
+Route Handlers (app/api)
+
+PostgreSQL
+
+Vercel
+
+Sentry
+
+CI tests (unit + accessibility)
+
+Scale
+
+Redis / queues
+
+S3 media
+
+WAF/CDN
+
+BI warehouse
+
+Last Work Completed (Append-Only)
+2026-01-23
+
+Repository audited; README rewritten as system authority
+
+MVP locked to single Next.js App Router architecture
+
+Cleanup rules defined (no restart)
+
+Listing taxonomy finalized (RLS / Mallan Exclusive / Private)
+
+Performance strategy defined (ISR, server components)
