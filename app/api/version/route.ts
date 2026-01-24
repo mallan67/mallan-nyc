@@ -5,7 +5,7 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 export async function GET() {
-  const mask = (s?: string) => !s ? null : s.replace(/:.+@/,'://***:***@');
+  const _mask = (s?: string) => !s ? null : s.replace(/:.+@/,'://***:***@');
   return NextResponse.json({
     ok: true,
     commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
