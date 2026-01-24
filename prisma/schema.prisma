@@ -12,8 +12,8 @@ model Agent {
   id             BigInt    @id @default(autoincrement())
   first_name     String
   last_name      String
-  // keep column name as in the SQL bootstrap; generate full_name in DB
-  full_name      String?   @db.Text @default(dbgenerated("first_name || ' ' || last_name"))
+  // full_name computed in application code when creating/updating agents
+  full_name      String?   @db.Text
   email          String?   @unique
   license_no     String?   @map("license_no")
   license_expiry DateTime? @map("license_expiry")
