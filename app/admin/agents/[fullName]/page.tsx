@@ -17,7 +17,7 @@ export default function AgentDealsPage({ params }: { params: { fullName: string 
 
   const totals = useMemo(() => {
     if (!data) return { deals:0, agent:0, company:0, gross:0 };
-    const deals = data.length; let agent=0, company=0, gross=0;
+    const deals = data.length; let agent = 0, company = 0, gross = 0;
     for (const r of data) {
       agent   += Number(r.agent_fee_usd||0);
       company += Number(r.company_fee_usd||0);

@@ -1,0 +1,46 @@
+{
+  "slug": "investors-guide",
+  "title": "Investor's Guide to NYC Real Estate",
+  "subtitle": "Building wealth through strategic property investment",
+  "heroImage": "/images/hero.jpg",
+  "sections": [
+    {
+      "title": "Why Invest in NYC Real Estate",
+      "content": "New York City remains one of the world's premier real estate investment markets. Despite market cycles, NYC property has demonstrated remarkable long-term appreciation and resilience.\n\n**Key Advantages:**\n- Limited land supply creates inherent value\n- Constant demand from global buyers and renters\n- Diverse economy reduces market volatility\n- Established legal framework protects property rights\n- Strong rental market provides steady income"
+    },
+    {
+      "title": "Investment Property Types",
+      "content": "### Residential Rental Properties\n- Condos offer the most flexibility for investor ownership\n- Many co-ops restrict or prohibit investor purchases\n- Multi-family buildings (2-4 units) can provide house-hacking opportunities\n\n### Commercial Properties\n- Retail spaces\n- Office buildings\n- Mixed-use properties\n- Ground-floor commercial condos\n\n### Development Opportunities\n- Land assemblage\n- Conversion projects\n- New construction\n- Value-add renovation plays"
+    },
+    {
+      "title": "Analyzing Investment Properties",
+      "content": "### Key Metrics\n\n**Cap Rate (Capitalization Rate)**\nNet Operating Income ÷ Property Value\nTypical NYC residential: 2-4%\n\n**Cash-on-Cash Return**\nAnnual Cash Flow ÷ Total Cash Invested\n\n**Gross Rent Multiplier**\nProperty Price ÷ Annual Gross Rent\n\n**Price Per Square Foot**\nCompare to market averages for the area\n\n### Due Diligence Checklist\n- Review rent roll and tenant history\n- Analyze operating expenses\n- Inspect physical condition\n- Research zoning and development rights\n- Understand rent regulation implications\n- Review building financials (condos/co-ops)"
+    },
+    {
+      "title": "Financing Investment Properties",
+      "content": "### Conventional Loans\n- Typically require 25-30% down for investment properties\n- Higher interest rates than primary residences\n- Stricter qualification requirements\n\n### Portfolio Loans\n- Held by lender rather than sold\n- More flexible underwriting\n- Useful for non-traditional situations\n\n### Commercial Loans\n- For multi-family (5+ units) and commercial properties\n- Based primarily on property income\n- Typically 5-10 year terms with 25-30 year amortization\n\n### Alternative Financing\n- Private money lenders\n- Hard money for short-term needs\n- Syndication for larger projects"
+    },
+    {
+      "title": "NYC Rental Market Considerations",
+      "content": "### Rent Stabilization\nMany NYC apartments are subject to rent stabilization, which limits rent increases and provides tenant protections. Understand the regulatory status before purchasing.\n\n### Market Rate Rentals\n- Condos are typically market rate\n- Command premium rents with right amenities\n- More flexibility in lease terms\n\n### Short-Term Rentals\n- NYC has strict regulations on short-term rentals\n- Most buildings prohibit Airbnb-style rentals\n- Violations carry significant penalties"
+    },
+    {
+      "title": "Tax Considerations",
+      "content": "### Benefits of Real Estate Investment\n- Depreciation deductions\n- Mortgage interest deduction\n- 1031 exchanges for tax deferral\n- Opportunity Zone incentives in qualifying areas\n\n### NYC-Specific Taxes\n- Property taxes\n- Transfer taxes on purchase and sale\n- Unincorporated Business Tax (UBT) may apply\n\n### Entity Structure\nConsider LLCs, partnerships, or other entities for:\n- Liability protection\n- Tax optimization\n- Estate planning\n\n*Consult with tax and legal professionals for your specific situation.*"
+    },
+    {
+      "title": "Property Management",
+      "content": "### Self-Management\n- Lower costs but requires time and expertise\n- Best for local investors with few properties\n- Must understand landlord-tenant law\n\n### Professional Management\n- Typical fees: 4-8% of gross rent\n- Handles tenant relations, maintenance, and compliance\n- Essential for out-of-area investors\n- Economies of scale with larger portfolios\n\n### Responsibilities Include\n- Marketing and leasing\n- Rent collection\n- Maintenance coordination\n- Regulatory compliance\n- Tenant relations and disputes"
+    },
+    {
+      "title": "Building Your Portfolio",
+      "content": "### Start Small\nBegin with a single property to learn the market and build experience.\n\n### Leverage Carefully\nDebt amplifies both returns and risks. Maintain adequate reserves.\n\n### Diversify\nConsider different neighborhoods, property types, and strategies.\n\n### Think Long-Term\nNYC real estate rewards patient investors. Plan for market cycles.\n\n### Build Your Team\n- Experienced real estate agent\n- Real estate attorney\n- Accountant/tax advisor\n- Property manager\n- Reliable contractors"
+    }
+  ],
+  "cta": {
+    "title": "Explore Investment Opportunities",
+    "description": "Our investment specialists can help identify properties that match your investment criteria.",
+    "buttonText": "Speak with an Agent",
+    "buttonLink": "/agents"
+  }
+}

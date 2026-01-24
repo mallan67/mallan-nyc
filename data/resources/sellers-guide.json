@@ -1,0 +1,46 @@
+{
+  "slug": "sellers-guide",
+  "title": "Seller's Guide to NYC Real Estate",
+  "subtitle": "Maximize your property's value with strategic selling",
+  "heroImage": "/images/hero.jpg",
+  "sections": [
+    {
+      "title": "Preparing to Sell",
+      "content": "Selling property in New York City requires strategic planning and expert guidance. This guide covers everything you need to know to achieve the best possible outcome.\n\n**Key Considerations:**\n- Current market conditions\n- Your timeline and goals\n- Property preparation and staging\n- Pricing strategy"
+    },
+    {
+      "title": "Choosing the Right Time",
+      "content": "### Market Timing\nWhile you can't perfectly time the market, understanding trends helps. Spring typically sees the most activity, but quality properties sell year-round in NYC.\n\n### Personal Timing\n- Are you relocating for work?\n- Do you need to coordinate with a purchase?\n- What's your financial situation?\n\n### Market Indicators\n- Average days on market\n- Inventory levels\n- Price trends in your building/neighborhood\n- Interest rate environment"
+    },
+    {
+      "title": "Pricing Your Property",
+      "content": "### Comparative Market Analysis\nYour agent will analyze recent sales of similar properties to determine fair market value.\n\n**Factors Affecting Price:**\n- Location and views\n- Size and layout\n- Building amenities\n- Recent renovations\n- Floor level and exposure\n- Market conditions\n\n### Pricing Strategy\n- **Price it right from the start** - Overpriced listings stagnate\n- **Consider micro-markets** - Your building and block matter\n- **Account for co-op vs. condo differences** - Buyers factor in monthly costs"
+    },
+    {
+      "title": "Preparing Your Property",
+      "content": "### Declutter and Depersonalize\nBuyers need to envision themselves in the space. Remove excess furniture, personal photos, and collections.\n\n### Repairs and Updates\n- Fix obvious issues (leaky faucets, broken fixtures)\n- Fresh paint in neutral colors\n- Update dated fixtures if budget allows\n- Deep clean everything\n\n### Professional Staging\nStaged homes often sell faster and for higher prices. Your agent can recommend professional stagers who know the NYC market."
+    },
+    {
+      "title": "Marketing Your Property",
+      "content": "### Professional Photography\nHigh-quality photos are essential for online listings. Consider video tours and floor plans as well.\n\n### Listing Distribution\n- Multiple listing services (MLS)\n- Major real estate portals\n- Social media marketing\n- Email to qualified buyers\n- Broker networks\n\n### Open Houses and Showings\nBe flexible with showing times. Keep the property show-ready and make arrangements for pets during showings."
+    },
+    {
+      "title": "The Selling Process",
+      "content": "### 1. List Your Property\nSign listing agreement with your agent and launch marketing.\n\n### 2. Show the Property\nAccommodate buyer visits and open houses.\n\n### 3. Receive and Negotiate Offers\nReview all offers with your agent. Consider price, terms, buyer qualifications, and contingencies.\n\n### 4. Accept an Offer\nSign the contract and collect deposit (typically 10%).\n\n### 5. Buyer Due Diligence\nCooperate with inspections and board package preparation.\n\n### 6. Board Approval (Co-ops)\nSupport buyer's application process.\n\n### 7. Closing\nSign documents, transfer title, and receive proceeds."
+    },
+    {
+      "title": "Costs of Selling",
+      "content": "### Broker Commission\nTypically 5-6% of sale price, split between listing and buyer's agents.\n\n### Closing Costs\n- Attorney fees ($2,000-4,000)\n- Transfer taxes (NYC + NYS)\n- Flip tax (many co-ops charge 1-3%)\n- Mortgage payoff and satisfaction\n- Move-out fees\n\n### Tax Considerations\n- Capital gains tax may apply\n- Consult with a tax professional\n- Consider 1031 exchange for investment properties"
+    },
+    {
+      "title": "Why Work with Mallan Real Estate",
+      "content": "**Our sellers benefit from:**\n- Accurate pricing based on deep market knowledge\n- Professional marketing and photography\n- Extensive buyer network and broker relationships\n- Skilled negotiation to maximize your return\n- Seamless transaction management\n- Clear communication throughout the process"
+    }
+  ],
+  "cta": {
+    "title": "Ready to Sell?",
+    "description": "Get a complimentary market analysis and selling strategy consultation.",
+    "buttonText": "Contact Us Today",
+    "buttonLink": "/agents"
+  }
+}

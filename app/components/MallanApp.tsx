@@ -421,7 +421,7 @@ function useAutoBBL(listing?: Listing | null) {
     return null;
   }
 
-  async function resolveViaGeoSearch(addr: string, zip?: string, _neighborhood?: string) {
+  async function resolveViaGeoSearch(addr: string, zip?: string) {
     // Public fallback (no key). May include BBL/BIN in properties.addendum.pad.*
     const q = encodeURIComponent(`${addr}${zip ? ' ' + zip : ''}`);
     const r = await fetch(`https://geosearch.planninglabs.nyc/v2/search?size=1&text=${q}`);
@@ -458,7 +458,7 @@ function useAutoBBL(listing?: Listing | null) {
         if (cancelled) return;
         if (viaGc) { setState(viaGc); return; }
         // Fallback: NYC GeoSearch (public, keyless)
-        const viaGs = await resolveViaGeoSearch(listing.address, listing.zip, listing.neighborhood);
+        const viaGs = await resolveViaGeoSearch(listing.address, listing.zip);
         if (cancelled) return;
         if (viaGs) { setState(viaGs); return; }
         throw new Error('Could not resolve BBL automatically');

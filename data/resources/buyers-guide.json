@@ -1,0 +1,38 @@
+{
+  "slug": "buyers-guide",
+  "title": "Buyer's Guide to NYC Real Estate",
+  "subtitle": "Your comprehensive guide to purchasing property in New York City",
+  "heroImage": "/images/hero.jpg",
+  "sections": [
+    {
+      "title": "Getting Started",
+      "content": "Buying property in New York City is an exciting journey that requires preparation and knowledge. This guide will walk you through the process from initial planning to closing day.\n\n**First Steps:**\n- Assess your financial readiness\n- Get pre-approved for a mortgage\n- Define your priorities (location, size, amenities)\n- Understand the difference between co-ops and condos"
+    },
+    {
+      "title": "Understanding NYC Property Types",
+      "content": "### Condominiums (Condos)\nYou own your individual unit as real property. Generally easier approval process, more flexibility with subletting and renovations. Higher purchase prices but lower monthly common charges.\n\n### Cooperatives (Co-ops)\nYou purchase shares in a corporation that owns the building. Typically 20-30% less expensive than condos but stricter approval processes and subletting policies. Often require higher down payments (20-50%).\n\n### Townhouses\nMulti-story buildings you own outright, including the land. Rare in Manhattan, more common in Brooklyn and Queens. Full control but full responsibility for maintenance."
+    },
+    {
+      "title": "The Buying Process",
+      "content": "### 1. Get Pre-Approved\nSpeak with lenders to understand your budget and get a pre-approval letter. This shows sellers you're a serious buyer.\n\n### 2. Find Your Property\nWork with a buyer's agent to search listings, attend open houses, and identify properties that meet your criteria.\n\n### 3. Make an Offer\nSubmit an offer including price, contingencies, and proposed timeline. Negotiations may follow.\n\n### 4. Due Diligence\nOnce under contract, conduct inspections, review building financials (for co-ops/condos), and finalize your mortgage.\n\n### 5. Board Approval (Co-ops/Some Condos)\nPrepare and submit your application package. Attend board interview if required.\n\n### 6. Closing\nSign final documents, transfer funds, and receive your keys!"
+    },
+    {
+      "title": "Financial Considerations",
+      "content": "### Down Payment\n- Condos: Typically 10-20% minimum\n- Co-ops: Often 20-50% required\n- First-time buyer programs may offer lower requirements\n\n### Closing Costs\nBudget 2-5% of purchase price for:\n- Attorney fees ($2,000-4,000)\n- Title insurance\n- Mortgage recording tax\n- Mansion tax (purchases over $1M)\n- Transfer taxes\n\n### Monthly Costs\n- Mortgage payment\n- Common charges or maintenance fees\n- Property taxes (condos/townhouses)\n- Homeowner's insurance"
+    },
+    {
+      "title": "Working with a Buyer's Agent",
+      "content": "A buyer's agent represents your interests exclusively throughout the purchase process.\n\n**Benefits include:**\n- Access to listings and market knowledge\n- Negotiation expertise\n- Guidance through complex paperwork\n- Coordination with attorneys, lenders, and other parties\n- No direct cost to you (commission typically paid by seller)\n\nAt Mallan Real Estate, our agents bring deep NYC expertise and a commitment to finding you the right property at the right price."
+    },
+    {
+      "title": "Tips for Success",
+      "content": "- **Be prepared to act quickly** - Good properties move fast in NYC\n- **Know your non-negotiables** - But be flexible on nice-to-haves\n- **Research the neighborhood** - Visit at different times of day\n- **Review building financials** - Look for healthy reserves and stable fees\n- **Get everything in writing** - Verbal agreements aren't binding\n- **Work with experienced professionals** - Attorney, agent, and lender all matter"
+    }
+  ],
+  "cta": {
+    "title": "Ready to Start Your Search?",
+    "description": "Connect with a Mallan Real Estate agent to begin your home buying journey.",
+    "buttonText": "Contact an Agent",
+    "buttonLink": "/agents"
+  }
+}
