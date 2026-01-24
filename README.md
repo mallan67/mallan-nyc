@@ -1,4 +1,4 @@
-# Mallan Real Estate Inc. — New York Brokerage Platform  
+# Mallan Real Estate Inc. — New York City Brokerage Platform  
 **Compliance-First · Fast · Scalable**
 
 **Status:** Active Development  
