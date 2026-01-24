@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 # Vercel local project files
 .vercel
 .claude/
+baseline-note.ps1
+dependency-check-output.txt
+run-all-checks.ps1
+run-all-checks.sh
