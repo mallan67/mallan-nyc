@@ -47,7 +47,7 @@ export default function ClientAccess() {
 
       setMessages([...next, { role: 'assistant', content: reply }]);
       scrollToEnd();
-    } catch (e) {
+    } catch {
       setMessages([
         ...next,
         {

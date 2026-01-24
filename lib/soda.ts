@@ -131,4 +131,5 @@ export async function soda<T = Record<string, unknown>>(
 // Back-compat alias
 export const sodaFetch = soda;
 
-export default { soda, sodaFetch, getSocrataToken, sodaTokenMasked };
+const sodaModule = { soda, sodaFetch, getSocrataToken, sodaTokenMasked };
+export default sodaModule;
