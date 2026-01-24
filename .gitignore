@@ -143,3 +143,4 @@ vite.config.ts.timestamp-*
 
 # Vercel local project files
 .vercel
+.claude/
