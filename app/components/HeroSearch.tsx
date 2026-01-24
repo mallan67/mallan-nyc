@@ -81,8 +81,8 @@ export default function HeroSearch() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        {/* Minimal overlay for text readability */}
-        <div className="absolute inset-0 bg-black/5" />
+        {/* Top gradient overlay for header text readability */}
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/50 to-transparent" />
       </div>
 
       {/* Search Module */}
