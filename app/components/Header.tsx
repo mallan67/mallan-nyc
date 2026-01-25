@@ -115,7 +115,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-8 text-base font-serif text-white">
+          <nav className="hidden lg:flex items-center gap-8 text-base font-serif text-white" aria-label="Main navigation">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href} className="hover:text-brand-gold transition-colors">
                 {item.label}
@@ -167,7 +167,9 @@ export default function Header() {
           <button
             className="lg:hidden p-2 text-white"
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav"
           >
             {mobileOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
@@ -175,7 +177,7 @@ export default function Header() {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav className="lg:hidden py-4 border-t border-white/10 font-serif text-white">
+          <nav id="mobile-nav" className="lg:hidden py-4 border-t border-white/10 font-serif text-white" aria-label="Mobile navigation">
             <div className="flex flex-col gap-3">
               {navItems.map((item) => (
                 <Link key={item.href} href={item.href} className="py-2 hover:text-brand-gold">

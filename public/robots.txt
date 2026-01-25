@@ -1,7 +1,0 @@
-# public/robots.txt
-# Allow everything except admin area
-User-agent: *
-Disallow: /admin/
-
-# Sitemap tells Google where every listing page lives
-Sitemap: https://mallan.nyc/sitemap.xml
