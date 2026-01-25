@@ -15,9 +15,10 @@
         "lint": "next lint",
         "type-check": "tsc --noEmit",
         "ci": "npm run -s lint && npm run -s type-check && npm run -s build",
-        "postinstall": "node -e \"console.log(\\\"(prisma skipped on build)\\\")\""
+        "postinstall": "prisma generate"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.50.0",
         "@prisma/client": "^6.17.1",
         "@sendgrid/mail": "^8.1.6",
         "bcryptjs": "^3.0.2",
