@@ -139,10 +139,11 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 /generated/prisma
-.vercel
 
-# Vercel local project files
-.vercel
+# Vercel local project files (keep project.json for linkage)
+.vercel/*
+!.vercel/project.json
+
 .claude/
 # Backup files
 *.bak
