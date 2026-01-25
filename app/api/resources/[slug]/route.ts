@@ -1,44 +1,18 @@
 import { NextResponse } from 'next/server';
-import { readFile, writeFile, mkdir, readdir } from 'fs/promises';
-import path from 'path';
+
+// Static imports for Vercel serverless compatibility
+import buyersGuide from '@/data/resources/buyers-guide.json';
+import sellersGuide from '@/data/resources/sellers-guide.json';
+import investorsGuide from '@/data/resources/investors-guide.json';
 
 export const dynamic = 'force-dynamic';
 
-const RESOURCES_DIR = path.join(process.cwd(), 'data', 'resources');
-
-async function getResource(slug: string) {
-  try {
-    const filePath = path.join(RESOURCES_DIR, `${slug}.json`);
-    const data = await readFile(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
-}
-
-async function saveResource(slug: string, content: Record<string, unknown>) {
-  await mkdir(RESOURCES_DIR, { recursive: true });
-  const filePath = path.join(RESOURCES_DIR, `${slug}.json`);
-  await writeFile(filePath, JSON.stringify(content, null, 2));
-}
-
-async function getAllResources() {
-  try {
-    await mkdir(RESOURCES_DIR, { recursive: true });
-    const files = await readdir(RESOURCES_DIR);
-    const resources = await Promise.all(
-      files
-        .filter(f => f.endsWith('.json'))
-        .map(async f => {
-          const data = await readFile(path.join(RESOURCES_DIR, f), 'utf-8');
-          return JSON.parse(data);
-        })
-    );
-    return resources;
-  } catch {
-    return [];
-  }
-}
+// Map of available resources
+const resources: Record<string, unknown> = {
+  'buyers-guide': buyersGuide,
+  'sellers-guide': sellersGuide,
+  'investors-guide': investorsGuide,
+};
 
 export async function GET(
   request: Request,
@@ -48,11 +22,10 @@ export async function GET(
 
   // Special case: get all resources for listing
   if (slug === 'all') {
-    const resources = await getAllResources();
-    return NextResponse.json({ resources });
+    return NextResponse.json({ resources: Object.values(resources) });
   }
 
-  const content = await getResource(slug);
+  const content = resources[slug];
 
   if (!content) {
     return NextResponse.json({ error: 'Resource not found' }, { status: 404 });
@@ -65,15 +38,11 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  try {
-    const { slug } = await params;
-    const body = await request.json();
-    await saveResource(slug, body);
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to save resource' },
-      { status: 500 }
-    );
-  }
+  // Note: POST is only functional in development (local filesystem)
+  // In production, use a database or CMS
+  const { slug } = await params;
+  return NextResponse.json(
+    { error: `POST not supported in production. Edit data/resources/${slug}.json locally.` },
+    { status: 501 }
+  );
 }

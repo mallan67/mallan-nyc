@@ -1,0 +1,836 @@
+{
+  "version": "2025-09-30-v2.0",
+  "lastUpdated": "2026-01-25",
+  "source": "REBNY RLS Data Migration 2025_LMP + RESO Data Dictionary 2.0",
+  "note": "Update this file when REBNY publishes new RLS rules or RESO DD changes. Post Sept 30, 2025: City/County are Lookup types, ModificationTimestamp only updates for on-market listings.",
+  "fields": [
+    {
+      "field": "AboveGradeFinishedArea",
+      "matrixFieldName": "AboveGradeFinishedArea",
+      "description": "Finished area within the structure that is at or above the surface of the ground.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeFinishedAreaSource",
+      "matrixFieldName": "AboveGradeFinishedAreaSource",
+      "description": "Source of measurements (Agent, Assessor, Estimate, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeFinishedAreaUnits",
+      "matrixFieldName": "AboveGradeFinishedAreaUnits",
+      "description": "Unit of measurement for the area (Square Feet, Square Meters, Acres)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if AboveGradeFinishedArea is entered"
+    },
+    {
+      "field": "AccessibilityFeatures",
+      "matrixFieldName": "AccessibilityFeatures",
+      "description": "List of accessibility features included in the sale/lease",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ActivationDate",
+      "matrixFieldName": "ActivationDate",
+      "description": "Date a Coming Soon listing is expected to become Active in the Source System",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if MLSStatus = ComingSoon"
+    },
+    {
+      "field": "ActivationTimestamp",
+      "matrixFieldName": "ActivationTimestamp",
+      "description": "Timestamp that a Coming Soon listing was made Active in the RLS System",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AlternateStreetDirPrefix",
+      "matrixFieldName": "AlternateStreetDirPrefix",
+      "description": "Direction indicator preceding the alternate street name",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AlternateStreetDirSuffix",
+      "matrixFieldName": "AlternateStreetDirSuffix",
+      "description": "Direction indicator following the alternate street address",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AlternateStreetName",
+      "matrixFieldName": "AlternateStreetName",
+      "description": "Street name portion of alternate street address",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AlternateStreetNumber",
+      "matrixFieldName": "AlternateStreetNumber",
+      "description": "Street number portion of alternate street address",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if attempting to submit any AlternateStreet attributes"
+    },
+    {
+      "field": "AlternateStreetSuffix",
+      "matrixFieldName": "AlternateStreetSuffix",
+      "description": "Suffix portion of alternate street address",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No, rejects if not in Street Dictionary"
+    },
+    {
+      "field": "Appliances",
+      "matrixFieldName": "Appliances",
+      "description": "List of appliances included in the sale/lease",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ArchitectName",
+      "matrixFieldName": "ArchitectName",
+      "description": "Name of the architect who designed the building",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ArchitecturalStyle",
+      "matrixFieldName": "ArchitecturalStyle",
+      "description": "Style of the structure (Prewar, Highrise, Walkup, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationFee",
+      "matrixFieldName": "AssociationFee",
+      "description": "Monthly maintenance fee (coop/condop) or common charges (condo). Does not include taxes.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: If PropertyType = Residential AND CommonInterest IN (Condominium, StockCooperative, Condop)"
+    },
+    {
+      "field": "AssociationFee2",
+      "matrixFieldName": "AssociationFee2",
+      "description": "Secondary association fee if applicable",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationFee2Frequency",
+      "matrixFieldName": "AssociationFee2Frequency",
+      "description": "Frequency of secondary association fee (Monthly, Quarterly, Annually, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if AssociationFee2 > 0"
+    },
+    {
+      "field": "AssociationFeeFrequency",
+      "matrixFieldName": "AssociationFeeFrequency",
+      "description": "Frequency of association fee (Monthly, Quarterly, Annually, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: If PropertyType = Residential AND CommonInterest IN (Condominium, StockCooperative, Condop) AND AssociationFee > 0"
+    },
+    {
+      "field": "AssociationFeeIncludes",
+      "matrixFieldName": "AssociationFeeIncludes",
+      "description": "Services included with association fee (Landscaping, Trash, Water, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationName",
+      "matrixFieldName": "AssociationName",
+      "description": "Name of condo/co-op corporation (as on stock certificate)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationYN",
+      "matrixFieldName": "AssociationYN",
+      "description": "Is there a Homeowners Association",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AttendanceType",
+      "matrixFieldName": "AttendanceType",
+      "description": "Types of building attendants (Full-Time Doorman, Part-Time Doorman, Virtual Doorman, Concierge, Super, None)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "AvailabilityDate",
+      "matrixFieldName": "AvailabilityDate",
+      "description": "Date the property will be available for possession/occupation",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if PropertyType = ResidentialLease"
+    },
+    {
+      "field": "Basement",
+      "matrixFieldName": "Basement",
+      "description": "Basement information and features (Finished, Partially Finished, Crawl Space, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if BasementYN = true"
+    },
+    {
+      "field": "BasementYN",
+      "matrixFieldName": "BasementYN",
+      "description": "Indicates whether the listing has a basement",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BathroomsFull",
+      "matrixFieldName": "BathroomsFull",
+      "description": "Number of full bathrooms (Toilet, Sink, Bathtub or Shower)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BathroomsHalf",
+      "matrixFieldName": "BathroomsHalf",
+      "description": "Number of half bathrooms (Toilet and Sink only)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BathroomsTotal",
+      "matrixFieldName": "BathroomsTotal",
+      "description": "Sum of bathrooms with half baths expressed as decimal",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BedroomsTotal",
+      "matrixFieldName": "BedroomsTotal",
+      "description": "Total number of bedrooms in the dwelling",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BelowGradeFinishedArea",
+      "matrixFieldName": "BelowGradeFinishedArea",
+      "description": "Finished area within the structure that is below ground",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeFinishedAreaUnits",
+      "matrixFieldName": "BelowGradeFinishedAreaUnits",
+      "description": "Unit of measurement for below grade area",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if BelowGradeFinishedArea is entered"
+    },
+    {
+      "field": "BuildingAreaTotal",
+      "matrixFieldName": "BuildingAreaTotal",
+      "description": "Total area of the structure (finished and unfinished)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: If PropertyType = Residential AND PropertySubType IN (Duplex, MixedUse, MultiFamily, SingleFamily, Townhouse)"
+    },
+    {
+      "field": "BuildingAreaUnits",
+      "matrixFieldName": "BuildingAreaUnits",
+      "description": "Unit of measurement for building area",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if BuildingAreaTotal is entered"
+    },
+    {
+      "field": "BuildingLaundryFeatures",
+      "matrixFieldName": "BuildingLaundryFeatures",
+      "description": "Laundry features/services and locations in the building (In Unit, Common Area, Hookups, None)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BuildingName",
+      "matrixFieldName": "BuildingName",
+      "description": "Name of the building or marketing/vanity building name",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BuildingPetsAllowed",
+      "matrixFieldName": "BuildingPetsAllowed",
+      "description": "Pet policy for the building (Allowed, Cats Allowed, Dogs Allowed, Size Limit, Number Limit, Breed Restrictions, Case by Case, Not Allowed)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BuildingPetsAllowedComments",
+      "matrixFieldName": "BuildingPetsAllowedComments",
+      "description": "Description of pet restrictions (size/number/breed limits)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if BuildingPetsAllowed IN (SizeLimit, NumberLimit, BreedRestrictions)"
+    },
+    {
+      "field": "BuildingTaxLot",
+      "matrixFieldName": "BuildingTaxLot",
+      "description": "NYC-specific: Block and Lot number for the building (e.g., 'Block 1234, Lot 56' or 'Borough-Block-Lot')",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BuyerAgentCommission",
+      "matrixFieldName": "BuyerAgentCommission",
+      "description": "Commission offered to buyer's agent",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "BuyerAgentCommissionType",
+      "matrixFieldName": "BuyerAgentCommissionType",
+      "description": "Type of buyer agent commission (Percentage, Fixed)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "City",
+      "matrixFieldName": "City",
+      "description": "City where the property is located. RESO DD 2.0: Now a Lookup type.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "CloseDate",
+      "matrixFieldName": "CloseDate",
+      "description": "The date the sale of the property closed",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required when MLSStatus IN (Sold, Rented)"
+    },
+    {
+      "field": "ClosePrice",
+      "matrixFieldName": "ClosePrice",
+      "description": "The final price at which the property was sold",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required when MLSStatus IN (Sold, Rented)"
+    },
+    {
+      "field": "CommonInterest",
+      "matrixFieldName": "CommonInterest",
+      "description": "Type of ownership interest (Condominium, Stock Cooperative, Condop, Fee Simple, None)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if PropertyType = Residential"
+    },
+    {
+      "field": "Cooling",
+      "matrixFieldName": "Cooling",
+      "description": "Cooling system features (Central Air, Window Unit(s), Split System, Through Wall, None)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CountyOrParish",
+      "matrixFieldName": "CountyOrParish",
+      "description": "County where the property is located (NYC: New York, Kings, Queens, Bronx, Richmond). RESO DD 2.0: Now a Lookup type.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ExpirationDate",
+      "matrixFieldName": "ExpirationDate",
+      "description": "The date the listing agreement expires",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "FlipTaxAmount",
+      "matrixFieldName": "FlipTaxAmount",
+      "description": "NYC-specific: Flip tax percentage or amount",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if FlipTaxYN = true"
+    },
+    {
+      "field": "FlipTaxYN",
+      "matrixFieldName": "FlipTaxYN",
+      "description": "NYC-specific: Is there a flip tax",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if CommonInterest IN (StockCooperative, Condop)"
+    },
+    {
+      "field": "Flooring",
+      "matrixFieldName": "Flooring",
+      "description": "Types of flooring in the property (Hardwood, Carpet, Tile, Marble, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Heating",
+      "matrixFieldName": "Heating",
+      "description": "Heating system features (Forced Air, Steam, Hot Water, Radiant, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "InteriorFeatures",
+      "matrixFieldName": "InteriorFeatures",
+      "description": "Interior features of the property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentEmail",
+      "matrixFieldName": "ListAgentEmail",
+      "description": "Email address of the listing agent",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListAgentFullName",
+      "matrixFieldName": "ListAgentFullName",
+      "description": "Full name of the listing agent",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListAgentKey",
+      "matrixFieldName": "ListAgentKey",
+      "description": "Unique identifier for the listing agent",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListAgentMlsId",
+      "matrixFieldName": "ListAgentMlsId",
+      "description": "MLS ID of the listing agent",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListAgentStateLicense",
+      "matrixFieldName": "ListAgentStateLicense",
+      "description": "State license number of the listing agent",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListingContractDate",
+      "matrixFieldName": "ListingContractDate",
+      "description": "Date the listing contract was signed",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListingId",
+      "matrixFieldName": "ListingId",
+      "description": "Unique identifier for the listing in the MLS",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListingKey",
+      "matrixFieldName": "ListingKey",
+      "description": "System-generated unique identifier",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListOfficeKey",
+      "matrixFieldName": "ListOfficeKey",
+      "description": "Unique identifier for the listing office",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListOfficeMlsId",
+      "matrixFieldName": "ListOfficeMlsId",
+      "description": "MLS ID of the listing office",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListOfficeName",
+      "matrixFieldName": "ListOfficeName",
+      "description": "Name of the listing brokerage office",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ListPrice",
+      "matrixFieldName": "ListPrice",
+      "description": "The current price of the property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "LivingArea",
+      "matrixFieldName": "LivingArea",
+      "description": "The livable/usable area of the property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LivingAreaUnits",
+      "matrixFieldName": "LivingAreaUnits",
+      "description": "Unit of measurement for living area (Square Feet, Square Meters)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if LivingArea is entered"
+    },
+    {
+      "field": "MaintenanceFee",
+      "matrixFieldName": "MaintenanceFee",
+      "description": "NYC-specific: Monthly maintenance fee for co-ops (synonym for AssociationFee)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if CommonInterest IN (StockCooperative, Condop)"
+    },
+    {
+      "field": "MaxFinancing",
+      "matrixFieldName": "MaxFinancing",
+      "description": "NYC-specific: Maximum financing allowed by co-op board (percentage 0-100)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if CommonInterest = StockCooperative"
+    },
+    {
+      "field": "MLSStatus",
+      "matrixFieldName": "MLSStatus",
+      "description": "Current status of the listing (Active, Active Under Contract, Coming Soon, Pending, Sold, Rented, Withdrawn, Expired, Cancelled)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "ModificationTimestamp",
+      "matrixFieldName": "ModificationTimestamp",
+      "description": "Timestamp of the last modification. RESO DD 2.0: Only updates for on-market listings.",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "NewConstructionYN",
+      "matrixFieldName": "NewConstructionYN",
+      "description": "Is this a new construction property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "NewDevelopmentYN",
+      "matrixFieldName": "NewDevelopmentYN",
+      "description": "Is this a new development property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OnMarketDate",
+      "matrixFieldName": "OnMarketDate",
+      "description": "Date the listing went on market",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "OriginalListPrice",
+      "matrixFieldName": "OriginalListPrice",
+      "description": "The original list price when first listed",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "PiedATerreAllowed",
+      "matrixFieldName": "PiedATerreAllowed",
+      "description": "NYC-specific: Is pied-a-terre allowed",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PostalCode",
+      "matrixFieldName": "PostalCode",
+      "description": "ZIP code of the property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "PropertySubType",
+      "matrixFieldName": "PropertySubType",
+      "description": "Sub-type of the property (Apartment, Loft, Studio, Duplex, Triplex, Penthouse, Townhouse, etc.)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "PropertyType",
+      "matrixFieldName": "PropertyType",
+      "description": "Type of the property (Residential, ResidentialLease, Commercial, Land)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "PublicRemarks",
+      "matrixFieldName": "PublicRemarks",
+      "description": "Property description visible to the public. Must comply with Fair Housing Act - no discriminatory language.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "RealEstateTax",
+      "matrixFieldName": "RealEstateTax",
+      "description": "Annual real estate taxes",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if CommonInterest = Condominium"
+    },
+    {
+      "field": "Rooms",
+      "matrixFieldName": "Rooms",
+      "description": "Total number of rooms (not including bathrooms)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingContactPhone",
+      "matrixFieldName": "ShowingContactPhone",
+      "description": "Phone number for scheduling showings",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "SponsorUnitYN",
+      "matrixFieldName": "SponsorUnitYN",
+      "description": "NYC-specific: Is this a sponsor unit",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if NewDevelopmentYN = true OR NewConstructionYN = true"
+    },
+    {
+      "field": "StateOrProvince",
+      "matrixFieldName": "StateOrProvince",
+      "description": "State where the property is located",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "StoriesTotal",
+      "matrixFieldName": "StoriesTotal",
+      "description": "Total number of stories in the building",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "StreetDirPrefix",
+      "matrixFieldName": "StreetDirPrefix",
+      "description": "Direction prefix of street address (N, S, E, W, NE, NW, SE, SW)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "StreetDirSuffix",
+      "matrixFieldName": "StreetDirSuffix",
+      "description": "Direction suffix of street address",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "StreetName",
+      "matrixFieldName": "StreetName",
+      "description": "Street name portion of the address. Must exist in NYC street dictionary.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "StreetNumber",
+      "matrixFieldName": "StreetNumber",
+      "description": "Street number portion of the address",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Yes"
+    },
+    {
+      "field": "StreetSuffix",
+      "matrixFieldName": "StreetSuffix",
+      "description": "Street suffix (St, Ave, Blvd, Rd, Dr, Ln, Ct, Pl, Way, Ter, Cir)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SubdivisionName",
+      "matrixFieldName": "SubdivisionName",
+      "description": "Name of the neighborhood or subdivision",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SubletAllowed",
+      "matrixFieldName": "SubletAllowed",
+      "description": "NYC-specific: Is subletting allowed",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if CommonInterest IN (StockCooperative, Condop)"
+    },
+    {
+      "field": "TaxAbatementYN",
+      "matrixFieldName": "TaxAbatementYN",
+      "description": "NYC-specific: Is there a tax abatement",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if CommonInterest IN (Condominium, Condop)"
+    },
+    {
+      "field": "TaxAbatementEndDate",
+      "matrixFieldName": "TaxAbatementEndDate",
+      "description": "NYC-specific: Date tax abatement ends",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "Conditional: Required if TaxAbatementYN = true"
+    },
+    {
+      "field": "UnitNumber",
+      "matrixFieldName": "UnitNumber",
+      "description": "Unit number/apartment number",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "UnparsedAddress",
+      "matrixFieldName": "UnparsedAddress",
+      "description": "Full address excluding unit number",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "View",
+      "matrixFieldName": "View",
+      "description": "View from the property (City, Park, Water, River, Garden, Courtyard, Street, Skyline, Bridge, None)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "YearBuilt",
+      "matrixFieldName": "YearBuilt",
+      "description": "Year the building was constructed. Must be >= 1700 and <= currentYear + 10.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    }
+  ],
+  "fairHousingProhibitedTerms": [
+    "family-friendly",
+    "perfect for families",
+    "ideal for children",
+    "no children",
+    "adults only",
+    "mature community",
+    "senior living",
+    "walking distance to church",
+    "near synagogue",
+    "close to mosque",
+    "traditional neighborhood",
+    "exclusive neighborhood",
+    "safe neighborhood",
+    "good schools",
+    "minority neighborhood",
+    "ethnic enclave",
+    "diverse area",
+    "integrated area",
+    "white neighborhood",
+    "bachelor pad",
+    "man cave",
+    "perfect for single professional",
+    "great for couple",
+    "no Section 8",
+    "no vouchers",
+    "no welfare",
+    "employed applicants only",
+    "must have good credit",
+    "speak English",
+    "born in USA",
+    "US citizens only",
+    "able-bodied",
+    "wheelchair users",
+    "handicapped",
+    "disabled welcome"
+  ],
+  "nycBoroughs": {
+    "Manhattan": { "county": "New York", "fips": "36061" },
+    "Brooklyn": { "county": "Kings", "fips": "36047" },
+    "Queens": { "county": "Queens", "fips": "36081" },
+    "Bronx": { "county": "Bronx", "fips": "36005" },
+    "Staten Island": { "county": "Richmond", "fips": "36085" }
+  }
+}

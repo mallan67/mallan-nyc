@@ -1,140 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-
-interface Listing {
-  id: string;
-  address: string;
-  neighborhood: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
-  type: string;
-  image: string;
-  isExclusive?: boolean;
-}
-
-// Sample listings data - in production, this would come from an API
-const SAMPLE_LISTINGS: Listing[] = [
-  {
-    id: '1',
-    address: '400 East 90th Street, Apt 12B',
-    neighborhood: 'Upper East Side',
-    price: 1250000,
-    beds: 2,
-    baths: 2,
-    sqft: 1100,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-    isExclusive: true,
-  },
-  {
-    id: '2',
-    address: '225 East 86th Street, Apt 8F',
-    neighborhood: 'Upper East Side',
-    price: 875000,
-    beds: 1,
-    baths: 1,
-    sqft: 750,
-    type: 'Co-op',
-    image: '/images/listing-placeholder.jpg',
-  },
-  {
-    id: '3',
-    address: '180 Montague Street, Apt 5A',
-    neighborhood: 'Brooklyn Heights',
-    price: 1450000,
-    beds: 3,
-    baths: 2,
-    sqft: 1400,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-    isExclusive: true,
-  },
-  {
-    id: '4',
-    address: '350 West 42nd Street, Apt 22C',
-    neighborhood: 'Midtown West',
-    price: 2100000,
-    beds: 2,
-    baths: 2.5,
-    sqft: 1350,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-  },
-  {
-    id: '5',
-    address: '75 Wall Street, Apt 31D',
-    neighborhood: 'Financial District',
-    price: 995000,
-    beds: 1,
-    baths: 1,
-    sqft: 850,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-  },
-  {
-    id: '6',
-    address: '200 East 69th Street, Apt 4B',
-    neighborhood: 'Upper East Side',
-    price: 1750000,
-    beds: 3,
-    baths: 2,
-    sqft: 1600,
-    type: 'Co-op',
-    image: '/images/listing-placeholder.jpg',
-  },
-];
-
-const SAMPLE_RENTALS: Listing[] = [
-  {
-    id: 'r1',
-    address: '123 East 72nd Street, Apt 6A',
-    neighborhood: 'Upper East Side',
-    price: 4500,
-    beds: 1,
-    baths: 1,
-    sqft: 700,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-  },
-  {
-    id: 'r2',
-    address: '456 West 34th Street, Apt 18C',
-    neighborhood: 'Hudson Yards',
-    price: 6500,
-    beds: 2,
-    baths: 2,
-    sqft: 1100,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-    isExclusive: true,
-  },
-  {
-    id: 'r3',
-    address: '789 Broadway, Apt 3R',
-    neighborhood: 'NoHo',
-    price: 5200,
-    beds: 1,
-    baths: 1,
-    sqft: 850,
-    type: 'Loft',
-    image: '/images/listing-placeholder.jpg',
-  },
-  {
-    id: 'r4',
-    address: '321 Park Avenue South, Apt 12F',
-    neighborhood: 'Flatiron',
-    price: 7500,
-    beds: 2,
-    baths: 2,
-    sqft: 1250,
-    type: 'Condo',
-    image: '/images/listing-placeholder.jpg',
-  },
-];
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import listingsData from '@/data/listings.json';
+import type { Listing } from '@/lib/types/listing';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -152,8 +23,18 @@ interface PropertySearchProps {
 }
 
 export default function PropertySearch({ type }: PropertySearchProps) {
+  const searchParams = useSearchParams();
   const isRental = type === 'rent';
-  const listings = isRental ? SAMPLE_RENTALS : SAMPLE_LISTINGS;
+
+  // Get all listings of the appropriate type
+  const allListings = (listingsData.listings as unknown as Listing[]).filter(
+    (l) => (isRental ? l.listingType === 'rent' : l.listingType === 'sale') && l.status === 'active'
+  );
+
+  // URL params for initial filters
+  const initialNeighborhood = searchParams?.get('neighborhood') || '';
+  const initialAmenity = searchParams?.get('amenity') || '';
+  const initialBorough = searchParams?.get('borough') || '';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>(
@@ -161,61 +42,176 @@ export default function PropertySearch({ type }: PropertySearchProps) {
   );
   const [beds, setBeds] = useState<number | null>(null);
   const [propertyType, setPropertyType] = useState<string>('');
+  const [neighborhoodFilter, setNeighborhoodFilter] = useState(initialNeighborhood);
+  const [boroughFilter, setBoroughFilter] = useState(initialBorough);
+  const [amenityFilter, setAmenityFilter] = useState(initialAmenity);
+  const [maintenanceRange, setMaintenanceRange] = useState<[number, number]>([0, 10000]);
+  const [petsAllowed, setPetsAllowed] = useState<boolean | null>(null);
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'featured'>('featured');
+
+  // Get unique values for filters
+  const boroughs = [...new Set(allListings.map((l) => l.address.borough))].sort();
+  const propertyTypes = [...new Set(allListings.map((l) => l.propertyInfo.propertyType))].sort();
+
+  // Reset filters when URL params change
+  useEffect(() => {
+    setNeighborhoodFilter(searchParams?.get('neighborhood') || '');
+    setAmenityFilter(searchParams?.get('amenity') || '');
+    setBoroughFilter(searchParams?.get('borough') || '');
+  }, [searchParams]);
 
   // Filter listings
-  const filteredListings = listings.filter(listing => {
+  const filteredListings = allListings.filter((listing) => {
     // Search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
+      const fullAddress = `${listing.address.streetNumber} ${listing.address.streetName} ${listing.address.unit}`.toLowerCase();
       if (
-        !listing.address.toLowerCase().includes(query) &&
-        !listing.neighborhood.toLowerCase().includes(query)
+        !fullAddress.includes(query) &&
+        !listing.address.neighborhoodDisplay.toLowerCase().includes(query) &&
+        !listing.address.zip.includes(query) &&
+        !listing.address.borough.toLowerCase().includes(query)
       ) {
         return false;
       }
     }
+
     // Price range
-    if (listing.price < priceRange[0] || listing.price > priceRange[1]) {
+    if (listing.price.listPrice < priceRange[0] || listing.price.listPrice > priceRange[1]) {
       return false;
     }
+
     // Beds
-    if (beds !== null && listing.beds < beds) {
+    if (beds !== null && listing.propertyInfo.bedroomsTotal < beds) {
       return false;
     }
+
     // Property type
-    if (propertyType && listing.type !== propertyType) {
+    if (propertyType && listing.propertyInfo.propertyType !== propertyType) {
       return false;
     }
+
+    // Borough
+    if (boroughFilter && listing.address.borough !== boroughFilter) {
+      return false;
+    }
+
+    // Neighborhood
+    if (neighborhoodFilter && listing.address.neighborhood !== neighborhoodFilter) {
+      return false;
+    }
+
+    // Maintenance fee (for sales only)
+    if (!isRental && listing.nycSpecific.maintenanceFee) {
+      if (
+        listing.nycSpecific.maintenanceFee < maintenanceRange[0] ||
+        listing.nycSpecific.maintenanceFee > maintenanceRange[1]
+      ) {
+        return false;
+      }
+    }
+
+    // Pets filter
+    if (petsAllowed !== null && listing.features.pets.allowed !== petsAllowed) {
+      return false;
+    }
+
+    // Amenity filters
+    if (amenityFilter) {
+      const amenityMap: Record<string, (l: Listing) => boolean> = {
+        doorman: (l) => l.features.building.doorman,
+        'health-club': (l) => l.features.building.gym,
+        pets: (l) => l.features.pets.allowed,
+        pool: (l) => l.features.building.pool,
+        'roof-deck': (l) => l.features.building.roofDeck,
+      };
+      const checkFn = amenityMap[amenityFilter];
+      if (checkFn && !checkFn(listing)) {
+        return false;
+      }
+    }
+
     return true;
   });
+
+  // Sort listings
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    switch (sortBy) {
+      case 'price-asc':
+        return a.price.listPrice - b.price.listPrice;
+      case 'price-desc':
+        return b.price.listPrice - a.price.listPrice;
+      case 'newest':
+        return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
+      case 'featured':
+      default:
+        if (a.flags.isFeatured !== b.flags.isFeatured) return b.flags.isFeatured ? 1 : -1;
+        if (a.flags.isExclusive !== b.flags.isExclusive) return b.flags.isExclusive ? 1 : -1;
+        return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
+    }
+  });
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setPriceRange(isRental ? [0, 15000] : [0, 5000000]);
+    setBeds(null);
+    setPropertyType('');
+    setNeighborhoodFilter('');
+    setBoroughFilter('');
+    setAmenityFilter('');
+    setMaintenanceRange([0, 10000]);
+    setPetsAllowed(null);
+  };
+
+  const hasActiveFilters =
+    searchQuery ||
+    beds !== null ||
+    propertyType ||
+    neighborhoodFilter ||
+    boroughFilter ||
+    amenityFilter ||
+    petsAllowed !== null ||
+    (isRental ? priceRange[0] !== 0 || priceRange[1] !== 15000 : priceRange[0] !== 0 || priceRange[1] !== 5000000);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Search Header */}
       <section className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1">
               <input
                 type="text"
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search by address or neighborhood..."
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by address, neighborhood, zip, or borough..."
                 className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
               />
             </div>
 
-            {/* Filters */}
+            {/* Filters Row 1 */}
             <div className="flex gap-3 flex-wrap">
+              {/* Borough */}
+              <select
+                value={boroughFilter}
+                onChange={(e) => setBoroughFilter(e.target.value)}
+                className="border rounded-lg px-4 py-3 bg-white text-sm"
+              >
+                <option value="">All Boroughs</option>
+                {boroughs.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+
               {/* Price */}
               <select
                 value={`${priceRange[0]}-${priceRange[1]}`}
-                onChange={e => {
+                onChange={(e) => {
                   const [min, max] = e.target.value.split('-').map(Number);
                   setPriceRange([min, max]);
                 }}
-                className="border rounded-lg px-4 py-3 bg-white"
+                className="border rounded-lg px-4 py-3 bg-white text-sm"
               >
                 <option value={isRental ? '0-15000' : '0-5000000'}>Any Price</option>
                 {isRental ? (
@@ -240,8 +236,8 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               {/* Beds */}
               <select
                 value={beds ?? ''}
-                onChange={e => setBeds(e.target.value ? Number(e.target.value) : null)}
-                className="border rounded-lg px-4 py-3 bg-white"
+                onChange={(e) => setBeds(e.target.value ? Number(e.target.value) : null)}
+                className="border rounded-lg px-4 py-3 bg-white text-sm"
               >
                 <option value="">Any Beds</option>
                 <option value="1">1+ Bed</option>
@@ -253,17 +249,78 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               {/* Type */}
               <select
                 value={propertyType}
-                onChange={e => setPropertyType(e.target.value)}
-                className="border rounded-lg px-4 py-3 bg-white"
+                onChange={(e) => setPropertyType(e.target.value)}
+                className="border rounded-lg px-4 py-3 bg-white text-sm"
               >
                 <option value="">Any Type</option>
-                <option value="Condo">Condo</option>
-                <option value="Co-op">Co-op</option>
-                <option value="Townhouse">Townhouse</option>
-                <option value="Loft">Loft</option>
+                {propertyTypes.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+
+              {/* Pets */}
+              <select
+                value={petsAllowed === null ? '' : petsAllowed ? 'yes' : 'no'}
+                onChange={(e) => {
+                  if (e.target.value === '') setPetsAllowed(null);
+                  else setPetsAllowed(e.target.value === 'yes');
+                }}
+                className="border rounded-lg px-4 py-3 bg-white text-sm"
+              >
+                <option value="">Any Pets Policy</option>
+                <option value="yes">Pets Allowed</option>
+                <option value="no">No Pets</option>
+              </select>
+
+              {/* Sort */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="border rounded-lg px-4 py-3 bg-white text-sm"
+              >
+                <option value="featured">Featured First</option>
+                <option value="newest">Newest</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
               </select>
             </div>
           </div>
+
+          {/* Active Filters */}
+          {hasActiveFilters && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-500">Active filters:</span>
+              {boroughFilter && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
+                  {boroughFilter}
+                  <button onClick={() => setBoroughFilter('')} className="ml-1 hover:text-brand-gold">&times;</button>
+                </span>
+              )}
+              {amenityFilter && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
+                  {amenityFilter.replace('-', ' ')}
+                  <button onClick={() => setAmenityFilter('')} className="ml-1 hover:text-brand-gold">&times;</button>
+                </span>
+              )}
+              {petsAllowed !== null && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
+                  {petsAllowed ? 'Pets Allowed' : 'No Pets'}
+                  <button onClick={() => setPetsAllowed(null)} className="ml-1 hover:text-brand-gold">&times;</button>
+                </span>
+              )}
+              <button
+                onClick={clearFilters}
+                className="text-sm text-gray-500 hover:text-brand-gold underline"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
+          {/* REBNY Compliance Tooltip */}
+          <p className="mt-2 text-xs text-gray-400">
+            Searches comply with REBNY RLS data standards for accurate, timely information.
+          </p>
         </div>
       </section>
 
@@ -273,41 +330,46 @@ export default function PropertySearch({ type }: PropertySearchProps) {
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
             <p className="text-gray-600">
-              {filteredListings.length} {filteredListings.length === 1 ? 'property' : 'properties'} found
+              {sortedListings.length} {sortedListings.length === 1 ? 'property' : 'properties'} found
             </p>
             <p className="text-sm text-gray-400">
-              Sample listings for demonstration
+              Data provided by REBNY RLS
             </p>
           </div>
 
           {/* Listings Grid */}
-          {filteredListings.length === 0 ? (
+          {sortedListings.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-lg">
               <p className="text-gray-500 text-lg mb-2">No properties match your criteria</p>
-              <p className="text-gray-400">Try adjusting your filters</p>
+              <p className="text-gray-400 mb-4">Try adjusting your filters</p>
+              <button onClick={clearFilters} className="text-brand-gold hover:underline">
+                Clear all filters
+              </button>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredListings.map(listing => (
-                <div
+              {sortedListings.map((listing) => (
+                <Link
                   key={listing.id}
-                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  href={`/listing/${listing.id}`}
+                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
                 >
                   {/* Image */}
                   <div className="relative aspect-[4/3] bg-gray-100">
                     <Image
-                      src={listing.image}
-                      alt={listing.address}
+                      src={listing.media.images[0]?.url || '/images/listing-placeholder.jpg'}
+                      alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
                       fill
-                      className="object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    {listing.isExclusive && (
+                    {listing.flags.isExclusive && (
                       <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
                         Exclusive
+                      </span>
+                    )}
+                    {listing.openHouse?.scheduled && (
+                      <span className="absolute top-3 right-3 px-3 py-1 bg-white text-brand-dark text-xs rounded shadow">
+                        Open House
                       </span>
                     )}
                   </div>
@@ -315,19 +377,33 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                   {/* Content */}
                   <div className="p-4">
                     <p className="text-xl font-semibold mb-1">
-                      {formatPrice(listing.price, isRental)}
+                      {formatPrice(listing.price.listPrice, isRental)}
                     </p>
-                    <p className="text-gray-800">{listing.address}</p>
-                    <p className="text-gray-500 text-sm">{listing.neighborhood}</p>
+                    <p className="text-gray-800">
+                      {listing.address.streetNumber} {listing.address.streetName}, {listing.address.unit}
+                    </p>
+                    <p className="text-gray-500 text-sm">{listing.address.neighborhoodDisplay}, {listing.address.borough}</p>
 
                     <div className="flex gap-4 text-sm text-gray-600 mt-3 pt-3 border-t">
-                      <span>{listing.beds} bed{listing.beds !== 1 ? 's' : ''}</span>
-                      <span>{listing.baths} bath{listing.baths !== 1 ? 's' : ''}</span>
-                      {listing.sqft > 0 && <span>{listing.sqft.toLocaleString()} sqft</span>}
-                      <span className="text-gray-400">{listing.type}</span>
+                      <span>{listing.propertyInfo.bedroomsTotal} bed{listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''}</span>
+                      <span>
+                        {listing.propertyInfo.bathroomsFull}
+                        {listing.propertyInfo.bathroomsHalf > 0 && `.${listing.propertyInfo.bathroomsHalf}`} bath{listing.propertyInfo.bathroomsFull !== 1 ? 's' : ''}
+                      </span>
+                      {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+                        <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft</span>
+                      )}
+                      <span className="text-gray-400">{listing.propertyInfo.propertyType}</span>
                     </div>
+
+                    {/* NYC-Specific: Maintenance/CC */}
+                    {!isRental && listing.nycSpecific.maintenanceFee && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
+                      </p>
+                    )}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -343,12 +419,12 @@ export default function PropertySearch({ type }: PropertySearchProps) {
           <p className="text-gray-600 mb-8">
             Our agents have access to exclusive listings and can help you find the perfect property.
           </p>
-          <a
+          <Link
             href="/agents"
             className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded hover:bg-gray-800 transition-colors"
           >
             Contact an Agent
-          </a>
+          </Link>
         </div>
       </section>
     </div>

@@ -1,44 +1,19 @@
 import { NextResponse } from 'next/server';
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+
+// Static import for Vercel serverless compatibility
+import agentsData from '@/data/agents.json';
 
 export const dynamic = 'force-dynamic';
 
-const AGENTS_FILE = path.join(process.cwd(), 'data', 'agents.json');
-
-const DEFAULT_AGENTS = {
-  agents: []
-};
-
-async function getAgents() {
-  try {
-    const data = await readFile(AGENTS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return DEFAULT_AGENTS;
-  }
-}
-
-async function saveAgents(data: typeof DEFAULT_AGENTS) {
-  const dir = path.dirname(AGENTS_FILE);
-  await mkdir(dir, { recursive: true });
-  await writeFile(AGENTS_FILE, JSON.stringify(data, null, 2));
-}
-
 export async function GET() {
-  const data = await getAgents();
-  return NextResponse.json(data);
+  return NextResponse.json(agentsData);
 }
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    await saveAgents(body);
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to save agents' },
-      { status: 500 }
-    );
-  }
+export async function POST() {
+  // Note: POST is only functional in development (local filesystem)
+  // In production, use a database or CMS
+  return NextResponse.json(
+    { error: 'POST not supported in production. Edit data/agents.json locally.' },
+    { status: 501 }
+  );
 }
