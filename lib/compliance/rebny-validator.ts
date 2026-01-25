@@ -32,6 +32,15 @@ export interface RLSRule {
     if: string;
     message: string;
   } | null;
+  // Optional type validation properties (not currently in rls-rules.json)
+  type?: string;
+  enum?: string[];
+  validation?: string;
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  maxFormula?: string;
 }
 
 export interface ValidationResult {
