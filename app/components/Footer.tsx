@@ -146,23 +146,21 @@ export default function Footer() {
           {/* Fair Housing Statement */}
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-6 pb-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              {/* Equal Housing Opportunity Logo */}
-              <div className="w-12 h-12 bg-white rounded flex items-center justify-center border">
+              {/* Equal Housing Opportunity Logo - HUD compliant */}
+              <div className="w-12 h-12 bg-white rounded flex items-center justify-center border" aria-hidden="true">
                 <Image
                   src="/images/equal-housing-logo.svg"
-                  alt="Equal Housing Opportunity"
+                  alt=""
                   width={40}
                   height={40}
                   className="w-10 h-10"
-                  onError={(e) => {
-                    // Fallback to text if image doesn't exist
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
+                  priority={false}
+                  unoptimized
                 />
               </div>
               <div className="text-center md:text-left">
-                <p className="font-medium text-sm text-gray-800">Equal Housing Opportunity</p>
-                <p className="text-xs text-gray-600">
+                <p className="font-medium text-sm text-gray-800" id="equal-housing-title">Equal Housing Opportunity</p>
+                <p className="text-xs text-gray-600" id="equal-housing-desc">
                   We are pledged to the letter and spirit of U.S. policy for fair housing.
                 </p>
               </div>

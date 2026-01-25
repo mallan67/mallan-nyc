@@ -75,3 +75,87 @@ img{max-width:100%;display:block}
 .grid3{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .muted{color:var(--muted)} .small{font-size:12px}
 .copyright{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
+
+/* ---------- WCAG 2.1 AA Accessibility Fixes ---------- */
+
+/* Focus visible states for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Remove default outline only when focus-visible is supported */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Ensure all interactive elements have visible focus */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* High contrast focus for dark backgrounds */
+.bg-brand-dark a:focus-visible,
+.bg-brand-dark button:focus-visible,
+header a:focus-visible,
+header button:focus-visible {
+  outline-color: #fbbf24;
+}
+
+/* Skip link target - remove focus ring after navigation */
+#main-content:focus {
+  outline: none;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Screen reader only utility (if not provided by Tailwind) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Ensure minimum touch target size (44x44px) for mobile */
+@media (pointer: coarse) {
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Color contrast fixes for muted text - ensure 4.5:1 ratio */
+.text-gray-500 {
+  color: #6b7280; /* Passes AA on white */
+}
+
+.text-gray-400 {
+  color: #9ca3af; /* Use only for decorative/non-essential text */
+}

@@ -8,7 +8,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white font-serif">
       <Header />
-      <main>
+      <main id="main-content" role="main" tabIndex={-1}>
         <HeroSearch />
         <FeaturedListings />
         <ExploreNeighborhoods />
