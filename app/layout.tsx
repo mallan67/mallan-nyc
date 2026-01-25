@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
+import Analytics from './components/Analytics';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -130,6 +131,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SkipLink />
         {children}
         <CookieConsent />
+        <Analytics />
       </body>
     </html>
   );
