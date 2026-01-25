@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120" fill="none">
+  <!-- House shape -->
+  <polygon points="50,8 8,45 92,45" fill="#000"/>
+  <rect x="8" y="45" width="84" height="60" fill="#000"/>
+
+  <!-- Equal sign inside house -->
+  <rect x="25" y="55" width="50" height="8" fill="#fff"/>
+  <rect x="25" y="70" width="50" height="8" fill="#fff"/>
+
+  <!-- Text below -->
+  <text x="50" y="95" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="7" font-weight="bold" letter-spacing="0.5">EQUAL HOUSING</text>
+  <text x="50" y="103" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="6" font-weight="bold" letter-spacing="0.5">OPPORTUNITY</text>
+</svg>

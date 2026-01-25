@@ -1,0 +1,476 @@
+{
+  "neighborhoods": [
+    {
+      "id": "upper-east-side",
+      "name": "Upper East Side",
+      "tagline": "Classic Manhattan Elegance",
+      "image": "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=600&q=80",
+      "description": "The Upper East Side is one of Manhattan's most prestigious residential neighborhoods, renowned for its tree-lined streets, pre-war architecture, and proximity to Central Park. This refined enclave offers a sophisticated lifestyle with world-class museums, boutique shopping, and acclaimed dining.",
+      "vibe": "Elegant and refined with a family-friendly atmosphere. Quiet tree-lined streets contrast with the bustling avenues. A mix of longtime residents and young professionals seeking classic Manhattan living.",
+      "listingCount": 245,
+      "avgPrice": {
+        "sale": 1850000,
+        "rent": 4200
+      },
+      "boundaries": {
+        "north": "96th Street",
+        "south": "59th Street",
+        "east": "East River",
+        "west": "Fifth Avenue"
+      },
+      "transit": ["4", "5", "6", "Q"],
+      "attractions": [
+        {
+          "name": "The Metropolitan Museum of Art",
+          "type": "museum",
+          "description": "One of the world's largest and finest art museums with over 5,000 years of art",
+          "address": "1000 Fifth Avenue",
+          "link": "https://www.metmuseum.org/"
+        },
+        {
+          "name": "Solomon R. Guggenheim Museum",
+          "type": "museum",
+          "description": "Frank Lloyd Wright's iconic spiral building housing modern art masterpieces",
+          "address": "1071 Fifth Avenue",
+          "link": "https://www.guggenheim.org/"
+        },
+        {
+          "name": "Central Park",
+          "type": "park",
+          "description": "843 acres of green space with running paths, playgrounds, and the Reservoir",
+          "address": "Fifth Avenue to Central Park West",
+          "link": "https://www.centralparknyc.org/"
+        },
+        {
+          "name": "Brearley School",
+          "type": "school",
+          "description": "Prestigious all-girls K-12 independent school founded in 1884",
+          "address": "610 East 83rd Street",
+          "link": "https://www.brearley.org/"
+        },
+        {
+          "name": "Chapin School",
+          "type": "school",
+          "description": "Elite all-girls school founded in 1901",
+          "address": "100 East End Avenue",
+          "link": "https://www.chapin.edu/"
+        }
+      ],
+      "dining": ["Daniel", "Cafe Boulud", "The Mark Restaurant", "JG Melon", "Bemelmans Bar"]
+    },
+    {
+      "id": "upper-west-side",
+      "name": "Upper West Side",
+      "tagline": "Cultural & Intellectual Hub",
+      "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80",
+      "description": "The Upper West Side embodies the intellectual and artistic spirit of Manhattan. Home to Lincoln Center, Columbia University, and the American Museum of Natural History, this neighborhood attracts creatives, academics, and families seeking a vibrant cultural community.",
+      "vibe": "Artsy, intellectual, and family-oriented. A laid-back alternative to the Upper East Side with excellent schools, cultural institutions, and a strong sense of community.",
+      "listingCount": 198,
+      "avgPrice": {
+        "sale": 1650000,
+        "rent": 3800
+      },
+      "boundaries": {
+        "north": "110th Street",
+        "south": "59th Street",
+        "east": "Central Park West",
+        "west": "Hudson River"
+      },
+      "transit": ["1", "2", "3", "B", "C"],
+      "attractions": [
+        {
+          "name": "Lincoln Center for the Performing Arts",
+          "type": "cultural",
+          "description": "World-renowned performing arts complex featuring opera, ballet, symphony, and theater",
+          "address": "10 Lincoln Center Plaza",
+          "link": "https://www.lincolncenter.org/"
+        },
+        {
+          "name": "American Museum of Natural History",
+          "type": "museum",
+          "description": "Iconic museum with dinosaur fossils, the Hayden Planetarium, and extensive natural collections",
+          "address": "Central Park West at 79th Street",
+          "link": "https://www.amnh.org/"
+        },
+        {
+          "name": "Riverside Park",
+          "type": "park",
+          "description": "Four-mile waterfront park with playgrounds, sports fields, and stunning Hudson River views",
+          "address": "Riverside Drive",
+          "link": "https://riversideparknyc.org/"
+        },
+        {
+          "name": "Trinity School",
+          "type": "school",
+          "description": "America's fifth-oldest school, consistently ranked among the best independent schools",
+          "address": "139 West 91st Street",
+          "link": "https://www.trinityschoolnyc.org/"
+        },
+        {
+          "name": "Columbia University",
+          "type": "university",
+          "description": "Ivy League research university founded in 1754",
+          "address": "116th Street & Broadway",
+          "link": "https://www.columbia.edu/"
+        }
+      ],
+      "dining": ["Jean-Georges", "Telepan", "Cafe Luxembourg", "Barney Greengrass", "Jacob's Pickles"]
+    },
+    {
+      "id": "tribeca",
+      "name": "Tribeca",
+      "tagline": "Manhattan's Most Exclusive Address",
+      "image": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=600&q=80",
+      "description": "Tribeca (Triangle Below Canal) has evolved from industrial warehouses to Manhattan's most expensive residential neighborhood. Its cobblestone streets, cast-iron buildings, and converted loft spaces attract celebrities, financiers, and families seeking space and privacy in downtown Manhattan.",
+      "vibe": "Ultra-exclusive yet surprisingly family-friendly. Celebrity sightings are common, but the neighborhood maintains a village-like feel with excellent parks, schools, and a strong community spirit.",
+      "listingCount": 87,
+      "avgPrice": {
+        "sale": 4500000,
+        "rent": 8500
+      },
+      "boundaries": {
+        "north": "Canal Street",
+        "south": "Vesey Street",
+        "east": "Broadway",
+        "west": "West Street"
+      },
+      "transit": ["1", "2", "3", "A", "C", "E"],
+      "attractions": [
+        {
+          "name": "Tribeca Film Festival",
+          "type": "cultural",
+          "description": "Annual film festival founded by Robert De Niro to revitalize Lower Manhattan",
+          "address": "Various venues",
+          "link": "https://tribecafilm.com/"
+        },
+        {
+          "name": "Hudson River Park",
+          "type": "park",
+          "description": "Waterfront park spanning 5 miles with piers, playgrounds, and sports facilities",
+          "address": "Hudson River Waterfront",
+          "link": "https://hudsonriverpark.org/"
+        },
+        {
+          "name": "Pier 25",
+          "type": "recreation",
+          "description": "Tribeca's largest pier featuring mini-golf, beach volleyball, and a playground",
+          "address": "West Street at N. Moore Street",
+          "link": "https://hudsonriverpark.org/explore/pier-25"
+        },
+        {
+          "name": "Tribeca Grill",
+          "type": "restaurant",
+          "description": "Legendary restaurant co-owned by Robert De Niro",
+          "address": "375 Greenwich Street",
+          "link": "https://www.tribecagrill.com/"
+        },
+        {
+          "name": "PS 234 Independence School",
+          "type": "school",
+          "description": "Top-rated public elementary school",
+          "address": "292 Greenwich Street",
+          "link": "https://ps234.org/"
+        }
+      ],
+      "dining": ["Nobu", "Locanda Verde", "The Odeon", "Frenchette", "Bubby's"]
+    },
+    {
+      "id": "soho",
+      "name": "SoHo",
+      "tagline": "Art, Fashion & Cast-Iron Architecture",
+      "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80",
+      "description": "SoHo (South of Houston) is famous for its stunning cast-iron architecture, world-class galleries, and high-end shopping. Once an industrial district, then an artist enclave, today it's a sophisticated neighborhood where art, fashion, and luxury converge.",
+      "vibe": "Trendy and artistic with a high-fashion edge. Streets are filled with tourists and shoppers during the day, transforming into a sophisticated dining and nightlife scene after dark.",
+      "listingCount": 124,
+      "avgPrice": {
+        "sale": 3200000,
+        "rent": 6500
+      },
+      "boundaries": {
+        "north": "Houston Street",
+        "south": "Canal Street",
+        "east": "Lafayette Street",
+        "west": "Sixth Avenue"
+      },
+      "transit": ["N", "R", "W", "6", "C", "E"],
+      "attractions": [
+        {
+          "name": "Drawing Center",
+          "type": "museum",
+          "description": "The only not-for-profit museum focused solely on the exhibition of drawings",
+          "address": "35 Wooster Street",
+          "link": "https://drawingcenter.org/"
+        },
+        {
+          "name": "SoHo Cast-Iron Historic District",
+          "type": "landmark",
+          "description": "The largest collection of cast-iron architecture in the world",
+          "address": "Throughout SoHo",
+          "link": "https://www.nycgovparks.org/"
+        },
+        {
+          "name": "Apple Store SoHo",
+          "type": "retail",
+          "description": "Flagship Apple store in a historic building",
+          "address": "103 Prince Street",
+          "link": "https://www.apple.com/retail/soho/"
+        },
+        {
+          "name": "MoMA Design Store",
+          "type": "retail",
+          "description": "Design and art products curated by the Museum of Modern Art",
+          "address": "81 Spring Street",
+          "link": "https://store.moma.org/"
+        },
+        {
+          "name": "New York City Fire Museum",
+          "type": "museum",
+          "description": "Housed in a 1904 firehouse with artifacts dating to the 18th century",
+          "address": "278 Spring Street",
+          "link": "https://www.nycfiremuseum.org/"
+        }
+      ],
+      "dining": ["Balthazar", "Blue Ribbon", "Raoul's", "Jack's Wife Freda", "The Dutch"]
+    },
+    {
+      "id": "chelsea",
+      "name": "Chelsea",
+      "tagline": "Art Galleries & Urban Innovation",
+      "image": "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?w=600&q=80",
+      "description": "Chelsea is Manhattan's art gallery capital, with over 200 galleries concentrated west of Tenth Avenue. The neighborhood is also home to the High Line, Chelsea Market, and a thriving LGBTQ+ community. It offers a perfect blend of creativity, cuisine, and urban living.",
+      "vibe": "Artsy, progressive, and vibrant. A hub for the creative class with a strong community feel. Weekends see art lovers gallery-hopping while foodies explore Chelsea Market.",
+      "listingCount": 156,
+      "avgPrice": {
+        "sale": 1950000,
+        "rent": 4800
+      },
+      "boundaries": {
+        "north": "34th Street",
+        "south": "14th Street",
+        "east": "Sixth Avenue",
+        "west": "Hudson River"
+      },
+      "transit": ["1", "2", "3", "A", "C", "E", "L"],
+      "attractions": [
+        {
+          "name": "The High Line",
+          "type": "park",
+          "description": "Elevated linear park built on historic freight rail lines with art installations",
+          "address": "Gansevoort Street to 34th Street",
+          "link": "https://www.thehighline.org/"
+        },
+        {
+          "name": "Chelsea Market",
+          "type": "food",
+          "description": "Indoor food hall and shopping mall in a former Nabisco factory",
+          "address": "75 Ninth Avenue",
+          "link": "https://www.chelseamarket.com/"
+        },
+        {
+          "name": "Gagosian Gallery",
+          "type": "gallery",
+          "description": "Premier contemporary art gallery with locations worldwide",
+          "address": "555 West 24th Street",
+          "link": "https://gagosian.com/"
+        },
+        {
+          "name": "Whitney Museum of American Art",
+          "type": "museum",
+          "description": "Premier museum of 20th and 21st-century American art",
+          "address": "99 Gansevoort Street",
+          "link": "https://whitney.org/"
+        },
+        {
+          "name": "Hudson River Park",
+          "type": "park",
+          "description": "Waterfront park with sports facilities and Chelsea Piers",
+          "address": "Hudson River Waterfront",
+          "link": "https://hudsonriverpark.org/"
+        }
+      ],
+      "dining": ["Cookshop", "Morimoto", "Del Posto", "La Bottega", "Tia Pol"]
+    },
+    {
+      "id": "midtown",
+      "name": "Midtown",
+      "tagline": "The Heart of Manhattan",
+      "image": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&q=80",
+      "description": "Midtown is the commercial heart of Manhattan, home to iconic landmarks like the Empire State Building, Rockefeller Center, and Times Square. While known for business, it also offers luxury residential options with unmatched convenience and world-class amenities.",
+      "vibe": "Fast-paced and cosmopolitan. The energy of Times Square contrasts with quieter residential pockets near the East River. Ideal for those who want to be in the center of it all.",
+      "listingCount": 312,
+      "avgPrice": {
+        "sale": 1450000,
+        "rent": 4500
+      },
+      "boundaries": {
+        "north": "59th Street",
+        "south": "34th Street",
+        "east": "East River",
+        "west": "Hudson River"
+      },
+      "transit": ["1", "2", "3", "4", "5", "6", "7", "N", "Q", "R", "W", "B", "D", "F", "M"],
+      "attractions": [
+        {
+          "name": "Empire State Building",
+          "type": "landmark",
+          "description": "Iconic 102-story Art Deco skyscraper with observation decks",
+          "address": "350 Fifth Avenue",
+          "link": "https://www.esbnyc.com/"
+        },
+        {
+          "name": "Rockefeller Center",
+          "type": "landmark",
+          "description": "Historic complex with Top of the Rock, ice skating, and NBC Studios",
+          "address": "45 Rockefeller Plaza",
+          "link": "https://www.rockefellercenter.com/"
+        },
+        {
+          "name": "The Museum of Modern Art (MoMA)",
+          "type": "museum",
+          "description": "World's most influential museum of modern art",
+          "address": "11 West 53rd Street",
+          "link": "https://www.moma.org/"
+        },
+        {
+          "name": "Grand Central Terminal",
+          "type": "landmark",
+          "description": "Beaux-Arts masterpiece and major transit hub",
+          "address": "89 East 42nd Street",
+          "link": "https://www.grandcentralterminal.com/"
+        },
+        {
+          "name": "Bryant Park",
+          "type": "park",
+          "description": "Beloved public park with seasonal activities and free events",
+          "address": "Between 40th and 42nd Streets",
+          "link": "https://bryantpark.org/"
+        }
+      ],
+      "dining": ["Le Bernardin", "21 Club", "The Modern", "Smith & Wollensky", "Sushi Nakazawa"]
+    },
+    {
+      "id": "financial-district",
+      "name": "Financial District",
+      "tagline": "Historic Meets Modern",
+      "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80",
+      "description": "The Financial District has transformed from a purely commercial area into a vibrant residential neighborhood. Historic landmarks like the New York Stock Exchange stand alongside modern luxury towers, offering waterfront living with quick access to all of Manhattan.",
+      "vibe": "Professional and polished during the week, surprisingly quiet and family-friendly on weekends. New restaurants and amenities have made it increasingly attractive for residents.",
+      "listingCount": 178,
+      "avgPrice": {
+        "sale": 1150000,
+        "rent": 3600
+      },
+      "boundaries": {
+        "north": "Chambers Street",
+        "south": "Battery Park",
+        "east": "East River",
+        "west": "Hudson River"
+      },
+      "transit": ["1", "2", "3", "4", "5", "J", "Z", "R", "W"],
+      "attractions": [
+        {
+          "name": "9/11 Memorial & Museum",
+          "type": "museum",
+          "description": "Memorial and museum honoring the victims of the September 11 attacks",
+          "address": "180 Greenwich Street",
+          "link": "https://www.911memorial.org/"
+        },
+        {
+          "name": "One World Observatory",
+          "type": "landmark",
+          "description": "Observation deck atop the Western Hemisphere's tallest building",
+          "address": "One World Trade Center",
+          "link": "https://www.oneworldobservatory.com/"
+        },
+        {
+          "name": "Battery Park",
+          "type": "park",
+          "description": "25-acre waterfront park with gardens and views of the Statue of Liberty",
+          "address": "State Street and Battery Place",
+          "link": "https://www.thebattery.org/"
+        },
+        {
+          "name": "Federal Hall National Memorial",
+          "type": "landmark",
+          "description": "Site where George Washington was inaugurated as the first U.S. President",
+          "address": "26 Wall Street",
+          "link": "https://www.nps.gov/feha/"
+        },
+        {
+          "name": "Stone Street",
+          "type": "dining",
+          "description": "Historic cobblestone street with outdoor dining and bars",
+          "address": "Stone Street",
+          "link": null
+        }
+      ],
+      "dining": ["Nobu Downtown", "Crown Shy", "Augustine", "The Capital Grille", "Delmonico's"]
+    },
+    {
+      "id": "greenwich-village",
+      "name": "Greenwich Village",
+      "tagline": "Bohemian Spirit & Historic Charm",
+      "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80",
+      "description": "Greenwich Village is one of New York's most desirable and historic neighborhoods. Known for its bohemian past, winding streets, and charming townhouses, 'The Village' offers a perfect blend of history, culture, and vibrant nightlife.",
+      "vibe": "Eclectic and charming with a strong artistic heritage. Tree-lined streets, intimate cafes, and hidden jazz clubs create a village-within-the-city atmosphere that residents cherish.",
+      "listingCount": 145,
+      "avgPrice": {
+        "sale": 2800000,
+        "rent": 5200
+      },
+      "boundaries": {
+        "north": "14th Street",
+        "south": "Houston Street",
+        "east": "Broadway",
+        "west": "Hudson River"
+      },
+      "transit": ["1", "2", "3", "A", "C", "E", "B", "D", "F", "M"],
+      "attractions": [
+        {
+          "name": "Washington Square Park",
+          "type": "park",
+          "description": "Iconic park with the Washington Square Arch, a hub of activity and culture",
+          "address": "Fifth Avenue & Washington Square North",
+          "link": "https://www.nycgovparks.org/parks/washington-square-park"
+        },
+        {
+          "name": "Blue Note Jazz Club",
+          "type": "music",
+          "description": "World-famous jazz club that has hosted legends for over 40 years",
+          "address": "131 West 3rd Street",
+          "link": "https://www.bluenotejazz.com/"
+        },
+        {
+          "name": "Comedy Cellar",
+          "type": "entertainment",
+          "description": "Legendary comedy club where top comedians perform nightly",
+          "address": "117 MacDougal Street",
+          "link": "https://www.comedycellar.com/"
+        },
+        {
+          "name": "New York University (NYU)",
+          "type": "university",
+          "description": "Major private research university centered around Washington Square",
+          "address": "70 Washington Square South",
+          "link": "https://www.nyu.edu/"
+        },
+        {
+          "name": "Stonewall Inn",
+          "type": "landmark",
+          "description": "National Historic Landmark and birthplace of the LGBTQ+ rights movement",
+          "address": "53 Christopher Street",
+          "link": "https://www.thestonewallinnnyc.com/"
+        }
+      ],
+      "dining": ["Blue Hill", "I Sodi", "Minetta Tavern", "Dante", "Via Carota"]
+    }
+  ]
+}

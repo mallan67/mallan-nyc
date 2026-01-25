@@ -1,0 +1,1047 @@
+{
+  "_comment": "REBNY RLS compliant listing schema - ready for IDX/RLS feed integration",
+  "_schema_version": "2.0",
+  "_last_updated": "2026-01-25T13:00:00Z",
+  "listings": [
+    {
+      "id": "sale-001",
+      "mlsId": "REBNY-2026-001",
+      "mlsStatus": "Active",
+      "listingType": "sale",
+      "status": "active",
+
+      "address": {
+        "streetNumber": "400",
+        "streetName": "East 90th Street",
+        "unit": "12B",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10128",
+        "county": "New York",
+        "borough": "Manhattan",
+        "cityRegion": "Manhattan",
+        "neighborhood": "upper-east-side",
+        "neighborhoodDisplay": "Upper East Side",
+        "buildingTaxLot": "1-01234-0056"
+      },
+
+      "price": {
+        "listPrice": 1250000,
+        "pricePerSqft": 1136,
+        "originalListPrice": 1295000,
+        "closePrice": null,
+        "closePricePerSqft": null
+      },
+
+      "propertyInfo": {
+        "propertyType": "Condo",
+        "propertySubType": "Residential",
+        "buildingType": "High Rise",
+        "architecturalStyle": "Contemporary",
+        "yearBuilt": 1985,
+        "totalRooms": 5,
+        "bedroomsTotal": 2,
+        "bathroomsFull": 2,
+        "bathroomsHalf": 0,
+        "aboveGradeFinishedArea": 1100,
+        "belowGradeFinishedArea": 0,
+        "lotSizeArea": null,
+        "storiesTotal": 1,
+        "floorsInBuilding": 32,
+        "unitFloor": 12
+      },
+
+      "nycSpecific": {
+        "coopCondo": "Condo",
+        "maintenanceFee": 1850,
+        "commonCharges": 1850,
+        "realEstateTaxes": 1200,
+        "taxesAnnual": 14400,
+        "assessedValue": 125000,
+        "flipTax": false,
+        "flipTaxPercent": null,
+        "percentOwned": 100,
+        "sublettingAllowed": true,
+        "sublettingRestrictions": "Board approval required",
+        "piedATerre": true,
+        "guarantorsAllowed": true,
+        "giftAllowed": true,
+        "financingAllowed": true,
+        "maxFinancing": 80,
+        "boardApprovalRequired": true
+      },
+
+      "association": {
+        "associationName": "400 East 90th Street Condominium",
+        "associationFee": 1850,
+        "associationFeeFrequency": "Monthly",
+        "associationFeeIncludes": ["Water", "Sewer", "Trash", "Building Insurance", "Common Area Maintenance"],
+        "associationPhone": "(212) 555-0100"
+      },
+
+      "features": {
+        "interior": {
+          "flooring": ["Hardwood"],
+          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Disposal"],
+          "laundry": "In Unit",
+          "cooling": ["Central Air"],
+          "heating": ["Forced Air", "Gas"],
+          "fireplace": false,
+          "basement": "None",
+          "windowFeatures": ["Double Pane", "Storm Windows"],
+          "accessibility": []
+        },
+        "building": {
+          "doorman": true,
+          "doormanType": "Full Time",
+          "concierge": true,
+          "elevator": true,
+          "gym": true,
+          "pool": false,
+          "roofDeck": true,
+          "garage": false,
+          "parkingType": null,
+          "parkingSpaces": 0,
+          "storage": true,
+          "bikeRoom": true,
+          "laundryRoom": true,
+          "playroom": false,
+          "communityRoom": true,
+          "security": ["24 Hour Security", "Video Intercom", "Key Fob Entry"],
+          "attendanceType": "Full Time Doorman"
+        },
+        "pets": {
+          "allowed": true,
+          "policy": "Allowed with Restrictions",
+          "comments": "Dogs and cats allowed, max 2 pets, no weight restrictions. Board approval required.",
+          "breedRestrictions": false,
+          "sizeRestrictions": false,
+          "maxPets": 2
+        },
+        "outdoor": {
+          "balcony": false,
+          "terrace": false,
+          "privateOutdoor": false,
+          "garden": false,
+          "roofRights": false
+        },
+        "views": ["City", "East River"],
+        "exposure": ["East", "South"]
+      },
+
+      "financials": {
+        "capRate": null,
+        "grossIncome": null,
+        "operatingExpenses": null,
+        "netOperatingIncome": null,
+        "cableTvExpense": null,
+        "fuelExpense": null,
+        "insuranceExpense": null,
+        "maintenanceExpense": null,
+        "managerExpense": null,
+        "otherExpense": null,
+        "professionalManagement": true
+      },
+
+      "listing": {
+        "listingDate": "2026-01-11",
+        "expirationDate": "2026-07-11",
+        "daysOnMarket": 14,
+        "originalEntryTimestamp": "2026-01-11T09:00:00Z",
+        "modificationTimestamp": "2026-01-25T10:00:00Z",
+        "listingAgreementType": "Exclusive Right to Sell",
+        "showingInstructions": "Contact listing agent for appointment. 24 hour notice required.",
+        "showingContactPhone": "(646) 258-4460",
+        "virtualTourUrl": null,
+        "videoTourUrl": null
+      },
+
+      "agent": {
+        "listAgentId": "maya-allan",
+        "listAgentName": "Maya Allan",
+        "listAgentEmail": "maya@mallan.nyc",
+        "listAgentPhone": "(646) 258-4460",
+        "listOfficeName": "Mallan Real Estate",
+        "listOfficePhone": "(646) 258-4460",
+        "coListAgentId": null,
+        "coListAgentName": null
+      },
+
+      "buyer": {
+        "buyerAgentCompensation": "3%",
+        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentId": null,
+        "buyerAgentName": null,
+        "buyerFinancing": null,
+        "closeDate": null
+      },
+
+      "media": {
+        "images": [
+          {
+            "url": "/images/listing-placeholder.jpg",
+            "caption": "Living Room",
+            "order": 1,
+            "isPrimary": true
+          }
+        ],
+        "floorPlanUrl": null,
+        "virtualTourUrl": null,
+        "videoUrl": null
+      },
+
+      "description": "Stunning corner 2-bedroom residence with panoramic East River views and abundant natural light. This meticulously renovated apartment features an open chef's kitchen with top-of-the-line appliances, custom cabinetry, and breakfast bar. The spacious living room opens to a formal dining area, perfect for entertaining. The primary suite boasts a walk-in closet and en-suite bathroom with marble finishes. Full-service building with 24-hour doorman, fitness center, and rooftop terrace.",
+
+      "privateRemarks": null,
+      "showingRemarks": "Please call listing agent at least 24 hours in advance.",
+
+      "openHouse": {
+        "scheduled": true,
+        "date": "2026-01-26",
+        "startTime": "13:00",
+        "endTime": "15:00",
+        "type": "Public",
+        "remarks": "No appointment necessary"
+      },
+
+      "flags": {
+        "isExclusive": true,
+        "isFeatured": true,
+        "isNewListing": true,
+        "isPriceReduced": true,
+        "isOpenHouse": true,
+        "participantOnlyNetwork": false
+      },
+
+      "compliance": {
+        "idxOptOut": false,
+        "vowOptOut": false,
+        "syndicationOptOut": false,
+        "lastVerified": "2026-01-25T10:00:00Z"
+      }
+    },
+    {
+      "id": "sale-002",
+      "mlsId": "REBNY-2026-002",
+      "mlsStatus": "Active",
+      "listingType": "sale",
+      "status": "active",
+
+      "address": {
+        "streetNumber": "225",
+        "streetName": "East 86th Street",
+        "unit": "8F",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10028",
+        "county": "New York",
+        "borough": "Manhattan",
+        "cityRegion": "Manhattan",
+        "neighborhood": "upper-east-side",
+        "neighborhoodDisplay": "Upper East Side",
+        "buildingTaxLot": "1-01456-0078"
+      },
+
+      "price": {
+        "listPrice": 875000,
+        "pricePerSqft": 1167,
+        "originalListPrice": 875000,
+        "closePrice": null,
+        "closePricePerSqft": null
+      },
+
+      "propertyInfo": {
+        "propertyType": "Co-op",
+        "propertySubType": "Residential",
+        "buildingType": "Pre-War",
+        "architecturalStyle": "Pre-War Classic",
+        "yearBuilt": 1928,
+        "totalRooms": 4,
+        "bedroomsTotal": 1,
+        "bathroomsFull": 1,
+        "bathroomsHalf": 0,
+        "aboveGradeFinishedArea": 750,
+        "belowGradeFinishedArea": 0,
+        "lotSizeArea": null,
+        "storiesTotal": 1,
+        "floorsInBuilding": 15,
+        "unitFloor": 8
+      },
+
+      "nycSpecific": {
+        "coopCondo": "Co-op",
+        "maintenanceFee": 1450,
+        "commonCharges": null,
+        "realEstateTaxes": null,
+        "taxesAnnual": null,
+        "assessedValue": null,
+        "flipTax": true,
+        "flipTaxPercent": 2,
+        "percentOwned": null,
+        "sublettingAllowed": false,
+        "sublettingRestrictions": "Not permitted",
+        "piedATerre": false,
+        "guarantorsAllowed": false,
+        "giftAllowed": true,
+        "financingAllowed": true,
+        "maxFinancing": 75,
+        "boardApprovalRequired": true
+      },
+
+      "association": {
+        "associationName": "225 East 86th Street Corp",
+        "associationFee": 1450,
+        "associationFeeFrequency": "Monthly",
+        "associationFeeIncludes": ["Heat", "Hot Water", "Gas", "Electric", "Building Insurance", "Doorman", "Super"],
+        "associationPhone": "(212) 555-0200"
+      },
+
+      "features": {
+        "interior": {
+          "flooring": ["Hardwood", "Original"],
+          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "laundry": "Common",
+          "cooling": ["Window Unit"],
+          "heating": ["Steam", "Radiator"],
+          "fireplace": true,
+          "basement": "None",
+          "windowFeatures": ["Original"],
+          "accessibility": []
+        },
+        "building": {
+          "doorman": true,
+          "doormanType": "Full Time",
+          "concierge": false,
+          "elevator": true,
+          "gym": false,
+          "pool": false,
+          "roofDeck": false,
+          "garage": false,
+          "parkingType": null,
+          "parkingSpaces": 0,
+          "storage": true,
+          "bikeRoom": false,
+          "laundryRoom": true,
+          "playroom": false,
+          "communityRoom": false,
+          "security": ["24 Hour Doorman", "Intercom"],
+          "attendanceType": "Full Time Doorman"
+        },
+        "pets": {
+          "allowed": false,
+          "policy": "Not Allowed",
+          "comments": "No pets permitted",
+          "breedRestrictions": null,
+          "sizeRestrictions": null,
+          "maxPets": 0
+        },
+        "outdoor": {
+          "balcony": false,
+          "terrace": false,
+          "privateOutdoor": false,
+          "garden": false,
+          "roofRights": false
+        },
+        "views": ["City"],
+        "exposure": ["South"]
+      },
+
+      "financials": {
+        "capRate": null,
+        "grossIncome": null,
+        "operatingExpenses": null,
+        "netOperatingIncome": null,
+        "cableTvExpense": null,
+        "fuelExpense": null,
+        "insuranceExpense": null,
+        "maintenanceExpense": null,
+        "managerExpense": null,
+        "otherExpense": null,
+        "professionalManagement": true
+      },
+
+      "listing": {
+        "listingDate": "2025-12-28",
+        "expirationDate": "2026-06-28",
+        "daysOnMarket": 28,
+        "originalEntryTimestamp": "2025-12-28T10:00:00Z",
+        "modificationTimestamp": "2026-01-20T14:00:00Z",
+        "listingAgreementType": "Exclusive Right to Sell",
+        "showingInstructions": "Contact listing agent. Board package required with offer.",
+        "showingContactPhone": "(646) 258-4460",
+        "virtualTourUrl": null,
+        "videoTourUrl": null
+      },
+
+      "agent": {
+        "listAgentId": "maya-allan",
+        "listAgentName": "Maya Allan",
+        "listAgentEmail": "maya@mallan.nyc",
+        "listAgentPhone": "(646) 258-4460",
+        "listOfficeName": "Mallan Real Estate",
+        "listOfficePhone": "(646) 258-4460",
+        "coListAgentId": null,
+        "coListAgentName": null
+      },
+
+      "buyer": {
+        "buyerAgentCompensation": "3%",
+        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentId": null,
+        "buyerAgentName": null,
+        "buyerFinancing": null,
+        "closeDate": null
+      },
+
+      "media": {
+        "images": [
+          {
+            "url": "/images/listing-placeholder.jpg",
+            "caption": "Living Room",
+            "order": 1,
+            "isPrimary": true
+          }
+        ],
+        "floorPlanUrl": null,
+        "virtualTourUrl": null,
+        "videoUrl": null
+      },
+
+      "description": "Charming pre-war one-bedroom in prime Upper East Side location. This elegant residence features high ceilings, original moldings, and hardwood floors throughout. The windowed kitchen has been updated with modern appliances while maintaining classic charm. Enjoy the convenience of a full-service building with doorman, live-in super, and laundry room. Steps from Central Park, fine dining, and shopping along Madison Avenue. Maintenance includes all utilities except electric.",
+
+      "privateRemarks": null,
+      "showingRemarks": "Tenant occupied. 48 hours notice required.",
+
+      "openHouse": null,
+
+      "flags": {
+        "isExclusive": false,
+        "isFeatured": false,
+        "isNewListing": false,
+        "isPriceReduced": false,
+        "isOpenHouse": false,
+        "participantOnlyNetwork": false
+      },
+
+      "compliance": {
+        "idxOptOut": false,
+        "vowOptOut": false,
+        "syndicationOptOut": false,
+        "lastVerified": "2026-01-20T14:00:00Z"
+      }
+    },
+    {
+      "id": "sale-003",
+      "mlsId": "REBNY-2026-003",
+      "mlsStatus": "Active",
+      "listingType": "sale",
+      "status": "active",
+
+      "address": {
+        "streetNumber": "180",
+        "streetName": "Montague Street",
+        "unit": "5A",
+        "city": "Brooklyn",
+        "state": "NY",
+        "zip": "11201",
+        "county": "Kings",
+        "borough": "Brooklyn",
+        "cityRegion": "Brooklyn",
+        "neighborhood": "brooklyn-heights",
+        "neighborhoodDisplay": "Brooklyn Heights",
+        "buildingTaxLot": "3-00234-0012"
+      },
+
+      "price": {
+        "listPrice": 1450000,
+        "pricePerSqft": 1036,
+        "originalListPrice": 1495000,
+        "closePrice": null,
+        "closePricePerSqft": null
+      },
+
+      "propertyInfo": {
+        "propertyType": "Condo",
+        "propertySubType": "Residential",
+        "buildingType": "Brownstone",
+        "architecturalStyle": "Brownstone",
+        "yearBuilt": 1890,
+        "totalRooms": 7,
+        "bedroomsTotal": 3,
+        "bathroomsFull": 2,
+        "bathroomsHalf": 0,
+        "aboveGradeFinishedArea": 1400,
+        "belowGradeFinishedArea": 0,
+        "lotSizeArea": null,
+        "storiesTotal": 2,
+        "floorsInBuilding": 4,
+        "unitFloor": 2
+      },
+
+      "nycSpecific": {
+        "coopCondo": "Condo",
+        "maintenanceFee": 650,
+        "commonCharges": 650,
+        "realEstateTaxes": 980,
+        "taxesAnnual": 11760,
+        "assessedValue": 98000,
+        "flipTax": false,
+        "flipTaxPercent": null,
+        "percentOwned": 100,
+        "sublettingAllowed": true,
+        "sublettingRestrictions": "None",
+        "piedATerre": true,
+        "guarantorsAllowed": true,
+        "giftAllowed": true,
+        "financingAllowed": true,
+        "maxFinancing": 90,
+        "boardApprovalRequired": false
+      },
+
+      "association": {
+        "associationName": "180 Montague Condominium",
+        "associationFee": 650,
+        "associationFeeFrequency": "Monthly",
+        "associationFeeIncludes": ["Water", "Sewer", "Building Insurance"],
+        "associationPhone": "(718) 555-0300"
+      },
+
+      "features": {
+        "interior": {
+          "flooring": ["Hardwood", "Wide Plank"],
+          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler"],
+          "laundry": "In Unit",
+          "cooling": ["Central Air"],
+          "heating": ["Forced Air"],
+          "fireplace": true,
+          "basement": "None",
+          "windowFeatures": ["Original", "Oversized"],
+          "accessibility": []
+        },
+        "building": {
+          "doorman": false,
+          "doormanType": null,
+          "concierge": false,
+          "elevator": false,
+          "gym": false,
+          "pool": false,
+          "roofDeck": false,
+          "garage": false,
+          "parkingType": "Street",
+          "parkingSpaces": 0,
+          "storage": true,
+          "bikeRoom": true,
+          "laundryRoom": false,
+          "playroom": false,
+          "communityRoom": false,
+          "security": ["Video Intercom"],
+          "attendanceType": "None"
+        },
+        "pets": {
+          "allowed": true,
+          "policy": "Allowed",
+          "comments": "All pets welcome",
+          "breedRestrictions": false,
+          "sizeRestrictions": false,
+          "maxPets": null
+        },
+        "outdoor": {
+          "balcony": false,
+          "terrace": false,
+          "privateOutdoor": true,
+          "garden": true,
+          "roofRights": false
+        },
+        "views": ["Garden"],
+        "exposure": ["South", "West"]
+      },
+
+      "financials": {
+        "capRate": null,
+        "grossIncome": null,
+        "operatingExpenses": null,
+        "netOperatingIncome": null,
+        "cableTvExpense": null,
+        "fuelExpense": null,
+        "insuranceExpense": null,
+        "maintenanceExpense": null,
+        "managerExpense": null,
+        "otherExpense": null,
+        "professionalManagement": false
+      },
+
+      "listing": {
+        "listingDate": "2026-01-18",
+        "expirationDate": "2026-07-18",
+        "daysOnMarket": 7,
+        "originalEntryTimestamp": "2026-01-18T11:00:00Z",
+        "modificationTimestamp": "2026-01-25T09:00:00Z",
+        "listingAgreementType": "Exclusive Right to Sell",
+        "showingInstructions": "Vacant and easy to show. Lockbox on premises.",
+        "showingContactPhone": "(646) 258-4460",
+        "virtualTourUrl": null,
+        "videoTourUrl": null
+      },
+
+      "agent": {
+        "listAgentId": "maya-allan",
+        "listAgentName": "Maya Allan",
+        "listAgentEmail": "maya@mallan.nyc",
+        "listAgentPhone": "(646) 258-4460",
+        "listOfficeName": "Mallan Real Estate",
+        "listOfficePhone": "(646) 258-4460",
+        "coListAgentId": null,
+        "coListAgentName": null
+      },
+
+      "buyer": {
+        "buyerAgentCompensation": "3%",
+        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentId": null,
+        "buyerAgentName": null,
+        "buyerFinancing": null,
+        "closeDate": null
+      },
+
+      "media": {
+        "images": [
+          {
+            "url": "/images/listing-placeholder.jpg",
+            "caption": "Living Room",
+            "order": 1,
+            "isPrimary": true
+          }
+        ],
+        "floorPlanUrl": null,
+        "virtualTourUrl": null,
+        "videoUrl": null
+      },
+
+      "description": "Magnificent 3-bedroom duplex in a historic Brooklyn Heights brownstone. This rare offering spans two floors with soaring ceilings, exposed brick, and private garden access. The main level features an open living and dining area with decorative fireplace, chef's kitchen with marble countertops, and access to the lush private garden. Upper level includes three bedrooms and two full bathrooms. Original details include crown moldings, pocket doors, and refinished hardwood floors.",
+
+      "privateRemarks": null,
+      "showingRemarks": "Vacant. Lockbox code available upon confirmed showing.",
+
+      "openHouse": {
+        "scheduled": true,
+        "date": "2026-01-26",
+        "startTime": "12:00",
+        "endTime": "14:00",
+        "type": "Public",
+        "remarks": "No appointment necessary"
+      },
+
+      "flags": {
+        "isExclusive": true,
+        "isFeatured": true,
+        "isNewListing": true,
+        "isPriceReduced": true,
+        "isOpenHouse": true,
+        "participantOnlyNetwork": false
+      },
+
+      "compliance": {
+        "idxOptOut": false,
+        "vowOptOut": false,
+        "syndicationOptOut": false,
+        "lastVerified": "2026-01-25T09:00:00Z"
+      }
+    },
+    {
+      "id": "rent-001",
+      "mlsId": "REBNY-2026-R001",
+      "mlsStatus": "Active",
+      "listingType": "rent",
+      "status": "active",
+
+      "address": {
+        "streetNumber": "123",
+        "streetName": "East 72nd Street",
+        "unit": "6A",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10021",
+        "county": "New York",
+        "borough": "Manhattan",
+        "cityRegion": "Manhattan",
+        "neighborhood": "upper-east-side",
+        "neighborhoodDisplay": "Upper East Side",
+        "buildingTaxLot": "1-01567-0089"
+      },
+
+      "price": {
+        "listPrice": 4500,
+        "pricePerSqft": null,
+        "originalListPrice": 4500,
+        "closePrice": null,
+        "closePricePerSqft": null
+      },
+
+      "propertyInfo": {
+        "propertyType": "Condo",
+        "propertySubType": "Rental",
+        "buildingType": "Pre-War",
+        "architecturalStyle": "Pre-War Classic",
+        "yearBuilt": 1925,
+        "totalRooms": 4,
+        "bedroomsTotal": 1,
+        "bathroomsFull": 1,
+        "bathroomsHalf": 0,
+        "aboveGradeFinishedArea": 700,
+        "belowGradeFinishedArea": 0,
+        "lotSizeArea": null,
+        "storiesTotal": 1,
+        "floorsInBuilding": 12,
+        "unitFloor": 6
+      },
+
+      "nycSpecific": {
+        "coopCondo": "Condo",
+        "maintenanceFee": null,
+        "commonCharges": null,
+        "realEstateTaxes": null,
+        "taxesAnnual": null,
+        "assessedValue": null,
+        "flipTax": null,
+        "flipTaxPercent": null,
+        "percentOwned": null,
+        "sublettingAllowed": null,
+        "sublettingRestrictions": null,
+        "piedATerre": null,
+        "guarantorsAllowed": true,
+        "giftAllowed": null,
+        "financingAllowed": null,
+        "maxFinancing": null,
+        "boardApprovalRequired": true
+      },
+
+      "association": {
+        "associationName": "123 East 72nd Condominium",
+        "associationFee": null,
+        "associationFeeFrequency": null,
+        "associationFeeIncludes": null,
+        "associationPhone": null
+      },
+
+      "features": {
+        "interior": {
+          "flooring": ["Hardwood"],
+          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "laundry": "Common",
+          "cooling": ["Window Unit"],
+          "heating": ["Steam"],
+          "fireplace": false,
+          "basement": "None",
+          "windowFeatures": ["Original"],
+          "accessibility": []
+        },
+        "building": {
+          "doorman": true,
+          "doormanType": "Full Time",
+          "concierge": false,
+          "elevator": true,
+          "gym": false,
+          "pool": false,
+          "roofDeck": false,
+          "garage": false,
+          "parkingType": null,
+          "parkingSpaces": 0,
+          "storage": true,
+          "bikeRoom": false,
+          "laundryRoom": true,
+          "playroom": false,
+          "communityRoom": false,
+          "security": ["24 Hour Doorman", "Intercom"],
+          "attendanceType": "Full Time Doorman"
+        },
+        "pets": {
+          "allowed": false,
+          "policy": "Not Allowed",
+          "comments": "No pets permitted",
+          "breedRestrictions": null,
+          "sizeRestrictions": null,
+          "maxPets": 0
+        },
+        "outdoor": {
+          "balcony": false,
+          "terrace": false,
+          "privateOutdoor": false,
+          "garden": false,
+          "roofRights": false
+        },
+        "views": ["City"],
+        "exposure": ["South"]
+      },
+
+      "financials": null,
+
+      "listing": {
+        "listingDate": "2026-01-20",
+        "expirationDate": "2026-04-20",
+        "daysOnMarket": 5,
+        "originalEntryTimestamp": "2026-01-20T10:00:00Z",
+        "modificationTimestamp": "2026-01-25T08:00:00Z",
+        "listingAgreementType": "Exclusive",
+        "showingInstructions": "Contact listing agent. Current tenant present.",
+        "showingContactPhone": "(646) 258-4460",
+        "virtualTourUrl": null,
+        "videoTourUrl": null
+      },
+
+      "agent": {
+        "listAgentId": "maya-allan",
+        "listAgentName": "Maya Allan",
+        "listAgentEmail": "maya@mallan.nyc",
+        "listAgentPhone": "(646) 258-4460",
+        "listOfficeName": "Mallan Real Estate",
+        "listOfficePhone": "(646) 258-4460",
+        "coListAgentId": null,
+        "coListAgentName": null
+      },
+
+      "buyer": {
+        "buyerAgentCompensation": "One Month",
+        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentId": null,
+        "buyerAgentName": null,
+        "buyerFinancing": null,
+        "closeDate": null
+      },
+
+      "media": {
+        "images": [
+          {
+            "url": "/images/listing-placeholder.jpg",
+            "caption": "Living Room",
+            "order": 1,
+            "isPrimary": true
+          }
+        ],
+        "floorPlanUrl": null,
+        "virtualTourUrl": null,
+        "videoUrl": null
+      },
+
+      "description": "Elegant pre-war one-bedroom in a coveted Upper East Side location. This beautifully maintained residence features high ceilings, original moldings, and gracious proportions. The windowed eat-in kitchen and renovated bathroom complement the classic charm. White-glove building with doorman and live-in superintendent. Steps from Central Park, Madison Avenue boutiques, and world-class museums. Available immediately.",
+
+      "privateRemarks": null,
+      "showingRemarks": "Current tenant present. Please be respectful.",
+
+      "openHouse": null,
+
+      "flags": {
+        "isExclusive": false,
+        "isFeatured": true,
+        "isNewListing": true,
+        "isPriceReduced": false,
+        "isOpenHouse": false,
+        "participantOnlyNetwork": false
+      },
+
+      "compliance": {
+        "idxOptOut": false,
+        "vowOptOut": false,
+        "syndicationOptOut": false,
+        "lastVerified": "2026-01-25T08:00:00Z"
+      }
+    },
+    {
+      "id": "rent-002",
+      "mlsId": "REBNY-2026-R002",
+      "mlsStatus": "Active",
+      "listingType": "rent",
+      "status": "active",
+
+      "address": {
+        "streetNumber": "456",
+        "streetName": "West 34th Street",
+        "unit": "18C",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001",
+        "county": "New York",
+        "borough": "Manhattan",
+        "cityRegion": "Manhattan",
+        "neighborhood": "hudson-yards",
+        "neighborhoodDisplay": "Hudson Yards",
+        "buildingTaxLot": "1-00789-0123"
+      },
+
+      "price": {
+        "listPrice": 6500,
+        "pricePerSqft": null,
+        "originalListPrice": 6800,
+        "closePrice": null,
+        "closePricePerSqft": null
+      },
+
+      "propertyInfo": {
+        "propertyType": "Condo",
+        "propertySubType": "Rental",
+        "buildingType": "New Development",
+        "architecturalStyle": "Contemporary",
+        "yearBuilt": 2020,
+        "totalRooms": 5,
+        "bedroomsTotal": 2,
+        "bathroomsFull": 2,
+        "bathroomsHalf": 0,
+        "aboveGradeFinishedArea": 1100,
+        "belowGradeFinishedArea": 0,
+        "lotSizeArea": null,
+        "storiesTotal": 1,
+        "floorsInBuilding": 65,
+        "unitFloor": 18
+      },
+
+      "nycSpecific": {
+        "coopCondo": "Condo",
+        "maintenanceFee": null,
+        "commonCharges": null,
+        "realEstateTaxes": null,
+        "taxesAnnual": null,
+        "assessedValue": null,
+        "flipTax": null,
+        "flipTaxPercent": null,
+        "percentOwned": null,
+        "sublettingAllowed": null,
+        "sublettingRestrictions": null,
+        "piedATerre": null,
+        "guarantorsAllowed": true,
+        "giftAllowed": null,
+        "financingAllowed": null,
+        "maxFinancing": null,
+        "boardApprovalRequired": false
+      },
+
+      "association": {
+        "associationName": "Hudson Yards Residences",
+        "associationFee": null,
+        "associationFeeFrequency": null,
+        "associationFeeIncludes": null,
+        "associationPhone": null
+      },
+
+      "features": {
+        "interior": {
+          "flooring": ["Hardwood", "Wide Plank Oak"],
+          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler", "Washer", "Dryer"],
+          "laundry": "In Unit",
+          "cooling": ["Central Air"],
+          "heating": ["Central"],
+          "fireplace": false,
+          "basement": "None",
+          "windowFeatures": ["Floor to Ceiling"],
+          "accessibility": []
+        },
+        "building": {
+          "doorman": true,
+          "doormanType": "Full Time",
+          "concierge": true,
+          "elevator": true,
+          "gym": true,
+          "pool": true,
+          "roofDeck": true,
+          "garage": true,
+          "parkingType": "Valet",
+          "parkingSpaces": 0,
+          "storage": true,
+          "bikeRoom": true,
+          "laundryRoom": true,
+          "playroom": true,
+          "communityRoom": true,
+          "security": ["24 Hour Concierge", "Key Fob", "Video Surveillance"],
+          "attendanceType": "Full Time Concierge"
+        },
+        "pets": {
+          "allowed": true,
+          "policy": "Allowed",
+          "comments": "Dogs and cats welcome. Pet spa in building.",
+          "breedRestrictions": false,
+          "sizeRestrictions": false,
+          "maxPets": null
+        },
+        "outdoor": {
+          "balcony": true,
+          "terrace": false,
+          "privateOutdoor": true,
+          "garden": false,
+          "roofRights": false
+        },
+        "views": ["City", "Hudson River"],
+        "exposure": ["West", "South"]
+      },
+
+      "financials": null,
+
+      "listing": {
+        "listingDate": "2026-01-22",
+        "expirationDate": "2026-04-22",
+        "daysOnMarket": 3,
+        "originalEntryTimestamp": "2026-01-22T09:00:00Z",
+        "modificationTimestamp": "2026-01-25T10:00:00Z",
+        "listingAgreementType": "Exclusive",
+        "showingInstructions": "Vacant and easy to show. Building concierge will provide access.",
+        "showingContactPhone": "(646) 258-4460",
+        "virtualTourUrl": null,
+        "videoTourUrl": null
+      },
+
+      "agent": {
+        "listAgentId": "maya-allan",
+        "listAgentName": "Maya Allan",
+        "listAgentEmail": "maya@mallan.nyc",
+        "listAgentPhone": "(646) 258-4460",
+        "listOfficeName": "Mallan Real Estate",
+        "listOfficePhone": "(646) 258-4460",
+        "coListAgentId": null,
+        "coListAgentName": null
+      },
+
+      "buyer": {
+        "buyerAgentCompensation": "One Month",
+        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentId": null,
+        "buyerAgentName": null,
+        "buyerFinancing": null,
+        "closeDate": null
+      },
+
+      "media": {
+        "images": [
+          {
+            "url": "/images/listing-placeholder.jpg",
+            "caption": "Living Room",
+            "order": 1,
+            "isPrimary": true
+          }
+        ],
+        "floorPlanUrl": null,
+        "virtualTourUrl": null,
+        "videoUrl": null
+      },
+
+      "description": "Stunning 2-bedroom, 2-bath rental in Hudson Yards' most sought-after building. This corner unit features floor-to-ceiling windows with spectacular city views, open chef's kitchen with premium appliances, and private balcony. Resort-style amenities include 75-foot pool, state-of-the-art fitness center, yoga studio, and landscaped roof terrace. Adjacent to The Shops at Hudson Yards and The High Line. Immediate occupancy available.",
+
+      "privateRemarks": null,
+      "showingRemarks": "Vacant. See concierge for access.",
+
+      "openHouse": null,
+
+      "flags": {
+        "isExclusive": true,
+        "isFeatured": true,
+        "isNewListing": true,
+        "isPriceReduced": true,
+        "isOpenHouse": false,
+        "participantOnlyNetwork": false
+      },
+
+      "compliance": {
+        "idxOptOut": false,
+        "vowOptOut": false,
+        "syndicationOptOut": false,
+        "lastVerified": "2026-01-25T10:00:00Z"
+      }
+    }
+  ]
+}

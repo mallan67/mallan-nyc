@@ -2,92 +2,13 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import listingsData from '@/data/listings.json';
+import type { Listing } from '@/lib/types/listing';
 
-type Listing = {
-  id: string;
-  image: string;
-  price: number;
-  priceLabel?: string; // e.g., "/month" for rentals
-  type: string;
-  location: string;
-  beds?: number;
-  baths?: number;
-  sqft?: number;
-  isExclusive?: boolean;
-};
-
-// Stub data - prioritizes exclusives first
-const STUB_LISTINGS: Listing[] = [
-  {
-    id: '1',
-    image: '/images/listing-1.jpg',
-    price: 3295000,
-    type: 'Condo',
-    location: 'Manhattan',
-    beds: 2,
-    baths: 2,
-    sqft: 1450,
-    isExclusive: true,
-  },
-  {
-    id: '2',
-    image: '/images/listing-2.jpg',
-    price: 7500000,
-    type: 'Condo',
-    location: 'Manhattan',
-    beds: 4,
-    baths: 4,
-    sqft: 3200,
-    isExclusive: true,
-  },
-  {
-    id: '3',
-    image: '/images/listing-3.jpg',
-    price: 4698000,
-    type: 'Townhouse',
-    location: 'Brooklyn',
-    beds: 5,
-    baths: 3,
-    sqft: 4500,
-    isExclusive: true,
-  },
-  {
-    id: '4',
-    image: '/images/listing-4.jpg',
-    price: 10500,
-    priceLabel: '/month',
-    type: 'Apartment',
-    location: 'Manhattan',
-    beds: 3,
-    baths: 2,
-    sqft: 2100,
-    isExclusive: false,
-  },
-  {
-    id: '5',
-    image: '/images/listing-5.jpg',
-    price: 4200000,
-    type: 'Co-op',
-    location: 'Canal Street',
-    beds: 3,
-    baths: 2,
-    sqft: 2400,
-    isExclusive: false,
-  },
-  {
-    id: '6',
-    image: '/images/listing-6.jpg',
-    price: 2800000,
-    type: 'Condo',
-    location: 'Manhattan',
-    beds: 2,
-    baths: 2,
-    sqft: 1650,
-    isExclusive: false,
-  },
-];
-
-function formatPrice(price: number): string {
+function formatPrice(price: number, isRental: boolean): string {
+  if (isRental) {
+    return `$${price.toLocaleString()}/mo`;
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -96,38 +17,52 @@ function formatPrice(price: number): string {
 }
 
 function ListingCard({ listing }: { listing: Listing }) {
+  const isRental = listing.listingType === 'rent';
+  const primaryImage = listing.media.images.find(img => img.isPrimary)?.url || listing.media.images[0]?.url || '/images/listing-placeholder.jpg';
+  const beds = listing.propertyInfo.bedroomsTotal;
+  const baths = listing.propertyInfo.bathroomsFull;
+  const halfBaths = listing.propertyInfo.bathroomsHalf;
+  const sqft = listing.propertyInfo.aboveGradeFinishedArea;
+
   return (
     <Link href={`/listing/${listing.id}`} className="group block">
       <div className="relative aspect-[4/3] overflow-hidden rounded-sm bg-gray-200">
         <Image
-          src={listing.image}
-          alt={`${listing.type} in ${listing.location}`}
+          src={primaryImage}
+          alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 16vw"
           onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
+            const target = e.target as HTMLImageElement;
+            target.src = '/images/listing-placeholder.jpg';
           }}
         />
-        {listing.isExclusive && (
-          <span className="absolute top-3 left-3 bg-black/40 backdrop-blur-md text-white text-xs px-3 py-1.5 font-serif border border-black/20 rounded shadow-lg">
+        {listing.flags.isExclusive && (
+          <span className="absolute top-3 left-3 bg-brand-gold text-white text-xs px-3 py-1.5 font-serif rounded shadow-lg">
             Exclusive
+          </span>
+        )}
+        {listing.flags.isNewListing && !listing.flags.isExclusive && (
+          <span className="absolute top-3 left-3 bg-brand-dark text-white text-xs px-3 py-1.5 font-serif rounded shadow-lg">
+            New
           </span>
         )}
       </div>
       <div className="mt-3">
         <p className="text-lg font-serif font-medium">
-          {formatPrice(listing.price)}
-          {listing.priceLabel && <span className="text-sm font-normal">{listing.priceLabel}</span>}
+          {formatPrice(listing.price.listPrice, isRental)}
         </p>
         <p className="text-sm text-gray-600 font-serif">
-          {listing.type}, {listing.location}
+          {listing.propertyInfo.propertyType}, {listing.address.neighborhoodDisplay}
         </p>
-        {(listing.beds || listing.baths || listing.sqft) && (
-          <p className="text-xs text-gray-500 mt-1">
-            {listing.beds && `${listing.beds} bed`}
-            {listing.baths && ` · ${listing.baths} bath`}
-            {listing.sqft && ` · ${listing.sqft.toLocaleString()} sqft`}
+        <p className="text-xs text-gray-500 mt-1">
+          {beds} bed · {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
+          {sqft > 0 && ` · ${sqft.toLocaleString()} sqft`}
+        </p>
+        {!isRental && listing.nycSpecific.maintenanceFee && (
+          <p className="text-xs text-gray-400 mt-1">
+            {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
           </p>
         )}
       </div>
@@ -136,25 +71,33 @@ function ListingCard({ listing }: { listing: Listing }) {
 }
 
 export default function FeaturedListings() {
-  // Sort: exclusives first, then RLS
-  const sortedListings = [...STUB_LISTINGS].sort((a, b) => {
-    if (a.isExclusive && !b.isExclusive) return -1;
-    if (!a.isExclusive && b.isExclusive) return 1;
-    return 0;
-  });
+  // Get featured listings, prioritizing exclusives and featured flags
+  const listings = (listingsData.listings as Listing[])
+    .filter((l) => l.status === 'active')
+    .sort((a, b) => {
+      // Featured first
+      if (a.flags.isFeatured && !b.flags.isFeatured) return -1;
+      if (!a.flags.isFeatured && b.flags.isFeatured) return 1;
+      // Then exclusives
+      if (a.flags.isExclusive && !b.flags.isExclusive) return -1;
+      if (!a.flags.isExclusive && b.flags.isExclusive) return 1;
+      // Then by date
+      return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
+    })
+    .slice(0, 6);
 
   return (
     <section className="py-8 sm:py-12 md:py-16 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
         <h2 className="text-2xl sm:text-3xl font-serif mb-6 sm:mb-8">Featured Listings</h2>
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
-          {sortedListings.map((listing) => (
+          {listings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
         <div className="mt-8 sm:mt-10 text-center">
           <Link
-            href="/search"
+            href="/buy"
             className="inline-block px-6 sm:px-8 py-2 sm:py-3 border border-brand-dark text-brand-dark font-serif hover:bg-brand-dark hover:text-white transition-colors text-sm sm:text-base"
           >
             View All Listings
