@@ -11,7 +11,17 @@
 
 import rlsRulesData from './rls-rules.json';
 
-// Types
+// Types - matches actual rls-rules.json structure
+export interface RLSField {
+  field: string;
+  matrixFieldName: string;
+  description: string;
+  lmpAddEdit: string; // "Yes" or "No"
+  lmpSearch: string;  // "Yes" or "No"
+  requirements: string; // "No", "Yes", or "Conditional: ..."
+}
+
+// Normalized rule for validation logic
 export interface RLSRule {
   field: string;
   description: string;
@@ -22,14 +32,6 @@ export interface RLSRule {
     if: string;
     message: string;
   } | null;
-  type: string;
-  enum?: string[];
-  validation?: string;
-  min?: number;
-  max?: number;
-  minLength?: number;
-  maxLength?: number;
-  maxFormula?: string;
 }
 
 export interface ValidationResult {
@@ -55,10 +57,39 @@ export interface ListingData {
   [key: string]: unknown;
 }
 
-// Load rules
-const rules = rlsRulesData.rules as RLSRule[];
+// Load and normalize rules from JSON structure
+const rawFields = rlsRulesData.fields as RLSField[];
 const fairHousingProhibitedTerms = rlsRulesData.fairHousingProhibitedTerms;
 const nycBoroughs = rlsRulesData.nycBoroughs;
+
+// Convert raw JSON fields to normalized rules
+function normalizeFields(fields: RLSField[]): RLSRule[] {
+  return fields.map((f) => {
+    const isRequired = f.requirements.toLowerCase() === 'yes';
+    const isConditional = f.requirements.toLowerCase().startsWith('conditional:');
+
+    let conditional: RLSRule['conditional'] = null;
+    if (isConditional) {
+      // Extract condition from "Conditional: Required if X"
+      const conditionText = f.requirements.replace(/^conditional:\s*/i, '');
+      conditional = {
+        if: conditionText,
+        message: conditionText,
+      };
+    }
+
+    return {
+      field: f.field,
+      description: f.description,
+      addEdit: f.lmpAddEdit.toLowerCase() === 'yes',
+      search: f.lmpSearch.toLowerCase() === 'yes',
+      required: isRequired,
+      conditional,
+    };
+  });
+}
+
+const rules = normalizeFields(rawFields);
 
 /**
  * Main validation function for REBNY RLS compliance
