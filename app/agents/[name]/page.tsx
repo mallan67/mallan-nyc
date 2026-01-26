@@ -141,10 +141,6 @@ export default async function AgentPage({ params }: Props) {
                     alt={agent.name}
                     fill
                     className="object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
                   />
                   {agent.featured && (
                     <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
