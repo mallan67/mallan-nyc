@@ -30,6 +30,11 @@ const AMENITY_PILLS = [
   { id: 'roof-deck', label: 'Roof Deck' },
 ];
 
+// Chip style classes - shared for consistency
+const CHIP_BASE = 'px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 min-h-[44px] flex items-center justify-center';
+const CHIP_UNSELECTED = 'bg-white/10 backdrop-blur-sm text-white/90 border border-white/20 hover:bg-white/20 hover:text-white';
+const CHIP_SELECTED = 'bg-white text-gray-900 border border-white shadow-sm';
+
 // Mock suggestions for typeahead - TODO: Replace with real API call
 const MOCK_SUGGESTIONS: SearchSuggestion[] = [
   { type: 'neighborhood', label: 'Upper East Side', value: 'upper-east-side' },
@@ -60,6 +65,7 @@ export default function HeroSearch() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [selectedAmenities, setSelectedAmenities] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -124,10 +130,23 @@ export default function HeroSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleAmenityClick = (amenityId: string) => {
-    // Route to /buy or /rent based on active tab with amenity param
+  const handleAmenityToggle = (amenityId: string) => {
+    setSelectedAmenities(prev => {
+      const next = new Set(prev);
+      if (next.has(amenityId)) {
+        next.delete(amenityId);
+      } else {
+        next.add(amenityId);
+      }
+      return next;
+    });
+  };
+
+  const handleAmenitySearch = () => {
+    if (selectedAmenities.size === 0) return;
     const basePath = activeTab === 'sell' ? '/sell' : `/${activeTab}`;
-    router.push(`${basePath}?amenity=${amenityId}`);
+    const amenityParams = Array.from(selectedAmenities).join(',');
+    router.push(`${basePath}?amenities=${amenityParams}`);
   };
 
   const handleSearch = () => {
@@ -233,43 +252,51 @@ export default function HeroSearch() {
       {/* Search Module */}
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
-          {/* Tagline - soft modern typography */}
-          <div className="text-center text-white mb-4 sm:mb-6">
-            <div
-              className="font-medium text-sm sm:text-base md:text-lg leading-tight"
-              style={{ fontFamily: 'Aptos, system-ui, sans-serif' }}
-            >
-              One Search. Every Space.
-            </div>
-            <div
-              className="font-medium text-sm sm:text-base md:text-lg leading-tight mt-0.5"
-              style={{ fontFamily: 'Aptos, system-ui, sans-serif' }}
-            >
-              Homes. Businesses. Investments.
-            </div>
+          {/* Tagline - shared class, text-shadow for readability */}
+          <div className="text-center mb-5 sm:mb-6">
+            {/* Shared tagline class for both lines */}
+            <p className="hero-tagline">One Search. Every Space.</p>
+            <p className="hero-tagline mt-0.5">Homes. Businesses. Investments.</p>
           </div>
 
-          {/* Tabs - glass effect with black active state */}
-          <div className="inline-flex bg-white/20 backdrop-blur-md rounded-t-lg overflow-hidden border border-white/30 border-b-0">
-            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
+          {/*
+            Search Tabs + Bar - Glass Style
+            Option A (current): Lighter glass - bg-white/20, softer look
+            Option B (swap in): Darker glass - bg-black/40, more contrast
+          */}
+
+          {/* Tabs Container - wraps on mobile */}
+          <div className="flex flex-wrap justify-center sm:justify-start gap-1 sm:gap-0">
+            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab, i) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium capitalize transition-all ${
-                  activeTab === tab
-                    ? 'bg-black text-white'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
-                }`}
+                className={`
+                  px-4 sm:px-5 md:px-6 py-2.5 sm:py-3
+                  text-sm sm:text-base font-medium capitalize
+                  transition-all duration-200
+                  min-h-[44px]
+                  ${i === 0 ? 'sm:rounded-tl-lg' : ''}
+                  ${i === 3 ? 'sm:rounded-tr-lg' : ''}
+                  ${activeTab === tab
+                    ? 'bg-white/95 text-gray-900 shadow-sm'
+                    : 'bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 hover:text-white'
+                  }
+                  ${i === 0 ? 'rounded-l-lg sm:rounded-l-none sm:rounded-tl-lg' : ''}
+                  ${i === 3 ? 'rounded-r-lg sm:rounded-r-none sm:rounded-tr-lg' : ''}
+                  border border-white/20
+                  sm:border-b-0
+                `}
               >
                 {tab}
               </button>
             ))}
           </div>
 
-          {/* Search Input with Typeahead */}
+          {/* Search Input Container - Glass Style */}
           <div className="relative">
-            <div className="bg-white/15 backdrop-blur-md rounded-b-lg rounded-tr-lg ring-1 ring-white/20">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
+            <div className="bg-white/15 backdrop-blur-lg rounded-lg sm:rounded-t-none shadow-lg border border-white/20">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0 p-2 sm:p-0">
                 <input
                   ref={inputRef}
                   type="text"
@@ -282,13 +309,13 @@ export default function HeroSearch() {
                   onFocus={() => query.length >= 2 && setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg text-white bg-transparent outline-none placeholder:text-white/60"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg text-white bg-transparent outline-none placeholder:text-white/50 min-h-[44px]"
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white font-bold rounded hover:bg-black/80 transition-colors text-sm sm:text-base"
+                  className="mx-2 mb-2 sm:m-2 px-6 sm:px-8 py-3 bg-white text-gray-900 font-semibold rounded-md hover:bg-white/90 transition-colors text-sm sm:text-base min-h-[44px] shadow-sm"
                 >
                   Search
                 </button>
@@ -326,17 +353,21 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* Amenity Filters */}
-          <div className="flex flex-wrap justify-center gap-2 mt-5 sm:mt-6">
-            {AMENITY_PILLS.map((amenity) => (
-              <button
-                key={amenity.id}
-                onClick={() => handleAmenityClick(amenity.id)}
-                className="px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-white/10 backdrop-blur-sm rounded-lg ring-1 ring-white/20 hover:bg-white/20 transition-all"
-              >
-                {amenity.label}
-              </button>
-            ))}
+          {/* Amenity Chips - no container box, individual glass pills */}
+          <div className="flex flex-wrap justify-center gap-2 mt-5 sm:mt-6 max-w-lg mx-auto">
+            {AMENITY_PILLS.map((amenity) => {
+              const isSelected = selectedAmenities.has(amenity.id);
+              return (
+                <button
+                  key={amenity.id}
+                  onClick={() => handleAmenityToggle(amenity.id)}
+                  aria-pressed={isSelected}
+                  className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
+                >
+                  {amenity.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
