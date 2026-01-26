@@ -282,7 +282,7 @@ export default function HeroSearch() {
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-black font-bold rounded hover:bg-white/90 transition-colors text-sm sm:text-base"
+                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white font-bold rounded hover:bg-black/80 transition-colors text-sm sm:text-base"
                 >
                   Search
                 </button>
