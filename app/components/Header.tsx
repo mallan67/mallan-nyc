@@ -191,10 +191,6 @@ export default function Header() {
               About
             </Link>
 
-            <button className="hover:text-white transition-colors" aria-label="Search">
-              <SearchIcon />
-            </button>
-
             <Link href="/sign-in" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Sign In
             </Link>
