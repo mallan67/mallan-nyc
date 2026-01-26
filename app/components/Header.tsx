@@ -231,12 +231,18 @@ export default function Header() {
                     {buyItems.map((item) => (
                       <button
                         key={item.href}
+                        type="button"
                         onClick={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
                       >
                         {item.title}
                       </button>
@@ -262,12 +268,18 @@ export default function Header() {
                     {rentItems.map((item) => (
                       <button
                         key={item.href}
+                        type="button"
                         onClick={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
                       >
                         {item.title}
                       </button>
@@ -293,12 +305,18 @@ export default function Header() {
                     {sellItems.map((item) => (
                       <button
                         key={item.href}
+                        type="button"
                         onClick={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
                       >
                         {item.title}
                       </button>
@@ -339,12 +357,18 @@ export default function Header() {
                     {resources.map((item) => (
                       <button
                         key={item.href}
+                        type="button"
                         onClick={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
                       >
                         {item.title}
                       </button>
