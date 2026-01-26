@@ -39,21 +39,21 @@ function ListingCard({ listing }: { listing: Listing }) {
           }}
         />
         {listing.flags.isExclusive && (
-          <span className="absolute top-3 left-3 bg-brand-gold text-white text-xs px-3 py-1.5 font-serif rounded shadow-lg">
+          <span className="absolute top-3 left-3 bg-brand-gold text-white text-xs px-3 py-1.5 font-sans rounded shadow-lg">
             Exclusive
           </span>
         )}
         {listing.flags.isNewListing && !listing.flags.isExclusive && (
-          <span className="absolute top-3 left-3 bg-brand-dark text-white text-xs px-3 py-1.5 font-serif rounded shadow-lg">
+          <span className="absolute top-3 left-3 bg-brand-dark text-white text-xs px-3 py-1.5 font-sans rounded shadow-lg">
             New
           </span>
         )}
       </div>
       <div className="mt-3">
-        <p className="text-lg font-serif font-medium">
+        <p className="text-lg font-sans font-medium">
           {formatPrice(listing.price.listPrice, isRental)}
         </p>
-        <p className="text-sm text-gray-600 font-serif">
+        <p className="text-sm text-gray-600 font-sans">
           {listing.propertyInfo.propertyType}, {listing.address.neighborhoodDisplay}
         </p>
         <p className="text-xs text-gray-500 mt-1">
@@ -89,7 +89,7 @@ export default function FeaturedListings() {
   return (
     <section className="py-8 sm:py-12 md:py-16 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-serif mb-6 sm:mb-8">Featured Listings</h2>
+        <h2 className="text-2xl sm:text-3xl font-sans mb-6 sm:mb-8">Featured Listings</h2>
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
           {listings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
