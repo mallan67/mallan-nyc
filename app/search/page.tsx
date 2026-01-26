@@ -44,13 +44,12 @@ function SearchClient() {
 
   // Determine if rentals based on tab
   const isRental = activeTab === 'rent';
-  const isCommercial = activeTab === 'commercial';
 
   // Get all active listings
+  // Note: "commercial" and "sell" tabs show sale listings (commercial property type doesn't exist in data)
   const allListings = (listingsData.listings as unknown as Listing[]).filter((l) => {
     if (l.status !== 'active') return false;
     if (isRental) return l.listingType === 'rent';
-    if (isCommercial) return l.propertyInfo.propertyType === 'Commercial';
     return l.listingType === 'sale';
   });
 
