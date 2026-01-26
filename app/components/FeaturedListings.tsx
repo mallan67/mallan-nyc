@@ -31,7 +31,7 @@ function ListingCard({ listing }: { listing: Listing }) {
           src={primaryImage}
           alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
           fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className="object-cover"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 16vw"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
@@ -98,7 +98,7 @@ export default function FeaturedListings() {
         <div className="mt-8 sm:mt-10 text-center">
           <Link
             href="/buy"
-            className="inline-block px-6 sm:px-8 py-2 sm:py-3 border border-brand-dark text-brand-dark font-serif hover:bg-brand-dark hover:text-white transition-colors text-sm sm:text-base"
+            className="inline-block px-6 sm:px-8 py-2 sm:py-3 bg-black text-white font-bold rounded hover:bg-black/80 transition-colors text-sm sm:text-base"
           >
             View All Listings
           </Link>
