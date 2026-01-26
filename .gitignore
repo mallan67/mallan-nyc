@@ -165,3 +165,4 @@ build.log
 # Archive directory (legacy backups)
 archive/
 .vercel
+.aider*
