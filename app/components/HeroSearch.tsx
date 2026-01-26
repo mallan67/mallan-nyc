@@ -289,7 +289,13 @@ export default function HeroSearch() {
               {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    if (tab === 'commercial') {
+                      router.push('/search?type=commercial');
+                    } else {
+                      router.push(`/${tab}`);
+                    }
+                  }}
                   className={`${TAB_BASE} ${activeTab === tab ? TAB_ACTIVE : TAB_INACTIVE}`}
                 >
                   {tab}
