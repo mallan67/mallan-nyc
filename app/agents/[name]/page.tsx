@@ -1,13 +1,31 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
+
+// Mock agent data - replace with API call when available
+const MOCK_AGENTS = [
+  {
+    id: '1',
+    name: 'Maya Allan',
+    title: 'Licensed Real Estate Broker',
+    photo: '/images/agents/maya-allan.jpg',
+    phone: '(646) 258-4460',
+    email: 'maya@mallan.nyc',
+    bio: 'Maya Allan is an experienced real estate professional specializing in Manhattan and Brooklyn properties.',
+    specialties: ['Luxury Sales', 'Investment Properties', 'First-Time Buyers'],
+    languages: ['English', 'Spanish'],
+    featured: true,
+  },
+];
+
+type Props = {
+  params: Promise<{ name: string }>;
+};
 
 interface Agent {
   id: string;
@@ -33,66 +51,47 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-export default function AgentPage() {
-  const params = useParams();
-  const name = params?.name as string;
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/agents/public')
-      .then(res => res.json())
-      .then(data => {
-        const agents = data.agents || [];
-        const agentName = name?.replace(/-/g, ' ');
-        const foundAgent = agents.find((a: Agent) =>
-          a.name.toLowerCase() === agentName?.toLowerCase()
-        );
-        setAgent(foundAgent || null);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [name]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white font-sans">
-        <Header dark />
-        <main className="pt-20">
-          <div className="max-w-7xl mx-auto px-4 py-16">
-            <div className="animate-pulse">
-              <div className="h-10 bg-gray-200 rounded w-1/3 mb-8"></div>
-              <div className="grid md:grid-cols-3 gap-8">
-                <div className="aspect-square bg-gray-200 rounded"></div>
-                <div className="md:col-span-2 space-y-4">
-                  <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
+async function getAgentBySlug(slug: string): Promise<Agent | null> {
+  // Try API first, fallback to mock data
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/agents/public`, { cache: 'no-store' });
+    const data = await res.json();
+    const agents = data.agents || [];
+    const agentName = slug.replace(/-/g, ' ');
+    return agents.find((a: Agent) => a.name.toLowerCase() === agentName.toLowerCase()) || null;
+  } catch {
+    // Fallback to mock data
+    const agentName = slug.replace(/-/g, ' ');
+    return MOCK_AGENTS.find(a => a.name.toLowerCase() === agentName.toLowerCase()) || null;
   }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { name } = await params;
+  const agent = await getAgentBySlug(name);
 
   if (!agent) {
-    return (
-      <div className="min-h-screen bg-white font-sans">
-        <Header dark />
-        <main className="pt-20">
-          <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-            <h1 className="text-3xl font-semibold mb-4">Agent Not Found</h1>
-            <p className="text-gray-600 mb-8">The agent you're looking for doesn't exist.</p>
-            <Link href="/agents" className="text-brand-gold hover:underline">
-              ← Back to All Agents
-            </Link>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
+    return { title: 'Agent Not Found | Mallan Real Estate' };
+  }
+
+  return {
+    title: `${agent.name} | ${agent.title} | Mallan Real Estate`,
+    description: `Contact ${agent.name}, ${agent.title} at Mallan Real Estate. ${agent.bio}`,
+  };
+}
+
+export async function generateStaticParams() {
+  return MOCK_AGENTS.map(agent => ({
+    name: agent.name.toLowerCase().replace(/\s+/g, '-'),
+  }));
+}
+
+export default async function AgentPage({ params }: Props) {
+  const { name } = await params;
+  const agent = await getAgentBySlug(name);
+
+  if (!agent) {
+    notFound();
   }
 
   // Get all listings
