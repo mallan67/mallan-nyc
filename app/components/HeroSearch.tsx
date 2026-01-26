@@ -235,10 +235,10 @@ export default function HeroSearch() {
         <div className="w-full max-w-2xl">
           {/* Tagline - modern luxury typography */}
           <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.15] drop-shadow-sm">
+            <h1 className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-medium text-white drop-shadow-sm">
               One Search. Every Space.
             </h1>
-            <p className="text-xs sm:text-sm md:text-base tracking-[0.15em] uppercase font-medium text-white/90 mt-3 sm:mt-4">
+            <p className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-medium text-white/90 mt-2">
               Homes. Businesses. Investments.
             </p>
           </div>
