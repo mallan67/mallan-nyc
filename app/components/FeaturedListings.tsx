@@ -69,18 +69,18 @@ function ListingCard({ listing }: { listing: Listing }) {
       </div>
       {/* Text container with fixed min heights to prevent layout shift */}
       <div className="mt-3">
-        <p className="text-lg font-sans font-medium min-h-[1.75rem]">
+        <p className="text-xl font-sans font-bold min-h-[1.75rem] text-gray-900">
           {formatPrice(listing.price.listPrice, isRental)}
         </p>
-        <p className="text-sm text-gray-600 font-sans min-h-[1.25rem]">
+        <p className="text-sm text-gray-700 font-sans font-medium min-h-[1.25rem]">
           {listing.propertyInfo.propertyType}, {listing.address.neighborhoodDisplay}
         </p>
-        <p className="text-xs text-gray-500 mt-1 min-h-[1rem]">
+        <p className="text-xs text-gray-600 mt-1 min-h-[1rem]">
           {beds} bed · {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
           {sqft > 0 && ` · ${sqft.toLocaleString()} sqft`}
         </p>
         {!isRental && listing.nycSpecific.maintenanceFee && (
-          <p className="text-xs text-gray-400 mt-1 min-h-[1rem]">
+          <p className="text-xs text-gray-500 mt-1 min-h-[1rem]">
             {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
           </p>
         )}
@@ -108,9 +108,9 @@ export default function FeaturedListings() {
   return (
     <section className="py-12 sm:py-16 md:py-20 px-4 bg-gray-50/50">
       <div className="max-w-7xl mx-auto">
-        {/* Section header with subtle styling */}
+        {/* Section header with bold styling */}
         <div className="text-center mb-8 sm:mb-10">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-light tracking-tight text-gray-900">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-bold tracking-tight text-gray-900">
             Featured Listings
           </h2>
           <p className="mt-2 text-sm sm:text-base text-gray-500">
@@ -125,7 +125,7 @@ export default function FeaturedListings() {
         <div className="mt-10 sm:mt-12 text-center">
           <Link
             href="/buy"
-            className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base tracking-wide"
+            className="inline-block px-10 py-3.5 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 shadow-md hover:shadow-lg transition-all text-sm sm:text-base tracking-wide"
           >
             View All Listings
           </Link>

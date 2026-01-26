@@ -17,10 +17,10 @@ export default function TrustMarkers() {
       <div className="max-w-7xl mx-auto">
         {/* Section header - consistent styling */}
         <div className="text-center mb-8 sm:mb-10">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-light tracking-tight text-gray-900">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-bold tracking-tight text-gray-900">
             Licensed &amp; Compliant
           </h2>
-          <p className="mt-2 text-sm sm:text-base text-gray-500">
+          <p className="mt-2 text-sm sm:text-base text-gray-600">
             NY State licensed broker. Fair housing for all.
           </p>
         </div>

@@ -273,11 +273,11 @@ export default function HeroSearch() {
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
           {/* B) TAGLINE - Both lines SAME size, tighter spacing, centered */}
-          <div className="text-center mx-auto max-w-3xl space-y-0.5 mb-5 sm:mb-6">
-            <div className="text-sm sm:text-base md:text-lg font-sans font-bold tracking-wide leading-tight md:leading-snug text-white/95 drop-shadow-sm">
+          <div className="text-center mx-auto max-w-3xl space-y-0.5 mb-6 sm:mb-7">
+            <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-bold tracking-wide leading-tight text-white/95 drop-shadow-md">
               One Search. Every Space.
             </div>
-            <div className="text-sm sm:text-base md:text-lg font-sans font-bold tracking-wide leading-tight md:leading-snug text-white/90 drop-shadow-sm">
+            <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-bold tracking-wide leading-tight text-white/90 drop-shadow-md">
               Homes. Businesses. Investments.
             </div>
           </div>
@@ -312,13 +312,13 @@ export default function HeroSearch() {
                   onFocus={() => query.length >= 2 && setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-4 py-3 text-base sm:text-lg text-white bg-white/15 rounded-lg border border-white/20 outline-none placeholder:text-white/60 focus:border-white/40 focus:bg-white/20 transition-colors"
+                  className="flex-1 px-5 py-3.5 text-base sm:text-lg text-white bg-white/25 rounded-lg border border-white/25 outline-none placeholder:text-white/70 focus:border-white/40 focus:bg-white/30 transition-colors"
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg hover:bg-white/90 transition-colors text-sm sm:text-base"
+                  className="px-7 py-3.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-white/90 shadow-lg hover:shadow-xl transition-all text-sm sm:text-base"
                 >
                   Search
                 </button>
@@ -356,21 +356,26 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* E) AMENITIES - Individual glass chips, NO container box */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-5 sm:mt-6">
-            {AMENITY_PILLS.map((amenity) => {
-              const isSelected = selectedAmenities.has(amenity.id);
-              return (
-                <button
-                  key={amenity.id}
-                  onClick={() => handleAmenityToggle(amenity.id)}
-                  aria-pressed={isSelected}
-                  className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
-                >
-                  {amenity.label}
-                </button>
-              );
-            })}
+          {/* E) AMENITIES - Individual glass chips with label */}
+          <div className="mt-6 sm:mt-7">
+            <p className="text-center text-xs sm:text-sm text-white/80 font-medium mb-3 tracking-wide">
+              POPULAR AMENITIES
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+              {AMENITY_PILLS.map((amenity) => {
+                const isSelected = selectedAmenities.has(amenity.id);
+                return (
+                  <button
+                    key={amenity.id}
+                    onClick={() => handleAmenityToggle(amenity.id)}
+                    aria-pressed={isSelected}
+                    className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
+                  >
+                    {amenity.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
