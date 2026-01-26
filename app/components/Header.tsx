@@ -167,10 +167,6 @@ export default function Header() {
               }}
             />
 
-            <Link href="/search?type=commercial" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-              Commercial
-            </Link>
-
             <Link href="/open-houses" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Open Houses
             </Link>
@@ -231,20 +227,26 @@ export default function Header() {
                     {buyItems.map((item) => (
                       <div
                         key={item.href}
-                        onClick={() => {
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMobileOpen(false);
+                          setTimeout(() => router.push(item.href), 100);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setMobileOpen(false);
-                            router.push(item.href);
-                          }
-                        }}
                         className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                        style={{
+                          WebkitTouchCallout: 'none',
+                          WebkitUserSelect: 'none',
+                          userSelect: 'none',
+                          touchAction: 'manipulation'
+                        }}
                       >
                         {item.title}
                       </div>
@@ -270,20 +272,26 @@ export default function Header() {
                     {rentItems.map((item) => (
                       <div
                         key={item.href}
-                        onClick={() => {
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMobileOpen(false);
+                          setTimeout(() => router.push(item.href), 100);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setMobileOpen(false);
-                            router.push(item.href);
-                          }
-                        }}
                         className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                        style={{
+                          WebkitTouchCallout: 'none',
+                          WebkitUserSelect: 'none',
+                          userSelect: 'none',
+                          touchAction: 'manipulation'
+                        }}
                       >
                         {item.title}
                       </div>
@@ -309,20 +317,26 @@ export default function Header() {
                     {sellItems.map((item) => (
                       <div
                         key={item.href}
-                        onClick={() => {
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMobileOpen(false);
+                          setTimeout(() => router.push(item.href), 100);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setMobileOpen(false);
-                            router.push(item.href);
-                          }
-                        }}
                         className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                        style={{
+                          WebkitTouchCallout: 'none',
+                          WebkitUserSelect: 'none',
+                          userSelect: 'none',
+                          touchAction: 'manipulation'
+                        }}
                       >
                         {item.title}
                       </div>
@@ -330,14 +344,6 @@ export default function Header() {
                   </div>
                 )}
               </div>
-
-              <Link
-                href="/search?type=commercial"
-                onClick={() => setMobileOpen(false)}
-                className="py-3 min-h-[44px] text-white/90 hover:text-white"
-              >
-                Commercial
-              </Link>
 
               <Link
                 href="/open-houses"
@@ -363,20 +369,26 @@ export default function Header() {
                     {resources.map((item) => (
                       <div
                         key={item.href}
-                        onClick={() => {
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMobileOpen(false);
+                          setTimeout(() => router.push(item.href), 100);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setMobileOpen(false);
-                            router.push(item.href);
-                          }
-                        }}
                         className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                        style={{
+                          WebkitTouchCallout: 'none',
+                          WebkitUserSelect: 'none',
+                          userSelect: 'none',
+                          touchAction: 'manipulation'
+                        }}
                       >
                         {item.title}
                       </div>
