@@ -273,11 +273,11 @@ export default function HeroSearch() {
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
           {/* B) TAGLINE - Both lines SAME size, tighter spacing, centered */}
-          <div className="text-center mx-auto max-w-3xl space-y-1 md:space-y-2 mb-5 sm:mb-6">
-            <div className="text-sm sm:text-base md:text-lg font-sans font-medium tracking-wide leading-tight md:leading-snug text-white/95 drop-shadow-sm">
+          <div className="text-center mx-auto max-w-3xl space-y-0.5 mb-5 sm:mb-6">
+            <div className="text-sm sm:text-base md:text-lg font-sans font-bold tracking-wide leading-tight md:leading-snug text-white/95 drop-shadow-sm">
               One Search. Every Space.
             </div>
-            <div className="text-sm sm:text-base md:text-lg font-sans font-medium tracking-wide leading-tight md:leading-snug text-white/90 drop-shadow-sm">
+            <div className="text-sm sm:text-base md:text-lg font-sans font-bold tracking-wide leading-tight md:leading-snug text-white/90 drop-shadow-sm">
               Homes. Businesses. Investments.
             </div>
           </div>
