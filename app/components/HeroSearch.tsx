@@ -234,7 +234,7 @@ export default function HeroSearch() {
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
           {/* Tagline - modern luxury typography */}
-          <div className="text-center mb-6 sm:mb-8">
+          <div className="text-center mb-6 sm:mb-8" style={{ fontFamily: 'Apto, system-ui, sans-serif' }}>
             <h1 className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-bold text-white drop-shadow-sm">
               One Search. Every Space.
             </h1>
