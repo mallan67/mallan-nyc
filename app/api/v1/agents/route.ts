@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import agentsData from '@/data/agents.json';
 import listingsData from '@/data/listings.json';
+import type { Listing } from '@/lib/types/listing';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,12 +32,12 @@ interface AgentWithListings extends Agent {
 }
 
 function getAgentListingCounts(agentName: string): ListingCount {
-  const listings = listingsData.listings;
+  const listings = listingsData.listings as unknown as Listing[];
 
   const agentListings = listings.filter(
     (l) =>
-      (l.agent as { listAgentName?: string })?.listAgentName === agentName ||
-      (l.agent as { coListAgentName?: string })?.coListAgentName === agentName
+      l.agent.listAgentName === agentName ||
+      l.agent.coListAgentName === agentName
   );
 
   return {
