@@ -1,6 +1,3 @@
-'use client';
-
-import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 
 /**
@@ -12,85 +9,7 @@ import Link from 'next/link';
  * - Fair Housing compliant language
  * - No discriminatory targeting
  */
-
-type ServiceType = 'buy' | 'rent' | 'sell';
-
-interface DropdownProps {
-  label: string;
-  basePath: string;
-  analyticsLabel: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-}
-
-function ServiceDropdown({ label, basePath, analyticsLabel, isOpen, onToggle, onClose }: DropdownProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
-
-  return (
-    <div className="relative inline-block" ref={ref}>
-      <button
-        onClick={onToggle}
-        data-analytics-cta={analyticsLabel}
-        className="text-brand-gold hover:underline font-medium text-sm inline-flex items-center gap-1"
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-      >
-        {label}
-        <svg
-          className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div className="absolute left-1/2 -translate-x-1/2 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px] z-50">
-          <Link
-            href={`${basePath}?type=residential`}
-            data-analytics-cta={`${analyticsLabel}_residential`}
-            className="block px-4 py-3 text-sm text-gray-800 hover:bg-gray-50 rounded-t-lg border-b border-gray-100"
-            onClick={onClose}
-          >
-            Residential
-          </Link>
-          <Link
-            href={`${basePath}?type=commercial`}
-            data-analytics-cta={`${analyticsLabel}_commercial`}
-            className="block px-4 py-3 text-sm text-gray-800 hover:bg-gray-50 rounded-b-lg"
-            onClick={onClose}
-          >
-            Commercial
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function ValueProposition() {
-  const [openDropdown, setOpenDropdown] = useState<ServiceType | null>(null);
-
-  const handleToggle = (type: ServiceType) => {
-    setOpenDropdown(openDropdown === type ? null : type);
-  };
-
-  const handleClose = () => {
-    setOpenDropdown(null);
-  };
-
   return (
     <section className="py-16 md:py-20 bg-white">
       <div className="max-w-6xl mx-auto px-4">
@@ -100,8 +19,8 @@ export default function ValueProposition() {
             Licensed NYC Brokerage
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-            Residential and commercial sales and rentals in Manhattan and Brooklyn.
-            Licensed broker representation for all property types.
+            Residential sales and rentals in Manhattan and Brooklyn.
+            Co-ops, condos, and townhouses with licensed broker representation.
           </p>
         </div>
 
@@ -116,17 +35,16 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Buy</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Buyer representation for residential and commercial properties.
+              Buyer representation for co-ops, condos, and townhouses.
               Board packages, financial review, and contract negotiation.
             </p>
-            <ServiceDropdown
-              label="Browse Sales →"
-              basePath="/buy"
-              analyticsLabel="cta_buy"
-              isOpen={openDropdown === 'buy'}
-              onToggle={() => handleToggle('buy')}
-              onClose={handleClose}
-            />
+            <Link
+              href="/buy"
+              data-analytics-cta="cta_buy"
+              className="text-brand-gold hover:underline font-medium text-sm"
+            >
+              Browse Sales →
+            </Link>
           </div>
 
           {/* Rent */}
@@ -138,17 +56,16 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Rent</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Residential apartments and commercial spaces in Manhattan and Brooklyn.
-              Application support and lease review.
+              Apartments in Manhattan and Brooklyn. Application support,
+              lease review, and building requirement guidance.
             </p>
-            <ServiceDropdown
-              label="Browse Rentals →"
-              basePath="/rent"
-              analyticsLabel="cta_rent"
-              isOpen={openDropdown === 'rent'}
-              onToggle={() => handleToggle('rent')}
-              onClose={handleClose}
-            />
+            <Link
+              href="/rent"
+              data-analytics-cta="cta_rent"
+              className="text-brand-gold hover:underline font-medium text-sm"
+            >
+              Browse Rentals →
+            </Link>
           </div>
 
           {/* Sell */}
@@ -163,14 +80,13 @@ export default function ValueProposition() {
               Professional photography, pricing analysis, and full transaction
               management from listing to closing.
             </p>
-            <ServiceDropdown
-              label="Sell Your Property →"
-              basePath="/sell"
-              analyticsLabel="cta_sell"
-              isOpen={openDropdown === 'sell'}
-              onToggle={() => handleToggle('sell')}
-              onClose={handleClose}
-            />
+            <Link
+              href="/sell"
+              data-analytics-cta="cta_sell"
+              className="text-brand-gold hover:underline font-medium text-sm"
+            >
+              Sell Your Property →
+            </Link>
           </div>
         </div>
 
