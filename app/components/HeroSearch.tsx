@@ -320,19 +320,17 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* Amenity Filters - translucent tray with modern chips */}
-          <div className="flex justify-center mt-5 sm:mt-6">
-            <div className="inline-flex flex-wrap justify-center gap-2 px-4 py-3 rounded-xl bg-black/30 backdrop-blur-md ring-1 ring-white/10">
-              {AMENITY_PILLS.map((amenity) => (
-                <button
-                  key={amenity.id}
-                  onClick={() => handleAmenityClick(amenity.id)}
-                  className="px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-white/10 rounded-lg ring-1 ring-white/15 hover:bg-white/20 transition-all"
-                >
-                  {amenity.label}
-                </button>
-              ))}
-            </div>
+          {/* Amenity Filters */}
+          <div className="flex flex-wrap justify-center gap-2 mt-5 sm:mt-6">
+            {AMENITY_PILLS.map((amenity) => (
+              <button
+                key={amenity.id}
+                onClick={() => handleAmenityClick(amenity.id)}
+                className="px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-white/10 backdrop-blur-sm rounded-lg ring-1 ring-white/20 hover:bg-white/20 transition-all"
+              >
+                {amenity.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
