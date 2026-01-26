@@ -64,6 +64,84 @@ export async function generateStaticParams() {
   }));
 }
 
+// Compact listing card for closed transactions
+function ClosedListingCard({ listing, isRental }: { listing: Listing; isRental: boolean }) {
+  const price = listing.price.closePrice || listing.price.listPrice;
+
+  return (
+    <div className="group bg-white border border-gray-100 rounded overflow-hidden hover:border-brand-gold/30 hover:shadow-md transition-all">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+        <Image
+          src={
+            listing.media.images.find((img) => img.isPrimary)?.url ||
+            listing.media.images[0]?.url ||
+            '/images/listing-placeholder.jpg'
+          }
+          alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+      </div>
+      <div className="p-3">
+        <p className="font-semibold text-sm text-brand-dark">
+          {formatPrice(price, isRental)}
+        </p>
+        <p className="text-xs text-gray-600 truncate mt-0.5">
+          {listing.address.streetNumber} {listing.address.streetName}
+          {listing.address.unit && ` #${listing.address.unit}`}
+        </p>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-1">
+          <span>{listing.propertyInfo.propertyType}</span>
+          <span className="text-gray-300">|</span>
+          <span>{listing.propertyInfo.bedroomsTotal}BR/{listing.propertyInfo.bathroomsFull}BA</span>
+          {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+            <>
+              <span className="text-gray-300">|</span>
+              <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf</span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Active listing card (larger)
+function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: boolean }) {
+  return (
+    <Link href={`/listing/${listing.id}`} className="group block">
+      <div className="relative aspect-[4/3] overflow-hidden rounded bg-gray-100 mb-2">
+        <Image
+          src={
+            listing.media.images.find((img) => img.isPrimary)?.url ||
+            listing.media.images[0]?.url ||
+            '/images/listing-placeholder.jpg'
+          }
+          alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        {listing.flags?.isNewListing && (
+          <span className="absolute top-2 left-2 px-2 py-0.5 bg-brand-gold text-white text-[10px] uppercase tracking-wide rounded">
+            New
+          </span>
+        )}
+      </div>
+      <p className="font-semibold text-base text-brand-dark">
+        {formatPrice(listing.price.listPrice, isRental)}
+      </p>
+      <p className="text-sm text-gray-600 truncate">
+        {listing.address.streetNumber} {listing.address.streetName}
+        {listing.address.unit && ` #${listing.address.unit}`}
+      </p>
+      <p className="text-xs text-gray-500 mt-0.5">
+        {listing.propertyInfo.propertyType} · {listing.propertyInfo.bedroomsTotal} bed · {listing.propertyInfo.bathroomsFull} bath
+        {listing.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
+      </p>
+    </Link>
+  );
+}
+
 export default async function AgentPage({ params }: Props) {
   const { name } = await params;
   const agent = getAgentBySlug(name);
@@ -72,63 +150,46 @@ export default async function AgentPage({ params }: Props) {
     notFound();
   }
 
-  // Get all listings
   const allListings = listingsData.listings as unknown as Listing[];
-
-  // Filter agent's listings
   const agentListings = allListings.filter(
     (listing) =>
       listing.agent.listAgentName === agent.name ||
       listing.agent.coListAgentName === agent.name
   );
 
-  // Active listings for sale
-  const activeListings = agentListings.filter(
-    (l) => l.status === 'active' && l.listingType === 'sale'
-  );
-
-  // Active rentals
-  const activeRentals = agentListings.filter(
-    (l) => l.status === 'active' && l.listingType === 'rent'
-  );
-
-  // Past sales (sold)
+  const activeListings = agentListings.filter((l) => l.status === 'active' && l.listingType === 'sale');
+  const activeRentals = agentListings.filter((l) => l.status === 'active' && l.listingType === 'rent');
   const pastSales = agentListings.filter((l) => l.status === 'sold');
-
-  // Past rentals (rented)
   const pastRentals = agentListings.filter((l) => l.status === 'rented');
+
+  const navItems = [
+    { id: 'active-sales', label: 'Active Sales', count: activeListings.length },
+    { id: 'active-rentals', label: 'Active Rentals', count: activeRentals.length },
+    { id: 'closed-sales', label: 'Closed Sales', count: pastSales.length },
+    { id: 'closed-rentals', label: 'Closed Rentals', count: pastRentals.length },
+  ].filter((item) => item.count > 0);
 
   return (
     <div className="min-h-screen bg-white font-sans">
       <Header dark />
       <main className="pt-20">
-        {/* Agent Profile Section */}
-        <section className="py-8 sm:py-12 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4">
+        {/* Agent Profile Header */}
+        <section className="border-b">
+          <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
             <Link
               href="/agents"
-              className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 sm:mb-8"
+              className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-gray-500 hover:text-brand-gold transition-colors mb-6"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Back to All Agents
+              All Agents
             </Link>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+            <div className="flex flex-col md:flex-row gap-6 lg:gap-10">
               {/* Agent Photo */}
-              <div className="flex justify-center md:block">
-                <div className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-full md:aspect-square overflow-hidden rounded-lg bg-gray-100">
+              <div className="flex-shrink-0 mx-auto md:mx-0">
+                <div className="relative w-48 h-48 sm:w-56 sm:h-56 overflow-hidden rounded-full bg-gray-100 ring-4 ring-gray-50">
                   <Image
                     src={agent.photo || '/images/agent-placeholder.jpg'}
                     alt={agent.name}
@@ -136,158 +197,105 @@ export default async function AgentPage({ params }: Props) {
                     className="object-cover"
                     priority
                   />
-                  {agent.featured && (
-                    <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
-                      Featured
-                    </span>
-                  )}
                 </div>
               </div>
 
               {/* Agent Info */}
-              <div className="md:col-span-2">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2 text-center md:text-left">
-                  {agent.name}
-                </h1>
-                <p className="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6 text-center md:text-left">
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
+                  <h1 className="text-2xl sm:text-3xl font-light tracking-wide text-brand-dark">
+                    {agent.name}
+                  </h1>
+                  {agent.featured && (
+                    <span className="px-2 py-0.5 bg-brand-gold/10 text-brand-gold text-[10px] uppercase tracking-wider rounded">
+                      Featured
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 uppercase tracking-wide mb-4">
                   {agent.title}
                 </p>
 
-                {/* Contact Info */}
-                <div className="bg-white rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm border">
-                  <h2 className="font-semibold mb-3 sm:mb-4">Contact Information</h2>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <svg
-                        className="w-5 h-5 text-gray-400 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                        />
-                      </svg>
-                      <a
-                        href={`tel:${agent.phone.replace(/[^0-9]/g, '')}`}
-                        className="text-brand-gold hover:underline"
-                      >
-                        {agent.phone}
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <svg
-                        className="w-5 h-5 text-gray-400 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <a
-                        href={`mailto:${agent.email}`}
-                        className="text-brand-gold hover:underline break-all"
-                      >
-                        {agent.email}
-                      </a>
-                    </div>
-                  </div>
+                {/* Contact */}
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-5">
+                  <a
+                    href={`tel:${agent.phone.replace(/[^0-9]/g, '')}`}
+                    className="inline-flex items-center gap-2 text-sm text-brand-dark hover:text-brand-gold transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    {agent.phone}
+                  </a>
+                  <span className="text-gray-300 hidden sm:inline">|</span>
+                  <a
+                    href={`mailto:${agent.email}`}
+                    className="inline-flex items-center gap-2 text-sm text-brand-dark hover:text-brand-gold transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    {agent.email}
+                  </a>
                 </div>
 
                 {/* Bio */}
-                {agent.bio && (
-                  <div className="mb-4 sm:mb-6">
-                    <h2 className="font-semibold mb-2 sm:mb-3">About</h2>
-                    <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
-                      {agent.bio}
-                    </p>
-                  </div>
-                )}
+                <p className="text-sm text-gray-600 leading-relaxed max-w-2xl mb-4">
+                  {agent.bio}
+                </p>
 
-                {/* Specialties */}
-                {agent.specialties && agent.specialties.length > 0 && (
-                  <div className="mb-4 sm:mb-6">
-                    <h2 className="font-semibold mb-2 sm:mb-3">Specialties</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {agent.specialties.map((specialty, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 bg-gray-100 text-gray-700 text-xs sm:text-sm rounded"
-                        >
-                          {specialty}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Languages */}
-                {agent.languages && agent.languages.length > 0 && (
-                  <div>
-                    <h2 className="font-semibold mb-2 sm:mb-3">Languages</h2>
-                    <p className="text-gray-700 text-sm sm:text-base">
-                      {agent.languages.join(', ')}
-                    </p>
-                  </div>
-                )}
+                {/* Specialties & Languages */}
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                  {agent.specialties.map((specialty, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 border border-gray-200 text-xs text-gray-600 rounded"
+                    >
+                      {specialty}
+                    </span>
+                  ))}
+                  {agent.languages.length > 1 && (
+                    <span className="px-2.5 py-1 border border-gray-200 text-xs text-gray-600 rounded">
+                      {agent.languages.join(' · ')}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Active Listings for Sale */}
-        {activeListings.length > 0 && (
-          <section className="py-8 sm:py-12">
-            <div className="max-w-7xl mx-auto px-4">
-              <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
-                Active Listings for Sale ({activeListings.length})
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                {activeListings.map((listing) => (
-                  <Link
-                    key={listing.id}
-                    href={`/listing/${listing.id}`}
-                    className="group"
+        {/* Section Navigation */}
+        {navItems.length > 0 && (
+          <nav className="sticky top-16 z-40 bg-white border-b">
+            <div className="max-w-6xl mx-auto px-4">
+              <div className="flex items-center gap-1 overflow-x-auto py-3 scrollbar-hide">
+                {navItems.map((item) => (
+                  <a
+                    key={item.id}
+                    href={`#${item.id}`}
+                    className="flex-shrink-0 px-4 py-2 text-xs uppercase tracking-wide text-gray-600 hover:text-brand-gold hover:bg-gray-50 rounded transition-colors"
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100 mb-3">
-                      <Image
-                        src={
-                          listing.media.images.find((img) => img.isPrimary)?.url ||
-                          listing.media.images[0]?.url ||
-                          '/images/listing-placeholder.jpg'
-                        }
-                        alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                      />
-                      {listing.flags?.isNewListing && (
-                        <span className="absolute top-2 left-2 px-2 py-1 bg-brand-gold text-white text-xs uppercase rounded">
-                          New
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-semibold text-base sm:text-lg">
-                      {formatPrice(listing.price.listPrice, false)}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {listing.propertyInfo.propertyType},{' '}
-                      {listing.address.neighborhoodDisplay}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {listing.propertyInfo.bedroomsTotal} bed ·{' '}
-                      {listing.propertyInfo.bathroomsFull} bath
-                      {listing.propertyInfo.aboveGradeFinishedArea &&
-                        ` · ${listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft`}
-                    </p>
-                  </Link>
+                    {item.label}
+                    <span className="ml-1.5 text-gray-400">({item.count})</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </nav>
+        )}
+
+        {/* Active Sales */}
+        {activeListings.length > 0 && (
+          <section id="active-sales" className="py-10 scroll-mt-32">
+            <div className="max-w-6xl mx-auto px-4">
+              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b">
+                Active Sales
+                <span className="ml-2 text-sm text-gray-400">({activeListings.length})</span>
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {activeListings.map((listing) => (
+                  <ActiveListingCard key={listing.id} listing={listing} isRental={false} />
                 ))}
               </div>
             </div>
@@ -296,259 +304,93 @@ export default async function AgentPage({ params }: Props) {
 
         {/* Active Rentals */}
         {activeRentals.length > 0 && (
-          <section className="py-8 sm:py-12 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4">
-              <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
-                Active Rentals ({activeRentals.length})
+          <section id="active-rentals" className="py-10 bg-gray-50 scroll-mt-32">
+            <div className="max-w-6xl mx-auto px-4">
+              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b border-gray-200">
+                Active Rentals
+                <span className="ml-2 text-sm text-gray-400">({activeRentals.length})</span>
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeRentals.map((listing) => (
-                  <Link
-                    key={listing.id}
-                    href={`/listing/${listing.id}`}
-                    className="group"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100 mb-3">
-                      <Image
-                        src={
-                          listing.media.images.find((img) => img.isPrimary)?.url ||
-                          listing.media.images[0]?.url ||
-                          '/images/listing-placeholder.jpg'
-                        }
-                        alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                      />
-                      {listing.flags?.isNewListing && (
-                        <span className="absolute top-2 left-2 px-2 py-1 bg-brand-gold text-white text-xs uppercase rounded">
-                          New
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-semibold text-base sm:text-lg">
-                      {formatPrice(listing.price.listPrice, true)}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {listing.propertyInfo.propertyType},{' '}
-                      {listing.address.neighborhoodDisplay}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {listing.propertyInfo.bedroomsTotal} bed ·{' '}
-                      {listing.propertyInfo.bathroomsFull} bath
-                      {listing.propertyInfo.aboveGradeFinishedArea &&
-                        ` · ${listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft`}
-                    </p>
-                  </Link>
+                  <ActiveListingCard key={listing.id} listing={listing} isRental={true} />
                 ))}
               </div>
             </div>
           </section>
         )}
 
-        {/* Past Closed Sales */}
+        {/* Closed Sales */}
         {pastSales.length > 0 && (
-          <section className="py-8 sm:py-12">
-            <div className="max-w-7xl mx-auto px-4">
-              <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
-                Past Closed Sales ({pastSales.length})
+          <section id="closed-sales" className="py-10 scroll-mt-32">
+            <div className="max-w-6xl mx-auto px-4">
+              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b">
+                Closed Sales
+                <span className="ml-2 text-sm text-gray-400">({pastSales.length})</span>
               </h2>
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {pastSales.map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="flex items-center gap-3 sm:gap-4 p-3 bg-white border rounded-lg hover:shadow-sm transition-shadow"
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
-                      <Image
-                        src={
-                          listing.media.images.find((img) => img.isPrimary)?.url ||
-                          listing.media.images[0]?.url ||
-                          '/images/listing-placeholder.jpg'
-                        }
-                        alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                        <span className="px-2 py-0.5 bg-green-600 text-white text-[10px] sm:text-xs font-semibold rounded">
-                          SOLD
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">
-                        {listing.address.streetNumber} {listing.address.streetName}
-                        {listing.address.unit && `, ${listing.address.unit}`}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-600 mt-1">
-                        <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] sm:text-xs">
-                          {listing.propertyInfo.propertyType}
-                        </span>
-                        <span>{listing.propertyInfo.bedroomsTotal} bed</span>
-                        <span>·</span>
-                        <span>{listing.propertyInfo.bathroomsFull} bath</span>
-                        {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
-                          <>
-                            <span className="hidden sm:inline">·</span>
-                            <span className="hidden sm:inline">
-                              {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
-                        <p className="text-xs text-gray-500 mt-0.5 sm:hidden">
-                          {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Price */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-semibold text-sm sm:text-base text-green-700">
-                        {listing.price.closePrice
-                          ? formatPrice(listing.price.closePrice, false)
-                          : formatPrice(listing.price.listPrice, false)}
-                      </p>
-                      {listing.buyer?.closeDate && (
-                        <p className="text-[10px] sm:text-xs text-gray-500">
-                          {new Date(listing.buyer.closeDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <ClosedListingCard key={listing.id} listing={listing} isRental={false} />
                 ))}
               </div>
             </div>
           </section>
         )}
 
-        {/* Past Closed Rentals */}
+        {/* Closed Rentals */}
         {pastRentals.length > 0 && (
-          <section className="py-8 sm:py-12 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4">
-              <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
-                Past Closed Rentals ({pastRentals.length})
+          <section id="closed-rentals" className="py-10 bg-gray-50 scroll-mt-32">
+            <div className="max-w-6xl mx-auto px-4">
+              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b border-gray-200">
+                Closed Rentals
+                <span className="ml-2 text-sm text-gray-400">({pastRentals.length})</span>
               </h2>
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {pastRentals.map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="flex items-center gap-3 sm:gap-4 p-3 bg-white border rounded-lg hover:shadow-sm transition-shadow"
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
-                      <Image
-                        src={
-                          listing.media.images.find((img) => img.isPrimary)?.url ||
-                          listing.media.images[0]?.url ||
-                          '/images/listing-placeholder.jpg'
-                        }
-                        alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                        <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] sm:text-xs font-semibold rounded">
-                          RENTED
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">
-                        {listing.address.streetNumber} {listing.address.streetName}
-                        {listing.address.unit && `, ${listing.address.unit}`}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-600 mt-1">
-                        <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] sm:text-xs">
-                          {listing.propertyInfo.propertyType}
-                        </span>
-                        <span>{listing.propertyInfo.bedroomsTotal} bed</span>
-                        <span>·</span>
-                        <span>{listing.propertyInfo.bathroomsFull} bath</span>
-                        {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
-                          <>
-                            <span className="hidden sm:inline">·</span>
-                            <span className="hidden sm:inline">
-                              {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
-                        <p className="text-xs text-gray-500 mt-0.5 sm:hidden">
-                          {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Price */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-semibold text-sm sm:text-base text-blue-700">
-                        {formatPrice(listing.price.listPrice, true)}
-                      </p>
-                      {listing.buyer?.closeDate && (
-                        <p className="text-[10px] sm:text-xs text-gray-500">
-                          {new Date(listing.buyer.closeDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <ClosedListingCard key={listing.id} listing={listing} isRental={true} />
                 ))}
               </div>
             </div>
           </section>
         )}
 
-        {/* No listings message */}
-        {activeListings.length === 0 &&
-          activeRentals.length === 0 &&
-          pastSales.length === 0 &&
-          pastRentals.length === 0 && (
-            <section className="py-8 sm:py-12">
-              <div className="max-w-7xl mx-auto px-4 text-center">
-                <p className="text-gray-600">
-                  This agent currently has no public listings. Contact{' '}
-                  {agent.name.split(' ')[0]} directly to discuss available
-                  properties.
-                </p>
-              </div>
-            </section>
-          )}
+        {/* No listings */}
+        {activeListings.length === 0 && activeRentals.length === 0 && pastSales.length === 0 && pastRentals.length === 0 && (
+          <section className="py-16">
+            <div className="max-w-6xl mx-auto px-4 text-center">
+              <p className="text-gray-500">
+                Contact {agent.name.split(' ')[0]} directly to discuss available properties.
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* Contact CTA */}
-        <section className="py-8 sm:py-12 bg-brand-dark text-white">
-          <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold mb-3 sm:mb-4">
-              Ready to Work with {agent.name}?
+        <section className="py-12 bg-brand-dark">
+          <div className="max-w-2xl mx-auto px-4 text-center">
+            <h2 className="text-xl sm:text-2xl font-light tracking-wide text-white mb-3">
+              Work with {agent.name}
             </h2>
-            <p className="text-gray-300 mb-6 sm:mb-8 text-sm sm:text-base">
-              Contact {agent.name.split(' ')[0]} directly to discuss your real
-              estate needs.
+            <p className="text-gray-400 text-sm mb-6">
+              Ready to buy, sell, or rent? Get in touch today.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href={`tel:${agent.phone.replace(/[^0-9]/g, '')}`}
-                className="inline-block px-6 sm:px-8 py-3 bg-white text-brand-dark font-medium rounded hover:bg-gray-100 transition-colors text-sm sm:text-base"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-brand-dark text-sm font-medium rounded hover:bg-gray-100 transition-colors"
               >
-                Call {agent.phone}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                {agent.phone}
               </a>
               <a
                 href={`mailto:${agent.email}`}
-                className="inline-block px-6 sm:px-8 py-3 border border-white text-white font-medium rounded hover:bg-white/10 transition-colors text-sm sm:text-base"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-white/30 text-white text-sm font-medium rounded hover:bg-white/10 transition-colors"
               >
-                Send Email
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Email
               </a>
             </div>
           </div>
