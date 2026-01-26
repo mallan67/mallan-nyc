@@ -124,8 +124,13 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'Commercial', href: '/sell?type=commercial' },
   ];
 
+  // When dark mode (inner pages), use fixed positioning so header stays at top while scrolling
+  // When not dark (homepage), use absolute so it overlays the hero
+  const positionClass = dark ? 'fixed' : 'absolute';
+  const bgClass = mobileOpen || dark ? 'bg-gray-900' : '';
+
   return (
-    <header className={`absolute top-0 left-0 right-0 z-40 ${mobileOpen || dark ? 'bg-black/95' : ''}`}>
+    <header className={`${positionClass} top-0 left-0 right-0 z-40 ${bgClass}`}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Brand */}
