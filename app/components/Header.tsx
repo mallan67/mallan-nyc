@@ -131,7 +131,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   const bgClass = mobileOpen || dark ? 'bg-black/80 backdrop-blur-md' : '';
 
   return (
-    <header className={`${positionClass} top-0 left-0 right-0 z-50 ${bgClass}`}>
+    <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Brand */}

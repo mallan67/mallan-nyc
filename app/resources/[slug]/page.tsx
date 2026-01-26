@@ -26,8 +26,8 @@ export default async function ResourcePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header />
-      <main>
+      <Header dark />
+      <main className="pt-20">
         <ResourceContent slug={slug} />
       </main>
       <Footer />

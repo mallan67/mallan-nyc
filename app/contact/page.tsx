@@ -125,8 +125,8 @@ export default function ContactPage() {
 
   return (
     <>
-      <Header />
-      <main id="main-content" className="min-h-screen bg-white">
+      <Header dark />
+      <main id="main-content" className="min-h-screen bg-white pt-20">
         {/* Hero */}
         <section className="bg-brand-dark text-white py-16 md:py-20">
           <div className="max-w-4xl mx-auto px-4 text-center">

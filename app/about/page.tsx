@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header />
-      <main>
+      <Header dark />
+      <main className="pt-20">
         <AboutContent />
       </main>
       <Footer />

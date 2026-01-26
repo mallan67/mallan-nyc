@@ -106,10 +106,10 @@ export default async function ListingPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
-      <Header />
+      <Header dark />
 
       {/* Breadcrumb */}
-      <div className="bg-white border-b">
+      <div className="bg-white border-b pt-20">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <nav className="flex items-center gap-2 text-sm text-gray-500">
             <Link href="/" className="hover:text-brand-gold">Home</Link>
