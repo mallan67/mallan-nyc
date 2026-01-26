@@ -165,9 +165,9 @@ function SearchClient() {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 15000 : priceRange[0] !== 0 || priceRange[1] !== 5000000);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      {/* Search Header - Fixed below nav */}
-      <section className="bg-white border-b sticky top-20 z-30">
+    <div className="min-h-screen bg-gray-50">
+      {/* Search Header - Fixed below nav header */}
+      <section className="fixed top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-b z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Tabs */}
           <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
@@ -299,8 +299,8 @@ function SearchClient() {
         </div>
       </section>
 
-      {/* Results */}
-      <section className="py-8">
+      {/* Results - pt accounts for fixed header (80px) + fixed search bar (~180px) */}
+      <section className="pt-[280px] pb-8">
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
