@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface Agent {
   id: string;
@@ -80,11 +81,11 @@ export default function AgentsGrid() {
               <p className="text-gray-500">No agents to display.</p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {sortedAgents.map(agent => (
-                <div key={agent.id} className="group">
+                <Link key={agent.id} href={`/agents/${agent.name.toLowerCase().replace(/\s+/g, '-')}`} className="group">
                   {/* Photo */}
-                  <div className="relative aspect-[3/4] mb-4 overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative aspect-square mb-4 overflow-hidden rounded-lg bg-gray-100">
                     <Image
                       src={agent.photo || '/images/agent-placeholder.jpg'}
                       alt={agent.name}
@@ -143,8 +144,15 @@ export default function AgentsGrid() {
                         Languages: {agent.languages.join(', ')}
                       </p>
                     )}
+
+                    {/* View Profile Link */}
+                    <div className="pt-3">
+                      <span className="text-sm text-brand-gold group-hover:underline">
+                        View Profile →
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
