@@ -30,10 +30,23 @@ const AMENITY_PILLS = [
   { id: 'roof-deck', label: 'Roof Deck' },
 ];
 
-// Chip style classes - shared for consistency
-const CHIP_BASE = 'px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 min-h-[44px] flex items-center justify-center';
-const CHIP_UNSELECTED = 'bg-white/10 backdrop-blur-sm text-white/90 border border-white/20 hover:bg-white/20 hover:text-white';
-const CHIP_SELECTED = 'bg-white text-gray-900 border border-white shadow-sm';
+/*
+  STYLE CONSTANTS - Glass Design System
+
+  Amenity chips: ultra-light floating pills, no heavy box
+  - Desktop: single row, generous spacing
+  - Mobile: 44px touch targets via padding, not min-height
+*/
+const CHIP_BASE = 'px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all duration-150';
+const CHIP_UNSELECTED = 'text-white/80 hover:text-white bg-transparent hover:bg-white/10';
+const CHIP_SELECTED = 'bg-white/20 backdrop-blur-sm text-white border border-white/30';
+
+/*
+  Tab classes - unified glass style
+*/
+const TAB_BASE = 'px-4 sm:px-5 py-2 sm:py-2.5 text-sm sm:text-base font-medium capitalize transition-all duration-150';
+const TAB_INACTIVE = 'text-white/70 hover:text-white/90 bg-transparent hover:bg-white/5';
+const TAB_ACTIVE = 'text-white bg-white/15 backdrop-blur-sm';
 
 // Mock suggestions for typeahead - TODO: Replace with real API call
 const MOCK_SUGGESTIONS: SearchSuggestion[] = [
@@ -252,51 +265,52 @@ export default function HeroSearch() {
       {/* Search Module */}
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
-          {/* Tagline - shared class, text-shadow for readability */}
-          <div className="text-center mb-5 sm:mb-6">
-            {/* Shared tagline class for both lines */}
-            <p className="hero-tagline">One Search. Every Space.</p>
-            <p className="hero-tagline mt-0.5">Homes. Businesses. Investments.</p>
+          {/*
+            TAGLINE - Two lines, identical sizing
+
+            Why lines appeared different before:
+            - Using <h1> vs <p> tags (different browser defaults)
+            - Different classes per line
+            - Inconsistent font-weight
+
+            Fix: Same exact classes on both, use drop-shadow for readability
+          */}
+          <div className="text-center mb-4 sm:mb-5">
+            <p className="text-sm sm:text-base md:text-lg font-medium text-white/95 leading-snug tracking-wide drop-shadow-sm">
+              One Search. Every Space.
+            </p>
+            <p className="text-sm sm:text-base md:text-lg font-medium text-white/95 leading-snug tracking-wide drop-shadow-sm mt-0.5">
+              Homes. Businesses. Investments.
+            </p>
           </div>
 
           {/*
-            Search Tabs + Bar - Glass Style
-            Option A (current): Lighter glass - bg-white/20, softer look
-            Option B (swap in): Darker glass - bg-black/40, more contrast
+            SEARCH TABS + BAR - Unified Glass Style
+
+            Classes Reference:
+            - Tabs container: inline-flex, no bg (transparent)
+            - Tab inactive: TAB_INACTIVE - text-white/70, transparent bg
+            - Tab active: TAB_ACTIVE - bg-white/15 backdrop-blur
+            - Search bar: bg-white/10 backdrop-blur-md, subtle border
           */}
 
-          {/* Tabs Container - wraps on mobile */}
-          <div className="flex flex-wrap justify-center sm:justify-start gap-1 sm:gap-0">
-            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab, i) => (
+          {/* Tabs - inline, no container background */}
+          <div className="inline-flex rounded-t-lg overflow-hidden">
+            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`
-                  px-4 sm:px-5 md:px-6 py-2.5 sm:py-3
-                  text-sm sm:text-base font-medium capitalize
-                  transition-all duration-200
-                  min-h-[44px]
-                  ${i === 0 ? 'sm:rounded-tl-lg' : ''}
-                  ${i === 3 ? 'sm:rounded-tr-lg' : ''}
-                  ${activeTab === tab
-                    ? 'bg-white/95 text-gray-900 shadow-sm'
-                    : 'bg-white/10 backdrop-blur-sm text-white/90 hover:bg-white/20 hover:text-white'
-                  }
-                  ${i === 0 ? 'rounded-l-lg sm:rounded-l-none sm:rounded-tl-lg' : ''}
-                  ${i === 3 ? 'rounded-r-lg sm:rounded-r-none sm:rounded-tr-lg' : ''}
-                  border border-white/20
-                  sm:border-b-0
-                `}
+                className={`${TAB_BASE} ${activeTab === tab ? TAB_ACTIVE : TAB_INACTIVE}`}
               >
                 {tab}
               </button>
             ))}
           </div>
 
-          {/* Search Input Container - Glass Style */}
+          {/* Search Bar - Glass Container */}
           <div className="relative">
-            <div className="bg-white/15 backdrop-blur-lg rounded-lg sm:rounded-t-none shadow-lg border border-white/20">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0 p-2 sm:p-0">
+            <div className="bg-white/10 backdrop-blur-md rounded-b-lg rounded-tr-lg border border-white/15">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
                 <input
                   ref={inputRef}
                   type="text"
@@ -309,13 +323,13 @@ export default function HeroSearch() {
                   onFocus={() => query.length >= 2 && setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg text-white bg-transparent outline-none placeholder:text-white/50 min-h-[44px]"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg text-white bg-transparent outline-none placeholder:text-white/40"
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="mx-2 mb-2 sm:m-2 px-6 sm:px-8 py-3 bg-white text-gray-900 font-semibold rounded-md hover:bg-white/90 transition-colors text-sm sm:text-base min-h-[44px] shadow-sm"
+                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-white/90 text-gray-900 font-semibold rounded hover:bg-white transition-colors text-sm sm:text-base"
                 >
                   Search
                 </button>
@@ -353,8 +367,14 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* Amenity Chips - no container box, individual glass pills */}
-          <div className="flex flex-wrap justify-center gap-2 mt-5 sm:mt-6 max-w-lg mx-auto">
+          {/*
+            AMENITIES - Floating pills, no background container
+
+            Desktop: single row with gap-3
+            Mobile: wrap into 2-3 per row with gap-2
+            No heavy box, just text chips floating on hero
+          */}
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-4 sm:mt-5">
             {AMENITY_PILLS.map((amenity) => {
               const isSelected = selectedAmenities.has(amenity.id);
               return (
