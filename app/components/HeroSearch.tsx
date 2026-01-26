@@ -233,14 +233,20 @@ export default function HeroSearch() {
       {/* Search Module */}
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
-          {/* Tagline - modern luxury typography */}
-          <div className="text-center mb-6 sm:mb-8" style={{ fontFamily: 'Apto, system-ui, sans-serif' }}>
-            <h1 className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-bold text-white drop-shadow-sm">
+          {/* Tagline - soft modern typography */}
+          <div className="text-center text-white mb-4 sm:mb-6">
+            <div
+              className="font-medium text-sm sm:text-base md:text-lg leading-tight"
+              style={{ fontFamily: 'Aptos, system-ui, sans-serif' }}
+            >
               One Search. Every Space.
-            </h1>
-            <p className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-bold text-white/90 mt-2">
+            </div>
+            <div
+              className="font-medium text-sm sm:text-base md:text-lg leading-tight mt-0.5"
+              style={{ fontFamily: 'Aptos, system-ui, sans-serif' }}
+            >
               Homes. Businesses. Investments.
-            </p>
+            </div>
           </div>
 
           {/* Tabs - glass effect with black active state */}
