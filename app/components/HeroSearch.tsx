@@ -355,28 +355,6 @@ export default function HeroSearch() {
               </div>
             )}
           </div>
-
-          {/* E) AMENITIES - Individual glass chips with label */}
-          <div className="mt-6 sm:mt-7">
-            <p className="text-center text-xs sm:text-sm text-white/80 font-medium mb-3 tracking-wide">
-              POPULAR AMENITIES
-            </p>
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-              {AMENITY_PILLS.map((amenity) => {
-                const isSelected = selectedAmenities.has(amenity.id);
-                return (
-                  <button
-                    key={amenity.id}
-                    onClick={() => handleAmenityToggle(amenity.id)}
-                    aria-pressed={isSelected}
-                    className={`${CHIP_BASE} ${isSelected ? CHIP_SELECTED : CHIP_UNSELECTED}`}
-                  >
-                    {amenity.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
     </section>

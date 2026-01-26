@@ -227,14 +227,14 @@ export default function Header() {
                 {buyOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {buyItems.map((item) => (
-                      <a
+                      <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
                       >
                         {item.title}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -255,14 +255,14 @@ export default function Header() {
                 {rentOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {rentItems.map((item) => (
-                      <a
+                      <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
                       >
                         {item.title}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -283,14 +283,14 @@ export default function Header() {
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {sellItems.map((item) => (
-                      <a
+                      <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
                       >
                         {item.title}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -326,14 +326,14 @@ export default function Header() {
                 {resourcesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {resources.map((item) => (
-                      <a
+                      <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
                       >
                         {item.title}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}
