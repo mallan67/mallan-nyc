@@ -13,18 +13,19 @@ import Image from 'next/image';
  */
 export default function TrustMarkers() {
   return (
-    <section className="py-12 md:py-16 bg-gray-50 border-t border-gray-200">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-sans font-medium text-gray-900 mb-2">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-white">
+      <div className="max-w-7xl mx-auto">
+        {/* Section header - consistent styling */}
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-light tracking-tight text-gray-900">
             Licensed &amp; Compliant
           </h2>
-          <p className="text-gray-600">
+          <p className="mt-2 text-sm sm:text-base text-gray-500">
             NY State licensed broker. Fair housing for all.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 items-start">
+        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 items-start">
           {/* NY State License */}
           <div className="text-center">
             <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4">
@@ -90,22 +91,22 @@ export default function TrustMarkers() {
         </div>
 
         {/* Contact CTA */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">
+        <div className="mt-10 sm:mt-12 text-center">
+          <p className="text-gray-500 mb-4 text-sm sm:text-base">
             Questions? We&apos;re here to help.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <Link
               href="/contact"
               data-analytics-cta="cta_contact_footer"
-              className="inline-block px-6 py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors"
+              className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base tracking-wide"
             >
               Contact Us
             </Link>
             <a
               href="tel:+16462584460"
               data-analytics-cta="cta_phone"
-              className="inline-block px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-100 transition-colors"
+              className="inline-block px-8 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors text-sm sm:text-base"
             >
               Call (646) 258-4460
             </a>
