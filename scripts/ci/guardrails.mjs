@@ -1,18 +1,22 @@
 #!/usr/bin/env node
 /**
- * CI Guardrails Script - Phase 3 Extended
+ * CI Guardrails Script - Phase 3 Parallel-Safe
  *
- * Enforces:
+ * HARD FAILURES (block CI):
  * 1. No legacy directories (frontend/, pages/)
  * 2. No .bak files outside archive/
  * 3. No backup_* directories outside archive/
  * 4. App Router root layout required
  * 5. README.md governance markers
- * 6. Private pages noindex check
- * 7. [NEW] Protected routes (neighborhoods, boroughs) have noindex + feature flag
- * 8. [NEW] Sitemap does not include protected routes
- * 9. [NEW] Navigation does not link to protected routes
- * 10. [NEW] No Fair Housing prohibited terms in content
+ * 6. [CRITICAL] No app/neighborhoods/ routes (page.tsx, route.ts)
+ * 7. [CRITICAL] No app/boroughs/ routes (page.tsx, route.ts)
+ * 8. [CRITICAL] No app/resources/_drafts/ routes
+ * 9. [CRITICAL] Sitemap must NOT include neighborhoods/boroughs
+ * 10. [CRITICAL] Navigation must NOT link to neighborhoods/boroughs
+ * 11. [CRITICAL] No Fair Housing prohibited terms in content
+ *
+ * Phase 3 work MUST live in src/templates/, src/data/, src/compliance/
+ * NOT in app/ directories.
  */
 
 import fs from "node:fs";
@@ -34,7 +38,7 @@ const readFile = (p) => {
 };
 
 // Directories to skip during recursive walk
-const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".vercel"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".vercel", "archive"]);
 
 const walkFiles = (dir) => {
   const out = [];
@@ -65,6 +69,8 @@ const warnings = [];
 
 const fail = (msg) => errors.push(msg);
 const warn = (msg) => warnings.push(msg);
+
+console.log("\n[GUARDRAILS] Running Phase 3 parallel-safe checks...\n");
 
 // ===========================================================================
 // 1) Forbid legacy app roots at repo root
@@ -143,85 +149,104 @@ if (!exists("README.md")) {
 }
 
 // ===========================================================================
-// 7) Protected routes must have noindex layout
+// 7-8) CRITICAL: No routable pages in protected routes
+// Phase 3 content MUST live in src/templates, src/data, src/compliance
 // ===========================================================================
-const PROTECTED_ROUTES = ["neighborhoods", "boroughs"];
+const PROTECTED_ROUTE_PATTERNS = [
+  { pattern: /^app\/neighborhoods\/.*\.(tsx?|jsx?)$/, name: "neighborhoods" },
+  { pattern: /^app\/boroughs\/.*\.(tsx?|jsx?)$/, name: "boroughs" },
+  { pattern: /^app\/resources\/_drafts\/.*\.(tsx?|jsx?)$/, name: "resources/_drafts" },
+];
 
-for (const route of PROTECTED_ROUTES) {
-  const layoutPath = `app/${route}/layout.tsx`;
-  if (exists(layoutPath)) {
-    const content = readFile(layoutPath);
-    // Check for noindex in metadata
-    if (!content.includes("index: false") && !content.includes("index:false")) {
-      fail(
-        `Protected route "${route}" layout missing noindex metadata. ` +
-          `Add robots: { index: false, follow: false } to ${layoutPath}`
-      );
-    }
-    // Check for feature flag gating
-    const featureFlagPattern = new RegExp(
-      `NEXT_PUBLIC_FEATURE_${route.toUpperCase()}`,
-      "i"
+const ROUTABLE_FILES = ["page.tsx", "page.jsx", "route.ts", "route.js", "layout.tsx", "layout.jsx"];
+
+for (const { pattern, name } of PROTECTED_ROUTE_PATTERNS) {
+  const matchingFiles = allFiles.filter((f) => pattern.test(f));
+
+  // Check for any routable files
+  const routableFiles = matchingFiles.filter((f) => {
+    const filename = f.split("/").pop();
+    return ROUTABLE_FILES.includes(filename);
+  });
+
+  if (routableFiles.length > 0) {
+    fail(
+      `[PHASE 3 VIOLATION] Routable files found in protected path "app/${name}/":\n` +
+      `    - ${routableFiles.join("\n    - ")}\n` +
+      `    Phase 3 content must live in src/templates/, src/data/, or src/compliance/.\n` +
+      `    Remove these files to unblock CI.`
     );
-    if (!featureFlagPattern.test(content)) {
+  }
+}
+
+// Also check if the directory itself exists (even if empty or with only non-routable files)
+const PROTECTED_DIRS = ["app/neighborhoods", "app/boroughs", "app/resources/_drafts"];
+
+for (const dir of PROTECTED_DIRS) {
+  const fullPath = path.join(repoRoot, dir);
+  if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+    // Check if it contains any .tsx, .ts, .jsx, .js files
+    const dirFiles = allFiles.filter((f) => f.startsWith(norm(dir) + "/"));
+    const codeFiles = dirFiles.filter((f) => /\.(tsx?|jsx?)$/.test(f));
+
+    if (codeFiles.length > 0) {
       fail(
-        `Protected route "${route}" layout missing feature flag gating. ` +
-          `Add notFound() check for NEXT_PUBLIC_FEATURE_${route.toUpperCase()} !== 'true'`
+        `[PHASE 3 VIOLATION] Protected directory "${dir}/" contains code files:\n` +
+        `    - ${codeFiles.join("\n    - ")}\n` +
+        `    Phase 3 content must live in src/templates/, src/data/, or src/compliance/.`
       );
-    }
-  } else if (exists(`app/${route}/page.tsx`) || exists(`app/${route}`)) {
-    // Route exists but no layout - check individual pages
-    const pagePath = `app/${route}/page.tsx`;
-    if (exists(pagePath)) {
-      const content = readFile(pagePath);
-      if (
-        !content.includes("index: false") &&
-        !content.includes("noindex")
-      ) {
-        fail(
-          `Protected route "${route}" exists without noindex layout. ` +
-            `Create ${layoutPath} with robots: { index: false, follow: false }`
-        );
-      }
+    } else {
+      // Directory exists but no code - just warn
+      warn(
+        `Protected directory "${dir}/" exists but contains no code files. Consider removing.`
+      );
     }
   }
 }
 
 // ===========================================================================
-// 8) Sitemap must NOT include protected routes
+// 9) CRITICAL: Sitemap must NOT include protected routes
 // ===========================================================================
 const sitemapPath = "app/sitemap.ts";
 if (exists(sitemapPath)) {
   const sitemapContent = readFile(sitemapPath);
+  const PROTECTED_ROUTES = ["neighborhoods", "boroughs"];
+
   for (const route of PROTECTED_ROUTES) {
-    // Check for URL pattern like `${BASE_URL}/neighborhoods` not in a comment
-    const urlPattern = new RegExp(`\\$\\{BASE_URL\\}\\/${route}[^/]`, "g");
-    const literalPattern = new RegExp(`['"\`].*/${route}['"\`]`, "g");
+    // Check for URL pattern like `${BASE_URL}/neighborhoods` or literal '/neighborhoods'
+    const urlPattern = new RegExp(`['"\`\\/]${route}['"\`\\/]`, "g");
 
     // Extract non-comment lines
-    const nonCommentLines = sitemapContent
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-      .join("\n");
+    const lines = sitemapContent.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
 
-    if (urlPattern.test(nonCommentLines) || literalPattern.test(nonCommentLines)) {
-      // Double check it's not in a comment
-      const match = sitemapContent.match(new RegExp(`.*/${route}.*`, "g"));
-      const activeMatch = match?.find(
-        (m) => !m.trim().startsWith("//") && !m.trim().startsWith("*")
-      );
-      if (activeMatch && !activeMatch.includes("EXCLUDED") && !activeMatch.includes("NOTE:")) {
+      // Skip comments
+      if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) {
+        continue;
+      }
+
+      // Check for route reference
+      if (urlPattern.test(line)) {
+        // Allow if it's clearly an exclusion comment
+        if (line.includes("EXCLUDED") || line.includes("NOTE:") || line.includes("not included")) {
+          continue;
+        }
+
         fail(
-          `Sitemap includes protected route "/${route}". ` +
-            `Remove from app/sitemap.ts until Phase 4 approval.`
+          `[PHASE 3 VIOLATION] Sitemap includes protected route "/${route}" at line ${i + 1}.\n` +
+          `    Remove from app/sitemap.ts until Phase 4 approval.\n` +
+          `    Line: ${line.trim()}`
         );
+        break;
       }
     }
   }
 }
 
 // ===========================================================================
-// 9) Navigation must NOT link to protected routes (when not in comments)
+// 10) CRITICAL: Navigation must NOT link to protected routes
 // ===========================================================================
 const NAV_FILES = [
   "app/components/Header.tsx",
@@ -230,96 +255,133 @@ const NAV_FILES = [
   "app/components/Nav.tsx",
 ];
 
+const PROTECTED_ROUTES_NAV = ["neighborhoods", "boroughs"];
+
 for (const navFile of NAV_FILES) {
   if (!exists(navFile)) continue;
   const content = readFile(navFile);
+  const lines = content.split("\n");
 
-  for (const route of PROTECTED_ROUTES) {
+  for (const route of PROTECTED_ROUTES_NAV) {
     // Look for href="/neighborhoods" or href="/boroughs" patterns
-    const hrefPattern = new RegExp(`href=["'\`]/${route}["'\`]`, "gi");
-    const linkPattern = new RegExp(`['"\`]/${route}['"\`]`, "gi");
+    const hrefPattern = new RegExp(`href=["'\`]/${route}`, "gi");
 
-    // Check non-comment lines
-    const nonCommentLines = content
-      .split("\n")
-      .filter(
-        (line) =>
-          !line.trim().startsWith("//") &&
-          !line.trim().startsWith("*") &&
-          !line.trim().startsWith("{/*")
-      )
-      .join("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
 
-    if (hrefPattern.test(nonCommentLines) || linkPattern.test(nonCommentLines)) {
-      fail(
-        `Navigation file "${navFile}" contains link to protected route "/${route}". ` +
-          `Remove link until Phase 4 approval and feature flag is enabled.`
-      );
+      // Skip comments
+      if (
+        trimmed.startsWith("//") ||
+        trimmed.startsWith("*") ||
+        trimmed.startsWith("{/*")
+      ) {
+        continue;
+      }
+
+      if (hrefPattern.test(line)) {
+        fail(
+          `[PHASE 3 VIOLATION] Navigation file "${navFile}" contains link to "/${route}" at line ${i + 1}.\n` +
+          `    Remove link until Phase 4 approval and feature flag is enabled.\n` +
+          `    Line: ${line.trim()}`
+        );
+        break;
+      }
     }
   }
 }
 
 // ===========================================================================
-// 10) Scan for prohibited Fair Housing terms
+// 11) CRITICAL: Scan for prohibited Fair Housing terms
 // ===========================================================================
-const prohibitedTermsPath = "data/compliance/prohibited-terms.json";
-let prohibitedTerms = [];
+const prohibitedTermsPaths = [
+  "src/compliance/prohibited-terms.json",
+  "data/compliance/prohibited-terms.json",
+];
 
-if (exists(prohibitedTermsPath)) {
-  try {
-    const data = JSON.parse(readFile(prohibitedTermsPath));
-    prohibitedTerms = data.flatList || [];
-  } catch (e) {
-    warn(`Could not parse ${prohibitedTermsPath}: ${e.message}`);
+let prohibitedTerms = [];
+let prohibitedTermsSource = null;
+
+for (const p of prohibitedTermsPaths) {
+  if (exists(p)) {
+    try {
+      const data = JSON.parse(readFile(p));
+      prohibitedTerms = data.flatList || [];
+      prohibitedTermsSource = p;
+      break;
+    } catch (e) {
+      warn(`Could not parse ${p}: ${e.message}`);
+    }
   }
 }
 
 if (prohibitedTerms.length > 0) {
+  console.log(`[INFO] Loaded ${prohibitedTerms.length} prohibited terms from ${prohibitedTermsSource}`);
+
   // Files to scan for prohibited terms
   const scanPatterns = [
     /^app\/.*\.(tsx?|jsx?|json)$/,
+    /^src\/.*\.(tsx?|jsx?|json)$/,
     /^data\/.*\.json$/,
     /^content\/.*\.(md|mdx|json)$/,
   ];
 
+  // Exclusion patterns
+  const excludePatterns = [
+    /_templates\//,
+    /_drafts\//,
+    /\.test\./,
+    /\.spec\./,
+    /prohibited-terms\.json$/,
+    /rls-rules\.json$/,
+  ];
+
   const filesToScan = allFiles.filter((f) => {
-    // Skip _templates directories (work in progress)
-    if (f.includes("/_templates/")) return false;
-    // Skip _drafts directories
-    if (f.includes("/_drafts/")) return false;
-    // Skip test files
-    if (f.includes(".test.") || f.includes(".spec.")) return false;
-    // Skip the prohibited-terms.json itself
-    if (f === norm(prohibitedTermsPath)) return false;
-    // Match scan patterns
-    return scanPatterns.some((p) => p.test(f));
+    // Must match a scan pattern
+    if (!scanPatterns.some((p) => p.test(f))) return false;
+    // Must not match exclusion pattern
+    if (excludePatterns.some((p) => p.test(f))) return false;
+    return true;
   });
 
   for (const file of filesToScan) {
     const content = readFile(file).toLowerCase();
+
     for (const term of prohibitedTerms) {
       const termLower = term.toLowerCase();
+
       if (content.includes(termLower)) {
-        // Check if it's in a code comment or string that's clearly metadata
         const lines = readFile(file).split("\n");
+
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].toLowerCase();
+
           if (line.includes(termLower)) {
-            // Skip if clearly a comment explaining the term
+            const originalLine = readFile(file).split("\n")[i];
+
+            // Skip if in a comment
             if (
-              line.trim().startsWith("//") ||
-              line.trim().startsWith("*") ||
-              line.trim().startsWith("<!--")
+              originalLine.trim().startsWith("//") ||
+              originalLine.trim().startsWith("*") ||
+              originalLine.trim().startsWith("<!--") ||
+              originalLine.trim().startsWith("{/*")
             ) {
               continue;
             }
-            // Skip if in prohibited-terms reference
-            if (line.includes("prohibited") && line.includes("term")) {
+
+            // Skip if referencing prohibited terms metadata
+            if (
+              line.includes("prohibited") && line.includes("term") ||
+              line.includes("flatlist") ||
+              line.includes("categories")
+            ) {
               continue;
             }
+
             fail(
-              `Prohibited Fair Housing term "${term}" found in ${file}:${i + 1}. ` +
-                `Remove or rephrase to comply with Fair Housing Act.`
+              `[FAIR HOUSING VIOLATION] Prohibited term "${term}" found in ${file}:${i + 1}.\n` +
+              `    Remove or rephrase to comply with Fair Housing Act.\n` +
+              `    Line: ${originalLine.trim().substring(0, 100)}${originalLine.length > 100 ? "..." : ""}`
             );
             break; // Only report first occurrence per file
           }
@@ -327,10 +389,12 @@ if (prohibitedTerms.length > 0) {
       }
     }
   }
+} else {
+  warn("No prohibited-terms.json found. Fair Housing term scanning disabled.");
 }
 
 // ===========================================================================
-// 11) Private listings noindex hint (warning only)
+// 12) Private listings noindex hint (warning only)
 // ===========================================================================
 const privateCandidates = [
   "app/member-listings/page.tsx",
@@ -367,8 +431,10 @@ if (errors.length > 0) {
   for (const e of errors) {
     console.error(`  ❌ ${e}`);
   }
-  console.error(`\n${errors.length} error(s) found. CI blocked.\n`);
+  console.error(`\n${errors.length} error(s) found. CI BLOCKED.\n`);
+  console.error("Phase 3 content must live in src/templates/, src/data/, or src/compliance/.");
+  console.error("See docs/PHASE3_PARALLEL_SAFE.md for guidance.\n");
   process.exit(1);
 }
 
-console.log("\n[PASS] ✅ Guardrails passed.\n");
+console.log("\n[PASS] ✅ Guardrails passed. Phase 3 parallel-safe requirements met.\n");

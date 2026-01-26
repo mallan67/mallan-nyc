@@ -1,0 +1,178 @@
+{
+  "metadata": {
+    "version": "2026-01-25",
+    "source": "Fair Housing Act, NY Human Rights Law, HUD Guidelines",
+    "purpose": "CI guardrails and content validation to prevent discriminatory language",
+    "note": "Terms are case-insensitive during scanning"
+  },
+  "categories": {
+    "familyStatus": {
+      "description": "Terms that discriminate based on family status",
+      "terms": [
+        "no children",
+        "adults only",
+        "adult community",
+        "adult living",
+        "couples only",
+        "singles only",
+        "no kids",
+        "child-free",
+        "mature adults",
+        "empty nesters only"
+      ]
+    },
+    "religion": {
+      "description": "Terms that reference religious proximity or preference",
+      "terms": [
+        "walking distance to church",
+        "walking distance to temple",
+        "walking distance to mosque",
+        "walking distance to synagogue",
+        "near church",
+        "near temple",
+        "near mosque",
+        "near synagogue",
+        "christian neighborhood",
+        "jewish neighborhood",
+        "muslim neighborhood"
+      ]
+    },
+    "race": {
+      "description": "Terms that reference race or ethnicity",
+      "terms": [
+        "white neighborhood",
+        "black neighborhood",
+        "asian neighborhood",
+        "hispanic neighborhood",
+        "integrated",
+        "exclusive neighborhood",
+        "ethnic"
+      ]
+    },
+    "nationalOrigin": {
+      "description": "Terms that discriminate based on national origin",
+      "terms": [
+        "american born",
+        "citizen only",
+        "english speakers only",
+        "no immigrants"
+      ]
+    },
+    "disability": {
+      "description": "Terms that discriminate based on disability",
+      "terms": [
+        "no wheelchairs",
+        "able-bodied only",
+        "handicapped",
+        "physically fit",
+        "mentally stable required"
+      ]
+    },
+    "gender": {
+      "description": "Terms that discriminate based on gender/sex",
+      "terms": [
+        "bachelor pad",
+        "man cave",
+        "female only",
+        "male only",
+        "women only",
+        "men only",
+        "girls only",
+        "boys only"
+      ]
+    },
+    "sourceOfIncome": {
+      "description": "Terms that discriminate based on source of income (NYC/NY specific)",
+      "terms": [
+        "no section 8",
+        "no vouchers",
+        "no welfare",
+        "no public assistance",
+        "no housing assistance",
+        "employed applicants only",
+        "must have job",
+        "no unemployment",
+        "no ssi",
+        "no disability income"
+      ]
+    },
+    "credit": {
+      "description": "Terms that may constitute financial discrimination",
+      "terms": [
+        "good credit only",
+        "excellent credit required",
+        "no bad credit",
+        "perfect credit"
+      ]
+    },
+    "age": {
+      "description": "Terms that discriminate based on age (except 55+ housing)",
+      "terms": [
+        "young professionals only",
+        "no elderly",
+        "no seniors",
+        "young only",
+        "college age only"
+      ]
+    },
+    "steering": {
+      "description": "Terms that may constitute steering",
+      "terms": [
+        "perfect for families",
+        "family-friendly neighborhood",
+        "great for singles",
+        "ideal for young couples",
+        "retiree community",
+        "starter home"
+      ]
+    }
+  },
+  "flatList": [
+    "no children",
+    "adults only",
+    "adult community",
+    "couples only",
+    "singles only",
+    "no kids",
+    "child-free",
+    "mature adults",
+    "empty nesters only",
+    "walking distance to church",
+    "walking distance to temple",
+    "walking distance to mosque",
+    "walking distance to synagogue",
+    "christian neighborhood",
+    "jewish neighborhood",
+    "white neighborhood",
+    "black neighborhood",
+    "exclusive neighborhood",
+    "american born",
+    "citizen only",
+    "english speakers only",
+    "no wheelchairs",
+    "able-bodied only",
+    "handicapped",
+    "bachelor pad",
+    "man cave",
+    "female only",
+    "male only",
+    "women only",
+    "men only",
+    "no section 8",
+    "no vouchers",
+    "no welfare",
+    "no public assistance",
+    "employed applicants only",
+    "must have job",
+    "good credit only",
+    "excellent credit required",
+    "no bad credit",
+    "young professionals only",
+    "no elderly",
+    "no seniors",
+    "perfect for families",
+    "great for singles",
+    "ideal for young couples",
+    "retiree community"
+  ]
+}

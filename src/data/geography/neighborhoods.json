@@ -1,0 +1,97 @@
+{
+  "neighborhoods": [
+    {
+      "id": "upper-east-side",
+      "name": "Upper East Side",
+      "borough": "manhattan",
+      "tagline": "Classic Manhattan Elegance",
+      "image": "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1555109307-f7d9da25c244?w=600&q=80",
+      "description": "The Upper East Side is one of Manhattan's most prestigious residential neighborhoods, renowned for its tree-lined streets, pre-war architecture, and proximity to Central Park. This refined enclave offers a sophisticated lifestyle with world-class museums, boutique shopping, and acclaimed dining.",
+      "vibe": "Elegant and refined with a family-friendly atmosphere. Quiet tree-lined streets contrast with the bustling avenues. A mix of longtime residents and young professionals seeking classic Manhattan living.",
+      "listingCount": 245,
+      "avgPrice": { "sale": 1850000, "rent": 4200 },
+      "boundaries": { "north": "96th Street", "south": "59th Street", "east": "East River", "west": "Fifth Avenue" },
+      "transit": ["4", "5", "6", "Q"],
+      "attractions": [
+        { "name": "The Metropolitan Museum of Art", "type": "museum", "description": "One of the world's largest and finest art museums", "address": "1000 Fifth Avenue" },
+        { "name": "Central Park", "type": "park", "description": "843 acres of green space with running paths and playgrounds", "address": "Fifth Avenue to Central Park West" }
+      ],
+      "dining": ["Daniel", "Cafe Boulud", "The Mark Restaurant", "JG Melon"]
+    },
+    {
+      "id": "upper-west-side",
+      "name": "Upper West Side",
+      "borough": "manhattan",
+      "tagline": "Cultural & Intellectual Hub",
+      "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80",
+      "description": "The Upper West Side embodies the intellectual and artistic spirit of Manhattan. Home to Lincoln Center, Columbia University, and the American Museum of Natural History.",
+      "vibe": "Artsy, intellectual, and community-focused. A laid-back alternative to the Upper East Side with notable cultural institutions.",
+      "listingCount": 198,
+      "avgPrice": { "sale": 1650000, "rent": 3800 },
+      "boundaries": { "north": "110th Street", "south": "59th Street", "east": "Central Park West", "west": "Hudson River" },
+      "transit": ["1", "2", "3", "B", "C"],
+      "attractions": [
+        { "name": "Lincoln Center", "type": "cultural", "description": "World-renowned performing arts complex", "address": "10 Lincoln Center Plaza" },
+        { "name": "American Museum of Natural History", "type": "museum", "description": "Iconic museum with dinosaur fossils and Hayden Planetarium", "address": "Central Park West at 79th Street" }
+      ],
+      "dining": ["Jean-Georges", "Telepan", "Cafe Luxembourg", "Barney Greengrass"]
+    },
+    {
+      "id": "tribeca",
+      "name": "Tribeca",
+      "borough": "manhattan",
+      "tagline": "Manhattan's Most Exclusive Address",
+      "image": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=600&q=80",
+      "description": "Tribeca has evolved from industrial warehouses to Manhattan's most expensive residential neighborhood. Its cobblestone streets and converted loft spaces attract celebrities, financiers, and families.",
+      "vibe": "Ultra-exclusive yet surprisingly family-friendly. Celebrity sightings are common, but the neighborhood maintains a village-like feel.",
+      "listingCount": 87,
+      "avgPrice": { "sale": 4500000, "rent": 8500 },
+      "boundaries": { "north": "Canal Street", "south": "Vesey Street", "east": "Broadway", "west": "West Street" },
+      "transit": ["1", "2", "3", "A", "C", "E"],
+      "attractions": [
+        { "name": "Hudson River Park", "type": "park", "description": "Waterfront park spanning 5 miles with piers and playgrounds", "address": "Hudson River Waterfront" }
+      ],
+      "dining": ["Nobu", "Locanda Verde", "The Odeon", "Frenchette", "Bubby's"]
+    },
+    {
+      "id": "chelsea",
+      "name": "Chelsea",
+      "borough": "manhattan",
+      "tagline": "Art Galleries & Urban Innovation",
+      "image": "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?w=600&q=80",
+      "description": "Chelsea is Manhattan's art gallery capital, with over 200 galleries. Also home to the High Line, Chelsea Market, and a thriving community.",
+      "vibe": "Artsy, progressive, and vibrant. A hub for the creative class with a strong community feel.",
+      "listingCount": 156,
+      "avgPrice": { "sale": 1950000, "rent": 4800 },
+      "boundaries": { "north": "34th Street", "south": "14th Street", "east": "Sixth Avenue", "west": "Hudson River" },
+      "transit": ["1", "2", "3", "A", "C", "E", "L"],
+      "attractions": [
+        { "name": "The High Line", "type": "park", "description": "Elevated linear park built on historic freight rail lines", "address": "Gansevoort Street to 34th Street" },
+        { "name": "Chelsea Market", "type": "food", "description": "Indoor food hall in a former Nabisco factory", "address": "75 Ninth Avenue" }
+      ],
+      "dining": ["Cookshop", "Morimoto", "Del Posto", "La Bottega"]
+    },
+    {
+      "id": "greenwich-village",
+      "name": "Greenwich Village",
+      "borough": "manhattan",
+      "tagline": "Bohemian Spirit & Historic Charm",
+      "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "thumbnail": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80",
+      "description": "Greenwich Village is one of New York's most desirable and historic neighborhoods. Known for its bohemian past, winding streets, and charming townhouses.",
+      "vibe": "Eclectic and charming with a strong artistic heritage. Tree-lined streets and intimate cafes create a village-within-the-city atmosphere.",
+      "listingCount": 145,
+      "avgPrice": { "sale": 2800000, "rent": 5200 },
+      "boundaries": { "north": "14th Street", "south": "Houston Street", "east": "Broadway", "west": "Hudson River" },
+      "transit": ["1", "2", "3", "A", "C", "E", "B", "D", "F", "M"],
+      "attractions": [
+        { "name": "Washington Square Park", "type": "park", "description": "Iconic park with the Washington Square Arch", "address": "Fifth Avenue & Washington Square North" }
+      ],
+      "dining": ["Blue Hill", "I Sodi", "Minetta Tavern", "Via Carota"]
+    }
+  ]
+}
