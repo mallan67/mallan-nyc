@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
-      <Header />
-      <main className="py-16">
+      <Header dark />
+      <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
           <div className="bg-white rounded-lg shadow-sm border p-8">
             <h1 className="text-2xl font-semibold text-center mb-2">Sign In</h1>
