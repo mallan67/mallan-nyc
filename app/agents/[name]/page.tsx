@@ -99,8 +99,8 @@ export default async function AgentPage({ params }: Props) {
 
   // Filter agent's listings
   const agentListings = allListings.filter(listing =>
-    listing.listing.listingAgent?.name === agent.name ||
-    listing.listing.coListingAgent?.name === agent.name
+    listing.agent.listAgentName === agent.name ||
+    listing.agent.coListAgentName === agent.name
   );
 
   // Active listings for sale
