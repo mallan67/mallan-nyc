@@ -229,23 +229,25 @@ export default function Header() {
                 {buyOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {buyItems.map((item) => (
-                      <button
+                      <div
                         key={item.href}
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
+                        onClick={() => {
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        onTouchStart={(e) => {
-                          e.stopPropagation();
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setMobileOpen(false);
+                            router.push(item.href);
+                          }
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                       >
                         {item.title}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -266,23 +268,25 @@ export default function Header() {
                 {rentOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {rentItems.map((item) => (
-                      <button
+                      <div
                         key={item.href}
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
+                        onClick={() => {
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        onTouchStart={(e) => {
-                          e.stopPropagation();
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setMobileOpen(false);
+                            router.push(item.href);
+                          }
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                       >
                         {item.title}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -303,23 +307,25 @@ export default function Header() {
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {sellItems.map((item) => (
-                      <button
+                      <div
                         key={item.href}
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
+                        onClick={() => {
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        onTouchStart={(e) => {
-                          e.stopPropagation();
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setMobileOpen(false);
+                            router.push(item.href);
+                          }
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                       >
                         {item.title}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -355,23 +361,25 @@ export default function Header() {
                 {resourcesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {resources.map((item) => (
-                      <button
+                      <div
                         key={item.href}
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
+                        onClick={() => {
                           setMobileOpen(false);
                           router.push(item.href);
                         }}
-                        onTouchStart={(e) => {
-                          e.stopPropagation();
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setMobileOpen(false);
+                            router.push(item.href);
+                          }
                         }}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full touch-manipulation"
-                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                       >
                         {item.title}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
