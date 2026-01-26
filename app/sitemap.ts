@@ -54,12 +54,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'daily',
       priority: 0.8,
     },
-    {
-      url: `${BASE_URL}/neighborhoods`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
+    // NOTE: /neighborhoods and /boroughs are EXCLUDED until Phase 4 approval
+    // Do NOT add them here without compliance sign-off
     {
       url: `${BASE_URL}/search`,
       lastModified: now,

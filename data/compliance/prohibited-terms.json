@@ -1,0 +1,240 @@
+{
+  "$schema": "./prohibited-terms.schema.json",
+  "_comment": "Fair Housing Act and NY State Real Estate Law prohibited/risky terms. CI will fail if these appear in templates or content.",
+  "_updated": "2026-01-25",
+  "_version": "1.0.0",
+
+  "categories": {
+    "demographics": {
+      "severity": "critical",
+      "reason": "Fair Housing Act - race, color, national origin",
+      "terms": [
+        "diverse neighborhood",
+        "homogeneous",
+        "ethnic enclave",
+        "minority area",
+        "white neighborhood",
+        "black neighborhood",
+        "asian community",
+        "hispanic area",
+        "latino neighborhood",
+        "immigrant community",
+        "integrated area"
+      ]
+    },
+
+    "familial_status": {
+      "severity": "critical",
+      "reason": "Fair Housing Act - familial status discrimination",
+      "terms": [
+        "family-friendly neighborhood",
+        "adult community",
+        "no children",
+        "perfect for families",
+        "great schools nearby",
+        "top-rated schools",
+        "school district rating",
+        "best schools",
+        "near schools",
+        "excellent schools",
+        "kid-friendly",
+        "singles area",
+        "young professionals only",
+        "senior community",
+        "retiree neighborhood",
+        "empty nesters"
+      ]
+    },
+
+    "religion": {
+      "severity": "critical",
+      "reason": "Fair Housing Act - religion discrimination",
+      "terms": [
+        "near church",
+        "close to synagogue",
+        "near mosque",
+        "near temple",
+        "christian community",
+        "jewish neighborhood",
+        "muslim area",
+        "religious community",
+        "church walking distance"
+      ]
+    },
+
+    "disability": {
+      "severity": "critical",
+      "reason": "Fair Housing Act - disability discrimination",
+      "terms": [
+        "walking distance only",
+        "must be able to climb",
+        "no wheelchairs",
+        "able-bodied only",
+        "normal residents"
+      ]
+    },
+
+    "steering": {
+      "severity": "critical",
+      "reason": "Fair Housing Act - steering/blockbusting",
+      "terms": [
+        "safe neighborhood",
+        "low crime area",
+        "dangerous area",
+        "high crime",
+        "unsafe neighborhood",
+        "up-and-coming area",
+        "gentrifying",
+        "improving neighborhood",
+        "transitional area",
+        "changing neighborhood",
+        "bad part of town",
+        "good part of town",
+        "wrong side of tracks"
+      ]
+    },
+
+    "income_source": {
+      "severity": "critical",
+      "reason": "NY State/NYC Human Rights Law - source of income",
+      "terms": [
+        "no section 8",
+        "no vouchers",
+        "no welfare",
+        "no public assistance",
+        "working professionals only",
+        "employed only",
+        "must have job",
+        "no government assistance"
+      ]
+    },
+
+    "exclusive_language": {
+      "severity": "high",
+      "reason": "May imply discrimination",
+      "terms": [
+        "exclusive neighborhood",
+        "prestigious area",
+        "elite community",
+        "upscale only",
+        "high-end residents",
+        "discerning buyers only",
+        "select clientele"
+      ]
+    },
+
+    "price_speculation": {
+      "severity": "high",
+      "reason": "Investment advice liability",
+      "terms": [
+        "prices will rise",
+        "great investment",
+        "guaranteed appreciation",
+        "property values increasing",
+        "hot market",
+        "prices only go up",
+        "can't lose money",
+        "better than stocks"
+      ]
+    },
+
+    "nationality_culture": {
+      "severity": "high",
+      "reason": "May imply national origin preference",
+      "terms": [
+        "chinatown feel",
+        "little italy vibe",
+        "ethnic food scene",
+        "cultural enclave",
+        "immigrant-friendly",
+        "speaks your language"
+      ]
+    }
+  },
+
+  "flatList": [
+    "diverse neighborhood",
+    "homogeneous",
+    "ethnic enclave",
+    "minority area",
+    "white neighborhood",
+    "black neighborhood",
+    "asian community",
+    "hispanic area",
+    "latino neighborhood",
+    "immigrant community",
+    "integrated area",
+    "family-friendly neighborhood",
+    "adult community",
+    "no children",
+    "perfect for families",
+    "great schools nearby",
+    "top-rated schools",
+    "school district rating",
+    "best schools",
+    "near schools",
+    "excellent schools",
+    "kid-friendly",
+    "singles area",
+    "young professionals only",
+    "senior community",
+    "retiree neighborhood",
+    "empty nesters",
+    "near church",
+    "close to synagogue",
+    "near mosque",
+    "near temple",
+    "christian community",
+    "jewish neighborhood",
+    "muslim area",
+    "religious community",
+    "church walking distance",
+    "walking distance only",
+    "must be able to climb",
+    "no wheelchairs",
+    "able-bodied only",
+    "normal residents",
+    "safe neighborhood",
+    "low crime area",
+    "dangerous area",
+    "high crime",
+    "unsafe neighborhood",
+    "up-and-coming area",
+    "gentrifying",
+    "improving neighborhood",
+    "transitional area",
+    "changing neighborhood",
+    "bad part of town",
+    "good part of town",
+    "wrong side of tracks",
+    "no section 8",
+    "no vouchers",
+    "no welfare",
+    "no public assistance",
+    "working professionals only",
+    "employed only",
+    "must have job",
+    "no government assistance",
+    "exclusive neighborhood",
+    "prestigious area",
+    "elite community",
+    "upscale only",
+    "high-end residents",
+    "discerning buyers only",
+    "select clientele",
+    "prices will rise",
+    "great investment",
+    "guaranteed appreciation",
+    "property values increasing",
+    "hot market",
+    "prices only go up",
+    "can't lose money",
+    "better than stocks",
+    "chinatown feel",
+    "little italy vibe",
+    "ethnic food scene",
+    "cultural enclave",
+    "immigrant-friendly",
+    "speaks your language"
+  ]
+}
