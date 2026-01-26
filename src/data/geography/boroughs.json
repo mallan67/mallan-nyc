@@ -1,0 +1,59 @@
+{
+  "boroughs": [
+    {
+      "id": "manhattan",
+      "name": "Manhattan",
+      "county": "New York",
+      "fips": "36061",
+      "tagline": "The Heart of NYC",
+      "description": "Manhattan is the most densely populated borough of New York City and the economic and administrative center of the city.",
+      "avgPrice": { "sale": 1750000, "rent": 4200 },
+      "neighborhoodCount": 28,
+      "featuredNeighborhoods": ["upper-east-side", "upper-west-side", "tribeca", "chelsea", "greenwich-village"]
+    },
+    {
+      "id": "brooklyn",
+      "name": "Brooklyn",
+      "county": "Kings",
+      "fips": "36047",
+      "tagline": "NYC's Creative Capital",
+      "description": "Brooklyn is the most populous borough of New York City, known for its cultural diversity, independent art scene, and distinct neighborhoods.",
+      "avgPrice": { "sale": 925000, "rent": 2800 },
+      "neighborhoodCount": 35,
+      "featuredNeighborhoods": []
+    },
+    {
+      "id": "queens",
+      "name": "Queens",
+      "county": "Queens",
+      "fips": "36081",
+      "tagline": "The World's Borough",
+      "description": "Queens is the largest and most ethnically diverse borough in New York City, offering a rich tapestry of cultures and cuisines.",
+      "avgPrice": { "sale": 650000, "rent": 2200 },
+      "neighborhoodCount": 42,
+      "featuredNeighborhoods": []
+    },
+    {
+      "id": "bronx",
+      "name": "The Bronx",
+      "county": "Bronx",
+      "fips": "36005",
+      "tagline": "Birthplace of Hip-Hop",
+      "description": "The Bronx is the northernmost borough of New York City, known for Yankee Stadium, the Bronx Zoo, and the New York Botanical Garden.",
+      "avgPrice": { "sale": 450000, "rent": 1800 },
+      "neighborhoodCount": 18,
+      "featuredNeighborhoods": []
+    },
+    {
+      "id": "staten-island",
+      "name": "Staten Island",
+      "county": "Richmond",
+      "fips": "36085",
+      "tagline": "NYC's Suburban Borough",
+      "description": "Staten Island is the southernmost borough of New York City, offering a more suburban feel with parks, beaches, and historic sites.",
+      "avgPrice": { "sale": 525000, "rent": 1600 },
+      "neighborhoodCount": 12,
+      "featuredNeighborhoods": []
+    }
+  ]
+}
