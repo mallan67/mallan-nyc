@@ -221,8 +221,8 @@ export default function Header() {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav id="mobile-nav" className="lg:hidden py-4 border-t border-white/10 font-serif text-white" aria-label="Mobile navigation">
-            <div className="flex flex-col gap-3">
+          <nav id="mobile-nav" className="lg:hidden py-4 bg-black/90 backdrop-blur-sm rounded-b-lg font-serif text-white" aria-label="Mobile navigation">
+            <div className="flex flex-col gap-3 px-4">
               {/* Buy */}
               <div className="py-2">
                 <button
