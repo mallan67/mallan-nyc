@@ -15,9 +15,7 @@ export default function RentVsBuyCalculator({
   monthlyRent = 0,
   maintenanceFee = 0,
   realEstateTaxes = 0,
-  isRental = false,
 }: RentVsBuyCalculatorProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
   const [interestRate, setInterestRate] = useState(6.5);
   const [yearsToStay, setYearsToStay] = useState(5);
@@ -59,7 +57,7 @@ export default function RentVsBuyCalculator({
     const totalMaintenance = maintenanceFee * 12 * yearsToStay;
     const totalInsurance = monthlyInsurance * 12 * yearsToStay;
 
-    // Equity built over time (simplified - assumes consistent payment to principal)
+    // Equity built over time
     let remainingBalance = loanAmount;
     for (let month = 1; month <= yearsToStay * 12; month++) {
       const interestPayment = remainingBalance * monthlyRate;
@@ -86,6 +84,9 @@ export default function RentVsBuyCalculator({
     const buyIsBetter = totalBuyingCosts < netRentCost;
     const savings = Math.abs(netRentCost - totalBuyingCosts);
 
+    // Estimated purchase price for comparison
+    const estimatedPurchasePrice = purchasePrice;
+
     return {
       monthlyMortgage: Math.round(monthlyMortgage),
       monthlyOwningCost: Math.round(monthlyOwningCost),
@@ -96,89 +97,135 @@ export default function RentVsBuyCalculator({
       appreciationGain: Math.round(appreciationGain),
       buyIsBetter,
       savings: Math.round(savings),
-      breakEvenYears: buyIsBetter ? yearsToStay : Math.ceil(yearsToStay * (totalBuyingCosts / netRentCost)),
+      estimatedPurchasePrice: Math.round(estimatedPurchasePrice),
+      downPayment: Math.round(downPayment),
     };
   }, [purchasePrice, downPaymentPercent, interestRate, yearsToStay, rentAmount,
       annualRentIncrease, annualAppreciation, maintenanceFee, realEstateTaxes]);
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-      >
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-lg overflow-hidden">
+      {/* Highlighted Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center">
-            <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
             </svg>
           </div>
-          <div className="text-left">
-            <h3 className="font-semibold text-gray-900">Rent vs. Buy Calculator</h3>
-            <p className="text-sm text-gray-500">Should you rent or buy?</p>
+          <div>
+            <h3 className="font-bold text-white text-lg">Should You Buy Instead?</h3>
+            <p className="text-blue-100 text-sm">Compare renting vs. owning this property</p>
           </div>
         </div>
-        <svg
-          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      </div>
 
-      {isExpanded && (
-        <div className="px-6 pb-6 border-t">
-          {/* Result Summary */}
-          <div className={`mt-4 p-4 rounded-lg ${calculations.buyIsBetter ? 'bg-green-50' : 'bg-blue-50'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                calculations.buyIsBetter ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-              }`}>
-                {calculations.buyIsBetter ? 'BUYING IS BETTER' : 'RENTING IS BETTER'}
-              </span>
-            </div>
-            <p className={`text-lg font-semibold ${calculations.buyIsBetter ? 'text-green-700' : 'text-blue-700'}`}>
-              You could save ${calculations.savings.toLocaleString()} over {yearsToStay} years
-            </p>
-            <p className="text-sm text-gray-600 mt-1">
-              {calculations.buyIsBetter
-                ? `Building ${calculations.equityBuilt.toLocaleString()} in equity plus ${calculations.appreciationGain.toLocaleString()} in appreciation`
-                : `Investing your down payment could earn more than the equity you'd build`
-              }
-            </p>
+      <div className="p-6">
+        {/* Result Summary - Always Visible */}
+        <div className={`p-5 rounded-xl ${calculations.buyIsBetter ? 'bg-green-100 border-2 border-green-300' : 'bg-blue-100 border-2 border-blue-300'}`}>
+          <div className="flex items-center gap-2 mb-3">
+            {calculations.buyIsBetter ? (
+              <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+              calculations.buyIsBetter ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+            }`}>
+              {calculations.buyIsBetter ? 'BUYING COULD BE BETTER!' : 'RENTING MAY BE RIGHT FOR NOW'}
+            </span>
           </div>
+          <p className={`text-2xl font-bold ${calculations.buyIsBetter ? 'text-green-700' : 'text-blue-700'}`}>
+            {calculations.buyIsBetter ? 'Save' : 'Difference:'} ${calculations.savings.toLocaleString()}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            Over {yearsToStay} years {calculations.buyIsBetter
+              ? `you could build $${calculations.equityBuilt.toLocaleString()} in equity`
+              : 'when factoring in all costs'}
+          </p>
+        </div>
 
-          {/* Inputs */}
-          <div className="mt-6 space-y-4">
-            <h4 className="font-medium text-gray-900 text-sm">Adjust Your Scenario</h4>
+        {/* Quick Comparison */}
+        <div className="mt-6 grid grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg p-4 text-center border">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Continue Renting</p>
+            <p className="text-xl font-bold text-gray-900">${rentAmount.toLocaleString()}/mo</p>
+            <p className="text-sm text-gray-500 mt-1">${calculations.totalRentCost.toLocaleString()} over {yearsToStay}yr</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 text-center border">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">If You Buy</p>
+            <p className="text-xl font-bold text-gray-900">${calculations.monthlyOwningCost.toLocaleString()}/mo</p>
+            <p className="text-sm text-green-600 mt-1">+${calculations.equityBuilt.toLocaleString()} equity</p>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Monthly Rent</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                  <input
-                    type="number"
-                    value={rentAmount}
-                    onChange={(e) => setRentAmount(Number(e.target.value))}
-                    className="w-full pl-7 pr-3 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
-                  />
-                </div>
+        {/* Comparable Purchase */}
+        <div className="mt-4 bg-white rounded-lg p-4 border">
+          <p className="text-sm text-gray-600 mb-2">Estimated comparable purchase price:</p>
+          <p className="text-2xl font-bold text-brand-dark">${calculations.estimatedPurchasePrice.toLocaleString()}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Down payment needed: ${calculations.downPayment.toLocaleString()} ({downPaymentPercent}%)
+          </p>
+        </div>
+
+        {/* Adjust Scenario */}
+        <div className="mt-6 pt-4 border-t border-blue-200">
+          <h4 className="font-semibold text-gray-900 text-sm mb-4">Adjust Your Scenario</h4>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <label className="text-gray-600">Current Monthly Rent</label>
+                <span className="font-semibold">${rentAmount.toLocaleString()}</span>
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Down Payment</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={downPaymentPercent}
-                    onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
-                    min={0}
-                    max={100}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-                </div>
+              <input
+                type="range"
+                value={rentAmount}
+                onChange={(e) => setRentAmount(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                min={1500}
+                max={15000}
+                step={100}
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <label className="text-gray-600">Down Payment</label>
+                <span className="font-semibold">{downPaymentPercent}%</span>
               </div>
+              <input
+                type="range"
+                value={downPaymentPercent}
+                onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                min={5}
+                max={50}
+                step={5}
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <label className="text-gray-600">Years You Plan to Stay</label>
+                <span className="font-semibold">{yearsToStay} years</span>
+              </div>
+              <input
+                type="range"
+                value={yearsToStay}
+                onChange={(e) => setYearsToStay(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                min={1}
+                max={15}
+                step={1}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Interest Rate</label>
                 <div className="relative">
@@ -186,24 +233,13 @@ export default function RentVsBuyCalculator({
                     type="number"
                     value={interestRate}
                     onChange={(e) => setInterestRate(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
-                    step={0.1}
-                    min={0}
-                    max={15}
+                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    step={0.125}
+                    min={3}
+                    max={10}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Years to Stay</label>
-                <input
-                  type="number"
-                  value={yearsToStay}
-                  onChange={(e) => setYearsToStay(Number(e.target.value))}
-                  className="w-full px-3 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
-                  min={1}
-                  max={30}
-                />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Annual Rent Increase</label>
@@ -212,7 +248,7 @@ export default function RentVsBuyCalculator({
                     type="number"
                     value={annualRentIncrease}
                     onChange={(e) => setAnnualRentIncrease(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     step={0.5}
                     min={0}
                     max={10}
@@ -220,67 +256,44 @@ export default function RentVsBuyCalculator({
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Home Appreciation</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={annualAppreciation}
-                    onChange={(e) => setAnnualAppreciation(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
-                    step={0.5}
-                    min={-5}
-                    max={15}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-                </div>
-              </div>
             </div>
           </div>
-
-          {/* Cost Comparison */}
-          <div className="mt-6 pt-4 border-t">
-            <h4 className="font-medium text-gray-900 text-sm mb-3">Cost Breakdown Over {yearsToStay} Years</h4>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Monthly Buying Cost</span>
-                <span className="font-medium">${calculations.monthlyOwningCost.toLocaleString()}/mo</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Monthly Mortgage (P&I)</span>
-                <span className="text-gray-500">${calculations.monthlyMortgage.toLocaleString()}/mo</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="text-sm text-gray-600">Total Rent Cost</span>
-                <span className="font-medium">${calculations.totalRentCost.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Net Rent Cost (after investment gains)</span>
-                <span className="text-gray-500">${calculations.netRentCost.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="text-sm text-gray-600">Net Buying Cost</span>
-                <span className="font-medium">${calculations.totalBuyingCosts.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Equity Built</span>
-                <span className="text-green-600">+${calculations.equityBuilt.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Appreciation Gain</span>
-                <span className="text-green-600">+${calculations.appreciationGain.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs text-gray-400">
-            *This calculator provides estimates only. Actual costs may vary. Consult a financial advisor
-            for personalized advice. Assumes 30-year fixed mortgage, 4% closing costs, 6% selling costs,
-            and 5% annual return on invested down payment.
-          </p>
         </div>
-      )}
+
+        {/* Cost Breakdown */}
+        <div className="mt-6 pt-4 border-t border-blue-200">
+          <h4 className="font-semibold text-gray-900 text-sm mb-3">{yearsToStay}-Year Cost Comparison</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total rent paid</span>
+              <span className="font-medium text-red-600">-${calculations.totalRentCost.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Net buying cost</span>
+              <span className="font-medium">-${calculations.totalBuyingCosts.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Equity you&apos;d build</span>
+              <span className="font-medium text-green-600">+${calculations.equityBuilt.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Est. appreciation</span>
+              <span className="font-medium text-green-600">+${calculations.appreciationGain.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="mt-6 bg-brand-gold/10 rounded-lg p-4 text-center">
+          <p className="text-sm text-gray-700 mb-2">Interested in exploring homeownership?</p>
+          <p className="text-xs text-gray-500">Contact us to discuss your options and find properties in your budget.</p>
+        </div>
+
+        <p className="mt-4 text-xs text-gray-400">
+          *Estimates only. Assumes 30-year fixed mortgage, 4% closing costs, 6% selling costs.
+          Actual costs vary. Consult a financial advisor for personalized advice.
+        </p>
+      </div>
     </div>
   );
 }
