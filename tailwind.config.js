@@ -23,7 +23,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        serif: ['"Liberation Serif"', 'Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'],
+        serif: ['var(--font-serif)', 'Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'],
+        sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'sans-serif'],
       },
     },
   },

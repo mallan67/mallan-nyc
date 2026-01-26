@@ -1,9 +1,22 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
+
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -117,7 +130,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
@@ -127,7 +140,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="antialiased" style={{ margin: 0, fontFamily: 'system-ui, sans-serif' }}>
+      <body className="antialiased font-sans">
         <SkipLink />
         {children}
         <CookieConsent />
