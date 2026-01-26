@@ -23,7 +23,7 @@ function SearchLoading() {
 export default function BuyPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header />
+      <Header dark />
       <main>
         <Suspense fallback={<SearchLoading />}>
           <PropertySearch type="buy" />

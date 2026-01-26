@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function SellPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header />
+      <Header dark />
       <main className="pt-20">
         {/* Hero Section */}
         <section className="relative h-[50vh] min-h-[400px] flex items-center justify-center">
