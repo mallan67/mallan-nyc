@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import InquiryForm from '@/app/components/InquiryForm';
-import MortgageCalculator from '@/app/components/MortgageCalculator';
+import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import listingsData from '@/data/listings.json';
@@ -169,15 +169,15 @@ export default async function ListingPage({ params }: Props) {
               <div>
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                   <div>
-                    <h1 className="text-3xl md:text-4xl font-sans mb-2">
-                      {formatPrice(listing.price.listPrice, isRental)}
-                    </h1>
-                    {listing.price.originalListPrice > listing.price.listPrice && (
-                      <p className="text-sm text-gray-500 line-through mb-1">
-                        Was {formatPrice(listing.price.originalListPrice, isRental)}
-                      </p>
-                    )}
-                    <p className="text-xl text-gray-700">{fullAddress}</p>
+                    <PriceWithCalculator
+                      price={listing.price.listPrice}
+                      originalPrice={listing.price.originalListPrice}
+                      isRental={isRental}
+                      maintenanceFee={listing.nycSpecific?.maintenanceFee || 0}
+                      monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
+                      propertyType={listing.propertyInfo.propertyType}
+                    />
+                    <p className="text-xl text-gray-700 mt-2">{fullAddress}</p>
                     <p className="text-gray-500">
                       {listing.address.neighborhoodDisplay}, {listing.address.borough}, NY {listing.address.zip}
                     </p>
@@ -525,23 +525,14 @@ export default async function ListingPage({ params }: Props) {
 
                 {/* Calculators */}
                 {!isRental && (
-                  <>
-                    {/* Mortgage Calculator for Sales */}
-                    <MortgageCalculator
-                      purchasePrice={listing.price.listPrice}
-                      maintenanceFee={listing.nycSpecific?.maintenanceFee || 0}
-                      monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
-                    />
-
-                    {/* Investor Calculator for Sales */}
-                    <InvestorCalculator
-                      purchasePrice={listing.price.listPrice}
-                      maintenanceFee={listing.nycSpecific?.maintenanceFee || 0}
-                      monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
-                      bedrooms={listing.propertyInfo.bedroomsTotal}
-                      neighborhood={listing.address.neighborhoodDisplay}
-                    />
-                  </>
+                  /* Investor Calculator for Sales */
+                  <InvestorCalculator
+                    purchasePrice={listing.price.listPrice}
+                    maintenanceFee={listing.nycSpecific?.maintenanceFee || 0}
+                    monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
+                    bedrooms={listing.propertyInfo.bedroomsTotal}
+                    neighborhood={listing.address.neighborhoodDisplay}
+                  />
                 )}
 
                 {isRental && (
