@@ -1,18 +1,13 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Playfair_Display, Inter } from 'next/font/google';
+import { Manrope } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
 
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-serif',
-  display: 'swap',
-});
-
-const inter = Inter({
+// Modern premium sans-serif for luxury feel
+const manrope = Manrope({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
@@ -130,7 +125,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
+    <html lang="en" className={manrope.variable}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />

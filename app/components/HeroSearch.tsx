@@ -226,34 +226,21 @@ export default function HeroSearch() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        {/* Dark overlay gradient for header + hero readability */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.15) 70%, rgba(0,0,0,0.0) 100%)'
-          }}
-        />
+        {/* Gradient overlay for text readability - stronger on mobile */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/35 to-black/10" />
       </div>
 
       {/* Search Module */}
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
-          {/* Tagline - frosted glass panel for readability */}
+          {/* Tagline - modern luxury typography */}
           <div className="text-center mb-6 sm:mb-8">
-            <div className="inline-block px-6 py-4 sm:px-8 sm:py-5 md:px-10 md:py-6 rounded-xl bg-black/30 backdrop-blur-sm">
-              <h1
-                className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-[3.25rem] font-semibold font-serif leading-tight"
-                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
-              >
-                One Search. Every Space.
-              </h1>
-              <p
-                className="text-white/95 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-serif mt-2 sm:mt-3"
-                style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
-              >
-                Homes. Businesses. Investments.
-              </p>
-            </div>
+            <h1 className="text-white text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight leading-[1.05] drop-shadow-sm">
+              One Search. Every Space.
+            </h1>
+            <p className="text-white/90 text-lg sm:text-xl md:text-2xl font-normal tracking-tight mt-3 sm:mt-4">
+              Homes. Businesses. Investments.
+            </p>
           </div>
 
           {/* Tabs */}
@@ -262,7 +249,7 @@ export default function HeroSearch() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 sm:px-5 md:px-6 py-2 sm:py-3 text-xs sm:text-sm font-serif capitalize transition-colors ${
+                className={`px-3 sm:px-5 md:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium capitalize transition-colors ${
                   activeTab === tab
                     ? 'bg-white text-brand-dark'
                     : 'text-white hover:bg-white/10'
@@ -289,24 +276,24 @@ export default function HeroSearch() {
                   onFocus={() => query.length >= 2 && setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-serif bg-transparent outline-none placeholder:text-gray-400"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg bg-transparent outline-none placeholder:text-gray-400"
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="m-2 px-6 sm:px-8 py-2 sm:py-3 bg-brand-dark text-white font-serif rounded hover:bg-black transition-colors text-sm sm:text-base"
+                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors text-sm sm:text-base"
                 >
                   Search
                 </button>
               </div>
             </div>
 
-            {/* Typeahead Suggestions Dropdown */}
+            {/* Typeahead Suggestions Dropdown - premium white panel */}
             {showSuggestions && suggestions.length > 0 && (
               <div
                 ref={suggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50"
+                className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 overflow-hidden z-50"
               >
                 {suggestions.map((suggestion, index) => (
                   <button
@@ -321,7 +308,7 @@ export default function HeroSearch() {
                     <span className="text-gray-400">
                       {getTypeIcon(suggestion.type)}
                     </span>
-                    <span className="flex-1 font-serif text-gray-800">
+                    <span className="flex-1 text-gray-800">
                       {suggestion.label}
                     </span>
                     <span className="text-xs text-gray-400 capitalize">
@@ -333,14 +320,14 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* Amenity Filters - translucent tray for visibility */}
-          <div className="flex justify-center mt-4 sm:mt-5">
-            <div className="inline-flex flex-wrap justify-center gap-2 px-4 py-3 rounded-lg bg-black/25 backdrop-blur-sm">
+          {/* Amenity Filters - translucent tray with modern chips */}
+          <div className="flex justify-center mt-5 sm:mt-6">
+            <div className="inline-flex flex-wrap justify-center gap-2 px-4 py-3 rounded-xl bg-black/30 backdrop-blur-md ring-1 ring-white/10">
               {AMENITY_PILLS.map((amenity) => (
                 <button
                   key={amenity.id}
                   onClick={() => handleAmenityClick(amenity.id)}
-                  className="px-3 py-1.5 text-xs sm:text-sm font-serif text-white border border-white/50 rounded hover:bg-white hover:text-gray-900 hover:border-white transition-all"
+                  className="px-3 py-1.5 text-xs sm:text-sm font-medium text-white bg-white/10 rounded-lg ring-1 ring-white/15 hover:bg-white/20 transition-all"
                 >
                   {amenity.label}
                 </button>

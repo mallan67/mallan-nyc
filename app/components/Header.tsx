@@ -46,7 +46,7 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
     <div className="relative" ref={ref}>
       <button
         onClick={onToggle}
-        className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4 transition-colors"
+        className="flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors"
       >
         {label}
         <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,12 +54,12 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-md shadow-lg min-w-[180px] z-50">
+        <div className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 first:rounded-t-md last:rounded-b-md"
+              className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               {item.title}
             </Link>
@@ -124,17 +124,15 @@ export default function Header() {
           {/* Brand */}
           <Link
             href="/"
-            className="text-white font-serif text-2xl lg:text-3xl font-bold tracking-wide hover:text-gray-200 transition-colors"
-            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+            className="text-white text-xl sm:text-2xl lg:text-[1.75rem] font-semibold tracking-tight hover:text-white/80 transition-colors whitespace-nowrap"
           >
             Mallan Real Estate Inc.
           </Link>
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center gap-6 text-base font-serif text-white ml-auto"
+            className="hidden lg:flex items-center gap-4 xl:gap-6 text-[15px] xl:text-base text-white/90 ml-auto"
             aria-label="Main navigation"
-            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
           >
             <Dropdown
               label="Buy"
@@ -166,11 +164,11 @@ export default function Header() {
               }}
             />
 
-            <Link href="/search?type=commercial" className="hover:text-white hover:underline underline-offset-4 transition-colors">
+            <Link href="/search?type=commercial" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Commercial
             </Link>
 
-            <Link href="/open-houses" className="hover:text-white hover:underline underline-offset-4 transition-colors">
+            <Link href="/open-houses" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Open Houses
             </Link>
 
@@ -184,20 +182,20 @@ export default function Header() {
               }}
             />
 
-            <Link href="/agents" className="hover:text-white hover:underline underline-offset-4 transition-colors">
+            <Link href="/agents" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Agents
             </Link>
 
-            <Link href="/about" className="hover:text-white hover:underline underline-offset-4 transition-colors">
-              About Us
+            <Link href="/about" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+              About
             </Link>
 
-            <button className="hover:text-white hover:underline underline-offset-4 transition-colors" aria-label="Search">
+            <button className="hover:text-white transition-colors" aria-label="Search">
               <SearchIcon />
             </button>
 
-            <Link href="/sign-in" className="hover:text-white hover:underline underline-offset-4 transition-colors">
-              Sign Up / Sign In
+            <Link href="/sign-in" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+              Sign In
             </Link>
           </nav>
 
@@ -215,13 +213,13 @@ export default function Header() {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav id="mobile-nav" className="lg:hidden py-6 font-serif text-white text-lg" aria-label="Mobile navigation">
-            <div className="flex flex-col gap-4">
+          <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg" aria-label="Mobile navigation">
+            <div className="flex flex-col gap-3">
               {/* Buy */}
-              <div className="py-2">
+              <div className="py-1">
                 <button
                   onClick={() => setBuyOpen(!buyOpen)}
-                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
+                  className="flex items-center gap-2 text-white/90 hover:text-white"
                 >
                   Buy
                   <svg className={`w-3 h-3 transition-transform ${buyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -231,7 +229,7 @@ export default function Header() {
                 {buyOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {buyItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
+                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -240,10 +238,10 @@ export default function Header() {
               </div>
 
               {/* Rent */}
-              <div className="py-2">
+              <div className="py-1">
                 <button
                   onClick={() => setRentOpen(!rentOpen)}
-                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
+                  className="flex items-center gap-2 text-white/90 hover:text-white"
                 >
                   Rent
                   <svg className={`w-3 h-3 transition-transform ${rentOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,7 +251,7 @@ export default function Header() {
                 {rentOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {rentItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
+                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -262,10 +260,10 @@ export default function Header() {
               </div>
 
               {/* Sell */}
-              <div className="py-2">
+              <div className="py-1">
                 <button
                   onClick={() => setSellOpen(!sellOpen)}
-                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
+                  className="flex items-center gap-2 text-white/90 hover:text-white"
                 >
                   Sell
                   <svg className={`w-3 h-3 transition-transform ${sellOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -275,7 +273,7 @@ export default function Header() {
                 {sellOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {sellItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
+                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -283,18 +281,18 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/search?type=commercial" className="py-2 hover:text-white hover:underline underline-offset-4">
+              <Link href="/search?type=commercial" className="py-1 text-white/90 hover:text-white">
                 Commercial
               </Link>
 
-              <Link href="/open-houses" className="py-2 hover:text-white hover:underline underline-offset-4">
+              <Link href="/open-houses" className="py-1 text-white/90 hover:text-white">
                 Open Houses
               </Link>
 
-              <div className="py-2">
+              <div className="py-1">
                 <button
                   onClick={() => setResourcesOpen(!resourcesOpen)}
-                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
+                  className="flex items-center gap-2 text-white/90 hover:text-white"
                 >
                   Resources
                   <svg className={`w-3 h-3 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -304,7 +302,7 @@ export default function Header() {
                 {resourcesOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {resources.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
+                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -312,16 +310,16 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/agents" className="py-2 hover:text-white hover:underline underline-offset-4">
+              <Link href="/agents" className="py-1 text-white/90 hover:text-white">
                 Agents
               </Link>
 
-              <Link href="/about" className="py-2 hover:text-white hover:underline underline-offset-4">
-                About Us
+              <Link href="/about" className="py-1 text-white/90 hover:text-white">
+                About
               </Link>
 
-              <Link href="/sign-in" className="py-2 hover:text-white hover:underline underline-offset-4">
-                Sign Up / Sign In
+              <Link href="/sign-in" className="py-1 text-white/90 hover:text-white">
+                Sign In
               </Link>
             </div>
           </nav>
