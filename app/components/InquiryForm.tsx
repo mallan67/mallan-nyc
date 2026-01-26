@@ -67,7 +67,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-lg font-serif text-green-800">Inquiry Sent</h3>
+          <h3 className="text-lg font-sans text-green-800">Inquiry Sent</h3>
         </div>
         <p className="text-green-700 text-sm">
           Thank you for your inquiry! An agent will contact you shortly.
@@ -79,7 +79,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
 
   return (
     <div className="bg-white rounded-lg p-6 border">
-      <h3 className="text-lg font-serif mb-4">Request Information</h3>
+      <h3 className="text-lg font-sans mb-4">Request Information</h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

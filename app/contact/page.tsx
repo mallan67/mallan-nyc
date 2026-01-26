@@ -130,7 +130,7 @@ export default function ContactPage() {
         {/* Hero */}
         <section className="bg-brand-dark text-white py-16 md:py-20">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h1 className="text-3xl md:text-4xl font-serif font-medium mb-4">
+            <h1 className="text-3xl md:text-4xl font-sans font-medium mb-4">
               Contact Us
             </h1>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
@@ -165,7 +165,7 @@ export default function ContactPage() {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <h2 className="text-2xl font-serif font-medium text-gray-900 mb-3">
+                    <h2 className="text-2xl font-sans font-medium text-gray-900 mb-3">
                       Thank You
                     </h2>
                     <p className="text-gray-600 mb-2">

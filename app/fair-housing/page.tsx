@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function FairHousingPage() {
   return (
-    <div className="min-h-screen bg-white font-serif">
+    <div className="min-h-screen bg-white font-sans">
       <Header />
       <main>
         <LegalPageContent slug="fair-housing" />

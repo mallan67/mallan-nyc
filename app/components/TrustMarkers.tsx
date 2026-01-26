@@ -16,7 +16,7 @@ export default function TrustMarkers() {
     <section className="py-12 md:py-16 bg-gray-50 border-t border-gray-200">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-serif font-medium text-gray-900 mb-2">
+          <h2 className="text-2xl md:text-3xl font-sans font-medium text-gray-900 mb-2">
             Licensed &amp; Compliant
           </h2>
           <p className="text-gray-600">

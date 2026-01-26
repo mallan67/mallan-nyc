@@ -22,7 +22,7 @@ function SearchLoading() {
 
 export default function BuyPage() {
   return (
-    <div className="min-h-screen bg-white font-serif">
+    <div className="min-h-screen bg-white font-sans">
       <Header />
       <main>
         <Suspense fallback={<SearchLoading />}>

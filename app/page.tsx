@@ -8,7 +8,7 @@ import Footer from './components/Footer';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white font-serif">
+    <div className="min-h-screen bg-white font-sans">
       <Header />
       <main id="main-content" role="main" tabIndex={-1}>
         <HeroSearch />
