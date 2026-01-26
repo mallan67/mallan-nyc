@@ -130,12 +130,12 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Brand */}
-          <Link href="/" className="text-white font-serif text-2xl lg:text-3xl font-bold tracking-wide">
+          <Link href="/" className="text-white font-serif text-2xl lg:text-3xl font-bold tracking-wide hover:text-gray-200 transition-colors">
             Mallan Real Estate Inc.
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-6 text-base font-serif text-white" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center gap-5 text-sm font-serif text-white ml-auto" aria-label="Main navigation">
             <Dropdown
               label="Buy"
               items={buyItems}
