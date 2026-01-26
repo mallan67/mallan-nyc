@@ -135,7 +135,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-8 text-base font-serif text-white" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center gap-6 text-base font-serif text-white" aria-label="Main navigation">
             <Dropdown
               label="Buy"
               items={buyItems}
