@@ -498,6 +498,15 @@ export default async function ListingPage({ params }: Props) {
                         </a>
                       </div>
                     </div>
+                    {/* Buyer's Agent Compensation */}
+                    {listing.buyer?.buyerAgentCompensation && (
+                      <div className="mt-3 pt-3 border-t">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Buyer&apos;s Agent Compensation</span>
+                          <span className="font-medium text-gray-700">{listing.buyer.buyerAgentCompensation}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-3">
