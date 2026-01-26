@@ -32,6 +32,12 @@ const ALLOWED_CTA_LABELS = [
   'email_agent',
   'view_listing',
   'newsletter_signup',
+  'value_prop_buy',
+  'value_prop_rent',
+  'value_prop_sell',
+  'value_prop_contact',
+  'trust_contact',
+  'trust_phone',
 ] as const;
 
 interface AnalyticsEvent {
