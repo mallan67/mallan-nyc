@@ -16,12 +16,12 @@ export default function ValueProposition() {
         {/* Main Value Statement */}
         <div className="text-center mb-12 md:mb-16">
           <h2 className="text-3xl md:text-4xl font-serif font-medium text-gray-900 mb-4">
-            Your NYC Real Estate Partner
+            Full-Service NYC Brokerage
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-            Whether you&apos;re buying your first home, selling a family property, or
-            searching for the right rental, we provide knowledgeable guidance
-            through every step of the process.
+            Residential sales and rentals across Manhattan and Brooklyn.
+            Co-ops, condos, and townhouses—licensed representation for buyers,
+            sellers, and renters.
           </p>
         </div>
 
@@ -36,15 +36,15 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Buy</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Navigate NYC&apos;s competitive market with an agent who understands
-              co-op boards, condo financials, and neighborhood dynamics.
+              Buyer representation for co-ops, condos, and townhouses.
+              Board package preparation, financial review, and contract negotiation.
             </p>
             <Link
               href="/buy"
-              data-analytics-cta="value_prop_buy"
+              data-analytics-cta="cta_buy"
               className="text-brand-gold hover:underline font-medium text-sm"
             >
-              Search Properties →
+              View Listings →
             </Link>
           </div>
 
@@ -57,15 +57,15 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Rent</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Find apartments across Manhattan and Brooklyn with guidance on
-              applications, lease terms, and building requirements.
+              Apartments across Manhattan and Brooklyn. Application support,
+              lease review, and building requirement guidance.
             </p>
             <Link
               href="/rent"
-              data-analytics-cta="value_prop_rent"
+              data-analytics-cta="cta_rent"
               className="text-brand-gold hover:underline font-medium text-sm"
             >
-              Browse Rentals →
+              View Rentals →
             </Link>
           </div>
 
@@ -78,15 +78,15 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Sell</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              List your property with professional marketing, accurate pricing
-              guidance, and representation throughout the transaction.
+              Listing services with professional photography, pricing analysis,
+              and full transaction management through closing.
             </p>
             <Link
               href="/sell"
-              data-analytics-cta="value_prop_sell"
+              data-analytics-cta="cta_sell"
               className="text-brand-gold hover:underline font-medium text-sm"
             >
-              Learn More →
+              Selling Services →
             </Link>
           </div>
         </div>
@@ -95,13 +95,13 @@ export default function ValueProposition() {
         <div className="text-center">
           <Link
             href="/contact"
-            data-analytics-cta="value_prop_contact"
+            data-analytics-cta="cta_contact_primary"
             className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors"
           >
-            Schedule a Consultation
+            Start a Conversation
           </Link>
           <p className="mt-3 text-sm text-gray-500">
-            No obligation. We&apos;ll discuss your goals and how we can help.
+            No obligation. Tell us what you&apos;re looking for.
           </p>
         </div>
       </div>

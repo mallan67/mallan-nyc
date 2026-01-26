@@ -92,22 +92,22 @@ export default function TrustMarkers() {
         {/* Contact CTA */}
         <div className="mt-12 text-center">
           <p className="text-gray-600 mb-4">
-            Have questions about buying, selling, or renting in NYC?
+            Questions about NYC real estate?
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/contact"
-              data-analytics-cta="trust_contact"
+              data-analytics-cta="cta_contact_footer"
               className="inline-block px-6 py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors"
             >
-              Get in Touch
+              Contact Us
             </Link>
             <a
               href="tel:+16462584460"
-              data-analytics-cta="trust_phone"
+              data-analytics-cta="cta_phone"
               className="inline-block px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-100 transition-colors"
             >
-              Call (646) 258-4460
+              (646) 258-4460
             </a>
           </div>
         </div>

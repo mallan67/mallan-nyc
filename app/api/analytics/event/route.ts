@@ -22,22 +22,26 @@ const ALLOWED_EVENT_TYPES = ['pageview', 'cta_click'] as const;
 type EventType = (typeof ALLOWED_EVENT_TYPES)[number];
 
 // CTA labels we recognize - prevents arbitrary data injection
+// Naming convention: cta_{action} or cta_{action}_{location}
 const ALLOWED_CTA_LABELS = [
+  // Hero section
   'hero_search',
-  'hero_contact',
+  // Service CTAs (standardized)
+  'cta_buy',
+  'cta_rent',
+  'cta_sell',
+  // Contact CTAs
+  'cta_contact_primary',
+  'cta_contact_footer',
+  'cta_phone',
   'contact_form',
+  'email_agent',
+  // Listing interactions
+  'view_listing',
   'schedule_showing',
   'request_info',
-  'phone_call',
-  'email_agent',
-  'view_listing',
+  // Other
   'newsletter_signup',
-  'value_prop_buy',
-  'value_prop_rent',
-  'value_prop_sell',
-  'value_prop_contact',
-  'trust_contact',
-  'trust_phone',
 ] as const;
 
 interface AnalyticsEvent {
