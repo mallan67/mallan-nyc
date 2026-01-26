@@ -34,8 +34,7 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Buy</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Buyer and investor representation for co-ops, condos, condops, townhouses, and commercial spaces.
-              Board packages, financial review, and contract negotiation.
+              Buyer and investor representation for co-ops, condos, condops, townhouses, and commercial properties. Board packages, financial review, and contract negotiation.
             </p>
             <Link
               href="/buy"
@@ -55,8 +54,7 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Rent</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Apartments in New York City. Application support,
-              lease review, and building requirement guidance.
+              New York City apartment rentals with support for rent negotiations, application preparation and submission, and guidance through building-specific requirements and approvals.
             </p>
             <Link
               href="/rent"
@@ -76,7 +74,7 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Sell</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Property pricing, comprehensive marketing and property exposure with professional photos and full transaction management from listing to closing.
+              Strategic property pricing, comprehensive marketing exposure, professional photography, and end-to-end transaction management from listing to closing.
             </p>
             <Link
               href="/sell"
