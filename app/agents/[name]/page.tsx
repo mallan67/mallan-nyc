@@ -352,10 +352,14 @@ export default async function AgentPage({ params }: Props) {
               <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
                 Past Closed Sales ({pastSales.length})
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              <div className="space-y-3">
                 {pastSales.map((listing) => (
-                  <div key={listing.id} className="relative">
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100 mb-3">
+                  <div
+                    key={listing.id}
+                    className="flex items-center gap-3 sm:gap-4 p-3 bg-white border rounded-lg hover:shadow-sm transition-shadow"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
                       <Image
                         src={
                           listing.media.images.find((img) => img.isPrimary)?.url ||
@@ -364,36 +368,60 @@ export default async function AgentPage({ params }: Props) {
                         }
                         alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
                         fill
-                        className="object-cover opacity-75"
+                        className="object-cover"
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded">
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <span className="px-2 py-0.5 bg-green-600 text-white text-[10px] sm:text-xs font-semibold rounded">
                           SOLD
                         </span>
                       </div>
                     </div>
-                    <p className="font-semibold text-base sm:text-lg">
-                      {listing.price.closePrice
-                        ? formatPrice(listing.price.closePrice, false)
-                        : formatPrice(listing.price.listPrice, false)}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {listing.propertyInfo.propertyType},{' '}
-                      {listing.address.neighborhoodDisplay}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {listing.propertyInfo.bedroomsTotal} bed ·{' '}
-                      {listing.propertyInfo.bathroomsFull} bath
-                      {listing.buyer?.closeDate && (
-                        <span className="ml-2">
-                          · Closed{' '}
-                          {new Date(listing.buyer.closeDate).toLocaleDateString(
-                            'en-US',
-                            { month: 'short', year: 'numeric' }
-                          )}
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
+                        {listing.address.streetNumber} {listing.address.streetName}
+                        {listing.address.unit && `, ${listing.address.unit}`}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-600 mt-1">
+                        <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] sm:text-xs">
+                          {listing.propertyInfo.propertyType}
                         </span>
+                        <span>{listing.propertyInfo.bedroomsTotal} bed</span>
+                        <span>·</span>
+                        <span>{listing.propertyInfo.bathroomsFull} bath</span>
+                        {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+                          <>
+                            <span className="hidden sm:inline">·</span>
+                            <span className="hidden sm:inline">
+                              {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+                        <p className="text-xs text-gray-500 mt-0.5 sm:hidden">
+                          {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
+                        </p>
                       )}
-                    </p>
+                    </div>
+
+                    {/* Price */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-semibold text-sm sm:text-base text-green-700">
+                        {listing.price.closePrice
+                          ? formatPrice(listing.price.closePrice, false)
+                          : formatPrice(listing.price.listPrice, false)}
+                      </p>
+                      {listing.buyer?.closeDate && (
+                        <p className="text-[10px] sm:text-xs text-gray-500">
+                          {new Date(listing.buyer.closeDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -408,10 +436,14 @@ export default async function AgentPage({ params }: Props) {
               <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
                 Past Closed Rentals ({pastRentals.length})
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              <div className="space-y-3">
                 {pastRentals.map((listing) => (
-                  <div key={listing.id} className="relative">
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100 mb-3">
+                  <div
+                    key={listing.id}
+                    className="flex items-center gap-3 sm:gap-4 p-3 bg-white border rounded-lg hover:shadow-sm transition-shadow"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
                       <Image
                         src={
                           listing.media.images.find((img) => img.isPrimary)?.url ||
@@ -420,34 +452,58 @@ export default async function AgentPage({ params }: Props) {
                         }
                         alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
                         fill
-                        className="object-cover opacity-75"
+                        className="object-cover"
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded">
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] sm:text-xs font-semibold rounded">
                           RENTED
                         </span>
                       </div>
                     </div>
-                    <p className="font-semibold text-base sm:text-lg">
-                      {formatPrice(listing.price.listPrice, true)}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {listing.propertyInfo.propertyType},{' '}
-                      {listing.address.neighborhoodDisplay}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {listing.propertyInfo.bedroomsTotal} bed ·{' '}
-                      {listing.propertyInfo.bathroomsFull} bath
-                      {listing.buyer?.closeDate && (
-                        <span className="ml-2">
-                          · Rented{' '}
-                          {new Date(listing.buyer.closeDate).toLocaleDateString(
-                            'en-US',
-                            { month: 'short', year: 'numeric' }
-                          )}
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
+                        {listing.address.streetNumber} {listing.address.streetName}
+                        {listing.address.unit && `, ${listing.address.unit}`}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-600 mt-1">
+                        <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] sm:text-xs">
+                          {listing.propertyInfo.propertyType}
                         </span>
+                        <span>{listing.propertyInfo.bedroomsTotal} bed</span>
+                        <span>·</span>
+                        <span>{listing.propertyInfo.bathroomsFull} bath</span>
+                        {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+                          <>
+                            <span className="hidden sm:inline">·</span>
+                            <span className="hidden sm:inline">
+                              {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+                        <p className="text-xs text-gray-500 mt-0.5 sm:hidden">
+                          {listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft
+                        </p>
                       )}
-                    </p>
+                    </div>
+
+                    {/* Price */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-semibold text-sm sm:text-base text-blue-700">
+                        {formatPrice(listing.price.listPrice, true)}
+                      </p>
+                      {listing.buyer?.closeDate && (
+                        <p className="text-[10px] sm:text-xs text-gray-500">
+                          {new Date(listing.buyer.closeDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
