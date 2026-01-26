@@ -44,10 +44,10 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
   }, [isOpen, onToggle]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative inline-flex items-center" ref={ref}>
       <button
         onClick={onToggle}
-        className="flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors"
+        className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors h-full"
       >
         {label}
         <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,7 +138,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center gap-4 xl:gap-6 text-[15px] xl:text-base font-bold text-white/90 ml-auto"
+            className="hidden lg:flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90 ml-auto"
             aria-label="Main navigation"
           >
             <Dropdown
@@ -171,7 +171,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               }}
             />
 
-            <Link href="/open-houses" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+            <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Open Houses
             </Link>
 
@@ -185,16 +185,16 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               }}
             />
 
-            <Link href="/agents" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+            <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               Agents
             </Link>
 
-            <Link href="/about" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+            <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
               About
             </Link>
 
-            <Link href="/sign-in" className="whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-              Sign In
+            <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+              Sign Up / Sign In
             </Link>
           </nav>
 
@@ -422,7 +422,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 onClick={() => setMobileOpen(false)}
                 className="py-3 min-h-[44px] text-white/90 hover:text-white"
               >
-                Sign In
+                Sign Up / Sign In
               </Link>
             </div>
           </nav>
