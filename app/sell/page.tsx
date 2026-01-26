@@ -13,7 +13,7 @@ export default function SellPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
       <Header />
-      <main>
+      <main className="pt-20">
         {/* Hero Section */}
         <section className="relative h-[50vh] min-h-[400px] flex items-center justify-center">
           <div className="absolute inset-0">
@@ -27,6 +27,14 @@ export default function SellPage() {
             <div className="absolute inset-0 bg-black/50" />
           </div>
           <div className="relative z-10 text-center text-white px-4 max-w-3xl">
+            <div className="mb-6">
+              <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/90 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Home
+              </Link>
+            </div>
             <h1 className="text-4xl md:text-5xl font-semibold mb-4">
               Sell Your Property
             </h1>

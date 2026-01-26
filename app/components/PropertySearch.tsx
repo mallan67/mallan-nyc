@@ -174,10 +174,19 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 15000 : priceRange[0] !== 0 || priceRange[1] !== 5000000);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-20">
       {/* Search Header */}
-      <section className="bg-white border-b sticky top-0 z-40">
+      <section className="bg-white border-b sticky top-20 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
+          {/* Back to Home Link */}
+          <div className="mb-4">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Home
+            </Link>
+          </div>
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search Input */}
             <div className="flex-1">
