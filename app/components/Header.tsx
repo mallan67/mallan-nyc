@@ -59,6 +59,7 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
             <Link
               key={item.href}
               href={item.href}
+              onClick={onToggle}
               className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               {item.title}
@@ -214,12 +215,12 @@ export default function Header() {
         {/* Mobile Nav */}
         {mobileOpen && (
           <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg font-bold" aria-label="Mobile navigation">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               {/* Buy */}
-              <div className="py-1">
+              <div>
                 <button
                   onClick={() => setBuyOpen(!buyOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white"
+                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Buy
                   <svg className={`w-3 h-3 transition-transform ${buyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -227,9 +228,14 @@ export default function Header() {
                   </svg>
                 </button>
                 {buyOpen && (
-                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                  <div className="pl-4 pb-2 flex flex-col">
                     {buyItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                      >
                         {item.title}
                       </Link>
                     ))}
@@ -238,10 +244,10 @@ export default function Header() {
               </div>
 
               {/* Rent */}
-              <div className="py-1">
+              <div>
                 <button
                   onClick={() => setRentOpen(!rentOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white"
+                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Rent
                   <svg className={`w-3 h-3 transition-transform ${rentOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,9 +255,14 @@ export default function Header() {
                   </svg>
                 </button>
                 {rentOpen && (
-                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                  <div className="pl-4 pb-2 flex flex-col">
                     {rentItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                      >
                         {item.title}
                       </Link>
                     ))}
@@ -260,10 +271,10 @@ export default function Header() {
               </div>
 
               {/* Sell */}
-              <div className="py-1">
+              <div>
                 <button
                   onClick={() => setSellOpen(!sellOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white"
+                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Sell
                   <svg className={`w-3 h-3 transition-transform ${sellOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -271,9 +282,14 @@ export default function Header() {
                   </svg>
                 </button>
                 {sellOpen && (
-                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                  <div className="pl-4 pb-2 flex flex-col">
                     {sellItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                      >
                         {item.title}
                       </Link>
                     ))}
@@ -281,18 +297,26 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/search?type=commercial" className="py-1 text-white/90 hover:text-white">
+              <Link
+                href="/search?type=commercial"
+                onClick={() => setMobileOpen(false)}
+                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+              >
                 Commercial
               </Link>
 
-              <Link href="/open-houses" className="py-1 text-white/90 hover:text-white">
+              <Link
+                href="/open-houses"
+                onClick={() => setMobileOpen(false)}
+                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+              >
                 Open Houses
               </Link>
 
-              <div className="py-1">
+              <div>
                 <button
                   onClick={() => setResourcesOpen(!resourcesOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white"
+                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Resources
                   <svg className={`w-3 h-3 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -300,9 +324,14 @@ export default function Header() {
                   </svg>
                 </button>
                 {resourcesOpen && (
-                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                  <div className="pl-4 pb-2 flex flex-col">
                     {resources.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-base text-white/60 hover:text-white">
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                      >
                         {item.title}
                       </Link>
                     ))}
@@ -310,15 +339,27 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/agents" className="py-1 text-white/90 hover:text-white">
+              <Link
+                href="/agents"
+                onClick={() => setMobileOpen(false)}
+                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+              >
                 Agents
               </Link>
 
-              <Link href="/about" className="py-1 text-white/90 hover:text-white">
+              <Link
+                href="/about"
+                onClick={() => setMobileOpen(false)}
+                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+              >
                 About
               </Link>
 
-              <Link href="/sign-in" className="py-1 text-white/90 hover:text-white">
+              <Link
+                href="/sign-in"
+                onClick={() => setMobileOpen(false)}
+                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+              >
                 Sign In
               </Link>
             </div>
