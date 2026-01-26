@@ -82,6 +82,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   const [buyOpen, setBuyOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
+  const [exclusivesOpen, setExclusivesOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [resources, setResources] = useState<ResourceItem[]>([
     { title: "Buyer's Guide", href: '/resources/buyers-guide' },
@@ -106,6 +107,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     setBuyOpen(false);
     setRentOpen(false);
     setSellOpen(false);
+    setExclusivesOpen(false);
     setResourcesOpen(false);
   };
 
@@ -122,6 +124,12 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   const sellItems = [
     { title: 'Residential', href: '/sell?type=residential' },
     { title: 'Commercial', href: '/sell?type=commercial' },
+  ];
+
+  const exclusivesItems = [
+    { title: 'Mallan Exclusives', href: '/buy?exclusive=mallan' },
+    { title: 'Private Exclusives', href: '/buy?exclusive=private' },
+    { title: 'Coming Soon', href: '/buy?coming-soon=true' },
   ];
 
   // When dark mode (inner pages), use fixed positioning so header stays at top while scrolling
@@ -174,6 +182,16 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               onToggle={() => {
                 closeAllDropdowns();
                 setSellOpen(!sellOpen);
+              }}
+            />
+
+            <Dropdown
+              label="Exclusives"
+              items={exclusivesItems}
+              isOpen={exclusivesOpen}
+              onToggle={() => {
+                closeAllDropdowns();
+                setExclusivesOpen(!exclusivesOpen);
               }}
             />
 
@@ -325,6 +343,51 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {sellItems.map((item) => (
+                      <div
+                        key={item.href}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMobileOpen(false);
+                          setTimeout(() => router.push(item.href), 100);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileOpen(false);
+                          router.push(item.href);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+                        style={{
+                          WebkitTouchCallout: 'none',
+                          WebkitUserSelect: 'none',
+                          userSelect: 'none',
+                          touchAction: 'manipulation'
+                        }}
+                      >
+                        {item.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Exclusives */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setExclusivesOpen(!exclusivesOpen)}
+                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                >
+                  Exclusives
+                  <svg className={`w-3 h-3 transition-transform ${exclusivesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {exclusivesOpen && (
+                  <div className="pl-4 pb-2 flex flex-col">
+                    {exclusivesItems.map((item) => (
                       <div
                         key={item.href}
                         onTouchEnd={(e) => {
