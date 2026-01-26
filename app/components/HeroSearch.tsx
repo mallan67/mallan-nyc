@@ -237,9 +237,14 @@ export default function HeroSearch() {
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
           {/* Tagline */}
-          <h1 className="text-center text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-wide mb-6 sm:mb-8 drop-shadow-xl" style={{ fontWeight: 500, textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
-            {heroSettings.heroTagline}
-          </h1>
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-white text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold font-serif tracking-wide drop-shadow-xl" style={{ fontWeight: 500, textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+              One Search.
+            </h1>
+            <p className="text-white text-lg sm:text-xl md:text-2xl font-serif tracking-wide mt-2 drop-shadow-lg" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.4)' }}>
+              Every Space. Homes. Businesses. Investments.
+            </p>
+          </div>
 
           {/* Tabs */}
           <div className="inline-flex bg-brand-dark/90 rounded-t-lg overflow-hidden">
