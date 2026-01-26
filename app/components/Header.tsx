@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type ResourceItem = { title: string; href: string };
 
@@ -72,6 +73,7 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
 }
 
 export default function Header() {
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
@@ -227,14 +229,17 @@ export default function Header() {
                 {buyOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {buyItems.map((item) => (
-                      <Link
+                      <button
                         key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileOpen(false);
+                          router.push(item.href);
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
                       >
                         {item.title}
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -255,14 +260,17 @@ export default function Header() {
                 {rentOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {rentItems.map((item) => (
-                      <Link
+                      <button
                         key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileOpen(false);
+                          router.push(item.href);
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
                       >
                         {item.title}
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -283,14 +291,17 @@ export default function Header() {
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {sellItems.map((item) => (
-                      <Link
+                      <button
                         key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileOpen(false);
+                          router.push(item.href);
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
                       >
                         {item.title}
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -326,14 +337,17 @@ export default function Header() {
                 {resourcesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {resources.map((item) => (
-                      <Link
+                      <button
                         key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileOpen(false);
+                          router.push(item.href);
+                        }}
+                        className="block py-3 min-h-[44px] text-base text-white/70 hover:text-white active:text-white text-left w-full"
                       >
                         {item.title}
-                      </Link>
+                      </button>
                     ))}
                   </div>
                 )}
