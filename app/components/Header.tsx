@@ -72,7 +72,11 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
   );
 }
 
-export default function Header() {
+type HeaderProps = {
+  dark?: boolean;
+};
+
+export default function Header({ dark = false }: HeaderProps = {}) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
@@ -121,7 +125,7 @@ export default function Header() {
   ];
 
   return (
-    <header className={`absolute top-0 left-0 right-0 z-40 ${mobileOpen ? 'bg-black/95' : ''}`}>
+    <header className={`absolute top-0 left-0 right-0 z-40 ${mobileOpen || dark ? 'bg-black/95' : ''}`}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Brand */}
