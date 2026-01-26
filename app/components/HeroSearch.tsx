@@ -19,7 +19,7 @@ type SearchSuggestion = {
 
 const DEFAULT_HERO: HeroSettings = {
   heroImage: '/images/hero.jpg',
-  heroTagline: 'One Search. Every Space. Home. Business.',
+  heroTagline: 'One Search. Every Space. Homes. Businesses. Investments.',
 };
 
 const AMENITY_PILLS = [
@@ -229,8 +229,8 @@ export default function HeroSearch() {
         {/* Top gradient overlay for header navigation readability (~45-50% opacity) */}
         <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 via-black/40 to-transparent" />
 
-        {/* Center gradient overlay for hero headline readability (~30-35% opacity) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black/40" />
+        {/* Center gradient overlay for hero headline readability (~45-50% opacity) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black/55" />
       </div>
 
       {/* Search Module */}
