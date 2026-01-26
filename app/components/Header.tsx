@@ -72,6 +72,9 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [rentOpen, setRentOpen] = useState(false);
+  const [sellOpen, setSellOpen] = useState(false);
   const [exclusivesOpen, setExclusivesOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [resources, setResources] = useState<ResourceItem[]>([
@@ -93,16 +96,33 @@ export default function Header() {
       });
   }, []);
 
+  const closeAllDropdowns = () => {
+    setBuyOpen(false);
+    setRentOpen(false);
+    setSellOpen(false);
+    setExclusivesOpen(false);
+    setResourcesOpen(false);
+  };
+
+  const buyItems = [
+    { title: 'Residential', href: '/buy?type=residential' },
+    { title: 'Commercial', href: '/buy?type=commercial' },
+  ];
+
+  const rentItems = [
+    { title: 'Residential', href: '/rent?type=residential' },
+    { title: 'Commercial', href: '/rent?type=commercial' },
+  ];
+
+  const sellItems = [
+    { title: 'Residential', href: '/sell?type=residential' },
+    { title: 'Commercial', href: '/sell?type=commercial' },
+  ];
+
   const exclusivesItems = [
     { title: 'Mallan Listings', href: '/exclusives/mallan-listings' },
     { title: 'Private Exclusives', href: '/exclusives/private' },
     { title: 'Coming Soon', href: '/exclusives/coming-soon' },
-  ];
-
-  const navItems = [
-    { label: 'Buy', href: '/buy' },
-    { label: 'Rent', href: '/rent' },
-    { label: 'Sell', href: '/sell' },
   ];
 
   return (
@@ -116,19 +136,43 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-8 text-base font-serif text-white" aria-label="Main navigation">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="hover:text-brand-gold transition-colors">
-                {item.label}
-              </Link>
-            ))}
+            <Dropdown
+              label="Buy"
+              items={buyItems}
+              isOpen={buyOpen}
+              onToggle={() => {
+                closeAllDropdowns();
+                setBuyOpen(!buyOpen);
+              }}
+            />
+
+            <Dropdown
+              label="Rent"
+              items={rentItems}
+              isOpen={rentOpen}
+              onToggle={() => {
+                closeAllDropdowns();
+                setRentOpen(!rentOpen);
+              }}
+            />
+
+            <Dropdown
+              label="Sell"
+              items={sellItems}
+              isOpen={sellOpen}
+              onToggle={() => {
+                closeAllDropdowns();
+                setSellOpen(!sellOpen);
+              }}
+            />
 
             <Dropdown
               label="Exclusives"
               items={exclusivesItems}
               isOpen={exclusivesOpen}
               onToggle={() => {
+                closeAllDropdowns();
                 setExclusivesOpen(!exclusivesOpen);
-                setResourcesOpen(false);
               }}
             />
 
@@ -141,8 +185,8 @@ export default function Header() {
               items={resources}
               isOpen={resourcesOpen}
               onToggle={() => {
+                closeAllDropdowns();
                 setResourcesOpen(!resourcesOpen);
-                setExclusivesOpen(false);
               }}
             />
 
@@ -179,12 +223,73 @@ export default function Header() {
         {mobileOpen && (
           <nav id="mobile-nav" className="lg:hidden py-4 border-t border-white/10 font-serif text-white" aria-label="Mobile navigation">
             <div className="flex flex-col gap-3">
-              {navItems.map((item) => (
-                <Link key={item.href} href={item.href} className="py-2 hover:text-brand-gold">
-                  {item.label}
-                </Link>
-              ))}
+              {/* Buy */}
+              <div className="py-2">
+                <button
+                  onClick={() => setBuyOpen(!buyOpen)}
+                  className="flex items-center gap-1 hover:text-brand-gold"
+                >
+                  Buy
+                  <svg className={`w-3 h-3 transition-transform ${buyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {buyOpen && (
+                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                    {buyItems.map((item) => (
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                        {item.title}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
 
+              {/* Rent */}
+              <div className="py-2">
+                <button
+                  onClick={() => setRentOpen(!rentOpen)}
+                  className="flex items-center gap-1 hover:text-brand-gold"
+                >
+                  Rent
+                  <svg className={`w-3 h-3 transition-transform ${rentOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {rentOpen && (
+                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                    {rentItems.map((item) => (
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                        {item.title}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sell */}
+              <div className="py-2">
+                <button
+                  onClick={() => setSellOpen(!sellOpen)}
+                  className="flex items-center gap-1 hover:text-brand-gold"
+                >
+                  Sell
+                  <svg className={`w-3 h-3 transition-transform ${sellOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {sellOpen && (
+                  <div className="pl-4 mt-2 flex flex-col gap-2">
+                    {sellItems.map((item) => (
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                        {item.title}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Exclusives */}
               <div className="py-2">
                 <button
                   onClick={() => setExclusivesOpen(!exclusivesOpen)}
