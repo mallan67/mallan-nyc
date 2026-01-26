@@ -52,18 +52,26 @@ export default function ExploreNeighborhoods() {
   const neighborhoods = (neighborhoodsData.neighborhoods as Neighborhood[]).slice(0, 6);
 
   return (
-    <section className="py-8 sm:py-12 md:py-16 px-4 bg-gray-50">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-gray-50/50">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-sans mb-6 sm:mb-8">Explore Neighborhoods</h2>
+        {/* Section header - centered, consistent with other sections */}
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-light tracking-tight text-gray-900">
+            Explore Neighborhoods
+          </h2>
+          <p className="mt-2 text-sm sm:text-base text-gray-500">
+            Discover the best of Manhattan and Brooklyn
+          </p>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {neighborhoods.map((neighborhood) => (
             <NeighborhoodCard key={neighborhood.id} neighborhood={neighborhood} />
           ))}
         </div>
-        <div className="mt-8 sm:mt-10 text-center">
+        <div className="mt-10 sm:mt-12 text-center">
           <Link
             href="/neighborhoods"
-            className="inline-block px-6 sm:px-8 py-2 sm:py-3 border border-brand-dark text-brand-dark font-sans hover:bg-brand-dark hover:text-white transition-colors text-sm sm:text-base"
+            className="inline-block px-8 py-3 border border-gray-900 text-gray-900 font-medium rounded-lg hover:bg-gray-900 hover:text-white transition-colors text-sm sm:text-base tracking-wide"
           >
             View All Neighborhoods
           </Link>

@@ -11,21 +11,21 @@ import Link from 'next/link';
  */
 export default function ValueProposition() {
   return (
-    <section className="py-16 md:py-20 bg-white">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Main Value Statement */}
-        <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-3xl md:text-4xl font-sans font-medium text-gray-900 mb-4">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-white">
+      <div className="max-w-7xl mx-auto">
+        {/* Main Value Statement - consistent header styling */}
+        <div className="text-center mb-10 sm:mb-12">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-light tracking-tight text-gray-900">
             Licensed NYC Brokerage
           </h2>
-          <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="mt-3 text-sm sm:text-base md:text-lg text-gray-500 max-w-2xl mx-auto">
             Residential sales and rentals in Manhattan and Brooklyn.
             Co-ops, condos, and townhouses with licensed broker representation.
           </p>
         </div>
 
         {/* Service Paths */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
+        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-10 sm:mb-12">
           {/* Buy */}
           <div className="text-center p-6 rounded-lg border border-gray-100 hover:border-brand-gold/30 hover:shadow-lg transition-all">
             <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -95,7 +95,7 @@ export default function ValueProposition() {
           <Link
             href="/contact"
             data-analytics-cta="cta_contact_primary"
-            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors"
+            className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base tracking-wide"
           >
             Contact Us
           </Link>

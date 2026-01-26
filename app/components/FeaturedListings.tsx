@@ -106,18 +106,26 @@ export default function FeaturedListings() {
     .slice(0, 6);
 
   return (
-    <section className="py-8 sm:py-12 md:py-16 px-4 bg-white">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-gray-50/50">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-sans mb-6 sm:mb-8">Featured Listings</h2>
+        {/* Section header with subtle styling */}
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-light tracking-tight text-gray-900">
+            Featured Listings
+          </h2>
+          <p className="mt-2 text-sm sm:text-base text-gray-500">
+            Handpicked properties across New York City
+          </p>
+        </div>
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
           {listings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
-        <div className="mt-8 sm:mt-10 text-center">
+        <div className="mt-10 sm:mt-12 text-center">
           <Link
             href="/buy"
-            className="inline-block px-6 sm:px-8 py-2 sm:py-3 bg-black text-white font-bold rounded hover:bg-black/80 transition-colors text-sm sm:text-base"
+            className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base tracking-wide"
           >
             View All Listings
           </Link>
