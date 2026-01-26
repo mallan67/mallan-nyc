@@ -126,7 +126,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-40">
+    <header className={`absolute top-0 left-0 right-0 z-40 ${mobileOpen ? 'bg-black/95' : ''}`}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Brand */}
@@ -221,8 +221,8 @@ export default function Header() {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav id="mobile-nav" className="lg:hidden py-4 bg-black/90 backdrop-blur-sm rounded-b-lg font-serif text-white" aria-label="Mobile navigation">
-            <div className="flex flex-col gap-3 px-4">
+          <nav id="mobile-nav" className="lg:hidden py-6 font-serif text-white text-lg" aria-label="Mobile navigation">
+            <div className="flex flex-col gap-4">
               {/* Buy */}
               <div className="py-2">
                 <button
