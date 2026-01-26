@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-type SearchTab = 'buy' | 'rent' | 'sell';
+type SearchTab = 'buy' | 'rent' | 'sell' | 'commercial';
 
 type HeroSettings = {
   heroImage: string;
@@ -226,11 +226,13 @@ export default function HeroSearch() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        {/* Top gradient overlay for header navigation readability (~45-50% opacity) */}
-        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 via-black/40 to-transparent" />
-
-        {/* Center gradient overlay for hero headline readability (~45-50% opacity) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black/55" />
+        {/* Dark overlay gradient for header + hero readability */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.15) 70%, rgba(0,0,0,0.0) 100%)'
+          }}
+        />
       </div>
 
       {/* Search Module */}
@@ -238,21 +240,27 @@ export default function HeroSearch() {
         <div className="w-full max-w-2xl">
           {/* Tagline */}
           <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-wide drop-shadow-xl" style={{ fontWeight: 500, textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
-              One Search.
+            <h1
+              className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-[3.25rem] font-bold font-serif drop-shadow-xl leading-tight"
+              style={{ fontWeight: 600, textShadow: '0 2px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.01em' }}
+            >
+              One Search. Every Space.
             </h1>
-            <p className="text-white text-sm sm:text-base md:text-lg lg:text-xl font-serif tracking-wide mt-2 drop-shadow-lg whitespace-nowrap" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.4)' }}>
-              Every Space. Homes. Businesses. Investments.
+            <p
+              className="text-white/90 text-base sm:text-lg md:text-xl lg:text-2xl font-serif mt-3 drop-shadow-lg"
+              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)', fontWeight: 400 }}
+            >
+              Homes. Businesses. Investments.
             </p>
           </div>
 
           {/* Tabs */}
           <div className="inline-flex bg-brand-dark/90 rounded-t-lg overflow-hidden">
-            {(['buy', 'rent', 'sell'] as const).map((tab) => (
+            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 sm:px-6 md:px-8 py-2 sm:py-3 text-xs sm:text-sm font-serif capitalize transition-colors ${
+                className={`px-3 sm:px-5 md:px-6 py-2 sm:py-3 text-xs sm:text-sm font-serif capitalize transition-colors ${
                   activeTab === tab
                     ? 'bg-white text-brand-dark'
                     : 'text-white hover:bg-white/10'
@@ -323,13 +331,13 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* Amenity Pills - clicking routes to /buy or /rent with amenity param */}
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-4 sm:mt-6">
+          {/* Amenity Filters - rectangular toggle buttons */}
+          <div className="flex flex-wrap justify-center gap-2 mt-4 sm:mt-5">
             {AMENITY_PILLS.map((amenity) => (
               <button
                 key={amenity.id}
                 onClick={() => handleAmenityClick(amenity.id)}
-                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-serif bg-white/80 text-gray-700 hover:bg-white hover:shadow-md transition-all"
+                className="px-3 py-1.5 text-xs sm:text-sm font-serif border border-white/40 text-white/90 rounded hover:bg-white hover:text-gray-800 hover:border-white transition-all"
               >
                 {amenity.label}
               </button>

@@ -46,7 +46,7 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
     <div className="relative" ref={ref}>
       <button
         onClick={onToggle}
-        className="flex items-center gap-1 hover:text-brand-gold transition-colors"
+        className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4 transition-colors"
       >
         {label}
         <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -75,7 +75,6 @@ export default function Header() {
   const [buyOpen, setBuyOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
-  const [exclusivesOpen, setExclusivesOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [resources, setResources] = useState<ResourceItem[]>([
     { title: "Buyer's Guide", href: '/resources/buyers-guide' },
@@ -100,7 +99,6 @@ export default function Header() {
     setBuyOpen(false);
     setRentOpen(false);
     setSellOpen(false);
-    setExclusivesOpen(false);
     setResourcesOpen(false);
   };
 
@@ -119,12 +117,6 @@ export default function Header() {
     { title: 'Commercial', href: '/sell?type=commercial' },
   ];
 
-  const exclusivesItems = [
-    { title: 'Mallan Listings', href: '/exclusives/mallan-listings' },
-    { title: 'Private Exclusives', href: '/exclusives/private' },
-    { title: 'Coming Soon', href: '/exclusives/coming-soon' },
-  ];
-
   return (
     <header className={`absolute top-0 left-0 right-0 z-40 ${mobileOpen ? 'bg-black/95' : ''}`}>
       <div className="max-w-7xl mx-auto px-4">
@@ -135,7 +127,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-5 text-sm font-serif text-white ml-auto" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center gap-5 text-[15px] font-serif text-white ml-auto" aria-label="Main navigation">
             <Dropdown
               label="Buy"
               items={buyItems}
@@ -166,17 +158,11 @@ export default function Header() {
               }}
             />
 
-            <Dropdown
-              label="Exclusives"
-              items={exclusivesItems}
-              isOpen={exclusivesOpen}
-              onToggle={() => {
-                closeAllDropdowns();
-                setExclusivesOpen(!exclusivesOpen);
-              }}
-            />
+            <Link href="/search?type=commercial" className="hover:text-white hover:underline underline-offset-4 transition-colors">
+              Commercial
+            </Link>
 
-            <Link href="/open-houses" className="hover:text-brand-gold transition-colors">
+            <Link href="/open-houses" className="hover:text-white hover:underline underline-offset-4 transition-colors">
               Open Houses
             </Link>
 
@@ -190,19 +176,19 @@ export default function Header() {
               }}
             />
 
-            <Link href="/agents" className="hover:text-brand-gold transition-colors">
+            <Link href="/agents" className="hover:text-white hover:underline underline-offset-4 transition-colors">
               Agents
             </Link>
 
-            <Link href="/about" className="hover:text-brand-gold transition-colors">
+            <Link href="/about" className="hover:text-white hover:underline underline-offset-4 transition-colors">
               About Us
             </Link>
 
-            <button className="hover:text-brand-gold transition-colors" aria-label="Search">
+            <button className="hover:text-white hover:underline underline-offset-4 transition-colors" aria-label="Search">
               <SearchIcon />
             </button>
 
-            <Link href="/sign-in" className="hover:text-brand-gold transition-colors">
+            <Link href="/sign-in" className="hover:text-white hover:underline underline-offset-4 transition-colors">
               Sign Up / Sign In
             </Link>
           </nav>
@@ -227,7 +213,7 @@ export default function Header() {
               <div className="py-2">
                 <button
                   onClick={() => setBuyOpen(!buyOpen)}
-                  className="flex items-center gap-1 hover:text-brand-gold"
+                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
                 >
                   Buy
                   <svg className={`w-3 h-3 transition-transform ${buyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -237,7 +223,7 @@ export default function Header() {
                 {buyOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {buyItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -249,7 +235,7 @@ export default function Header() {
               <div className="py-2">
                 <button
                   onClick={() => setRentOpen(!rentOpen)}
-                  className="flex items-center gap-1 hover:text-brand-gold"
+                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
                 >
                   Rent
                   <svg className={`w-3 h-3 transition-transform ${rentOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -259,7 +245,7 @@ export default function Header() {
                 {rentOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {rentItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -271,7 +257,7 @@ export default function Header() {
               <div className="py-2">
                 <button
                   onClick={() => setSellOpen(!sellOpen)}
-                  className="flex items-center gap-1 hover:text-brand-gold"
+                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
                 >
                   Sell
                   <svg className={`w-3 h-3 transition-transform ${sellOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -281,7 +267,7 @@ export default function Header() {
                 {sellOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {sellItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -289,36 +275,18 @@ export default function Header() {
                 )}
               </div>
 
-              {/* Exclusives */}
-              <div className="py-2">
-                <button
-                  onClick={() => setExclusivesOpen(!exclusivesOpen)}
-                  className="flex items-center gap-1 hover:text-brand-gold"
-                >
-                  Exclusives
-                  <svg className={`w-3 h-3 transition-transform ${exclusivesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {exclusivesOpen && (
-                  <div className="pl-4 mt-2 flex flex-col gap-2">
-                    {exclusivesItems.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
-                        {item.title}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Link href="/search?type=commercial" className="py-2 hover:text-white hover:underline underline-offset-4">
+                Commercial
+              </Link>
 
-              <Link href="/open-houses" className="py-2 hover:text-brand-gold">
+              <Link href="/open-houses" className="py-2 hover:text-white hover:underline underline-offset-4">
                 Open Houses
               </Link>
 
               <div className="py-2">
                 <button
                   onClick={() => setResourcesOpen(!resourcesOpen)}
-                  className="flex items-center gap-1 hover:text-brand-gold"
+                  className="flex items-center gap-1 hover:text-white hover:underline underline-offset-4"
                 >
                   Resources
                   <svg className={`w-3 h-3 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -328,7 +296,7 @@ export default function Header() {
                 {resourcesOpen && (
                   <div className="pl-4 mt-2 flex flex-col gap-2">
                     {resources.map((item) => (
-                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-brand-gold">
+                      <Link key={item.href} href={item.href} className="text-sm text-white/70 hover:text-white">
                         {item.title}
                       </Link>
                     ))}
@@ -336,15 +304,15 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/agents" className="py-2 hover:text-brand-gold">
+              <Link href="/agents" className="py-2 hover:text-white hover:underline underline-offset-4">
                 Agents
               </Link>
 
-              <Link href="/about" className="py-2 hover:text-brand-gold">
+              <Link href="/about" className="py-2 hover:text-white hover:underline underline-offset-4">
                 About Us
               </Link>
 
-              <Link href="/sign-in" className="py-2 hover:text-brand-gold">
+              <Link href="/sign-in" className="py-2 hover:text-white hover:underline underline-offset-4">
                 Sign Up / Sign In
               </Link>
             </div>
