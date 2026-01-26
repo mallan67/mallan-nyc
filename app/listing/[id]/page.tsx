@@ -5,6 +5,9 @@ import { notFound } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import InquiryForm from '@/app/components/InquiryForm';
+import MortgageCalculator from '@/app/components/MortgageCalculator';
+import InvestorCalculator from '@/app/components/InvestorCalculator';
+import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 
@@ -477,6 +480,24 @@ export default async function ListingPage({ params }: Props) {
                     <p className="text-sm text-gray-500 mb-1">Listed by</p>
                     <p className="font-medium text-lg">{listing.agent.listAgentName}</p>
                     <p className="text-gray-600">{listing.agent.listOfficeName}</p>
+                    <div className="mt-3 pt-3 border-t space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        <a href={`tel:${listing.agent.listAgentPhone}`} className="text-gray-700 hover:text-brand-gold">
+                          {listing.agent.listAgentPhone}
+                        </a>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <a href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`} className="text-gray-700 hover:text-brand-gold break-all">
+                          {listing.agent.listAgentEmail}
+                        </a>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -484,7 +505,7 @@ export default async function ListingPage({ params }: Props) {
                       href={`tel:${listing.agent.listAgentPhone}`}
                       className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors"
                     >
-                      Call {listing.agent.listAgentPhone}
+                      Call Agent
                     </a>
                     <a
                       href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`}
@@ -501,6 +522,38 @@ export default async function ListingPage({ params }: Props) {
                   listingAddress={fullAddress}
                   agentEmail={listing.agent.listAgentEmail}
                 />
+
+                {/* Calculators */}
+                {!isRental && (
+                  <>
+                    {/* Mortgage Calculator for Sales */}
+                    <MortgageCalculator
+                      purchasePrice={listing.price.listPrice}
+                      maintenanceFee={listing.nycSpecific?.maintenanceFee || 0}
+                      monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
+                    />
+
+                    {/* Investor Calculator for Sales */}
+                    <InvestorCalculator
+                      purchasePrice={listing.price.listPrice}
+                      maintenanceFee={listing.nycSpecific?.maintenanceFee || 0}
+                      monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
+                      bedrooms={listing.propertyInfo.bedroomsTotal}
+                      neighborhood={listing.address.neighborhoodDisplay}
+                    />
+                  </>
+                )}
+
+                {isRental && (
+                  /* Rent vs Buy Calculator for Rentals */
+                  <RentVsBuyCalculator
+                    purchasePrice={listing.price.listPrice * 250}
+                    monthlyRent={listing.price.listPrice}
+                    maintenanceFee={0}
+                    realEstateTaxes={0}
+                    isRental={true}
+                  />
+                )}
 
                 {/* Similar Listings */}
                 <div className="bg-white rounded-lg p-6 border">
