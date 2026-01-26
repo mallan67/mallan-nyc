@@ -169,6 +169,10 @@ export default function HeroSearch() {
     const params = new URLSearchParams();
     params.set('type', activeTab);
     if (query) params.set('q', query);
+    // Include selected amenities in search
+    if (selectedAmenities.size > 0) {
+      params.set('amenities', Array.from(selectedAmenities).join(','));
+    }
     router.push(`/search?${params.toString()}`);
   };
 
@@ -278,22 +282,23 @@ export default function HeroSearch() {
             </div>
           </div>
 
-          {/* D) TABS - Premium segmented controls with glass wrapper */}
-          <div className="inline-flex rounded-xl bg-black/35 backdrop-blur-md border border-white/15 overflow-hidden">
-            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`${TAB_BASE} ${activeTab === tab ? TAB_ACTIVE : TAB_INACTIVE}`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          {/* SEARCH MODULE - Tabs sit on top of search bar */}
+          <div className="relative">
+            {/* Tabs - connected to search bar below */}
+            <div className="inline-flex rounded-t-xl bg-black/40 backdrop-blur-md border border-white/15 border-b-0 overflow-hidden">
+              {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`${TAB_BASE} ${activeTab === tab ? TAB_ACTIVE : TAB_INACTIVE}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-          {/* C) SEARCH BAR - Glass panel (not solid white) */}
-          <div className="relative mt-3">
-            <div className="bg-white/15 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-3 sm:p-4">
+            {/* Search Bar - connected to tabs above */}
+            <div className="bg-black/40 backdrop-blur-md border border-white/15 shadow-xl rounded-b-xl rounded-tr-xl p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <input
                   ref={inputRef}
@@ -307,13 +312,13 @@ export default function HeroSearch() {
                   onFocus={() => query.length >= 2 && setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-4 py-3 text-base sm:text-lg text-white bg-white/20 rounded-xl border border-white/25 outline-none placeholder:text-white/70 focus:border-white/40 transition-colors"
+                  className="flex-1 px-4 py-3 text-base sm:text-lg text-white bg-white/15 rounded-lg border border-white/20 outline-none placeholder:text-white/60 focus:border-white/40 focus:bg-white/20 transition-colors"
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="px-6 py-3 bg-black/60 hover:bg-black/70 text-white font-semibold rounded-xl transition-colors text-sm sm:text-base"
+                  className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg hover:bg-white/90 transition-colors text-sm sm:text-base"
                 >
                   Search
                 </button>
