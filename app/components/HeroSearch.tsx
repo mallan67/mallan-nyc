@@ -235,10 +235,10 @@ export default function HeroSearch() {
         <div className="w-full max-w-2xl">
           {/* Tagline - modern luxury typography */}
           <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-medium text-white drop-shadow-sm">
+            <h1 className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-bold text-white drop-shadow-sm">
               One Search. Every Space.
             </h1>
-            <p className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-medium text-white/90 mt-2">
+            <p className="text-sm sm:text-base md:text-lg tracking-[0.15em] uppercase font-bold text-white/90 mt-2">
               Homes. Businesses. Investments.
             </p>
           </div>
@@ -262,7 +262,7 @@ export default function HeroSearch() {
 
           {/* Search Input with Typeahead */}
           <div className="relative">
-            <div className="bg-white/90 md:bg-white/80 backdrop-blur-md border border-white/40 shadow-lg rounded-b-lg rounded-tr-lg">
+            <div className="bg-white/15 backdrop-blur-md rounded-b-lg rounded-tr-lg ring-1 ring-white/20">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
                 <input
                   ref={inputRef}
@@ -276,13 +276,13 @@ export default function HeroSearch() {
                   onFocus={() => query.length >= 2 && setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg text-slate-900 bg-transparent outline-none placeholder:text-slate-500"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg text-white bg-transparent outline-none placeholder:text-white/60"
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors text-sm sm:text-base"
+                  className="m-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-black font-bold rounded hover:bg-white/90 transition-colors text-sm sm:text-base"
                 >
                   Search
                 </button>

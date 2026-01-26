@@ -131,7 +131,7 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center gap-4 xl:gap-6 text-[15px] xl:text-base text-white/90 ml-auto"
+            className="hidden lg:flex items-center gap-4 xl:gap-6 text-[15px] xl:text-base font-bold text-white/90 ml-auto"
             aria-label="Main navigation"
           >
             <Dropdown
@@ -213,7 +213,7 @@ export default function Header() {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg" aria-label="Mobile navigation">
+          <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg font-bold" aria-label="Mobile navigation">
             <div className="flex flex-col gap-3">
               {/* Buy */}
               <div className="py-1">
