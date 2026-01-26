@@ -226,15 +226,18 @@ export default function HeroSearch() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        {/* Top gradient overlay for header text readability */}
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/50 to-transparent" />
+        {/* Top gradient overlay for header navigation readability (~45-50% opacity) */}
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 via-black/40 to-transparent" />
+
+        {/* Center gradient overlay for hero headline readability (~30-35% opacity) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black/40" />
       </div>
 
       {/* Search Module */}
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
           {/* Tagline */}
-          <h1 className="text-center text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-wide mb-6 sm:mb-8 drop-shadow-lg" style={{ fontWeight: 500 }}>
+          <h1 className="text-center text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-wide mb-6 sm:mb-8 drop-shadow-xl" style={{ fontWeight: 500, textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
             {heroSettings.heroTagline}
           </h1>
 
