@@ -238,20 +238,22 @@ export default function HeroSearch() {
       {/* Search Module */}
       <div className="relative z-10 h-full flex items-center justify-center px-4">
         <div className="w-full max-w-2xl">
-          {/* Tagline */}
+          {/* Tagline - frosted glass panel for readability */}
           <div className="text-center mb-6 sm:mb-8">
-            <h1
-              className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-[3.25rem] font-bold font-serif drop-shadow-xl leading-tight"
-              style={{ fontWeight: 600, textShadow: '0 2px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.01em' }}
-            >
-              One Search. Every Space.
-            </h1>
-            <p
-              className="text-white/90 text-base sm:text-lg md:text-xl lg:text-2xl font-serif mt-3 drop-shadow-lg"
-              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)', fontWeight: 400 }}
-            >
-              Homes. Businesses. Investments.
-            </p>
+            <div className="inline-block px-6 py-4 sm:px-8 sm:py-5 md:px-10 md:py-6 rounded-xl bg-black/30 backdrop-blur-sm">
+              <h1
+                className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-[3.25rem] font-semibold font-serif leading-tight"
+                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              >
+                One Search. Every Space.
+              </h1>
+              <p
+                className="text-white/95 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-serif mt-2 sm:mt-3"
+                style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
+              >
+                Homes. Businesses. Investments.
+              </p>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -331,17 +333,19 @@ export default function HeroSearch() {
             )}
           </div>
 
-          {/* Amenity Filters - rectangular toggle buttons */}
-          <div className="flex flex-wrap justify-center gap-2 mt-4 sm:mt-5">
-            {AMENITY_PILLS.map((amenity) => (
-              <button
-                key={amenity.id}
-                onClick={() => handleAmenityClick(amenity.id)}
-                className="px-3 py-1.5 text-xs sm:text-sm font-serif border border-white/40 text-white/90 rounded hover:bg-white hover:text-gray-800 hover:border-white transition-all"
-              >
-                {amenity.label}
-              </button>
-            ))}
+          {/* Amenity Filters - translucent tray for visibility */}
+          <div className="flex justify-center mt-4 sm:mt-5">
+            <div className="inline-flex flex-wrap justify-center gap-2 px-4 py-3 rounded-lg bg-black/25 backdrop-blur-sm">
+              {AMENITY_PILLS.map((amenity) => (
+                <button
+                  key={amenity.id}
+                  onClick={() => handleAmenityClick(amenity.id)}
+                  className="px-3 py-1.5 text-xs sm:text-sm font-serif text-white border border-white/50 rounded hover:bg-white hover:text-gray-900 hover:border-white transition-all"
+                >
+                  {amenity.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
