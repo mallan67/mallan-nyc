@@ -1,0 +1,3 @@
+# Non-routed templates directory
+# Files here are NOT served as routes (underscore prefix)
+# Use for component templates, scaffolds, and work-in-progress
