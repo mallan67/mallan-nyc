@@ -15,7 +15,7 @@ export default function ValueProposition() {
       <div className="max-w-6xl mx-auto px-4">
         {/* Main Value Statement */}
         <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-3xl md:text-4xl font-serif font-medium text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-sans font-medium text-gray-900 mb-4">
             Licensed NYC Brokerage
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
@@ -33,7 +33,7 @@ export default function ValueProposition() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Buy</h3>
+            <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Buy</h3>
             <p className="text-gray-600 mb-4 text-sm">
               Buyer representation for co-ops, condos, and townhouses.
               Board packages, financial review, and contract negotiation.
@@ -54,7 +54,7 @@ export default function ValueProposition() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
-            <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Rent</h3>
+            <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Rent</h3>
             <p className="text-gray-600 mb-4 text-sm">
               Apartments in Manhattan and Brooklyn. Application support,
               lease review, and building requirement guidance.
@@ -75,7 +75,7 @@ export default function ValueProposition() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Sell</h3>
+            <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Sell</h3>
             <p className="text-gray-600 mb-4 text-sm">
               Professional photography, pricing analysis, and full transaction
               management from listing to closing.

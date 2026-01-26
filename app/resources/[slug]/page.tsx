@@ -25,7 +25,7 @@ export default async function ResourcePage({ params }: Props) {
   const { slug } = await params;
 
   return (
-    <div className="min-h-screen bg-white font-serif">
+    <div className="min-h-screen bg-white font-sans">
       <Header />
       <main>
         <ResourceContent slug={slug} />

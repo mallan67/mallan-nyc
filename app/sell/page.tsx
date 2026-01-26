@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function SellPage() {
   return (
-    <div className="min-h-screen bg-white font-serif">
+    <div className="min-h-screen bg-white font-sans">
       <Header />
       <main>
         {/* Hero Section */}

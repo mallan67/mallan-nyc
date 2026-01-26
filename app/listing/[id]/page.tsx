@@ -105,7 +105,7 @@ export default async function ListingPage({ params }: Props) {
   if (listing.features.outdoor.roofRights) unitFeatures.push('Roof Rights');
 
   return (
-    <div className="min-h-screen bg-gray-50 font-serif">
+    <div className="min-h-screen bg-gray-50 font-sans">
       <Header />
 
       {/* Breadcrumb */}
@@ -166,7 +166,7 @@ export default async function ListingPage({ params }: Props) {
               <div>
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                   <div>
-                    <h1 className="text-3xl md:text-4xl font-serif mb-2">
+                    <h1 className="text-3xl md:text-4xl font-sans mb-2">
                       {formatPrice(listing.price.listPrice, isRental)}
                     </h1>
                     {listing.price.originalListPrice > listing.price.listPrice && (
@@ -218,7 +218,7 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Description */}
               <section>
-                <h2 className="text-xl font-serif mb-4">About This Property</h2>
+                <h2 className="text-xl font-sans mb-4">About This Property</h2>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                   {listing.description}
                 </p>
@@ -227,7 +227,7 @@ export default async function ListingPage({ params }: Props) {
               {/* NYC-Specific Info (Co-op/Condo) */}
               {!isRental && (isCoop || isCondo) && (
                 <section className="bg-white rounded-lg p-6 border">
-                  <h2 className="text-xl font-serif mb-4">
+                  <h2 className="text-xl font-sans mb-4">
                     {isCoop ? 'Co-op Information' : 'Condo Information'}
                   </h2>
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -313,7 +313,7 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Property Details */}
               <section>
-                <h2 className="text-xl font-serif mb-4">Property Details</h2>
+                <h2 className="text-xl font-sans mb-4">Property Details</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-gray-500">Property Type</span>
@@ -352,7 +352,7 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Interior Features */}
               <section>
-                <h2 className="text-xl font-serif mb-4">Interior Features</h2>
+                <h2 className="text-xl font-sans mb-4">Interior Features</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-gray-500">Flooring</span>
@@ -388,7 +388,7 @@ export default async function ListingPage({ params }: Props) {
               {/* Building Amenities */}
               {buildingAmenities.length > 0 && (
                 <section>
-                  <h2 className="text-xl font-serif mb-4">Building Amenities</h2>
+                  <h2 className="text-xl font-sans mb-4">Building Amenities</h2>
                   <div className="flex flex-wrap gap-3">
                     {buildingAmenities.map((amenity) => (
                       <span key={amenity} className="px-4 py-2 bg-gray-100 rounded-full text-sm">
@@ -413,7 +413,7 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Pets Policy */}
               <section className="bg-white rounded-lg p-6 border">
-                <h2 className="text-xl font-serif mb-4">Pet Policy</h2>
+                <h2 className="text-xl font-sans mb-4">Pet Policy</h2>
                 <div className="flex items-start gap-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                     listing.features.pets.allowed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -440,7 +440,7 @@ export default async function ListingPage({ params }: Props) {
               {/* Open House */}
               {listing.openHouse?.scheduled && (
                 <section className="bg-brand-gold/10 rounded-lg p-6">
-                  <h2 className="text-xl font-serif mb-2">Open House</h2>
+                  <h2 className="text-xl font-sans mb-2">Open House</h2>
                   <p className="text-lg">{formatDate(listing.openHouse.date)}</p>
                   <p className="text-gray-600">
                     {formatTime(listing.openHouse.startTime)} - {formatTime(listing.openHouse.endTime)}
@@ -453,7 +453,7 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Neighborhood Link */}
               <section className="bg-white rounded-lg p-6 border">
-                <h2 className="text-xl font-serif mb-2">About {listing.address.neighborhoodDisplay}</h2>
+                <h2 className="text-xl font-sans mb-2">About {listing.address.neighborhoodDisplay}</h2>
                 <p className="text-gray-600 mb-4">
                   Learn more about the neighborhood, local attractions, schools, and dining options.
                 </p>
@@ -471,7 +471,7 @@ export default async function ListingPage({ params }: Props) {
               <div className="sticky top-24 space-y-6">
                 {/* Contact Card */}
                 <div className="bg-white rounded-lg p-6 border shadow-sm">
-                  <h3 className="text-lg font-serif mb-4">Interested in this property?</h3>
+                  <h3 className="text-lg font-sans mb-4">Interested in this property?</h3>
 
                   <div className="mb-6">
                     <p className="text-sm text-gray-500 mb-1">Listed by</p>
@@ -504,7 +504,7 @@ export default async function ListingPage({ params }: Props) {
 
                 {/* Similar Listings */}
                 <div className="bg-white rounded-lg p-6 border">
-                  <h3 className="text-lg font-serif mb-4">Similar Properties</h3>
+                  <h3 className="text-lg font-sans mb-4">Similar Properties</h3>
                   <div className="space-y-4">
                     {(listingsData.listings as unknown as Listing[])
                       .filter(
