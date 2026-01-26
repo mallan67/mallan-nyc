@@ -16,12 +16,11 @@ export default function ValueProposition() {
         {/* Main Value Statement */}
         <div className="text-center mb-12 md:mb-16">
           <h2 className="text-3xl md:text-4xl font-serif font-medium text-gray-900 mb-4">
-            Full-Service NYC Brokerage
+            Licensed NYC Brokerage
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-            Residential sales and rentals across Manhattan and Brooklyn.
-            Co-ops, condos, and townhouses—licensed representation for buyers,
-            sellers, and renters.
+            Residential sales and rentals in Manhattan and Brooklyn.
+            Co-ops, condos, and townhouses with licensed broker representation.
           </p>
         </div>
 
@@ -37,14 +36,14 @@ export default function ValueProposition() {
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Buy</h3>
             <p className="text-gray-600 mb-4 text-sm">
               Buyer representation for co-ops, condos, and townhouses.
-              Board package preparation, financial review, and contract negotiation.
+              Board packages, financial review, and contract negotiation.
             </p>
             <Link
               href="/buy"
               data-analytics-cta="cta_buy"
               className="text-brand-gold hover:underline font-medium text-sm"
             >
-              View Listings →
+              Browse Sales →
             </Link>
           </div>
 
@@ -57,7 +56,7 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Rent</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Apartments across Manhattan and Brooklyn. Application support,
+              Apartments in Manhattan and Brooklyn. Application support,
               lease review, and building requirement guidance.
             </p>
             <Link
@@ -65,7 +64,7 @@ export default function ValueProposition() {
               data-analytics-cta="cta_rent"
               className="text-brand-gold hover:underline font-medium text-sm"
             >
-              View Rentals →
+              Browse Rentals →
             </Link>
           </div>
 
@@ -78,15 +77,15 @@ export default function ValueProposition() {
             </div>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Sell</h3>
             <p className="text-gray-600 mb-4 text-sm">
-              Listing services with professional photography, pricing analysis,
-              and full transaction management through closing.
+              Professional photography, pricing analysis, and full transaction
+              management from listing to closing.
             </p>
             <Link
               href="/sell"
               data-analytics-cta="cta_sell"
               className="text-brand-gold hover:underline font-medium text-sm"
             >
-              Selling Services →
+              Sell Your Property →
             </Link>
           </div>
         </div>
@@ -98,7 +97,7 @@ export default function ValueProposition() {
             data-analytics-cta="cta_contact_primary"
             className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded hover:bg-black transition-colors"
           >
-            Start a Conversation
+            Contact Us
           </Link>
           <p className="mt-3 text-sm text-gray-500">
             No obligation. Tell us what you&apos;re looking for.
