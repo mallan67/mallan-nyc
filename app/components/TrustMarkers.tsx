@@ -20,7 +20,7 @@ export default function TrustMarkers() {
             Licensed &amp; Compliant
           </h2>
           <p className="text-gray-600">
-            Committed to ethical practices and fair housing for all.
+            NY State licensed broker. Fair housing for all.
           </p>
         </div>
 
@@ -92,7 +92,7 @@ export default function TrustMarkers() {
         {/* Contact CTA */}
         <div className="mt-12 text-center">
           <p className="text-gray-600 mb-4">
-            Questions about NYC real estate?
+            Questions? We&apos;re here to help.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -107,7 +107,7 @@ export default function TrustMarkers() {
               data-analytics-cta="cta_phone"
               className="inline-block px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-100 transition-colors"
             >
-              (646) 258-4460
+              Call (646) 258-4460
             </a>
           </div>
         </div>

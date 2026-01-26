@@ -54,12 +54,16 @@ Test all pages at these viewport widths:
 - [ ] Search button triggers navigation
 - [ ] Amenity pills clickable
 - [ ] ValueProposition section renders
-- [ ] Service cards (Buy/Rent/Sell) link correctly
+- [ ] "Browse Sales →" links to /buy
+- [ ] "Browse Rentals →" links to /rent
+- [ ] "Sell Your Property →" links to /sell
+- [ ] "Contact Us" button links to /contact
 - [ ] TrustMarkers section renders
 - [ ] License number displays: #10991205323
 - [ ] Equal Housing logo visible
 - [ ] REBNY attribution present
-- [ ] All CTAs clickable and navigate correctly
+- [ ] "Contact Us" button links to /contact
+- [ ] "Call (646) 258-4460" is clickable tel: link
 - [ ] Footer renders with all links
 
 ### Contact Page (`/contact`)
@@ -70,12 +74,13 @@ Test all pages at these viewport widths:
 - [ ] Message field validation (required)
 - [ ] Consent checkbox NOT pre-checked
 - [ ] Consent checkbox required for submission
-- [ ] Submit button disabled during submission
-- [ ] Success state displays after submission
-- [ ] Success state shows phone number for immediate contact
+- [ ] Submit button shows "Sending..." during submission
+- [ ] Success state displays "Thank You" heading
+- [ ] Success state shows "What happens next" steps (3 items)
+- [ ] Success state shows phone CTA for immediate contact
 - [ ] "Send another message" resets form
 - [ ] Error state displays on failure
-- [ ] Sidebar contact info correct
+- [ ] Sidebar contact info correct (phone, email, address, hours)
 - [ ] License info in sidebar
 
 ### Buy/Rent/Sell Pages
@@ -133,13 +138,14 @@ Test that these CTAs fire analytics events (check browser Network tab for `/api/
 | CTA | Location | Label | Status |
 |-----|----------|-------|--------|
 | Search button | Hero | `hero_search` | [ ] Pass |
-| View Listings | ValueProp Buy | `cta_buy` | [ ] Pass |
-| View Rentals | ValueProp Rent | `cta_rent` | [ ] Pass |
-| Selling Services | ValueProp Sell | `cta_sell` | [ ] Pass |
-| Start Conversation | ValueProp | `cta_contact_primary` | [ ] Pass |
+| Browse Sales → | ValueProp Buy | `cta_buy` | [ ] Pass |
+| Browse Rentals → | ValueProp Rent | `cta_rent` | [ ] Pass |
+| Sell Your Property → | ValueProp Sell | `cta_sell` | [ ] Pass |
+| Contact Us | ValueProp primary | `cta_contact_primary` | [ ] Pass |
 | Contact Us | TrustMarkers | `cta_contact_footer` | [ ] Pass |
-| Phone number | TrustMarkers | `cta_phone` | [ ] Pass |
+| Call (646) 258-4460 | TrustMarkers | `cta_phone` | [ ] Pass |
 | Send Message | Contact form | `contact_form` | [ ] Pass |
+| Call (646) 258-4460 | Contact success | `cta_phone_success` | [ ] Pass |
 
 ### Consent Gating
 - [ ] Analytics only fire after cookie consent accepted

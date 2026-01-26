@@ -131,11 +131,10 @@ export default function ContactPage() {
         <section className="bg-brand-dark text-white py-16 md:py-20">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <h1 className="text-3xl md:text-4xl font-serif font-medium mb-4">
-              Get in Touch
+              Contact Us
             </h1>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Whether you&apos;re ready to start your search or just have questions,
-              we&apos;re here to help.
+              Questions about buying, selling, or renting in NYC? We&apos;re here to help.
             </p>
           </div>
         </section>
@@ -147,7 +146,11 @@ export default function ContactPage() {
               {/* Form */}
               <div className="md:col-span-3">
                 {submitStatus === 'success' ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+                  <div
+                    className="bg-green-50 border border-green-200 rounded-lg p-8 text-center"
+                    role="status"
+                    aria-live="polite"
+                  >
                     <svg
                       className="w-16 h-16 text-green-500 mx-auto mb-6"
                       fill="none"
@@ -163,22 +166,26 @@ export default function ContactPage() {
                       />
                     </svg>
                     <h2 className="text-2xl font-serif font-medium text-gray-900 mb-3">
-                      Message Received
+                      Thank You
                     </h2>
                     <p className="text-gray-600 mb-2">
-                      Thank you for contacting Mallan Real Estate.
+                      Your message has been received.
                     </p>
-                    <p className="text-gray-600 mb-6">
-                      A member of our team will review your inquiry and respond
-                      via email within 1-2 business days.
-                    </p>
-                    <div className="border-t border-green-200 pt-6 mt-6">
+                    <div className="bg-white rounded-lg p-4 my-6 text-left border border-green-100">
+                      <h3 className="text-sm font-medium text-gray-800 mb-2">What happens next:</h3>
+                      <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+                        <li>We review your inquiry within 24 hours</li>
+                        <li>A licensed agent will respond via email</li>
+                        <li>No automated calls or texts—just a real person</li>
+                      </ol>
+                    </div>
+                    <div className="border-t border-green-200 pt-6">
                       <p className="text-sm text-gray-500 mb-4">
-                        Need immediate assistance?
+                        Need to speak with someone now?
                       </p>
                       <a
                         href="tel:+16462584460"
-                        data-analytics-cta="cta_phone"
+                        data-analytics-cta="cta_phone_success"
                         className="inline-block px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-100 transition-colors text-sm"
                       >
                         Call (646) 258-4460
