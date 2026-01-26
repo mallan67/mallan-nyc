@@ -57,12 +57,12 @@ function ListingCard({ listing }: { listing: Listing }) {
           }}
         />
         {listing.flags.isExclusive && (
-          <span className="absolute top-3 left-3 bg-brand-gold text-white text-xs px-3 py-1.5 font-sans rounded shadow-lg z-10">
+          <span className="absolute top-3 left-3 bg-black text-white text-xs px-3 py-1.5 font-sans rounded shadow-lg z-10">
             Exclusive
           </span>
         )}
         {listing.flags.isNewListing && !listing.flags.isExclusive && (
-          <span className="absolute top-3 left-3 bg-brand-dark text-white text-xs px-3 py-1.5 font-sans rounded shadow-lg z-10">
+          <span className="absolute top-3 left-3 bg-black text-white text-xs px-3 py-1.5 font-sans rounded shadow-lg z-10">
             New
           </span>
         )}

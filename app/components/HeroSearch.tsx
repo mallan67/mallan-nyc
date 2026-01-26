@@ -44,7 +44,7 @@ const AMENITY_PILLS = [
 // E) AMENITY CHIPS - glass pills, no container box
 const CHIP_BASE = 'px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150';
 const CHIP_UNSELECTED = 'bg-black/35 backdrop-blur-md border border-white/15 text-white/90 hover:bg-black/45 hover:text-white';
-const CHIP_SELECTED = 'bg-white/25 backdrop-blur-md border border-white/30 text-white';
+const CHIP_SELECTED = 'bg-black/45 backdrop-blur-md border border-white/30 text-white';
 
 // D) TAB CLASSES - premium segmented controls
 const TAB_BASE = 'px-4 py-2 text-sm sm:text-base font-medium capitalize transition-all duration-150';
