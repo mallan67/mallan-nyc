@@ -3,12 +3,18 @@ import Link from 'next/link';
 export default function AdminHome() {
   const sections = [
     {
+      title: 'Listings & Properties',
+      links: [
+        { href: '/admin/listings', label: 'Listings Management', description: 'Import listings via CSV, manage properties' },
+        { href: '/admin/open-houses', label: 'Open Houses', description: 'Manage open house listings' },
+      ],
+    },
+    {
       title: 'Content Management',
       links: [
         { href: '/admin/pages', label: 'Pages', description: 'Edit About Us & Legal pages' },
         { href: '/admin/resources', label: 'Resource Guides', description: 'Edit Buyer/Seller/Investor guides' },
         { href: '/admin/team', label: 'Team', description: 'Manage agent profiles' },
-        { href: '/admin/open-houses', label: 'Open Houses', description: 'Manage open house listings' },
       ],
     },
     {
@@ -22,6 +28,12 @@ export default function AdminHome() {
       title: 'Settings',
       links: [
         { href: '/admin/settings', label: 'Company Settings', description: 'Edit company info, hero, footer links' },
+      ],
+    },
+    {
+      title: 'Developer & API',
+      links: [
+        { href: '/admin/api-docs', label: 'API Documentation', description: 'Public API endpoints for agent data' },
       ],
     },
   ];
