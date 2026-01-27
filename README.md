@@ -15,6 +15,94 @@ This repository is the **single source of truth** for the Mallan NYC brokerage p
 
 ---
 
+## 🚨 Compliance & Legal Requirements (READ FIRST)
+
+> **This repository handles licensed MLS / IDX data.**  
+>  
+> All contributors, contractors, automations, and AI systems interacting with this codebase **must comply** with the rules below.  
+> Violations may expose the brokerage to **immediate suspension and liquidated damages up to $40,000**.
+
+---
+
+## 📌 MLS / IDX DATA COMPLIANCE (REBNY RLS)
+
+### Overview
+This project integrates **REBNY Residential Listing Service (RLS) IDX data** under a broker-direct license held by **Mallan Real Estate Inc**. All use of MLS/IDX data must comply with REBNY RLS rules, RESO standards, the Fair Housing Act, and New York State real estate advertising law.
+
+Non-compliance exposes the brokerage to immediate suspension and liquidated damages up to $40,000.
+
+---
+
+### Allowed Use
+- MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Trestle/CoreLogic.
+- Data is used **solely for public display of real estate listings** on broker-operated websites.
+- Data may be cached locally for performance and compliance purposes.
+- Media (photos) are accessed via approved MLS media URLs unless otherwise authorized.
+
+---
+
+### Prohibited Use (STRICT)
+The following are **explicitly forbidden**:
+
+- ❌ Client-side calls to MLS/IDX APIs  
+- ❌ Public or unsecured JSON endpoints containing MLS data  
+- ❌ Scraping, bulk export, or redistribution  
+- ❌ Resale, sublicensing, or syndication to third parties  
+- ❌ Use of MLS/IDX data for analytics resale or derivative datasets  
+
+---
+
+### 🚫 AI / OpenAI / ML Restrictions
+MLS/IDX data **MUST NOT** be used for:
+- AI or LLM training
+- Fine-tuning models
+- Vector databases / embeddings
+- Predictive analytics or valuation models
+- Behavioral profiling tied to listing data
+
+Only **non-MLS metadata** (user behavior, UI events, internal notes) may be used for AI features unless separate written authorization is obtained from REBNY.
+
+---
+
+### Display & Attribution Requirements
+All IDX listings must:
+- Display required **REBNY RLS attribution and disclaimer text**
+- Include update timestamps
+- Follow REBNY refresh and pagination limits
+- Comply with Fair Housing and NY advertising rules
+
+These requirements apply to **all environments** (production, staging, previews).
+
+---
+
+### Security & Audit
+- MLS data access must be logged and auditable.
+- Credentials must never be exposed in frontend code.
+- REBNY reserves the right to audit systems and access logs.
+- Audit fees and suspension may apply for violations.
+
+---
+
+### Termination
+Upon termination of the IDX license:
+- All MLS/IDX data must be deleted or rendered inaccessible.
+- No residual storage, backups, or derived datasets may remain.
+
+---
+
+### Responsibility
+All contributors, contractors, vendors, and AI systems interacting with this codebase are required to comply with this policy.
+
+**If unsure, assume MLS data is restricted and escalate before use.**
+
+---
+
+### ✅ Why this matters
+This repository is **broker-direct**, not a vendor platform.  
+Compliance is not optional and not abstract — it is contractual.
+
+---
+
 ## Executive Summary (3 Pillars)
 
 ### 1) Compliance by Design
@@ -62,6 +150,7 @@ To eliminate breakage, routing conflicts, and accidental imports, the following 
 
 #### Active Next.js Build Path (Strict)
 
+---
 
 ## Compliance Requirements
 
@@ -72,8 +161,6 @@ To eliminate breakage, routing conflicts, and accidental imports, the following 
 ## Listings: Types, Visibility, Distribution
 
 *(Listing type definitions, visibility rules, and syndication controls to be documented here.)*
-
----
 
 ---
 
@@ -111,59 +198,3 @@ npx prisma db push
 
 # 6. Start development server
 npm run dev
-```
-
-### CI Pipeline
-
-The CI workflow (`.github/workflows/auto-fix-and-pr.yml`) runs on pull requests:
-
-1. **Strict steps** (fail CI if broken):
-   - `npm ci` - Install dependencies
-   - `npx prisma generate` - Generate Prisma client
-   - `npx prisma db push` - Apply schema
-   - `npm run type-check` - TypeScript validation
-   - `npm run build` - Next.js build
-
-2. **Non-blocking steps** (warn but don't fail CI):
-   - `tools/apply_sql.js` - SQL views/constraints
-   - `prisma/seed.js` - Database seeding
-
-### Vercel Deployment
-
-The repository is linked to Vercel via `.vercel/project.json`. Deployment triggers automatically on push to `main`.
-
-**Required Vercel Environment Variables:**
-- `DATABASE_URL` - PostgreSQL connection string
-- `SENDGRID_API_KEY` - For email functionality
-- `SENDGRID_FROM_EMAIL` - Sender email address
-
-**Build Configuration:**
-- Framework: Next.js
-- Build Command: `npm run build` (postinstall runs `prisma generate`)
-- Output Directory: `.next`
-- Node.js Version: 20.x
-
-### Verifying the Setup
-
-**Local verification:**
-```bash
-npm ci && npm run build  # Should complete without errors
-```
-
-**CI verification:**
-- Push to a feature branch and create a PR
-- Check that the PR check workflow passes
-
-**Vercel verification:**
-- Merge to `main` triggers deployment
-- Check deployment logs at https://vercel.com/mallan/mallan-nyc
-
----
-
-## Last Work Completed
-
-- CI guardrails implemented (`scripts/ci/guardrails.mjs`)
-- Legacy `frontend/` and `pages/` directories archived
-- Backup files moved to `archive/`
-- README governance markers added
-- Deploy readiness fixes (Prisma generation, Vercel linkage, CI alignment)
