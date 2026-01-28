@@ -196,5 +196,7 @@ docker run -d --name mallan-postgres \
 # 5. Push schema to database
 npx prisma db push
 
+md
+
 # 6. Start development server
 npm run dev
