@@ -30,7 +30,7 @@ function ListingCard({ listing }: { listing: Listing }) {
   const [imageError, setImageError] = useState(false);
 
   const isRental = listing.listingType === 'rent';
-  const primaryImage = listing.media.images.find(img => img.isPrimary)?.url || listing.media.images[0]?.url || '/images/listing-placeholder.jpg';
+  const primaryImage = listing.media.images.find(img => img.isPrimary)?.url || listing.media.images[0]?.url || '/images/listing-placeholder.svg';
   const beds = listing.propertyInfo.bedroomsTotal;
   const baths = listing.propertyInfo.bathroomsFull;
   const halfBaths = listing.propertyInfo.bathroomsHalf;
@@ -45,7 +45,7 @@ function ListingCard({ listing }: { listing: Listing }) {
           <div className="absolute inset-0 bg-gray-100 animate-pulse" />
         )}
         <Image
-          src={imageError ? '/images/listing-placeholder.jpg' : primaryImage}
+          src={imageError ? '/images/listing-placeholder.svg' : primaryImage}
           alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
           fill
           className={`object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}

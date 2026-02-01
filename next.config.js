@@ -2,6 +2,17 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // Remote image domains for next/image optimization
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+    ],
+  },
+
   // Keep ESLint/TypeScript build-time checks enabled so the baseline verification
   // workflow catches issues during CI/build.
   eslint: {

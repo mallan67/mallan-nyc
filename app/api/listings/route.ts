@@ -1,12 +1,29 @@
 import { NextResponse } from 'next/server';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
+import { logAccessDenied } from '@/lib/idx';
 
 // Mark as dynamic since we may want to add query params
 export const dynamic = 'force-dynamic';
 
 /**
+ * Check if this endpoint should serve IDX data
+ * Currently serves local JSON data only (exclusive/manual listings)
+ */
+function isIDXDataRequest(request: Request): boolean {
+  const { searchParams } = new URL(request.url);
+  // Future: Check for IDX-specific query params
+  // For now, this endpoint only serves local data
+  return searchParams.get('source') === 'idx';
+}
+
+/**
  * GET /api/listings
+ *
+ * COMPLIANCE NOTE:
+ * This endpoint currently serves ONLY local/exclusive listings from data/listings.json.
+ * It does NOT serve IDX/MLS data. When IDX integration is enabled, IDX data will be
+ * fetched server-side via lib/idx/client.ts and merged with exclusive listings.
  *
  * Query parameters:
  * - type: 'sale' | 'rent' - Filter by listing type
@@ -20,10 +37,29 @@ export const dynamic = 'force-dynamic';
  * - featured: boolean - Only show featured listings
  * - exclusive: boolean - Only show exclusive listings
  * - limit: number - Max results (default 50)
+ * - source: 'idx' - (Future) Request IDX data specifically
  *
  * Future: This endpoint will be enhanced to pull from IDX/RLS feeds
  */
 export async function GET(request: Request) {
+  // Gate IDX data requests until integration is complete
+  if (isIDXDataRequest(request)) {
+    const idxEnabled = process.env.IDX_ENABLED === 'true';
+    if (!idxEnabled) {
+      logAccessDenied('IDX disabled - source=idx rejected', '/api/listings');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'IDX data source not available',
+          _compliance: {
+            message: 'IDX integration pending approval. Only exclusive listings available.',
+          },
+        },
+        { status: 503 }
+      );
+    }
+    // Future: Fetch from IDX when enabled
+  }
   try {
     const { searchParams } = new URL(request.url);
 
@@ -96,6 +132,12 @@ export async function GET(request: Request) {
       success: true,
       count: listings.length,
       listings,
+      // Compliance metadata
+      _compliance: {
+        source: 'exclusive', // Currently serving exclusive/manual listings only
+        idxEnabled: process.env.IDX_ENABLED === 'true',
+        disclaimer: 'Information deemed reliable but not guaranteed.',
+      },
       // Future: Add pagination info
       // pagination: { page: 1, pageSize: limit, total: totalCount }
     });

@@ -87,7 +87,7 @@ export default function AgentsGrid() {
                   {/* Photo */}
                   <div className="relative aspect-square mb-4 overflow-hidden rounded-lg bg-gray-100">
                     <Image
-                      src={agent.photo || '/images/agent-placeholder.jpg'}
+                      src={agent.photo || '/images/agent-placeholder.svg'}
                       alt={agent.name}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"

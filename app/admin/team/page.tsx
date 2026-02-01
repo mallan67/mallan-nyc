@@ -63,7 +63,7 @@ export default function AdminTeamPage() {
       id: Date.now().toString(),
       name: '',
       title: 'Licensed Real Estate Salesperson',
-      photo: '/images/agent-placeholder.jpg',
+      photo: '/images/agent-placeholder.svg',
       phone: '',
       email: '',
       bio: '',
