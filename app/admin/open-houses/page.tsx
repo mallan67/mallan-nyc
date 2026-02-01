@@ -88,7 +88,7 @@ export default function AdminOpenHousesPage() {
       agentName: '',
       agentPhone: '',
       description: '',
-      image: '/images/listing-placeholder.jpg',
+      image: '/images/listing-placeholder.svg',
       featured: false,
     };
     setEditingOH(newOH);

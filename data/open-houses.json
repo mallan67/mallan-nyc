@@ -15,7 +15,7 @@
       "agentName": "Sarah Chen",
       "agentPhone": "(646) 555-0101",
       "description": "Stunning corner unit with abundant natural light and city views. Recently renovated kitchen and bathrooms. Full-service building with doorman, gym, and roof deck.",
-      "image": "/images/listing-placeholder.jpg",
+      "image": "/images/listing-placeholder.svg",
       "featured": true
     },
     {
@@ -33,7 +33,7 @@
       "agentName": "Jennifer Park",
       "agentPhone": "(646) 555-0103",
       "description": "Charming pre-war one bedroom with original details including hardwood floors and high ceilings. Well-maintained building with live-in super. Steps from subway and shopping.",
-      "image": "/images/listing-placeholder.jpg",
+      "image": "/images/listing-placeholder.svg",
       "featured": false
     },
     {
@@ -51,7 +51,7 @@
       "agentName": "David Thompson",
       "agentPhone": "(646) 555-0104",
       "description": "Spacious three bedroom in the heart of Brooklyn Heights. Open layout, chef's kitchen, and private outdoor space. Pet-friendly building with parking available.",
-      "image": "/images/listing-placeholder.jpg",
+      "image": "/images/listing-placeholder.svg",
       "featured": true
     },
     {
@@ -69,7 +69,7 @@
       "agentName": "Michael Rodriguez",
       "agentPhone": "(646) 555-0102",
       "description": "Luxury high-rise living with stunning Hudson River views. Floor-to-ceiling windows, premium finishes, and resort-style amenities including pool, spa, and 24-hour concierge.",
-      "image": "/images/listing-placeholder.jpg",
+      "image": "/images/listing-placeholder.svg",
       "featured": true
     }
   ]

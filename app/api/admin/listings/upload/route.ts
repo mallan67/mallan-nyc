@@ -444,7 +444,7 @@ function csvRowToListing(row: CSVRow, index: number): ListingData {
     media: {
       images: [
         {
-          url: row.image_url || '/images/listing-placeholder.jpg',
+          url: row.image_url || '/images/listing-placeholder.svg',
           caption: 'Primary Photo',
           order: 1,
           isPrimary: true,

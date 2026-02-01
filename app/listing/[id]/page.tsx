@@ -135,7 +135,7 @@ export default async function ListingPage({ params }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="relative aspect-[16/9] md:aspect-[21/9]">
             <Image
-              src={listing.media.images[0]?.url || '/images/listing-placeholder.jpg'}
+              src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
               alt={fullAddress}
               fill
               className="object-cover"

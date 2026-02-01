@@ -198,3 +198,22 @@ npx prisma db push
 
 # 6. Start development server
 npm run dev
+```
+
+---
+
+## Last Work Completed
+
+**Phase 1 IDX Pre-Approval Hardening** (January 2026)
+
+- Added `IDX_ENABLED` feature flag (default: false)
+- Created `/lib/idx/` integration shell:
+  - `client.ts` - Server-side IDX client with credential gating
+  - `types.ts` - RESO-aligned canonical listing types
+  - `mapping.ts` - RESO field mapping placeholders
+  - `logger.ts` - Audit logging for compliance
+- Added `IDXDisclaimer` component for required attribution
+- Gated `/api/listings` endpoints to block IDX data until approved
+- Updated `.env.example` with IDX configuration variables
+
+**Status:** Awaiting Trestle/REBNY credentials for Phase 2 implementation.

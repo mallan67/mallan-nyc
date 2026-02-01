@@ -329,7 +329,7 @@ function SearchClient() {
                   {/* Image */}
                   <div className="relative aspect-[4/3] bg-gray-100">
                     <Image
-                      src={listing.media.images[0]?.url || '/images/listing-placeholder.jpg'}
+                      src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
                       alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"

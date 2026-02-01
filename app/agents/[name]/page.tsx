@@ -75,7 +75,7 @@ function ClosedListingCard({ listing, isRental }: { listing: Listing; isRental: 
           src={
             listing.media.images.find((img) => img.isPrimary)?.url ||
             listing.media.images[0]?.url ||
-            '/images/listing-placeholder.jpg'
+            '/images/listing-placeholder.svg'
           }
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           fill
@@ -115,7 +115,7 @@ function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: 
           src={
             listing.media.images.find((img) => img.isPrimary)?.url ||
             listing.media.images[0]?.url ||
-            '/images/listing-placeholder.jpg'
+            '/images/listing-placeholder.svg'
           }
           alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
           fill
@@ -191,7 +191,7 @@ export default async function AgentPage({ params }: Props) {
               <div className="flex-shrink-0 mx-auto md:mx-0">
                 <div className="relative w-48 h-48 sm:w-56 sm:h-56 overflow-hidden rounded-full bg-gray-100 ring-4 ring-gray-50">
                   <Image
-                    src={agent.photo || '/images/agent-placeholder.jpg'}
+                    src={agent.photo || '/images/agent-placeholder.svg'}
                     alt={agent.name}
                     fill
                     className="object-cover"

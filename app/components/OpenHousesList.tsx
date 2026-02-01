@@ -143,7 +143,7 @@ export default function OpenHousesList() {
                         {/* Image */}
                         <div className="relative aspect-video bg-gray-100">
                           <Image
-                            src={oh.image || '/images/listing-placeholder.jpg'}
+                            src={oh.image || '/images/listing-placeholder.svg'}
                             alt={oh.address}
                             fill
                             className="object-cover"
