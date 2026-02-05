@@ -16,8 +16,28 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Debug - Verify files exist
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "`nRoot contents:"
+          Get-ChildItem -Name
+          Write-Host "`nScripts directory:"
+          if (Test-Path .\scripts) {
+            Get-ChildItem .\scripts -Name
+          } else {
+            Write-Error "scripts/ directory not found!"
+            exit 1
+          }
+          Write-Host "`nVerifying geocode.ps1 exists:"
+          if (-not (Test-Path .\scripts\geocode.ps1)) {
+            Write-Error "scripts/geocode.ps1 not found!"
+            exit 1
+          }
+          Write-Host "✓ scripts\geocode.ps1 found"
+
       - name: Run PowerShell Geocode Script
-        run: ./scripts/geocode.ps1 -In data/addresses.csv -Out data/geoclient_addresses_out.csv
+        run: .\scripts\geocode.ps1 -In data\addresses.csv -Out data\geoclient_addresses_out.csv
         env:
           NYC_GEOCLIENT_KEY: ${{ secrets.NYC_GEOCLIENT_KEY }}
 
@@ -25,7 +45,7 @@ jobs:
         id: check_diff
         run: |
           git fetch origin main
-          if (git diff --quiet origin/main -- data/geoclient_addresses_out.csv) {
+          if (git diff --quiet origin/main -- data\geoclient_addresses_out.csv) {
             echo "No changes to geocoded file."
             echo "changed=false" >> $env:GITHUB_OUTPUT
           } else {
@@ -38,7 +58,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/geoclient_addresses_out.csv
+          git add data\geoclient_addresses_out.csv
           git commit -m "Auto-update geocoded CSV"
           git push
 
