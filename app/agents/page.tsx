@@ -6,6 +6,16 @@ import AgentsGrid from '@/app/components/AgentsGrid';
 export const metadata: Metadata = {
   title: 'Our Agents | Mallan Real Estate',
   description: 'Meet our team of experienced real estate professionals serving New York City.',
+  alternates: { canonical: 'https://mallan.nyc/agents' },
+  openGraph: {
+    title: 'Our Agents | Mallan Real Estate',
+    description: 'Meet our team of licensed, experienced real estate professionals serving buyers, sellers, and renters across NYC.',
+    url: 'https://mallan.nyc/agents',
+  },
+  twitter: {
+    title: 'Our Agents | Mallan Real Estate',
+    description: 'Meet our team of licensed, experienced real estate professionals serving buyers, sellers, and renters across NYC.',
+  },
 };
 
 export default function AgentsPage() {

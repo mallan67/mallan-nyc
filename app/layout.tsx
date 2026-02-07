@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   creator: 'Mallan Real Estate Inc.',
   publisher: 'Mallan Real Estate Inc.',
   alternates: {
-    canonical: '/',
+    canonical: BASE_URL,
   },
   openGraph: {
     type: 'website',
@@ -44,6 +44,14 @@ export const metadata: Metadata = {
     title: 'Mallan Real Estate Inc. | Licensed NYC Real Estate Broker',
     description:
       'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
+    images: [
+      {
+        url: `${BASE_URL}/images/og-default.svg`,
+        width: 1200,
+        height: 630,
+        alt: 'Mallan Real Estate Inc. - Licensed NYC Real Estate Broker',
+      },
+    ],
   },
   twitter: {
     card: 'summary',
@@ -74,8 +82,8 @@ const jsonLd = {
   '@id': `${BASE_URL}/#organization`,
   name: 'Mallan Real Estate Inc.',
   url: BASE_URL,
-  logo: `${BASE_URL}/images/logo.png`,
-  image: `${BASE_URL}/images/og-image.jpg`,
+  logo: `${BASE_URL}/images/og-default.svg`,
+  image: `${BASE_URL}/images/og-default.svg`,
   description:
     'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
   telephone: '+1-646-258-4460',

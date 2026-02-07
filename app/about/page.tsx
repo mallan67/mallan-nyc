@@ -6,6 +6,16 @@ import AboutContent from '@/app/components/AboutContent';
 export const metadata: Metadata = {
   title: 'About Us | Mallan Real Estate',
   description: 'Learn about Mallan Real Estate - our story, mission, and commitment to exceptional service in NYC real estate.',
+  alternates: { canonical: 'https://mallan.nyc/about' },
+  openGraph: {
+    title: 'About Us | Mallan Real Estate',
+    description: 'Learn about Mallan Real Estate Inc. — a full-service NYC brokerage committed to exceptional service in residential sales and rentals.',
+    url: 'https://mallan.nyc/about',
+  },
+  twitter: {
+    title: 'About Us | Mallan Real Estate',
+    description: 'Learn about Mallan Real Estate Inc. — a full-service NYC brokerage committed to exceptional service in residential sales and rentals.',
+  },
 };
 
 export default function AboutPage() {

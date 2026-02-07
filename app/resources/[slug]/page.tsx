@@ -15,9 +15,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     'investors-guide': "Investor's Guide",
   };
 
+  const title = `${titles[slug] || 'Resource'} | Mallan Real Estate`;
+  const description = `Comprehensive ${titles[slug] || 'guide'} for NYC real estate from Mallan Real Estate.`;
+
   return {
-    title: `${titles[slug] || 'Resource'} | Mallan Real Estate`,
-    description: `Comprehensive ${titles[slug] || 'guide'} for NYC real estate from Mallan Real Estate.`,
+    title,
+    description,
+    alternates: { canonical: `https://mallan.nyc/resources/${slug}` },
+    openGraph: { title, description, url: `https://mallan.nyc/resources/${slug}` },
+    twitter: { title, description },
   };
 }
 

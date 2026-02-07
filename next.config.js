@@ -26,6 +26,20 @@ const nextConfig = {
     // do not ignore type errors during build — keep CI strict
     ignoreBuildErrors: false,
   },
+
+  // Restrict CORS on API routes to same-origin
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: 'https://mallan.nyc' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

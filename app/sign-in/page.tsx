@@ -5,7 +5,9 @@ import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Sign In | Mallan Real Estate',
-  description: 'Sign in to your Mallan Real Estate account.',
+  description: 'Sign in to your Mallan Real Estate account to access saved searches, favorites, and more.',
+  alternates: { canonical: 'https://mallan.nyc/sign-in' },
+  robots: { index: false, follow: true },
 };
 
 export default function SignInPage() {
