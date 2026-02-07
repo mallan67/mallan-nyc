@@ -7,11 +7,99 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Sell Your Property | Mallan Real Estate',
   description: 'Sell your NYC property with Mallan Real Estate. Expert guidance, professional marketing, and proven results.',
+  alternates: { canonical: 'https://mallan.nyc/sell' },
+  openGraph: {
+    title: 'Sell Your Property | Mallan Real Estate',
+    description: 'Sell your NYC property with expert guidance, professional marketing, and proven results from Mallan Real Estate.',
+    url: 'https://mallan.nyc/sell',
+  },
+  twitter: {
+    title: 'Sell Your Property | Mallan Real Estate',
+    description: 'Sell your NYC property with expert guidance, professional marketing, and proven results from Mallan Real Estate.',
+  },
+};
+
+const sellHowToSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'How to Sell Your Property in NYC',
+  description: 'A 5-step guide to selling your property in New York City with Mallan Real Estate.',
+  step: [
+    {
+      '@type': 'HowToStep',
+      position: 1,
+      name: 'Consultation',
+      text: 'Meet with a licensed agent to discuss your goals, timeline, and assess your property. You will receive a comprehensive market analysis.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 2,
+      name: 'Preparation',
+      text: 'Receive recommendations for staging, repairs, and improvements to maximize your property\'s appeal. Professional photography and marketing materials are prepared.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 3,
+      name: 'Marketing',
+      text: 'Your property is listed across all major platforms including REBNY RLS and marketed to a network of buyers and brokers.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 4,
+      name: 'Showings and Offers',
+      text: 'All showings are managed and offers are presented for your review. The team guides you through negotiations to secure the best terms.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 5,
+      name: 'Closing',
+      text: 'Coordination with attorneys, buyers, and all parties ensures a smooth closing process from contract to keys.',
+    },
+  ],
+};
+
+const sellFaqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How long does it take to sell a property in NYC?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'The average time to sell a property in NYC is 3 to 6 months from listing to closing. Well-priced properties in desirable neighborhoods can sell faster. Co-ops may take longer due to board approval requirements, typically adding 1-3 months to the timeline.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What are the closing costs for sellers in NYC?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'NYC sellers should expect closing costs of approximately 6-8% of the sale price, including: broker commission, NYC/NYS transfer taxes (1.4-1.825% depending on price), attorney fees ($2,000-$5,000), and any building-required fees like flip taxes for co-ops. Properties over $1 million are subject to a mansion tax paid by the buyer.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Do I need to stage my NYC property before selling?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'While not required, professional staging can significantly impact sale price and time on market. Staged properties in NYC typically sell 5-15% faster and often achieve higher prices. At minimum, decluttering and professional photography are recommended for all listings.',
+      },
+    },
+  ],
 };
 
 export default function SellPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(sellHowToSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(sellFaqSchema) }}
+      />
       <Header dark />
       <main className="pt-20">
         {/* Hero Section */}

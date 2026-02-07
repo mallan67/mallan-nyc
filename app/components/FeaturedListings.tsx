@@ -91,7 +91,7 @@ function ListingCard({ listing }: { listing: Listing }) {
 
 export default function FeaturedListings() {
   // Get featured listings, prioritizing exclusives and featured flags
-  const listings = (listingsData.listings as Listing[])
+  const listings = (listingsData.listings as unknown as Listing[])
     .filter((l) => l.status === 'active')
     .sort((a, b) => {
       // Featured first

@@ -188,9 +188,11 @@ export default function Footer() {
             </p>
             <p className="text-xs text-gray-500 max-w-4xl mx-auto">
               <strong>Fair Housing Notice:</strong> REBNY promotes fair housing practices. All listings
-              are presented in compliance with federal, state, and local fair housing laws prohibiting
-              discrimination based on race, color, religion, national origin, sex, familial status,
-              disability, sexual orientation, gender identity, lawful source of income, or any other
+              are presented in compliance with the federal Fair Housing Act, the New York State Human
+              Rights Law, and the New York City Human Rights Law, prohibiting discrimination based on
+              race, color, religion, national origin, sex, familial status, disability, sexual orientation,
+              gender identity or expression, marital status, age, military status, lawful source of income,
+              citizenship status, partnership status, caregiver status, immigration status, or any other
               protected characteristic.
             </p>
           </div>

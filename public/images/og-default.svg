@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect x="0" y="0" width="1200" height="4" fill="#C4A052"/>
+  <rect x="0" y="626" width="1200" height="4" fill="#C4A052"/>
+  <text x="600" y="260" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="600" fill="#ffffff" letter-spacing="2">Mallan Real Estate Inc.</text>
+  <text x="600" y="320" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#C4A052" letter-spacing="4" text-transform="uppercase">Licensed NYC Real Estate Broker</text>
+  <line x1="500" y1="355" x2="700" y2="355" stroke="#C4A052" stroke-width="1" opacity="0.5"/>
+  <text x="600" y="395" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#94a3b8">(646) 258-4460</text>
+  <text x="600" y="425" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="#64748b">400 East 90th Street, Suite 17C, New York, NY 10128</text>
+  <text x="600" y="460" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#475569">License #10991205323</text>
+</svg>
