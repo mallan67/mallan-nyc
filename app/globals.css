@@ -15,8 +15,6 @@
   --breakpoint-2xl: 1536px;
 }
 
-@import url('https://fonts.cdnfonts.com/css/liberation-serif');
-
 /* ---------- Base + Variables ---------- */
 @layer base {
   :root {

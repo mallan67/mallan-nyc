@@ -212,7 +212,7 @@ export default function OpenHousesList() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-2xl md:text-3xl font-semibold mb-4">
             Can&apos;t Make It to an Open House?

@@ -160,7 +160,7 @@ export default function AgentsGrid() {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-2xl md:text-3xl font-semibold mb-4">
             Ready to Get Started?

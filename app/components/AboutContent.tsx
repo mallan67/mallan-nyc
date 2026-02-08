@@ -92,7 +92,7 @@ export default function AboutContent() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12 bg-white">
         <div className="max-w-5xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {data.stats.map((stat, index) => (
@@ -122,7 +122,7 @@ export default function AboutContent() {
       </section>
 
       {/* Values Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-2xl md:text-3xl font-semibold mb-10 text-center">Our Values</h2>
           <div className="grid md:grid-cols-2 gap-8">
