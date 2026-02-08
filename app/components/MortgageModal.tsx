@@ -126,7 +126,7 @@ export default function MortgageModal({
               {/* Total Monthly Payment */}
               <div className="bg-gradient-to-br from-brand-gold/10 to-brand-gold/5 rounded-xl p-6 text-center">
                 <p className="text-sm text-gray-600 mb-1">Estimated Monthly Payment</p>
-                <p className="text-3xl font-bold text-brand-dark">
+                <p className="text-2xl font-bold text-brand-dark">
                   ${calculations.totalMonthly.toLocaleString()}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">

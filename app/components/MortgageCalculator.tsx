@@ -84,7 +84,7 @@ export default function MortgageCalculator({
       {/* Total Monthly Payment */}
       <div className="bg-brand-gold/5 rounded-lg p-4 mb-6 text-center">
         <p className="text-sm text-gray-600 mb-1">Estimated Monthly Payment</p>
-        <p className="text-3xl font-bold text-brand-dark">
+        <p className="text-2xl font-bold text-brand-dark">
           ${calculations.totalMonthly.toLocaleString()}
         </p>
       </div>

@@ -91,7 +91,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
     return (
       <div className="py-16 text-center">
         <div className="max-w-xl mx-auto px-4">
-          <h1 className="text-3xl font-semibold mb-4">Resource Not Found</h1>
+          <h1 className="text-2xl font-semibold mb-4">Resource Not Found</h1>
           <p className="text-gray-600 mb-8">
             The resource you&apos;re looking for doesn&apos;t exist.
           </p>
@@ -121,7 +121,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
           <div className="absolute inset-0 bg-black/50" />
         </div>
         <div className="relative z-10 text-center text-white px-4 max-w-3xl">
-          <h1 className="text-3xl md:text-4xl font-semibold mb-4">{data.title}</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold mb-4">{data.title}</h1>
           <p className="text-lg md:text-xl text-gray-200">{data.subtitle}</p>
         </div>
       </section>
@@ -151,7 +151,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
         <div className="max-w-3xl mx-auto px-4">
           {data.sections.map((section, index) => (
             <div key={index} id={`section-${index}`} className="mb-12 scroll-mt-24">
-              <h2 className="text-2xl font-semibold mb-4 pb-2 border-b">
+              <h2 className="text-xl font-semibold mb-4 pb-2 border-b">
                 {section.title}
               </h2>
               <div
@@ -167,7 +167,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
       {data.cta && (
         <section className="py-16 bg-brand-dark text-white">
           <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-2xl md:text-3xl font-semibold mb-4">
+            <h2 className="text-xl md:text-2xl font-semibold mb-4">
               {data.cta.title}
             </h2>
             <p className="text-gray-300 mb-8">

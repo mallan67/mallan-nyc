@@ -24,7 +24,7 @@ function renderMarkdown(content: string): string {
 export default function ServerLegalPage({ title, lastUpdated, content }: ServerLegalPageProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
-      <h1 className="text-2xl md:text-3xl font-semibold mb-2">{title}</h1>
+      <h1 className="text-xl md:text-2xl font-semibold mb-2">{title}</h1>
       {lastUpdated && (
         <p className="text-sm text-gray-500 mb-8">
           Last updated: {new Date(lastUpdated).toLocaleDateString('en-US', {

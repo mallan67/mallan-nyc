@@ -64,7 +64,7 @@ export default function AgentsGrid() {
       {/* Hero Section */}
       <section className="bg-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-semibold mb-4">Our Team</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold mb-4">Our Team</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Our experienced agents bring deep market knowledge and a client-first approach
             to every transaction. Meet the professionals ready to help you achieve your
@@ -162,7 +162,7 @@ export default function AgentsGrid() {
       {/* Contact CTA */}
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-4">
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">
             Ready to Get Started?
           </h2>
           <p className="text-gray-600 mb-8">

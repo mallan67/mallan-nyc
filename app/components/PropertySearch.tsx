@@ -429,7 +429,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
       {/* Contact CTA */}
       <section className="py-16 bg-white border-t">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold mb-4">
             Don&apos;t See What You&apos;re Looking For?
           </h2>
           <p className="text-gray-600 mb-8">

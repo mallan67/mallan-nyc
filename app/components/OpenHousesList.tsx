@@ -109,7 +109,7 @@ export default function OpenHousesList() {
       {/* Hero Section */}
       <section className="bg-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-semibold mb-4">Open Houses</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold mb-4">Open Houses</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Visit our upcoming open houses to explore available properties in person.
             No appointment needed—just stop by during the scheduled times.
@@ -131,7 +131,7 @@ export default function OpenHousesList() {
             <div className="space-y-12">
               {dates.map(date => (
                 <div key={date}>
-                  <h2 className="text-2xl font-semibold mb-6 pb-2 border-b">
+                  <h2 className="text-xl font-semibold mb-6 pb-2 border-b">
                     {formatDate(date)}
                   </h2>
                   <div className="grid md:grid-cols-2 gap-6">
@@ -214,7 +214,7 @@ export default function OpenHousesList() {
       {/* CTA Section */}
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-4">
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">
             Can&apos;t Make It to an Open House?
           </h2>
           <p className="text-gray-600 mb-8">

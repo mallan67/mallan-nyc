@@ -123,7 +123,7 @@ export default function SellPage() {
                 Back to Home
               </Link>
             </div>
-            <h1 className="text-3xl md:text-4xl font-semibold mb-4">
+            <h1 className="text-xl md:text-2xl font-semibold mb-4">
               Sell Your Property
             </h1>
             <p className="text-lg md:text-xl text-gray-200">
@@ -136,7 +136,7 @@ export default function SellPage() {
         {/* Why Sell With Us */}
         <section className="py-16 bg-white">
           <div className="max-w-5xl mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">
+            <h2 className="text-xl md:text-2xl font-semibold text-center mb-12">
               Why Sell With Mallan Real Estate
             </h2>
             <div className="grid md:grid-cols-3 gap-8">
@@ -184,7 +184,7 @@ export default function SellPage() {
         {/* Process */}
         <section className="py-16 bg-white">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-semibold text-center mb-12">
+            <h2 className="text-xl md:text-2xl font-semibold text-center mb-12">
               Our Selling Process
             </h2>
             <div className="space-y-8">
@@ -234,7 +234,7 @@ export default function SellPage() {
         {/* CTA */}
         <section className="py-16 bg-brand-dark text-white">
           <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-2xl md:text-3xl font-semibold mb-4">
+            <h2 className="text-xl md:text-2xl font-semibold mb-4">
               Ready to Sell?
             </h2>
             <p className="text-gray-300 mb-8">

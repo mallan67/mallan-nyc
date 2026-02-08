@@ -203,7 +203,7 @@ export default async function AgentPage({ params }: Props) {
               {/* Agent Info */}
               <div className="flex-1 text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
-                  <h1 className="text-2xl sm:text-3xl font-light tracking-wide text-brand-dark">
+                  <h1 className="text-xl sm:text-2xl font-light tracking-wide text-brand-dark">
                     {agent.name}
                   </h1>
                   {agent.featured && (

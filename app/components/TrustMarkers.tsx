@@ -17,7 +17,7 @@ export default function TrustMarkers() {
       <div className="max-w-7xl mx-auto">
         {/* Section header - consistent styling */}
         <div className="text-center mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-sans font-bold tracking-tight text-gray-900">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-sans font-bold tracking-tight text-gray-900">
             Licensed &amp; Compliant
           </h2>
           <p className="mt-2 text-sm sm:text-base text-gray-600">
