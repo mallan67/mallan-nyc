@@ -36,7 +36,7 @@ export default function PriceWithCalculator({
   return (
     <>
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl md:text-3xl font-sans">
+        <h1 className="text-xl md:text-2xl font-sans">
           {formatPrice(price, isRental)}
         </h1>
         {!isRental && (

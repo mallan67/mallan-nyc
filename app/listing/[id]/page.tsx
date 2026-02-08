@@ -214,28 +214,28 @@ export default async function ListingPage({ params }: Props) {
                 {/* Quick Stats */}
                 <div className="flex flex-wrap gap-6 py-4 border-y">
                   <div>
-                    <span className="text-2xl font-semibold">{listing.propertyInfo.bedroomsTotal}</span>
+                    <span className="text-xl font-semibold">{listing.propertyInfo.bedroomsTotal}</span>
                     <span className="text-gray-500 ml-1">Beds</span>
                   </div>
                   <div>
-                    <span className="text-2xl font-semibold">
+                    <span className="text-xl font-semibold">
                       {listing.propertyInfo.bathroomsFull}
                       {listing.propertyInfo.bathroomsHalf > 0 && `.${listing.propertyInfo.bathroomsHalf}`}
                     </span>
                     <span className="text-gray-500 ml-1">Baths</span>
                   </div>
                   <div>
-                    <span className="text-2xl font-semibold">{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()}</span>
+                    <span className="text-xl font-semibold">{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()}</span>
                     <span className="text-gray-500 ml-1">Sq Ft</span>
                   </div>
                   {listing.price.pricePerSqft && (
                     <div>
-                      <span className="text-2xl font-semibold">${listing.price.pricePerSqft.toLocaleString()}</span>
+                      <span className="text-xl font-semibold">${listing.price.pricePerSqft.toLocaleString()}</span>
                       <span className="text-gray-500 ml-1">/Sq Ft</span>
                     </div>
                   )}
                   <div>
-                    <span className="text-2xl font-semibold">{listing.propertyInfo.totalRooms}</span>
+                    <span className="text-xl font-semibold">{listing.propertyInfo.totalRooms}</span>
                     <span className="text-gray-500 ml-1">Rooms</span>
                   </div>
                 </div>

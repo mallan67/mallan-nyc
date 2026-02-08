@@ -78,7 +78,7 @@ export default function LegalPageContent({ slug }: { slug: string }) {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
-      <h1 className="text-2xl md:text-3xl font-semibold mb-2">{content.title}</h1>
+      <h1 className="text-xl md:text-2xl font-semibold mb-2">{content.title}</h1>
       {content.lastUpdated && (
         <p className="text-sm text-gray-500 mb-8">
           Last updated: {new Date(content.lastUpdated).toLocaleDateString('en-US', {

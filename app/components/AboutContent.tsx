@@ -79,14 +79,14 @@ export default function AboutContent() {
           <div className="absolute inset-0 bg-black/50" />
         </div>
         <div className="relative z-10 text-center text-white px-4">
-          <h1 className="text-3xl md:text-4xl font-semibold mb-4">{data.title}</h1>
+          <h1 className="text-xl md:text-2xl font-semibold mb-4">{data.title}</h1>
         </div>
       </section>
 
       {/* Mission Section */}
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-6">{data.mission.title}</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-6">{data.mission.title}</h2>
           <p className="text-lg text-gray-700 leading-relaxed">{data.mission.content}</p>
         </div>
       </section>
@@ -97,7 +97,7 @@ export default function AboutContent() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {data.stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <p className="text-2xl md:text-3xl font-semibold text-brand-gold mb-2">
+                <p className="text-xl md:text-2xl font-semibold text-brand-gold mb-2">
                   {stat.value}
                 </p>
                 <p className="text-sm text-gray-600 uppercase tracking-wide">
@@ -112,7 +112,7 @@ export default function AboutContent() {
       {/* Story Section */}
       <section className="py-16 bg-white">
         <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-center">{data.story.title}</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-6 text-center">{data.story.title}</h2>
           <div className="text-gray-700 leading-relaxed space-y-4">
             {data.story.content.split('\n\n').map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
@@ -124,7 +124,7 @@ export default function AboutContent() {
       {/* Values Section */}
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-10 text-center">Our Values</h2>
+          <h2 className="text-xl md:text-2xl font-semibold mb-10 text-center">Our Values</h2>
           <div className="grid md:grid-cols-2 gap-8">
             {data.values.map((value, index) => (
               <div key={index} className="bg-white p-6 rounded-lg shadow-sm">
@@ -141,7 +141,7 @@ export default function AboutContent() {
       {/* CTA Section */}
       <section className="py-16 bg-brand-dark text-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-4">
+          <h2 className="text-xl md:text-2xl font-semibold mb-4">
             Ready to Work with Us?
           </h2>
           <p className="text-gray-300 mb-8">

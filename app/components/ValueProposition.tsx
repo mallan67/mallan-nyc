@@ -15,7 +15,7 @@ export default function ValueProposition() {
       <div className="max-w-7xl mx-auto">
         {/* Main Value Statement - consistent header styling */}
         <div className="text-center mb-10 sm:mb-12">
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-sans font-bold tracking-tight text-gray-900">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-sans font-bold tracking-tight text-gray-900">
             Licensed NYC Brokerage
           </h2>
           <p className="mt-3 text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto">

@@ -393,7 +393,7 @@ function SearchClient() {
       {/* Contact CTA */}
       <section className="py-16 bg-white border-t">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl sm:text-3xl font-light tracking-tight mb-4">
+          <h2 className="text-xl sm:text-2xl font-light tracking-tight mb-4">
             Need Help Finding Your Perfect Property?
           </h2>
           <p className="text-gray-500 mb-8">
