@@ -106,7 +106,7 @@ export default function FeaturedListings() {
     .slice(0, 6);
 
   return (
-    <section className="py-12 sm:py-16 md:py-20 px-4 bg-gray-50/50">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
         {/* Section header with bold styling */}
         <div className="text-center mb-8 sm:mb-10">

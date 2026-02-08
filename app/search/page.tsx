@@ -167,7 +167,7 @@ function SearchClient() {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 15000 : priceRange[0] !== 0 || priceRange[1] !== 5000000);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Search Header - Fixed below nav header */}
       <section className="fixed top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-b z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -413,7 +413,7 @@ function SearchClient() {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
+    <div className="min-h-screen bg-white pt-20 flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-gray-500">Loading properties...</p>

@@ -62,7 +62,7 @@ export default function AgentsGrid() {
   return (
     <>
       {/* Hero Section */}
-      <section className="bg-gray-50 py-16">
+      <section className="bg-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-semibold mb-4">Our Team</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">

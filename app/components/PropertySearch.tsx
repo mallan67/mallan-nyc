@@ -175,7 +175,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 15000 : priceRange[0] !== 0 || priceRange[1] !== 5000000);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="min-h-screen bg-white pt-20">
       {/* Search Header */}
       <section className="bg-white border-b sticky top-20 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
