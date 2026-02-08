@@ -8,6 +8,153 @@ export type MLSStatus = 'Active' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' |
 export type PropertyType = 'Condo' | 'Co-op' | 'Condop' | 'Townhouse' | 'Multi-Family' | 'Mixed-Use' | 'Land';
 export type Borough = 'Manhattan' | 'Brooklyn' | 'Queens' | 'Bronx' | 'Staten Island';
 
+// ============================================================================
+// LUXURY TIER SYSTEM - MOCK MODE IMPLEMENTATION
+// ============================================================================
+
+/**
+ * Luxury tier classification based on price thresholds and amenity scoring
+ * Tiers align with NYC luxury market segmentation
+ */
+export type LuxuryTier =
+  | 'standard'      // Below $1.5M sale / $5K rent
+  | 'premium'       // $1.5M-$5M sale / $5K-$15K rent
+  | 'luxury'        // $5M-$15M sale / $15K-$35K rent
+  | 'ultra-luxury'  // $15M-$50M sale / $35K-$75K rent
+  | 'trophy';       // $50M+ sale / $75K+ rent (museum-quality, landmark)
+
+/**
+ * Market positioning for luxury properties
+ */
+export type LuxuryMarketPosition =
+  | 'off-market'           // Private, never publicly listed
+  | 'pocket-listing'       // Shared only within network
+  | 'pre-market'           // Coming soon, exclusive preview
+  | 'quietly-available'    // Listed but minimal marketing
+  | 'full-market';         // Standard market exposure
+
+/**
+ * Buyer qualification levels for luxury properties
+ */
+export type BuyerQualification =
+  | 'verified-funds'       // Proof of funds on file
+  | 'pre-approved'         // Mortgage pre-approval
+  | 'cash-buyer'           // All-cash verified
+  | 'institutional'        // Fund/trust/entity purchase
+  | 'uhnw-verified';       // Ultra-high-net-worth verified ($30M+ liquid)
+
+/**
+ * Comprehensive luxury designation for high-end properties
+ */
+export interface LuxuryDesignation {
+  tier: LuxuryTier;
+  marketPosition: LuxuryMarketPosition;
+
+  // Scoring (0-100 scale)
+  amenityScore: number;           // Based on building + unit amenities
+  locationScore: number;          // Based on address prestige
+  finishScore: number;            // Based on interior quality indicators
+  overallLuxuryScore: number;     // Weighted composite score
+
+  // Classification flags
+  isLandmark: boolean;            // NYC Landmark building
+  isArchitecturallySignificant: boolean;
+  isCelebrityOwned: boolean;      // Notable ownership history
+  isPenthouse: boolean;
+  isFullFloor: boolean;
+  isTownhouse: boolean;
+  isDuplex: boolean;
+  isTriplex: boolean;
+
+  // Premium features
+  hasPrivateElevator: boolean;
+  hasPrivatePool: boolean;
+  hasWineCellar: boolean;
+  hasHomeTheater: boolean;
+  hasSmartHome: boolean;
+  hasSafeRoom: boolean;
+  hasStaffQuarters: boolean;
+
+  // Views (premium indicators)
+  hasCentralParkView: boolean;
+  hasRiverView: boolean;
+  hasSkylineView: boolean;
+  hasWaterView: boolean;
+  hasDirectParkView: boolean;
+
+  // Building prestige
+  buildingPrestigeLevel: 'iconic' | 'prestigious' | 'established' | 'emerging' | 'standard';
+  buildingPedigree: string | null;  // e.g., "Robert A.M. Stern design"
+
+  // Buyer requirements
+  minimumBuyerQualification: BuyerQualification | null;
+  requiresNDA: boolean;
+  requiresPreApproval: boolean;
+
+  // White-glove service
+  dedicatedShowingAgent: string | null;
+  privateShowingsOnly: boolean;
+  byAppointmentOnly: boolean;
+}
+
+/**
+ * Price thresholds for automatic luxury tier calculation (NYC market)
+ */
+export const LUXURY_PRICE_THRESHOLDS = {
+  sale: {
+    standard: 0,
+    premium: 1_500_000,
+    luxury: 5_000_000,
+    'ultra-luxury': 15_000_000,
+    trophy: 50_000_000,
+  },
+  rent: {
+    standard: 0,
+    premium: 5_000,
+    luxury: 15_000,
+    'ultra-luxury': 35_000,
+    trophy: 75_000,
+  },
+} as const;
+
+/**
+ * Amenity weights for luxury scoring
+ */
+export const LUXURY_AMENITY_WEIGHTS = {
+  // Building amenities
+  fullTimeDoorman: 10,
+  concierge: 8,
+  privateElevator: 15,
+  gym: 3,
+  pool: 8,
+  roofDeck: 5,
+  garage: 4,
+
+  // Unit features
+  penthouse: 20,
+  fullFloor: 18,
+  duplex: 12,
+  triplex: 15,
+  terrace: 8,
+  balcony: 4,
+  fireplace: 5,
+
+  // Premium additions
+  privatePool: 20,
+  wineCellar: 8,
+  homeTheater: 7,
+  smartHome: 5,
+  staffQuarters: 12,
+  safeRoom: 6,
+
+  // Views
+  centralParkView: 25,
+  directParkView: 20,
+  riverView: 15,
+  skylineView: 12,
+  waterView: 10,
+} as const;
+
 export interface ListingAddress {
   streetNumber: string;
   streetName: string;
@@ -212,6 +359,17 @@ export interface ListingFlags {
   isPriceReduced: boolean;
   isOpenHouse: boolean;
   participantOnlyNetwork: boolean;
+
+  // Luxury-specific flags
+  isLuxury: boolean;              // True if tier >= 'luxury'
+  isUltraLuxury: boolean;         // True if tier >= 'ultra-luxury'
+  isTrophy: boolean;              // True if tier === 'trophy'
+  isOffMarket: boolean;           // Not publicly advertised
+  isPocketListing: boolean;       // Network-only distribution
+  isWhiteGlove: boolean;          // Requires premium showing protocol
+  isInvestmentGrade: boolean;     // Suitable for institutional buyers
+  requiresNDA: boolean;           // NDA required before showing
+  isPreMarket: boolean;           // Coming soon / exclusive preview
 }
 
 export interface ListingCompliance {
@@ -244,6 +402,9 @@ export interface Listing {
   openHouse: OpenHouse | null;
   flags: ListingFlags;
   compliance: ListingCompliance;
+
+  // Luxury designation (null for standard tier)
+  luxury: LuxuryDesignation | null;
 }
 
 // Helper functions
@@ -282,4 +443,157 @@ export function getFullAddress(address: ListingAddress): string {
 
 export function getShortAddress(address: ListingAddress): string {
   return `${address.streetNumber} ${address.streetName}`;
+}
+
+// ============================================================================
+// LUXURY TIER UTILITY FUNCTIONS - MOCK MODE
+// ============================================================================
+
+/**
+ * Calculate luxury tier based on price
+ */
+export function calculateLuxuryTier(
+  price: number,
+  listingType: ListingType
+): LuxuryTier {
+  const thresholds = LUXURY_PRICE_THRESHOLDS[listingType === 'rent' ? 'rent' : 'sale'];
+
+  if (price >= thresholds.trophy) return 'trophy';
+  if (price >= thresholds['ultra-luxury']) return 'ultra-luxury';
+  if (price >= thresholds.luxury) return 'luxury';
+  if (price >= thresholds.premium) return 'premium';
+  return 'standard';
+}
+
+/**
+ * Calculate amenity-based luxury score (0-100)
+ */
+export function calculateAmenityScore(
+  features: ListingFeatures,
+  luxury: Partial<LuxuryDesignation>
+): number {
+  let score = 0;
+
+  // Building amenities
+  if (features.building.doorman && features.building.doormanType === 'Full Time') {
+    score += LUXURY_AMENITY_WEIGHTS.fullTimeDoorman;
+  }
+  if (features.building.concierge) score += LUXURY_AMENITY_WEIGHTS.concierge;
+  if (features.building.gym) score += LUXURY_AMENITY_WEIGHTS.gym;
+  if (features.building.pool) score += LUXURY_AMENITY_WEIGHTS.pool;
+  if (features.building.roofDeck) score += LUXURY_AMENITY_WEIGHTS.roofDeck;
+  if (features.building.garage) score += LUXURY_AMENITY_WEIGHTS.garage;
+
+  // Unit features
+  if (features.outdoor.terrace) score += LUXURY_AMENITY_WEIGHTS.terrace;
+  if (features.outdoor.balcony) score += LUXURY_AMENITY_WEIGHTS.balcony;
+  if (features.interior.fireplace) score += LUXURY_AMENITY_WEIGHTS.fireplace;
+
+  // Premium luxury features
+  if (luxury.hasPrivateElevator) score += LUXURY_AMENITY_WEIGHTS.privateElevator;
+  if (luxury.isPenthouse) score += LUXURY_AMENITY_WEIGHTS.penthouse;
+  if (luxury.isFullFloor) score += LUXURY_AMENITY_WEIGHTS.fullFloor;
+  if (luxury.isDuplex) score += LUXURY_AMENITY_WEIGHTS.duplex;
+  if (luxury.isTriplex) score += LUXURY_AMENITY_WEIGHTS.triplex;
+  if (luxury.hasPrivatePool) score += LUXURY_AMENITY_WEIGHTS.privatePool;
+  if (luxury.hasWineCellar) score += LUXURY_AMENITY_WEIGHTS.wineCellar;
+  if (luxury.hasHomeTheater) score += LUXURY_AMENITY_WEIGHTS.homeTheater;
+  if (luxury.hasSmartHome) score += LUXURY_AMENITY_WEIGHTS.smartHome;
+  if (luxury.hasStaffQuarters) score += LUXURY_AMENITY_WEIGHTS.staffQuarters;
+  if (luxury.hasSafeRoom) score += LUXURY_AMENITY_WEIGHTS.safeRoom;
+
+  // Views
+  if (luxury.hasCentralParkView) score += LUXURY_AMENITY_WEIGHTS.centralParkView;
+  if (luxury.hasDirectParkView) score += LUXURY_AMENITY_WEIGHTS.directParkView;
+  if (luxury.hasRiverView) score += LUXURY_AMENITY_WEIGHTS.riverView;
+  if (luxury.hasSkylineView) score += LUXURY_AMENITY_WEIGHTS.skylineView;
+  if (luxury.hasWaterView) score += LUXURY_AMENITY_WEIGHTS.waterView;
+
+  // Normalize to 0-100 scale (max possible ~200 points)
+  return Math.min(100, Math.round((score / 150) * 100));
+}
+
+/**
+ * Determine if listing qualifies for luxury marketing
+ */
+export function isLuxuryQualified(listing: Listing): boolean {
+  if (!listing.luxury) return false;
+  return ['luxury', 'ultra-luxury', 'trophy'].includes(listing.luxury.tier);
+}
+
+/**
+ * Determine if listing requires white-glove showing protocol
+ */
+export function requiresWhiteGloveService(listing: Listing): boolean {
+  if (!listing.luxury) return false;
+
+  return (
+    listing.luxury.tier === 'trophy' ||
+    listing.luxury.tier === 'ultra-luxury' ||
+    listing.luxury.requiresNDA ||
+    listing.luxury.privateShowingsOnly ||
+    listing.luxury.marketPosition === 'off-market' ||
+    listing.luxury.marketPosition === 'pocket-listing'
+  );
+}
+
+/**
+ * Get display label for luxury tier
+ */
+export function getLuxuryTierLabel(tier: LuxuryTier): string {
+  const labels: Record<LuxuryTier, string> = {
+    standard: 'Standard',
+    premium: 'Premium',
+    luxury: 'Luxury',
+    'ultra-luxury': 'Ultra Luxury',
+    trophy: 'Trophy',
+  };
+  return labels[tier];
+}
+
+/**
+ * Create default luxury designation for a listing
+ */
+export function createDefaultLuxuryDesignation(
+  price: number,
+  listingType: ListingType
+): LuxuryDesignation {
+  const tier = calculateLuxuryTier(price, listingType);
+
+  return {
+    tier,
+    marketPosition: 'full-market',
+    amenityScore: 0,
+    locationScore: 0,
+    finishScore: 0,
+    overallLuxuryScore: 0,
+    isLandmark: false,
+    isArchitecturallySignificant: false,
+    isCelebrityOwned: false,
+    isPenthouse: false,
+    isFullFloor: false,
+    isTownhouse: false,
+    isDuplex: false,
+    isTriplex: false,
+    hasPrivateElevator: false,
+    hasPrivatePool: false,
+    hasWineCellar: false,
+    hasHomeTheater: false,
+    hasSmartHome: false,
+    hasSafeRoom: false,
+    hasStaffQuarters: false,
+    hasCentralParkView: false,
+    hasRiverView: false,
+    hasSkylineView: false,
+    hasWaterView: false,
+    hasDirectParkView: false,
+    buildingPrestigeLevel: 'standard',
+    buildingPedigree: null,
+    minimumBuyerQualification: null,
+    requiresNDA: false,
+    requiresPreApproval: tier !== 'standard' && tier !== 'premium',
+    dedicatedShowingAgent: null,
+    privateShowingsOnly: tier === 'trophy' || tier === 'ultra-luxury',
+    byAppointmentOnly: tier !== 'standard',
+  };
 }

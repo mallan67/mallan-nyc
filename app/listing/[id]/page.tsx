@@ -10,6 +10,7 @@ import InvestorCalculator from '@/app/components/InvestorCalculator';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
+import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -76,6 +77,27 @@ export default async function ListingPage({ params }: Props) {
 
   if (!listing) {
     notFound();
+  }
+
+  // IDX opt-out guard: if the listing owner has opted out of IDX display, block it
+  if (listing.compliance?.idxOptOut) {
+    return (
+      <div className="min-h-screen bg-gray-50 font-sans">
+        <Header dark />
+        <div className="flex items-center justify-center min-h-[60vh] pt-20">
+          <div className="text-center max-w-md">
+            <h1 className="text-2xl font-semibold mb-4">Listing Not Available</h1>
+            <p className="text-gray-600 mb-6">
+              This listing is not available for online display. Please contact Mallan Real Estate for more information.
+            </p>
+            <Link href="/agents" className="inline-block px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors">
+              Contact an Agent
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   const isRental = listing.listingType === 'rent';
@@ -478,26 +500,37 @@ export default async function ListingPage({ params }: Props) {
 
                   <div className="mb-6">
                     <p className="text-sm text-gray-500 mb-1">Listed by</p>
-                    <p className="font-medium text-lg">{listing.agent.listAgentName}</p>
-                    <p className="text-gray-600">{listing.agent.listOfficeName}</p>
-                    <div className="mt-3 pt-3 border-t space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        <a href={`tel:${listing.agent.listAgentPhone}`} className="text-gray-700 hover:text-brand-gold">
-                          {listing.agent.listAgentPhone}
-                        </a>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <a href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`} className="text-gray-700 hover:text-brand-gold break-all">
-                          {listing.agent.listAgentEmail}
-                        </a>
-                      </div>
-                    </div>
+                    {listing.compliance?.vowOptOut ? (
+                      <>
+                        <p className="font-medium text-lg">{listing.agent.listOfficeName}</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Contact Mallan Real Estate for inquiries about this listing.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-lg">{listing.agent.listAgentName}</p>
+                        <p className="text-gray-600">{listing.agent.listOfficeName}</p>
+                        <div className="mt-3 pt-3 border-t space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            <a href={`tel:${listing.agent.listAgentPhone}`} className="text-gray-700 hover:text-brand-gold">
+                              {listing.agent.listAgentPhone}
+                            </a>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <a href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`} className="text-gray-700 hover:text-brand-gold break-all">
+                              {listing.agent.listAgentEmail}
+                            </a>
+                          </div>
+                        </div>
+                      </>
+                    )}
                     {/* Buyer's Agent Compensation */}
                     {listing.buyer?.buyerAgentCompensation && (
                       <div className="mt-3 pt-3 border-t">
@@ -510,18 +543,29 @@ export default async function ListingPage({ params }: Props) {
                   </div>
 
                   <div className="space-y-3">
-                    <a
-                      href={`tel:${listing.agent.listAgentPhone}`}
-                      className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors"
-                    >
-                      Call Agent
-                    </a>
-                    <a
-                      href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`}
-                      className="block w-full text-center px-6 py-3 border border-brand-dark text-brand-dark rounded hover:bg-gray-50 transition-colors"
-                    >
-                      Email Agent
-                    </a>
+                    {listing.compliance?.vowOptOut ? (
+                      <a
+                        href="tel:646-258-4460"
+                        className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors"
+                      >
+                        Contact Mallan Real Estate
+                      </a>
+                    ) : (
+                      <>
+                        <a
+                          href={`tel:${listing.agent.listAgentPhone}`}
+                          className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors"
+                        >
+                          Call Agent
+                        </a>
+                        <a
+                          href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`}
+                          className="block w-full text-center px-6 py-3 border border-brand-dark text-brand-dark rounded hover:bg-gray-50 transition-colors"
+                        >
+                          Email Agent
+                        </a>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -601,17 +645,10 @@ export default async function ListingPage({ params }: Props) {
       {/* REBNY RLS Disclaimer */}
       <section className="bg-gray-100 py-6 px-4">
         <div className="max-w-7xl mx-auto">
-          <p className="text-xs text-gray-500 text-center mb-2">
-            The data relating to real estate for sale/rent on this website comes in part from the
-            Real Estate Board of New York&apos;s Residential Listing Service (REBNY RLS). All information
-            is deemed reliable but not guaranteed and should be independently verified. Listing data
-            last updated: {new Date(listing.compliance.lastVerified).toLocaleDateString()}.
-          </p>
-          <p className="text-xs text-gray-500 text-center">
-            This information is being provided for consumers&apos; personal, non-commercial use.
-            All dimensions are approximate. The offering is made subject to errors, omissions,
-            changes in price, prior sale or rental, or withdrawal without notice.
-          </p>
+          <IDXDisclaimer
+            variant="full"
+            lastUpdated={listing.listing.modificationTimestamp}
+          />
         </div>
       </section>
 
