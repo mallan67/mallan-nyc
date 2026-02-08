@@ -52,7 +52,7 @@ export default function ExploreNeighborhoods() {
   const neighborhoods = (neighborhoodsData.neighborhoods as Neighborhood[]).slice(0, 6);
 
   return (
-    <section className="py-12 sm:py-16 md:py-20 px-4 bg-gray-50/50">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
         {/* Section header - centered, consistent with other sections */}
         <div className="text-center mb-8 sm:mb-10">

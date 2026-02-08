@@ -76,7 +76,7 @@ export default function Footer() {
   });
 
   return (
-    <footer className="bg-gray-50 border-t border-gray-200">
+    <footer className="bg-white border-t border-gray-200">
       {/* Main Footer Content */}
       <div className="py-8 sm:py-12 px-4">
         <div className="max-w-7xl mx-auto">
@@ -141,7 +141,7 @@ export default function Footer() {
       </div>
 
       {/* Fair Housing & REBNY Compliance Section */}
-      <div className="bg-gray-100 border-t border-gray-200 py-6 px-4">
+      <div className="bg-white border-t border-gray-200 py-6 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Fair Housing Statement */}
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-6 pb-6 border-b border-gray-200">

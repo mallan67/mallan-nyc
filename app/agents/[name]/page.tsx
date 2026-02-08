@@ -304,7 +304,7 @@ export default async function AgentPage({ params }: Props) {
 
         {/* Active Rentals */}
         {activeRentals.length > 0 && (
-          <section id="active-rentals" className="py-10 bg-gray-50 scroll-mt-32">
+          <section id="active-rentals" className="py-10 bg-white scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
               <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b border-gray-200">
                 Active Rentals
@@ -338,7 +338,7 @@ export default async function AgentPage({ params }: Props) {
 
         {/* Closed Rentals */}
         {pastRentals.length > 0 && (
-          <section id="closed-rentals" className="py-10 bg-gray-50 scroll-mt-32">
+          <section id="closed-rentals" className="py-10 bg-white scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
               <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b border-gray-200">
                 Closed Rentals
