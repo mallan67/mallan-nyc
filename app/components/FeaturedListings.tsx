@@ -110,14 +110,14 @@ export default function FeaturedListings() {
       <div className="max-w-7xl mx-auto">
         {/* Section header with bold styling */}
         <div className="text-center mb-8 sm:mb-10">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-sans font-bold tracking-tight text-gray-900">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-sans font-bold tracking-tight text-gray-900">
             Featured Listings
           </h2>
           <p className="mt-2 text-sm sm:text-base text-gray-500">
             Handpicked properties across New York City
           </p>
         </div>
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {listings.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
