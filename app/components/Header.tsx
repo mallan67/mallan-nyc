@@ -1,18 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 
 type ResourceItem = { title: string; href: string };
-
-function SearchIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-    </svg>
-  );
-}
 
 function MenuIcon() {
   return (
@@ -30,48 +23,44 @@ function CloseIcon() {
   );
 }
 
-function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { title: string; href: string }[]; isOpen: boolean; onToggle: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        if (isOpen) onToggle();
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, onToggle]);
-
+function ChevronIcon({ open }: { open?: boolean }) {
   return (
-    <div className="relative inline-flex items-center" ref={ref}>
-      <button
-        onClick={onToggle}
-        aria-haspopup="true"
-        aria-expanded={isOpen}
-        className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors h-full"
-      >
+    <svg
+      className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function NavDropdown({ label, items }: { label: string; items: { title: string; href: string }[] }) {
+  return (
+    <NavigationMenu.Item>
+      <NavigationMenu.Trigger className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors h-full group">
         {label}
-        <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div role="menu" className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden">
+        <ChevronIcon />
+      </NavigationMenu.Trigger>
+      <NavigationMenu.Content className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden">
+        <ul>
           {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onToggle}
-              role="menuitem"
-              className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              {item.title}
-            </Link>
+            <li key={item.href}>
+              <NavigationMenu.Link asChild>
+                <Link
+                  href={item.href}
+                  className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                >
+                  {item.title}
+                </Link>
+              </NavigationMenu.Link>
+            </li>
           ))}
-        </div>
-      )}
-    </div>
+        </ul>
+      </NavigationMenu.Content>
+    </NavigationMenu.Item>
   );
 }
 
@@ -105,14 +94,6 @@ export default function Header({ dark = false }: HeaderProps = {}) {
         // Keep default resources on error
       });
   }, []);
-
-  const closeAllDropdowns = () => {
-    setBuyOpen(false);
-    setRentOpen(false);
-    setSellOpen(false);
-    setExclusivesOpen(false);
-    setResourcesOpen(false);
-  };
 
   const buyItems = [
     { title: 'Residential', href: '/buy?type=residential' },
@@ -154,76 +135,51 @@ export default function Header({ dark = false }: HeaderProps = {}) {
           </Link>
 
           {/* Desktop Nav */}
-          <nav
-            className="hidden lg:flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90 ml-auto"
+          <NavigationMenu.Root
+            className="hidden lg:flex items-center ml-auto"
             aria-label="Main navigation"
           >
-            <Dropdown
-              label="Buy"
-              items={buyItems}
-              isOpen={buyOpen}
-              onToggle={() => {
-                closeAllDropdowns();
-                setBuyOpen(!buyOpen);
-              }}
-            />
+            <NavigationMenu.List className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
+              <NavDropdown label="Buy" items={buyItems} />
+              <NavDropdown label="Rent" items={rentItems} />
+              <NavDropdown label="Sell" items={sellItems} />
+              <NavDropdown label="Exclusives" items={exclusivesItems} />
 
-            <Dropdown
-              label="Rent"
-              items={rentItems}
-              isOpen={rentOpen}
-              onToggle={() => {
-                closeAllDropdowns();
-                setRentOpen(!rentOpen);
-              }}
-            />
+              <NavigationMenu.Item>
+                <NavigationMenu.Link asChild>
+                  <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                    Open Houses
+                  </Link>
+                </NavigationMenu.Link>
+              </NavigationMenu.Item>
 
-            <Dropdown
-              label="Sell"
-              items={sellItems}
-              isOpen={sellOpen}
-              onToggle={() => {
-                closeAllDropdowns();
-                setSellOpen(!sellOpen);
-              }}
-            />
+              <NavDropdown label="Resources" items={resources} />
 
-            <Dropdown
-              label="Exclusives"
-              items={exclusivesItems}
-              isOpen={exclusivesOpen}
-              onToggle={() => {
-                closeAllDropdowns();
-                setExclusivesOpen(!exclusivesOpen);
-              }}
-            />
+              <NavigationMenu.Item>
+                <NavigationMenu.Link asChild>
+                  <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                    Agents
+                  </Link>
+                </NavigationMenu.Link>
+              </NavigationMenu.Item>
 
-            <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-              Open Houses
-            </Link>
+              <NavigationMenu.Item>
+                <NavigationMenu.Link asChild>
+                  <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                    About
+                  </Link>
+                </NavigationMenu.Link>
+              </NavigationMenu.Item>
 
-            <Dropdown
-              label="Resources"
-              items={resources}
-              isOpen={resourcesOpen}
-              onToggle={() => {
-                closeAllDropdowns();
-                setResourcesOpen(!resourcesOpen);
-              }}
-            />
-
-            <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-              Agents
-            </Link>
-
-            <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-              About
-            </Link>
-
-            <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-              Sign Up / Sign In
-            </Link>
-          </nav>
+              <NavigationMenu.Item>
+                <NavigationMenu.Link asChild>
+                  <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                    Sign Up / Sign In
+                  </Link>
+                </NavigationMenu.Link>
+              </NavigationMenu.Item>
+            </NavigationMenu.List>
+          </NavigationMenu.Root>
 
           {/* Mobile menu button */}
           <button
@@ -249,9 +205,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                   className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Buy
-                  <svg className={`w-3 h-3 transition-transform ${buyOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronIcon open={buyOpen} />
                 </button>
                 {buyOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
@@ -294,9 +248,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                   className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Rent
-                  <svg className={`w-3 h-3 transition-transform ${rentOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronIcon open={rentOpen} />
                 </button>
                 {rentOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
@@ -339,9 +291,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                   className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Sell
-                  <svg className={`w-3 h-3 transition-transform ${sellOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronIcon open={sellOpen} />
                 </button>
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
@@ -384,9 +334,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                   className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Exclusives
-                  <svg className={`w-3 h-3 transition-transform ${exclusivesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronIcon open={exclusivesOpen} />
                 </button>
                 {exclusivesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
@@ -436,9 +384,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                   className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
                 >
                   Resources
-                  <svg className={`w-3 h-3 transition-transform ${resourcesOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronIcon open={resourcesOpen} />
                 </button>
                 {resourcesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
