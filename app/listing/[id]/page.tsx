@@ -11,6 +11,7 @@ import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
+import ListingHeroImage from '@/app/components/ListingHeroImage';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -153,34 +154,26 @@ export default async function ListingPage({ params }: Props) {
       </div>
 
       {/* Image Gallery */}
-      <section className="bg-gray-200">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative aspect-[16/9] md:aspect-[21/9]">
-            <Image
-              src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
-              alt={fullAddress}
-              fill
-              className="object-cover"
-              priority
-            />
-            {listing.flags.isExclusive && (
-              <div className="absolute top-4 left-4 px-4 py-2 bg-brand-gold text-white text-sm uppercase tracking-wide rounded">
-                Mallan Exclusive
-              </div>
-            )}
-            {listing.flags.isPriceReduced && (
-              <div className="absolute top-4 left-4 mt-12 px-4 py-2 bg-green-600 text-white text-sm rounded">
-                Price Reduced
-              </div>
-            )}
-            {listing.openHouse?.scheduled && (
-              <div className="absolute top-4 right-4 px-4 py-2 bg-white text-brand-dark text-sm rounded shadow">
-                Open House: {formatDate(listing.openHouse.date).split(',')[0]}
-              </div>
-            )}
+      <ListingHeroImage
+        src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
+        alt={fullAddress}
+      >
+        {listing.flags.isExclusive && (
+          <div className="absolute top-4 left-4 px-4 py-2 bg-brand-gold text-white text-sm uppercase tracking-wide rounded">
+            Mallan Exclusive
           </div>
-        </div>
-      </section>
+        )}
+        {listing.flags.isPriceReduced && (
+          <div className="absolute top-4 left-4 mt-12 px-4 py-2 bg-green-600 text-white text-sm rounded">
+            Price Reduced
+          </div>
+        )}
+        {listing.openHouse?.scheduled && (
+          <div className="absolute top-4 right-4 px-4 py-2 bg-white text-brand-dark text-sm rounded shadow">
+            Open House: {formatDate(listing.openHouse.date).split(',')[0]}
+          </div>
+        )}
+      </ListingHeroImage>
 
       <main className="py-8 md:py-12 px-4">
         <div className="max-w-7xl mx-auto">
