@@ -21,6 +21,7 @@
         "@anthropic-ai/sdk": "^0.50.0",
         "@prisma/client": "^6.17.1",
         "@sendgrid/mail": "^8.1.6",
+        "@tailwindcss/postcss": "^4.1.18",
         "bcryptjs": "^3.0.2",
         "next": "14.2.33",
         "pg": "^8.16.3",
@@ -30,9 +31,6 @@
         "swr": "^2.3.6"
     },
     "devDependencies": {
-        "tailwindcss": "^3.4.1",
-        "postcss": "^8.4.35",
-        "autoprefixer": "^10.4.17",
         "@types/bcryptjs": "^2.4.6",
         "@types/node": "^20.11.30",
         "@types/pg": "^8.15.6",
@@ -42,7 +40,10 @@
         "@typescript-eslint/parser": "^8.46.4",
         "eslint": "^8.57.0",
         "eslint-config-next": "14.2.33",
-        "typescript": "^5.4.0"
+        "postcss": "^8.4.35",
+        "tailwindcss": "^4.1.18",
+        "typescript": "^5.4.0",
+        "xlsx": "^0.18.5"
     },
     "prisma": {
         "seed": "node prisma/seed.js"

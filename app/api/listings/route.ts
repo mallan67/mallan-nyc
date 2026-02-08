@@ -84,6 +84,9 @@ export async function GET(request: Request) {
       // Status filter - only active listings
       if (listing.status !== 'active') return false;
 
+      // IDX opt-out: exclude listings where owner has opted out of IDX display
+      if (listing.compliance?.idxOptOut) return false;
+
       // Type filter
       if (listingType) {
         const typeMap: Record<string, string> = { sale: 'sale', rent: 'rent', buy: 'sale' };

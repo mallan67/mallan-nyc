@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
+import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -28,7 +29,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
 
   // Get all listings of the appropriate type
   const allListings = (listingsData.listings as unknown as Listing[]).filter(
-    (l) => (isRental ? l.listingType === 'rent' : l.listingType === 'sale') && l.status === 'active'
+    (l) => (isRental ? l.listingType === 'rent' : l.listingType === 'sale') && l.status === 'active' && !l.compliance?.idxOptOut
   );
 
   // URL params for initial filters
@@ -341,9 +342,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
             <p className="text-gray-600">
               {sortedListings.length} {sortedListings.length === 1 ? 'property' : 'properties'} found
             </p>
-            <p className="text-sm text-gray-400">
-              Data provided by REBNY RLS
-            </p>
+            <IDXSearchDisclaimer />
           </div>
 
           {/* Listings Grid */}
@@ -411,6 +410,14 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                         {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
                       </p>
                     )}
+
+                    {/* REBNY RLS Per-Card Attribution */}
+                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                      Courtesy of {listing.agent.listOfficeName}
+                      {listing.listing.modificationTimestamp && (
+                        <> · Updated {new Date(listing.listing.modificationTimestamp).toLocaleDateString()}</>
+                      )}
+                    </p>
                   </div>
                 </Link>
               ))}

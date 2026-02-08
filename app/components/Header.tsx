@@ -47,20 +47,23 @@ function Dropdown({ label, items, isOpen, onToggle }: { label: string; items: { 
     <div className="relative inline-flex items-center" ref={ref}>
       <button
         onClick={onToggle}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
         className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors h-full"
       >
         {label}
-        <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden">
+        <div role="menu" className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={onToggle}
+              role="menuitem"
               className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
               {item.title}

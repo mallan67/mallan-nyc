@@ -1,6 +1,19 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-brand-gold: #C4A052;
+  --color-brand-dark: #1a1a1a;
+  --color-brand-slate: #3d4556;
+
+  --font-sans: 'Manrope', system-ui, -apple-system, sans-serif;
+
+  --breakpoint-xs: 475px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
 
 @import url('https://fonts.cdnfonts.com/css/liberation-serif');
 

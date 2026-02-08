@@ -8,6 +8,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
+import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ function SearchClient() {
   // Note: "commercial" and "sell" tabs show sale listings (commercial property type doesn't exist in data)
   const allListings = (listingsData.listings as unknown as Listing[]).filter((l) => {
     if (l.status !== 'active') return false;
+    if (l.compliance?.idxOptOut) return false;
     if (isRental) return l.listingType === 'rent';
     return l.listingType === 'sale';
   });
@@ -307,6 +309,7 @@ function SearchClient() {
             <p className="text-gray-600">
               {sortedListings.length} {sortedListings.length === 1 ? 'property' : 'properties'} found
             </p>
+            <IDXSearchDisclaimer />
           </div>
 
           {/* Listings Grid */}
@@ -371,6 +374,14 @@ function SearchClient() {
                         {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
                       </p>
                     )}
+
+                    {/* REBNY RLS Per-Card Attribution */}
+                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                      Courtesy of {listing.agent.listOfficeName}
+                      {listing.listing.modificationTimestamp && (
+                        <> · Updated {new Date(listing.listing.modificationTimestamp).toLocaleDateString()}</>
+                      )}
+                    </p>
                   </div>
                 </Link>
               ))}
