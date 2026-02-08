@@ -64,7 +64,7 @@ export default function AgentsGrid() {
       {/* Hero Section */}
       <section className="bg-white py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-semibold mb-4">Our Team</h1>
+          <h1 className="text-3xl md:text-4xl font-semibold mb-4">Our Team</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Our experienced agents bring deep market knowledge and a client-first approach
             to every transaction. Meet the professionals ready to help you achieve your
