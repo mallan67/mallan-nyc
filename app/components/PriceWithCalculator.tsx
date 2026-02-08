@@ -36,7 +36,7 @@ export default function PriceWithCalculator({
   return (
     <>
       <div className="flex items-center gap-3">
-        <h1 className="text-3xl md:text-4xl font-sans">
+        <h1 className="text-2xl md:text-3xl font-sans">
           {formatPrice(price, isRental)}
         </h1>
         {!isRental && (
@@ -60,8 +60,8 @@ export default function PriceWithCalculator({
 
       {/* Mortgage Modal */}
       <MortgageModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
         purchasePrice={price}
         maintenanceFee={maintenanceFee}
         monthlyTaxes={monthlyTaxes}

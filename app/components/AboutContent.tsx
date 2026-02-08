@@ -79,7 +79,7 @@ export default function AboutContent() {
           <div className="absolute inset-0 bg-black/50" />
         </div>
         <div className="relative z-10 text-center text-white px-4">
-          <h1 className="text-4xl md:text-5xl font-semibold mb-4">{data.title}</h1>
+          <h1 className="text-3xl md:text-4xl font-semibold mb-4">{data.title}</h1>
         </div>
       </section>
 
@@ -97,7 +97,7 @@ export default function AboutContent() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {data.stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <p className="text-3xl md:text-4xl font-semibold text-brand-gold mb-2">
+                <p className="text-2xl md:text-3xl font-semibold text-brand-gold mb-2">
                   {stat.value}
                 </p>
                 <p className="text-sm text-gray-600 uppercase tracking-wide">
