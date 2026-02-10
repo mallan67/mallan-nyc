@@ -80,7 +80,7 @@ export default function Footer() {
       {/* Main Footer Content */}
       <div className="py-8 sm:py-12 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-6 sm:gap-8 text-sm">
             {/* Company Info */}
             <div className="col-span-2 sm:col-span-2 md:col-span-1">
               <h3 className="font-medium text-black mb-3 sm:mb-4">{settings.companyName}</h3>
@@ -120,6 +120,19 @@ export default function Footer() {
                     </Link>
                   </li>
                 ))}
+              </ul>
+            </div>
+
+            {/* Neighborhoods */}
+            <div>
+              <h4 className="font-medium mb-3 sm:mb-4 text-brand-slate/80">Neighborhoods</h4>
+              <ul className="space-y-2 text-gray-600">
+                <li><Link href="/manhattan" className="hover:text-brand-gold">Manhattan</Link></li>
+                <li><Link href="/brooklyn" className="hover:text-brand-gold">Brooklyn</Link></li>
+                <li><Link href="/queens" className="hover:text-brand-gold">Queens</Link></li>
+                <li><Link href="/bronx" className="hover:text-brand-gold">Bronx</Link></li>
+                <li><Link href="/staten-island" className="hover:text-brand-gold">Staten Island</Link></li>
+                <li><Link href="/neighborhoods" className="hover:text-brand-gold font-medium">View All</Link></li>
               </ul>
             </div>
 

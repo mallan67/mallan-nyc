@@ -1,0 +1,2357 @@
+{
+  "neighborhoods": [
+    {
+      "slug": "brooklyn-heights",
+      "name": "Brooklyn Heights",
+      "fullName": "Brooklyn Heights, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Historic Crown Jewel",
+      "heroImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1200&q=80",
+      "summary": "Brooklyn Heights is New York City's first designated historic district, celebrated for its tree-lined streets, stunning brownstones, and sweeping Manhattan skyline views from the Promenade. Average price per square foot is approximately $1,350. The neighborhood offers a refined residential atmosphere with easy access to Lower Manhattan via multiple subway lines.",
+      "avgPricePerSqft": 1350,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 97,
+      "transitScore": 95,
+      "topSchool": "PS 8 Robert Fulton",
+      "nearestSubway": [
+        "2",
+        "3",
+        "4",
+        "5",
+        "A",
+        "C",
+        "R"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Brooklyn Heights?",
+          "answer": "The median sale price in Brooklyn Heights is approximately $1.15 million, with co-ops averaging around $850,000 and condos around $1.6 million. Brownstone townhouses command $3 million to $8 million depending on size and condition."
+        },
+        {
+          "question": "Is Brooklyn Heights good for families?",
+          "answer": "Brooklyn Heights is one of Brooklyn's most family-friendly neighborhoods. It features excellent public schools including PS 8, close proximity to the Promenade and Pier 6 playground at Brooklyn Bridge Park, and quiet residential streets with low traffic."
+        },
+        {
+          "question": "What subway lines serve Brooklyn Heights?",
+          "answer": "Brooklyn Heights is served by the 2, 3, 4, 5 trains at Borough Hall and Clark Street, the A and C at High Street, and the R at Court Street. Most of Lower Manhattan is reachable in under 10 minutes."
+        },
+        {
+          "question": "What makes Brooklyn Heights a historic district?",
+          "answer": "Brooklyn Heights was designated as New York City's first historic district in 1965. The neighborhood contains an exceptional collection of pre-Civil War architecture including Federal, Greek Revival, and Romanesque Revival brownstones and row houses dating from the 1820s through the 1860s."
+        },
+        {
+          "question": "What is the Brooklyn Heights Promenade?",
+          "answer": "The Brooklyn Heights Promenade is a 1,826-foot pedestrian walkway offering panoramic views of Lower Manhattan, the Statue of Liberty, and the Brooklyn Bridge. It was built in the 1950s as part of the BQE construction and is one of the most iconic viewpoints in New York City."
+        },
+        {
+          "question": "How much is rent in Brooklyn Heights?",
+          "answer": "Median rent in Brooklyn Heights is approximately $3,500 per month for a one-bedroom. Studios average $2,400, two-bedrooms $4,800, and three-bedrooms $6,500+. Units with Manhattan views or Promenade proximity command significant premiums."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1150000,
+        "medianRent": 3500,
+        "avgDaysOnMarket": 65,
+        "yoyChange": 0.04,
+        "pricePerSqft": 1350,
+        "inventory": 120,
+        "closedSales": 310,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "One Brooklyn Bridge Park",
+          "nickname": "The Pierhouse",
+          "architect": "Marvel Architects",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 106,
+          "priceRange": "$1.5M - $8M",
+          "slug": "one-brooklyn-bridge-park"
+        },
+        {
+          "name": "75 Henry Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1930,
+          "type": "Co-op",
+          "units": 180,
+          "priceRange": "$500K - $2M",
+          "slug": "75-henry-street"
+        },
+        {
+          "name": "Quay Tower",
+          "nickname": null,
+          "architect": "ODA Architecture",
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 126,
+          "priceRange": "$1.8M - $6.5M",
+          "slug": "quay-tower"
+        },
+        {
+          "name": "The Standish",
+          "nickname": null,
+          "architect": "FXCollaborative",
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 29,
+          "priceRange": "$1.5M - $5.5M",
+          "slug": "the-standish"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Brooklyn Heights rewards block-by-block exploration. The most coveted addresses are along the Promenade and the 'Fruit Streets' (Cranberry, Orange, Pineapple). Montague Street is the main commercial corridor, while the side streets north of it are exceptionally quiet.",
+        "bestBlocksForFamilies": [
+          "Pierrepont Street between Clinton and Henry",
+          "Garden Place",
+          "Sidney Place"
+        ],
+        "bestBlocksForNightlife": [
+          "Montague Street",
+          "Atlantic Avenue (south edge)",
+          "Henry Street near Cranberry"
+        ],
+        "quietStreets": [
+          "Willow Street",
+          "Cranberry Street",
+          "Grace Court"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families seeking top public schools, safe tree-lined streets, and proximity to Brooklyn Bridge Park's playgrounds and green space.",
+          "budgetRange": "$1.5M - $4M",
+          "propertyType": "3-bedroom co-op or brownstone"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Finance and legal professionals who work in Lower Manhattan and want a short commute with a neighborhood feel.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Long-time Brooklyn residents looking to transition from larger homes while staying in a walkable, historic neighborhood.",
+          "budgetRange": "$900K - $2M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Pied-a-Terre Buyer",
+          "description": "Buyers seeking a Manhattan-adjacent residence with skyline views and landmark architecture at a relative value compared to Manhattan.",
+          "budgetRange": "$1M - $3M",
+          "propertyType": "Luxury condo with views"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Brooklyn Heights Listings",
+          "href": "/buy?neighborhood=brooklyn-heights"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Brooklyn Heights Rentals",
+          "href": "/rent?neighborhood=brooklyn-heights"
+        }
+      },
+      "boundaries": {
+        "north": "Old Fulton Street / Cadman Plaza",
+        "south": "Atlantic Avenue",
+        "east": "Court Street / Cadman Plaza West",
+        "west": "East River / Brooklyn-Queens Expressway"
+      },
+      "transit": [
+        "2",
+        "3",
+        "4",
+        "5",
+        "A",
+        "C",
+        "R"
+      ],
+      "zipCodes": [
+        "11201"
+      ],
+      "adjacentNeighborhoods": [
+        "dumbo",
+        "cobble-hill",
+        "fort-greene"
+      ],
+      "attractions": [
+        {
+          "name": "Brooklyn Bridge Park",
+          "type": "park",
+          "description": "85-acre waterfront park with playgrounds, sports facilities, and stunning Manhattan views"
+        },
+        {
+          "name": "Brooklyn Heights Promenade",
+          "type": "landmark",
+          "description": "Iconic pedestrian walkway with panoramic views of the Manhattan skyline, Brooklyn Bridge, and harbor"
+        },
+        {
+          "name": "Brooklyn Historical Society",
+          "type": "museum",
+          "description": "Local history museum housed in a landmark Queen Anne-style building on Pierrepont Street"
+        },
+        {
+          "name": "Brooklyn Bridge",
+          "type": "landmark",
+          "description": "Iconic 1883 suspension bridge with pedestrian walkway connecting Brooklyn Heights to Lower Manhattan"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Henry's End",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "River Cafe",
+          "cuisine": "American Fine Dining",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Jack the Horse Tavern",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Chez Moi",
+          "cuisine": "French",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "brooklyn heights real estate",
+        "brooklyn heights apartments for sale",
+        "brooklyn heights brownstones",
+        "brooklyn heights co-ops",
+        "brooklyn heights condos",
+        "brooklyn bridge park apartments",
+        "brooklyn heights promenade"
+      ]
+    },
+    {
+      "slug": "williamsburg",
+      "name": "Williamsburg",
+      "fullName": "Williamsburg, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Creative Waterfront Hub",
+      "heroImage": "https://images.unsplash.com/photo-1590091758966-00e8a5c43adf?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1590091758966-00e8a5c43adf?w=1200&q=80",
+      "summary": "Williamsburg has evolved into one of Brooklyn's most dynamic neighborhoods, blending a thriving arts and culinary scene with luxury waterfront development along the East River. Average price per square foot is approximately $1,250. The L train provides quick access to Manhattan's East Village and Union Square.",
+      "avgPricePerSqft": 1250,
+      "dominantPropertyType": "Condo",
+      "walkScore": 95,
+      "transitScore": 86,
+      "topSchool": "PS 84 Jose de Diego",
+      "nearestSubway": [
+        "L",
+        "G",
+        "J",
+        "M",
+        "Z"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Williamsburg?",
+          "answer": "The median sale price in Williamsburg is approximately $1.05 million, with new waterfront condos averaging $1.3 million and inland units averaging $850,000. Townhouses in the south side range from $2 million to $5 million."
+        },
+        {
+          "question": "Is Williamsburg good for families?",
+          "answer": "Williamsburg has become increasingly family-friendly, especially in the South Williamsburg area and along the waterfront. Domino Park, the new Bushwick Inlet Park, and multiple playgrounds provide excellent outdoor space for children."
+        },
+        {
+          "question": "What subway lines serve Williamsburg?",
+          "answer": "The L train at Bedford Avenue is the primary line, providing direct access to Manhattan's 14th Street in about 5 minutes. The G train at Metropolitan Avenue and the J/M/Z at Marcy Avenue also serve the neighborhood."
+        },
+        {
+          "question": "What is the waterfront development in Williamsburg?",
+          "answer": "The Williamsburg waterfront has seen significant development including the Domino Sugar Factory redevelopment, The Edge, 420 Kent Avenue, and multiple luxury condo towers. These buildings offer East River views, rooftop amenities, and direct ferry service to Manhattan."
+        },
+        {
+          "question": "Is Williamsburg a good investment?",
+          "answer": "Williamsburg has shown strong appreciation over the past decade, with waterfront properties seeing 5-8% annual gains. The neighborhood benefits from continuous infrastructure investment, ferry service, and a diverse economic base of tech, creative, and hospitality industries."
+        },
+        {
+          "question": "How much is rent in Williamsburg?",
+          "answer": "Median rent in Williamsburg is approximately $3,600 per month for a one-bedroom. Studios average $2,700, two-bedrooms $4,500, and three-bedrooms $5,800+. Waterfront luxury buildings command 20-30% premiums over inland units."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1050000,
+        "medianRent": 3600,
+        "avgDaysOnMarket": 52,
+        "yoyChange": 0.05,
+        "pricePerSqft": 1250,
+        "inventory": 210,
+        "closedSales": 520,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Domino Sugar Refinery",
+          "nickname": "Domino",
+          "architect": "SHoP Architects",
+          "yearBuilt": 2022,
+          "type": "Condo",
+          "units": 522,
+          "priceRange": "$900K - $4.5M",
+          "slug": "domino-sugar-refinery"
+        },
+        {
+          "name": "The Edge",
+          "nickname": null,
+          "architect": "Ismael Leyva Architects",
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 565,
+          "priceRange": "$600K - $3M",
+          "slug": "the-edge-williamsburg"
+        },
+        {
+          "name": "420 Kent Avenue",
+          "nickname": null,
+          "architect": "ODA Architecture",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 857,
+          "priceRange": "$500K - $2.5M",
+          "slug": "420-kent-avenue"
+        },
+        {
+          "name": "The William Vale",
+          "nickname": null,
+          "architect": "Albo Liberis",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 183,
+          "priceRange": "$800K - $3.5M",
+          "slug": "the-william-vale"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Williamsburg is divided into distinct micro-neighborhoods. The waterfront (Kent Avenue) is luxury new development. Bedford Avenue is the main commercial spine. The South Side retains a more residential, neighborhood feel. North of Grand Street is more industrial-loft in character.",
+        "bestBlocksForFamilies": [
+          "South 2nd through South 5th Streets near the waterfront",
+          "Berry Street between Grand and Metropolitan",
+          "Havemeyer Street near Domino Park"
+        ],
+        "bestBlocksForNightlife": [
+          "Bedford Avenue between N 4th and N 10th",
+          "Berry Street corridor",
+          "Wythe Avenue near N 11th"
+        ],
+        "quietStreets": [
+          "South 8th and South 9th Streets",
+          "Kent Avenue south of the Domino complex",
+          "Fillmore Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Tech, media, and creative professionals who want a vibrant neighborhood with direct Manhattan access via the L train.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "1-bedroom waterfront condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors seeking strong rental demand driven by Williamsburg's popularity among renters and consistent year-over-year appreciation.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families attracted to the new waterfront parks, improving schools, and spacious new-construction units with modern amenities.",
+          "budgetRange": "$1.2M - $3M",
+          "propertyType": "2-3 bedroom condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Renters ready to buy in the neighborhood they already love, often transitioning from a rental in North Williamsburg.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "Studio or 1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Williamsburg Listings",
+          "href": "/buy?neighborhood=williamsburg"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Williamsburg Rentals",
+          "href": "/rent?neighborhood=williamsburg"
+        }
+      },
+      "boundaries": {
+        "north": "McCarren Park / Frost Street",
+        "south": "Division Avenue / Broadway",
+        "east": "Bushwick Avenue",
+        "west": "East River"
+      },
+      "transit": [
+        "L",
+        "G",
+        "J",
+        "M",
+        "Z"
+      ],
+      "zipCodes": [
+        "11211",
+        "11249"
+      ],
+      "adjacentNeighborhoods": [
+        "greenpoint",
+        "dumbo",
+        "bed-stuy"
+      ],
+      "attractions": [
+        {
+          "name": "Domino Park",
+          "type": "park",
+          "description": "Waterfront park on the site of the former Domino Sugar Factory with playgrounds, a dog run, and river views"
+        },
+        {
+          "name": "Brooklyn Brewery",
+          "type": "brewery",
+          "description": "Iconic local brewery offering tours, tastings, and a popular taproom on N 11th Street"
+        },
+        {
+          "name": "Smorgasburg",
+          "type": "food market",
+          "description": "Weekly open-air food market featuring 100+ local vendors on the Williamsburg waterfront"
+        },
+        {
+          "name": "McCarren Park",
+          "type": "park",
+          "description": "35-acre park with a public pool, sports fields, running track, and farmers market"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Peter Luger Steak House",
+          "cuisine": "Steakhouse",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Llama Inn",
+          "cuisine": "Peruvian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Lilia",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Diner",
+          "cuisine": "American",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "williamsburg real estate",
+        "williamsburg condos for sale",
+        "williamsburg waterfront apartments",
+        "williamsburg brooklyn homes",
+        "williamsburg luxury condos",
+        "bedford avenue apartments",
+        "williamsburg brooklyn rentals"
+      ]
+    },
+    {
+      "slug": "dumbo",
+      "name": "DUMBO",
+      "fullName": "DUMBO, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Where Cobblestones Meet the Skyline",
+      "heroImage": "https://images.unsplash.com/photo-1555424681-b0ecf4fe19a5?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1555424681-b0ecf4fe19a5?w=1200&q=80",
+      "summary": "DUMBO (Down Under the Manhattan Bridge Overpass) is Brooklyn's premier waterfront tech and arts district, known for its converted warehouse lofts, cobblestone streets, and iconic bridge views. Average price per square foot is approximately $1,600. The neighborhood commands some of Brooklyn's highest prices due to limited inventory and unmatched Manhattan skyline views.",
+      "avgPricePerSqft": 1600,
+      "dominantPropertyType": "Condo",
+      "walkScore": 96,
+      "transitScore": 92,
+      "topSchool": "PS 307 Daniel Hale Williams",
+      "nearestSubway": [
+        "A",
+        "C",
+        "F",
+        "2",
+        "3"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in DUMBO?",
+          "answer": "The median sale price in DUMBO is approximately $1.65 million, making it one of Brooklyn's most expensive neighborhoods. Converted warehouse lofts average $1.8 million, while new construction condos range from $1 million for studios to $5 million+ for three-bedrooms with bridge views."
+        },
+        {
+          "question": "Is DUMBO good for families?",
+          "answer": "DUMBO is increasingly family-friendly with Brooklyn Bridge Park offering extensive playgrounds, Jane's Carousel, and waterfront green space. The neighborhood has a growing community of families, though the limited retail and restaurant options can be a consideration."
+        },
+        {
+          "question": "What subway lines serve DUMBO?",
+          "answer": "The F train at York Street is the most direct line. The A and C trains at High Street-Brooklyn Bridge and the 2 and 3 at Clark Street are within walking distance. The NYC Ferry also stops at DUMBO providing scenic waterway transit to Manhattan."
+        },
+        {
+          "question": "What is the tech scene like in DUMBO?",
+          "answer": "DUMBO is Brooklyn's technology hub, home to Etsy's headquarters, WeWork labs, and hundreds of startups. The Brooklyn Navy Yard Technology Hub is nearby. The area attracts a concentration of tech, design, and media companies drawn to the loft-style office spaces."
+        },
+        {
+          "question": "Are DUMBO apartments loft-style?",
+          "answer": "Many DUMBO residences are converted from former industrial warehouses, featuring high ceilings (12-16 feet), exposed brick, timber beams, and oversized windows. Newer developments like Front & York and Olympia Dumbo offer modern luxury finishes while maintaining the industrial-chic aesthetic."
+        },
+        {
+          "question": "How much is rent in DUMBO?",
+          "answer": "Median rent in DUMBO is approximately $4,200 per month for a one-bedroom, making it one of Brooklyn's priciest rental markets. Studios average $3,200, two-bedrooms $5,500, and three-bedrooms $7,500+. Bridge-view and waterfront units carry significant premiums."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1650000,
+        "medianRent": 4200,
+        "avgDaysOnMarket": 58,
+        "yoyChange": 0.03,
+        "pricePerSqft": 1600,
+        "inventory": 55,
+        "closedSales": 130,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Front & York",
+          "nickname": null,
+          "architect": "Morris Adjmi Architects",
+          "yearBuilt": 2021,
+          "type": "Condo",
+          "units": 408,
+          "priceRange": "$700K - $4M",
+          "slug": "front-and-york"
+        },
+        {
+          "name": "Olympia Dumbo",
+          "nickname": null,
+          "architect": "Hollwich Kushner (HWKN)",
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 76,
+          "priceRange": "$800K - $5M",
+          "slug": "olympia-dumbo"
+        },
+        {
+          "name": "Clock Tower Building",
+          "nickname": "The Clocktower",
+          "architect": null,
+          "yearBuilt": 1914,
+          "type": "Condo",
+          "units": 124,
+          "priceRange": "$1M - $6M",
+          "slug": "clock-tower-building"
+        },
+        {
+          "name": "The Warehouse Building",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1910,
+          "type": "Condo",
+          "units": 46,
+          "priceRange": "$1.2M - $4.5M",
+          "slug": "the-warehouse-building-dumbo"
+        }
+      ],
+      "streetGuidance": {
+        "description": "DUMBO is compact and entirely walkable. Water Street and Washington Street are the main arteries. The most photographed spot is Washington Street between the Manhattan Bridge arches. Front Street has the best restaurant cluster. Units facing the bridges or the water command the highest premiums.",
+        "bestBlocksForFamilies": [
+          "Main Street near Brooklyn Bridge Park",
+          "Plymouth Street",
+          "Jay Street near the park"
+        ],
+        "bestBlocksForNightlife": [
+          "Front Street between Jay and Main",
+          "Washington Street",
+          "Water Street near the Archway"
+        ],
+        "quietStreets": [
+          "Plymouth Street near the waterfront",
+          "Evans Street",
+          "Bridge Street"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Tech and creative professionals who work in DUMBO or Lower Manhattan and want a short commute with industrial-loft living.",
+          "budgetRange": "$900K - $2M",
+          "propertyType": "1-bedroom loft condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting high rental demand in a supply-constrained market with consistent appreciation and strong tenant quality.",
+          "budgetRange": "$800K - $1.5M",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families seeking spacious loft layouts with Brooklyn Bridge Park as their backyard and easy access to Manhattan schools.",
+          "budgetRange": "$1.8M - $4.5M",
+          "propertyType": "2-3 bedroom loft"
+        },
+        {
+          "type": "Pied-a-Terre Buyer",
+          "description": "Buyers seeking a distinctive Brooklyn address with iconic views for part-time use, with strong rental potential when not in residence.",
+          "budgetRange": "$1M - $3M",
+          "propertyType": "1-bedroom condo with bridge views"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search DUMBO Listings",
+          "href": "/buy?neighborhood=dumbo"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View DUMBO Rentals",
+          "href": "/rent?neighborhood=dumbo"
+        }
+      },
+      "boundaries": {
+        "north": "Vinegar Hill / Sands Street",
+        "south": "Fulton Ferry / Atlantic Avenue",
+        "east": "Jay Street",
+        "west": "East River"
+      },
+      "transit": [
+        "A",
+        "C",
+        "F",
+        "2",
+        "3"
+      ],
+      "zipCodes": [
+        "11201"
+      ],
+      "adjacentNeighborhoods": [
+        "brooklyn-heights",
+        "williamsburg",
+        "fort-greene"
+      ],
+      "attractions": [
+        {
+          "name": "Brooklyn Bridge Park",
+          "type": "park",
+          "description": "85-acre waterfront park featuring Pier 1-6, playgrounds, sports courts, and Jane's Carousel"
+        },
+        {
+          "name": "Washington Street Photo Spot",
+          "type": "landmark",
+          "description": "Iconic cobblestone view of the Manhattan Bridge framed between two warehouse buildings"
+        },
+        {
+          "name": "St. Ann's Warehouse",
+          "type": "theater",
+          "description": "Acclaimed performing arts venue in a restored tobacco warehouse presenting cutting-edge theater, music, and dance"
+        },
+        {
+          "name": "The Archway Under the Manhattan Bridge",
+          "type": "public space",
+          "description": "Reclaimed public plaza under the Manhattan Bridge hosting markets, performances, and community events"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Grimaldi's Pizzeria",
+          "cuisine": "Pizza",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Cecconi's",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Time Out Market",
+          "cuisine": "Food Hall",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Vinegar Hill House",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "dumbo real estate",
+        "dumbo brooklyn condos",
+        "dumbo loft apartments",
+        "dumbo waterfront condos",
+        "dumbo brooklyn for sale",
+        "brooklyn bridge park apartments",
+        "dumbo luxury apartments"
+      ]
+    },
+    {
+      "slug": "park-slope",
+      "name": "Park Slope",
+      "fullName": "Park Slope, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Premier Family Neighborhood",
+      "heroImage": "https://images.unsplash.com/photo-1575517111478-7f6afd0973db?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1575517111478-7f6afd0973db?w=1200&q=80",
+      "summary": "Park Slope is one of Brooklyn's most desirable residential neighborhoods, renowned for its pristine brownstones, top-rated schools, and direct access to Prospect Park. Average price per square foot is approximately $1,100. The neighborhood consistently ranks among New York City's best for families, food, and quality of life.",
+      "avgPricePerSqft": 1100,
+      "dominantPropertyType": "Townhouse",
+      "walkScore": 97,
+      "transitScore": 91,
+      "topSchool": "PS 321 William Penn",
+      "nearestSubway": [
+        "B",
+        "Q",
+        "2",
+        "3",
+        "D",
+        "N",
+        "R",
+        "F",
+        "G"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Park Slope?",
+          "answer": "The median sale price in Park Slope is approximately $1.35 million. Brownstone townhouses range from $2.5 million to $6 million depending on width, condition, and proximity to Prospect Park. One-bedroom co-ops start around $550,000 and condos around $700,000."
+        },
+        {
+          "question": "Is Park Slope good for families?",
+          "answer": "Park Slope is widely considered Brooklyn's best neighborhood for families. PS 321 and PS 107 are among Brooklyn's top-rated public schools. Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive family-oriented retail and dining."
+        },
+        {
+          "question": "What subway lines serve Park Slope?",
+          "answer": "Park Slope has excellent transit with the B, Q at 7th Avenue, the 2, 3 at Grand Army Plaza and Bergen Street, the D, N, R at Atlantic Avenue-Barclays Center, and the F, G at 4th Avenue and 7th Avenue stations."
+        },
+        {
+          "question": "What is the difference between North Slope and South Slope?",
+          "answer": "North Slope (above 9th Street) features the most architecturally significant brownstones and highest prices, with direct Prospect Park access. South Slope (below 9th Street) is slightly more affordable with a more casual neighborhood vibe, excellent restaurants along 5th Avenue, and newer condo developments."
+        },
+        {
+          "question": "Are Park Slope brownstones good investments?",
+          "answer": "Park Slope brownstones have shown consistent long-term appreciation, typically 3-5% annually. The historic district designation protects architectural character and property values. Brownstones with rental units (2-4 family) offer both appreciation and income potential."
+        },
+        {
+          "question": "How much is rent in Park Slope?",
+          "answer": "Median rent in Park Slope is approximately $3,200 per month for a one-bedroom. Studios average $2,300, two-bedrooms $4,200, and three-bedrooms $5,500+. Garden-level brownstone apartments tend to be 10-15% less than upper-floor units."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1350000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 45,
+        "yoyChange": 0.04,
+        "pricePerSqft": 1100,
+        "inventory": 145,
+        "closedSales": 420,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Landmark at One Prospect Park",
+          "nickname": "The Landmark",
+          "architect": "Field Operations & Cook+Fox",
+          "yearBuilt": 2008,
+          "type": "Condo",
+          "units": 92,
+          "priceRange": "$1M - $4M",
+          "slug": "one-prospect-park"
+        },
+        {
+          "name": "251 1st Street",
+          "nickname": null,
+          "architect": "ODA Architecture",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 42,
+          "priceRange": "$900K - $3.5M",
+          "slug": "251-1st-street"
+        },
+        {
+          "name": "461 Dean Street",
+          "nickname": "461 Dean",
+          "architect": "SHoP Architects",
+          "yearBuilt": 2016,
+          "type": "Rental / Condo",
+          "units": 363,
+          "priceRange": "$600K - $2.5M",
+          "slug": "461-dean-street"
+        },
+        {
+          "name": "The Haymaker",
+          "nickname": null,
+          "architect": "MOSO Studio",
+          "yearBuilt": 2021,
+          "type": "Condo",
+          "units": 23,
+          "priceRange": "$800K - $2.2M",
+          "slug": "the-haymaker-park-slope"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Park Slope is organized around two commercial corridors: Fifth Avenue (trendy, diverse dining) and Seventh Avenue (upscale, family-oriented). The blocks between the two avenues on the park-side (east of 7th Avenue) are the most coveted. Prospect Park West commands the highest brownstone prices.",
+        "bestBlocksForFamilies": [
+          "1st through 5th Streets between 7th and 8th Avenues",
+          "Prospect Park West",
+          "Carroll Street near Prospect Park"
+        ],
+        "bestBlocksForNightlife": [
+          "5th Avenue between Union and 9th Streets",
+          "7th Avenue near Flatbush",
+          "Union Street between 4th and 5th Avenues"
+        ],
+        "quietStreets": [
+          "Montgomery Place",
+          "Prospect Park West",
+          "3rd Street between 7th and 8th Avenues"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families prioritizing top public schools, Prospect Park access, and a walkable neighborhood with strong community feel.",
+          "budgetRange": "$1.5M - $4M",
+          "propertyType": "3-4 bedroom brownstone or co-op"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Professionals working in Downtown Brooklyn or Lower Manhattan who want an urban village lifestyle with easy subway access.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "1-bedroom co-op or condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting multi-family brownstones with both appreciation potential and rental income from garden and parlor floor units.",
+          "budgetRange": "$2.5M - $5M",
+          "propertyType": "2-4 family brownstone"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the market in one of Brooklyn's most stable neighborhoods, often starting with a smaller unit with plans to upsize later.",
+          "budgetRange": "$450K - $800K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Park Slope Listings",
+          "href": "/buy?neighborhood=park-slope"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Park Slope Rentals",
+          "href": "/rent?neighborhood=park-slope"
+        }
+      },
+      "boundaries": {
+        "north": "Flatbush Avenue / Atlantic Avenue",
+        "south": "Prospect Expressway / 15th Street",
+        "east": "Prospect Park West",
+        "west": "4th Avenue"
+      },
+      "transit": [
+        "B",
+        "Q",
+        "2",
+        "3",
+        "D",
+        "N",
+        "R",
+        "F",
+        "G"
+      ],
+      "zipCodes": [
+        "11215",
+        "11217"
+      ],
+      "adjacentNeighborhoods": [
+        "prospect-heights",
+        "carroll-gardens",
+        "cobble-hill"
+      ],
+      "attractions": [
+        {
+          "name": "Prospect Park",
+          "type": "park",
+          "description": "526-acre Olmsted and Vaux masterpiece featuring meadows, a lake, zoo, carousel, and extensive trail system"
+        },
+        {
+          "name": "Brooklyn Botanic Garden",
+          "type": "garden",
+          "description": "52-acre garden with the Japanese Hill-and-Pond Garden, Cherry Esplanade, and seasonal exhibitions"
+        },
+        {
+          "name": "Brooklyn Public Library - Central Branch",
+          "type": "library",
+          "description": "Art Deco landmark at Grand Army Plaza housing Brooklyn's main library collection"
+        },
+        {
+          "name": "Grand Army Plaza",
+          "type": "landmark",
+          "description": "Monumental traffic circle featuring the Soldiers' and Sailors' Arch and a popular Saturday farmers market"
+        }
+      ],
+      "dining": [
+        {
+          "name": "al di la Trattoria",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Fonda",
+          "cuisine": "Mexican",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Runner & Stone",
+          "cuisine": "American / Bakery",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Olmsted",
+          "cuisine": "New American",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "park slope real estate",
+        "park slope brownstones for sale",
+        "park slope apartments",
+        "park slope family homes",
+        "park slope condos",
+        "prospect park apartments",
+        "park slope brooklyn homes"
+      ]
+    },
+    {
+      "slug": "cobble-hill",
+      "name": "Cobble Hill",
+      "fullName": "Cobble Hill, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Intimate Village Charm in Brooklyn",
+      "heroImage": "https://images.unsplash.com/photo-1582531826521-45e0e8a7e3b6?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1582531826521-45e0e8a7e3b6?w=1200&q=80",
+      "summary": "Cobble Hill is a compact, tree-lined neighborhood of beautifully preserved brownstones and row houses, offering an intimate residential experience with excellent dining on Court and Smith Streets. Average price per square foot is approximately $1,200. Its small geographic footprint and historic character create a tight-knit community feel rarely found in New York City.",
+      "avgPricePerSqft": 1200,
+      "dominantPropertyType": "Townhouse",
+      "walkScore": 98,
+      "transitScore": 90,
+      "topSchool": "PS 29 John M. Harrigan",
+      "nearestSubway": [
+        "F",
+        "G",
+        "2",
+        "3",
+        "4",
+        "5",
+        "A",
+        "C"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Cobble Hill?",
+          "answer": "The median sale price in Cobble Hill is approximately $1.25 million. Brownstone townhouses range from $2 million to $5 million. One-bedroom co-ops average $600,000 and condos around $850,000. The limited inventory in this small neighborhood keeps prices elevated."
+        },
+        {
+          "question": "Is Cobble Hill good for families?",
+          "answer": "Cobble Hill is excellent for families. PS 29 is one of Brooklyn's most sought-after public elementary schools. Cobble Hill Park provides green space, and the neighborhood's quiet streets, low-rise character, and family-owned shops create a village atmosphere."
+        },
+        {
+          "question": "What subway lines serve Cobble Hill?",
+          "answer": "The F and G trains stop at Bergen Street. The 2, 3, 4, 5 at Borough Hall and the A, C at Hoyt-Schermerhorn are within a short walk. Multiple lines provide access to Manhattan in 15-20 minutes."
+        },
+        {
+          "question": "How is Cobble Hill different from Carroll Gardens?",
+          "answer": "Cobble Hill is smaller and slightly more urban, with Court Street as its commercial spine. Carroll Gardens to the south features the distinctive deep front gardens that give it its name, has a stronger Italian-American heritage, and Smith Street as its main dining corridor. Both share similar brownstone architecture."
+        },
+        {
+          "question": "What is the Cobble Hill Historic District?",
+          "answer": "Designated in 1969, the Cobble Hill Historic District encompasses 22 blocks of remarkably intact mid-19th century row houses. The district includes Italianate, Greek Revival, and neo-Grec styles. The Tower Buildings (1878) on Hicks Street are notable as early examples of model tenement design."
+        },
+        {
+          "question": "How much is rent in Cobble Hill?",
+          "answer": "Median rent in Cobble Hill is approximately $3,300 per month for a one-bedroom. Studios average $2,400, two-bedrooms $4,200, and three-bedrooms $5,800+. Brownstone floor-throughs and garden apartments are especially popular with renters."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1250000,
+        "medianRent": 3300,
+        "avgDaysOnMarket": 50,
+        "yoyChange": 0.03,
+        "pricePerSqft": 1200,
+        "inventory": 45,
+        "closedSales": 110,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Cobble Hill House",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 20,
+          "priceRange": "$700K - $2.5M",
+          "slug": "the-cobble-hill-house"
+        },
+        {
+          "name": "365 Henry Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 8,
+          "priceRange": "$800K - $2M",
+          "slug": "365-henry-street"
+        },
+        {
+          "name": "347 Henry Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1900,
+          "type": "Co-op",
+          "units": 34,
+          "priceRange": "$400K - $1.2M",
+          "slug": "347-henry-street"
+        },
+        {
+          "name": "The Tower Buildings",
+          "nickname": null,
+          "architect": "William Field & Son",
+          "yearBuilt": 1878,
+          "type": "Co-op",
+          "units": 226,
+          "priceRange": "$350K - $1M",
+          "slug": "tower-buildings"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Cobble Hill's compact layout means nearly every block is desirable. Court Street is the main commercial corridor with a mix of local shops and restaurants. Clinton Street is quieter and more residential. The blocks closest to Cobble Hill Park and along the tree-lined side streets command the highest premiums.",
+        "bestBlocksForFamilies": [
+          "Verandah Place",
+          "Tompkins Place",
+          "Degraw Street between Clinton and Henry"
+        ],
+        "bestBlocksForNightlife": [
+          "Court Street between Atlantic and Degraw",
+          "Smith Street (south edge toward Carroll Gardens)",
+          "Atlantic Avenue between Clinton and Court"
+        ],
+        "quietStreets": [
+          "Verandah Place",
+          "Strong Place",
+          "Tompkins Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families drawn to PS 29, the village-scale streets, and the ability to walk to everything from playgrounds to grocery stores.",
+          "budgetRange": "$1.5M - $4M",
+          "propertyType": "3-bedroom brownstone or co-op"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Professionals in finance or law seeking a refined, quiet residential neighborhood with quick subway access to Downtown Brooklyn and Manhattan.",
+          "budgetRange": "$700K - $1.3M",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Buyers transitioning from larger homes who want to remain in a walkable brownstone neighborhood with character and community.",
+          "budgetRange": "$800K - $1.8M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors seeking brownstone properties in a supply-constrained historic district with strong long-term appreciation and consistent rental demand.",
+          "budgetRange": "$2M - $4.5M",
+          "propertyType": "2-family brownstone"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Cobble Hill Listings",
+          "href": "/buy?neighborhood=cobble-hill"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Cobble Hill Rentals",
+          "href": "/rent?neighborhood=cobble-hill"
+        }
+      },
+      "boundaries": {
+        "north": "Atlantic Avenue",
+        "south": "Degraw Street",
+        "east": "Court Street",
+        "west": "Hicks Street / Brooklyn-Queens Expressway"
+      },
+      "transit": [
+        "F",
+        "G",
+        "2",
+        "3",
+        "4",
+        "5",
+        "A",
+        "C"
+      ],
+      "zipCodes": [
+        "11201"
+      ],
+      "adjacentNeighborhoods": [
+        "brooklyn-heights",
+        "carroll-gardens",
+        "park-slope"
+      ],
+      "attractions": [
+        {
+          "name": "Cobble Hill Park",
+          "type": "park",
+          "description": "Charming neighborhood park with playground, benches, and mature trees on Congress Street"
+        },
+        {
+          "name": "Cobble Hill Cinema",
+          "type": "entertainment",
+          "description": "Local independent movie theater on Court Street showing first-run and indie films"
+        },
+        {
+          "name": "Atlantic Avenue Antiques Row",
+          "type": "shopping",
+          "description": "Cluster of antique shops and home furnishing stores along Atlantic Avenue"
+        },
+        {
+          "name": "Books Are Magic",
+          "type": "bookstore",
+          "description": "Beloved independent bookstore on Court Street founded by author Emma Straub"
+        }
+      ],
+      "dining": [
+        {
+          "name": "La Vara",
+          "cuisine": "Spanish",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Hibino",
+          "cuisine": "Japanese",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Joya",
+          "cuisine": "Thai",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Long Island Bar",
+          "cuisine": "American / Cocktail Bar",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "cobble hill real estate",
+        "cobble hill brownstones for sale",
+        "cobble hill apartments",
+        "cobble hill brooklyn homes",
+        "cobble hill condos",
+        "court street brooklyn apartments",
+        "cobble hill co-ops"
+      ]
+    },
+    {
+      "slug": "carroll-gardens",
+      "name": "Carroll Gardens",
+      "fullName": "Carroll Gardens, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Deep Gardens and Deeper Roots",
+      "heroImage": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=80",
+      "summary": "Carroll Gardens is distinguished by its unusually deep front gardens, Italian-American heritage, and one of Brooklyn's best dining scenes along Smith Street. Average price per square foot is approximately $1,100. The neighborhood combines old-world character with contemporary dining, shopping, and a strong sense of community pride.",
+      "avgPricePerSqft": 1100,
+      "dominantPropertyType": "Townhouse",
+      "walkScore": 97,
+      "transitScore": 88,
+      "topSchool": "PS 58 The Carroll School",
+      "nearestSubway": [
+        "F",
+        "G"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Carroll Gardens?",
+          "answer": "The median sale price in Carroll Gardens is approximately $1.2 million. Brownstone townhouses with the signature deep gardens typically sell for $2.5 million to $5 million. One-bedroom co-ops average $550,000, and condos average $800,000."
+        },
+        {
+          "question": "Is Carroll Gardens good for families?",
+          "answer": "Carroll Gardens is excellent for families. PS 58 is a popular public school, and the deep front gardens provide informal play space unique to this neighborhood. Carroll Park has a playground and active community garden. The neighborhood has a strong multi-generational community feel."
+        },
+        {
+          "question": "What subway lines serve Carroll Gardens?",
+          "answer": "The F and G trains stop at Carroll Street and Smith-9th Street (the highest elevated subway station in NYC). The neighborhood is also walkable to the Borough Hall transit hub for the 2, 3, 4, 5, R trains."
+        },
+        {
+          "question": "What are the famous deep gardens of Carroll Gardens?",
+          "answer": "Carroll Gardens is named for its unusually deep front gardens, which extend 20-30 feet from the sidewalk to the brownstone facades. This distinctive feature was part of surveyor Richard Butts' 1846 street plan and gives the neighborhood its unique character and generous streetscape."
+        },
+        {
+          "question": "What is the dining scene like in Carroll Gardens?",
+          "answer": "Smith Street, nicknamed 'Restaurant Row,' features a diverse range of acclaimed restaurants including Lucali (pizza), Buttermilk Channel, Frankies 457, and many more. Court Street offers Italian bakeries and delis reflecting the neighborhood's heritage. The dining scene is one of Brooklyn's best."
+        },
+        {
+          "question": "How much is rent in Carroll Gardens?",
+          "answer": "Median rent in Carroll Gardens is approximately $3,100 per month for a one-bedroom. Studios average $2,200, two-bedrooms $4,000, and three-bedrooms $5,200+. Brownstone floor-throughs with garden access command premium rents."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1200000,
+        "medianRent": 3100,
+        "avgDaysOnMarket": 48,
+        "yoyChange": 0.035,
+        "pricePerSqft": 1100,
+        "inventory": 65,
+        "closedSales": 180,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "360 Smith Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2015,
+          "type": "Condo",
+          "units": 18,
+          "priceRange": "$700K - $1.8M",
+          "slug": "360-smith-street"
+        },
+        {
+          "name": "The Sackett",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 15,
+          "priceRange": "$800K - $2.5M",
+          "slug": "the-sackett"
+        },
+        {
+          "name": "500 4th Avenue",
+          "nickname": null,
+          "architect": "SLCE Architects",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 43,
+          "priceRange": "$500K - $1.5M",
+          "slug": "500-4th-avenue"
+        },
+        {
+          "name": "485 Union Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 10,
+          "priceRange": "$750K - $2M",
+          "slug": "485-union-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Carroll Gardens is defined by three corridors: Smith Street (restaurants and bars), Court Street (local shops and services), and the residential blocks between them featuring the signature deep gardens. The blocks between President and Carroll Streets are the most architecturally pristine.",
+        "bestBlocksForFamilies": [
+          "President Street between Smith and Hoyt",
+          "Carroll Street between Smith and Court",
+          "2nd Place between Smith and Court"
+        ],
+        "bestBlocksForNightlife": [
+          "Smith Street between Union and Carroll",
+          "Court Street near Sackett",
+          "Union Street near Van Brunt"
+        ],
+        "quietStreets": [
+          "1st Place between Smith and Court",
+          "2nd Place",
+          "3rd Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families seeking the signature deep-garden brownstones, strong public schools, and an active neighborhood community with a village feel.",
+          "budgetRange": "$1.5M - $4M",
+          "propertyType": "3-bedroom brownstone"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Professionals who value walkability, great dining, and easy F/G train access to Manhattan offices.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the market in a neighborhood with strong fundamentals and diverse housing stock at multiple price points.",
+          "budgetRange": "$450K - $800K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting multi-family brownstones in a high-demand, supply-constrained neighborhood with stable long-term returns.",
+          "budgetRange": "$2M - $4.5M",
+          "propertyType": "2-3 family brownstone"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Carroll Gardens Listings",
+          "href": "/buy?neighborhood=carroll-gardens"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Carroll Gardens Rentals",
+          "href": "/rent?neighborhood=carroll-gardens"
+        }
+      },
+      "boundaries": {
+        "north": "Degraw Street",
+        "south": "Hamilton Avenue / Gowanus Expressway",
+        "east": "4th Avenue / Gowanus Canal",
+        "west": "Hicks Street / Columbia Street"
+      },
+      "transit": [
+        "F",
+        "G"
+      ],
+      "zipCodes": [
+        "11231"
+      ],
+      "adjacentNeighborhoods": [
+        "cobble-hill",
+        "park-slope",
+        "brooklyn-heights"
+      ],
+      "attractions": [
+        {
+          "name": "Carroll Park",
+          "type": "park",
+          "description": "Neighborhood park with playground, basketball courts, and a community garden on President Street"
+        },
+        {
+          "name": "Smith Street (Restaurant Row)",
+          "type": "dining corridor",
+          "description": "Brooklyn's original 'Restaurant Row' with blocks of acclaimed independent restaurants, bars, and cafes"
+        },
+        {
+          "name": "Gowanus Canal",
+          "type": "waterway",
+          "description": "Historic industrial canal undergoing environmental restoration with growing arts and recreation along its banks"
+        },
+        {
+          "name": "The Old Stone House",
+          "type": "historic site",
+          "description": "Reconstructed 1699 Dutch farmhouse in Washington Park, site of the Battle of Brooklyn during the Revolutionary War"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Lucali",
+          "cuisine": "Pizza",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Frankies 457 Spuntino",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Buttermilk Channel",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Prime Meats",
+          "cuisine": "German-American",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "carroll gardens real estate",
+        "carroll gardens brownstones for sale",
+        "carroll gardens brooklyn homes",
+        "carroll gardens condos",
+        "smith street brooklyn apartments",
+        "carroll gardens co-ops",
+        "carroll gardens family homes"
+      ]
+    },
+    {
+      "slug": "fort-greene",
+      "name": "Fort Greene",
+      "fullName": "Fort Greene, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Cultural Epicenter",
+      "heroImage": "https://images.unsplash.com/photo-1567684014761-b65e2e59b9eb?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1567684014761-b65e2e59b9eb?w=1200&q=80",
+      "summary": "Fort Greene is a culturally rich neighborhood anchored by the Brooklyn Academy of Music (BAM), Fort Greene Park, and blocks of magnificent Victorian brownstones. Average price per square foot is approximately $1,050. The neighborhood offers a vibrant mix of arts, dining, and residential life with excellent transit connections.",
+      "avgPricePerSqft": 1050,
+      "dominantPropertyType": "Townhouse",
+      "walkScore": 96,
+      "transitScore": 95,
+      "topSchool": "Brooklyn Technical High School",
+      "nearestSubway": [
+        "B",
+        "D",
+        "N",
+        "Q",
+        "R",
+        "2",
+        "3",
+        "4",
+        "5",
+        "G",
+        "C"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Fort Greene?",
+          "answer": "The median sale price in Fort Greene is approximately $1.1 million. Brownstone townhouses range from $2 million to $4.5 million. One-bedroom condos average $750,000 and co-ops around $500,000. New construction near Barclays Center tends to run higher."
+        },
+        {
+          "question": "Is Fort Greene good for families?",
+          "answer": "Fort Greene is very family-friendly with strong schools, Fort Greene Park's playgrounds and open space, and a diverse, engaged community. Brooklyn Technical High School, one of NYC's elite specialized high schools, is located in the neighborhood."
+        },
+        {
+          "question": "What subway lines serve Fort Greene?",
+          "answer": "Fort Greene has exceptional transit access. Atlantic Avenue-Barclays Center station serves the B, D, N, Q, R, 2, 3, 4, 5 trains. The G train stops at Fulton Street and Clinton-Washington. The C train stops at Lafayette Avenue. Fort Greene is one of Brooklyn's best-connected neighborhoods."
+        },
+        {
+          "question": "What is BAM and why is it important?",
+          "answer": "The Brooklyn Academy of Music (BAM) is America's oldest continuously operating performing arts center, founded in 1861. It presents world-class theater, dance, music, opera, and film. BAM is the anchor of the BAM Cultural District, which also includes the Mark Morris Dance Center and BRIC Arts."
+        },
+        {
+          "question": "What is the Fort Greene Historic District?",
+          "answer": "The Fort Greene Historic District encompasses over 60 blocks of some of Brooklyn's finest Victorian-era architecture, including Italianate, Second Empire, and Neo-Grec brownstones and row houses. Many were built in the 1860s-1880s, making Fort Greene one of the best-preserved 19th-century neighborhoods in NYC."
+        },
+        {
+          "question": "How much is rent in Fort Greene?",
+          "answer": "Median rent in Fort Greene is approximately $3,000 per month for a one-bedroom. Studios average $2,200, two-bedrooms $3,800, and three-bedrooms $5,000+. Newer buildings near Barclays Center offer luxury amenities at higher price points."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1100000,
+        "medianRent": 3000,
+        "avgDaysOnMarket": 55,
+        "yoyChange": 0.04,
+        "pricePerSqft": 1050,
+        "inventory": 95,
+        "closedSales": 260,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Ashland",
+          "nickname": null,
+          "architect": "FXCollaborative",
+          "yearBuilt": 2016,
+          "type": "Rental / Condo",
+          "units": 379,
+          "priceRange": "$500K - $2M",
+          "slug": "the-ashland"
+        },
+        {
+          "name": "300 Ashland Place",
+          "nickname": "BAM South",
+          "architect": "TEN Arquitectos",
+          "yearBuilt": 2017,
+          "type": "Rental",
+          "units": 379,
+          "priceRange": "$500K - $1.8M",
+          "slug": "300-ashland-place"
+        },
+        {
+          "name": "The Willoughby",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 148,
+          "priceRange": "$500K - $1.5M",
+          "slug": "the-willoughby"
+        },
+        {
+          "name": "38 Sixth Avenue",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 24,
+          "priceRange": "$700K - $2.2M",
+          "slug": "38-sixth-avenue"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Fort Greene's residential core surrounds Fort Greene Park, with the most coveted blocks radiating from the park's edges. DeKalb Avenue is the primary commercial corridor. The area around BAM and Barclays Center is more urban and transit-oriented. South Portland and South Oxford are among the finest brownstone blocks in Brooklyn.",
+        "bestBlocksForFamilies": [
+          "South Portland Avenue near Fort Greene Park",
+          "South Oxford Street",
+          "Cumberland Street near the park"
+        ],
+        "bestBlocksForNightlife": [
+          "DeKalb Avenue between Flatbush and Vanderbilt",
+          "Fulton Street near BAM",
+          "Lafayette Avenue"
+        ],
+        "quietStreets": [
+          "Waverly Avenue",
+          "South Elliott Place",
+          "Willoughby Avenue between Carlton and Adelphi"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Arts, media, and corporate professionals who value cultural proximity, exceptional transit, and architectural character.",
+          "budgetRange": "$650K - $1.3M",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families drawn to Fort Greene Park, strong schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
+          "budgetRange": "$1.5M - $3.5M",
+          "propertyType": "3-bedroom brownstone or condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the market in a well-connected neighborhood with diverse housing options from studios to multi-family brownstones.",
+          "budgetRange": "$400K - $800K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting brownstones with rental income potential in a neighborhood with strong cultural anchors and continuous transit improvements.",
+          "budgetRange": "$2M - $4M",
+          "propertyType": "2-3 family brownstone"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Fort Greene Listings",
+          "href": "/buy?neighborhood=fort-greene"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Fort Greene Rentals",
+          "href": "/rent?neighborhood=fort-greene"
+        }
+      },
+      "boundaries": {
+        "north": "Myrtle Avenue / Flushing Avenue",
+        "south": "Atlantic Avenue / Flatbush Avenue",
+        "east": "Vanderbilt Avenue / Clermont Avenue",
+        "west": "Flatbush Avenue Extension / Ashland Place"
+      },
+      "transit": [
+        "B",
+        "D",
+        "N",
+        "Q",
+        "R",
+        "2",
+        "3",
+        "4",
+        "5",
+        "G",
+        "C"
+      ],
+      "zipCodes": [
+        "11205",
+        "11217"
+      ],
+      "adjacentNeighborhoods": [
+        "brooklyn-heights",
+        "prospect-heights",
+        "dumbo",
+        "bed-stuy"
+      ],
+      "attractions": [
+        {
+          "name": "Brooklyn Academy of Music (BAM)",
+          "type": "performing arts",
+          "description": "America's oldest performing arts center presenting world-class theater, dance, music, opera, and film since 1861"
+        },
+        {
+          "name": "Fort Greene Park",
+          "type": "park",
+          "description": "30-acre park designed by Olmsted and Vaux featuring the Prison Ship Martyrs Monument, playgrounds, and farmers market"
+        },
+        {
+          "name": "Barclays Center",
+          "type": "arena",
+          "description": "19,000-seat arena home to the Brooklyn Nets and New York Liberty, hosting concerts and major events"
+        },
+        {
+          "name": "BRIC Arts",
+          "type": "arts center",
+          "description": "Multi-disciplinary arts organization presenting exhibitions, performances, and community programs"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Walter's",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Roman's",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Habana Outpost",
+          "cuisine": "Cuban-Mexican",
+          "priceRange": "$"
+        },
+        {
+          "name": "Madiba",
+          "cuisine": "South African",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "fort greene real estate",
+        "fort greene brownstones for sale",
+        "fort greene brooklyn apartments",
+        "fort greene condos",
+        "bam brooklyn apartments",
+        "fort greene co-ops",
+        "fort greene park real estate"
+      ]
+    },
+    {
+      "slug": "prospect-heights",
+      "name": "Prospect Heights",
+      "fullName": "Prospect Heights, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Museum District",
+      "heroImage": "https://images.unsplash.com/photo-1604014237800-1c9102c219da?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1604014237800-1c9102c219da?w=1200&q=80",
+      "summary": "Prospect Heights sits between Grand Army Plaza and Atlantic Avenue, offering proximity to the Brooklyn Museum, Brooklyn Botanic Garden, and Prospect Park along with a growing dining scene on Vanderbilt Avenue. Average price per square foot is approximately $1,000. The neighborhood blends brownstone charm with new development near the Barclays Center.",
+      "avgPricePerSqft": 1000,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 96,
+      "transitScore": 93,
+      "topSchool": "PS 9 Teunis G. Bergen",
+      "nearestSubway": [
+        "2",
+        "3",
+        "B",
+        "Q",
+        "D",
+        "N",
+        "R",
+        "4",
+        "5"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Prospect Heights?",
+          "answer": "The median sale price in Prospect Heights is approximately $950,000. One-bedroom co-ops average $500,000, condos around $750,000. Brownstone townhouses range from $1.8 million to $4 million. New construction near Barclays Center starts around $600,000 for studios."
+        },
+        {
+          "question": "Is Prospect Heights good for families?",
+          "answer": "Prospect Heights is very family-friendly with direct access to Prospect Park, the Brooklyn Botanic Garden, the Brooklyn Children's Museum (nearby), and the Brooklyn Museum. PS 9 is a sought-after local school. Vanderbilt Avenue has family-friendly cafes and shops."
+        },
+        {
+          "question": "What subway lines serve Prospect Heights?",
+          "answer": "The 2, 3 trains stop at Eastern Parkway-Brooklyn Museum and Grand Army Plaza. The B, Q at 7th Avenue-Flatbush. The D, N, R, 2, 3, 4, 5 at Atlantic Avenue-Barclays Center. This gives Prospect Heights some of Brooklyn's best transit connectivity."
+        },
+        {
+          "question": "What is Pacific Park (formerly Atlantic Yards)?",
+          "answer": "Pacific Park is a 22-acre mixed-use development surrounding Barclays Center, adding thousands of new residential units (including affordable housing), retail, and public space. The development includes several towers designed by SHoP Architects and is transforming the northern edge of Prospect Heights."
+        },
+        {
+          "question": "What is the Vanderbilt Avenue dining scene like?",
+          "answer": "Vanderbilt Avenue has emerged as one of Brooklyn's top dining corridors, featuring restaurants like Olmsted (James Beard Award winner), Chuko Ramen, Bergen Hill, and numerous independent cafes and wine bars. The Saturday farmers market at Grand Army Plaza is also a major draw."
+        },
+        {
+          "question": "How much is rent in Prospect Heights?",
+          "answer": "Median rent in Prospect Heights is approximately $2,900 per month for a one-bedroom. Studios average $2,100, two-bedrooms $3,600, and three-bedrooms $4,800+. New Pacific Park towers offer luxury amenities at premium rents."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 950000,
+        "medianRent": 2900,
+        "avgDaysOnMarket": 50,
+        "yoyChange": 0.05,
+        "pricePerSqft": 1000,
+        "inventory": 110,
+        "closedSales": 280,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "550 Vanderbilt Avenue",
+          "nickname": null,
+          "architect": "COOKFOX Architects",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 275,
+          "priceRange": "$600K - $3M",
+          "slug": "550-vanderbilt-avenue"
+        },
+        {
+          "name": "535 Carlton Avenue",
+          "nickname": null,
+          "architect": "SHoP Architects",
+          "yearBuilt": 2017,
+          "type": "Rental",
+          "units": 298,
+          "priceRange": "$500K - $2M",
+          "slug": "535-carlton-avenue"
+        },
+        {
+          "name": "The Brooklyn",
+          "nickname": null,
+          "architect": "Morris Adjmi Architects",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 59,
+          "priceRange": "$550K - $1.5M",
+          "slug": "the-brooklyn-prospect-heights"
+        },
+        {
+          "name": "662 Pacific Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 28,
+          "priceRange": "$650K - $1.8M",
+          "slug": "662-pacific-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Prospect Heights is divided between the brownstone core (south of Eastern Parkway) and the new-development zone (north, near Barclays Center). Vanderbilt Avenue is the main commercial street. The blocks along Eastern Parkway and near Grand Army Plaza are the most prestigious residential streets.",
+        "bestBlocksForFamilies": [
+          "Sterling Place between Vanderbilt and Underhill",
+          "St. Marks Avenue near Prospect Park",
+          "Park Place between Vanderbilt and Carlton"
+        ],
+        "bestBlocksForNightlife": [
+          "Vanderbilt Avenue between Bergen and Prospect Place",
+          "Flatbush Avenue near Barclays Center",
+          "Washington Avenue"
+        ],
+        "quietStreets": [
+          "Lincoln Place between Vanderbilt and Underhill",
+          "Eastern Parkway (south side)",
+          "Butler Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Professionals drawn to exceptional transit access at Barclays Center, proximity to cultural institutions, and Vanderbilt Avenue's dining scene.",
+          "budgetRange": "$550K - $1.1M",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families prioritizing Prospect Park, the Brooklyn Museum, and Botanic Garden access with strong neighborhood schools and community.",
+          "budgetRange": "$1.2M - $3M",
+          "propertyType": "2-3 bedroom brownstone or condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers seeking relative value compared to neighboring Park Slope and Fort Greene while still accessing top amenities and transit.",
+          "budgetRange": "$400K - $750K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors capitalizing on the Pacific Park development corridor and strong rental demand from the neighborhood's growing cultural and commercial infrastructure.",
+          "budgetRange": "$600K - $1.5M",
+          "propertyType": "1-2 bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Prospect Heights Listings",
+          "href": "/buy?neighborhood=prospect-heights"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Prospect Heights Rentals",
+          "href": "/rent?neighborhood=prospect-heights"
+        }
+      },
+      "boundaries": {
+        "north": "Atlantic Avenue",
+        "south": "Eastern Parkway / Empire Boulevard",
+        "east": "Washington Avenue / Franklin Avenue",
+        "west": "Flatbush Avenue"
+      },
+      "transit": [
+        "2",
+        "3",
+        "B",
+        "Q",
+        "D",
+        "N",
+        "R",
+        "4",
+        "5"
+      ],
+      "zipCodes": [
+        "11217",
+        "11238"
+      ],
+      "adjacentNeighborhoods": [
+        "park-slope",
+        "fort-greene",
+        "bed-stuy"
+      ],
+      "attractions": [
+        {
+          "name": "Brooklyn Museum",
+          "type": "museum",
+          "description": "World-class art museum with 1.5 million works spanning ancient Egyptian to contemporary, housed in a Beaux-Arts landmark"
+        },
+        {
+          "name": "Brooklyn Botanic Garden",
+          "type": "garden",
+          "description": "52-acre urban garden featuring the Japanese Hill-and-Pond Garden, Cherry Esplanade, and year-round exhibitions"
+        },
+        {
+          "name": "Grand Army Plaza Farmers Market",
+          "type": "market",
+          "description": "Year-round Saturday farmers market at the entrance to Prospect Park, one of NYC's best"
+        },
+        {
+          "name": "Barclays Center",
+          "type": "arena",
+          "description": "Major sports and entertainment venue on the northern edge of the neighborhood"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Olmsted",
+          "cuisine": "New American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Chuko",
+          "cuisine": "Japanese / Ramen",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Bergen Hill",
+          "cuisine": "Seafood",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Tom's Restaurant",
+          "cuisine": "American Diner",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "prospect heights real estate",
+        "prospect heights condos for sale",
+        "prospect heights brooklyn apartments",
+        "prospect heights brownstones",
+        "barclays center apartments",
+        "brooklyn museum area real estate",
+        "vanderbilt avenue brooklyn"
+      ]
+    },
+    {
+      "slug": "greenpoint",
+      "name": "Greenpoint",
+      "fullName": "Greenpoint, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Waterfront Gem",
+      "heroImage": "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=1200&q=80",
+      "summary": "Greenpoint is the northernmost neighborhood in Brooklyn, offering a distinctive blend of Polish heritage, waterfront living, and creative energy along the East River. Average price per square foot is approximately $1,100. The neighborhood features a charming mix of row houses, new waterfront condos, and an indie commercial scene along Manhattan Avenue and Franklin Street.",
+      "avgPricePerSqft": 1100,
+      "dominantPropertyType": "Condo",
+      "walkScore": 95,
+      "transitScore": 82,
+      "topSchool": "PS 110 The Monitor",
+      "nearestSubway": [
+        "G"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Greenpoint?",
+          "answer": "The median sale price in Greenpoint is approximately $900,000. New waterfront condos average $1.1 million, while inland condos and co-ops average $700,000. Townhouses and two-family homes range from $1.5 million to $3 million."
+        },
+        {
+          "question": "Is Greenpoint good for families?",
+          "answer": "Greenpoint is becoming increasingly popular with families. WNYC Transmitter Park and the new Box Street Park offer waterfront play space. The neighborhood has a calm, residential feel with lower density than neighboring Williamsburg. Local bakeries and family-run businesses add to the community atmosphere."
+        },
+        {
+          "question": "What subway lines serve Greenpoint?",
+          "answer": "The G train stops at Greenpoint Avenue and Nassau Avenue. The neighborhood also has NYC Ferry service from India Street to Manhattan's East 34th Street and Wall Street. The ferry adds significant connectivity that the single subway line otherwise limits."
+        },
+        {
+          "question": "What is the waterfront development in Greenpoint?",
+          "answer": "The Greenpoint waterfront is undergoing a major transformation with projects like Greenpoint Landing, a 5,500-unit mixed-use development on 22 acres. The development includes market-rate and affordable housing, a new school, and 3.5 acres of public parkland along the East River."
+        },
+        {
+          "question": "What is the Polish heritage of Greenpoint?",
+          "answer": "Greenpoint has been a center of Polish-American life in Brooklyn since the mid-19th century. Manhattan Avenue between Greenpoint Avenue and Calyer Street still has Polish bakeries, restaurants, delis, and shops. This cultural heritage adds distinctive character to the neighborhood's dining and community life."
+        },
+        {
+          "question": "How much is rent in Greenpoint?",
+          "answer": "Median rent in Greenpoint is approximately $3,200 per month for a one-bedroom. Studios average $2,500, two-bedrooms $4,000, and three-bedrooms $5,200+. Waterfront units with Manhattan views command a 20-25% premium over inland apartments."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 900000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 55,
+        "yoyChange": 0.05,
+        "pricePerSqft": 1100,
+        "inventory": 130,
+        "closedSales": 310,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Greenpoint Landing",
+          "nickname": null,
+          "architect": "Handel Architects / COOKFOX",
+          "yearBuilt": 2022,
+          "type": "Condo / Rental",
+          "units": 5500,
+          "priceRange": "$600K - $2.5M",
+          "slug": "greenpoint-landing"
+        },
+        {
+          "name": "21 India Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 83,
+          "priceRange": "$550K - $1.8M",
+          "slug": "21-india-street"
+        },
+        {
+          "name": "The Greenpoint",
+          "nickname": null,
+          "architect": "Ismael Leyva Architects",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 95,
+          "priceRange": "$600K - $2M",
+          "slug": "the-greenpoint"
+        },
+        {
+          "name": "110 Green Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 22,
+          "priceRange": "$500K - $1.2M",
+          "slug": "110-green-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Greenpoint has two main commercial corridors: Manhattan Avenue (traditional, with Polish bakeries and local shops) and Franklin Street (hip, with boutiques, cafes, and restaurants). The waterfront along West Street is the newest residential area with luxury condos. Inland blocks retain a quieter, more traditional residential character.",
+        "bestBlocksForFamilies": [
+          "Milton Street near McGolrick Park",
+          "Noble Street",
+          "Greenpoint Avenue near the waterfront"
+        ],
+        "bestBlocksForNightlife": [
+          "Franklin Street between Greenpoint and Calyer",
+          "Manhattan Avenue near Nassau",
+          "Kent Street near the waterfront"
+        ],
+        "quietStreets": [
+          "Milton Street",
+          "Noble Street between Manhattan and Franklin",
+          "Eckford Street"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Creative and tech professionals drawn to Greenpoint's indie culture, waterfront living, and ferry access to Midtown and Lower Manhattan.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "1-bedroom waterfront condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families attracted to the quieter residential streets, waterfront parks, and a more neighborhood-scale feel than neighboring Williamsburg.",
+          "budgetRange": "$1M - $2.5M",
+          "propertyType": "2-3 bedroom condo or townhouse"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the market in a neighborhood with new construction inventory and relative value compared to Williamsburg and DUMBO.",
+          "budgetRange": "$450K - $800K",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting the Greenpoint Landing corridor and waterfront development zone with strong new-construction appreciation trends.",
+          "budgetRange": "$600K - $1.5M",
+          "propertyType": "1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Greenpoint Listings",
+          "href": "/buy?neighborhood=greenpoint"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Greenpoint Rentals",
+          "href": "/rent?neighborhood=greenpoint"
+        }
+      },
+      "boundaries": {
+        "north": "Newtown Creek",
+        "south": "McCarren Park / North 12th Street",
+        "east": "Brooklyn-Queens Expressway",
+        "west": "East River"
+      },
+      "transit": [
+        "G"
+      ],
+      "zipCodes": [
+        "11222"
+      ],
+      "adjacentNeighborhoods": [
+        "williamsburg"
+      ],
+      "attractions": [
+        {
+          "name": "WNYC Transmitter Park",
+          "type": "park",
+          "description": "Waterfront park on the site of a former WNYC radio transmitter with Manhattan views and playground"
+        },
+        {
+          "name": "McGolrick Park",
+          "type": "park",
+          "description": "Historic park with a farmers market, Shelter Pavilion, and the Monitor Monument commemorating the Civil War ironclad"
+        },
+        {
+          "name": "Brooklyn Expo Center",
+          "type": "event venue",
+          "description": "Multi-purpose event space hosting flea markets, food festivals, and cultural events"
+        },
+        {
+          "name": "Greenpoint Landing Waterfront",
+          "type": "waterfront",
+          "description": "New public waterfront esplanade with parks, seating areas, and East River views along the developing shoreline"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Oxomoco",
+          "cuisine": "Mexican",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Le Fond",
+          "cuisine": "French",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Karczma",
+          "cuisine": "Polish",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Scalino",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "greenpoint real estate",
+        "greenpoint condos for sale",
+        "greenpoint waterfront apartments",
+        "greenpoint brooklyn homes",
+        "greenpoint landing",
+        "franklin street brooklyn apartments",
+        "greenpoint brooklyn rentals"
+      ]
+    },
+    {
+      "slug": "bed-stuy",
+      "name": "Bed-Stuy",
+      "fullName": "Bedford-Stuyvesant, Brooklyn",
+      "borough": "Brooklyn",
+      "tagline": "Brooklyn's Brownstone Capital",
+      "heroImage": "https://images.unsplash.com/photo-1577495508048-b635879837f1?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1577495508048-b635879837f1?w=1200&q=80",
+      "summary": "Bedford-Stuyvesant is one of Brooklyn's largest neighborhoods and home to the greatest concentration of Victorian brownstones in New York City. Average price per square foot is approximately $750. Bed-Stuy offers exceptional architectural value, a vibrant arts and dining scene along Tompkins Avenue and Lewis Avenue, and a deeply rooted sense of community.",
+      "avgPricePerSqft": 750,
+      "dominantPropertyType": "Townhouse",
+      "walkScore": 92,
+      "transitScore": 80,
+      "topSchool": "PS 3 Bedford Village",
+      "nearestSubway": [
+        "A",
+        "C",
+        "G",
+        "J",
+        "M",
+        "Z"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Bed-Stuy?",
+          "answer": "The median sale price in Bed-Stuy is approximately $950,000. Brownstone townhouses range from $1.2 million to $3.5 million depending on size, condition, and block. One-bedroom condos average $550,000. Multi-family brownstones offer investment opportunities starting around $1.5 million."
+        },
+        {
+          "question": "Is Bed-Stuy good for families?",
+          "answer": "Bed-Stuy has a strong family community with numerous playgrounds, Herbert Von King Park, and a network of community organizations. The neighborhood's brownstone blocks offer generously sized apartments and private outdoor space. Schools are improving, and the community is deeply engaged in education advocacy."
+        },
+        {
+          "question": "What subway lines serve Bed-Stuy?",
+          "answer": "The A and C trains run along Fulton Street with stops at Nostrand Avenue, Kingston-Throop, and Utica Avenue. The G train stops at Bedford-Nostrand and Classon Avenue. The J, M, Z trains serve the southern edge at Myrtle Avenue stations."
+        },
+        {
+          "question": "What is the brownstone stock like in Bed-Stuy?",
+          "answer": "Bed-Stuy has the largest collection of intact Victorian brownstones in NYC, with over 9,000 structures dating from the 1860s to 1900s. Styles include Romanesque Revival, Queen Anne, Renaissance Revival, and neo-Grec. Many feature original ornamental details including carved stone, iron railings, and stained glass."
+        },
+        {
+          "question": "What is the Stuyvesant Heights Historic District?",
+          "answer": "The Stuyvesant Heights Historic District, designated in 1971, encompasses blocks of exceptionally well-preserved brownstones and row houses along MacDonough, Decatur, Bainbridge, and Chauncey Streets between Stuyvesant and Tompkins Avenues. It is one of Brooklyn's most architecturally significant residential areas."
+        },
+        {
+          "question": "How much is rent in Bed-Stuy?",
+          "answer": "Median rent in Bed-Stuy is approximately $2,500 per month for a one-bedroom. Studios average $1,800, two-bedrooms $3,200, and three-bedrooms $3,800+. Brownstone floor-throughs with original details and outdoor space are highly sought after by renters."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 950000,
+        "medianRent": 2500,
+        "avgDaysOnMarket": 60,
+        "yoyChange": 0.05,
+        "pricePerSqft": 750,
+        "inventory": 220,
+        "closedSales": 580,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "500 Sterling Place",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 30,
+          "priceRange": "$500K - $1.2M",
+          "slug": "500-sterling-place"
+        },
+        {
+          "name": "The Bedford",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 24,
+          "priceRange": "$450K - $1M",
+          "slug": "the-bedford"
+        },
+        {
+          "name": "985 Gates Avenue",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 18,
+          "priceRange": "$400K - $900K",
+          "slug": "985-gates-avenue"
+        },
+        {
+          "name": "The Marcus",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 15,
+          "priceRange": "$500K - $1.1M",
+          "slug": "the-marcus-bed-stuy"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Bed-Stuy is a large neighborhood with significant block-by-block variation. The Stuyvesant Heights Historic District offers the most architecturally pristine brownstones. Tompkins Avenue and Lewis Avenue are the main commercial corridors. Bedford Avenue and Nostrand Avenue provide additional retail and dining options. Western Bed-Stuy near Clinton Hill tends to command higher prices.",
+        "bestBlocksForFamilies": [
+          "MacDonough Street between Stuyvesant and Tompkins",
+          "Decatur Street in the historic district",
+          "Jefferson Avenue between Nostrand and Marcy"
+        ],
+        "bestBlocksForNightlife": [
+          "Tompkins Avenue between Gates and Putnam",
+          "Lewis Avenue near Decatur",
+          "Bedford Avenue near Quincy"
+        ],
+        "quietStreets": [
+          "Bainbridge Street in the historic district",
+          "Chauncey Street between Stuyvesant and Lewis",
+          "MacDonough Street near Stuyvesant Avenue"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers seeking exceptional brownstone value with spacious layouts and architectural character at more accessible price points than neighboring areas.",
+          "budgetRange": "$400K - $750K",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting multi-family brownstones with strong rental demand, significant appreciation potential, and income from multiple units.",
+          "budgetRange": "$1.5M - $3.5M",
+          "propertyType": "2-4 family brownstone"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families drawn to spacious brownstone living with private outdoor gardens, strong community ties, and room to grow.",
+          "budgetRange": "$1.2M - $2.5M",
+          "propertyType": "Brownstone townhouse"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Professionals who value distinctive architectural character, a thriving local culture, and multiple transit options to Manhattan and downtown Brooklyn.",
+          "budgetRange": "$500K - $1M",
+          "propertyType": "1-bedroom condo or brownstone unit"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Bed-Stuy Listings",
+          "href": "/buy?neighborhood=bed-stuy"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Bed-Stuy Rentals",
+          "href": "/rent?neighborhood=bed-stuy"
+        }
+      },
+      "boundaries": {
+        "north": "Flushing Avenue",
+        "south": "Atlantic Avenue",
+        "east": "Broadway / Saratoga Avenue",
+        "west": "Classon Avenue"
+      },
+      "transit": [
+        "A",
+        "C",
+        "G",
+        "J",
+        "M",
+        "Z"
+      ],
+      "zipCodes": [
+        "11205",
+        "11206",
+        "11216",
+        "11221",
+        "11233"
+      ],
+      "adjacentNeighborhoods": [
+        "fort-greene",
+        "prospect-heights",
+        "williamsburg"
+      ],
+      "attractions": [
+        {
+          "name": "Herbert Von King Park",
+          "type": "park",
+          "description": "Community park with amphitheater, playground, and summer cultural programming on Greene Avenue"
+        },
+        {
+          "name": "Stuyvesant Heights Historic District",
+          "type": "historic district",
+          "description": "Blocks of exceptionally preserved Victorian brownstones representing one of Brooklyn's finest architectural collections"
+        },
+        {
+          "name": "Bed-Stuy Campaign Against Hunger",
+          "type": "community organization",
+          "description": "Award-winning food pantry and community resource center serving the Bed-Stuy community"
+        },
+        {
+          "name": "Restoration Plaza",
+          "type": "cultural center",
+          "description": "Community development center and cultural hub hosting events, performances, and local businesses"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Peaches",
+          "cuisine": "Southern",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Saraghina",
+          "cuisine": "Italian / Pizza",
+          "priceRange": "$$"
+        },
+        {
+          "name": "L'Antagoniste",
+          "cuisine": "French",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Do or Dine",
+          "cuisine": "Eclectic American",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "bed-stuy real estate",
+        "bedford stuyvesant brownstones for sale",
+        "bed-stuy apartments",
+        "bed-stuy townhouses",
+        "bed-stuy condos",
+        "bed-stuy brooklyn homes",
+        "bedford stuyvesant investment property"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1138 @@
+{
+  "neighborhoods": [
+    {
+      "slug": "riverdale",
+      "name": "Riverdale",
+      "fullName": "Riverdale, Bronx",
+      "borough": "Bronx",
+      "tagline": "Suburban Serenity Within City Limits",
+      "heroImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1200&q=80",
+      "summary": "Riverdale is the Bronx's most prestigious residential enclave, offering tree-lined streets, Hudson River views, and a distinctly suburban feel just 30 minutes from Midtown Manhattan. With stately homes, quality co-ops, and top-rated schools, it draws buyers seeking space and value. Average price per square foot is approximately $375.",
+      "avgPricePerSqft": 375,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 65,
+      "transitScore": 56,
+      "topSchool": "Horace Mann School",
+      "nearestSubway": [
+        "1"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Riverdale?",
+          "answer": "The median sale price in Riverdale is approximately $425,000, driven largely by co-ops in large complexes. Single-family homes and townhouses range from $600,000 to over $2 million depending on lot size, condition, and Hudson River views."
+        },
+        {
+          "question": "Is Riverdale good for families?",
+          "answer": "Riverdale is one of NYC's most family-oriented neighborhoods. It is home to top private schools including Horace Mann, Riverdale Country School, and Ethical Culture Fieldston. Public schools like PS 81 also rank well. The area offers abundant green space through Wave Hill and Van Cortlandt Park."
+        },
+        {
+          "question": "How do you get to Manhattan from Riverdale?",
+          "answer": "The 1 train stops at 231st Street and 238th Street (Van Cortlandt Park). Metro-North's Hudson Line stops at Riverdale and Spuyten Duyvil stations, reaching Grand Central in about 25-30 minutes. Express buses (BxM1, BxM2) run to Midtown during rush hours."
+        },
+        {
+          "question": "What types of housing are available in Riverdale?",
+          "answer": "Riverdale offers a diverse housing stock including large co-op complexes (like Skyview-on-the-Hudson and The Whitehall), single-family Tudor and Colonial homes, split-levels, and some newer condo developments. Pre-war co-ops dominate the market by volume."
+        },
+        {
+          "question": "What is the difference between North Riverdale and South Riverdale?",
+          "answer": "North Riverdale (above 254th Street) features more single-family homes on larger lots with a quieter, more suburban character. South Riverdale (below 254th Street) has more co-op buildings, better transit access, and a more urban-suburban mix. Both areas offer excellent value compared to Manhattan."
+        },
+        {
+          "question": "How much is rent in Riverdale?",
+          "answer": "Median rent in Riverdale is approximately $2,000 per month for a one-bedroom. Studios average $1,500, two-bedrooms $2,500, and three-bedrooms $3,200. Riverdale offers significantly more space per dollar than Manhattan, making it popular with renters seeking larger apartments."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 425000,
+        "medianRent": 2000,
+        "avgDaysOnMarket": 95,
+        "yoyChange": 0.04,
+        "pricePerSqft": 375,
+        "inventory": 180,
+        "closedSales": 420,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Skyview-on-the-Hudson",
+          "nickname": "Skyview",
+          "architect": null,
+          "yearBuilt": 1964,
+          "type": "Co-op",
+          "units": 880,
+          "priceRange": "$200K - $600K",
+          "slug": "skyview-on-the-hudson"
+        },
+        {
+          "name": "The Whitehall",
+          "nickname": null,
+          "architect": "Horace Ginsbern",
+          "yearBuilt": 1961,
+          "type": "Co-op",
+          "units": 430,
+          "priceRange": "$175K - $500K",
+          "slug": "the-whitehall"
+        },
+        {
+          "name": "5700 Arlington Avenue",
+          "nickname": null,
+          "architect": "Philip Birnbaum",
+          "yearBuilt": 1967,
+          "type": "Co-op",
+          "units": 250,
+          "priceRange": "$250K - $550K",
+          "slug": "5700-arlington-avenue"
+        },
+        {
+          "name": "Riverdale Garden",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1928,
+          "type": "Co-op",
+          "units": 68,
+          "priceRange": "$300K - $700K",
+          "slug": "riverdale-garden"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Riverdale's hilly terrain creates dramatic variation block by block. Properties along Palisade Avenue and Independence Avenue offer Hudson River views at a premium. The Henry Hudson Parkway divides the neighborhood, with the western side generally more desirable for its proximity to the river and green space.",
+        "bestBlocksForFamilies": [
+          "Fieldston Road area near the schools",
+          "West 254th Street between Independence and Riverdale Avenues",
+          "Delafield Avenue near Riverdale Park"
+        ],
+        "bestBlocksForNightlife": [
+          "Johnson Avenue near 235th Street",
+          "Riverdale Avenue near 231st Street",
+          "Broadway near 242nd Street"
+        ],
+        "quietStreets": [
+          "Sycamore Avenue in Fieldston",
+          "Independence Avenue north of 246th Street",
+          "Palisade Avenue overlooking the Hudson"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families seeking top schools, green space, and a safe suburban environment without leaving NYC. Riverdale's school options and parks are a major draw.",
+          "budgetRange": "$400K - $1.2M",
+          "propertyType": "3-bedroom co-op or single-family home"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Homeowners transitioning from larger suburban properties in Westchester who want to remain close to the city while keeping a neighborhood feel.",
+          "budgetRange": "$300K - $600K",
+          "propertyType": "1-2 bedroom co-op with river views"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers priced out of Manhattan seeking affordable co-ops with generous square footage and excellent transit connections.",
+          "budgetRange": "$200K - $450K",
+          "propertyType": "1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors attracted to Riverdale's strong rental demand from families and professionals commuting to Manhattan and Westchester.",
+          "budgetRange": "$250K - $600K",
+          "propertyType": "1-2 bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Riverdale Listings",
+          "href": "/buy?neighborhood=riverdale"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Riverdale Rentals",
+          "href": "/rent?neighborhood=riverdale"
+        }
+      },
+      "boundaries": {
+        "north": "Yonkers city line (West 263rd Street)",
+        "south": "West 230th Street / Kingsbridge",
+        "east": "Broadway / Van Cortlandt Park",
+        "west": "Hudson River"
+      },
+      "transit": [
+        "1"
+      ],
+      "zipCodes": [
+        "10463",
+        "10471"
+      ],
+      "adjacentNeighborhoods": [
+        "fordham",
+        "pelham-bay"
+      ],
+      "attractions": [
+        {
+          "name": "Wave Hill",
+          "type": "garden",
+          "description": "A 28-acre public garden and cultural center overlooking the Hudson River and Palisades"
+        },
+        {
+          "name": "Van Cortlandt Park",
+          "type": "park",
+          "description": "The Bronx's third-largest park with hiking trails, a golf course, and the oldest public golf course in the U.S."
+        },
+        {
+          "name": "Riverdale Park",
+          "type": "park",
+          "description": "Steep, wooded parkland along the Hudson River with walking trails and scenic overlooks"
+        },
+        {
+          "name": "College of Mount Saint Vincent",
+          "type": "landmark",
+          "description": "Historic campus with stunning Hudson River views and Victorian architecture open to the public"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Becoficin",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "S&S Cheesecake",
+          "cuisine": "Bakery",
+          "priceRange": "$"
+        },
+        {
+          "name": "Liebman's Delicatessen",
+          "cuisine": "Jewish Deli",
+          "priceRange": "$$"
+        },
+        {
+          "name": "La Isla Cuchifritos",
+          "cuisine": "Puerto Rican",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "riverdale bronx real estate",
+        "riverdale co-ops for sale",
+        "riverdale homes bronx",
+        "riverdale apartments",
+        "bronx luxury real estate",
+        "riverdale family homes",
+        "hudson river views bronx"
+      ]
+    },
+    {
+      "slug": "city-island",
+      "name": "City Island",
+      "fullName": "City Island, Bronx",
+      "borough": "Bronx",
+      "tagline": "New England Charm in New York City",
+      "heroImage": "https://images.unsplash.com/photo-1500916434205-0c77489c6cf7?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1500916434205-0c77489c6cf7?w=1200&q=80",
+      "summary": "City Island is a hidden gem in the Bronx — a 1.5-mile-long island in Long Island Sound that feels more like a New England fishing village than New York City. Known for its seafood restaurants, maritime culture, and tight-knit community, it offers a unique lifestyle unlike anywhere else in the five boroughs. Average price per square foot is approximately $325.",
+      "avgPricePerSqft": 325,
+      "dominantPropertyType": "Single Family",
+      "walkScore": 52,
+      "transitScore": 38,
+      "topSchool": "PS 175",
+      "nearestSubway": [
+        "6"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price on City Island?",
+          "answer": "The median sale price on City Island is approximately $520,000. Most housing consists of single-family homes, bungalows, and small multi-family properties. Waterfront homes with views command premiums of 30-50% above the median. Some historic Victorian homes can exceed $800,000."
+        },
+        {
+          "question": "Is City Island a good place to live?",
+          "answer": "City Island offers a unique lifestyle with a strong sense of community, waterfront living, and a quieter pace of life. Residents enjoy fresh seafood, boating, and a main street lined with shops and galleries. The trade-off is limited transit access and a longer commute to Manhattan."
+        },
+        {
+          "question": "How do you get to Manhattan from City Island?",
+          "answer": "City Island is accessible by car via the City Island Bridge to the mainland. The BX29 bus connects to the 6 train at Pelham Bay Park station. From there, the 6 train reaches Grand Central in about 45 minutes. Driving to Midtown takes approximately 35-50 minutes depending on traffic."
+        },
+        {
+          "question": "What is City Island known for?",
+          "answer": "City Island is famous for its seafood restaurants along City Island Avenue, its nautical history (it was once a major boat-building center), and its small-town charm. The annual City Island Art exhibitions and maritime festivals draw visitors from across the city."
+        },
+        {
+          "question": "Are there waterfront properties on City Island?",
+          "answer": "Yes, waterfront properties are among the most sought-after on City Island. Homes along the eastern and western shores offer views of Long Island Sound, Eastchester Bay, and even the Manhattan skyline on clear days. Waterfront lots are rare and typically sell quickly."
+        },
+        {
+          "question": "How much is rent on City Island?",
+          "answer": "Rental options on City Island are limited compared to mainland Bronx neighborhoods. Median rent is approximately $1,800 for a one-bedroom. Most rentals are in small multi-family homes or accessory apartments. The limited rental inventory keeps demand steady year-round."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 520000,
+        "medianRent": 1800,
+        "avgDaysOnMarket": 110,
+        "yoyChange": 0.05,
+        "pricePerSqft": 325,
+        "inventory": 25,
+        "closedSales": 45,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "190 Fordham Street",
+          "nickname": "The Boatyard Condos",
+          "architect": null,
+          "yearBuilt": 2005,
+          "type": "Condo",
+          "units": 24,
+          "priceRange": "$400K - $700K",
+          "slug": "190-fordham-street"
+        },
+        {
+          "name": "104 Horton Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1920,
+          "type": "Single Family",
+          "units": 1,
+          "priceRange": "$600K - $850K",
+          "slug": "104-horton-street"
+        },
+        {
+          "name": "City Island Sailing Club Area Homes",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1940,
+          "type": "Single Family",
+          "units": 12,
+          "priceRange": "$450K - $750K",
+          "slug": "city-island-sailing-club-area"
+        },
+        {
+          "name": "Pilot Cove Manor",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1975,
+          "type": "Co-op",
+          "units": 240,
+          "priceRange": "$150K - $350K",
+          "slug": "pilot-cove-manor"
+        }
+      ],
+      "streetGuidance": {
+        "description": "City Island Avenue is the main commercial strip running the length of the island. Side streets to the east and west offer waterfront access. The southern tip tends to be quieter and more residential, while the northern end near the bridge has more commercial activity.",
+        "bestBlocksForFamilies": [
+          "Minneford Avenue south of Tier Street",
+          "King Avenue near PS 175",
+          "Marine Street near Pelham Cemetery"
+        ],
+        "bestBlocksForNightlife": [
+          "City Island Avenue between Ditmars and Cross Streets",
+          "City Island Avenue at Belden Point (southern tip)",
+          "City Island Avenue near the bridge"
+        ],
+        "quietStreets": [
+          "Pilot Street (southern tip)",
+          "Minneford Avenue (western shore)",
+          "Horton Street"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Right-Sizer",
+          "description": "Buyers seeking a slower pace of life with waterfront living, maritime culture, and a strong community atmosphere within NYC.",
+          "budgetRange": "$400K - $700K",
+          "propertyType": "Single-family home"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers seeking affordable homeownership in NYC who value character and community over nightlife and convenience.",
+          "budgetRange": "$300K - $500K",
+          "propertyType": "Bungalow or small home"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors drawn to City Island's scarcity value — limited land, strong seasonal tourism, and growing interest from buyers seeking unique NYC properties.",
+          "budgetRange": "$450K - $800K",
+          "propertyType": "Multi-family or waterfront single-family"
+        },
+        {
+          "type": "Pied-a-Terre Buyer",
+          "description": "Buyers looking for a weekend retreat or seasonal waterfront property that feels worlds away from the city while remaining within NYC limits.",
+          "budgetRange": "$350K - $600K",
+          "propertyType": "Waterfront cottage or condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search City Island Listings",
+          "href": "/buy?neighborhood=city-island"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View City Island Rentals",
+          "href": "/rent?neighborhood=city-island"
+        }
+      },
+      "boundaries": {
+        "north": "City Island Bridge / Pelham Bay Park",
+        "south": "Long Island Sound (Belden Point)",
+        "east": "Eastchester Bay",
+        "west": "Pelham Bay"
+      },
+      "transit": [
+        "6"
+      ],
+      "zipCodes": [
+        "10464"
+      ],
+      "adjacentNeighborhoods": [
+        "pelham-bay"
+      ],
+      "attractions": [
+        {
+          "name": "City Island Nautical Museum",
+          "type": "museum",
+          "description": "A small museum documenting City Island's rich boat-building and maritime heritage"
+        },
+        {
+          "name": "Pelham Bay Park",
+          "type": "park",
+          "description": "NYC's largest park (2,772 acres) with Orchard Beach, trails, and the Thomas Pell Wildlife Sanctuary"
+        },
+        {
+          "name": "City Island Avenue",
+          "type": "commercial",
+          "description": "The island's main street lined with seafood restaurants, antique shops, and art galleries"
+        },
+        {
+          "name": "Orchard Beach",
+          "type": "beach",
+          "description": "The Bronx Riviera — a 1.1-mile crescent beach in Pelham Bay Park, minutes from City Island"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Sammy's Shrimp Box",
+          "cuisine": "Seafood",
+          "priceRange": "$$"
+        },
+        {
+          "name": "The Lobster House",
+          "cuisine": "Seafood",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Artie's Steak & Seafood",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Scavello's on the Island",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "city island bronx real estate",
+        "city island homes for sale",
+        "city island waterfront property",
+        "bronx waterfront homes",
+        "city island condos",
+        "city island nyc",
+        "bronx island living"
+      ]
+    },
+    {
+      "slug": "mott-haven",
+      "name": "Mott Haven",
+      "fullName": "Mott Haven, Bronx",
+      "borough": "Bronx",
+      "tagline": "The Bronx's Waterfront Arts District",
+      "heroImage": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&q=80",
+      "summary": "Mott Haven is the southernmost neighborhood in the Bronx, sitting directly across the Harlem River from Manhattan. Its historic brownstone-lined streets, growing arts community, and new waterfront developments have made it one of the most dynamic neighborhoods in the borough. Average price per square foot is approximately $475.",
+      "avgPricePerSqft": 475,
+      "dominantPropertyType": "Condo",
+      "walkScore": 87,
+      "transitScore": 82,
+      "topSchool": "PS 277",
+      "nearestSubway": [
+        "2",
+        "4",
+        "5",
+        "6"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Mott Haven?",
+          "answer": "The median sale price in Mott Haven is approximately $550,000, though this varies significantly between new condo developments (averaging $700,000+) and existing housing stock. Brownstones and townhouses range from $800,000 to $1.5 million. Co-ops start under $200,000."
+        },
+        {
+          "question": "Is Mott Haven a good place to buy?",
+          "answer": "Mott Haven has seen significant investment in new housing, retail, and cultural infrastructure. Its proximity to Manhattan (one stop from 125th Street on the 4/5), waterfront access, and relative affordability compared to Manhattan make it attractive to a range of buyers."
+        },
+        {
+          "question": "What subway lines serve Mott Haven?",
+          "answer": "Mott Haven has excellent transit. The 4, 5, and 6 trains stop at 138th Street and 149th Street. The 2 and 5 trains also serve the area. Grand Concourse and 3rd Avenue are the main transit corridors. Manhattan is just one or two subway stops away."
+        },
+        {
+          "question": "What is the arts scene like in Mott Haven?",
+          "answer": "Mott Haven has a vibrant and growing arts community. The Bronx Art Space, numerous galleries along Alexander Avenue, and regular art walks draw visitors. The neighborhood's industrial buildings have been converted into studios and creative workspaces."
+        },
+        {
+          "question": "Are there new developments in Mott Haven?",
+          "answer": "Yes, Mott Haven has seen major new developments including Bankside, a large mixed-use waterfront project, and several boutique condo buildings along the Harlem River waterfront. These projects have introduced modern amenities and luxury finishes to the neighborhood."
+        },
+        {
+          "question": "How much is rent in Mott Haven?",
+          "answer": "Median rent in Mott Haven is approximately $2,200 per month for a one-bedroom, with newer luxury developments commanding $2,800+. Studios average $1,800 and two-bedrooms $2,800. The neighborhood offers significantly more space per dollar than Upper Manhattan."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 550000,
+        "medianRent": 2200,
+        "avgDaysOnMarket": 68,
+        "yoyChange": 0.07,
+        "pricePerSqft": 475,
+        "inventory": 95,
+        "closedSales": 210,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Bankside",
+          "nickname": null,
+          "architect": "Marvel Architects",
+          "yearBuilt": 2022,
+          "type": "Rental",
+          "units": 1350,
+          "priceRange": "$2,200 - $5,500/mo",
+          "slug": "bankside"
+        },
+        {
+          "name": "The Arches",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 98,
+          "priceRange": "$450K - $950K",
+          "slug": "the-arches"
+        },
+        {
+          "name": "2413 Third Avenue",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 30,
+          "priceRange": "$500K - $800K",
+          "slug": "2413-third-avenue"
+        },
+        {
+          "name": "The Bronx Point",
+          "nickname": null,
+          "architect": "S9 Architecture",
+          "yearBuilt": 2024,
+          "type": "Mixed-Use",
+          "units": 542,
+          "priceRange": "Affordable housing lottery",
+          "slug": "the-bronx-point"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Alexander Avenue is the neighborhood's most architecturally significant corridor, with beautifully preserved 19th-century brownstones and new restaurants. The waterfront along the Harlem River is the focus of new development. Third Avenue is the main commercial strip with shops and transit access.",
+        "bestBlocksForFamilies": [
+          "Alexander Avenue between 136th and 140th Streets",
+          "Willis Avenue near St. Mary's Park",
+          "East 138th Street (Mott Haven Historic District)"
+        ],
+        "bestBlocksForNightlife": [
+          "Alexander Avenue near Bruckner Boulevard",
+          "Third Avenue between 135th and 140th Streets",
+          "Lincoln Avenue waterfront area"
+        ],
+        "quietStreets": [
+          "East 139th Street between Alexander and Willis",
+          "Rider Avenue near the waterfront",
+          "East 137th Street in the Historic District"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Professionals working in Manhattan who want modern amenities, quick commutes, and significantly more space than Manhattan offers at similar price points.",
+          "budgetRange": "$450K - $800K",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the NYC market attracted to new construction with modern finishes and amenities at prices well below Manhattan equivalents.",
+          "budgetRange": "$300K - $550K",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors capitalizing on strong rental demand from Manhattan-bound commuters and the neighborhood's growing amenity base and waterfront development.",
+          "budgetRange": "$400K - $900K",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families drawn to Mott Haven's historic brownstones, proximity to St. Mary's Park, and access to both Bronx and Manhattan resources.",
+          "budgetRange": "$800K - $1.5M",
+          "propertyType": "Brownstone or townhouse"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Mott Haven Listings",
+          "href": "/buy?neighborhood=mott-haven"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Mott Haven Rentals",
+          "href": "/rent?neighborhood=mott-haven"
+        }
+      },
+      "boundaries": {
+        "north": "East 149th Street",
+        "south": "Harlem River",
+        "east": "Bruckner Expressway / St. Mary's Park",
+        "west": "Harlem River"
+      },
+      "transit": [
+        "2",
+        "4",
+        "5",
+        "6"
+      ],
+      "zipCodes": [
+        "10451",
+        "10454",
+        "10455"
+      ],
+      "adjacentNeighborhoods": [
+        "fordham",
+        "pelham-bay"
+      ],
+      "attractions": [
+        {
+          "name": "St. Mary's Park",
+          "type": "park",
+          "description": "A 35-acre park with an outdoor pool, recreation center, running track, and panoramic views of the neighborhood"
+        },
+        {
+          "name": "Bronx Art Space",
+          "type": "gallery",
+          "description": "A community art gallery showcasing local and emerging Bronx-based artists"
+        },
+        {
+          "name": "Mott Haven Historic District",
+          "type": "landmark",
+          "description": "A designated NYC landmark district featuring over 120 well-preserved 19th-century brownstones and rowhouses"
+        },
+        {
+          "name": "Harlem River Greenway",
+          "type": "park",
+          "description": "Waterfront walkway and bike path along the Harlem River connecting parks and new developments"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Ceetay",
+          "cuisine": "Asian Fusion",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Mexicocina",
+          "cuisine": "Mexican",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Archer & Goat",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Terrace on the Park (Bronx)",
+          "cuisine": "Latin American",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "mott haven bronx real estate",
+        "mott haven condos for sale",
+        "mott haven brownstones",
+        "south bronx real estate",
+        "mott haven waterfront",
+        "bronx new construction condos",
+        "mott haven apartments"
+      ]
+    },
+    {
+      "slug": "pelham-bay",
+      "name": "Pelham Bay",
+      "fullName": "Pelham Bay, Bronx",
+      "borough": "Bronx",
+      "tagline": "Parks, Beaches, and Neighborhood Pride",
+      "heroImage": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80",
+      "summary": "Pelham Bay is a residential neighborhood in the northeast Bronx anchored by Pelham Bay Park, the largest park in New York City. The area offers a mix of single-family homes, co-ops, and small apartment buildings, attracting buyers who value outdoor recreation, community ties, and affordable homeownership. Average price per square foot is approximately $300.",
+      "avgPricePerSqft": 300,
+      "dominantPropertyType": "Single Family",
+      "walkScore": 72,
+      "transitScore": 65,
+      "topSchool": "PS 71",
+      "nearestSubway": [
+        "6"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Pelham Bay?",
+          "answer": "The median sale price in Pelham Bay is approximately $410,000. Single-family homes typically range from $450,000 to $750,000, while co-ops in the area start around $150,000. Multi-family properties (2-3 units) range from $500,000 to $900,000."
+        },
+        {
+          "question": "Is Pelham Bay good for families?",
+          "answer": "Pelham Bay is a family-friendly neighborhood with good schools, low-density residential streets, and unmatched access to Pelham Bay Park and Orchard Beach. The area has a strong sense of community with local sports leagues, seasonal events, and longtime residents."
+        },
+        {
+          "question": "What is Pelham Bay Park?",
+          "answer": "Pelham Bay Park is NYC's largest park at 2,772 acres — more than three times the size of Central Park. It includes Orchard Beach, two golf courses, a nature center, hiking and biking trails, horseback riding, and the Thomas Pell Wildlife Sanctuary."
+        },
+        {
+          "question": "How do you get to Manhattan from Pelham Bay?",
+          "answer": "The 6 train has its terminal at Pelham Bay Park station, offering direct service to Grand Central Terminal in approximately 45 minutes. Express buses (BxM8) run to Midtown during rush hours. The Hutchinson River Parkway and I-95 provide highway access."
+        },
+        {
+          "question": "What types of homes are in Pelham Bay?",
+          "answer": "Pelham Bay has a diverse housing stock including detached single-family homes (many Colonial and Tudor style), attached rowhouses, small multi-family properties, and several co-op complexes. The neighborhood retains a suburban character with front yards and driveways."
+        },
+        {
+          "question": "How much is rent in Pelham Bay?",
+          "answer": "Median rent in Pelham Bay is approximately $1,700 per month for a one-bedroom. Studios average $1,400, two-bedrooms $2,100, and three-bedrooms $2,600. Pelham Bay offers some of the most affordable rentals in NYC with easy subway access."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 410000,
+        "medianRent": 1700,
+        "avgDaysOnMarket": 88,
+        "yoyChange": 0.05,
+        "pricePerSqft": 300,
+        "inventory": 65,
+        "closedSales": 150,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "3135 Johnson Avenue",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1960,
+          "type": "Co-op",
+          "units": 108,
+          "priceRange": "$150K - $350K",
+          "slug": "3135-johnson-avenue"
+        },
+        {
+          "name": "1075 Pelham Parkway South",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1955,
+          "type": "Co-op",
+          "units": 120,
+          "priceRange": "$140K - $300K",
+          "slug": "1075-pelham-parkway-south"
+        },
+        {
+          "name": "Pelham Bay Towers",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1972,
+          "type": "Co-op",
+          "units": 175,
+          "priceRange": "$160K - $380K",
+          "slug": "pelham-bay-towers"
+        },
+        {
+          "name": "3184 Country Club Road",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1935,
+          "type": "Single Family",
+          "units": 1,
+          "priceRange": "$550K - $750K",
+          "slug": "3184-country-club-road"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Pelham Bay blends into several sub-areas. Country Club to the south has larger homes and a more suburban feel. The area near the 6 train terminal is more commercial. Streets closer to Pelham Bay Park offer the best access to recreation. Middletown Road is the main commercial corridor.",
+        "bestBlocksForFamilies": [
+          "Country Club Road south of Middletown Road",
+          "Mayflower Avenue near Pelham Bay Park",
+          "Buhre Avenue between Crosby and Middletown"
+        ],
+        "bestBlocksForNightlife": [
+          "Westchester Avenue near Buhre Avenue station",
+          "Crosby Avenue commercial strip",
+          "Middletown Road between Crosby and Hobart"
+        ],
+        "quietStreets": [
+          "Stadium Avenue near the park",
+          "Shore Drive in Country Club",
+          "Tierney Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families seeking detached homes with yards, good schools, and immediate access to NYC's largest park for outdoor recreation.",
+          "budgetRange": "$450K - $750K",
+          "propertyType": "Single-family home"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "First-time buyers seeking the most affordable path to NYC homeownership with subway access, choosing co-ops in the neighborhood's mid-rise buildings.",
+          "budgetRange": "$150K - $350K",
+          "propertyType": "1-2 bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors acquiring multi-family properties in a neighborhood with steady rental demand and stable long-term residents.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "2-3 family home"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Homeowners seeking to move to a manageable co-op or smaller home while remaining in a neighborhood with strong community ties and outdoor access.",
+          "budgetRange": "$200K - $400K",
+          "propertyType": "1-2 bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Pelham Bay Listings",
+          "href": "/buy?neighborhood=pelham-bay"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Pelham Bay Rentals",
+          "href": "/rent?neighborhood=pelham-bay"
+        }
+      },
+      "boundaries": {
+        "north": "Pelham Bay Park / Hutchinson River Parkway",
+        "south": "Bruckner Expressway",
+        "east": "Eastchester Bay / Long Island Sound",
+        "west": "Williamsbridge Road"
+      },
+      "transit": [
+        "6"
+      ],
+      "zipCodes": [
+        "10461",
+        "10462",
+        "10464",
+        "10465"
+      ],
+      "adjacentNeighborhoods": [
+        "city-island",
+        "fordham",
+        "riverdale"
+      ],
+      "attractions": [
+        {
+          "name": "Pelham Bay Park",
+          "type": "park",
+          "description": "NYC's largest park at 2,772 acres with beaches, trails, golf courses, a nature center, and wildlife sanctuary"
+        },
+        {
+          "name": "Orchard Beach",
+          "type": "beach",
+          "description": "A Robert Moses-era crescent beach on Long Island Sound, the only public beach in the Bronx"
+        },
+        {
+          "name": "Bartow-Pell Mansion Museum",
+          "type": "museum",
+          "description": "A beautifully restored 1842 Greek Revival mansion and carriage house in Pelham Bay Park"
+        },
+        {
+          "name": "Split Rock Golf Course",
+          "type": "recreation",
+          "description": "An 18-hole public golf course set within the rolling hills of Pelham Bay Park"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Louie & Ernie's Pizza",
+          "cuisine": "Pizza",
+          "priceRange": "$"
+        },
+        {
+          "name": "F&J Pine Restaurant",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Crosby Avenue Diner",
+          "cuisine": "American",
+          "priceRange": "$"
+        },
+        {
+          "name": "Havana Cafe",
+          "cuisine": "Cuban",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "pelham bay bronx real estate",
+        "pelham bay homes for sale",
+        "pelham bay co-ops",
+        "country club bronx homes",
+        "bronx single family homes",
+        "pelham bay park area real estate",
+        "northeast bronx real estate"
+      ]
+    },
+    {
+      "slug": "fordham",
+      "name": "Fordham",
+      "fullName": "Fordham, Bronx",
+      "borough": "Bronx",
+      "tagline": "Academic Heritage Meets Urban Energy",
+      "heroImage": "https://images.unsplash.com/photo-1575936123452-b67c3203c357?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1575936123452-b67c3203c357?w=1200&q=80",
+      "summary": "Fordham is a vibrant Bronx neighborhood anchored by Fordham University, the Bronx Zoo, and the New York Botanical Garden. Its central location, excellent transit connections, and busy commercial corridors along Fordham Road make it one of the borough's most active neighborhoods. Average price per square foot is approximately $250.",
+      "avgPricePerSqft": 250,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 92,
+      "transitScore": 84,
+      "topSchool": "Fordham University",
+      "nearestSubway": [
+        "4",
+        "B",
+        "D"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Fordham?",
+          "answer": "The median sale price in Fordham is approximately $275,000, making it one of the most affordable neighborhoods in NYC with subway access. Co-ops dominate the market, with one-bedrooms starting around $100,000. Multi-family properties range from $400,000 to $800,000."
+        },
+        {
+          "question": "What is Fordham known for?",
+          "answer": "Fordham is best known for Fordham University (Rose Hill campus), the Bronx Zoo, and the New York Botanical Garden. Fordham Road is one of the busiest shopping corridors in the Bronx, and the neighborhood has deep cultural roots in the borough's history."
+        },
+        {
+          "question": "What subway lines serve Fordham?",
+          "answer": "Fordham has excellent transit. The B and D trains stop at Fordham Road on the Grand Concourse, and the 4 train serves the Jerome Avenue corridor. Metro-North stops at Fordham station on the Harlem Line. Multiple bus routes converge at the Fordham Road transit hub."
+        },
+        {
+          "question": "Is Fordham good for investment properties?",
+          "answer": "Fordham offers strong investment potential due to its affordability, proximity to major institutions (Fordham University, Montefiore Medical Center), and excellent transit. Multi-family properties generate solid rental income from steady demand driven by students, hospital workers, and families."
+        },
+        {
+          "question": "What is the difference between Fordham Heights and Belmont?",
+          "answer": "Fordham Heights is west of the Grand Concourse and includes the Fordham Road shopping district. Belmont (Arthur Avenue) is to the east and is known as the Bronx's Little Italy with its famous Italian food markets, restaurants, and specialty shops. Both fall within the greater Fordham area."
+        },
+        {
+          "question": "How much is rent in Fordham?",
+          "answer": "Median rent in Fordham is approximately $1,600 per month for a one-bedroom. Studios average $1,300, two-bedrooms $1,900, and three-bedrooms $2,300. Fordham is one of the most affordable rental markets in NYC with direct subway access to Manhattan."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 275000,
+        "medianRent": 1600,
+        "avgDaysOnMarket": 75,
+        "yoyChange": 0.06,
+        "pricePerSqft": 250,
+        "inventory": 110,
+        "closedSales": 280,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "2550 Olinville Avenue",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1960,
+          "type": "Co-op",
+          "units": 165,
+          "priceRange": "$100K - $250K",
+          "slug": "2550-olinville-avenue"
+        },
+        {
+          "name": "2160 Bronx Park East",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1955,
+          "type": "Co-op",
+          "units": 130,
+          "priceRange": "$80K - $220K",
+          "slug": "2160-bronx-park-east"
+        },
+        {
+          "name": "2728 Henry Hudson Parkway",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1953,
+          "type": "Co-op",
+          "units": 98,
+          "priceRange": "$120K - $280K",
+          "slug": "2728-henry-hudson-parkway"
+        },
+        {
+          "name": "305 East 198th Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1965,
+          "type": "Co-op",
+          "units": 80,
+          "priceRange": "$90K - $210K",
+          "slug": "305-east-198th-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Fordham Road is the main east-west commercial artery and one of the busiest retail corridors in the Bronx. The Grand Concourse provides a grand north-south boulevard with Art Deco architecture. The area around Fordham University is quieter and more residential. Arthur Avenue (Belmont) to the east is a culinary destination.",
+        "bestBlocksForFamilies": [
+          "Decatur Avenue near PS 8",
+          "Valentine Avenue between Fordham Road and Kingsbridge Road",
+          "Belmont area near Arthur Avenue"
+        ],
+        "bestBlocksForNightlife": [
+          "Arthur Avenue (Little Italy)",
+          "Fordham Road near the Metro-North station",
+          "Grand Concourse between Fordham Road and Kingsbridge Road"
+        ],
+        "quietStreets": [
+          "University Avenue near Fordham campus",
+          "Briggs Avenue",
+          "Marion Avenue near the Botanical Garden"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "First-Time Buyer",
+          "description": "First-time buyers seeking NYC's most affordable co-ops with subway access. Fordham offers entry-level homeownership with strong institutional anchors nearby.",
+          "budgetRange": "$100K - $275K",
+          "propertyType": "1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors acquiring multi-family properties near Fordham University and Montefiore Medical Center, which generate consistent rental demand year-round.",
+          "budgetRange": "$400K - $800K",
+          "propertyType": "2-3 family home"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Healthcare professionals working at Montefiore Medical Center or educators at Fordham University seeking affordable housing within walking distance of work.",
+          "budgetRange": "$150K - $350K",
+          "propertyType": "1-2 bedroom co-op"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families seeking affordable space with access to the Bronx Zoo, Botanical Garden, and a strong neighborhood school network.",
+          "budgetRange": "$250K - $500K",
+          "propertyType": "2-3 bedroom co-op or multi-family"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Fordham Listings",
+          "href": "/buy?neighborhood=fordham"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Fordham Rentals",
+          "href": "/rent?neighborhood=fordham"
+        }
+      },
+      "boundaries": {
+        "north": "Gun Hill Road / Mosholu Parkway",
+        "south": "East Tremont Avenue / Cross Bronx Expressway",
+        "east": "Bronx Park / Bronx River",
+        "west": "Jerome Avenue / University Heights"
+      },
+      "transit": [
+        "4",
+        "B",
+        "D"
+      ],
+      "zipCodes": [
+        "10457",
+        "10458",
+        "10468"
+      ],
+      "adjacentNeighborhoods": [
+        "riverdale",
+        "pelham-bay",
+        "mott-haven"
+      ],
+      "attractions": [
+        {
+          "name": "Bronx Zoo",
+          "type": "zoo",
+          "description": "One of the world's largest urban zoos, spanning 265 acres with over 6,000 animals and immersive habitats"
+        },
+        {
+          "name": "New York Botanical Garden",
+          "type": "garden",
+          "description": "A 250-acre National Historic Landmark with 50 specialty gardens, the Haupt Conservatory, and old-growth forest"
+        },
+        {
+          "name": "Fordham University (Rose Hill)",
+          "type": "university",
+          "description": "A prestigious Jesuit university founded in 1841 with a beautiful Gothic campus and Keating Hall clock tower"
+        },
+        {
+          "name": "Arthur Avenue / Belmont",
+          "type": "commercial",
+          "description": "The Bronx's Little Italy — a renowned food destination with Italian bakeries, delis, pasta shops, and restaurants"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Roberto's",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Mike's Deli",
+          "cuisine": "Italian Deli",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Tra Di Noi",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Full Moon Pizzeria",
+          "cuisine": "Pizza",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "fordham bronx real estate",
+        "fordham co-ops for sale",
+        "bronx affordable apartments",
+        "arthur avenue real estate",
+        "belmont bronx homes",
+        "fordham university area apartments",
+        "bronx zoo neighborhood real estate"
+      ]
+    }
+  ]
+}

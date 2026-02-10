@@ -1,0 +1,924 @@
+{
+  "neighborhoods": [
+    {
+      "slug": "st-george",
+      "name": "St. George",
+      "fullName": "St. George, Staten Island",
+      "borough": "Staten Island",
+      "tagline": "Staten Island's Waterfront Gateway",
+      "heroImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1200&q=80",
+      "summary": "St. George is Staten Island's civic and cultural hub, anchored by the iconic Staten Island Ferry terminal and sweeping views of the Statue of Liberty and Lower Manhattan skyline. A walkable neighborhood with Victorian homes, new waterfront development, and growing arts scene, it offers average prices around $350 per square foot.",
+      "avgPricePerSqft": 350,
+      "dominantPropertyType": "Single Family",
+      "walkScore": 72,
+      "transitScore": 58,
+      "topSchool": "PS 31 William T. Davis",
+      "nearestSubway": [
+        "SIR"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in St. George?",
+          "answer": "The median sale price in St. George is approximately $475,000. Victorian single-family homes range from $400,000 to $750,000, while newer condos near the waterfront can range from $350,000 to $600,000. Per square foot pricing averages around $350."
+        },
+        {
+          "question": "How do you get from St. George to Manhattan?",
+          "answer": "The Staten Island Ferry provides a free 25-minute ride from the St. George Ferry Terminal to Whitehall Terminal in Lower Manhattan. It runs 24/7, with departures every 15-20 minutes during rush hours and every 30 minutes off-peak. The St. George SIR station also connects to the rest of Staten Island."
+        },
+        {
+          "question": "Is St. George a good neighborhood for commuters?",
+          "answer": "Yes, St. George has the best transit access on Staten Island. The free Staten Island Ferry connects directly to Lower Manhattan, and the St. George terminal is the northern terminus of the Staten Island Railway. Express bus routes (SIM1, SIM15) also run to Midtown."
+        },
+        {
+          "question": "What is the St. George waterfront development?",
+          "answer": "The St. George waterfront has undergone significant revitalization including Empire Outlets (New York City's first outlet shopping center), the National Lighthouse Museum, and new residential developments. The area continues to attract investment with mixed-use projects along the esplanade."
+        },
+        {
+          "question": "What types of homes are available in St. George?",
+          "answer": "St. George offers a diverse housing stock including Victorian-era single-family homes on the hillside with harbor views, newer waterfront condos and rentals, multi-family rowhouses, and a small number of co-ops. The hilltop homes above the ferry terminal are particularly sought after for their panoramic views."
+        },
+        {
+          "question": "How much is rent in St. George?",
+          "answer": "Median rent in St. George is approximately $1,800 per month for a one-bedroom. Studios average $1,400, two-bedrooms $2,200, and three-bedrooms $2,800. Newer waterfront developments command a 15-20% premium over older housing stock."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 475000,
+        "medianRent": 1800,
+        "avgDaysOnMarket": 65,
+        "yoyChange": 0.04,
+        "pricePerSqft": 350,
+        "inventory": 72,
+        "closedSales": 145,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Lighthouse Point",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 116,
+          "priceRange": "$350K - $600K",
+          "slug": "lighthouse-point"
+        },
+        {
+          "name": "Urby Staten Island",
+          "nickname": null,
+          "architect": "Concrete Amsterdam",
+          "yearBuilt": 2016,
+          "type": "Rental",
+          "units": 571,
+          "priceRange": "$1,800 - $3,500/mo",
+          "slug": "urby-staten-island"
+        },
+        {
+          "name": "The Richmond",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 48,
+          "priceRange": "$300K - $520K",
+          "slug": "the-richmond"
+        },
+        {
+          "name": "Bay Street Landing",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2005,
+          "type": "Condo",
+          "units": 200,
+          "priceRange": "$350K - $700K",
+          "slug": "bay-street-landing"
+        }
+      ],
+      "streetGuidance": {
+        "description": "St. George is a compact, walkable neighborhood centered around the ferry terminal. The hillside streets above the terminal offer dramatic views of the harbor and Manhattan skyline, while the waterfront esplanade provides newer residential options.",
+        "bestBlocksForFamilies": [
+          "St. Marks Place near the park",
+          "Hamilton Avenue hilltop section",
+          "Westervelt Avenue near Curtis High School"
+        ],
+        "bestBlocksForNightlife": [
+          "Bay Street near the ferry terminal",
+          "Stuyvesant Place dining district",
+          "Victory Boulevard near the theater"
+        ],
+        "quietStreets": [
+          "Phelps Place",
+          "Carroll Place",
+          "Richmond Terrace west of ferry"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Manhattan commuters seeking harbor views and a walkable neighborhood with a 25-minute free ferry ride to the Financial District.",
+          "budgetRange": "$350K - $600K",
+          "propertyType": "Waterfront condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the NYC market who want a vibrant, transit-connected neighborhood at a fraction of Manhattan prices.",
+          "budgetRange": "$300K - $475K",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors drawn by waterfront revitalization, strong rental demand from ferry commuters, and ongoing development projects.",
+          "budgetRange": "$300K - $700K",
+          "propertyType": "Condo or multi-family"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families looking for spacious Victorian homes with character, good schools, and easy access to parks and cultural amenities.",
+          "budgetRange": "$500K - $750K",
+          "propertyType": "Single-family Victorian"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search St. George Listings",
+          "href": "/buy?neighborhood=st-george"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View St. George Rentals",
+          "href": "/rent?neighborhood=st-george"
+        }
+      },
+      "boundaries": {
+        "north": "Kill Van Kull",
+        "south": "Tompkinsville",
+        "east": "Upper New York Bay",
+        "west": "New Brighton"
+      },
+      "transit": [
+        "SIR",
+        "S40",
+        "S44",
+        "S46",
+        "S48",
+        "SIM1",
+        "SIM15"
+      ],
+      "zipCodes": [
+        "10301"
+      ],
+      "adjacentNeighborhoods": [
+        "new-brighton",
+        "todt-hill",
+        "great-kills"
+      ],
+      "attractions": [
+        {
+          "name": "Staten Island Ferry Terminal",
+          "type": "landmark",
+          "description": "Iconic free ferry service with stunning views of the Statue of Liberty and Manhattan skyline"
+        },
+        {
+          "name": "National Lighthouse Museum",
+          "type": "museum",
+          "description": "Museum dedicated to the history and preservation of American lighthouses"
+        },
+        {
+          "name": "St. George Theatre",
+          "type": "entertainment",
+          "description": "Restored 1929 movie palace hosting concerts, comedy shows, and cultural events"
+        },
+        {
+          "name": "Empire Outlets",
+          "type": "shopping",
+          "description": "New York City's first outlet shopping center located on the waterfront"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Beso",
+          "cuisine": "Spanish",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Enoteca Maria",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Ruddy & Dean",
+          "cuisine": "American Steakhouse",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Ho'Brah Taco Joint",
+          "cuisine": "Mexican-Hawaiian Fusion",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "st george staten island real estate",
+        "staten island ferry neighborhood",
+        "st george condos for sale",
+        "staten island waterfront homes",
+        "st george homes for sale",
+        "staten island commuter neighborhood",
+        "st george rentals"
+      ]
+    },
+    {
+      "slug": "todt-hill",
+      "name": "Todt Hill",
+      "fullName": "Todt Hill, Staten Island",
+      "borough": "Staten Island",
+      "tagline": "Staten Island's Premier Hilltop Enclave",
+      "heroImage": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80",
+      "summary": "Todt Hill is the highest point on the Atlantic seaboard south of Maine, known for its grand estate homes, lush landscaping, and serene residential atmosphere. One of New York City's most affluent neighborhoods, it offers sprawling properties with average prices around $525 per square foot.",
+      "avgPricePerSqft": 525,
+      "dominantPropertyType": "Single Family",
+      "walkScore": 38,
+      "transitScore": 22,
+      "topSchool": "PS 36 J.C. Drumgoole",
+      "nearestSubway": [
+        "SIR"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Todt Hill?",
+          "answer": "The median sale price in Todt Hill is approximately $1,050,000. Estate-style homes range from $800,000 to $3 million or more, while smaller homes and attached properties can start around $650,000. Per square foot pricing averages around $525."
+        },
+        {
+          "question": "What makes Todt Hill special?",
+          "answer": "Todt Hill is the highest natural point on the eastern seaboard south of Maine, rising 409 feet above sea level. The neighborhood is known for its grand estate homes set on large lots, mature trees, and winding roads. It also borders the 2,800-acre Staten Island Greenbelt, the largest contiguous natural area in New York City."
+        },
+        {
+          "question": "How do you commute from Todt Hill?",
+          "answer": "Todt Hill is car-dependent. Most residents drive to the nearby SIR stations (Grant City or Old Town) or use express bus routes (SIM1, SIM4) to Manhattan. The drive to the St. George Ferry Terminal is about 15 minutes. The Staten Island Expressway provides access to the Verrazzano-Narrows Bridge."
+        },
+        {
+          "question": "Are there good schools in Todt Hill?",
+          "answer": "Yes, Todt Hill is served by well-regarded public schools including PS 36 J.C. Drumgoole. The area also has proximity to several private schools. The Staten Island Academy, one of the borough's top private schools, is located nearby."
+        },
+        {
+          "question": "What types of homes are in Todt Hill?",
+          "answer": "Todt Hill is primarily single-family detached homes, many on oversized lots with extensive landscaping. Architectural styles include Colonial, Tudor, Mediterranean, and Contemporary. Some properties feature gated entrances, pools, and multi-car garages. The neighborhood also has a small number of townhomes."
+        },
+        {
+          "question": "Is Todt Hill a good investment?",
+          "answer": "Todt Hill has historically maintained strong property values due to its limited inventory, large lot sizes, and desirable location. Homes tend to hold value well and appreciate steadily. The neighborhood appeals to buyers seeking space and privacy that is rare elsewhere in New York City."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1050000,
+        "medianRent": 2800,
+        "avgDaysOnMarket": 95,
+        "yoyChange": 0.02,
+        "pricePerSqft": 525,
+        "inventory": 28,
+        "closedSales": 52,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Todt Hill Estates",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1985,
+          "type": "Single Family",
+          "units": 24,
+          "priceRange": "$900K - $2M",
+          "slug": "todt-hill-estates"
+        },
+        {
+          "name": "The Richmond County Country Club",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1888,
+          "type": "Landmark",
+          "units": 0,
+          "priceRange": "Membership Only",
+          "slug": "richmond-county-country-club"
+        },
+        {
+          "name": "Flagg Court",
+          "nickname": "Ernest Flagg Estate",
+          "architect": "Ernest Flagg",
+          "yearBuilt": 1917,
+          "type": "Single Family",
+          "units": 12,
+          "priceRange": "$650K - $1.2M",
+          "slug": "flagg-court"
+        },
+        {
+          "name": "Four Corners Commons",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2008,
+          "type": "Townhouse",
+          "units": 36,
+          "priceRange": "$600K - $850K",
+          "slug": "four-corners-commons"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Todt Hill's winding roads and cul-de-sacs create a suburban estate atmosphere rare in New York City. The higher elevations along Todt Hill Road offer the grandest properties, while the perimeter streets provide more accessible price points.",
+        "bestBlocksForFamilies": [
+          "Flagg Place near the Greenbelt",
+          "Benedict Road residential section",
+          "Four Corners Road near schools"
+        ],
+        "bestBlocksForNightlife": [
+          "Hylan Boulevard commercial strip (adjacent)",
+          "Victory Boulevard shops and restaurants",
+          "Richmond Road dining corridor"
+        ],
+        "quietStreets": [
+          "Todt Hill Road upper section",
+          "Ocean Terrace",
+          "Whitwell Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families seeking spacious estate-style homes with large yards, excellent schools, and a safe residential environment.",
+          "budgetRange": "$900K - $2M",
+          "propertyType": "4-5 bedroom single family"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Homeowners looking to relocate from other boroughs to a quieter setting while still being within New York City limits.",
+          "budgetRange": "$700K - $1.2M",
+          "propertyType": "3-4 bedroom single family"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors seeking high-value residential properties with strong long-term appreciation in a low-inventory market.",
+          "budgetRange": "$800K - $1.5M",
+          "propertyType": "Single family or townhouse"
+        },
+        {
+          "type": "Pied-a-Terre Buyer",
+          "description": "Buyers seeking a spacious retreat from Manhattan with privacy, green space, and proximity to the Greenbelt.",
+          "budgetRange": "$650K - $1M",
+          "propertyType": "3 bedroom townhouse"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Todt Hill Listings",
+          "href": "/buy?neighborhood=todt-hill"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Todt Hill Rentals",
+          "href": "/rent?neighborhood=todt-hill"
+        }
+      },
+      "boundaries": {
+        "north": "Emerson Hill",
+        "south": "Richmondtown",
+        "east": "Grant City",
+        "west": "Lighthouse Hill"
+      },
+      "transit": [
+        "SIR",
+        "S54",
+        "S74",
+        "S84",
+        "SIM1",
+        "SIM4"
+      ],
+      "zipCodes": [
+        "10304",
+        "10314"
+      ],
+      "adjacentNeighborhoods": [
+        "st-george",
+        "great-kills",
+        "new-brighton"
+      ],
+      "attractions": [
+        {
+          "name": "Staten Island Greenbelt",
+          "type": "park",
+          "description": "2,800-acre nature preserve with hiking trails, wetlands, and the highest point on the Atlantic coast south of Maine"
+        },
+        {
+          "name": "Jacques Marchais Museum of Tibetan Art",
+          "type": "museum",
+          "description": "Unique hilltop museum modeled after a Tibetan monastery with a renowned collection of Himalayan art"
+        },
+        {
+          "name": "Todt Hill Recreation Area",
+          "type": "park",
+          "description": "Community recreation area with sports fields, walking paths, and playgrounds"
+        },
+        {
+          "name": "Historic Richmond Town",
+          "type": "landmark",
+          "description": "Living history village and museum complex preserving 370 years of Staten Island history"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Carol's Cafe",
+          "cuisine": "Eclectic American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Trattoria Romana",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Nurnberger Bierhaus",
+          "cuisine": "German",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Zara Restaurant & Lounge",
+          "cuisine": "Turkish Mediterranean",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "todt hill staten island real estate",
+        "todt hill homes for sale",
+        "staten island luxury homes",
+        "todt hill estate homes",
+        "staten island single family homes",
+        "todt hill property values",
+        "nyc suburban living"
+      ]
+    },
+    {
+      "slug": "great-kills",
+      "name": "Great Kills",
+      "fullName": "Great Kills, Staten Island",
+      "borough": "Staten Island",
+      "tagline": "Coastal Living with Neighborhood Charm",
+      "heroImage": "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=1200&q=80",
+      "summary": "Great Kills is a family-oriented South Shore neighborhood known for its beach access, marina, and tight-knit community character. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
+      "avgPricePerSqft": 425,
+      "dominantPropertyType": "Single Family",
+      "walkScore": 62,
+      "transitScore": 40,
+      "topSchool": "PS 32 Andrew Jackson",
+      "nearestSubway": [
+        "SIR"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Great Kills?",
+          "answer": "The median sale price in Great Kills is approximately $625,000. Single-family detached homes range from $500,000 to $900,000, while semi-attached and attached homes can start around $400,000. Per square foot pricing averages around $425."
+        },
+        {
+          "question": "Is Great Kills good for families?",
+          "answer": "Yes, Great Kills is one of Staten Island's most popular family neighborhoods. It has well-regarded public schools, youth sports programs, a marina for boating, and Great Kills Park with beaches and playgrounds. The neighborhood has a strong community feel with active civic associations."
+        },
+        {
+          "question": "What is Great Kills Park?",
+          "answer": "Great Kills Park is a 580-acre unit of the Gateway National Recreation Area managed by the National Park Service. It features beaches along Raritan Bay, nature trails, fishing areas, ball fields, and a model airplane field. Crooke's Point within the park offers scenic waterfront walks."
+        },
+        {
+          "question": "How do you commute from Great Kills?",
+          "answer": "The Great Kills SIR station connects to the St. George Ferry Terminal (about 25 minutes). Express buses (SIM5, SIM8) run directly to Manhattan. The neighborhood has easy access to Hylan Boulevard and the Korean War Veterans Parkway for driving to the Verrazzano-Narrows Bridge."
+        },
+        {
+          "question": "What types of homes are available in Great Kills?",
+          "answer": "Great Kills primarily features single-family detached and semi-attached homes, many built in the 1950s-1980s. Cape Cods, raised ranches, and split-levels are common styles. Newer construction includes larger colonial-style homes. The area near the marina also has some waterfront properties."
+        },
+        {
+          "question": "How much is rent in Great Kills?",
+          "answer": "Median rent in Great Kills is approximately $1,600 per month for a one-bedroom. Studios average $1,200, two-bedrooms $1,900, and three-bedrooms $2,500. Rental inventory is limited as the neighborhood is predominantly owner-occupied single-family homes."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 625000,
+        "medianRent": 1600,
+        "avgDaysOnMarket": 55,
+        "yoyChange": 0.05,
+        "pricePerSqft": 425,
+        "inventory": 45,
+        "closedSales": 165,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Tides at Great Kills",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2015,
+          "type": "Condo",
+          "units": 28,
+          "priceRange": "$375K - $525K",
+          "slug": "the-tides-at-great-kills"
+        },
+        {
+          "name": "Great Kills Harbor Homes",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2010,
+          "type": "Single Family",
+          "units": 18,
+          "priceRange": "$650K - $900K",
+          "slug": "great-kills-harbor-homes"
+        },
+        {
+          "name": "Amboy Green",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2005,
+          "type": "Townhouse",
+          "units": 32,
+          "priceRange": "$450K - $600K",
+          "slug": "amboy-green"
+        },
+        {
+          "name": "Marina Pointe",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 22,
+          "priceRange": "$400K - $575K",
+          "slug": "marina-pointe"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Great Kills is organized around Hylan Boulevard as its commercial spine, with residential streets extending east toward the waterfront and west toward the interior. Proximity to the marina and park drives premium pricing on the eastern blocks.",
+        "bestBlocksForFamilies": [
+          "Nelson Avenue near schools and parks",
+          "Lindenwood Road residential area",
+          "Giffords Lane near youth sports fields"
+        ],
+        "bestBlocksForNightlife": [
+          "Hylan Boulevard restaurant row",
+          "Nelson Avenue bar and grill district",
+          "Amboy Road near Eltingville"
+        ],
+        "quietStreets": [
+          "Hillside Terrace near Great Kills Park",
+          "Leverett Avenue waterfront section",
+          "Tennyson Drive"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families seeking detached homes with yards, strong schools, beach access, and active community programs.",
+          "budgetRange": "$550K - $850K",
+          "propertyType": "3-4 bedroom single family"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "First-time homeowners entering the NYC market who want a house with outdoor space at accessible price points.",
+          "budgetRange": "$400K - $600K",
+          "propertyType": "Semi-attached or starter home"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Homeowners seeking a well-established coastal community with marina access and a relaxed pace of life.",
+          "budgetRange": "$500K - $700K",
+          "propertyType": "2-3 bedroom ranch or cape"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting the South Shore's strong demand and limited inventory in a predominantly owner-occupied market.",
+          "budgetRange": "$400K - $650K",
+          "propertyType": "Multi-family or rental conversion"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Great Kills Listings",
+          "href": "/buy?neighborhood=great-kills"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Great Kills Rentals",
+          "href": "/rent?neighborhood=great-kills"
+        }
+      },
+      "boundaries": {
+        "north": "Eltingville",
+        "south": "Raritan Bay",
+        "east": "Great Kills Park / Gateway NRA",
+        "west": "Richmondtown"
+      },
+      "transit": [
+        "SIR",
+        "S78",
+        "S59",
+        "S79",
+        "SIM5",
+        "SIM8"
+      ],
+      "zipCodes": [
+        "10308"
+      ],
+      "adjacentNeighborhoods": [
+        "todt-hill",
+        "st-george",
+        "new-brighton"
+      ],
+      "attractions": [
+        {
+          "name": "Great Kills Park",
+          "type": "park",
+          "description": "580-acre Gateway National Recreation Area unit with beaches, trails, fishing, and sports fields along Raritan Bay"
+        },
+        {
+          "name": "Great Kills Marina",
+          "type": "recreation",
+          "description": "Popular marina and yacht club offering boat slips, sailing, and waterfront access"
+        },
+        {
+          "name": "Crooke's Point",
+          "type": "park",
+          "description": "Scenic peninsula within Great Kills Park with walking trails and panoramic bay views"
+        },
+        {
+          "name": "Nelson Avenue Park",
+          "type": "park",
+          "description": "Community park with ball fields, basketball courts, and a popular farmers market"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Marina Cafe",
+          "cuisine": "Seafood",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Cole's Dockside",
+          "cuisine": "American Seafood",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Brioso Ristorante",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Killmeyer's Old Bavaria Inn",
+          "cuisine": "German",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "great kills staten island real estate",
+        "great kills homes for sale",
+        "staten island waterfront homes",
+        "south shore staten island",
+        "great kills park neighborhood",
+        "staten island family homes",
+        "great kills marina homes"
+      ]
+    },
+    {
+      "slug": "new-brighton",
+      "name": "New Brighton",
+      "fullName": "New Brighton, Staten Island",
+      "borough": "Staten Island",
+      "tagline": "Historic Grandeur on the North Shore",
+      "heroImage": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&q=80",
+      "summary": "New Brighton is one of Staten Island's most architecturally distinguished neighborhoods, featuring grand Victorian and Italianate homes along tree-lined streets with views of the Kill Van Kull. Close to the ferry, the Snug Harbor Cultural Center, and a growing arts community, it offers average prices around $375 per square foot.",
+      "avgPricePerSqft": 375,
+      "dominantPropertyType": "Single Family",
+      "walkScore": 68,
+      "transitScore": 48,
+      "topSchool": "PS 18 John Peter Zenger",
+      "nearestSubway": [
+        "SIR"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in New Brighton?",
+          "answer": "The median sale price in New Brighton is approximately $525,000. Victorian single-family homes range from $450,000 to $850,000, while multi-family properties can range from $550,000 to $1 million. Per square foot pricing averages around $375."
+        },
+        {
+          "question": "What is Snug Harbor Cultural Center?",
+          "answer": "Snug Harbor Cultural Center and Botanical Garden is an 83-acre campus of 28 historic buildings, including the Chinese Scholar's Garden, the Staten Island Children's Museum, and the Noble Maritime Collection. Originally a home for retired sailors, it is now one of NYC's premier cultural destinations."
+        },
+        {
+          "question": "Is New Brighton close to the ferry?",
+          "answer": "Yes, New Brighton is adjacent to St. George and the Staten Island Ferry Terminal. Most locations in New Brighton are a 10-15 minute walk or a 5-minute bus ride to the ferry, making it one of the best-connected neighborhoods on Staten Island for Manhattan commuters."
+        },
+        {
+          "question": "What types of homes are available in New Brighton?",
+          "answer": "New Brighton features a varied housing stock including grand Victorian and Italianate single-family homes, multi-family brownstones, Craftsman bungalows, and some newer infill construction. The neighborhood is known for architecturally significant homes, many dating to the mid-1800s."
+        },
+        {
+          "question": "Is New Brighton a good area for the arts?",
+          "answer": "Yes, New Brighton has a thriving arts community anchored by Snug Harbor Cultural Center. The neighborhood hosts regular gallery openings, studio tours, and cultural festivals. Several working artists live in the area, and the Newhouse Center for Contemporary Art is located at Snug Harbor."
+        },
+        {
+          "question": "How much is rent in New Brighton?",
+          "answer": "Median rent in New Brighton is approximately $1,700 per month for a one-bedroom. Studios average $1,300, two-bedrooms $2,100, and three-bedrooms $2,600. Multi-family homes offer some of the most affordable rental options, especially garden-level and upper-floor units."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 525000,
+        "medianRent": 1700,
+        "avgDaysOnMarket": 70,
+        "yoyChange": 0.05,
+        "pricePerSqft": 375,
+        "inventory": 55,
+        "closedSales": 118,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Pavilion on the Terrace",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1895,
+          "type": "Single Family",
+          "units": 1,
+          "priceRange": "$700K - $850K",
+          "slug": "pavilion-on-the-terrace"
+        },
+        {
+          "name": "Henderson Estate",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1870,
+          "type": "Single Family",
+          "units": 1,
+          "priceRange": "$650K - $800K",
+          "slug": "henderson-estate"
+        },
+        {
+          "name": "The Terrace Condominiums",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2012,
+          "type": "Condo",
+          "units": 24,
+          "priceRange": "$325K - $500K",
+          "slug": "the-terrace-condominiums"
+        },
+        {
+          "name": "Brighton Heights Row Houses",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1890,
+          "type": "Multi-Family",
+          "units": 8,
+          "priceRange": "$550K - $950K",
+          "slug": "brighton-heights-row-houses"
+        }
+      ],
+      "streetGuidance": {
+        "description": "New Brighton's residential streets climb from the waterfront along the Kill Van Kull up to the Brighton Heights ridge. The higher streets offer stunning water views and the grandest homes, while the lower streets near Snug Harbor provide a walkable village atmosphere.",
+        "bestBlocksForFamilies": [
+          "Lafayette Avenue near Snug Harbor",
+          "Castleton Avenue residential stretch",
+          "Henderson Avenue near schools"
+        ],
+        "bestBlocksForNightlife": [
+          "Jersey Street arts and dining district",
+          "Victory Boulevard near Forest Avenue",
+          "Bay Street corridor near St. George"
+        ],
+        "quietStreets": [
+          "Richmond Terrace along the waterfront",
+          "Prospect Avenue hilltop section",
+          "Pendleton Place"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Manhattan professionals seeking affordable Victorian charm with a short commute via the nearby Staten Island Ferry.",
+          "budgetRange": "$400K - $650K",
+          "propertyType": "Renovated Victorian single family"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "First-time buyers drawn to the neighborhood's historic character, walkability, and proximity to cultural amenities.",
+          "budgetRange": "$325K - $500K",
+          "propertyType": "Condo or starter home"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors recognizing the North Shore's strong appreciation potential and rental demand from ferry commuters.",
+          "budgetRange": "$550K - $950K",
+          "propertyType": "Multi-family brownstone"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families seeking spacious homes with architectural character, good schools, and access to parks and cultural centers.",
+          "budgetRange": "$500K - $800K",
+          "propertyType": "3-4 bedroom Victorian"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search New Brighton Listings",
+          "href": "/buy?neighborhood=new-brighton"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View New Brighton Rentals",
+          "href": "/rent?neighborhood=new-brighton"
+        }
+      },
+      "boundaries": {
+        "north": "Kill Van Kull",
+        "south": "Livingston",
+        "east": "St. George",
+        "west": "Snug Harbor / Randall Manor"
+      },
+      "transit": [
+        "SIR",
+        "S40",
+        "S44",
+        "S46",
+        "S94",
+        "SIM3",
+        "SIM33"
+      ],
+      "zipCodes": [
+        "10301",
+        "10310"
+      ],
+      "adjacentNeighborhoods": [
+        "st-george",
+        "todt-hill",
+        "great-kills"
+      ],
+      "attractions": [
+        {
+          "name": "Snug Harbor Cultural Center & Botanical Garden",
+          "type": "cultural center",
+          "description": "83-acre campus of 28 historic buildings with museums, gardens, performance spaces, and the Chinese Scholar's Garden"
+        },
+        {
+          "name": "Staten Island Children's Museum",
+          "type": "museum",
+          "description": "Interactive children's museum located within Snug Harbor with hands-on exhibits and outdoor play spaces"
+        },
+        {
+          "name": "Noble Maritime Collection",
+          "type": "museum",
+          "description": "Maritime museum and art gallery housed in a historic Snug Harbor dormitory building"
+        },
+        {
+          "name": "Chinese Scholar's Garden",
+          "type": "garden",
+          "description": "Authentic Ming Dynasty-style garden with pavilions, waterfalls, and bamboo groves within Snug Harbor"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Everything Goes Book Cafe",
+          "cuisine": "Cafe",
+          "priceRange": "$"
+        },
+        {
+          "name": "Pier 76",
+          "cuisine": "Italian Seafood",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Real Madrid Restaurant",
+          "cuisine": "Spanish",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Lakruwana",
+          "cuisine": "Sri Lankan",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "new brighton staten island real estate",
+        "new brighton homes for sale",
+        "snug harbor neighborhood",
+        "staten island victorian homes",
+        "north shore staten island",
+        "new brighton condos",
+        "staten island historic homes"
+      ]
+    }
+  ]
+}

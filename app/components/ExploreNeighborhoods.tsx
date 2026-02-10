@@ -19,10 +19,37 @@ type Neighborhood = {
   };
 };
 
+/** Map old neighborhood IDs to correct borough routes */
+const NEIGHBORHOOD_ROUTES: Record<string, string> = {
+  'upper-east-side': '/manhattan/upper-east-side',
+  'upper-west-side': '/manhattan/upper-west-side',
+  'tribeca': '/manhattan/tribeca',
+  'soho': '/manhattan/soho',
+  'chelsea': '/manhattan/chelsea',
+  'greenwich-village': '/manhattan/greenwich-village',
+  'west-village': '/manhattan/greenwich-village',
+  'financial-district': '/manhattan/financial-district',
+  'midtown-east': '/manhattan/midtown-east',
+  'brooklyn-heights': '/brooklyn/brooklyn-heights',
+  'williamsburg': '/brooklyn/williamsburg',
+  'dumbo': '/brooklyn/dumbo',
+  'park-slope': '/brooklyn/park-slope',
+  'cobble-hill': '/brooklyn/cobble-hill',
+  'fort-greene': '/brooklyn/fort-greene',
+  'astoria': '/queens/astoria',
+  'long-island-city': '/queens/long-island-city',
+  'riverdale': '/bronx/riverdale',
+  'st-george': '/staten-island/st-george',
+};
+
+function getNeighborhoodHref(id: string): string {
+  return NEIGHBORHOOD_ROUTES[id] || `/manhattan/${id}`;
+}
+
 function NeighborhoodCard({ neighborhood }: { neighborhood: Neighborhood }) {
   return (
     <Link
-      href={`/neighborhoods/${neighborhood.id}`}
+      href={getNeighborhoodHref(neighborhood.id)}
       className="group block relative overflow-hidden rounded-lg aspect-[4/3]"
     >
       <div className="absolute inset-0 bg-gray-300">
@@ -60,7 +87,7 @@ export default function ExploreNeighborhoods() {
             Explore Neighborhoods
           </h2>
           <p className="mt-2 text-sm sm:text-base text-gray-500">
-            Discover the best of Manhattan and Brooklyn
+            Discover NYC neighborhoods across all five boroughs
           </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

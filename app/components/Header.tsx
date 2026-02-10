@@ -75,6 +75,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   const [rentOpen, setRentOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
   const [exclusivesOpen, setExclusivesOpen] = useState(false);
+  const [neighborhoodsOpen, setNeighborhoodsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [resources, setResources] = useState<ResourceItem[]>([
     { title: "Buyer's Guide", href: '/resources/buyers-guide' },
@@ -116,6 +117,15 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'Coming Soon', href: '/buy?coming-soon=true' },
   ];
 
+  const neighborhoodItems = [
+    { title: 'Manhattan', href: '/manhattan' },
+    { title: 'Brooklyn', href: '/brooklyn' },
+    { title: 'Queens', href: '/queens' },
+    { title: 'Bronx', href: '/bronx' },
+    { title: 'Staten Island', href: '/staten-island' },
+    { title: 'View All', href: '/neighborhoods' },
+  ];
+
   // When dark mode (inner pages), use fixed positioning so header stays at top while scrolling
   // When not dark (homepage), use absolute so it overlays the hero
   const positionClass = dark ? 'fixed' : 'absolute';
@@ -144,6 +154,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <NavDropdown label="Rent" items={rentItems} />
               <NavDropdown label="Sell" items={sellItems} />
               <NavDropdown label="Exclusives" items={exclusivesItems} />
+              <NavDropdown label="Neighborhoods" items={neighborhoodItems} />
 
               <NavigationMenu.Item>
                 <NavigationMenu.Link asChild>
@@ -339,6 +350,49 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 {exclusivesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {exclusivesItems.map((item) => (
+                      <div
+                        key={item.href}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMobileOpen(false);
+                          setTimeout(() => router.push(item.href), 100);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMobileOpen(false);
+                          router.push(item.href);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+                        style={{
+                          WebkitTouchCallout: 'none',
+                          WebkitUserSelect: 'none',
+                          userSelect: 'none',
+                          touchAction: 'manipulation'
+                        }}
+                      >
+                        {item.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Neighborhoods */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setNeighborhoodsOpen(!neighborhoodsOpen)}
+                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                >
+                  Neighborhoods
+                  <ChevronIcon open={neighborhoodsOpen} />
+                </button>
+                {neighborhoodsOpen && (
+                  <div className="pl-4 pb-2 flex flex-col">
+                    {neighborhoodItems.map((item) => (
                       <div
                         key={item.href}
                         onTouchEnd={(e) => {
