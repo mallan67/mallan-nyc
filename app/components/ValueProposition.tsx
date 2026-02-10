@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
 import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
-import MovingCostEstimator from '@/app/components/MovingCostEstimator';
+import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
 
 /**
  * Value Proposition Section
@@ -74,7 +74,7 @@ export default function ValueProposition() {
             <RentVsBuyStandalone />
           </div>
 
-          {/* Sell + Moving Cost Estimator */}
+          {/* Sell + Closing Cost Calculator */}
           <div className="flex flex-col gap-3">
             <div className="text-center p-6 rounded-lg border border-gray-100 hover:border-brand-gold/30 hover:shadow-lg transition-all">
               <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -94,7 +94,7 @@ export default function ValueProposition() {
                 Sell Your Property →
               </Link>
             </div>
-            <MovingCostEstimator />
+            <SellerClosingCostCalculator />
           </div>
         </div>
 
