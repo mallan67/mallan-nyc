@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import IDXImage from '@/app/components/IDXImage';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
@@ -362,13 +362,12 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                   href={`/listing/${listing.id}`}
                   className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
                 >
-                  {/* Image */}
-                  <div className="relative aspect-[4/3] bg-gray-100">
-                    <Image
+                  {/* IDXImage: native <img> for IDX (exclusives) + R2 (all other) photos */}
+                  <div className="relative">
+                    <IDXImage
                       src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
                       alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      aspect="card"
                     />
                     {listing.flags.isExclusive && (
                       <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
