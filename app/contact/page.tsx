@@ -128,12 +128,17 @@ export default function ContactPage() {
       <Header dark />
       <main id="main-content" className="min-h-screen bg-white pt-20">
         {/* Hero */}
-        <section className="bg-brand-dark text-white py-16 md:py-20">
-          <div className="max-w-4xl mx-auto px-4 text-center">
+        <section className="relative text-white py-16 md:py-20 overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: "url('/images/hero.jpg')" }}
+          />
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative max-w-4xl mx-auto px-4 text-center">
             <h1 className="text-xl md:text-2xl font-sans font-medium mb-4">
               Contact Us
             </h1>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-200 max-w-2xl mx-auto">
               Questions about buying, selling, or renting in NYC? We&apos;re here to help.
             </p>
           </div>
