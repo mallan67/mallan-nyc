@@ -8,6 +8,7 @@ import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import listingsData from '@/data/listings.json';
+import agentsData from '@/data/agents.json';
 import type { Listing } from '@/lib/types/listing';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingHeroImage from '@/app/components/ListingHeroImage';
@@ -505,6 +506,9 @@ export default async function ListingPage({ params }: Props) {
                     ) : (
                       <>
                         <p className="font-medium text-lg">{listing.agent.listAgentName}</p>
+                        <p className="text-sm text-gray-500">
+                          {agentsData.agents.find(a => a.name === listing.agent.listAgentName)?.title || 'Licensed Real Estate Salesperson'}
+                        </p>
                         <p className="text-gray-600">{listing.agent.listOfficeName}</p>
                         <div className="mt-3 pt-3 border-t space-y-2">
                           <div className="flex items-center gap-2 text-sm">
