@@ -19,6 +19,7 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",
+        "@aws-sdk/client-s3": "^3.986.0",
         "@prisma/client": "^6.17.1",
         "@radix-ui/react-dialog": "^1.1.15",
         "@radix-ui/react-navigation-menu": "^1.2.14",
@@ -30,6 +31,7 @@
         "prisma": "^6.17.1",
         "react": "18.2.0",
         "react-dom": "18.2.0",
+        "sharp": "^0.34.5",
         "swr": "^2.3.6"
     },
     "devDependencies": {
@@ -38,6 +40,7 @@
         "@types/pg": "^8.15.6",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
+        "@types/sharp": "^0.31.1",
         "@typescript-eslint/eslint-plugin": "^8.46.4",
         "@typescript-eslint/parser": "^8.46.4",
         "eslint": "^8.57.0",

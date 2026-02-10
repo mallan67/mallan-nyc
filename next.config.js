@@ -15,6 +15,16 @@ const nextConfig = {
         hostname: '*.trestle.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.r2.dev',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.mallan.nyc',
+        pathname: '/**',
+      },
     ],
   },
 
