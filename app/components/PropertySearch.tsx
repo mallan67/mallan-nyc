@@ -7,9 +7,6 @@ import IDXImage from '@/app/components/IDXImage';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
-import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
-import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
-import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -348,114 +345,83 @@ export default function PropertySearch({ type }: PropertySearchProps) {
             <IDXSearchDisclaimer />
           </div>
 
-          {/* Tools — above listings on mobile/tablet, sticky sidebar on xl+ */}
-          <div className="xl:flex xl:flex-row xl:gap-8">
-            {/* Sidebar: naturally first in DOM = first on mobile */}
-            <aside className="mb-6 xl:mb-0 xl:w-80 xl:flex-shrink-0 xl:order-2">
-              <div className="xl:sticky xl:top-40 space-y-4">
-                <h3 className="text-sm text-gray-400 uppercase tracking-wide">
-                  {isRental ? 'Renter Tools' : 'Buyer Tools'}
-                </h3>
-                {isRental ? (
-                  <>
-                    <RentVsBuyStandalone />
-                    <MovingCostEstimator />
-                  </>
-                ) : (
-                  <AffordabilityCalculator />
-                )}
-                {/* Broker attribution */}
-                <div className="text-center pt-4 border-t">
-                  <p className="text-xs text-gray-500">
-                    <span className="font-medium text-gray-700">Maya Allan</span>, Licensed Real Estate Broker
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Mallan Real Estate Inc. · <a href="tel:+16462584460" className="hover:text-brand-gold">(646) 258-4460</a>
-                  </p>
-                </div>
-              </div>
-            </aside>
-
-            {/* Listings Grid */}
-            <div className="flex-1 min-w-0 xl:order-1">
-              {sortedListings.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-lg">
-                  <p className="text-gray-500 text-lg mb-2">No properties match your criteria</p>
-                  <p className="text-gray-400 mb-4">Try adjusting your filters</p>
-                  <button onClick={clearFilters} className="text-brand-gold hover:underline">
-                    Clear all filters
-                  </button>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-6">
-                  {sortedListings.map((listing) => (
-                    <Link
-                      key={listing.id}
-                      href={`/listing/${listing.id}`}
-                      className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
-                    >
-                      {/* IDXImage: native <img> for IDX (exclusives) + R2 (all other) photos */}
-                      <div className="relative">
-                        <IDXImage
-                          src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
-                          alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-                          aspect="card"
-                        />
-                        {listing.flags.isExclusive && (
-                          <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
-                            Exclusive
-                          </span>
-                        )}
-                        {listing.openHouse?.scheduled && (
-                          <span className="absolute top-3 right-3 px-3 py-1 bg-white text-brand-dark text-xs rounded shadow">
-                            Open House
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="p-4">
-                        <p className="text-xl font-semibold mb-1">
-                          {formatPrice(listing.price.listPrice, isRental)}
-                        </p>
-                        <p className="text-gray-800">
-                          {listing.address.streetNumber} {listing.address.streetName}, {listing.address.unit}
-                        </p>
-                        <p className="text-gray-500 text-sm">{listing.address.neighborhoodDisplay}, {listing.address.borough}</p>
-
-                        <div className="flex gap-4 text-sm text-gray-600 mt-3 pt-3 border-t">
-                          <span>{listing.propertyInfo.bedroomsTotal} bed{listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''}</span>
-                          <span>
-                            {listing.propertyInfo.bathroomsFull}
-                            {listing.propertyInfo.bathroomsHalf > 0 && `.${listing.propertyInfo.bathroomsHalf}`} bath{listing.propertyInfo.bathroomsFull !== 1 ? 's' : ''}
-                          </span>
-                          {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
-                            <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft</span>
-                          )}
-                          <span className="text-gray-400">{listing.propertyInfo.propertyType}</span>
-                        </div>
-
-                        {/* NYC-Specific: Maintenance/CC */}
-                        {!isRental && listing.nycSpecific.maintenanceFee && (
-                          <p className="text-xs text-gray-400 mt-2">
-                            {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
-                          </p>
-                        )}
-
-                        {/* REBNY RLS Per-Card Attribution */}
-                        <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
-                          Courtesy of {listing.agent.listOfficeName}
-                          {listing.listing.modificationTimestamp && (
-                            <> · Updated {new Date(listing.listing.modificationTimestamp).toLocaleDateString()}</>
-                          )}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
+          {/* Listings Grid */}
+          {sortedListings.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-lg">
+              <p className="text-gray-500 text-lg mb-2">No properties match your criteria</p>
+              <p className="text-gray-400 mb-4">Try adjusting your filters</p>
+              <button onClick={clearFilters} className="text-brand-gold hover:underline">
+                Clear all filters
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sortedListings.map((listing) => (
+                <Link
+                  key={listing.id}
+                  href={`/listing/${listing.id}`}
+                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
+                >
+                  {/* IDXImage: native <img> for IDX (exclusives) + R2 (all other) photos */}
+                  <div className="relative">
+                    <IDXImage
+                      src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
+                      alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
+                      aspect="card"
+                    />
+                    {listing.flags.isExclusive && (
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
+                        Exclusive
+                      </span>
+                    )}
+                    {listing.openHouse?.scheduled && (
+                      <span className="absolute top-3 right-3 px-3 py-1 bg-white text-brand-dark text-xs rounded shadow">
+                        Open House
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4">
+                    <p className="text-xl font-semibold mb-1">
+                      {formatPrice(listing.price.listPrice, isRental)}
+                    </p>
+                    <p className="text-gray-800">
+                      {listing.address.streetNumber} {listing.address.streetName}, {listing.address.unit}
+                    </p>
+                    <p className="text-gray-500 text-sm">{listing.address.neighborhoodDisplay}, {listing.address.borough}</p>
+
+                    <div className="flex gap-4 text-sm text-gray-600 mt-3 pt-3 border-t">
+                      <span>{listing.propertyInfo.bedroomsTotal} bed{listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''}</span>
+                      <span>
+                        {listing.propertyInfo.bathroomsFull}
+                        {listing.propertyInfo.bathroomsHalf > 0 && `.${listing.propertyInfo.bathroomsHalf}`} bath{listing.propertyInfo.bathroomsFull !== 1 ? 's' : ''}
+                      </span>
+                      {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
+                        <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft</span>
+                      )}
+                      <span className="text-gray-400">{listing.propertyInfo.propertyType}</span>
+                    </div>
+
+                    {/* NYC-Specific: Maintenance/CC */}
+                    {!isRental && listing.nycSpecific.maintenanceFee && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
+                      </p>
+                    )}
+
+                    {/* REBNY RLS Per-Card Attribution */}
+                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                      Courtesy of {listing.agent.listOfficeName}
+                      {listing.listing.modificationTimestamp && (
+                        <> · Updated {new Date(listing.listing.modificationTimestamp).toLocaleDateString()}</>
+                      )}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
