@@ -35,7 +35,7 @@ export interface FeaturedBuilding {
 
 export interface StreetGuidance {
   description: string;
-  bestBlocksForFamilies: string[];
+  bestBlocksForParks: string[];
   bestBlocksForNightlife: string[];
   quietStreets: string[];
 }

@@ -25,8 +25,8 @@
           "answer": "The median sale price on the Upper East Side is approximately $1.1 million, with co-ops averaging around $900,000 and condos around $1.6 million. Prices vary significantly by block, with Fifth Avenue and Park Avenue commanding the highest premiums."
         },
         {
-          "question": "Is the Upper East Side good for families?",
-          "answer": "Yes, the Upper East Side is one of Manhattan's most family-friendly neighborhoods. It offers excellent public and private schools, proximity to Central Park playgrounds, pediatric medical facilities, and a relatively quiet residential atmosphere."
+          "question": "What parks and schools are near the Upper East Side?",
+          "answer": "Yes, the Upper East Side is well-suited for residents who value parks and schools. It offers excellent public and private schools, proximity to Central Park playgrounds, pediatric medical facilities, and a relatively quiet residential atmosphere."
         },
         {
           "question": "What subway lines serve the Upper East Side?",
@@ -99,7 +99,7 @@
       ],
       "streetGuidance": {
         "description": "The Upper East Side rewards careful block-by-block analysis. West of Lexington Avenue commands a premium, especially along Park and Fifth Avenues. The Second Avenue Subway has boosted values east of Third Avenue significantly.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "East 70s between Park and Lexington",
           "East 80s near Carl Schurz Park",
           "East 90s near Central Park"
@@ -117,8 +117,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking top schools, park access, and quiet residential streets with classic pre-war apartments.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking top schools, park access, and quiet residential streets with classic pre-war apartments.",
           "budgetRange": "$1.5M - $5M",
           "propertyType": "3-4 bedroom co-op"
         },
@@ -129,8 +129,8 @@
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "International Buyer",
-          "description": "Global buyers seeking a prestigious Manhattan address with strong resale value and rental flexibility.",
+          "type": "Pied-à-Terre Buyer",
+          "description": "Buyers seeking a prestigious Manhattan address with strong resale value and rental flexibility.",
           "budgetRange": "$2M - $10M",
           "propertyType": "Luxury condo"
         },
@@ -260,8 +260,8 @@
           "answer": "The median sale price on the Upper West Side is approximately $1.05 million. Pre-war co-ops average around $850,000, while newer condos average $1.4 million. Central Park West addresses command significant premiums."
         },
         {
-          "question": "Is the Upper West Side family-friendly?",
-          "answer": "Extremely family-friendly. The UWS has some of Manhattan's best public schools (PS 87, PS 199), easy park access on both sides (Central Park and Riverside Park), and a neighborhood culture that warmly embraces families."
+          "question": "What parks and schools are near the Upper West Side?",
+          "answer": "The UWS has some of Manhattan's best public schools (PS 87, PS 199) and easy park access on both sides — Central Park and Riverside Park. The neighborhood offers a walkable, residential atmosphere with abundant green space and cultural institutions."
         },
         {
           "question": "What are the best streets on the Upper West Side?",
@@ -334,7 +334,7 @@
       ],
       "streetGuidance": {
         "description": "Central Park West is the crown jewel, but Riverside Drive offers equally stunning apartments with river views at lower prices. Broadway is the commercial spine with excellent dining. Columbus Avenue between 68th and 86th has the best boutique shopping.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "West 70s between CPW and Columbus",
           "West 80s near Riverside Park",
           "West 90s near the Natural History Museum"
@@ -352,7 +352,7 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families drawn to top schools, dual-park access, and the neighborhood's intellectual, community-oriented atmosphere.",
           "budgetRange": "$1.2M - $4M",
           "propertyType": "3-bedroom pre-war co-op"
@@ -489,7 +489,7 @@
           "answer": "Tribeca is known for converted warehouse lofts with soaring ceilings, exposed brick, and oversized windows. New development condos offer modern luxury. The neighborhood also has a small number of townhouses, which are among the most expensive in the city."
         },
         {
-          "question": "Is Tribeca good for families?",
+          "question": "What parks and schools are near Tribeca?",
           "answer": "Tribeca is one of Manhattan's top family neighborhoods. PS 234 is highly rated, the neighborhood has excellent parks (Hudson River Park, Washington Market Park), and the low-rise character provides a village atmosphere."
         },
         {
@@ -545,7 +545,7 @@
       ],
       "streetGuidance": {
         "description": "The most desirable blocks are on the cobblestone streets west of Broadway, particularly Greenwich, Hudson, and Harrison Streets. Larger lofts concentrate south of Canal between Church and West Streets. North Tribeca near Canal has more commercial energy.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Harrison Street near the river",
           "Greenwich Street in the low numbers",
           "Reade and Chambers Streets near parks"
@@ -563,7 +563,7 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Affluent families seeking spacious loft living, top schools, and a village feel within walking distance of Hudson River Park.",
           "budgetRange": "$3M - $10M",
           "propertyType": "3+ bedroom loft or townhouse"
@@ -575,8 +575,8 @@
           "propertyType": "2-bedroom luxury condo"
         },
         {
-          "type": "International Buyer",
-          "description": "Global buyers seeking a trophy asset in Manhattan's most exclusive residential neighborhood.",
+          "type": "Pied-à-Terre Buyer",
+          "description": "Buyers seeking a trophy asset in Manhattan's most exclusive residential neighborhood.",
           "budgetRange": "$5M - $30M+",
           "propertyType": "Full-floor loft or penthouse"
         }
@@ -756,7 +756,7 @@
       ],
       "streetGuidance": {
         "description": "The blocks between Broome and Spring Streets, west of Broadway, are the most desirable for residential living. Greene Street has the finest cast-iron architecture. Crosby Street offers a quieter, more residential feel on the eastern edge.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Crosby Street between Spring and Broome",
           "West Broadway south of Houston",
           "Thompson Street near parks"
@@ -786,8 +786,8 @@
           "propertyType": "2-bedroom condo"
         },
         {
-          "type": "International Buyer",
-          "description": "Global buyers seeking an iconic Manhattan loft in one of the world's most recognizable neighborhoods.",
+          "type": "Pied-à-Terre Buyer",
+          "description": "Buyers seeking an iconic Manhattan loft in one of the world's most recognizable neighborhoods.",
           "budgetRange": "$3M - $15M",
           "propertyType": "Full-floor cast-iron loft"
         }
@@ -972,7 +972,7 @@
       ],
       "streetGuidance": {
         "description": "West Chelsea (west of Tenth Avenue) commands the highest prices near the High Line. The brownstone blocks of the 20s between Eighth and Tenth are charming and residential. East Chelsea near Sixth Avenue is more commercial but offers better transit.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "West 20s between Eighth and Ninth Avenues",
           "West 21st-23rd near Clement Clarke Moore Park",
           "West 17th-19th near Chelsea Waterside Park"
@@ -1133,7 +1133,7 @@
           "answer": "The median sale price in FiDi is approximately $950,000, making it one of the more affordable Manhattan neighborhoods for modern condos. Price per square foot averages around $1,250, significantly less than Tribeca or SoHo."
         },
         {
-          "question": "Is FiDi good for families?",
+          "question": "What parks and schools are near FiDi?",
           "answer": "Yes, especially since the Brookfield Place development added family amenities. PS 89 and PS 234 are excellent schools, and the waterfront parks provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities."
         },
         {
@@ -1189,7 +1189,7 @@
       ],
       "streetGuidance": {
         "description": "The waterfront streets (West Street, Battery Place) offer the best views and park access. The area around Fulton Street has the best dining and retail. Stone Street is the neighborhood's charming pedestrian dining strip. The area south of Wall Street is quieter and more residential.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Battery Place near parks",
           "Liberty Street near Brookfield Place",
           "Fulton Street near schools"
@@ -1410,7 +1410,7 @@
       ],
       "streetGuidance": {
         "description": "The West Village (west of Seventh Avenue) has the most charm and highest prices. The blocks around Washington Square Park combine culture with excellent brownstones. East of Broadway transitions into the East Village with a different character and lower prices.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "West 10th-12th between Fifth and Sixth",
           "Bank Street",
           "Perry Street west of Bleecker"
@@ -1440,8 +1440,8 @@
           "propertyType": "2-bedroom townhouse floor or condo"
         },
         {
-          "type": "Growing Family",
-          "description": "Families seeking tree-lined streets, local schools, and a village atmosphere within Manhattan.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking tree-lined streets, local schools, and a village atmosphere within Manhattan.",
           "budgetRange": "$2M - $8M",
           "propertyType": "Townhouse or 3-bedroom co-op"
         }
@@ -1629,7 +1629,7 @@
       ],
       "streetGuidance": {
         "description": "The area around Sutton Place and Beekman Place offers quiet, residential enclaves with river views. The blocks near the UN (40s east of First Avenue) attract international buyers. Park Avenue between 46th and 57th is primarily commercial but prestigious. Tudor City is a hidden gem.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Sutton Place area",
           "Tudor City",
           "East 50s near Beekman Place"
@@ -1653,7 +1653,7 @@
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "International Buyer",
+          "type": "Pied-à-Terre Buyer",
           "description": "Diplomatic and international business buyers near the United Nations seeking flexible condo ownership.",
           "budgetRange": "$2M - $10M",
           "propertyType": "2-3 bedroom luxury condo"
@@ -1830,7 +1830,7 @@
       ],
       "streetGuidance": {
         "description": "Ninth Avenue is the dining spine with Restaurant Row on 46th Street. The blocks west of Tenth Avenue are quieter and increasingly residential. The area near Hudson Yards offers modern towers with amenities.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "West 50s near DeWitt Clinton Park",
           "Tenth Avenue in the upper 40s"
         ],
@@ -2017,7 +2017,7 @@
       ],
       "streetGuidance": {
         "description": "The blocks between 7th and 10th Streets, east of Second Avenue, have the most character. Alphabet City offers a neighborhood feel. Areas closer to Broadway and Astor Place are more polished.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "East 10th and 11th Streets near Tompkins Square",
           "Stuyvesant Street"
         ],
@@ -2196,7 +2196,7 @@
       ],
       "streetGuidance": {
         "description": "Orchard and Ludlow Streets are the nightlife center. The blocks near the East River (south of Delancey) have seen the most new development. Allen Street and the area near the New Museum are increasingly popular.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Near East River Park",
           "Broome Street east of Allen"
         ],
@@ -2372,7 +2372,7 @@
       ],
       "streetGuidance": {
         "description": "The brownstone blocks of Sugar Hill and Hamilton Heights have the finest architecture. The area around 125th Street is the commercial center. Strivers Row (138th-139th between Frederick Douglass and Adam Clayton Powell) is historically significant.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Sugar Hill (145th-155th)",
           "Morningside Heights border area"
         ],
@@ -2400,7 +2400,7 @@
           "propertyType": "Multi-unit brownstone"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families drawn to spacious brownstone living and community parks at accessible prices.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone"
@@ -2554,7 +2554,7 @@
       ],
       "streetGuidance": {
         "description": "Broadway between 25th and 30th is the main axis. The blocks overlooking Madison Square Park command the highest premiums. Fifth Avenue offers more space and quieter living.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Near Madison Square Park"
         ],
         "bestBlocksForNightlife": [
@@ -2725,7 +2725,7 @@
       ],
       "streetGuidance": {
         "description": "Park Avenue South has the best dining and nightlife. Broadway is the main commercial artery. The blocks near Union Square are livelier, while those near Madison Square Park are quieter and more upscale.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Near Madison Square Park",
           "East 20s between Park and Lexington"
         ],
@@ -2898,7 +2898,7 @@
       ],
       "streetGuidance": {
         "description": "The blocks directly surrounding Gramercy Park are the most desirable with park key access. Irving Place south of the park has excellent dining. Third Avenue offers more affordable options.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Gramercy Park area",
           "Irving Place"
         ],
@@ -3067,7 +3067,7 @@
       ],
       "streetGuidance": {
         "description": "South End Avenue has the best dining options. The Esplanade along the Hudson River is the neighborhood's greatest amenity. Buildings closer to the World Financial Center have better transit access.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Near Rockefeller Park and playgrounds",
           "South End Avenue"
         ],
@@ -3082,8 +3082,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking space, safety, waterfront parks, and excellent schools at below-Tribeca prices.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking space, safety, waterfront parks, and excellent schools at below-Tribeca prices.",
           "budgetRange": "$1M - $3M",
           "propertyType": "2-3 bedroom condo"
         },
@@ -3229,7 +3229,7 @@
       ],
       "streetGuidance": {
         "description": "Hudson Yards is essentially a vertical neighborhood — building choice matters more than block choice. 15 Hudson Yards has the best park views, while 35 Hudson Yards has the Equinox Hotel integration.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "15 Hudson Yards (park-facing units)"
         ],
         "bestBlocksForNightlife": [
@@ -3241,8 +3241,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "International Buyer",
-          "description": "Global buyers seeking new construction with full-service amenities and a prestigious Manhattan address.",
+          "type": "Pied-à-Terre Buyer",
+          "description": "Buyers seeking new construction with full-service amenities and a prestigious Manhattan address.",
           "budgetRange": "$2M - $15M",
           "propertyType": "2-3 bedroom luxury condo"
         },
@@ -3399,7 +3399,7 @@
       ],
       "streetGuidance": {
         "description": "The blocks between 8th and 9th Avenues from 45th to 57th are the most residential. Times Square-adjacent blocks are noisy but ultra-convenient. The area near Penn Station is commercial but transforming.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "West 50s between 8th and 9th Avenues"
         ],
         "bestBlocksForNightlife": [

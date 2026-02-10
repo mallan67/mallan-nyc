@@ -97,7 +97,7 @@
       ],
       "streetGuidance": {
         "description": "St. George is a compact, walkable neighborhood centered around the ferry terminal. The hillside streets above the terminal offer dramatic views of the harbor and Manhattan skyline, while the waterfront esplanade provides newer residential options.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "St. Marks Place near the park",
           "Hamilton Avenue hilltop section",
           "Westervelt Avenue near Curtis High School"
@@ -133,7 +133,7 @@
           "propertyType": "Condo or multi-family"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families looking for spacious Victorian homes with character, good schools, and easy access to parks and cultural amenities.",
           "budgetRange": "$500K - $750K",
           "propertyType": "Single-family Victorian"
@@ -327,7 +327,7 @@
       ],
       "streetGuidance": {
         "description": "Todt Hill's winding roads and cul-de-sacs create a suburban estate atmosphere rare in New York City. The higher elevations along Todt Hill Road offer the grandest properties, while the perimeter streets provide more accessible price points.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Flagg Place near the Greenbelt",
           "Benedict Road residential section",
           "Four Corners Road near schools"
@@ -345,8 +345,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking spacious estate-style homes with large yards, excellent schools, and a safe residential environment.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking spacious estate-style homes with large yards, excellent schools, and a safe residential environment.",
           "budgetRange": "$900K - $2M",
           "propertyType": "4-5 bedroom single family"
         },
@@ -363,7 +363,7 @@
           "propertyType": "Single family or townhouse"
         },
         {
-          "type": "Pied-a-Terre Buyer",
+          "type": "Pied-à-Terre Buyer",
           "description": "Buyers seeking a spacious retreat from Manhattan with privacy, green space, and proximity to the Greenbelt.",
           "budgetRange": "$650K - $1M",
           "propertyType": "3 bedroom townhouse"
@@ -483,7 +483,7 @@
           "answer": "The median sale price in Great Kills is approximately $625,000. Single-family detached homes range from $500,000 to $900,000, while semi-attached and attached homes can start around $400,000. Per square foot pricing averages around $425."
         },
         {
-          "question": "Is Great Kills good for families?",
+          "question": "What parks and schools are near Great Kills?",
           "answer": "Yes, Great Kills is one of Staten Island's most popular family neighborhoods. It has well-regarded public schools, youth sports programs, a marina for boating, and Great Kills Park with beaches and playgrounds. The neighborhood has a strong community feel with active civic associations."
         },
         {
@@ -557,7 +557,7 @@
       ],
       "streetGuidance": {
         "description": "Great Kills is organized around Hylan Boulevard as its commercial spine, with residential streets extending east toward the waterfront and west toward the interior. Proximity to the marina and park drives premium pricing on the eastern blocks.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Nelson Avenue near schools and parks",
           "Lindenwood Road residential area",
           "Giffords Lane near youth sports fields"
@@ -575,8 +575,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking detached homes with yards, strong schools, beach access, and active community programs.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking detached homes with yards, strong schools, beach access, and active community programs.",
           "budgetRange": "$550K - $850K",
           "propertyType": "3-4 bedroom single family"
         },
@@ -786,7 +786,7 @@
       ],
       "streetGuidance": {
         "description": "New Brighton's residential streets climb from the waterfront along the Kill Van Kull up to the Brighton Heights ridge. The higher streets offer stunning water views and the grandest homes, while the lower streets near Snug Harbor provide a walkable village atmosphere.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Lafayette Avenue near Snug Harbor",
           "Castleton Avenue residential stretch",
           "Henderson Avenue near schools"
@@ -822,8 +822,8 @@
           "propertyType": "Multi-family brownstone"
         },
         {
-          "type": "Growing Family",
-          "description": "Families seeking spacious homes with architectural character, good schools, and access to parks and cultural centers.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking spacious homes with architectural character, good schools, and access to parks and cultural centers.",
           "budgetRange": "$500K - $800K",
           "propertyType": "3-4 bedroom Victorian"
         }
