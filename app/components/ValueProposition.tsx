@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
+import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
+import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 
 /**
  * Value Proposition Section
@@ -83,6 +86,18 @@ export default function ValueProposition() {
             >
               Sell Your Property →
             </Link>
+          </div>
+        </div>
+
+        {/* Buyer & Renter Tools — collapsed by default */}
+        <div className="max-w-3xl mx-auto mb-10 sm:mb-12">
+          <p className="text-xs text-gray-400 uppercase tracking-widest text-center mb-4">
+            Free Planning Tools
+          </p>
+          <div className="space-y-3">
+            <AffordabilityCalculator />
+            <RentVsBuyStandalone />
+            <MovingCostEstimator />
           </div>
         </div>
 
