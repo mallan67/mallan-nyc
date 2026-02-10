@@ -12,6 +12,9 @@ import type { Listing } from '@/lib/types/listing';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingHeroImage from '@/app/components/ListingHeroImage';
 
+// ISR: revalidate every 15 min (matches cron sync interval)
+export const revalidate = 900;
+
 type Props = {
   params: Promise<{ id: string }>;
 };

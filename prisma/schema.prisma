@@ -38,3 +38,56 @@ model Deal {
   contract_closed         DateTime? @map("contract_closed")
   @@map("deals")
 }
+
+/// IDX/RLS listing synced from Trestle.
+/// Flat columns for WHERE-clause fields; JSON for nested data.
+model Listing {
+  id                      BigInt    @id @default(autoincrement())
+  listingId               String    @unique @map("listing_id")         // Trestle ListingId (RESO key)
+  mlsId                   String?   @map("mls_id")
+
+  // --- Filter columns (indexed for queries) ---
+  status                  String    @default("Active")                  // RESO StandardStatus
+  listingType             String    @map("listing_type")                // "sale" | "rent"
+  propertyType            String?   @map("property_type")               // RESO PropertyType
+  propertySubType         String?   @map("property_sub_type")
+  listPrice               Decimal   @db.Decimal(14,2) @map("list_price")
+  bedroomsTotal           Int?      @map("bedrooms_total")
+  bathroomsFull           Int?      @map("bathrooms_full")
+  bathroomsHalf           Int?      @map("bathrooms_half")
+  livingArea              Decimal?  @db.Decimal(10,2) @map("living_area")
+  borough                 String?                                        // NYC borough
+  neighborhood            String?
+  city                    String?
+  postalCode              String?   @map("postal_code")
+
+  // --- Distribution gates ---
+  idxDisplayYN            Boolean   @default(true) @map("idx_display_yn")
+  internetEntireListingDisplayYN Boolean @default(true) @map("internet_entire_listing_display_yn")
+  internetAddressDisplayYN Boolean  @default(true) @map("internet_address_display_yn")
+  participantOnly         Boolean   @default(false) @map("participant_only")
+  ownerOptOut             Boolean   @default(false) @map("owner_opt_out")
+
+  // --- JSON columns (nested/variable data) ---
+  address                 Json      @default("{}")                       // Full address object
+  features                Json      @default("{}")                       // Interior, building, pets, etc.
+  media                   Json      @default("[]")                       // Photo/video URLs + order
+  compliance              Json      @default("{}")                       // Attribution, disclaimers
+  agentInfo               Json      @default("{}")  @map("agent_info")   // List agent/office (not public)
+  rawData                 Json?     @map("raw_data")                     // Full Trestle response (debug)
+
+  // --- Timestamps ---
+  modificationTimestamp   DateTime  @map("modification_timestamp")       // Trestle ModificationTimestamp
+  listingContractDate     DateTime? @map("listing_contract_date")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, listingType])
+  @@index([listPrice])
+  @@index([borough, neighborhood])
+  @@index([propertyType])
+  @@index([bedroomsTotal])
+  @@index([modificationTimestamp])
+  @@index([idxDisplayYN, ownerOptOut])
+  @@map("listings")
+}
