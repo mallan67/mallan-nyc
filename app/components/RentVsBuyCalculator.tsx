@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 
 interface RentVsBuyCalculatorProps {
   purchasePrice: number;
@@ -285,8 +286,15 @@ export default function RentVsBuyCalculator({
 
         {/* CTA */}
         <div className="mt-6 bg-brand-gold/10 rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-700 mb-2">Interested in exploring homeownership?</p>
-          <p className="text-xs text-gray-500">Contact us to discuss your options and find properties in your budget.</p>
+          <p className="text-sm font-medium text-gray-900 mb-1">Interested in exploring homeownership?</p>
+          <p className="text-xs text-gray-500 mb-3">Contact us to discuss your options and find properties in your budget.</p>
+          <Link
+            href="/contact?ref=rent-vs-buy"
+            data-analytics-cta="cta_rent_vs_buy"
+            className="inline-block w-full py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm"
+          >
+            Let&apos;s Talk
+          </Link>
         </div>
 
         <p className="mt-4 text-xs text-gray-400">
