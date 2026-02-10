@@ -3,6 +3,8 @@ import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import PropertySearch from '@/app/components/PropertySearch';
+import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
+import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 
 export const metadata: Metadata = {
   title: 'Rent in NYC | Mallan Real Estate',
@@ -82,6 +84,13 @@ export default function RentPage() {
           <PropertySearch type="rent" />
         </Suspense>
       </main>
+      <section className="bg-gray-50 border-t py-10 px-4">
+        <div className="max-w-3xl mx-auto space-y-4">
+          <h2 className="text-sm text-gray-400 uppercase tracking-wide mb-4">Renter Tools</h2>
+          <RentVsBuyStandalone />
+          <MovingCostEstimator />
+        </div>
+      </section>
       <Footer />
     </div>
   );
