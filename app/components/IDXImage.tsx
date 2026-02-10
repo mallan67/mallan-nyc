@@ -3,16 +3,18 @@
 import { useState } from 'react';
 
 /**
- * IDXImage — native <img> for IDX/MLS listing photos.
+ * IDXImage — native <img> for all listing photos (IDX + R2).
  *
  * Uses <img> instead of next/image so photos load directly from
- * the Trestle CDN. This avoids Vercel Image Optimization charges
- * ($5/1000 after the free 5000/mo tier) and keeps bandwidth on
- * the CDN rather than the Vercel function.
+ * their source CDN without Vercel Image Optimization charges
+ * ($5/1000 after the free 5000/mo tier).
  *
- * For local/Unsplash images (existing listings), keep using
- * next/image or ListingHeroImage — this component is only for
- * IDX-sourced photos.
+ * Two image sources:
+ *   - Exclusive listings → IDX/Trestle CDN (*.trestle.com)
+ *   - All other photos   → Cloudflare R2 (*.r2.dev / images.mallan.nyc)
+ *
+ * Both sources serve pre-optimized images, so Vercel re-optimization
+ * is unnecessary. R2 images are Sharp-processed WebP at upload time.
  */
 
 const ASPECT_CLASSES = {

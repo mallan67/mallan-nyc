@@ -11,6 +11,13 @@ interface ListingHeroImageProps {
   children?: React.ReactNode;
 }
 
+/**
+ * Hero image for listing detail pages.
+ *
+ * Real listing photos (IDX/Trestle or R2) use native <img> to avoid
+ * Vercel Image Optimization costs — both sources are pre-optimized.
+ * Only the local SVG placeholder uses next/image.
+ */
 export default function ListingHeroImage({ src, alt, children }: ListingHeroImageProps) {
   const isPlaceholder = !src || src === PLACEHOLDER;
   const [failed, setFailed] = useState(false);
@@ -20,14 +27,25 @@ export default function ListingHeroImage({ src, alt, children }: ListingHeroImag
     <section className={showPlaceholder ? 'bg-gray-100' : 'bg-gray-200'}>
       <div className="max-w-7xl mx-auto">
         <div className="relative aspect-[16/9] md:aspect-[21/9]">
-          <Image
-            src={failed ? PLACEHOLDER : src || PLACEHOLDER}
-            alt={alt}
-            fill
-            className={showPlaceholder ? 'object-contain p-8' : 'object-cover'}
-            priority
-            onError={() => setFailed(true)}
-          />
+          {showPlaceholder ? (
+            <Image
+              src={PLACEHOLDER}
+              alt={alt}
+              fill
+              className="object-contain p-8"
+              priority
+            />
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={src}
+              alt={alt}
+              loading="eager"
+              decoding="sync"
+              onError={() => setFailed(true)}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
           {children}
         </div>
       </div>
