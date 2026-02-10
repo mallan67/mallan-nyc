@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${agent.name} | ${agent.title} | Mallan Real Estate`,
-    description: `Contact ${agent.name}, ${agent.title} at Mallan Real Estate. ${agent.bio.substring(0, 155)}...`,
+    description: `${agent.name}, ${agent.title} at Mallan Real Estate. ${agent.bio.substring(0, 155)}...`,
   };
 }
 
@@ -204,7 +204,8 @@ export default async function AgentPage({ params }: Props) {
               <div className="flex-1 text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
                   <h1 className="text-xl sm:text-2xl font-light tracking-wide text-brand-dark">
-                    {agent.name}
+                    {agent.name}<span className="text-gray-400">,</span>{' '}
+                    <span className="text-base sm:text-lg text-gray-500">{agent.title}</span>
                   </h1>
                   {agent.featured && (
                     <span className="px-2 py-0.5 bg-brand-gold/10 text-brand-gold text-[10px] uppercase tracking-wider rounded">
@@ -212,9 +213,6 @@ export default async function AgentPage({ params }: Props) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 uppercase tracking-wide mb-4">
-                  {agent.title}
-                </p>
 
                 {/* Contact */}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-5">

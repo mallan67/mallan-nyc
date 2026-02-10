@@ -3,7 +3,6 @@ import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import PropertySearch from '@/app/components/PropertySearch';
-import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
 
 export const metadata: Metadata = {
   title: 'Buy Property in NYC | Mallan Real Estate',
@@ -83,12 +82,6 @@ export default function BuyPage() {
           <PropertySearch type="buy" />
         </Suspense>
       </main>
-      <section className="bg-gray-50 border-t py-10 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-sm text-gray-400 uppercase tracking-wide mb-4">Buyer Tools</h2>
-          <AffordabilityCalculator />
-        </div>
-      </section>
       <Footer />
     </div>
   );

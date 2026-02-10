@@ -168,7 +168,7 @@ export default function AdminTeamPage() {
                   value={editingAgent.title}
                   onChange={e => setEditingAgent({ ...editingAgent, title: e.target.value })}
                   className="w-full border rounded px-3 py-2"
-                  placeholder="Licensed Real Estate Salesperson"
+                  placeholder="Licensed Real Estate Salesperson / Associate Broker / Broker"
                 />
               </div>
 

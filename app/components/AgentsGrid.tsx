@@ -105,8 +105,10 @@ export default function AgentsGrid() {
 
                   {/* Info */}
                   <div className="space-y-2">
-                    <h3 className="text-xl font-semibold">{agent.name}</h3>
-                    <p className="text-gray-600 text-sm">{agent.title}</p>
+                    <h3 className="font-semibold">
+                      <span className="text-xl">{agent.name}</span>
+                      <span className="block text-sm text-gray-600 font-medium mt-0.5">{agent.title}</span>
+                    </h3>
 
                     {/* Contact */}
                     <div className="flex flex-col gap-1 text-sm">
