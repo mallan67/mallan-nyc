@@ -3,9 +3,6 @@ import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 import { logAccessDenied } from '@/lib/idx';
 
-// Mark as dynamic since we may want to add query params
-export const dynamic = 'force-dynamic';
-
 /**
  * Check if this endpoint should serve IDX data
  * Currently serves local JSON data only (exclusive/manual listings)
@@ -131,19 +128,26 @@ export async function GET(request: Request) {
     // Apply limit
     listings = listings.slice(0, limit);
 
-    return NextResponse.json({
-      success: true,
-      count: listings.length,
-      listings,
-      // Compliance metadata
-      _compliance: {
-        source: 'exclusive', // Currently serving exclusive/manual listings only
-        idxEnabled: process.env.IDX_ENABLED === 'true',
-        disclaimer: 'Information deemed reliable but not guaranteed.',
+    return NextResponse.json(
+      {
+        success: true,
+        count: listings.length,
+        listings,
+        // Compliance metadata
+        _compliance: {
+          source: 'exclusive', // Currently serving exclusive/manual listings only
+          idxEnabled: process.env.IDX_ENABLED === 'true',
+          disclaimer: 'Information deemed reliable but not guaranteed.',
+        },
+        // Future: Add pagination info
+        // pagination: { page: 1, pageSize: limit, total: totalCount }
       },
-      // Future: Add pagination info
-      // pagination: { page: 1, pageSize: limit, total: totalCount }
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching listings:', error);
     return NextResponse.json(

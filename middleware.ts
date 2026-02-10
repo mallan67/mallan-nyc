@@ -13,7 +13,23 @@ export const config = {
   ],
 };
 
-export default function middleware(_req: NextRequest) {
-  // pass-through
+/**
+ * Known scraper/AI-crawler bots that consume function invocations
+ * without generating real traffic. Google/Bing/social bots are
+ * intentionally excluded — we want those for SEO.
+ */
+const BLOCKED_BOTS =
+  /AhrefsBot|SemrushBot|DotBot|MJ12bot|GPTBot|CCBot|ClaudeBot|ChatGPT-User|Bytespider|PetalBot|Sogou|YandexBot|BLEXBot|DataForSeoBot|serpstatbot/i;
+
+export default function middleware(req: NextRequest) {
+  // Bot blocking — only on listing page routes (high-cost SSR/ISR pages)
+  if (req.nextUrl.pathname.startsWith("/listing")) {
+    const ua = req.headers.get("user-agent") ?? "";
+    if (BLOCKED_BOTS.test(ua)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+  }
+
+  // pass-through for everything else
   return NextResponse.next();
 }

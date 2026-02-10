@@ -59,15 +59,22 @@ export async function GET(request: Request, { params }: Props) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      listing,
-      _compliance: {
-        source: 'exclusive', // Currently serving exclusive/manual listings only
-        idxEnabled: process.env.IDX_ENABLED === 'true',
-        disclaimer: 'Information deemed reliable but not guaranteed.',
+    return NextResponse.json(
+      {
+        success: true,
+        listing,
+        _compliance: {
+          source: 'exclusive', // Currently serving exclusive/manual listings only
+          idxEnabled: process.env.IDX_ENABLED === 'true',
+          disclaimer: 'Information deemed reliable but not guaranteed.',
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching listing:', error);
     return NextResponse.json(
