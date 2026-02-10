@@ -1,0 +1,1610 @@
+{
+  "neighborhoods": [
+    {
+      "slug": "astoria",
+      "name": "Astoria",
+      "fullName": "Astoria, Queens",
+      "borough": "Queens",
+      "tagline": "Culture, Community, and Waterfront Living",
+      "heroImage": "https://images.unsplash.com/photo-1590417975079-7c38988ee4c0?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1590417975079-7c38988ee4c0?w=1200&q=80",
+      "summary": "Astoria is one of Queens' most vibrant neighborhoods, celebrated for its diverse dining scene, thriving arts community, and proximity to Manhattan. With waterfront parks along the East River and excellent transit, it offers a compelling blend of urban energy and neighborhood charm. Average price per square foot is approximately $650.",
+      "avgPricePerSqft": 650,
+      "dominantPropertyType": "Condo",
+      "walkScore": 89,
+      "transitScore": 82,
+      "topSchool": "PS 122 Mamie Fay",
+      "nearestSubway": [
+        "N",
+        "W",
+        "M",
+        "R"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Astoria?",
+          "answer": "The median sale price in Astoria is approximately $575,000. Condos average around $600,000, while co-ops are more affordable at approximately $350,000. Multi-family properties, which are popular among investors, range from $1.2M to $2.5M depending on size and condition."
+        },
+        {
+          "question": "Is Astoria a good neighborhood for families?",
+          "answer": "Yes, Astoria is very family-friendly with well-regarded public schools like PS 122 Mamie Fay and PS 234, numerous playgrounds, and Astoria Park's expansive green space with a public pool. The neighborhood has a strong sense of community and many family-oriented businesses."
+        },
+        {
+          "question": "What subway lines serve Astoria?",
+          "answer": "The N and W trains run along 31st Street with stops at Astoria Boulevard, 30th Avenue, Broadway, and Astoria-Ditmars Boulevard. The M and R trains serve the southern portion of Astoria along Steinway Street and Broadway."
+        },
+        {
+          "question": "What is the dining scene like in Astoria?",
+          "answer": "Astoria has one of NYC's most diverse dining scenes, with exceptional Greek, Egyptian, Colombian, Brazilian, and Asian restaurants. Steinway Street, Broadway, and Ditmars Boulevard are major dining corridors. The neighborhood is also known for its craft beer bars and coffee shops."
+        },
+        {
+          "question": "How far is Astoria from Manhattan?",
+          "answer": "Astoria is extremely convenient to Manhattan. The N/W train reaches Times Square in approximately 20 minutes and Midtown in about 15 minutes. The neighborhood is also accessible via the RFK Bridge and the NYC Ferry from Astoria Landing."
+        },
+        {
+          "question": "How much is rent in Astoria?",
+          "answer": "Median rent in Astoria is approximately $2,400 per month for a one-bedroom. Studios average $1,800, two-bedrooms $2,900, and three-bedrooms $3,500. Rents near the waterfront and Ditmars tend to be slightly higher than the interior blocks."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 575000,
+        "medianRent": 2400,
+        "avgDaysOnMarket": 55,
+        "yoyChange": 0.05,
+        "pricePerSqft": 650,
+        "inventory": 210,
+        "closedSales": 580,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Halletts Point",
+          "nickname": "Astoria's Waterfront",
+          "architect": null,
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 404,
+          "priceRange": "$500K - $1.5M",
+          "slug": "halletts-point"
+        },
+        {
+          "name": "The Ditmars",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 55,
+          "priceRange": "$450K - $950K",
+          "slug": "the-ditmars"
+        },
+        {
+          "name": "Pistilli Grand Manor",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2007,
+          "type": "Condo",
+          "units": 82,
+          "priceRange": "$400K - $800K",
+          "slug": "pistilli-grand-manor"
+        },
+        {
+          "name": "Astoria Central",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 48,
+          "priceRange": "$350K - $750K",
+          "slug": "astoria-central"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Astoria's grid layout makes it easy to navigate. The avenues running northwest (Ditmars, 30th Ave, Broadway) each have their own character, while the numbered streets are primarily residential. Proximity to the waterfront and N/W subway stations are the biggest value drivers.",
+        "bestBlocksForFamilies": [
+          "Ditmars Boulevard between 31st and 35th Streets",
+          "Astoria Park South near the pool and playgrounds",
+          "21st Avenue near PS 122"
+        ],
+        "bestBlocksForNightlife": [
+          "Broadway between 31st and 36th Streets",
+          "30th Avenue between 33rd and 38th Streets",
+          "Steinway Street near Broadway"
+        ],
+        "quietStreets": [
+          "Shore Boulevard along Astoria Park",
+          "Residential blocks near Hoyt Avenue North",
+          "Side streets off Ditmars near the water"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the market who want strong transit access to Manhattan at a fraction of Manhattan prices, with a walkable neighborhood feel.",
+          "budgetRange": "$350K - $650K",
+          "propertyType": "1-bedroom condo or co-op"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Manhattan commuters drawn to Astoria's dining scene, waterfront parks, and quick N/W subway ride to Midtown.",
+          "budgetRange": "$450K - $800K",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors seeking multi-family properties or condos with strong rental demand driven by proximity to Manhattan and neighborhood amenities.",
+          "budgetRange": "$1.2M - $2.5M",
+          "propertyType": "Multi-family or condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families seeking more space, good schools, and a neighborhood community feel with easy access to parks and playgrounds.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "2-3 bedroom condo or multi-family"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Astoria Listings",
+          "href": "/buy?neighborhood=astoria"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Astoria Rentals",
+          "href": "/rent?neighborhood=astoria"
+        }
+      },
+      "boundaries": {
+        "north": "Astoria Park / Hell Gate",
+        "south": "36th Avenue",
+        "east": "49th Street",
+        "west": "East River"
+      },
+      "transit": [
+        "N",
+        "W",
+        "M",
+        "R"
+      ],
+      "zipCodes": [
+        "11102",
+        "11103",
+        "11105",
+        "11106"
+      ],
+      "adjacentNeighborhoods": [
+        "long-island-city",
+        "sunnyside",
+        "jackson-heights"
+      ],
+      "attractions": [
+        {
+          "name": "Museum of the Moving Image",
+          "type": "museum",
+          "description": "World-class museum dedicated to film, television, and digital media with interactive exhibits"
+        },
+        {
+          "name": "Astoria Park",
+          "type": "park",
+          "description": "60-acre waterfront park with the city's largest public pool, tennis courts, and stunning views of the RFK Bridge"
+        },
+        {
+          "name": "Noguchi Museum",
+          "type": "museum",
+          "description": "Sculptor Isamu Noguchi's studio and sculpture garden showcasing his life's work"
+        },
+        {
+          "name": "Socrates Sculpture Park",
+          "type": "park",
+          "description": "Waterfront outdoor sculpture park and arts venue with rotating large-scale installations"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Taverna Kyclades",
+          "cuisine": "Greek",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Mombar",
+          "cuisine": "Egyptian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Vesta Trattoria",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Seva",
+          "cuisine": "Indian",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "astoria queens real estate",
+        "astoria apartments for sale",
+        "astoria condos",
+        "queens waterfront apartments",
+        "astoria homes",
+        "buy apartment astoria queens",
+        "astoria multi-family"
+      ]
+    },
+    {
+      "slug": "long-island-city",
+      "name": "Long Island City",
+      "fullName": "Long Island City, Queens",
+      "borough": "Queens",
+      "tagline": "Manhattan Skyline Views, Queens Value",
+      "heroImage": "https://images.unsplash.com/photo-1534547774875-218325e49048?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1534547774875-218325e49048?w=1200&q=80",
+      "summary": "Long Island City has transformed into one of New York City's most dynamic residential neighborhoods, with a skyline of gleaming glass towers offering stunning Manhattan views. Its thriving arts scene, waterfront parks, and one-stop subway ride to Midtown make it a top choice for buyers and renters alike. Average price per square foot is approximately $1,050.",
+      "avgPricePerSqft": 1050,
+      "dominantPropertyType": "Condo",
+      "walkScore": 91,
+      "transitScore": 90,
+      "topSchool": "PS/IS 78Q",
+      "nearestSubway": [
+        "7",
+        "E",
+        "M",
+        "G",
+        "N",
+        "W"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Long Island City?",
+          "answer": "The median sale price in Long Island City is approximately $850,000. New development condos average $1.1 million, while resale condos and co-ops are available from $500,000. Luxury waterfront units can exceed $2 million."
+        },
+        {
+          "question": "Is Long Island City a good investment?",
+          "answer": "LIC has been one of Queens' strongest investment markets, with consistent appreciation and high rental demand. The neighborhood benefits from ongoing development, excellent transit, and proximity to Midtown Manhattan. Rental yields tend to be higher than comparable Manhattan neighborhoods."
+        },
+        {
+          "question": "What subway lines serve Long Island City?",
+          "answer": "LIC has exceptional subway access: the 7 train provides express service to Times Square in one stop, the E and M trains connect to Midtown and the Village, the G train links to Brooklyn, and the N/W trains serve the Court Square area. The Long Island Rail Road also stops at Hunterspoint Avenue and Long Island City."
+        },
+        {
+          "question": "What is the waterfront like in Long Island City?",
+          "answer": "LIC's waterfront is among the city's finest, featuring Gantry Plaza State Park, Hunters Point South Park, and a continuous esplanade with direct Manhattan skyline views. The waterfront has become the neighborhood's defining amenity."
+        },
+        {
+          "question": "Are there good schools in Long Island City?",
+          "answer": "Yes, LIC has several well-regarded schools including PS/IS 78Q and the growing Hunters Point campus. The neighborhood has invested heavily in school infrastructure to keep pace with residential growth."
+        },
+        {
+          "question": "How much is rent in Long Island City?",
+          "answer": "Median rent in Long Island City is approximately $3,200 per month for a one-bedroom. Studios average $2,500, two-bedrooms $4,200, and three-bedrooms $5,500. Waterfront buildings with amenities command the highest rents."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 850000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 62,
+        "yoyChange": 0.04,
+        "pricePerSqft": 1050,
+        "inventory": 320,
+        "closedSales": 720,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Skyline Tower",
+          "nickname": "Queens' Tallest",
+          "architect": "Hill West Architects",
+          "yearBuilt": 2021,
+          "type": "Condo",
+          "units": 802,
+          "priceRange": "$600K - $3M",
+          "slug": "skyline-tower"
+        },
+        {
+          "name": "The Hayden",
+          "nickname": null,
+          "architect": "SLCE Architects",
+          "yearBuilt": 2021,
+          "type": "Rental",
+          "units": 974,
+          "priceRange": "$2,500 - $6,000/mo",
+          "slug": "the-hayden"
+        },
+        {
+          "name": "Arcadia LIC",
+          "nickname": null,
+          "architect": "Handel Architects",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 428,
+          "priceRange": "$500K - $2M",
+          "slug": "arcadia-lic"
+        },
+        {
+          "name": "One Court Square",
+          "nickname": "The Citigroup Building",
+          "architect": "Raul de Armas / SOM",
+          "yearBuilt": 1990,
+          "type": "Commercial",
+          "units": 49,
+          "priceRange": "N/A",
+          "slug": "one-court-square"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Long Island City is organized around two main hubs: Court Square (transit-rich commercial core) and Hunters Point (residential waterfront). Center Boulevard along the water is the premium residential strip, while Jackson Avenue is the arts and commercial corridor.",
+        "bestBlocksForFamilies": [
+          "Center Boulevard along Hunters Point South Park",
+          "51st Avenue near PS/IS 78Q",
+          "Gantry Plaza State Park area"
+        ],
+        "bestBlocksForNightlife": [
+          "Vernon Boulevard between 50th and 51st Avenues",
+          "Jackson Avenue near Court Square",
+          "44th Drive gallery district"
+        ],
+        "quietStreets": [
+          "Center Boulevard south end near Newtown Creek",
+          "Residential blocks near Hunters Point Avenue LIRR",
+          "54th Avenue between Vernon and 5th Street"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Manhattan commuters seeking modern amenity-rich condos with skyline views at a significant discount to Manhattan pricing.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting high rental demand in new-construction condos with strong tenant pools drawn by LIC's transit and amenities.",
+          "budgetRange": "$500K - $1.5M",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families attracted to the waterfront parks, new schools, and spacious new-construction layouts not available in Manhattan.",
+          "budgetRange": "$1M - $2M",
+          "propertyType": "2-3 bedroom condo"
+        },
+        {
+          "type": "Pied-a-Terre Buyer",
+          "description": "Buyers seeking a convenient NYC foothold with easy airport access (LGA/JFK) and one-stop Manhattan commute.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "Studio or 1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Long Island City Listings",
+          "href": "/buy?neighborhood=long-island-city"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Long Island City Rentals",
+          "href": "/rent?neighborhood=long-island-city"
+        }
+      },
+      "boundaries": {
+        "north": "36th Avenue",
+        "south": "Newtown Creek",
+        "east": "Sunnyside Yards",
+        "west": "East River"
+      },
+      "transit": [
+        "7",
+        "E",
+        "M",
+        "G",
+        "N",
+        "W"
+      ],
+      "zipCodes": [
+        "11101",
+        "11109",
+        "11120"
+      ],
+      "adjacentNeighborhoods": [
+        "astoria",
+        "sunnyside"
+      ],
+      "attractions": [
+        {
+          "name": "MoMA PS1",
+          "type": "museum",
+          "description": "One of the largest contemporary art institutions in the US, affiliated with the Museum of Modern Art"
+        },
+        {
+          "name": "Gantry Plaza State Park",
+          "type": "park",
+          "description": "12-acre waterfront park with restored gantry cranes, playgrounds, and iconic Manhattan views"
+        },
+        {
+          "name": "Hunters Point South Park",
+          "type": "park",
+          "description": "11-acre waterfront park with a dog run, playground, and kayak launch along the East River"
+        },
+        {
+          "name": "SculptureCenter",
+          "type": "museum",
+          "description": "Non-profit exhibition space dedicated to contemporary sculpture in a converted trolley repair shop"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Casa Enrique",
+          "cuisine": "Mexican",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Tournesol",
+          "cuisine": "French",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Shi",
+          "cuisine": "Japanese",
+          "priceRange": "$$"
+        },
+        {
+          "name": "LIC Market",
+          "cuisine": "American",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "long island city real estate",
+        "LIC condos for sale",
+        "long island city apartments",
+        "queens waterfront condos",
+        "LIC luxury apartments",
+        "hunters point condos",
+        "court square apartments"
+      ]
+    },
+    {
+      "slug": "jackson-heights",
+      "name": "Jackson Heights",
+      "fullName": "Jackson Heights, Queens",
+      "borough": "Queens",
+      "tagline": "Historic Garden Apartments and Global Flavor",
+      "heroImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=1200&q=80",
+      "summary": "Jackson Heights is a landmark neighborhood known for its historic pre-war garden co-ops, one of America's most diverse communities, and an extraordinary international food scene. Its tree-lined residential blocks, strong transit connections, and affordability make it one of Queens' most sought-after neighborhoods. Average price per square foot is approximately $450.",
+      "avgPricePerSqft": 450,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 92,
+      "transitScore": 84,
+      "topSchool": "PS 69 Jackson Heights",
+      "nearestSubway": [
+        "7",
+        "E",
+        "F",
+        "M",
+        "R"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Jackson Heights?",
+          "answer": "The median sale price in Jackson Heights is approximately $385,000. The historic garden co-ops, which are the neighborhood's most distinctive housing stock, range from $250,000 for studios to $600,000 for large two-bedrooms. Condos are less common but average around $450,000."
+        },
+        {
+          "question": "What are the historic garden apartments in Jackson Heights?",
+          "answer": "Jackson Heights' garden apartments, built in the 1910s-1930s, are a designated NYC historic district. These pre-war co-ops feature shared interior gardens, Tudor and Colonial Revival architecture, and generous layouts. They are among the earliest planned communities in America."
+        },
+        {
+          "question": "What subway lines serve Jackson Heights?",
+          "answer": "Jackson Heights has excellent transit. The 7 train (local and express) stops at 74th Street-Broadway and 82nd Street-Jackson Heights, and the E, F, M, and R trains stop at Jackson Heights-Roosevelt Avenue, making it one of the best-connected neighborhoods in Queens."
+        },
+        {
+          "question": "What is the food scene like in Jackson Heights?",
+          "answer": "Jackson Heights has one of NYC's most celebrated food scenes, with authentic cuisine from South America, South Asia, Southeast Asia, and beyond. Roosevelt Avenue and 37th Avenue are lined with restaurants, bakeries, and food vendors offering everything from Tibetan momos to Colombian arepas."
+        },
+        {
+          "question": "Is Jackson Heights a good neighborhood for families?",
+          "answer": "Yes, Jackson Heights is excellent for families. The historic garden co-ops provide green play spaces, the neighborhood has good public schools, and 34th Avenue has been partially converted into a community open street. Diversity Park and Travers Park offer additional recreation."
+        },
+        {
+          "question": "How much is rent in Jackson Heights?",
+          "answer": "Median rent in Jackson Heights is approximately $1,900 per month for a one-bedroom. Studios average $1,500, two-bedrooms $2,300, and three-bedrooms $2,800. Jackson Heights remains one of the most affordable transit-rich neighborhoods in the city."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 385000,
+        "medianRent": 1900,
+        "avgDaysOnMarket": 68,
+        "yoyChange": 0.03,
+        "pricePerSqft": 450,
+        "inventory": 145,
+        "closedSales": 310,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Towers",
+          "nickname": "Jackson Heights Towers",
+          "architect": "Andrew J. Thomas",
+          "yearBuilt": 1924,
+          "type": "Co-op",
+          "units": 208,
+          "priceRange": "$250K - $550K",
+          "slug": "the-towers-jackson-heights"
+        },
+        {
+          "name": "The Chateau",
+          "nickname": null,
+          "architect": "Andrew J. Thomas",
+          "yearBuilt": 1922,
+          "type": "Co-op",
+          "units": 144,
+          "priceRange": "$200K - $500K",
+          "slug": "the-chateau"
+        },
+        {
+          "name": "The Dunolly Gardens",
+          "nickname": null,
+          "architect": "Andrew J. Thomas",
+          "yearBuilt": 1928,
+          "type": "Co-op",
+          "units": 240,
+          "priceRange": "$225K - $475K",
+          "slug": "dunolly-gardens"
+        },
+        {
+          "name": "The Georgian",
+          "nickname": null,
+          "architect": "Andrew J. Thomas",
+          "yearBuilt": 1925,
+          "type": "Co-op",
+          "units": 168,
+          "priceRange": "$200K - $450K",
+          "slug": "the-georgian"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Jackson Heights is organized along two main corridors: Roosevelt Avenue (commercial, elevated 7 train) and 37th Avenue (quieter, residential dining strip). The historic district co-ops are concentrated between 76th and 88th Streets, north of Roosevelt Avenue. Northern blocks tend to be quieter and more residential.",
+        "bestBlocksForFamilies": [
+          "34th Avenue open street between 77th and 80th Streets",
+          "Historic district blocks between 78th and 85th Streets",
+          "Near Travers Park on 78th Street"
+        ],
+        "bestBlocksForNightlife": [
+          "Roosevelt Avenue between 74th and 82nd Streets",
+          "37th Avenue between 73rd and 77th Streets",
+          "Broadway near 75th Street"
+        ],
+        "quietStreets": [
+          "Northern residential blocks above 34th Avenue",
+          "Interior garden co-op courtyards (78th-84th Streets)",
+          "35th Avenue between 80th and 90th Streets"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "First-Time Buyer",
+          "description": "Budget-conscious buyers looking for a spacious pre-war co-op with garden access and strong transit at well below Manhattan prices.",
+          "budgetRange": "$200K - $400K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families seeking generous pre-war layouts, shared garden spaces, and a culturally rich community with good schools.",
+          "budgetRange": "$350K - $600K",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Commuters who value the express 7 train to Midtown and want to live in a vibrant, walkable neighborhood with exceptional dining.",
+          "budgetRange": "$250K - $500K",
+          "propertyType": "1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors targeting multi-family properties near the transit hub where rental demand is consistently strong.",
+          "budgetRange": "$1M - $2.2M",
+          "propertyType": "Multi-family"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Jackson Heights Listings",
+          "href": "/buy?neighborhood=jackson-heights"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Jackson Heights Rentals",
+          "href": "/rent?neighborhood=jackson-heights"
+        }
+      },
+      "boundaries": {
+        "north": "Northern Boulevard",
+        "south": "Roosevelt Avenue",
+        "east": "Junction Boulevard",
+        "west": "69th Street"
+      },
+      "transit": [
+        "7",
+        "E",
+        "F",
+        "M",
+        "R"
+      ],
+      "zipCodes": [
+        "11372",
+        "11370"
+      ],
+      "adjacentNeighborhoods": [
+        "astoria",
+        "sunnyside",
+        "flushing"
+      ],
+      "attractions": [
+        {
+          "name": "Jackson Heights Historic District",
+          "type": "landmark",
+          "description": "NYC-designated historic district of garden co-op apartments from the 1910s-1930s, one of America's earliest planned communities"
+        },
+        {
+          "name": "Diversity Plaza",
+          "type": "public space",
+          "description": "Pedestrian plaza at 37th Road celebrating the neighborhood's multicultural identity with public art and community events"
+        },
+        {
+          "name": "Travers Park",
+          "type": "park",
+          "description": "Popular neighborhood park with playground, basketball courts, and community garden on 78th Street"
+        },
+        {
+          "name": "34th Avenue Open Street",
+          "type": "public space",
+          "description": "Permanent open street converted from car traffic to pedestrian use with community programming and play areas"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Phayul",
+          "cuisine": "Tibetan",
+          "priceRange": "$"
+        },
+        {
+          "name": "Lhasa Fast Food",
+          "cuisine": "Tibetan",
+          "priceRange": "$"
+        },
+        {
+          "name": "Pollos a la Brasa Mario",
+          "cuisine": "Peruvian",
+          "priceRange": "$"
+        },
+        {
+          "name": "Samudra",
+          "cuisine": "Indian",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "jackson heights real estate",
+        "jackson heights co-ops for sale",
+        "jackson heights garden apartments",
+        "queens affordable apartments",
+        "jackson heights historic district",
+        "buy co-op jackson heights",
+        "jackson heights queens homes"
+      ]
+    },
+    {
+      "slug": "flushing",
+      "name": "Flushing",
+      "fullName": "Flushing, Queens",
+      "borough": "Queens",
+      "tagline": "Queens' Downtown — Where East Meets West",
+      "heroImage": "https://images.unsplash.com/photo-1617400010432-65e01e2bff6c?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1617400010432-65e01e2bff6c?w=1200&q=80",
+      "summary": "Flushing is the cultural and commercial heart of eastern Queens, home to one of the largest and most vibrant Asian communities outside of Asia. With its bustling downtown, abundant new condo development, and proximity to Flushing Meadows-Corona Park, it is a major residential and investment destination. Average price per square foot is approximately $600.",
+      "avgPricePerSqft": 600,
+      "dominantPropertyType": "Condo",
+      "walkScore": 93,
+      "transitScore": 78,
+      "topSchool": "PS 20 John Bowne",
+      "nearestSubway": [
+        "7"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Flushing?",
+          "answer": "The median sale price in Flushing is approximately $530,000. New construction condos near downtown range from $500,000 to over $1 million. Co-ops are more affordable, averaging $300,000-$450,000. Single-family homes in quieter areas start around $800,000."
+        },
+        {
+          "question": "Is Flushing a good investment?",
+          "answer": "Flushing is one of Queens' strongest real estate investment markets. It has seen significant new development, strong buyer demand from both domestic and international purchasers, and high rental occupancy rates. Its status as a regional commercial center supports long-term appreciation."
+        },
+        {
+          "question": "What subway lines serve Flushing?",
+          "answer": "The 7 train terminates at Flushing-Main Street, providing direct service to Times Square in approximately 35 minutes. The LIRR Port Washington Branch also stops in Flushing, offering a faster commute to Penn Station. Multiple bus lines serve the area as a transit hub."
+        },
+        {
+          "question": "What is the dining scene like in Flushing?",
+          "answer": "Flushing's dining scene is legendary, with hundreds of restaurants serving authentic Chinese, Korean, Japanese, Malaysian, and Taiwanese cuisine. The New World Mall food court and the restaurants along Prince Street and 40th Road are particularly renowned. It rivals Manhattan's Chinatown in scale and variety."
+        },
+        {
+          "question": "Are there good schools in Flushing?",
+          "answer": "Yes, Flushing has strong schools including PS 20 John Bowne and PS 214. Townsend Harris High School, a public magnet school consistently ranked among NYC's best, is located on the Queens College campus nearby."
+        },
+        {
+          "question": "How much is rent in Flushing?",
+          "answer": "Median rent in Flushing is approximately $2,100 per month for a one-bedroom. Studios average $1,600, two-bedrooms $2,600, and three-bedrooms $3,100. New construction condos near downtown Flushing command premium rents."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 530000,
+        "medianRent": 2100,
+        "avgDaysOnMarket": 58,
+        "yoyChange": 0.06,
+        "pricePerSqft": 600,
+        "inventory": 280,
+        "closedSales": 650,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Sky View Parc",
+          "nickname": "Flushing's Largest Mixed-Use",
+          "architect": "Arquitectonica",
+          "yearBuilt": 2013,
+          "type": "Condo",
+          "units": 750,
+          "priceRange": "$500K - $1.5M",
+          "slug": "sky-view-parc"
+        },
+        {
+          "name": "The Grand at Sky View Parc",
+          "nickname": null,
+          "architect": "Arquitectonica",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 448,
+          "priceRange": "$600K - $1.8M",
+          "slug": "the-grand-sky-view-parc"
+        },
+        {
+          "name": "Tangram",
+          "nickname": null,
+          "architect": "FXFOWLE",
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 317,
+          "priceRange": "$450K - $1.2M",
+          "slug": "tangram-flushing"
+        },
+        {
+          "name": "One Fulton Square",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2015,
+          "type": "Condo",
+          "units": 106,
+          "priceRange": "$400K - $900K",
+          "slug": "one-fulton-square"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Downtown Flushing is centered around Main Street and Roosevelt Avenue, which is the commercial core. The residential areas spread outward, with quieter blocks to the north (near Bowne Park) and east (near Kissena Park). New development is concentrated around the transit hub.",
+        "bestBlocksForFamilies": [
+          "Near Bowne Park on 29th Avenue and 155th Street",
+          "Kissena Boulevard near Kissena Park",
+          "Residential blocks north of Northern Boulevard"
+        ],
+        "bestBlocksForNightlife": [
+          "Prince Street between Roosevelt and 39th Avenue",
+          "Main Street between Roosevelt and Northern Boulevard",
+          "40th Road near the food courts"
+        ],
+        "quietStreets": [
+          "Bayside-bound blocks east of Parsons Boulevard",
+          "Near Bowne Park on 32nd Avenue",
+          "Residential streets near Queens Botanical Garden"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Investor",
+          "description": "Investors targeting Flushing's strong rental market driven by commercial activity, new development, and international buyer interest.",
+          "budgetRange": "$450K - $1.2M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers seeking modern new-construction condos with amenities at prices well below Manhattan, with strong transit connections.",
+          "budgetRange": "$400K - $700K",
+          "propertyType": "1-bedroom condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families wanting proximity to good schools, parks, and a vibrant commercial center with access to cultural amenities.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "2-3 bedroom condo or single-family"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Buyers moving from larger single-family homes to modern condos with building amenities while staying in a familiar Queens community.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "1-2 bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Flushing Listings",
+          "href": "/buy?neighborhood=flushing"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Flushing Rentals",
+          "href": "/rent?neighborhood=flushing"
+        }
+      },
+      "boundaries": {
+        "north": "Willets Point Boulevard",
+        "south": "Long Island Expressway",
+        "east": "Parsons Boulevard",
+        "west": "Flushing Meadows-Corona Park"
+      },
+      "transit": [
+        "7"
+      ],
+      "zipCodes": [
+        "11354",
+        "11355",
+        "11358"
+      ],
+      "adjacentNeighborhoods": [
+        "bayside",
+        "jackson-heights"
+      ],
+      "attractions": [
+        {
+          "name": "Flushing Meadows-Corona Park",
+          "type": "park",
+          "description": "Nearly 900-acre park home to the Unisphere, USTA Billie Jean King National Tennis Center, and Citi Field (Mets)"
+        },
+        {
+          "name": "Queens Botanical Garden",
+          "type": "park",
+          "description": "39-acre urban garden showcasing plants from around the world with sustainable design"
+        },
+        {
+          "name": "Queens Museum",
+          "type": "museum",
+          "description": "Art museum in the former 1939 World's Fair building featuring the Panorama of the City of New York"
+        },
+        {
+          "name": "New World Mall Food Court",
+          "type": "food hall",
+          "description": "Celebrated basement food court with dozens of vendors serving authentic Asian street food and specialties"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Nan Xiang Xiao Long Bao",
+          "cuisine": "Chinese (Shanghainese)",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Hunan Kitchen of Grand Sichuan",
+          "cuisine": "Chinese (Hunan)",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Biang!",
+          "cuisine": "Chinese (Xi'an)",
+          "priceRange": "$"
+        },
+        {
+          "name": "SN New Restaurant",
+          "cuisine": "Chinese (Cantonese)",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "flushing queens real estate",
+        "flushing condos for sale",
+        "flushing apartments",
+        "queens new construction",
+        "flushing new development",
+        "buy condo flushing queens",
+        "flushing queens homes"
+      ]
+    },
+    {
+      "slug": "forest-hills",
+      "name": "Forest Hills",
+      "fullName": "Forest Hills, Queens",
+      "borough": "Queens",
+      "tagline": "Tudor Charm and Tree-Lined Living",
+      "heroImage": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80",
+      "summary": "Forest Hills is one of Queens' most prestigious residential neighborhoods, anchored by the landmark Forest Hills Gardens and miles of tree-lined streets. Known for its Tudor architecture, strong schools, and bustling Austin Street commercial corridor, it offers a suburban feel with full urban transit access. Average price per square foot is approximately $550.",
+      "avgPricePerSqft": 550,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 88,
+      "transitScore": 79,
+      "topSchool": "PS 196 Grand Central Parkway",
+      "nearestSubway": [
+        "E",
+        "F",
+        "M",
+        "R"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Forest Hills?",
+          "answer": "The median sale price in Forest Hills is approximately $450,000. Co-ops, which dominate the market, range from $200,000 for studios to $700,000 for spacious three-bedrooms. Single-family homes in Forest Hills Gardens are rare and command $1.5M to $4M+."
+        },
+        {
+          "question": "What is Forest Hills Gardens?",
+          "answer": "Forest Hills Gardens is a private, gated planned community built in 1909-1913 by the Russell Sage Foundation. Designed by Frederick Law Olmsted Jr. and Grosvenor Atterbury, it features Tudor-style homes, winding streets, and shared green spaces. It's one of NYC's most architecturally significant neighborhoods."
+        },
+        {
+          "question": "What subway lines serve Forest Hills?",
+          "answer": "The E, F, M, and R trains stop at Forest Hills-71st Avenue (Continental Avenue), providing express service to Midtown Manhattan in approximately 25 minutes. The LIRR also has a Forest Hills station."
+        },
+        {
+          "question": "Is Forest Hills good for families?",
+          "answer": "Forest Hills is one of Queens' best family neighborhoods, with highly regarded public schools (PS 196, PS 144, and Forest Hills High School), abundant parks, safe streets, and a walkable shopping district. The neighborhood has a strong community focus."
+        },
+        {
+          "question": "What is there to do in Forest Hills?",
+          "answer": "Austin Street is the commercial heart with shops, restaurants, and cafes. Forest Park offers 538 acres of trails, golf, and recreation. The West Side Tennis Club hosted the US Open until 1978. Eddie's Sweet Shop is a beloved neighborhood institution."
+        },
+        {
+          "question": "How much is rent in Forest Hills?",
+          "answer": "Median rent in Forest Hills is approximately $2,200 per month for a one-bedroom. Studios average $1,700, two-bedrooms $2,800, and three-bedrooms $3,400. The large co-op buildings along Yellowstone Boulevard and Queens Boulevard offer some of the best values."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 450000,
+        "medianRent": 2200,
+        "avgDaysOnMarket": 65,
+        "yoyChange": 0.03,
+        "pricePerSqft": 550,
+        "inventory": 175,
+        "closedSales": 420,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Continental",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1965,
+          "type": "Co-op",
+          "units": 355,
+          "priceRange": "$250K - $600K",
+          "slug": "the-continental-forest-hills"
+        },
+        {
+          "name": "Parker Towers",
+          "nickname": null,
+          "architect": "Daniel Schwartzman",
+          "yearBuilt": 1961,
+          "type": "Co-op",
+          "units": 720,
+          "priceRange": "$200K - $500K",
+          "slug": "parker-towers"
+        },
+        {
+          "name": "The Pinnacle",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2007,
+          "type": "Condo",
+          "units": 68,
+          "priceRange": "$450K - $900K",
+          "slug": "the-pinnacle-forest-hills"
+        },
+        {
+          "name": "Birchwood Towers",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1960,
+          "type": "Co-op",
+          "units": 410,
+          "priceRange": "$200K - $500K",
+          "slug": "birchwood-towers"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Forest Hills has two distinct zones: the area around Austin Street and the subway station (walkable, commercial) and the residential blocks extending toward Forest Hills Gardens and Forest Park. Queens Boulevard divides the neighborhood, with the south side generally considered more desirable.",
+        "bestBlocksForFamilies": [
+          "Forest Hills Gardens (Greenway South, Slocum Crescent)",
+          "Burns Street between Yellowstone and 72nd Avenue",
+          "Blocks near PS 196 on 71st Road"
+        ],
+        "bestBlocksForNightlife": [
+          "Austin Street between Ascan Avenue and 72nd Road",
+          "Metropolitan Avenue near the LIRR",
+          "71st Avenue near Continental"
+        ],
+        "quietStreets": [
+          "Forest Hills Gardens interior streets",
+          "Ingram Street near Forest Park",
+          "Slocum Crescent and Greenway Terrace"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families prioritizing top schools, safe tree-lined streets, and access to Forest Park in a community-focused neighborhood.",
+          "budgetRange": "$400K - $800K",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Homeowners moving from houses to well-maintained co-ops while staying in a quiet, established neighborhood with walkable amenities.",
+          "budgetRange": "$300K - $600K",
+          "propertyType": "1-2 bedroom co-op"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Commuters who value the express E/F subway to Midtown and want a neighborhood with character, dining, and green space.",
+          "budgetRange": "$250K - $500K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Budget-conscious buyers entering the market in a stable, appreciating neighborhood with strong resale value and community infrastructure.",
+          "budgetRange": "$200K - $400K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Forest Hills Listings",
+          "href": "/buy?neighborhood=forest-hills"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Forest Hills Rentals",
+          "href": "/rent?neighborhood=forest-hills"
+        }
+      },
+      "boundaries": {
+        "north": "Queens Boulevard",
+        "south": "Union Turnpike",
+        "east": "Yellowstone Boulevard",
+        "west": "Woodhaven Boulevard"
+      },
+      "transit": [
+        "E",
+        "F",
+        "M",
+        "R"
+      ],
+      "zipCodes": [
+        "11375"
+      ],
+      "adjacentNeighborhoods": [
+        "sunnyside",
+        "jackson-heights",
+        "flushing"
+      ],
+      "attractions": [
+        {
+          "name": "Forest Hills Gardens",
+          "type": "landmark",
+          "description": "Private planned community of Tudor-style homes designed by Frederick Law Olmsted Jr. and Grosvenor Atterbury in 1909"
+        },
+        {
+          "name": "Forest Park",
+          "type": "park",
+          "description": "538-acre park with hiking trails, golf course, horseback riding, bandshell, and a historic carousel"
+        },
+        {
+          "name": "West Side Tennis Club",
+          "type": "recreation",
+          "description": "Historic tennis club that hosted the US Open from 1915-1977, still active with member facilities"
+        },
+        {
+          "name": "Austin Street Shopping District",
+          "type": "shopping",
+          "description": "Bustling commercial strip with boutiques, restaurants, cafes, and services along the neighborhood's main street"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Eddie's Sweet Shop",
+          "cuisine": "American (Ice Cream)",
+          "priceRange": "$"
+        },
+        {
+          "name": "Nick's Pizza",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Bareburger",
+          "cuisine": "American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Banter",
+          "cuisine": "Irish-American",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "forest hills real estate",
+        "forest hills co-ops for sale",
+        "forest hills gardens homes",
+        "queens apartments for sale",
+        "forest hills condos",
+        "buy co-op forest hills queens",
+        "forest hills queens homes"
+      ]
+    },
+    {
+      "slug": "sunnyside",
+      "name": "Sunnyside",
+      "fullName": "Sunnyside, Queens",
+      "borough": "Queens",
+      "tagline": "Neighborhood Heart, City Access",
+      "heroImage": "https://images.unsplash.com/photo-1605276373954-0c4a0dac5b12?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1605276373954-0c4a0dac5b12?w=1200&q=80",
+      "summary": "Sunnyside is a welcoming, tight-knit neighborhood known for its Sunnyside Gardens historic district, diverse dining along Queens Boulevard, and easy access to Manhattan via the 7 train. It offers an authentic community feel with some of the best value in transit-accessible Queens. Average price per square foot is approximately $500.",
+      "avgPricePerSqft": 500,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 90,
+      "transitScore": 85,
+      "topSchool": "PS 150 Queens",
+      "nearestSubway": [
+        "7"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Sunnyside?",
+          "answer": "The median sale price in Sunnyside is approximately $420,000. Co-ops dominate the market, averaging $300,000-$500,000 depending on size. The historic Sunnyside Gardens homes, when they come on the market, range from $700,000 to $1.2 million. Condos average around $500,000."
+        },
+        {
+          "question": "What is Sunnyside Gardens?",
+          "answer": "Sunnyside Gardens is a planned community built in the 1920s, designated as an NYC landmark. It features attached brick row houses with shared private gardens — an early experiment in cooperative community design. The homes have distinctive English garden city architecture."
+        },
+        {
+          "question": "What subway lines serve Sunnyside?",
+          "answer": "The 7 train stops at 40th Street-Lowery Street, 46th Street-Bliss Street, and 33rd Street-Rawson Street in Sunnyside, providing direct service to Grand Central and Times Square in approximately 15-20 minutes."
+        },
+        {
+          "question": "Is Sunnyside affordable?",
+          "answer": "Sunnyside offers some of the best value in transit-rich Queens, with prices typically 20-30% below neighboring Long Island City and 10-15% below Astoria. Combined with the quick 7 train commute, it represents strong value for Manhattan commuters."
+        },
+        {
+          "question": "What is the dining scene like in Sunnyside?",
+          "answer": "Sunnyside has a diverse and growing food scene along Queens Boulevard, Skillman Avenue, and Greenpoint Avenue. You'll find Turkish, Romanian, Korean, Mexican, and Thai restaurants alongside longtime neighborhood pubs and new coffee shops."
+        },
+        {
+          "question": "How much is rent in Sunnyside?",
+          "answer": "Median rent in Sunnyside is approximately $2,000 per month for a one-bedroom. Studios average $1,600, two-bedrooms $2,500, and three-bedrooms $3,000. Sunnyside is one of the most affordable neighborhoods along the 7 train corridor."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 420000,
+        "medianRent": 2000,
+        "avgDaysOnMarket": 60,
+        "yoyChange": 0.04,
+        "pricePerSqft": 500,
+        "inventory": 105,
+        "closedSales": 260,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Sunnyside Towers",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1965,
+          "type": "Co-op",
+          "units": 300,
+          "priceRange": "$250K - $500K",
+          "slug": "sunnyside-towers"
+        },
+        {
+          "name": "The Phipps Garden Apartments",
+          "nickname": null,
+          "architect": "Clarence Stein",
+          "yearBuilt": 1931,
+          "type": "Co-op",
+          "units": 336,
+          "priceRange": "$200K - $450K",
+          "slug": "phipps-garden-apartments"
+        },
+        {
+          "name": "Queens View Co-op",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1963,
+          "type": "Co-op",
+          "units": 732,
+          "priceRange": "$150K - $400K",
+          "slug": "queens-view-co-op"
+        },
+        {
+          "name": "43-10 Crescent Street",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 24,
+          "priceRange": "$400K - $750K",
+          "slug": "43-10-crescent-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Sunnyside is a compact neighborhood centered on Queens Boulevard (commercial corridor) and the residential blocks stretching north and south. Skillman Avenue and Greenpoint Avenue have developing dining and nightlife scenes. Sunnyside Gardens is in the southern portion, near the Sunnyside Yards.",
+        "bestBlocksForFamilies": [
+          "Sunnyside Gardens historic district (46th-49th Streets between Skillman and Barnett)",
+          "Near Lou Lodati Park on Skillman Avenue",
+          "43rd Street near PS 150"
+        ],
+        "bestBlocksForNightlife": [
+          "Queens Boulevard between 40th and 48th Streets",
+          "Skillman Avenue between 43rd and 46th Streets",
+          "Greenpoint Avenue near 39th Place"
+        ],
+        "quietStreets": [
+          "Interior blocks of Sunnyside Gardens",
+          "48th Street between Queens Boulevard and Barnett Avenue",
+          "Residential blocks south of Queens Boulevard"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "First-Time Buyer",
+          "description": "Budget-conscious buyers who want a quick commute to Midtown via the 7 train and a neighborhood with genuine community character.",
+          "budgetRange": "$200K - $400K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Career-Focused Buyer",
+          "description": "Manhattan workers seeking an affordable, well-connected neighborhood with walkable dining and a neighborhood feel that rivals Brooklyn.",
+          "budgetRange": "$300K - $550K",
+          "propertyType": "1-bedroom co-op or condo"
+        },
+        {
+          "type": "Growing Family",
+          "description": "Families looking for spacious pre-war apartments or Sunnyside Gardens homes with community green spaces and good schools.",
+          "budgetRange": "$400K - $800K",
+          "propertyType": "2-bedroom co-op or Sunnyside Gardens home"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors seeking value along the 7 train corridor, where purchase prices are lower but rental demand remains strong.",
+          "budgetRange": "$300K - $700K",
+          "propertyType": "1-bedroom co-op or condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Sunnyside Listings",
+          "href": "/buy?neighborhood=sunnyside"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Sunnyside Rentals",
+          "href": "/rent?neighborhood=sunnyside"
+        }
+      },
+      "boundaries": {
+        "north": "Northern Boulevard",
+        "south": "Sunnyside Yards / LIRR tracks",
+        "east": "50th Street",
+        "west": "35th Street"
+      },
+      "transit": [
+        "7"
+      ],
+      "zipCodes": [
+        "11104"
+      ],
+      "adjacentNeighborhoods": [
+        "long-island-city",
+        "astoria",
+        "jackson-heights",
+        "forest-hills"
+      ],
+      "attractions": [
+        {
+          "name": "Sunnyside Gardens",
+          "type": "landmark",
+          "description": "NYC-landmarked 1920s planned community of row houses with shared private gardens, an early American garden city experiment"
+        },
+        {
+          "name": "Lou Lodati Park",
+          "type": "park",
+          "description": "Community park with playground, dog run, and sports courts on Skillman Avenue"
+        },
+        {
+          "name": "Sunnyside Greenmarket",
+          "type": "market",
+          "description": "Weekly farmers market on Skillman Avenue with local produce, baked goods, and artisan products"
+        },
+        {
+          "name": "Bliss Street Playground",
+          "type": "park",
+          "description": "Neighborhood playground near the 46th Street 7 train station, recently renovated"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Salt & Fat",
+          "cuisine": "Asian-American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "De Mole",
+          "cuisine": "Mexican",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Dawa's",
+          "cuisine": "Tibetan-Nepalese",
+          "priceRange": "$"
+        },
+        {
+          "name": "Aubergine Cafe",
+          "cuisine": "Turkish",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "sunnyside queens real estate",
+        "sunnyside co-ops for sale",
+        "sunnyside gardens homes",
+        "queens affordable apartments",
+        "sunnyside apartments for sale",
+        "buy co-op sunnyside queens",
+        "sunnyside queens homes"
+      ]
+    },
+    {
+      "slug": "bayside",
+      "name": "Bayside",
+      "fullName": "Bayside, Queens",
+      "borough": "Queens",
+      "tagline": "Suburban Serenity with City Convenience",
+      "heroImage": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=1600&q=80",
+      "ogImage": "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=1200&q=80",
+      "summary": "Bayside is one of Queens' most desirable residential neighborhoods, prized for its tree-lined streets, excellent schools, waterfront access along Little Neck Bay, and a suburban character rarely found in New York City. With strong housing stock and a dedicated commuter base, it offers stability and quality of life. Average price per square foot is approximately $480.",
+      "avgPricePerSqft": 480,
+      "dominantPropertyType": "Single-Family",
+      "walkScore": 74,
+      "transitScore": 62,
+      "topSchool": "PS 203 Oakland Gardens",
+      "nearestSubway": [
+        "LIRR"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average home price in Bayside?",
+          "answer": "The median sale price in Bayside is approximately $720,000. Single-family detached homes range from $650,000 to over $1.5 million. Co-ops start around $200,000, condos around $400,000. The Bay Terrace neighborhood commands a premium for its waterfront proximity."
+        },
+        {
+          "question": "Does Bayside have subway access?",
+          "answer": "Bayside does not have direct subway access, but the LIRR Port Washington Branch has a station at Bayside and one at Bell Boulevard, providing service to Penn Station in approximately 30 minutes. The Q27 and Q31 buses connect to the 7 train at Flushing-Main Street."
+        },
+        {
+          "question": "What are the schools like in Bayside?",
+          "answer": "Bayside has some of the best public schools in Queens, including PS 203, PS 31, and Bayside High School. The neighborhood is also home to Queensborough Community College. School quality is a primary driver of residential demand in the area."
+        },
+        {
+          "question": "Is Bayside good for families?",
+          "answer": "Bayside is widely considered one of NYC's best family neighborhoods. It offers excellent schools, safe tree-lined streets, waterfront parks, low-density housing, and a strong community identity. Many families specifically target Bayside for its quality of life."
+        },
+        {
+          "question": "What is Bell Boulevard like?",
+          "answer": "Bell Boulevard is Bayside's main commercial artery, running from Northern Boulevard to the waterfront. It features restaurants, shops, services, and a lively dining scene. The stretch between 35th and 41st Avenues is particularly popular for dining out."
+        },
+        {
+          "question": "How much is rent in Bayside?",
+          "answer": "Median rent in Bayside is approximately $1,900 per month for a one-bedroom. Studios average $1,500, two-bedrooms $2,400, and three-bedrooms $2,900. Rental stock is more limited than co-op/condo neighborhoods due to the prevalence of single-family homes."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 720000,
+        "medianRent": 1900,
+        "avgDaysOnMarket": 72,
+        "yoyChange": 0.03,
+        "pricePerSqft": 480,
+        "inventory": 195,
+        "closedSales": 380,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Bay Club",
+          "nickname": "Bay Terrace's Premier Co-op",
+          "architect": null,
+          "yearBuilt": 1975,
+          "type": "Co-op",
+          "units": 1100,
+          "priceRange": "$200K - $550K",
+          "slug": "bay-club"
+        },
+        {
+          "name": "The Towers at Waters Edge",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 2006,
+          "type": "Condo",
+          "units": 146,
+          "priceRange": "$450K - $850K",
+          "slug": "towers-at-waters-edge"
+        },
+        {
+          "name": "Bay Terrace Co-op",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1960,
+          "type": "Co-op",
+          "units": 2400,
+          "priceRange": "$175K - $500K",
+          "slug": "bay-terrace-co-op"
+        },
+        {
+          "name": "Baybridge Commons",
+          "nickname": null,
+          "architect": null,
+          "yearBuilt": 1988,
+          "type": "Condo",
+          "units": 168,
+          "priceRange": "$350K - $650K",
+          "slug": "baybridge-commons"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Bayside's residential streets are organized around Bell Boulevard (commercial spine) and Northern Boulevard (major east-west road). The most desirable areas are the single-family blocks between Bell Boulevard and the waterfront, and the Bay Terrace area at the northeast. Cross Island Parkway provides car access to highways.",
+        "bestBlocksForFamilies": [
+          "Residential blocks between Bell Boulevard and Corporal Kennedy Street",
+          "Bay Terrace area near Little Neck Bay",
+          "Near PS 203 on 56th Avenue"
+        ],
+        "bestBlocksForNightlife": [
+          "Bell Boulevard between 35th and 41st Avenues",
+          "Northern Boulevard near 213th Street",
+          "Bell Boulevard near the LIRR station"
+        ],
+        "quietStreets": [
+          "Waterfront blocks near Little Bay Park",
+          "Side streets off 48th Avenue near Oakland Lake",
+          "Bay Terrace residential sections"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Growing Family",
+          "description": "Families prioritizing top public schools, a safe suburban environment, and outdoor space while remaining within New York City.",
+          "budgetRange": "$650K - $1.3M",
+          "propertyType": "Single-family detached"
+        },
+        {
+          "type": "Right-Sizer",
+          "description": "Homeowners transitioning from large homes to co-ops or condos in a familiar, quiet neighborhood with waterfront amenities.",
+          "budgetRange": "$300K - $600K",
+          "propertyType": "1-2 bedroom co-op or condo"
+        },
+        {
+          "type": "First-Time Buyer",
+          "description": "Buyers entering the market through Bayside's affordable co-op inventory while benefiting from strong community and schools.",
+          "budgetRange": "$200K - $450K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Investor",
+          "description": "Investors seeking stable, low-turnover residential properties in a neighborhood with consistent demand and strong school district appeal.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "Multi-family or single-family rental"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Search Bayside Listings",
+          "href": "/buy?neighborhood=bayside"
+        },
+        "secondary": {
+          "label": "Get a Free Consultation",
+          "href": "/contact"
+        },
+        "rental": {
+          "label": "View Bayside Rentals",
+          "href": "/rent?neighborhood=bayside"
+        }
+      },
+      "boundaries": {
+        "north": "Little Neck Bay",
+        "south": "Union Turnpike",
+        "east": "Cross Island Parkway",
+        "west": "Francis Lewis Boulevard"
+      },
+      "transit": [
+        "LIRR"
+      ],
+      "zipCodes": [
+        "11360",
+        "11361",
+        "11364"
+      ],
+      "adjacentNeighborhoods": [
+        "flushing",
+        "forest-hills"
+      ],
+      "attractions": [
+        {
+          "name": "Fort Totten Park",
+          "type": "park",
+          "description": "Historic Civil War-era fort turned public park with waterfront paths, sports fields, and a historic officers' club"
+        },
+        {
+          "name": "Little Bay Park",
+          "type": "park",
+          "description": "Waterfront park along Little Neck Bay with walking paths, fishing pier, and views of the Throgs Neck Bridge"
+        },
+        {
+          "name": "Oakland Lake",
+          "type": "park",
+          "description": "Natural lake and surrounding green space designated as an NYC landmark, home to diverse wildlife"
+        },
+        {
+          "name": "Queensborough Performing Arts Center",
+          "type": "entertainment",
+          "description": "875-seat performing arts venue at Queensborough Community College hosting music, comedy, and theater"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Press 195",
+          "cuisine": "American (Sandwiches)",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Donovan's Pub",
+          "cuisine": "American-Irish",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Ben's Best Kosher Deli",
+          "cuisine": "Deli",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Bourbon Street",
+          "cuisine": "Cajun",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "bayside queens real estate",
+        "bayside homes for sale",
+        "bayside queens houses",
+        "queens single-family homes",
+        "bay terrace co-ops",
+        "buy home bayside queens",
+        "bayside queens apartments"
+      ]
+    }
+  ]
+}
