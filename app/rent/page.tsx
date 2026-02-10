@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import PropertySearch from '@/app/components/PropertySearch';
+import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 
 export const metadata: Metadata = {
   title: 'Rent in NYC | Mallan Real Estate',
@@ -82,6 +83,11 @@ export default function RentPage() {
           <PropertySearch type="rent" />
         </Suspense>
       </main>
+      <section className="py-8 px-4 bg-gray-50 border-t">
+        <div className="max-w-xl mx-auto">
+          <MovingCostEstimator />
+        </div>
+      </section>
       <Footer />
     </div>
   );
