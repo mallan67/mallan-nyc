@@ -1,4 +1,9 @@
 import type { Borough, BoroughSlug, Neighborhood } from '@/lib/types/neighborhood';
+import manhattanData from '@/data/manhattan-neighborhoods.json';
+import brooklynData from '@/data/brooklyn-neighborhoods.json';
+import queensData from '@/data/queens-neighborhoods.json';
+import bronxData from '@/data/bronx-neighborhoods.json';
+import statenIslandData from '@/data/staten-island-neighborhoods.json';
 
 export interface BoroughConfig {
   name: Borough;
@@ -60,42 +65,23 @@ export const ALL_BOROUGH_SLUGS: BoroughSlug[] = [
   'staten-island',
 ];
 
-const dataCache = new Map<BoroughSlug, Neighborhood[]>();
+const BOROUGH_DATA: Record<BoroughSlug, Neighborhood[]> = {
+  manhattan: (manhattanData as { neighborhoods: Neighborhood[] }).neighborhoods,
+  brooklyn: (brooklynData as { neighborhoods: Neighborhood[] }).neighborhoods,
+  queens: (queensData as { neighborhoods: Neighborhood[] }).neighborhoods,
+  bronx: (bronxData as { neighborhoods: Neighborhood[] }).neighborhoods,
+  'staten-island': (statenIslandData as { neighborhoods: Neighborhood[] }).neighborhoods,
+};
 
 export function loadNeighborhoods(boroughSlug: BoroughSlug): Neighborhood[] {
-  if (dataCache.has(boroughSlug)) return dataCache.get(boroughSlug)!;
-
-  /* eslint-disable @typescript-eslint/no-require-imports */
-  let raw: { neighborhoods: Neighborhood[] };
-  switch (boroughSlug) {
-    case 'manhattan':
-      raw = require('@/data/manhattan-neighborhoods.json');
-      break;
-    case 'brooklyn':
-      raw = require('@/data/brooklyn-neighborhoods.json');
-      break;
-    case 'queens':
-      raw = require('@/data/queens-neighborhoods.json');
-      break;
-    case 'bronx':
-      raw = require('@/data/bronx-neighborhoods.json');
-      break;
-    case 'staten-island':
-      raw = require('@/data/staten-island-neighborhoods.json');
-      break;
-  }
-  /* eslint-enable @typescript-eslint/no-require-imports */
-
-  const neighborhoods = raw.neighborhoods as Neighborhood[];
-  dataCache.set(boroughSlug, neighborhoods);
-  return neighborhoods;
+  return BOROUGH_DATA[boroughSlug];
 }
 
 export function findNeighborhood(
   boroughSlug: BoroughSlug,
   slug: string,
 ): Neighborhood | undefined {
-  return loadNeighborhoods(boroughSlug).find((n) => n.slug === slug);
+  return BOROUGH_DATA[boroughSlug].find((n) => n.slug === slug);
 }
 
 export function getBoroughConfig(slug: BoroughSlug): BoroughConfig {
