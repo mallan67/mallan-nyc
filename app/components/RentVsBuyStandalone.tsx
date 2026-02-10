@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import RentVsBuyCalculator from './RentVsBuyCalculator';
 
 export default function RentVsBuyStandalone() {
@@ -77,22 +76,7 @@ export default function RentVsBuyStandalone() {
             />
           </div>
 
-          {/* CTA */}
-          <div className="mt-5 bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm font-medium text-gray-900 mb-1">
-              Interested in exploring homeownership?
-            </p>
-            <p className="text-xs text-gray-500 mb-3">
-              Contact us to discuss your options and find properties in your budget.
-            </p>
-            <Link
-              href="/contact?ref=rent-vs-buy"
-              data-analytics-cta="cta_rent_vs_buy"
-              className="inline-block w-full py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm"
-            >
-              Let&apos;s Talk
-            </Link>
-          </div>
+
         </div>
       )}
     </div>
