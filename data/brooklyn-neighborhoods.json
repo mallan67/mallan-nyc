@@ -29,8 +29,8 @@
           "answer": "The median sale price in Brooklyn Heights is approximately $1.15 million, with co-ops averaging around $850,000 and condos around $1.6 million. Brownstone townhouses command $3 million to $8 million depending on size and condition."
         },
         {
-          "question": "Is Brooklyn Heights good for families?",
-          "answer": "Brooklyn Heights is one of Brooklyn's most family-friendly neighborhoods. It features excellent public schools including PS 8, close proximity to the Promenade and Pier 6 playground at Brooklyn Bridge Park, and quiet residential streets with low traffic."
+          "question": "What parks and schools are near Brooklyn Heights?",
+          "answer": "Brooklyn Heights is well-suited for residents who value parks and schools. It features excellent public schools including PS 8, close proximity to the Promenade and Pier 6 playground at Brooklyn Bridge Park, and quiet residential streets with low traffic."
         },
         {
           "question": "What subway lines serve Brooklyn Heights?",
@@ -103,7 +103,7 @@
       ],
       "streetGuidance": {
         "description": "Brooklyn Heights rewards block-by-block exploration. The most coveted addresses are along the Promenade and the 'Fruit Streets' (Cranberry, Orange, Pineapple). Montague Street is the main commercial corridor, while the side streets north of it are exceptionally quiet.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Pierrepont Street between Clinton and Henry",
           "Garden Place",
           "Sidney Place"
@@ -121,8 +121,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking top public schools, safe tree-lined streets, and proximity to Brooklyn Bridge Park's playgrounds and green space.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking top public schools, safe tree-lined streets, and proximity to Brooklyn Bridge Park's playgrounds and green space.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom co-op or brownstone"
         },
@@ -139,7 +139,7 @@
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Pied-a-Terre Buyer",
+          "type": "Pied-à-Terre Buyer",
           "description": "Buyers seeking a Manhattan-adjacent residence with skyline views and landmark architecture at a relative value compared to Manhattan.",
           "budgetRange": "$1M - $3M",
           "propertyType": "Luxury condo with views"
@@ -263,8 +263,8 @@
           "answer": "The median sale price in Williamsburg is approximately $1.05 million, with new waterfront condos averaging $1.3 million and inland units averaging $850,000. Townhouses in the south side range from $2 million to $5 million."
         },
         {
-          "question": "Is Williamsburg good for families?",
-          "answer": "Williamsburg has become increasingly family-friendly, especially in the South Williamsburg area and along the waterfront. Domino Park, the new Bushwick Inlet Park, and multiple playgrounds provide excellent outdoor space for children."
+          "question": "What parks and schools are near Williamsburg?",
+          "answer": "Williamsburg has seen growing demand from residents seeking parks and green space, especially in the South Williamsburg area and along the waterfront. Domino Park, the new Bushwick Inlet Park, and multiple playgrounds provide excellent outdoor space for children."
         },
         {
           "question": "What subway lines serve Williamsburg?",
@@ -337,7 +337,7 @@
       ],
       "streetGuidance": {
         "description": "Williamsburg is divided into distinct micro-neighborhoods. The waterfront (Kent Avenue) is luxury new development. Bedford Avenue is the main commercial spine. The South Side retains a more residential, neighborhood feel. North of Grand Street is more industrial-loft in character.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "South 2nd through South 5th Streets near the waterfront",
           "Berry Street between Grand and Metropolitan",
           "Havemeyer Street near Domino Park"
@@ -367,7 +367,7 @@
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families attracted to the new waterfront parks, improving schools, and spacious new-construction units with modern amenities.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "2-3 bedroom condo"
@@ -496,8 +496,8 @@
           "answer": "The median sale price in DUMBO is approximately $1.65 million, making it one of Brooklyn's most expensive neighborhoods. Converted warehouse lofts average $1.8 million, while new construction condos range from $1 million for studios to $5 million+ for three-bedrooms with bridge views."
         },
         {
-          "question": "Is DUMBO good for families?",
-          "answer": "DUMBO is increasingly family-friendly with Brooklyn Bridge Park offering extensive playgrounds, Jane's Carousel, and waterfront green space. The neighborhood has a growing community of families, though the limited retail and restaurant options can be a consideration."
+          "question": "What parks and schools are near DUMBO?",
+          "answer": "DUMBO is well-suited for residents seeking waterfront parks and green space with Brooklyn Bridge Park offering extensive playgrounds, Jane's Carousel, and waterfront green space. The neighborhood has a growing residential community, though the limited retail and restaurant options can be a consideration."
         },
         {
           "question": "What subway lines serve DUMBO?",
@@ -570,7 +570,7 @@
       ],
       "streetGuidance": {
         "description": "DUMBO is compact and entirely walkable. Water Street and Washington Street are the main arteries. The most photographed spot is Washington Street between the Manhattan Bridge arches. Front Street has the best restaurant cluster. Units facing the bridges or the water command the highest premiums.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Main Street near Brooklyn Bridge Park",
           "Plymouth Street",
           "Jay Street near the park"
@@ -600,13 +600,13 @@
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Growing Family",
-          "description": "Families seeking spacious loft layouts with Brooklyn Bridge Park as their backyard and easy access to Manhattan schools.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking spacious loft layouts with Brooklyn Bridge Park as their backyard and easy access to Manhattan schools.",
           "budgetRange": "$1.8M - $4.5M",
           "propertyType": "2-3 bedroom loft"
         },
         {
-          "type": "Pied-a-Terre Buyer",
+          "type": "Pied-à-Terre Buyer",
           "description": "Buyers seeking a distinctive Brooklyn address with iconic views for part-time use, with strong rental potential when not in residence.",
           "budgetRange": "$1M - $3M",
           "propertyType": "1-bedroom condo with bridge views"
@@ -732,7 +732,7 @@
           "answer": "The median sale price in Park Slope is approximately $1.35 million. Brownstone townhouses range from $2.5 million to $6 million depending on width, condition, and proximity to Prospect Park. One-bedroom co-ops start around $550,000 and condos around $700,000."
         },
         {
-          "question": "Is Park Slope good for families?",
+          "question": "What parks and schools are near Park Slope?",
           "answer": "Park Slope is widely considered Brooklyn's best neighborhood for families. PS 321 and PS 107 are among Brooklyn's top-rated public schools. Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive family-oriented retail and dining."
         },
         {
@@ -806,7 +806,7 @@
       ],
       "streetGuidance": {
         "description": "Park Slope is organized around two commercial corridors: Fifth Avenue (trendy, diverse dining) and Seventh Avenue (upscale, family-oriented). The blocks between the two avenues on the park-side (east of 7th Avenue) are the most coveted. Prospect Park West commands the highest brownstone prices.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "1st through 5th Streets between 7th and 8th Avenues",
           "Prospect Park West",
           "Carroll Street near Prospect Park"
@@ -824,7 +824,7 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families prioritizing top public schools, Prospect Park access, and a walkable neighborhood with strong community feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone or co-op"
@@ -972,7 +972,7 @@
           "answer": "The median sale price in Cobble Hill is approximately $1.25 million. Brownstone townhouses range from $2 million to $5 million. One-bedroom co-ops average $600,000 and condos around $850,000. The limited inventory in this small neighborhood keeps prices elevated."
         },
         {
-          "question": "Is Cobble Hill good for families?",
+          "question": "What parks and schools are near Cobble Hill?",
           "answer": "Cobble Hill is excellent for families. PS 29 is one of Brooklyn's most sought-after public elementary schools. Cobble Hill Park provides green space, and the neighborhood's quiet streets, low-rise character, and family-owned shops create a village atmosphere."
         },
         {
@@ -1046,7 +1046,7 @@
       ],
       "streetGuidance": {
         "description": "Cobble Hill's compact layout means nearly every block is desirable. Court Street is the main commercial corridor with a mix of local shops and restaurants. Clinton Street is quieter and more residential. The blocks closest to Cobble Hill Park and along the tree-lined side streets command the highest premiums.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Verandah Place",
           "Tompkins Place",
           "Degraw Street between Clinton and Henry"
@@ -1064,7 +1064,7 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families drawn to PS 29, the village-scale streets, and the ability to walk to everything from playgrounds to grocery stores.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone or co-op"
@@ -1204,7 +1204,7 @@
           "answer": "The median sale price in Carroll Gardens is approximately $1.2 million. Brownstone townhouses with the signature deep gardens typically sell for $2.5 million to $5 million. One-bedroom co-ops average $550,000, and condos average $800,000."
         },
         {
-          "question": "Is Carroll Gardens good for families?",
+          "question": "What parks and schools are near Carroll Gardens?",
           "answer": "Carroll Gardens is excellent for families. PS 58 is a popular public school, and the deep front gardens provide informal play space unique to this neighborhood. Carroll Park has a playground and active community garden. The neighborhood has a strong multi-generational community feel."
         },
         {
@@ -1278,7 +1278,7 @@
       ],
       "streetGuidance": {
         "description": "Carroll Gardens is defined by three corridors: Smith Street (restaurants and bars), Court Street (local shops and services), and the residential blocks between them featuring the signature deep gardens. The blocks between President and Carroll Streets are the most architecturally pristine.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "President Street between Smith and Hoyt",
           "Carroll Street between Smith and Court",
           "2nd Place between Smith and Court"
@@ -1296,8 +1296,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking the signature deep-garden brownstones, strong public schools, and an active neighborhood community with a village feel.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking the signature deep-garden brownstones, strong public schools, and an active neighborhood community with a village feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone"
         },
@@ -1439,8 +1439,8 @@
           "answer": "The median sale price in Fort Greene is approximately $1.1 million. Brownstone townhouses range from $2 million to $4.5 million. One-bedroom condos average $750,000 and co-ops around $500,000. New construction near Barclays Center tends to run higher."
         },
         {
-          "question": "Is Fort Greene good for families?",
-          "answer": "Fort Greene is very family-friendly with strong schools, Fort Greene Park's playgrounds and open space, and a diverse, engaged community. Brooklyn Technical High School, one of NYC's elite specialized high schools, is located in the neighborhood."
+          "question": "What parks and schools are near Fort Greene?",
+          "answer": "Fort Greene is well-suited for residents who value parks and schools with strong schools, Fort Greene Park's playgrounds and open space, and a diverse, engaged community. Brooklyn Technical High School, one of NYC's elite specialized high schools, is located in the neighborhood."
         },
         {
           "question": "What subway lines serve Fort Greene?",
@@ -1513,7 +1513,7 @@
       ],
       "streetGuidance": {
         "description": "Fort Greene's residential core surrounds Fort Greene Park, with the most coveted blocks radiating from the park's edges. DeKalb Avenue is the primary commercial corridor. The area around BAM and Barclays Center is more urban and transit-oriented. South Portland and South Oxford are among the finest brownstone blocks in Brooklyn.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "South Portland Avenue near Fort Greene Park",
           "South Oxford Street",
           "Cumberland Street near the park"
@@ -1537,7 +1537,7 @@
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families drawn to Fort Greene Park, strong schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
           "budgetRange": "$1.5M - $3.5M",
           "propertyType": "3-bedroom brownstone or condo"
@@ -1683,8 +1683,8 @@
           "answer": "The median sale price in Prospect Heights is approximately $950,000. One-bedroom co-ops average $500,000, condos around $750,000. Brownstone townhouses range from $1.8 million to $4 million. New construction near Barclays Center starts around $600,000 for studios."
         },
         {
-          "question": "Is Prospect Heights good for families?",
-          "answer": "Prospect Heights is very family-friendly with direct access to Prospect Park, the Brooklyn Botanic Garden, the Brooklyn Children's Museum (nearby), and the Brooklyn Museum. PS 9 is a sought-after local school. Vanderbilt Avenue has family-friendly cafes and shops."
+          "question": "What parks and schools are near Prospect Heights?",
+          "answer": "Prospect Heights is well-suited for residents who value parks and schools with direct access to Prospect Park, the Brooklyn Botanic Garden, the Brooklyn Children's Museum (nearby), and the Brooklyn Museum. PS 9 is a sought-after local school. Vanderbilt Avenue has neighborhood cafes and shops."
         },
         {
           "question": "What subway lines serve Prospect Heights?",
@@ -1757,7 +1757,7 @@
       ],
       "streetGuidance": {
         "description": "Prospect Heights is divided between the brownstone core (south of Eastern Parkway) and the new-development zone (north, near Barclays Center). Vanderbilt Avenue is the main commercial street. The blocks along Eastern Parkway and near Grand Army Plaza are the most prestigious residential streets.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Sterling Place between Vanderbilt and Underhill",
           "St. Marks Avenue near Prospect Park",
           "Park Place between Vanderbilt and Carlton"
@@ -1781,7 +1781,7 @@
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families prioritizing Prospect Park, the Brooklyn Museum, and Botanic Garden access with strong neighborhood schools and community.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "2-3 bedroom brownstone or condo"
@@ -1916,7 +1916,7 @@
           "answer": "The median sale price in Greenpoint is approximately $900,000. New waterfront condos average $1.1 million, while inland condos and co-ops average $700,000. Townhouses and two-family homes range from $1.5 million to $3 million."
         },
         {
-          "question": "Is Greenpoint good for families?",
+          "question": "What parks and schools are near Greenpoint?",
           "answer": "Greenpoint is becoming increasingly popular with families. WNYC Transmitter Park and the new Box Street Park offer waterfront play space. The neighborhood has a calm, residential feel with lower density than neighboring Williamsburg. Local bakeries and family-run businesses add to the community atmosphere."
         },
         {
@@ -1990,7 +1990,7 @@
       ],
       "streetGuidance": {
         "description": "Greenpoint has two main commercial corridors: Manhattan Avenue (traditional, with Polish bakeries and local shops) and Franklin Street (hip, with boutiques, cafes, and restaurants). The waterfront along West Street is the newest residential area with luxury condos. Inland blocks retain a quieter, more traditional residential character.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Milton Street near McGolrick Park",
           "Noble Street",
           "Greenpoint Avenue near the waterfront"
@@ -2014,7 +2014,7 @@
           "propertyType": "1-bedroom waterfront condo"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families attracted to the quieter residential streets, waterfront parks, and a more neighborhood-scale feel than neighboring Williamsburg.",
           "budgetRange": "$1M - $2.5M",
           "propertyType": "2-3 bedroom condo or townhouse"
@@ -2143,7 +2143,7 @@
           "answer": "The median sale price in Bed-Stuy is approximately $950,000. Brownstone townhouses range from $1.2 million to $3.5 million depending on size, condition, and block. One-bedroom condos average $550,000. Multi-family brownstones offer investment opportunities starting around $1.5 million."
         },
         {
-          "question": "Is Bed-Stuy good for families?",
+          "question": "What parks and schools are near Bed-Stuy?",
           "answer": "Bed-Stuy has a strong family community with numerous playgrounds, Herbert Von King Park, and a network of community organizations. The neighborhood's brownstone blocks offer generously sized apartments and private outdoor space. Schools are improving, and the community is deeply engaged in education advocacy."
         },
         {
@@ -2217,7 +2217,7 @@
       ],
       "streetGuidance": {
         "description": "Bed-Stuy is a large neighborhood with significant block-by-block variation. The Stuyvesant Heights Historic District offers the most architecturally pristine brownstones. Tompkins Avenue and Lewis Avenue are the main commercial corridors. Bedford Avenue and Nostrand Avenue provide additional retail and dining options. Western Bed-Stuy near Clinton Hill tends to command higher prices.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "MacDonough Street between Stuyvesant and Tompkins",
           "Decatur Street in the historic district",
           "Jefferson Avenue between Nostrand and Marcy"
@@ -2247,7 +2247,7 @@
           "propertyType": "2-4 family brownstone"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families drawn to spacious brownstone living with private outdoor gardens, strong community ties, and room to grow.",
           "budgetRange": "$1.2M - $2.5M",
           "propertyType": "Brownstone townhouse"

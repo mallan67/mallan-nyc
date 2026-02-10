@@ -26,8 +26,8 @@
           "answer": "The median sale price in Astoria is approximately $575,000. Condos average around $600,000, while co-ops are more affordable at approximately $350,000. Multi-family properties, which are popular among investors, range from $1.2M to $2.5M depending on size and condition."
         },
         {
-          "question": "Is Astoria a good neighborhood for families?",
-          "answer": "Yes, Astoria is very family-friendly with well-regarded public schools like PS 122 Mamie Fay and PS 234, numerous playgrounds, and Astoria Park's expansive green space with a public pool. The neighborhood has a strong sense of community and many family-oriented businesses."
+          "question": "What parks and schools are near Astoria?",
+          "answer": "Yes, Astoria is well-suited for residents who value parks and schools with well-regarded public schools like PS 122 Mamie Fay and PS 234, numerous playgrounds, and Astoria Park's expansive green space with a public pool. The neighborhood has a strong sense of community and many local businesses."
         },
         {
           "question": "What subway lines serve Astoria?",
@@ -100,7 +100,7 @@
       ],
       "streetGuidance": {
         "description": "Astoria's grid layout makes it easy to navigate. The avenues running northwest (Ditmars, 30th Ave, Broadway) each have their own character, while the numbered streets are primarily residential. Proximity to the waterfront and N/W subway stations are the biggest value drivers.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Ditmars Boulevard between 31st and 35th Streets",
           "Astoria Park South near the pool and playgrounds",
           "21st Avenue near PS 122"
@@ -136,8 +136,8 @@
           "propertyType": "Multi-family or condo"
         },
         {
-          "type": "Growing Family",
-          "description": "Families seeking more space, good schools, and a neighborhood community feel with easy access to parks and playgrounds.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking more space, good schools, and a neighborhood community feel with easy access to parks and playgrounds.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "2-3 bedroom condo or multi-family"
         }
@@ -335,7 +335,7 @@
       ],
       "streetGuidance": {
         "description": "Long Island City is organized around two main hubs: Court Square (transit-rich commercial core) and Hunters Point (residential waterfront). Center Boulevard along the water is the premium residential strip, while Jackson Avenue is the arts and commercial corridor.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Center Boulevard along Hunters Point South Park",
           "51st Avenue near PS/IS 78Q",
           "Gantry Plaza State Park area"
@@ -365,13 +365,13 @@
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families attracted to the waterfront parks, new schools, and spacious new-construction layouts not available in Manhattan.",
           "budgetRange": "$1M - $2M",
           "propertyType": "2-3 bedroom condo"
         },
         {
-          "type": "Pied-a-Terre Buyer",
+          "type": "Pied-à-Terre Buyer",
           "description": "Buyers seeking a convenient NYC foothold with easy airport access (LGA/JFK) and one-stop Manhattan commute.",
           "budgetRange": "$500K - $900K",
           "propertyType": "Studio or 1-bedroom condo"
@@ -507,7 +507,7 @@
           "answer": "Jackson Heights has one of NYC's most celebrated food scenes, with authentic cuisine from South America, South Asia, Southeast Asia, and beyond. Roosevelt Avenue and 37th Avenue are lined with restaurants, bakeries, and food vendors offering everything from Tibetan momos to Colombian arepas."
         },
         {
-          "question": "Is Jackson Heights a good neighborhood for families?",
+          "question": "What parks and schools are near Jackson Heights?",
           "answer": "Yes, Jackson Heights is excellent for families. The historic garden co-ops provide green play spaces, the neighborhood has good public schools, and 34th Avenue has been partially converted into a community open street. Diversity Park and Travers Park offer additional recreation."
         },
         {
@@ -569,7 +569,7 @@
       ],
       "streetGuidance": {
         "description": "Jackson Heights is organized along two main corridors: Roosevelt Avenue (commercial, elevated 7 train) and 37th Avenue (quieter, residential dining strip). The historic district co-ops are concentrated between 76th and 88th Streets, north of Roosevelt Avenue. Northern blocks tend to be quieter and more residential.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "34th Avenue open street between 77th and 80th Streets",
           "Historic district blocks between 78th and 85th Streets",
           "Near Travers Park on 78th Street"
@@ -593,8 +593,8 @@
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Growing Family",
-          "description": "Families seeking generous pre-war layouts, shared garden spaces, and a culturally rich community with good schools.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking generous pre-war layouts, shared garden spaces, and a culturally rich community with good schools.",
           "budgetRange": "$350K - $600K",
           "propertyType": "2-3 bedroom co-op"
         },
@@ -798,7 +798,7 @@
       ],
       "streetGuidance": {
         "description": "Downtown Flushing is centered around Main Street and Roosevelt Avenue, which is the commercial core. The residential areas spread outward, with quieter blocks to the north (near Bowne Park) and east (near Kissena Park). New development is concentrated around the transit hub.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Near Bowne Park on 29th Avenue and 155th Street",
           "Kissena Boulevard near Kissena Park",
           "Residential blocks north of Northern Boulevard"
@@ -828,7 +828,7 @@
           "propertyType": "1-bedroom condo"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families wanting proximity to good schools, parks, and a vibrant commercial center with access to cultural amenities.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "2-3 bedroom condo or single-family"
@@ -960,7 +960,7 @@
           "answer": "The E, F, M, and R trains stop at Forest Hills-71st Avenue (Continental Avenue), providing express service to Midtown Manhattan in approximately 25 minutes. The LIRR also has a Forest Hills station."
         },
         {
-          "question": "Is Forest Hills good for families?",
+          "question": "What parks and schools are near Forest Hills?",
           "answer": "Forest Hills is one of Queens' best family neighborhoods, with highly regarded public schools (PS 196, PS 144, and Forest Hills High School), abundant parks, safe streets, and a walkable shopping district. The neighborhood has a strong community focus."
         },
         {
@@ -1026,7 +1026,7 @@
       ],
       "streetGuidance": {
         "description": "Forest Hills has two distinct zones: the area around Austin Street and the subway station (walkable, commercial) and the residential blocks extending toward Forest Hills Gardens and Forest Park. Queens Boulevard divides the neighborhood, with the south side generally considered more desirable.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Forest Hills Gardens (Greenway South, Slocum Crescent)",
           "Burns Street between Yellowstone and 72nd Avenue",
           "Blocks near PS 196 on 71st Road"
@@ -1044,7 +1044,7 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families prioritizing top schools, safe tree-lined streets, and access to Forest Park in a community-focused neighborhood.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-3 bedroom co-op"
@@ -1253,7 +1253,7 @@
       ],
       "streetGuidance": {
         "description": "Sunnyside is a compact neighborhood centered on Queens Boulevard (commercial corridor) and the residential blocks stretching north and south. Skillman Avenue and Greenpoint Avenue have developing dining and nightlife scenes. Sunnyside Gardens is in the southern portion, near the Sunnyside Yards.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Sunnyside Gardens historic district (46th-49th Streets between Skillman and Barnett)",
           "Near Lou Lodati Park on Skillman Avenue",
           "43rd Street near PS 150"
@@ -1283,7 +1283,7 @@
           "propertyType": "1-bedroom co-op or condo"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families looking for spacious pre-war apartments or Sunnyside Gardens homes with community green spaces and good schools.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-bedroom co-op or Sunnyside Gardens home"
@@ -1412,7 +1412,7 @@
           "answer": "Bayside has some of the best public schools in Queens, including PS 203, PS 31, and Bayside High School. The neighborhood is also home to Queensborough Community College. School quality is a primary driver of residential demand in the area."
         },
         {
-          "question": "Is Bayside good for families?",
+          "question": "What parks and schools are near Bayside?",
           "answer": "Bayside is widely considered one of NYC's best family neighborhoods. It offers excellent schools, safe tree-lined streets, waterfront parks, low-density housing, and a strong community identity. Many families specifically target Bayside for its quality of life."
         },
         {
@@ -1478,7 +1478,7 @@
       ],
       "streetGuidance": {
         "description": "Bayside's residential streets are organized around Bell Boulevard (commercial spine) and Northern Boulevard (major east-west road). The most desirable areas are the single-family blocks between Bell Boulevard and the waterfront, and the Bay Terrace area at the northeast. Cross Island Parkway provides car access to highways.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Residential blocks between Bell Boulevard and Corporal Kennedy Street",
           "Bay Terrace area near Little Neck Bay",
           "Near PS 203 on 56th Avenue"
@@ -1496,7 +1496,7 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families prioritizing top public schools, a safe suburban environment, and outdoor space while remaining within New York City.",
           "budgetRange": "$650K - $1.3M",
           "propertyType": "Single-family detached"

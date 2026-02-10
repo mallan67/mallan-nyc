@@ -10,7 +10,7 @@ export default function StreetGuidanceSection({
   guidance,
 }: StreetGuidanceSectionProps) {
   const hasContent =
-    guidance.bestBlocksForFamilies.length > 0 ||
+    guidance.bestBlocksForParks.length > 0 ||
     guidance.bestBlocksForNightlife.length > 0 ||
     guidance.quietStreets.length > 0;
 
@@ -28,13 +28,13 @@ export default function StreetGuidanceSection({
         <p className="text-gray-600 mb-6 max-w-3xl">{guidance.description}</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {guidance.bestBlocksForFamilies.length > 0 && (
+          {guidance.bestBlocksForParks.length > 0 && (
             <div className="bg-blue-50 rounded-lg p-5">
               <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3">
-                Best for Families
+                Near Parks &amp; Schools
               </h3>
               <ul className="space-y-1.5 text-sm text-blue-800">
-                {guidance.bestBlocksForFamilies.map((block) => (
+                {guidance.bestBlocksForParks.map((block) => (
                   <li key={block}>{block}</li>
                 ))}
               </ul>

@@ -23,7 +23,7 @@
           "answer": "The median sale price in Riverdale is approximately $425,000, driven largely by co-ops in large complexes. Single-family homes and townhouses range from $600,000 to over $2 million depending on lot size, condition, and Hudson River views."
         },
         {
-          "question": "Is Riverdale good for families?",
+          "question": "What parks and schools are near Riverdale?",
           "answer": "Riverdale is one of NYC's most family-oriented neighborhoods. It is home to top private schools including Horace Mann, Riverdale Country School, and Ethical Culture Fieldston. Public schools like PS 81 also rank well. The area offers abundant green space through Wave Hill and Van Cortlandt Park."
         },
         {
@@ -97,7 +97,7 @@
       ],
       "streetGuidance": {
         "description": "Riverdale's hilly terrain creates dramatic variation block by block. Properties along Palisade Avenue and Independence Avenue offer Hudson River views at a premium. The Henry Hudson Parkway divides the neighborhood, with the western side generally more desirable for its proximity to the river and green space.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Fieldston Road area near the schools",
           "West 254th Street between Independence and Riverdale Avenues",
           "Delafield Avenue near Riverdale Park"
@@ -115,8 +115,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking top schools, green space, and a safe suburban environment without leaving NYC. Riverdale's school options and parks are a major draw.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking top schools, green space, and a safe suburban environment without leaving NYC. Riverdale's school options and parks are a major draw.",
           "budgetRange": "$400K - $1.2M",
           "propertyType": "3-bedroom co-op or single-family home"
         },
@@ -321,7 +321,7 @@
       ],
       "streetGuidance": {
         "description": "City Island Avenue is the main commercial strip running the length of the island. Side streets to the east and west offer waterfront access. The southern tip tends to be quieter and more residential, while the northern end near the bridge has more commercial activity.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Minneford Avenue south of Tier Street",
           "King Avenue near PS 175",
           "Marine Street near Pelham Cemetery"
@@ -357,7 +357,7 @@
           "propertyType": "Multi-family or waterfront single-family"
         },
         {
-          "type": "Pied-a-Terre Buyer",
+          "type": "Pied-à-Terre Buyer",
           "description": "Buyers looking for a weekend retreat or seasonal waterfront property that feels worlds away from the city while remaining within NYC limits.",
           "budgetRange": "$350K - $600K",
           "propertyType": "Waterfront cottage or condo"
@@ -546,7 +546,7 @@
       ],
       "streetGuidance": {
         "description": "Alexander Avenue is the neighborhood's most architecturally significant corridor, with beautifully preserved 19th-century brownstones and new restaurants. The waterfront along the Harlem River is the focus of new development. Third Avenue is the main commercial strip with shops and transit access.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Alexander Avenue between 136th and 140th Streets",
           "Willis Avenue near St. Mary's Park",
           "East 138th Street (Mott Haven Historic District)"
@@ -582,7 +582,7 @@
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Growing Family",
+          "type": "Space-Focused Buyer",
           "description": "Families drawn to Mott Haven's historic brownstones, proximity to St. Mary's Park, and access to both Bronx and Manhattan resources.",
           "budgetRange": "$800K - $1.5M",
           "propertyType": "Brownstone or townhouse"
@@ -700,8 +700,8 @@
           "answer": "The median sale price in Pelham Bay is approximately $410,000. Single-family homes typically range from $450,000 to $750,000, while co-ops in the area start around $150,000. Multi-family properties (2-3 units) range from $500,000 to $900,000."
         },
         {
-          "question": "Is Pelham Bay good for families?",
-          "answer": "Pelham Bay is a family-friendly neighborhood with good schools, low-density residential streets, and unmatched access to Pelham Bay Park and Orchard Beach. The area has a strong sense of community with local sports leagues, seasonal events, and longtime residents."
+          "question": "What parks and schools are near Pelham Bay?",
+          "answer": "Pelham Bay is well-suited for residents who value parks and schools with good schools, low-density residential streets, and unmatched access to Pelham Bay Park and Orchard Beach. The area has a strong sense of community with local sports leagues, seasonal events, and longtime residents."
         },
         {
           "question": "What is Pelham Bay Park?",
@@ -774,7 +774,7 @@
       ],
       "streetGuidance": {
         "description": "Pelham Bay blends into several sub-areas. Country Club to the south has larger homes and a more suburban feel. The area near the 6 train terminal is more commercial. Streets closer to Pelham Bay Park offer the best access to recreation. Middletown Road is the main commercial corridor.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Country Club Road south of Middletown Road",
           "Mayflower Avenue near Pelham Bay Park",
           "Buhre Avenue between Crosby and Middletown"
@@ -792,8 +792,8 @@
       },
       "buyerPersonas": [
         {
-          "type": "Growing Family",
-          "description": "Families seeking detached homes with yards, good schools, and immediate access to NYC's largest park for outdoor recreation.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking detached homes with yards, good schools, and immediate access to NYC's largest park for outdoor recreation.",
           "budgetRange": "$450K - $750K",
           "propertyType": "Single-family home"
         },
@@ -1003,7 +1003,7 @@
       ],
       "streetGuidance": {
         "description": "Fordham Road is the main east-west commercial artery and one of the busiest retail corridors in the Bronx. The Grand Concourse provides a grand north-south boulevard with Art Deco architecture. The area around Fordham University is quieter and more residential. Arthur Avenue (Belmont) to the east is a culinary destination.",
-        "bestBlocksForFamilies": [
+        "bestBlocksForParks": [
           "Decatur Avenue near PS 8",
           "Valentine Avenue between Fordham Road and Kingsbridge Road",
           "Belmont area near Arthur Avenue"
@@ -1039,8 +1039,8 @@
           "propertyType": "1-2 bedroom co-op"
         },
         {
-          "type": "Growing Family",
-          "description": "Families seeking affordable space with access to the Bronx Zoo, Botanical Garden, and a strong neighborhood school network.",
+          "type": "Space-Focused Buyer",
+          "description": "Buyers seeking affordable space with access to the Bronx Zoo, Botanical Garden, and a strong neighborhood school network.",
           "budgetRange": "$250K - $500K",
           "propertyType": "2-3 bedroom co-op or multi-family"
         }
