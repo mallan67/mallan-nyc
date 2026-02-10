@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, FormEvent } from 'react';
+import Link from 'next/link';
 
 export default function AffordabilityCalculator() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -203,7 +204,16 @@ export default function AffordabilityCalculator() {
             </div>
           </div>
 
-          <p className="mt-4 text-xs text-gray-400">
+          {/* CTA */}
+          <Link
+            href="/contact?ref=buying-power"
+            data-analytics-cta="cta_buying_power"
+            className="mt-5 block w-full text-center py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm"
+          >
+            Get Your Buying Power Report
+          </Link>
+
+          <p className="mt-3 text-xs text-gray-400">
             *Estimates only. Co-op uses 25% front-end DTI (conservative board standard).
             Condo uses 43% back-end DTI (qualified mortgage). Actual approval varies by
             lender and building. Consult a mortgage professional for personalized advice.
