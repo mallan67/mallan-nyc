@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/sell',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Sell Your Property | Mallan Real Estate',
     description: 'Sell your NYC property with expert guidance, professional marketing, and proven results from Mallan Real Estate.',
   },
@@ -260,6 +262,7 @@ export default function SellPage() {
           </div>
         </section>
       </main>
+      <SocialShareBar title="Sell Your Property | Mallan Real Estate" />
       <Footer />
     </div>
   );

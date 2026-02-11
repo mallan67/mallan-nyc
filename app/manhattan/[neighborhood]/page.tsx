@@ -4,6 +4,7 @@ import type { Neighborhood } from '@/lib/types/neighborhood';
 import { loadNeighborhoods, findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from '@/app/components/neighborhoods/NeighborhoodBreadcrumb';
 import NeighborhoodHero from '@/app/components/neighborhoods/NeighborhoodHero';
@@ -45,7 +46,7 @@ export async function generateMetadata({
       url: `https://mallan.nyc/manhattan/${n.slug}`,
       images: [{ url: n.ogImage, width: 1200, height: 630, alt: n.name }],
     },
-    twitter: { title, description },
+    twitter: { card: 'summary_large_image', title, description, images: [n.ogImage] },
   };
 }
 
@@ -122,6 +123,7 @@ export default async function NeighborhoodPage({
         <IDXDisclaimer variant="compact" />
       </div>
 
+      <SocialShareBar title={`${n.name} Real Estate | Mallan Real Estate`} />
       <Footer />
 
       {/* JSON-LD structured data */}

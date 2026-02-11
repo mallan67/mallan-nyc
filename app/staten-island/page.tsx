@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/staten-island',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Staten Island Neighborhoods | Real Estate Guide | Mallan Real Estate',
     description:
       'Explore Staten Island neighborhoods with market data, featured homes, and listings.',

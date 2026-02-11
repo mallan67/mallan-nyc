@@ -12,6 +12,8 @@ import agentsData from '@/data/agents.json';
 import type { Listing } from '@/lib/types/listing';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingHeroImage from '@/app/components/ListingHeroImage';
+import ShareButton from '@/app/components/ShareButton';
+import SocialShareBar from '@/app/components/SocialShareBar';
 
 // ISR: revalidate every 15 min (matches cron sync interval)
 export const revalidate = 900;
@@ -33,10 +35,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `$${listing.price.listPrice.toLocaleString()}/mo`
     : `$${listing.price.listPrice.toLocaleString()}`;
   const fullAddress = `${listing.address.streetNumber} ${listing.address.streetName} ${listing.address.unit}`;
+  const url = `https://mallan.nyc/listing/${id}`;
+  const ogImage = listing.media.images[0]?.url || '/images/og-default.png';
 
   return {
     title: `${fullAddress} | ${priceDisplay} | Mallan Real Estate`,
     description: `${listing.propertyInfo.bedroomsTotal} bed, ${listing.propertyInfo.bathroomsFull} bath ${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}. ${listing.description.substring(0, 150)}...`,
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${fullAddress} | ${priceDisplay}`,
+      description: `${listing.propertyInfo.bedroomsTotal} bed, ${listing.propertyInfo.bathroomsFull} bath ${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}. ${listing.description.substring(0, 150)}...`,
+      url,
+      type: 'article',
+      images: [{ url: ogImage, width: 1200, height: 630, alt: fullAddress }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${fullAddress} | ${priceDisplay}`,
+      description: `${listing.propertyInfo.bedroomsTotal} bed, ${listing.propertyInfo.bathroomsFull} bath ${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`,
+      images: [ogImage],
+    },
   };
 }
 
@@ -200,10 +218,11 @@ export default async function ListingPage({ params }: Props) {
                       {listing.address.neighborhoodDisplay}, {listing.address.borough}, NY {listing.address.zip}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center gap-2">
                     <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded">
                       {listing.propertyInfo.propertyType}
                     </span>
+                    <ShareButton title={`${fullAddress} | ${formatPrice(listing.price.listPrice, isRental)}`} />
                   </div>
                 </div>
 
@@ -651,6 +670,7 @@ export default async function ListingPage({ params }: Props) {
         </div>
       </section>
 
+      <SocialShareBar title={`${fullAddress} | ${formatPrice(listing.price.listPrice, isRental)}`} />
       <Footer />
     </div>
   );

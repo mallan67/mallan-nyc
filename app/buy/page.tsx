@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
 
 export const revalidate = 3600;
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/buy',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Buy Property in NYC | Mallan Real Estate',
     description: 'Search condos, co-ops, townhouses, and commercial properties for sale across Manhattan, Brooklyn, and NYC.',
   },
@@ -84,6 +86,7 @@ export default function BuyPage() {
           <PropertySearch type="buy" />
         </Suspense>
       </main>
+      <SocialShareBar title="Buy Property in NYC | Mallan Real Estate" />
       <Footer />
     </div>
   );

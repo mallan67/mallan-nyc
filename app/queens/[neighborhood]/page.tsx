@@ -31,7 +31,7 @@ export async function generateMetadata({
       url: `https://mallan.nyc/queens/${n.slug}`,
       images: [{ url: n.ogImage, width: 1200, height: 630, alt: n.name }],
     },
-    twitter: { title, description },
+    twitter: { card: 'summary_large_image', title, description, images: [n.ogImage] },
   };
 }
 

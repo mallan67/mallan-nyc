@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
 import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/rent',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Rent in NYC | Mallan Real Estate',
     description: 'Find apartments, lofts, and homes for rent across Manhattan, Brooklyn, and all NYC neighborhoods.',
   },
@@ -90,6 +92,7 @@ export default function RentPage() {
           <MovingCostEstimator />
         </div>
       </section>
+      <SocialShareBar title="Rent in NYC | Mallan Real Estate" />
       <Footer />
     </div>
   );

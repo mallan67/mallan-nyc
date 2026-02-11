@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/queens',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Queens Neighborhoods | Real Estate Guide | Mallan Real Estate',
     description:
       'Explore Queens neighborhoods with market data, featured buildings, and listings.',

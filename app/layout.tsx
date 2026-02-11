@@ -47,7 +47,7 @@ export const metadata: Metadata = {
       'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
     images: [
       {
-        url: `${BASE_URL}/images/og-default.svg`,
+        url: `${BASE_URL}/images/og-default.png`,
         width: 1200,
         height: 630,
         alt: 'Mallan Real Estate Inc. - Licensed NYC Real Estate Broker',
@@ -55,10 +55,13 @@ export const metadata: Metadata = {
     ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
+    site: '@NYCondos',
+    creator: '@NYCondos',
     title: 'Mallan Real Estate Inc. | Licensed NYC Real Estate Broker',
     description:
       'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
+    images: [`${BASE_URL}/images/og-default.png`],
   },
   robots: {
     index: true,
@@ -83,8 +86,8 @@ const jsonLd = {
   '@id': `${BASE_URL}/#organization`,
   name: 'Mallan Real Estate Inc.',
   url: BASE_URL,
-  logo: `${BASE_URL}/images/og-default.svg`,
-  image: `${BASE_URL}/images/og-default.svg`,
+  logo: `${BASE_URL}/images/og-default.png`,
+  image: `${BASE_URL}/images/og-default.png`,
   description:
     'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
   telephone: '+1-646-258-4460',
@@ -123,7 +126,13 @@ const jsonLd = {
       closes: '16:00',
     },
   ],
-  sameAs: [],
+  sameAs: [
+    'https://www.instagram.com/mallanrealestate/',
+    'https://www.facebook.com/MAllanrealestate',
+    'https://www.tiktok.com/@mallannyc',
+    'https://www.linkedin.com/company/mallan-real-estate-inc/',
+    'https://x.com/NYCondos',
+  ],
   // NY State broker license
   identifier: {
     '@type': 'PropertyValue',
