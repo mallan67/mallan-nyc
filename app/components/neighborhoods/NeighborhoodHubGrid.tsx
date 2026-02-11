@@ -11,11 +11,13 @@ export default function NeighborhoodHubGrid({
   neighborhoods,
   boroughSlug,
 }: NeighborhoodHubGridProps) {
+  const sorted = [...neighborhoods].sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <section aria-label="Neighborhoods" className="py-10 sm:py-14">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {neighborhoods.map((n) => (
+          {sorted.map((n) => (
             <Link
               key={n.slug}
               href={`/${boroughSlug}/${n.slug}`}
