@@ -279,18 +279,17 @@ export default async function ListingPage({ params }: Props) {
                         <span className="font-medium">${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo</span>
                       </div>
                     )}
-                    {listing.nycSpecific.realEstateTaxes && (
+                    {listing.nycSpecific.realEstateTaxes ? (
                       <div className="flex justify-between py-2 border-b">
                         <span className="text-gray-500">Real Estate Taxes</span>
                         <span className="font-medium">${listing.nycSpecific.realEstateTaxes.toLocaleString()}/mo</span>
                       </div>
-                    )}
-                    {listing.nycSpecific.taxesAnnual && (
+                    ) : listing.nycSpecific.taxesAnnual ? (
                       <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Annual Taxes</span>
-                        <span className="font-medium">${listing.nycSpecific.taxesAnnual.toLocaleString()}</span>
+                        <span className="text-gray-500">Real Estate Taxes</span>
+                        <span className="font-medium">${Math.round(listing.nycSpecific.taxesAnnual / 12).toLocaleString()}/mo</span>
                       </div>
-                    )}
+                    ) : null}
                     {listing.nycSpecific.flipTax !== null && (
                       <div className="flex justify-between py-2 border-b">
                         <span className="text-gray-500">Flip Tax</span>
@@ -428,7 +427,7 @@ export default async function ListingPage({ params }: Props) {
               </section>
 
               {/* Building Amenities */}
-              {buildingAmenities.length > 0 && (
+              {(buildingAmenities.length > 0 || listing.features.pets) && (
                 <section>
                   <h2 className="text-xl font-sans mb-4">Building Amenities</h2>
                   <div className="flex flex-wrap gap-3">
@@ -437,7 +436,24 @@ export default async function ListingPage({ params }: Props) {
                         {amenity}
                       </span>
                     ))}
+                    <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium ${
+                      listing.features.pets.allowed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    }`}>
+                      {listing.features.pets.allowed ? (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                      Pets: {listing.features.pets.policy}
+                    </span>
                   </div>
+                  {listing.features.pets.comments && (
+                    <p className="text-sm text-gray-500 mt-2">{listing.features.pets.comments}</p>
+                  )}
                   {listing.features.building.security.length > 0 && (
                     <div className="mt-4">
                       <p className="text-sm text-gray-500 mb-2">Security Features:</p>
@@ -460,32 +476,6 @@ export default async function ListingPage({ params }: Props) {
                 borough={listing.address.borough}
               />
 
-              {/* Pets Policy */}
-              <section className="bg-white rounded-lg p-6 border">
-                <h2 className="text-xl font-sans mb-4">Pet Policy</h2>
-                <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    listing.features.pets.allowed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                  }`}>
-                    {listing.features.pets.allowed ? (
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium text-lg">{listing.features.pets.policy}</p>
-                    {listing.features.pets.comments && (
-                      <p className="text-gray-600 mt-1">{listing.features.pets.comments}</p>
-                    )}
-                  </div>
-                </div>
-              </section>
-
               {/* Open House */}
               {listing.openHouse?.scheduled && (
                 <section className="bg-brand-gold/10 rounded-lg p-6">
@@ -500,67 +490,25 @@ export default async function ListingPage({ params }: Props) {
                 </section>
               )}
 
-              {/* Public Records */}
-              {listing.address.buildingTaxLot && (() => {
-                const [boro, block, lot] = listing.address.buildingTaxLot.split('-');
-                const boroCode: Record<string, string> = {
-                  'Manhattan': '1', 'Bronx': '2', 'Brooklyn': '3', 'Queens': '4', 'Staten Island': '5',
-                };
-                const bc = boroCode[listing.address.borough] || boro;
-                const streetEncoded = encodeURIComponent(listing.address.streetName);
-                return (
-                  <section className="bg-white rounded-lg p-6 border">
-                    <h2 className="text-xl font-sans mb-2">Public Records</h2>
-                    <p className="text-sm text-gray-500 mb-4">
-                      View official NYC records for this property (BBL: {listing.address.buildingTaxLot})
-                    </p>
-                    <div className="grid sm:grid-cols-3 gap-3">
-                      <a
-                        href={`https://a836-acris.nyc.gov/DS/DocumentSearch/BBLResult?Borough=${bc}&Block=${block}&Lot=${lot}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border hover:border-brand-gold hover:bg-brand-gold/5 transition-colors text-sm font-medium text-gray-700"
-                      >
-                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <div>
-                          <span className="block">Property Documents</span>
-                          <span className="block text-xs text-gray-400 font-normal">Deeds, Mortgages, Liens</span>
-                        </div>
-                      </a>
-                      <a
-                        href={`https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?boro=${bc}&houseno=${listing.address.streetNumber}&street=${streetEncoded}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border hover:border-brand-gold hover:bg-brand-gold/5 transition-colors text-sm font-medium text-gray-700"
-                      >
-                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        <div>
-                          <span className="block">Building Records</span>
-                          <span className="block text-xs text-gray-400 font-normal">Permits, Violations</span>
-                        </div>
-                      </a>
-                      <a
-                        href={`https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop&boro=${bc}&block=${block}&lot=${lot}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border hover:border-brand-gold hover:bg-brand-gold/5 transition-colors text-sm font-medium text-gray-700"
-                      >
-                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div>
-                          <span className="block">Tax Records</span>
-                          <span className="block text-xs text-gray-400 font-normal">Assessments, Tax Bills</span>
-                        </div>
-                      </a>
+              {/* Public Records — Sale listings only */}
+              {!isRental && listing.address.buildingTaxLot && (
+                <section className="bg-white rounded-lg p-6 border">
+                  <h2 className="text-xl font-sans mb-2">Public Records</h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Official NYC records for this property
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-gray-500">BBL</span>
+                      <span className="font-medium">{listing.address.buildingTaxLot}</span>
                     </div>
-                  </section>
-                );
-              })()}
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-gray-500">Borough</span>
+                      <span className="font-medium">{listing.address.borough}</span>
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {/* Neighborhood Link */}
               <section className="bg-white rounded-lg p-6 border">
