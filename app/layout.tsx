@@ -5,6 +5,7 @@ import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Modern premium sans-serif for luxury feel
 const manrope = Manrope({
@@ -145,7 +146,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased font-sans">
         <SkipLink />
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
         <CookieConsent />
         <Analytics />
       </body>
