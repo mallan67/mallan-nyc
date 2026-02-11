@@ -14,6 +14,8 @@ import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingHeroImage from '@/app/components/ListingHeroImage';
 import ShareButton from '@/app/components/ShareButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
+import TransitCommuteTool from '@/app/components/TransitCommuteTool';
+import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 
 // ISR: revalidate every 15 min (matches cron sync interval)
 export const revalidate = 900;
@@ -451,6 +453,13 @@ export default async function ListingPage({ params }: Props) {
                 </section>
               )}
 
+              {/* Transit & Commute */}
+              <TransitCommuteTool
+                latitude={listing.address.latitude}
+                longitude={listing.address.longitude}
+                borough={listing.address.borough}
+              />
+
               {/* Pets Policy */}
               <section className="bg-white rounded-lg p-6 border">
                 <h2 className="text-xl font-sans mb-4">Pet Policy</h2>
@@ -654,6 +663,12 @@ export default async function ListingPage({ params }: Props) {
                   listingId={listing.id}
                   listingAddress={fullAddress}
                   agentEmail={listing.agent.listAgentEmail}
+                />
+
+                {/* Transit Summary */}
+                <TransitSidebarSummary
+                  latitude={listing.address.latitude}
+                  longitude={listing.address.longitude}
                 />
 
                 {/* Calculators */}
