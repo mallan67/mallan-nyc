@@ -190,7 +190,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="max-w-[90rem] mx-auto pl-2 pr-4 lg:pl-4 lg:pr-6">
         <div className="flex items-center justify-between h-20">
           {/* Brand */}
           <Link
@@ -209,7 +209,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center ml-auto pl-8 xl:pl-12"
+            className="hidden lg:flex items-center ml-auto pl-12 xl:pl-16"
             aria-label="Main navigation"
           >
             <ul className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
