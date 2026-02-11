@@ -53,13 +53,14 @@ export default function BoroughDetailPage({
   return (
     <>
       <Header dark />
-      <NeighborhoodBreadcrumb neighborhoodName={n.name} borough={borough} boroughSlug={boroughSlug} />
       <NeighborhoodHero
         name={n.name}
         tagline={n.tagline}
         heroImage={n.heroImage}
         transit={n.transit}
-      />
+      >
+        <NeighborhoodBreadcrumb neighborhoodName={n.name} borough={borough} boroughSlug={boroughSlug} />
+      </NeighborhoodHero>
 
       <main>
         <AnswerBox neighborhood={n} />

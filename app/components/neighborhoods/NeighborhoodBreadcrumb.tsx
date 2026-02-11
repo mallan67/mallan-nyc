@@ -15,8 +15,8 @@ export default function NeighborhoodBreadcrumb({
   boroughSlug = 'manhattan',
 }: NeighborhoodBreadcrumbProps) {
   return (
-    <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 pt-24 pb-2">
-      <ol className="flex items-center gap-1.5 text-sm text-gray-500">
+    <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 pb-2">
+      <ol className="flex items-center gap-1.5 text-sm text-white/70">
         <li>
           <Link href="/" className="hover:text-brand-gold transition-colors">
             Home
@@ -24,7 +24,7 @@ export default function NeighborhoodBreadcrumb({
         </li>
         <li aria-hidden="true">/</li>
         {isHub ? (
-          <li aria-current="page" className="text-gray-900 font-medium">
+          <li aria-current="page" className="text-white font-medium">
             {borough}
           </li>
         ) : (
@@ -38,7 +38,7 @@ export default function NeighborhoodBreadcrumb({
               </Link>
             </li>
             <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-gray-900 font-medium">
+            <li aria-current="page" className="text-white font-medium">
               {neighborhoodName}
             </li>
           </>

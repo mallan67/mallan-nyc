@@ -45,22 +45,8 @@ export default function NeighborhoodsIndexPage() {
     <>
       <Header dark />
 
-      <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 pt-24 pb-2">
-        <ol className="flex items-center gap-1.5 text-sm text-gray-500">
-          <li>
-            <Link href="/" className="hover:text-brand-gold transition-colors">
-              Home
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="text-gray-900 font-medium">
-            Neighborhoods
-          </li>
-        </ol>
-      </nav>
-
       {/* Hero */}
-      <section className="relative h-[280px] sm:h-[340px] overflow-hidden">
+      <section className="relative h-[340px] sm:h-[400px] md:h-[440px] overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
@@ -69,14 +55,34 @@ export default function NeighborhoodsIndexPage() {
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
-        <div className="relative h-full flex flex-col justify-end max-w-7xl mx-auto px-4 pb-8 sm:pb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
-            NYC Neighborhood Guides
-          </h1>
-          <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
-            Explore real estate across all five boroughs with market data, building intelligence,
-            and broker insights.
-          </p>
+        <div className="relative h-full flex flex-col justify-between max-w-7xl mx-auto px-4">
+          {/* Breadcrumb at top */}
+          <div className="pt-20 sm:pt-24">
+            <nav aria-label="Breadcrumb" className="pb-2">
+              <ol className="flex items-center gap-1.5 text-sm text-white/70">
+                <li>
+                  <Link href="/" className="hover:text-brand-gold transition-colors">
+                    Home
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="text-white font-medium">
+                  Neighborhoods
+                </li>
+              </ol>
+            </nav>
+          </div>
+
+          {/* Title at bottom */}
+          <div className="pb-8 sm:pb-12">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
+              NYC Neighborhood Guides
+            </h1>
+            <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
+              Explore real estate across all five boroughs with market data, building intelligence,
+              and broker insights.
+            </p>
+          </div>
         </div>
       </section>
 
