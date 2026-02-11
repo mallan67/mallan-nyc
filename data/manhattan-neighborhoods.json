@@ -3507,6 +3507,3635 @@
         "penn station apartments",
         "midtown west real estate"
       ]
+    },
+    {
+      "slug": "west-village",
+      "name": "West Village",
+      "fullName": "West Village, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Winding Streets, Timeless Character",
+      "heroImage": "/images/neighborhoods/west-village-hero.jpg",
+      "ogImage": "/images/neighborhoods/west-village-og.jpg",
+      "summary": "The West Village is one of Manhattan's most storied neighborhoods, defined by tree-lined cobblestone streets, Federal-style townhouses, and a vibrant cultural scene. Its irregular street grid, preserved 19th-century architecture, and proximity to the Hudson River waterfront make it one of the most desirable residential enclaves in the city. Average price per square foot is approximately $1,800.",
+      "avgPricePerSqft": 1800,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 99,
+      "transitScore": 95,
+      "topSchool": "PS 41 Greenwich Village",
+      "nearestSubway": [
+        "1 at Christopher St-Sheridan Sq",
+        "A/C/E at West 4th St-Washington Sq",
+        "L at Eighth Ave-14th St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in the West Village?",
+          "answer": "The median sale price in the West Village is approximately $1.5 million. Co-ops average around $1.2 million, while condos typically range from $1.8 million to $3.5 million. Townhouses on prime blocks like Perry Street and West 11th Street can exceed $10 million."
+        },
+        {
+          "question": "What subway lines serve the West Village?",
+          "answer": "The 1 train stops at Christopher Street-Sheridan Square. The A, C, and E trains stop at West 4th Street-Washington Square. The L train at Eighth Avenue and 14th Street provides crosstown service. PATH trains at Christopher Street offer direct service to New Jersey."
+        },
+        {
+          "question": "What parks and green spaces are in the West Village?",
+          "answer": "The West Village offers Hudson River Park along the waterfront with playgrounds, sports fields, and a bike path. Abingdon Square Park and Jackson Square Park provide smaller green spaces. The neighborhood is also a short walk from Washington Square Park."
+        },
+        {
+          "question": "What types of buildings are common in the West Village?",
+          "answer": "The West Village features a mix of Federal and Greek Revival townhouses from the early 1800s, pre-war walk-up co-ops, and a select number of newer boutique condos. The landmarked historic district preserves much of the original 19th-century architecture and low-rise streetscape."
+        },
+        {
+          "question": "What schools are located near the West Village?",
+          "answer": "PS 41 Greenwich Village on West 11th Street is the zoned elementary school. PS 3 Charrette School is nearby in the broader Village area. The neighborhood is also close to several well-regarded private schools including St. Luke's School and the Little Red School House."
+        },
+        {
+          "question": "How walkable is the West Village?",
+          "answer": "The West Village has a Walk Score of 99, making it one of the most walkable neighborhoods in Manhattan. Daily errands, dining, and entertainment are all within easy walking distance. The irregular street grid creates a quieter pedestrian environment compared to the Midtown grid."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1500000,
+        "medianRent": 4500,
+        "avgDaysOnMarket": 62,
+        "yoyChange": 3.5,
+        "pricePerSqft": 1800,
+        "inventory": 115,
+        "closedSales": 90,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "150 Charles Street",
+          "nickname": null,
+          "architect": "Cookfox Architects",
+          "yearBuilt": 2015,
+          "type": "Condo",
+          "units": 91,
+          "priceRange": "$3M - $25M",
+          "slug": "150-charles-street"
+        },
+        {
+          "name": "Superior Ink",
+          "nickname": null,
+          "architect": "Robert A.M. Stern",
+          "yearBuilt": 2009,
+          "type": "Condo",
+          "units": 75,
+          "priceRange": "$2M - $15M",
+          "slug": "superior-ink"
+        },
+        {
+          "name": "2 Horatio Street",
+          "nickname": null,
+          "architect": "Emery Roth & Sons",
+          "yearBuilt": 1931,
+          "type": "Co-op",
+          "units": 105,
+          "priceRange": "$600K - $3M",
+          "slug": "2-horatio-street"
+        },
+        {
+          "name": "165 Perry Street",
+          "nickname": null,
+          "architect": "Asymptote Architecture",
+          "yearBuilt": 2008,
+          "type": "Condo",
+          "units": 28,
+          "priceRange": "$2.5M - $12M",
+          "slug": "165-perry-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "The West Village's irregular street grid creates quiet, intimate blocks. The western blocks closer to the Hudson River are among the most coveted, while the numbered streets (West 10th through West 14th) offer more predictable layouts. Bleecker Street and Hudson Street serve as the main commercial corridors.",
+        "bestBlocksForParks": [
+          "West Street along Hudson River Park",
+          "Abingdon Square at Bleecker and Eighth Avenue",
+          "Bank Street west of Greenwich Street"
+        ],
+        "bestBlocksForNightlife": [
+          "Bleecker Street between Seventh Avenue and Hudson Street",
+          "Hudson Street between Christopher and Barrow",
+          "Greenwich Avenue"
+        ],
+        "quietStreets": [
+          "Perry Street between Bleecker and West Street",
+          "West 11th Street west of Seventh Avenue",
+          "Commerce Street",
+          "Barrow Street between Bedford and Hudson"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Pre-war apartments with high ceilings, original moldings, and flexible room configurations in landmarked townhouse conversions.",
+          "budgetRange": "$1.2M - $3.5M",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Secondary Residences & Studios",
+          "description": "Boutique condo units in new construction with full-service amenities and strong resale value in a prime Manhattan location.",
+          "budgetRange": "$2M - $8M",
+          "propertyType": "Luxury condo"
+        },
+        {
+          "type": "Market Entry Points",
+          "description": "Walk-up co-op studios and one-bedrooms on charming side streets with low monthlies and landmarked block appeal.",
+          "budgetRange": "$500K - $1M",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Properties near the 1 train and PATH station at Christopher Street offering quick Midtown and downtown access plus direct New Jersey service.",
+          "budgetRange": "$800K - $2M",
+          "propertyType": "1-2 bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse West Village Listings",
+          "href": "/buy?neighborhood=west-village"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in West Village",
+          "href": "/rent?neighborhood=west-village"
+        }
+      },
+      "boundaries": {
+        "north": "West 14th Street",
+        "south": "Houston Street",
+        "east": "Sixth Avenue / Greenwich Avenue",
+        "west": "Hudson River"
+      },
+      "transit": [
+        "1",
+        "2",
+        "3",
+        "A",
+        "C",
+        "E",
+        "L"
+      ],
+      "zipCodes": [
+        "10014"
+      ],
+      "adjacentNeighborhoods": [
+        "greenwich-village",
+        "chelsea",
+        "meatpacking-district",
+        "soho"
+      ],
+      "attractions": [
+        {
+          "name": "Hudson River Park",
+          "type": "Park",
+          "description": "Five-mile waterfront park with piers, bike paths, playgrounds, and sports facilities along the Hudson River"
+        },
+        {
+          "name": "The Stonewall National Monument",
+          "type": "Historic Site",
+          "description": "The first U.S. national monument dedicated to LGBTQ+ history, centered on Christopher Park"
+        },
+        {
+          "name": "Abingdon Square Park",
+          "type": "Park",
+          "description": "Small triangular park at Bleecker and Eighth Avenue hosting a popular weekend greenmarket"
+        },
+        {
+          "name": "Cherry Lane Theatre",
+          "type": "Theater",
+          "description": "The longest-running Off-Broadway theater in New York, established in a former brewery in 1924"
+        },
+        {
+          "name": "White Horse Tavern",
+          "type": "Historic Landmark",
+          "description": "Legendary literary tavern established in 1880 at the corner of Hudson and West 11th Streets"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Via Carota",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "L'Artusi",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Buvette",
+          "cuisine": "French",
+          "priceRange": "$$"
+        },
+        {
+          "name": "The Spotted Pig",
+          "cuisine": "Gastropub",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Sushi Nakazawa",
+          "cuisine": "Japanese",
+          "priceRange": "$$$$"
+        }
+      ],
+      "seoKeywords": [
+        "west village apartments for sale",
+        "west village real estate",
+        "west village condos",
+        "west village co-ops",
+        "west village townhouses",
+        "manhattan luxury apartments",
+        "west village rentals",
+        "perry street apartments",
+        "bleecker street real estate",
+        "west village new construction",
+        "hudson river park apartments",
+        "west village brownstones"
+      ]
+    },
+    {
+      "slug": "nolita",
+      "name": "Nolita",
+      "fullName": "Nolita, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Boutique Living North of Little Italy",
+      "heroImage": "/images/neighborhoods/nolita-hero.jpg",
+      "ogImage": "/images/neighborhoods/nolita-og.jpg",
+      "summary": "Nolita (North of Little Italy) is a compact, fashion-forward enclave known for its boutique shopping along Elizabeth, Mott, and Mulberry Streets, eclectic dining scene, and intimate scale. With a housing stock dominated by pre-war walk-ups and a handful of boutique condos, Nolita offers a village-like atmosphere in the heart of downtown Manhattan. Average price per square foot is approximately $1,900.",
+      "avgPricePerSqft": 1900,
+      "dominantPropertyType": "Condo",
+      "walkScore": 99,
+      "transitScore": 96,
+      "topSchool": "PS 130 Hernando De Soto",
+      "nearestSubway": [
+        "6 at Spring St",
+        "B/D/F/M at Broadway-Lafayette St",
+        "N/R/W at Prince St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Nolita?",
+          "answer": "The median sale price in Nolita is approximately $1.35 million. Due to the neighborhood's small size and limited inventory, prices per square foot are among the highest in downtown Manhattan at roughly $1,900. Boutique condos command premiums of $2,200+ per square foot."
+        },
+        {
+          "question": "What subway lines serve Nolita?",
+          "answer": "The 6 train stops at Spring Street on the eastern edge. The B, D, F, and M trains stop at Broadway-Lafayette Street on the western side. The N, R, and W trains stop at Prince Street. This gives Nolita strong access to both uptown and crosstown service."
+        },
+        {
+          "question": "What types of buildings are found in Nolita?",
+          "answer": "Nolita is characterized by five-to-six-story pre-war tenement walk-ups, many dating to the late 1800s. A small number of boutique condo conversions and new construction projects have been developed, typically with fewer than 20 units. The neighborhood has very limited elevator buildings."
+        },
+        {
+          "question": "What is the rental market like in Nolita?",
+          "answer": "Nolita has a tight rental market with median rents around $4,200 for a one-bedroom. The limited housing stock and high demand from the neighborhood's shopping and dining reputation keep vacancy rates very low. Studios average $3,200 and two-bedrooms around $5,800."
+        },
+        {
+          "question": "What parks are near Nolita?",
+          "answer": "DeSalvio Playground on Spring and Mulberry Streets serves as the primary green space within Nolita. Elizabeth Street Garden, a treasured community garden on Elizabeth Street between Prince and Spring, provides a unique open space. Sara D. Roosevelt Park is a short walk east."
+        },
+        {
+          "question": "What schools are near Nolita?",
+          "answer": "PS 130 Hernando De Soto on Hester Street is the zoned elementary school. PS 19 Asher Levy is nearby on the Lower East Side. The neighborhood also has proximity to private options including St. Patrick's Old Cathedral School on Mott Street."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 1350000,
+        "medianRent": 4200,
+        "avgDaysOnMarket": 55,
+        "yoyChange": 4.1,
+        "pricePerSqft": 1900,
+        "inventory": 28,
+        "closedSales": 22,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "210 Lafayette Street",
+          "nickname": null,
+          "architect": "BKSK Architects",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 13,
+          "priceRange": "$2M - $6M",
+          "slug": "210-lafayette-street"
+        },
+        {
+          "name": "21 Spring Street",
+          "nickname": null,
+          "architect": "Workshop/APD",
+          "yearBuilt": 2017,
+          "type": "Condo",
+          "units": 8,
+          "priceRange": "$3M - $8M",
+          "slug": "21-spring-street"
+        },
+        {
+          "name": "253 Mott Street",
+          "nickname": null,
+          "architect": "Grzywinski+Pons",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 5,
+          "priceRange": "$2.5M - $5M",
+          "slug": "253-mott-street"
+        },
+        {
+          "name": "230 Elizabeth Street",
+          "nickname": null,
+          "architect": "GLUCK+",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 6,
+          "priceRange": "$1.8M - $4.5M",
+          "slug": "230-elizabeth-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Nolita is only a few blocks wide, so every block has a distinct feel. Mott, Elizabeth, and Mulberry Streets form the retail spine, while cross streets like Prince and Spring are the main east-west connectors. Upper floors on the commercial streets can be noisy; cross streets tend to be quieter.",
+        "bestBlocksForParks": [
+          "Mulberry Street near DeSalvio Playground",
+          "Elizabeth Street near Elizabeth Street Garden",
+          "Prince Street near the garden entrance"
+        ],
+        "bestBlocksForNightlife": [
+          "Mulberry Street between Houston and Spring",
+          "Elizabeth Street between Houston and Prince",
+          "Mott Street near Prince"
+        ],
+        "quietStreets": [
+          "Jersey Street (one-block alley between Mulberry and Lafayette)",
+          "Mott Street south of Prince (residential stretch)",
+          "Elizabeth Street south of Spring"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Walk-up co-op studios and one-bedrooms in pre-war tenement buildings with original details and low carrying costs.",
+          "budgetRange": "$550K - $950K",
+          "propertyType": "Studio or 1-bedroom walk-up"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Boutique condo conversions with open layouts, high ceilings, and designer finishes in buildings with fewer than 20 units.",
+          "budgetRange": "$1.5M - $4M",
+          "propertyType": "2-bedroom condo"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties in a high-demand neighborhood with persistently low vacancy rates and strong rental premiums driven by the boutique retail and dining corridor.",
+          "budgetRange": "$800K - $2M",
+          "propertyType": "1-bedroom condo"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Units within walking distance of three subway stations (6, B/D/F/M, N/R/W) offering quick access to Midtown, Brooklyn, and the Financial District.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "1-bedroom co-op or condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Nolita Listings",
+          "href": "/buy?neighborhood=nolita"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Nolita",
+          "href": "/rent?neighborhood=nolita"
+        }
+      },
+      "boundaries": {
+        "north": "Houston Street",
+        "south": "Broome Street",
+        "east": "Bowery / Elizabeth Street",
+        "west": "Lafayette Street"
+      },
+      "transit": [
+        "6",
+        "B",
+        "D",
+        "F",
+        "M",
+        "N",
+        "R",
+        "W"
+      ],
+      "zipCodes": [
+        "10012",
+        "10013"
+      ],
+      "adjacentNeighborhoods": [
+        "soho",
+        "little-italy",
+        "lower-east-side",
+        "noho"
+      ],
+      "attractions": [
+        {
+          "name": "Elizabeth Street Garden",
+          "type": "Garden",
+          "description": "A beloved community sculpture garden on Elizabeth Street between Prince and Spring Streets"
+        },
+        {
+          "name": "St. Patrick's Old Cathedral",
+          "type": "Historic Landmark",
+          "description": "The original seat of the Roman Catholic Archdiocese of New York, built in 1815 with a walled cemetery"
+        },
+        {
+          "name": "DeSalvio Playground",
+          "type": "Park",
+          "description": "A neighborhood park on the corner of Spring and Mulberry Streets with basketball courts and a playground"
+        },
+        {
+          "name": "Nolita Boutique Row",
+          "type": "Shopping",
+          "description": "Elizabeth and Mott Streets lined with independent fashion boutiques, vintage shops, and emerging designers"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Cafe Habana",
+          "cuisine": "Cuban-Mexican",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Rubirosa",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Estela",
+          "cuisine": "Mediterranean",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Prince Street Pizza",
+          "cuisine": "Pizza",
+          "priceRange": "$"
+        },
+        {
+          "name": "Peasant",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "nolita apartments for sale",
+        "nolita real estate",
+        "nolita condos",
+        "nolita manhattan",
+        "north of little italy real estate",
+        "nolita boutique condo",
+        "elizabeth street apartments",
+        "mott street real estate",
+        "nolita rentals",
+        "nolita luxury apartments",
+        "downtown manhattan condos",
+        "nolita new construction"
+      ]
+    },
+    {
+      "slug": "noho",
+      "name": "NoHo",
+      "fullName": "NoHo, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Cast-Iron Elegance Above Houston",
+      "heroImage": "/images/neighborhoods/noho-hero.jpg",
+      "ogImage": "/images/neighborhoods/noho-og.jpg",
+      "summary": "NoHo (North of Houston) is one of Manhattan's smallest and most architecturally significant neighborhoods, defined by its 19th-century cast-iron loft buildings, cobblestone streets, and landmarked historic district. With a housing stock converted from former industrial spaces, NoHo offers some of downtown Manhattan's most distinctive residential lofts. Average price per square foot is approximately $2,100.",
+      "avgPricePerSqft": 2100,
+      "dominantPropertyType": "Condo",
+      "walkScore": 99,
+      "transitScore": 100,
+      "topSchool": "PS 110 Florence Nightingale",
+      "nearestSubway": [
+        "6 at Bleecker St",
+        "B/D/F/M at Broadway-Lafayette St",
+        "N/R/W at 8th St-NYU"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in NoHo?",
+          "answer": "The median sale price in NoHo is approximately $2.2 million. Loft apartments in landmarked cast-iron buildings routinely exceed $2,100 per square foot. New development condos have traded above $3,000 per square foot. The small inventory and landmark protections keep prices consistently high."
+        },
+        {
+          "question": "What subway lines serve NoHo?",
+          "answer": "NoHo is one of the best-connected neighborhoods in Manhattan. The 6 train stops at Bleecker Street, the B/D/F/M at Broadway-Lafayette, and the N/R/W at 8th Street-NYU. The Astor Place 6 station is also within the neighborhood. Multiple subway lines provide a Transit Score of 100."
+        },
+        {
+          "question": "What types of buildings are found in NoHo?",
+          "answer": "NoHo is defined by its landmarked cast-iron loft buildings dating to the 1850s-1880s, originally built for commercial and manufacturing use. Most have been converted to residential lofts with high ceilings (11-14 feet), large windows, and open floor plans. A few boutique new-construction condos have been developed within the historic district."
+        },
+        {
+          "question": "Is NoHo a landmarked neighborhood?",
+          "answer": "Yes, the NoHo Historic District was designated by the NYC Landmarks Preservation Commission in 1999 and expanded in 2003 and 2008. This protects the cast-iron and masonry facades of virtually all buildings in the neighborhood, ensuring the architectural character is preserved."
+        },
+        {
+          "question": "What parks and open spaces are near NoHo?",
+          "answer": "Washington Square Park is immediately to the west, offering 9.75 acres of green space. Cooper Square and Astor Place provide public gathering areas. Tompkins Square Park in the East Village and Sara D. Roosevelt Park on the Lower East Side are a short walk away."
+        },
+        {
+          "question": "What schools are located near NoHo?",
+          "answer": "PS 110 Florence Nightingale is the nearest zoned public elementary school. PS 41 Greenwich Village is also nearby. The neighborhood is surrounded by NYU's campus, and private school options include Grace Church School on East 10th Street and Friends Seminary on East 16th Street."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 2200000,
+        "medianRent": 5200,
+        "avgDaysOnMarket": 70,
+        "yoyChange": 2.8,
+        "pricePerSqft": 2100,
+        "inventory": 18,
+        "closedSales": 15,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "40 Bond Street",
+          "nickname": null,
+          "architect": "Herzog & de Meuron",
+          "yearBuilt": 2007,
+          "type": "Condo",
+          "units": 27,
+          "priceRange": "$4M - $18M",
+          "slug": "40-bond-street"
+        },
+        {
+          "name": "25 Bond Street",
+          "nickname": null,
+          "architect": "BKSK Architects",
+          "yearBuilt": 2009,
+          "type": "Condo",
+          "units": 11,
+          "priceRange": "$3M - $10M",
+          "slug": "25-bond-street"
+        },
+        {
+          "name": "1 Great Jones Alley",
+          "nickname": null,
+          "architect": "BKSK Architects",
+          "yearBuilt": 2022,
+          "type": "Condo",
+          "units": 9,
+          "priceRange": "$3.5M - $12M",
+          "slug": "1-great-jones-alley"
+        },
+        {
+          "name": "670 Broadway",
+          "nickname": null,
+          "architect": "Thomas R. Jackson (original, 1874)",
+          "yearBuilt": 1874,
+          "type": "Co-op",
+          "units": 24,
+          "priceRange": "$1.5M - $6M",
+          "slug": "670-broadway"
+        }
+      ],
+      "streetGuidance": {
+        "description": "NoHo is a compact neighborhood of about 10 blocks. Bond Street and Great Jones Street are the most coveted residential addresses. Broadway is the main commercial artery and can be noisy. Lafayette Street forms the western edge and has seen the most new development. The cobblestone side streets offer the quintessential NoHo experience.",
+        "bestBlocksForParks": [
+          "Bond Street west of Broadway (near Washington Square Park)",
+          "East 4th Street near Cooper Square",
+          "Bleecker Street near the Bleecker Street playground"
+        ],
+        "bestBlocksForNightlife": [
+          "Bond Street between Broadway and Bowery",
+          "Great Jones Street between Broadway and Lafayette",
+          "Bleecker Street east of Broadway"
+        ],
+        "quietStreets": [
+          "Bond Street mid-block between Lafayette and Broadway",
+          "Great Jones Street mid-block",
+          "Shinbone Alley"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Converted loft residences with 12-foot ceilings, cast-iron columns, oversized windows, and open-plan layouts in landmarked buildings.",
+          "budgetRange": "$2M - $6M",
+          "propertyType": "2-3 bedroom loft"
+        },
+        {
+          "type": "Secondary Residences & Studios",
+          "description": "Boutique condo units in architect-designed new construction with full-service amenities and strong resale value on premier Bond Street addresses.",
+          "budgetRange": "$3M - $12M",
+          "propertyType": "Luxury condo"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Properties at the center of six subway lines with a perfect Transit Score of 100, offering the shortest commute times in lower Manhattan.",
+          "budgetRange": "$1.2M - $3M",
+          "propertyType": "1-2 bedroom co-op or condo"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties in a tightly constrained, landmarked neighborhood with extremely limited new supply and consistently high rental demand near NYU's campus.",
+          "budgetRange": "$1.5M - $4M",
+          "propertyType": "1-2 bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse NoHo Listings",
+          "href": "/buy?neighborhood=noho"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in NoHo",
+          "href": "/rent?neighborhood=noho"
+        }
+      },
+      "boundaries": {
+        "north": "East 8th Street / Astor Place",
+        "south": "Houston Street",
+        "east": "Bowery",
+        "west": "Broadway / Mercer Street"
+      },
+      "transit": [
+        "6",
+        "B",
+        "D",
+        "F",
+        "M",
+        "N",
+        "R",
+        "W"
+      ],
+      "zipCodes": [
+        "10012",
+        "10003"
+      ],
+      "adjacentNeighborhoods": [
+        "greenwich-village",
+        "east-village",
+        "soho",
+        "nolita"
+      ],
+      "attractions": [
+        {
+          "name": "Astor Place",
+          "type": "Landmark",
+          "description": "Historic public square featuring the iconic 'Alamo' rotating cube sculpture by Tony Rosenthal"
+        },
+        {
+          "name": "Colonnade Row (LaGrange Terrace)",
+          "type": "Historic Landmark",
+          "description": "Four surviving marble-columned 1833 Greek Revival row houses on Lafayette Street, among Manhattan's oldest"
+        },
+        {
+          "name": "The Public Theater",
+          "type": "Theater",
+          "description": "Joseph Papp's legendary theater housed in the former Astor Library on Lafayette Street, birthplace of 'Hamilton'"
+        },
+        {
+          "name": "Merchant's House Museum",
+          "type": "Museum",
+          "description": "Perfectly preserved 1832 row house on East 4th Street — Manhattan's only 19th-century home open to the public with original furnishings"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Il Buco",
+          "cuisine": "Italian-Mediterranean",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Bohemian",
+          "cuisine": "Japanese",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Five Points",
+          "cuisine": "American",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Bond Street Sushi",
+          "cuisine": "Japanese",
+          "priceRange": "$$$$"
+        }
+      ],
+      "seoKeywords": [
+        "noho apartments for sale",
+        "noho real estate",
+        "noho condos",
+        "noho lofts",
+        "noho manhattan",
+        "bond street apartments",
+        "cast iron loft manhattan",
+        "noho new construction",
+        "north of houston real estate",
+        "noho luxury apartments",
+        "great jones street apartments",
+        "noho rentals"
+      ]
+    },
+    {
+      "slug": "little-italy",
+      "name": "Little Italy",
+      "fullName": "Little Italy, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Historic Character, Downtown Convenience",
+      "heroImage": "/images/neighborhoods/little-italy-hero.jpg",
+      "ogImage": "/images/neighborhoods/little-italy-og.jpg",
+      "summary": "Little Italy is a compact neighborhood centered on Mulberry Street between Broome and Canal Streets, preserving its heritage through historic tenement architecture and the annual Feast of San Gennaro. While much smaller than its historical footprint, the neighborhood offers affordable entry points into prime downtown Manhattan with strong transit access and proximity to SoHo, Nolita, and Chinatown. Average price per square foot is approximately $1,300.",
+      "avgPricePerSqft": 1300,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 98,
+      "transitScore": 95,
+      "topSchool": "PS 130 Hernando De Soto",
+      "nearestSubway": [
+        "6 at Spring St",
+        "J/Z at Bowery",
+        "N/Q/R/W at Canal St",
+        "B/D at Grand St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Little Italy?",
+          "answer": "The median sale price in Little Italy is approximately $850,000. Pre-war walk-up co-ops are the most common housing type, with studios starting around $450,000 and two-bedrooms ranging from $900,000 to $1.5 million. Price per square foot averages approximately $1,300."
+        },
+        {
+          "question": "What subway lines serve Little Italy?",
+          "answer": "The 6 train stops at Spring Street to the north. The J and Z trains stop at Bowery to the east. The N, Q, R, and W trains stop at Canal Street to the south. The B and D trains stop at Grand Street. This strong transit access connects the neighborhood to all of Manhattan and Brooklyn."
+        },
+        {
+          "question": "What types of buildings are in Little Italy?",
+          "answer": "Little Italy is predominantly five-to-six-story pre-war tenement walk-ups built in the late 1800s, many now converted to co-ops. The buildings feature classic New York tenement architecture with fire escapes, decorative cornices, and storefronts at street level. A few newer boutique condos have been developed along the edges."
+        },
+        {
+          "question": "What is the Feast of San Gennaro?",
+          "answer": "The Feast of San Gennaro is an 11-day street festival held every September on Mulberry Street, dating back to 1926. It features food vendors, live entertainment, parades, and carnival games. Properties on Mulberry Street between Canal and Houston experience increased foot traffic during the festival."
+        },
+        {
+          "question": "What parks and schools are near Little Italy?",
+          "answer": "DeSalvio Playground on Spring and Mulberry Streets provides green space at the northern edge. Columbus Park on Mulberry and Bayard Streets offers athletic fields and open lawns. PS 130 Hernando De Soto on Hester Street is the zoned elementary school, and PS 1 Alfred E. Smith is also nearby."
+        },
+        {
+          "question": "How does Little Italy compare to neighboring Nolita?",
+          "answer": "Little Italy sits immediately south of Nolita, with Broome Street as the approximate dividing line. Little Italy generally offers lower prices per square foot ($1,300 vs. $1,900) and a more commercial character along Mulberry Street. Nolita has more boutique shopping and newer condo development."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 850000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 80,
+        "yoyChange": 1.8,
+        "pricePerSqft": 1300,
+        "inventory": 22,
+        "closedSales": 18,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "195 Grand Street",
+          "nickname": null,
+          "architect": "Unknown (c. 1900 tenement conversion)",
+          "yearBuilt": 1900,
+          "type": "Co-op",
+          "units": 30,
+          "priceRange": "$450K - $1.2M",
+          "slug": "195-grand-street"
+        },
+        {
+          "name": "247 Centre Street",
+          "nickname": null,
+          "architect": "Albert Wagner (original, 1912)",
+          "yearBuilt": 1912,
+          "type": "Condo",
+          "units": 16,
+          "priceRange": "$900K - $2.5M",
+          "slug": "247-centre-street"
+        },
+        {
+          "name": "225 Lafayette Street",
+          "nickname": null,
+          "architect": "Clodagh Design (renovation)",
+          "yearBuilt": 1898,
+          "type": "Co-op",
+          "units": 24,
+          "priceRange": "$700K - $2M",
+          "slug": "225-lafayette-street"
+        },
+        {
+          "name": "180 Mott Street",
+          "nickname": null,
+          "architect": "Michael Fieldman (conversion)",
+          "yearBuilt": 1903,
+          "type": "Condo",
+          "units": 12,
+          "priceRange": "$600K - $1.5M",
+          "slug": "180-mott-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Little Italy is centered on Mulberry Street, which is the most commercial and tourist-heavy corridor, especially between Canal and Broome. Grand Street offers a mix of retail and residential. The side streets (Hester, Mott south of Broome, Centre) tend to be quieter and more residential. Canal Street along the southern border is a major commercial artery.",
+        "bestBlocksForParks": [
+          "Mulberry Street near Columbus Park",
+          "Spring and Mulberry near DeSalvio Playground",
+          "Bayard Street near Columbus Park"
+        ],
+        "bestBlocksForNightlife": [
+          "Mulberry Street between Broome and Houston",
+          "Grand Street between Mulberry and Centre",
+          "Spring Street near the Nolita border"
+        ],
+        "quietStreets": [
+          "Hester Street east of Mulberry",
+          "Centre Street between Grand and Broome",
+          "Mott Street south of Grand"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Walk-up co-op studios and one-bedrooms at price points below neighboring Nolita and SoHo, with pre-war character and low monthly maintenance.",
+          "budgetRange": "$400K - $850K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties in a transit-rich downtown location surrounded by higher-priced neighborhoods, with consistently strong rental demand and limited new supply.",
+          "budgetRange": "$600K - $1.5M",
+          "propertyType": "1-bedroom co-op or condo"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Units within walking distance of four subway lines (6, J/Z, N/Q/R/W, B/D) connecting to Midtown, the Financial District, and Brooklyn.",
+          "budgetRange": "$500K - $1.2M",
+          "propertyType": "1-bedroom co-op"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Converted loft-style apartments in former commercial buildings with open layouts and high ceilings near the SoHo border.",
+          "budgetRange": "$1M - $2.5M",
+          "propertyType": "2-bedroom loft or condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Little Italy Listings",
+          "href": "/buy?neighborhood=little-italy"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Little Italy",
+          "href": "/rent?neighborhood=little-italy"
+        }
+      },
+      "boundaries": {
+        "north": "Broome Street / Kenmare Street",
+        "south": "Canal Street",
+        "east": "Bowery",
+        "west": "Lafayette Street / Centre Street"
+      },
+      "transit": [
+        "6",
+        "J",
+        "Z",
+        "N",
+        "Q",
+        "R",
+        "W",
+        "B",
+        "D"
+      ],
+      "zipCodes": [
+        "10013"
+      ],
+      "adjacentNeighborhoods": [
+        "nolita",
+        "soho",
+        "chinatown",
+        "lower-east-side"
+      ],
+      "attractions": [
+        {
+          "name": "Feast of San Gennaro",
+          "type": "Cultural Festival",
+          "description": "Annual 11-day street festival on Mulberry Street dating to 1926, one of New York's oldest and largest cultural celebrations"
+        },
+        {
+          "name": "Columbus Park",
+          "type": "Park",
+          "description": "Public park on Mulberry and Bayard Streets with basketball courts, pavilion, and open lawns"
+        },
+        {
+          "name": "Italian American Museum",
+          "type": "Museum",
+          "description": "Museum on Mulberry Street dedicated to preserving the history and culture of the Italian American experience in New York"
+        },
+        {
+          "name": "Old St. Patrick's Cathedral",
+          "type": "Historic Landmark",
+          "description": "The original seat of the Roman Catholic Archdiocese of New York (1815), with a walled cemetery and catacombs"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Lombardi's",
+          "cuisine": "Pizza",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Ferrara Bakery & Cafe",
+          "cuisine": "Italian Bakery",
+          "priceRange": "$"
+        },
+        {
+          "name": "Emilio's Ballato",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Da Nico",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Nyonya",
+          "cuisine": "Malaysian",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "little italy apartments for sale",
+        "little italy real estate",
+        "little italy co-ops",
+        "little italy manhattan",
+        "mulberry street apartments",
+        "little italy condos",
+        "downtown manhattan apartments",
+        "little italy rentals",
+        "grand street apartments",
+        "little italy new york real estate",
+        "affordable downtown manhattan"
+      ]
+    },
+    {
+      "slug": "chinatown",
+      "name": "Chinatown",
+      "fullName": "Chinatown, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Downtown Value with Unmatched Transit Access",
+      "heroImage": "/images/neighborhoods/chinatown-hero.jpg",
+      "ogImage": "/images/neighborhoods/chinatown-og.jpg",
+      "summary": "Manhattan's Chinatown is one of the largest and most vibrant in the Western Hemisphere, spanning a significant area below Canal Street. The neighborhood offers some of downtown Manhattan's most competitive price points, exceptional transit access with numerous subway lines, and proximity to City Hall, the courts, the Brooklyn Bridge, and the Financial District. Average price per square foot is approximately $1,050.",
+      "avgPricePerSqft": 1050,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 98,
+      "transitScore": 97,
+      "topSchool": "PS 124 Yung Wing",
+      "nearestSubway": [
+        "N/Q/R/W at Canal St",
+        "J/Z at Canal St",
+        "6 at Canal St",
+        "B/D at Grand St",
+        "F at East Broadway"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Chinatown?",
+          "answer": "The median sale price in Chinatown is approximately $680,000, making it one of the most affordable neighborhoods in lower Manhattan. Price per square foot averages approximately $1,050. Studios start around $350,000 and two-bedrooms range from $650,000 to $1.2 million."
+        },
+        {
+          "question": "What subway lines serve Chinatown?",
+          "answer": "Chinatown has outstanding transit access. The N, Q, R, W, J, Z, and 6 trains all stop at Canal Street. The B and D trains stop at Grand Street. The F train stops at East Broadway. This provides direct service to Midtown, the Financial District, Brooklyn, Queens, and the Bronx."
+        },
+        {
+          "question": "What types of buildings are found in Chinatown?",
+          "answer": "Chinatown's housing stock is predominantly pre-war tenement walk-ups from the late 1800s and early 1900s, many converted to co-ops. The neighborhood also includes some mid-century tower-in-the-park developments (like Chatham Green and Confucius Plaza) and a growing number of new condo projects along the Canal Street corridor."
+        },
+        {
+          "question": "What parks and open spaces are in Chinatown?",
+          "answer": "Columbus Park on Mulberry and Bayard Streets is the neighborhood's main green space with sports courts and a pavilion. Sara D. Roosevelt Park runs along Chrystie Street from Canal to Houston. Seward Park and the East River waterfront are a short walk south and east."
+        },
+        {
+          "question": "What schools are near Chinatown?",
+          "answer": "PS 124 Yung Wing on Division Street is a well-regarded zoned elementary school. PS 2 Meyer London and PS 42 Benjamin Altman are also nearby. The neighborhood is home to several dual-language programs and after-school enrichment centers."
+        },
+        {
+          "question": "How close is Chinatown to the Financial District and Brooklyn Bridge?",
+          "answer": "The Financial District is a 10-minute walk south along Centre Street, and the Brooklyn Bridge pedestrian entrance is at the southeast corner of the neighborhood at Park Row. Multiple subway lines provide one-stop service to Wall Street and Fulton Street stations."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 680000,
+        "medianRent": 2800,
+        "avgDaysOnMarket": 85,
+        "yoyChange": 2.2,
+        "pricePerSqft": 1050,
+        "inventory": 55,
+        "closedSales": 42,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Confucius Plaza",
+          "nickname": null,
+          "architect": "Horowitz & Chun",
+          "yearBuilt": 1976,
+          "type": "Co-op",
+          "units": 762,
+          "priceRange": "$350K - $900K",
+          "slug": "confucius-plaza"
+        },
+        {
+          "name": "Chatham Green",
+          "nickname": null,
+          "architect": "Kelly & Gruzen",
+          "yearBuilt": 1961,
+          "type": "Co-op",
+          "units": 430,
+          "priceRange": "$300K - $700K",
+          "slug": "chatham-green"
+        },
+        {
+          "name": "One Manhattan Square",
+          "nickname": null,
+          "architect": "Adamson Associates",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 815,
+          "priceRange": "$1M - $5M",
+          "slug": "one-manhattan-square"
+        },
+        {
+          "name": "88 Elizabeth Street",
+          "nickname": null,
+          "architect": "ODA Architecture",
+          "yearBuilt": 2024,
+          "type": "Condo",
+          "units": 62,
+          "priceRange": "$800K - $2.5M",
+          "slug": "88-elizabeth-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Chinatown covers a large area with varying character. Canal Street is the main commercial artery and is very busy. The blocks south of Canal toward the Brooklyn Bridge are quieter and closer to City Hall. East Broadway and Division Street have a more residential feel. The western edge near Centre Street transitions toward the courthouses and civic center.",
+        "bestBlocksForParks": [
+          "Mulberry Street near Columbus Park",
+          "Chrystie Street along Sara D. Roosevelt Park",
+          "Cherry Street near the East River waterfront"
+        ],
+        "bestBlocksForNightlife": [
+          "Doyers Street (the 'Bloody Angle' bar corridor)",
+          "Bowery between Canal and Broome",
+          "Orchard Street near the Lower East Side border"
+        ],
+        "quietStreets": [
+          "Henry Street south of Division",
+          "Madison Street near the civic center",
+          "Market Street residential blocks",
+          "Pell Street mid-block"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Co-op studios and one-bedrooms among the most affordable in lower Manhattan, with pre-war character and low monthly maintenance in established buildings.",
+          "budgetRange": "$300K - $700K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Properties near one of Manhattan's largest subway hubs — six lines at Canal Street plus the F at East Broadway — with direct access to every major employment center in the city.",
+          "budgetRange": "$400K - $1M",
+          "propertyType": "1-bedroom co-op"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "New construction condos and converted units surrounded by higher-priced neighborhoods (SoHo, Tribeca, FiDi), positioned for continued price appreciation with limited new supply.",
+          "budgetRange": "$800K - $2.5M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Full-service condo towers at the neighborhood's southern edge offering private outdoor space, river views, and amenity packages including rooftop parks and swimming pools.",
+          "budgetRange": "$1M - $3.5M",
+          "propertyType": "2-3 bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Chinatown Listings",
+          "href": "/buy?neighborhood=chinatown"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Chinatown",
+          "href": "/rent?neighborhood=chinatown"
+        }
+      },
+      "boundaries": {
+        "north": "Canal Street / Broome Street",
+        "south": "Brooklyn Bridge / Chambers Street",
+        "east": "Allen Street / Pike Street / East River",
+        "west": "Broadway / Centre Street"
+      },
+      "transit": [
+        "N",
+        "Q",
+        "R",
+        "W",
+        "J",
+        "Z",
+        "6",
+        "B",
+        "D",
+        "F"
+      ],
+      "zipCodes": [
+        "10002",
+        "10013",
+        "10038"
+      ],
+      "adjacentNeighborhoods": [
+        "little-italy",
+        "lower-east-side",
+        "tribeca",
+        "financial-district",
+        "civic-center"
+      ],
+      "attractions": [
+        {
+          "name": "Brooklyn Bridge",
+          "type": "Landmark",
+          "description": "Iconic 1883 suspension bridge with pedestrian walkway, accessible from the southeast corner of the neighborhood at Park Row"
+        },
+        {
+          "name": "Columbus Park",
+          "type": "Park",
+          "description": "The neighborhood's main park with basketball courts, a pavilion, and gathering spaces on Mulberry and Bayard Streets"
+        },
+        {
+          "name": "Museum of Chinese in America (MOCA)",
+          "type": "Museum",
+          "description": "Museum dedicated to preserving the history and culture of Chinese Americans, housed in a Maya Lin-designed space on Centre Street"
+        },
+        {
+          "name": "Doyers Street",
+          "type": "Historic Landmark",
+          "description": "One of Manhattan's oldest streets, a curved alley known for its historic architecture and contemporary cocktail bars"
+        },
+        {
+          "name": "Sara D. Roosevelt Park",
+          "type": "Park",
+          "description": "Linear park running from Canal to Houston along Chrystie Street with athletic fields, playgrounds, and basketball courts"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Nom Wah Tea Parlor",
+          "cuisine": "Dim Sum",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Joe's Shanghai",
+          "cuisine": "Shanghainese",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Xi'an Famous Foods",
+          "cuisine": "Chinese (Shaanxi)",
+          "priceRange": "$"
+        },
+        {
+          "name": "456 Shanghai Cuisine",
+          "cuisine": "Shanghainese",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Jing Fong",
+          "cuisine": "Cantonese Dim Sum",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "chinatown apartments for sale",
+        "chinatown real estate",
+        "chinatown manhattan",
+        "chinatown co-ops",
+        "chinatown condos",
+        "canal street apartments",
+        "downtown manhattan affordable apartments",
+        "chinatown rentals",
+        "chinatown new construction",
+        "lower manhattan real estate",
+        "chinatown luxury condos",
+        "chinatown nyc apartments"
+      ]
+    },
+    {
+      "slug": "washington-heights",
+      "name": "Washington Heights",
+      "fullName": "Washington Heights, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Elevated Living Above Harlem",
+      "heroImage": "/images/neighborhoods/washington-heights-hero.jpg",
+      "ogImage": "/images/neighborhoods/washington-heights-og.jpg",
+      "summary": "Washington Heights sits on Manhattan's highest natural ground, offering dramatic Hudson River views, pre-war co-ops at accessible price points, and a vibrant commercial corridor along Broadway and St. Nicholas Avenue. Fort Tryon Park and The Cloisters anchor the neighborhood's western edge, while express A train service connects to Midtown in under 25 minutes.",
+      "avgPricePerSqft": 500,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 95,
+      "transitScore": 88,
+      "topSchool": "Castle Bridge School (PS 513)",
+      "nearestSubway": [
+        "A at 181st St",
+        "1 at 181st St",
+        "C at 168th St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Washington Heights?",
+          "answer": "The median sale price in Washington Heights is approximately $450,000. Pre-war co-ops make up the majority of inventory and average around $400,000 for a one-bedroom, while the limited condo inventory averages closer to $600,000. Prices are highest near Fort Tryon Park and along Riverside Drive."
+        },
+        {
+          "question": "What subway lines serve Washington Heights?",
+          "answer": "The A express train stops at 168th, 175th, and 181st Streets, reaching Midtown in approximately 20-25 minutes. The 1 local train runs along Broadway with stops at 157th through 191st Street. The C train provides additional service along St. Nicholas Avenue."
+        },
+        {
+          "question": "What parks and green spaces are in Washington Heights?",
+          "answer": "Fort Tryon Park is the neighborhood's crown jewel, offering 67 acres of gardens, wooded paths, and panoramic Hudson River views. Fort Washington Park runs along the waterfront with sports fields and the Little Red Lighthouse. Highbridge Park on the eastern edge features trails and the historic Highbridge Water Tower."
+        },
+        {
+          "question": "What types of buildings are in Washington Heights?",
+          "answer": "The neighborhood is dominated by pre-war elevator co-ops from the 1920s and 1930s, many featuring Art Deco details, large room counts, and generous layouts. There is limited new condo development. Townhouses and walk-ups are found along the side streets, particularly in the Hudson Heights sub-neighborhood."
+        },
+        {
+          "question": "What schools serve the Washington Heights area?",
+          "answer": "Notable schools include Castle Bridge School (PS 513), PS 187 Hudson Cliffs, and the Equity Project Charter School. Yeshiva University anchors the 185th Street corridor. The neighborhood offers a range of public, charter, and private educational options across grade levels."
+        },
+        {
+          "question": "How much is rent in Washington Heights?",
+          "answer": "Median rent in Washington Heights is approximately $2,200 per month for a one-bedroom. Studios average $1,700, two-bedrooms $2,700, and three-bedrooms $3,200. The Hudson Heights sub-area near Fort Tryon Park commands a slight premium over the eastern blocks."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 450000,
+        "medianRent": 2200,
+        "avgDaysOnMarket": 55,
+        "yoyChange": 4.5,
+        "pricePerSqft": 500,
+        "inventory": 200,
+        "closedSales": 150,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Castle Village",
+          "nickname": null,
+          "architect": "George Fred Pelham",
+          "yearBuilt": 1939,
+          "type": "Co-op",
+          "units": 547,
+          "priceRange": "$350K - $900K",
+          "slug": "castle-village"
+        },
+        {
+          "name": "The Hudson View Gardens",
+          "nickname": null,
+          "architect": "George Fred Pelham",
+          "yearBuilt": 1925,
+          "type": "Co-op",
+          "units": 354,
+          "priceRange": "$250K - $700K",
+          "slug": "hudson-view-gardens"
+        },
+        {
+          "name": "Pinehurst Gardens",
+          "nickname": null,
+          "architect": "Schwartz & Gross",
+          "yearBuilt": 1929,
+          "type": "Co-op",
+          "units": 128,
+          "priceRange": "$300K - $650K",
+          "slug": "pinehurst-gardens"
+        },
+        {
+          "name": "735 W 172nd Street",
+          "nickname": null,
+          "architect": "Schwartz & Gross",
+          "yearBuilt": 1925,
+          "type": "Co-op",
+          "units": 82,
+          "priceRange": "$275K - $550K",
+          "slug": "735-w-172nd-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Washington Heights rewards exploration on a block-by-block basis. The western portion near Fort Tryon Park, known as Hudson Heights, commands the highest prices for its park proximity and river views. Cabrini Boulevard and Pinehurst Avenue offer quiet, tree-lined streets. Broadway is the main commercial corridor with shops, restaurants, and transit access.",
+        "bestBlocksForParks": [
+          "Cabrini Boulevard near Fort Tryon Park",
+          "Riverside Drive between 155th and 181st",
+          "Pinehurst Avenue in the 180s"
+        ],
+        "bestBlocksForNightlife": [
+          "Broadway between 170th and 181st",
+          "St. Nicholas Avenue near 181st",
+          "Dyckman Street near Broadway"
+        ],
+        "quietStreets": [
+          "Cabrini Boulevard",
+          "Pinehurst Avenue",
+          "Haven Avenue near Columbia Presbyterian"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Spacious pre-war co-ops with generous room counts, original architectural details, and prices well below Manhattan's median.",
+          "budgetRange": "$300K - $500K",
+          "propertyType": "1-2 bedroom co-op"
+        },
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties near Fort Tryon Park and the Hudson River waterfront with large layouts, terraces, and direct park access.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near express A train stations offering 20-minute commutes to Midtown with significant space per dollar.",
+          "budgetRange": "$350K - $600K",
+          "propertyType": "1-bedroom co-op"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties in high-demand rental corridors near Columbia Presbyterian medical campus and transit hubs with strong rental yield potential.",
+          "budgetRange": "$275K - $450K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Washington Heights Listings",
+          "href": "/buy?neighborhood=washington-heights"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Washington Heights",
+          "href": "/rent?neighborhood=washington-heights"
+        }
+      },
+      "boundaries": {
+        "north": "Dyckman Street (200th Street)",
+        "south": "155th Street",
+        "east": "Harlem River",
+        "west": "Hudson River"
+      },
+      "transit": [
+        "1",
+        "A",
+        "C"
+      ],
+      "zipCodes": [
+        "10032",
+        "10033",
+        "10040"
+      ],
+      "adjacentNeighborhoods": [
+        "inwood",
+        "harlem"
+      ],
+      "attractions": [
+        {
+          "name": "Fort Tryon Park & The Cloisters",
+          "type": "park",
+          "description": "67-acre park home to The Cloisters museum of medieval art, Heather Garden, and sweeping Hudson River views"
+        },
+        {
+          "name": "Fort Washington Park",
+          "type": "park",
+          "description": "Waterfront park along the Hudson with sports fields, playgrounds, and the Little Red Lighthouse"
+        },
+        {
+          "name": "Highbridge Park",
+          "type": "park",
+          "description": "Wooded park with mountain biking trails, a pool, and the landmark Highbridge Water Tower"
+        },
+        {
+          "name": "United Palace Theatre",
+          "type": "landmark",
+          "description": "Ornate 1930 Loew's Wonder Theatre hosting concerts and community events, a designated NYC landmark"
+        },
+        {
+          "name": "The Little Red Lighthouse",
+          "type": "landmark",
+          "description": "Iconic 1880 lighthouse beneath the George Washington Bridge, the only remaining lighthouse in Manhattan"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Le Cheile",
+          "cuisine": "Irish-American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Saggio",
+          "cuisine": "Italian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Tampopo Ramen",
+          "cuisine": "Japanese",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Kismat",
+          "cuisine": "Indian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "809 Bar & Grill",
+          "cuisine": "Dominican-American",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "washington heights apartments for sale",
+        "washington heights real estate",
+        "washington heights co-ops",
+        "hudson heights apartments",
+        "washington heights condos",
+        "fort tryon park apartments",
+        "manhattan affordable apartments",
+        "washington heights rentals",
+        "181st street apartments",
+        "pre-war co-ops manhattan"
+      ]
+    },
+    {
+      "slug": "inwood",
+      "name": "Inwood",
+      "fullName": "Inwood, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Manhattan's Northernmost Retreat",
+      "heroImage": "/images/neighborhoods/inwood-hero.jpg",
+      "ogImage": "/images/neighborhoods/inwood-og.jpg",
+      "summary": "Inwood is Manhattan's northernmost neighborhood, where Inwood Hill Park preserves the island's last natural forest and the original Lenape caves. Bounded by the Hudson and Harlem Rivers, Inwood offers large pre-war apartments, some of the lowest prices per square foot on the island, and a tight-knit residential atmosphere with easy A train express service to Midtown.",
+      "avgPricePerSqft": 420,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 92,
+      "transitScore": 82,
+      "topSchool": "PS 98 Shorackapock",
+      "nearestSubway": [
+        "A at 207th St",
+        "1 at 207th St",
+        "A at Dyckman St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Inwood?",
+          "answer": "The median sale price in Inwood is approximately $375,000, making it one of the most affordable neighborhoods in Manhattan. One-bedroom co-ops average around $325,000, and two-bedrooms average $425,000. Limited new condo development has brought some higher-priced inventory near the waterfront."
+        },
+        {
+          "question": "What subway lines serve Inwood?",
+          "answer": "The A express train has stops at Dyckman Street, 190th Street, and 207th Street (Inwood-207th is the northern terminus). The 1 local train terminates at 215th Street at the very tip of Manhattan. Express A service reaches Midtown in approximately 30 minutes."
+        },
+        {
+          "question": "What parks and green spaces are in Inwood?",
+          "answer": "Inwood Hill Park is a 196-acre preserve containing Manhattan's last natural forest, salt marshes, and the Shorakapok monument marking where the Lenape lived. Isham Park offers a manicured green space near the commercial district. The Dyckman Street waterfront provides Hudson River access."
+        },
+        {
+          "question": "What types of buildings are found in Inwood?",
+          "answer": "Inwood's housing stock is predominantly pre-war co-ops from the 1920s and 1930s, many with large layouts, high ceilings, and Art Deco lobbies. The Park Terrace section features garden apartment complexes. Recent years have seen some new condo construction along the waterfront and near Dyckman Street."
+        },
+        {
+          "question": "What schools are in the Inwood area?",
+          "answer": "PS 98 Shorackapock is a well-regarded elementary school. IS 218 serves middle school students. The neighborhood also has Inwood Early College for high school and several charter options. Columbia University's Baker Athletics Complex is located at the tip of Manhattan."
+        },
+        {
+          "question": "How much is rent in Inwood?",
+          "answer": "Median rent in Inwood is approximately $1,950 per month for a one-bedroom, among the lowest in Manhattan. Studios average $1,500, two-bedrooms $2,400, and three-bedrooms $2,800. The neighborhood offers substantially more space per dollar compared to neighborhoods farther south."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 375000,
+        "medianRent": 1950,
+        "avgDaysOnMarket": 62,
+        "yoyChange": 5.2,
+        "pricePerSqft": 420,
+        "inventory": 120,
+        "closedSales": 85,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Park Terrace Gardens",
+          "nickname": null,
+          "architect": "H. Herbert Lilien",
+          "yearBuilt": 1940,
+          "type": "Co-op",
+          "units": 362,
+          "priceRange": "$250K - $600K",
+          "slug": "park-terrace-gardens"
+        },
+        {
+          "name": "Seaman-Drake Arch",
+          "nickname": null,
+          "architect": "Neville & Bagge",
+          "yearBuilt": 1924,
+          "type": "Co-op",
+          "units": 56,
+          "priceRange": "$300K - $550K",
+          "slug": "seaman-drake-arch"
+        },
+        {
+          "name": "Indian Road Apartments",
+          "nickname": null,
+          "architect": "Robert T. Lyons",
+          "yearBuilt": 1926,
+          "type": "Co-op",
+          "units": 44,
+          "priceRange": "$275K - $500K",
+          "slug": "indian-road-apartments"
+        },
+        {
+          "name": "600 W 218th Street",
+          "nickname": null,
+          "architect": "George Fred Pelham",
+          "yearBuilt": 1929,
+          "type": "Co-op",
+          "units": 68,
+          "priceRange": "$225K - $475K",
+          "slug": "600-w-218th-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Inwood's layout is defined by its parks. The western section near Inwood Hill Park and along Indian Road offers a secluded, park-adjacent feel. Park Terrace East and West are quiet garden-apartment blocks. Dyckman Street is the main commercial strip. Seaman Avenue and Cooper Street are among the most desirable residential blocks.",
+        "bestBlocksForParks": [
+          "Indian Road along Inwood Hill Park",
+          "Park Terrace East and West",
+          "Seaman Avenue near Isham Park"
+        ],
+        "bestBlocksForNightlife": [
+          "Dyckman Street between Broadway and Nagle",
+          "Broadway near 207th Street",
+          "Sherman Avenue near Dyckman"
+        ],
+        "quietStreets": [
+          "Indian Road",
+          "Park Terrace East",
+          "Seaman Avenue above 214th"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Manhattan's lowest price per square foot with generously sized pre-war layouts, Art Deco details, and established co-op buildings.",
+          "budgetRange": "$225K - $400K",
+          "propertyType": "1-2 bedroom co-op"
+        },
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties adjacent to 196 acres of parkland including Manhattan's last natural forest, Hudson River waterfront, and garden apartment grounds.",
+          "budgetRange": "$400K - $650K",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Oversized pre-war apartments with formal dining rooms, windowed kitchens, and multiple exposures at prices that allow significant renovation budgets.",
+          "budgetRange": "$350K - $550K",
+          "propertyType": "2-bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near the A express terminal at 207th Street and 1 train terminal at 215th Street, providing guaranteed seats and direct Midtown service.",
+          "budgetRange": "$250K - $425K",
+          "propertyType": "1-bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Inwood Listings",
+          "href": "/buy?neighborhood=inwood"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Inwood",
+          "href": "/rent?neighborhood=inwood"
+        }
+      },
+      "boundaries": {
+        "north": "Spuyten Duyvil Creek",
+        "south": "Dyckman Street (200th Street)",
+        "east": "Harlem River",
+        "west": "Hudson River"
+      },
+      "transit": [
+        "1",
+        "A"
+      ],
+      "zipCodes": [
+        "10034",
+        "10040"
+      ],
+      "adjacentNeighborhoods": [
+        "washington-heights"
+      ],
+      "attractions": [
+        {
+          "name": "Inwood Hill Park",
+          "type": "park",
+          "description": "196-acre preserve with Manhattan's last natural forest, salt marshes, bald eagles, and Native American cave shelters"
+        },
+        {
+          "name": "Isham Park",
+          "type": "park",
+          "description": "Manicured hilltop park near the commercial district with playgrounds and sloping lawns"
+        },
+        {
+          "name": "The Cloisters (adjacent)",
+          "type": "museum",
+          "description": "The Metropolitan Museum's medieval art branch in Fort Tryon Park, steps from Inwood's southern border"
+        },
+        {
+          "name": "Muscota Marsh",
+          "type": "nature",
+          "description": "Tidal salt marsh in Inwood Hill Park, one of the last natural shoreline habitats in Manhattan"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Indian Road Cafe",
+          "cuisine": "American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Beans & Vines",
+          "cuisine": "Cafe & Wine Bar",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Bocaditos Bistro",
+          "cuisine": "Latin-American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Garden Cafe",
+          "cuisine": "American-Organic",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "inwood apartments for sale",
+        "inwood real estate",
+        "inwood co-ops manhattan",
+        "inwood hill park apartments",
+        "manhattan affordable co-ops",
+        "inwood rentals",
+        "207th street apartments",
+        "park terrace apartments inwood",
+        "inwood condos",
+        "cheapest manhattan neighborhoods"
+      ]
+    },
+    {
+      "slug": "murray-hill",
+      "name": "Murray Hill",
+      "fullName": "Murray Hill, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Midtown's Residential Anchor",
+      "heroImage": "/images/neighborhoods/murray-hill-hero.jpg",
+      "ogImage": "/images/neighborhoods/murray-hill-og.jpg",
+      "summary": "Murray Hill is a centrally located Midtown East residential neighborhood anchored by a mix of pre-war co-ops, postwar doorman buildings, and modern condos. With direct access to Grand Central Terminal, the Morgan Library, and a thriving restaurant scene along Lexington and Third Avenues, Murray Hill offers Manhattan convenience at a relative value compared to its Midtown neighbors.",
+      "avgPricePerSqft": 1050,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 98,
+      "transitScore": 95,
+      "topSchool": "The Epiphany School",
+      "nearestSubway": [
+        "6 at 33rd St",
+        "4/5/6 at Grand Central-42nd St",
+        "7 at Grand Central"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Murray Hill?",
+          "answer": "The median sale price in Murray Hill is approximately $700,000. Studio and one-bedroom co-ops start around $400,000, while condos average $850,000. Larger pre-war apartments along Park Avenue South and in the Sniffen Court area command premiums."
+        },
+        {
+          "question": "What subway lines serve Murray Hill?",
+          "answer": "Murray Hill has exceptional transit. The 6 train stops at 33rd Street, and Grand Central Terminal (4, 5, 6, 7, S trains) sits at the neighborhood's northern edge. The neighborhood also has convenient access to Metro-North riders rail and the LIRR at Penn Station via a short walk or crosstown bus."
+        },
+        {
+          "question": "What types of buildings are in Murray Hill?",
+          "answer": "Murray Hill has a diverse building stock. The side streets between Park and Lexington Avenues feature brownstones and pre-war co-ops. Third Avenue has many postwar doorman buildings. Recent years have added modern condo towers, particularly along Park Avenue South and near the East River."
+        },
+        {
+          "question": "What is the restaurant scene like in Murray Hill?",
+          "answer": "Lexington Avenue in the upper 20s through low 30s is known as 'Curry Hill' for its concentration of South Asian restaurants. Third Avenue between 28th and 38th Streets has a dense mix of bars and casual dining. The neighborhood offers excellent variety at all price points."
+        },
+        {
+          "question": "What landmarks and cultural institutions are in Murray Hill?",
+          "answer": "The Morgan Library & Museum on Madison Avenue is a world-class institution housing rare manuscripts and art. Sniffen Court, a charming mews off 36th Street, is a designated historic district. The Scandinavia House cultural center and the Church of the Incarnation are also notable landmarks."
+        },
+        {
+          "question": "How much is rent in Murray Hill?",
+          "answer": "Median rent is approximately $3,400 per month for a one-bedroom. Studios average $2,500, two-bedrooms $4,800, and three-bedrooms $6,500. Murray Hill tends to be 15-20% less expensive than adjacent Midtown East for comparable apartment sizes."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 700000,
+        "medianRent": 3400,
+        "avgDaysOnMarket": 65,
+        "yoyChange": 3.2,
+        "pricePerSqft": 1050,
+        "inventory": 310,
+        "closedSales": 480,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Murray Hill",
+          "nickname": null,
+          "architect": "CetraRuddy",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 107,
+          "priceRange": "$800K - $4M",
+          "slug": "the-murray-hill"
+        },
+        {
+          "name": "The Corinthian",
+          "nickname": null,
+          "architect": "Der Scutt",
+          "yearBuilt": 1988,
+          "type": "Condo",
+          "units": 862,
+          "priceRange": "$500K - $3.5M",
+          "slug": "the-corinthian"
+        },
+        {
+          "name": "4 Park Avenue",
+          "nickname": null,
+          "architect": "Emery Roth & Sons",
+          "yearBuilt": 1959,
+          "type": "Co-op",
+          "units": 380,
+          "priceRange": "$400K - $2M",
+          "slug": "4-park-avenue"
+        },
+        {
+          "name": "The Charleston",
+          "nickname": null,
+          "architect": "Costas Kondylis",
+          "yearBuilt": 2005,
+          "type": "Condo",
+          "units": 224,
+          "priceRange": "$600K - $3M",
+          "slug": "the-charleston"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Murray Hill's character varies block by block. The brownstone-lined streets between Park and Lexington in the low 30s are the most charming. Third Avenue is the neighborhood's commercial spine. Park Avenue South offers modern condo towers with amenity packages. The blocks closest to the East River tend to be quieter and more residential.",
+        "bestBlocksForParks": [
+          "East 34th Street near the East River Greenway",
+          "Sniffen Court (East 36th near Lexington)",
+          "East 38th-39th near the Morgan Library"
+        ],
+        "bestBlocksForNightlife": [
+          "Third Avenue between 28th and 36th",
+          "Lexington Avenue in the upper 20s (Curry Hill)",
+          "Park Avenue South near 29th"
+        ],
+        "quietStreets": [
+          "Sniffen Court",
+          "East 35th-36th between Park and Madison",
+          "East 37th between Lexington and Third"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings within walking distance of Grand Central Terminal, Penn Station, and multiple subway lines — among the most connected locations in Manhattan.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "1-bedroom co-op or condo"
+        },
+        {
+          "type": "Market Entry Points",
+          "description": "Centrally located Midtown apartments at price points well below neighboring Gramercy and Midtown East, with access to the same transit and dining.",
+          "budgetRange": "$400K - $650K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Pre-war apartments on brownstone-lined blocks with original details, high ceilings, and formal layouts at Midtown convenience.",
+          "budgetRange": "$800K - $1.8M",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties in high-demand rental territory near Grand Central and Midtown offices, consistently low vacancy rates.",
+          "budgetRange": "$500K - $1.2M",
+          "propertyType": "Studio or 1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Murray Hill Listings",
+          "href": "/buy?neighborhood=murray-hill"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Murray Hill",
+          "href": "/rent?neighborhood=murray-hill"
+        }
+      },
+      "boundaries": {
+        "north": "40th Street",
+        "south": "27th Street",
+        "east": "East River (FDR Drive)",
+        "west": "Madison Avenue / Park Avenue South"
+      },
+      "transit": [
+        "4",
+        "5",
+        "6",
+        "7",
+        "S"
+      ],
+      "zipCodes": [
+        "10016",
+        "10017"
+      ],
+      "adjacentNeighborhoods": [
+        "midtown-east",
+        "kips-bay",
+        "gramercy-park"
+      ],
+      "attractions": [
+        {
+          "name": "The Morgan Library & Museum",
+          "type": "museum",
+          "description": "World-class collection of rare manuscripts, books, drawings, and art in J.P. Morgan's original library and modern Renzo Piano addition"
+        },
+        {
+          "name": "Sniffen Court Historic District",
+          "type": "landmark",
+          "description": "Charming 1850s carriage houses on a gated mews off East 36th Street, one of Manhattan's hidden gems"
+        },
+        {
+          "name": "Scandinavia House",
+          "type": "cultural",
+          "description": "Nordic cultural center with galleries, film screenings, and the SMORGASBORD restaurant"
+        },
+        {
+          "name": "East River Greenway at 34th Street",
+          "type": "park",
+          "description": "Waterfront esplanade with running paths, bike lanes, and East River views stretching north and south"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Saravanaas",
+          "cuisine": "South Indian Vegetarian",
+          "priceRange": "$"
+        },
+        {
+          "name": "Sushi Ginza Onodera",
+          "cuisine": "Japanese Omakase",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Penelope",
+          "cuisine": "American Brunch",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Hangawi",
+          "cuisine": "Korean Vegetarian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Rossini's",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "murray hill apartments for sale",
+        "murray hill real estate",
+        "murray hill condos",
+        "murray hill co-ops",
+        "midtown east apartments",
+        "grand central apartments",
+        "curry hill apartments",
+        "murray hill rentals",
+        "park avenue south condos",
+        "manhattan midtown apartments",
+        "murray hill doorman buildings"
+      ]
+    },
+    {
+      "slug": "kips-bay",
+      "name": "Kips Bay",
+      "fullName": "Kips Bay, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Midtown's Waterfront Value",
+      "heroImage": "/images/neighborhoods/kips-bay-hero.jpg",
+      "ogImage": "/images/neighborhoods/kips-bay-og.jpg",
+      "summary": "Kips Bay is a quiet, residential pocket on Manhattan's East Side anchored by NYU Langone Medical Center and the landmark Kips Bay Towers. The neighborhood offers a mix of postwar co-ops, modern condos, and renovated walk-ups along tree-lined side streets, with proximity to the East River Greenway and some of the best value per square foot in Midtown.",
+      "avgPricePerSqft": 950,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 97,
+      "transitScore": 90,
+      "topSchool": "PS 116 Mary Lindley Murray",
+      "nearestSubway": [
+        "6 at 28th St",
+        "6 at 23rd St",
+        "R/W at 28th St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Kips Bay?",
+          "answer": "The median sale price in Kips Bay is approximately $625,000. One-bedroom co-ops average around $500,000, while condos average $725,000. Newer developments near the waterfront command higher prices, while the postwar co-op stock along Second and Third Avenues offers relative value."
+        },
+        {
+          "question": "What subway lines serve Kips Bay?",
+          "answer": "The 6 train stops at 23rd and 28th Streets along Lexington Avenue. The R and W trains stop at 28th Street along Broadway (western edge). The neighborhood is also within walking distance of Grand Central Terminal for express 4/5 service."
+        },
+        {
+          "question": "What types of buildings are in Kips Bay?",
+          "answer": "Kips Bay is known for its postwar full-service co-ops, including the landmark Kips Bay Towers designed by I.M. Pei. The neighborhood also has renovated pre-war walk-ups, modern condo towers, and several new residential developments near First Avenue. Full-service doorman buildings are common."
+        },
+        {
+          "question": "What is near Kips Bay for shopping and dining?",
+          "answer": "Second and Third Avenues have a dense mix of restaurants and bars. Lexington Avenue features retail and grocery options. The neighborhood is steps from Eataly and the restaurants around Madison Square Park. The East River Greenway provides a waterfront running and biking path."
+        },
+        {
+          "question": "What hospitals and medical facilities are in Kips Bay?",
+          "answer": "NYU Langone Medical Center is the neighborhood's major anchor, a world-class academic medical complex along First Avenue from 30th to 34th Streets. Bellevue Hospital Center, the oldest public hospital in the U.S., is also on the eastern edge of the neighborhood."
+        },
+        {
+          "question": "How much is rent in Kips Bay?",
+          "answer": "Median rent is approximately $3,200 per month for a one-bedroom. Studios average $2,400, two-bedrooms $4,400, and three-bedrooms $6,000. Kips Bay typically runs 10-15% below comparable apartments in Gramercy and Murray Hill."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 625000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 60,
+        "yoyChange": 3.8,
+        "pricePerSqft": 950,
+        "inventory": 240,
+        "closedSales": 380,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "Kips Bay Towers",
+          "nickname": null,
+          "architect": "I.M. Pei & Partners",
+          "yearBuilt": 1965,
+          "type": "Co-op",
+          "units": 1118,
+          "priceRange": "$350K - $1.2M",
+          "slug": "kips-bay-towers"
+        },
+        {
+          "name": "Rivergate",
+          "nickname": null,
+          "architect": "Emery Roth & Sons",
+          "yearBuilt": 1986,
+          "type": "Condo",
+          "units": 330,
+          "priceRange": "$500K - $2M",
+          "slug": "rivergate"
+        },
+        {
+          "name": "The Horizon",
+          "nickname": null,
+          "architect": "Costas Kondylis",
+          "yearBuilt": 2004,
+          "type": "Condo",
+          "units": 292,
+          "priceRange": "$600K - $2.5M",
+          "slug": "the-horizon"
+        },
+        {
+          "name": "303 East 33rd Street",
+          "nickname": null,
+          "architect": "Stephen B. Jacobs",
+          "yearBuilt": 2007,
+          "type": "Condo",
+          "units": 56,
+          "priceRange": "$550K - $1.8M",
+          "slug": "303-east-33rd-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Kips Bay's value proposition improves toward the East River. First Avenue and the blocks east offer newer construction, waterfront access, and quieter streets. Second Avenue is the primary dining corridor. Third Avenue has convenient retail. The blocks near NYU Langone benefit from the medical center's campus improvements.",
+        "bestBlocksForParks": [
+          "First Avenue near the East River Greenway",
+          "East 28th-30th near St. Vartan Park",
+          "East 23rd-25th near Asser Levy Park"
+        ],
+        "bestBlocksForNightlife": [
+          "Second Avenue between 26th and 33rd",
+          "Third Avenue in the upper 20s",
+          "Lexington Avenue near 28th"
+        ],
+        "quietStreets": [
+          "East 29th between Second and Third",
+          "East 30th-31st near First Avenue",
+          "Waterside Plaza"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Full-service Midtown doorman buildings at prices 15-20% below neighboring Murray Hill and Gramercy, with comparable transit access.",
+          "budgetRange": "$400K - $650K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings with direct 6 train access and proximity to Grand Central Terminal, plus East River ferry service nearby.",
+          "budgetRange": "$500K - $800K",
+          "propertyType": "1-bedroom co-op or condo"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Postwar full-service buildings with efficient layouts, in-unit washer/dryers in newer condos, and full amenity packages including gyms and rooftops.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "2-bedroom condo"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties near NYU Langone Medical Center and Midtown offices in a consistently high-demand rental corridor with low vacancy.",
+          "budgetRange": "$450K - $900K",
+          "propertyType": "Studio or 1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Kips Bay Listings",
+          "href": "/buy?neighborhood=kips-bay"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Kips Bay",
+          "href": "/rent?neighborhood=kips-bay"
+        }
+      },
+      "boundaries": {
+        "north": "34th Street",
+        "south": "23rd Street",
+        "east": "East River (FDR Drive)",
+        "west": "Lexington Avenue"
+      },
+      "transit": [
+        "6",
+        "R",
+        "W"
+      ],
+      "zipCodes": [
+        "10010",
+        "10016"
+      ],
+      "adjacentNeighborhoods": [
+        "murray-hill",
+        "gramercy-park",
+        "flatiron"
+      ],
+      "attractions": [
+        {
+          "name": "East River Greenway",
+          "type": "park",
+          "description": "Waterfront esplanade along the East River with dedicated bike and running paths, river views, and public art"
+        },
+        {
+          "name": "St. Vartan Park",
+          "type": "park",
+          "description": "Neighborhood park on First Avenue with playgrounds, basketball courts, and seasonal programming"
+        },
+        {
+          "name": "Kips Bay Towers Plaza",
+          "type": "landmark",
+          "description": "I.M. Pei-designed residential plaza with open green space, a designated modernist landmark"
+        },
+        {
+          "name": "Asser Levy Recreation Center",
+          "type": "recreation",
+          "description": "Historic 1908 bathhouse with indoor and outdoor pools, gym, and recreation facilities"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Franchia",
+          "cuisine": "Korean Vegan",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Turkish Kitchen",
+          "cuisine": "Turkish",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Rare Bar & Grill",
+          "cuisine": "American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Villa Berulia",
+          "cuisine": "Italian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Tamba",
+          "cuisine": "Indian",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "kips bay apartments for sale",
+        "kips bay real estate",
+        "kips bay condos",
+        "kips bay co-ops",
+        "kips bay rentals",
+        "nyu langone area apartments",
+        "east side manhattan apartments",
+        "kips bay doorman buildings",
+        "midtown east affordable apartments",
+        "kips bay towers"
+      ]
+    },
+    {
+      "slug": "sutton-place",
+      "name": "Sutton Place",
+      "fullName": "Sutton Place, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Quiet Elegance on the East River",
+      "heroImage": "/images/neighborhoods/sutton-place-hero.jpg",
+      "ogImage": "/images/neighborhoods/sutton-place-og.jpg",
+      "summary": "Sutton Place is one of Manhattan's most exclusive and tranquil residential enclaves, a pocket of refined co-ops and townhouses lining the East River between 53rd and 59th Streets. Known for its private cul-de-sacs, dead-end streets with river access, and discreet old-money elegance, Sutton Place offers a rarefied alternative to the bustle of Midtown just blocks away.",
+      "avgPricePerSqft": 1250,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 95,
+      "transitScore": 86,
+      "topSchool": "PS 59 Beekman Hill International",
+      "nearestSubway": [
+        "4/5/6 at 59th St",
+        "N/R/W at Lexington Ave-59th St",
+        "F at Lexington Ave-63rd St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Sutton Place?",
+          "answer": "The median sale price in Sutton Place is approximately $950,000. Classic co-ops start around $600,000 for one-bedrooms, while larger river-facing apartments and townhouses can exceed $5 million. The neighborhood's inventory is predominantly co-op, with limited condo options."
+        },
+        {
+          "question": "What subway lines serve Sutton Place?",
+          "answer": "The 4, 5, and 6 trains stop at 59th Street (Lexington Avenue), a short walk from the neighborhood. The N, R, and W trains also serve the 59th Street station. The F train stops at Lexington Avenue-63rd Street. The Second Avenue Subway Q train at 72nd Street is also accessible."
+        },
+        {
+          "question": "What makes Sutton Place unique in Manhattan?",
+          "answer": "Sutton Place has private dead-end streets and cul-de-sacs that lead directly to the East River, creating a quiet pocket unlike anywhere else in Midtown. Several streets are gated or restricted, with private gardens maintained by residents. The neighborhood has an intimate, almost village-like character."
+        },
+        {
+          "question": "What types of buildings are in Sutton Place?",
+          "answer": "The neighborhood is defined by prestigious pre-war co-ops from the 1920s and 1930s, many with white-glove service and strict board requirements. There are also grand townhouses along Sutton Place South and Riverview Terrace. The recently completed 3 Sutton Place added rare new condo inventory."
+        },
+        {
+          "question": "What parks and waterfront access does Sutton Place have?",
+          "answer": "Sutton Place Park, a small green space at the foot of 57th Street, offers East River views and the Queensboro Bridge as a backdrop. Riverview Terrace, a private cul-de-sac, provides one of Manhattan's most exclusive waterfront settings. The East River Esplanade extends north and south for walking and jogging."
+        },
+        {
+          "question": "How much is rent in Sutton Place?",
+          "answer": "Median rent is approximately $3,600 per month for a one-bedroom. Studios average $2,700, two-bedrooms $5,500, and three-bedrooms $8,000+. Rental inventory is limited as most buildings are co-ops with strict subletting policies."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 950000,
+        "medianRent": 3600,
+        "avgDaysOnMarket": 85,
+        "yoyChange": 1.8,
+        "pricePerSqft": 1250,
+        "inventory": 95,
+        "closedSales": 110,
+        "priceTrend": "stable"
+      },
+      "featuredBuildings": [
+        {
+          "name": "3 Sutton Place",
+          "nickname": null,
+          "architect": "Handel Architects",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 85,
+          "priceRange": "$1.5M - $10M",
+          "slug": "3-sutton-place"
+        },
+        {
+          "name": "1 Sutton Place South",
+          "nickname": null,
+          "architect": "Rosario Candela & Cross & Cross",
+          "yearBuilt": 1927,
+          "type": "Co-op",
+          "units": 102,
+          "priceRange": "$800K - $8M",
+          "slug": "1-sutton-place-south"
+        },
+        {
+          "name": "Cannon Point North",
+          "nickname": null,
+          "architect": "The Vilkas Group",
+          "yearBuilt": 1987,
+          "type": "Condo",
+          "units": 240,
+          "priceRange": "$600K - $3M",
+          "slug": "cannon-point-north"
+        },
+        {
+          "name": "The Sovereign",
+          "nickname": null,
+          "architect": "Emery Roth & Sons",
+          "yearBuilt": 1974,
+          "type": "Co-op",
+          "units": 593,
+          "priceRange": "$450K - $3.5M",
+          "slug": "the-sovereign"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Sutton Place is defined by its dead-end streets and river proximity. Sutton Place South (the street) and Riverview Terrace are the most prestigious addresses. First Avenue provides the commercial services. The blocks between 53rd and 57th along Sutton Place proper are the quietest and most residential. The area near the Queensboro Bridge has slightly more activity.",
+        "bestBlocksForParks": [
+          "Sutton Place Park at 57th Street",
+          "Riverview Terrace",
+          "East River Esplanade near 53rd-59th"
+        ],
+        "bestBlocksForNightlife": [
+          "First Avenue between 53rd and 60th",
+          "Second Avenue near 55th",
+          "Lexington Avenue near 59th"
+        ],
+        "quietStreets": [
+          "Riverview Terrace",
+          "Sutton Place South",
+          "East 57th Street east of First Avenue"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Secondary Residences & Studios",
+          "description": "Properties in one of Manhattan's most discreet enclaves, offering white-glove co-ops with East River views, private cul-de-sacs, and a Midtown address without Midtown congestion.",
+          "budgetRange": "$1.5M - $8M",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "River-facing apartments with terraces, direct waterfront access, and private garden courtyards unique to Sutton Place's dead-end streets.",
+          "budgetRange": "$2M - $10M",
+          "propertyType": "3-4 bedroom co-op or condo"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Classic pre-war apartments with formal dining rooms, libraries, wood-burning fireplaces, and gracious entertaining spaces in Rosario Candela-designed buildings.",
+          "budgetRange": "$1M - $5M",
+          "propertyType": "2-3 bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings steps from the 4/5/6 express at 59th Street and N/R/W service, with a residential retreat from Midtown offices just blocks away.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "1-bedroom co-op"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Sutton Place Listings",
+          "href": "/buy?neighborhood=sutton-place"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Sutton Place",
+          "href": "/rent?neighborhood=sutton-place"
+        }
+      },
+      "boundaries": {
+        "north": "59th Street",
+        "south": "53rd Street",
+        "east": "East River",
+        "west": "First Avenue"
+      },
+      "transit": [
+        "4",
+        "5",
+        "6",
+        "N",
+        "R",
+        "W",
+        "F"
+      ],
+      "zipCodes": [
+        "10022"
+      ],
+      "adjacentNeighborhoods": [
+        "midtown-east",
+        "upper-east-side",
+        "beekman-place"
+      ],
+      "attractions": [
+        {
+          "name": "Sutton Place Park",
+          "type": "park",
+          "description": "Intimate East River waterfront park at the foot of 57th Street with Queensboro Bridge views and a replica of the Ponte Vecchio wild boar statue"
+        },
+        {
+          "name": "Riverview Terrace",
+          "type": "landmark",
+          "description": "Private cul-de-sac of five townhouses overlooking the East River, one of Manhattan's most exclusive addresses"
+        },
+        {
+          "name": "Queensboro Bridge",
+          "type": "landmark",
+          "description": "Iconic 1909 cantilever bridge connecting Manhattan and Queens, visible from the neighborhood's waterfront"
+        },
+        {
+          "name": "Bridgemarket",
+          "type": "landmark",
+          "description": "Vaulted Guastavino tile space beneath the Queensboro Bridge, a designated NYC landmark housing retail and dining"
+        },
+        {
+          "name": "East River Esplanade",
+          "type": "park",
+          "description": "Waterfront walking and cycling path with benches, river views, and Roosevelt Island Tramway overhead"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Il Mulino Prime",
+          "cuisine": "Italian Steakhouse",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Le Veau d'Or",
+          "cuisine": "French",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Neary's",
+          "cuisine": "Irish-American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Felidia",
+          "cuisine": "Italian",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Sakagura",
+          "cuisine": "Japanese",
+          "priceRange": "$$$"
+        }
+      ],
+      "seoKeywords": [
+        "sutton place apartments for sale",
+        "sutton place real estate",
+        "sutton place co-ops",
+        "sutton place condos",
+        "sutton place manhattan",
+        "east river apartments midtown",
+        "luxury co-ops midtown east",
+        "sutton place townhouses",
+        "sutton place rentals",
+        "3 sutton place condo",
+        "riverview terrace manhattan",
+        "midtown east waterfront apartments"
+      ]
+    },
+    {
+      "slug": "morningside-heights",
+      "name": "Morningside Heights",
+      "fullName": "Morningside Heights, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Academic Architecture Above the Park",
+      "heroImage": "/images/neighborhoods/morningside-heights-hero.jpg",
+      "ogImage": "/images/neighborhoods/morningside-heights-og.jpg",
+      "summary": "Morningside Heights sits on a bluff overlooking Harlem and the Hudson River, anchored by Columbia University, Barnard College, and the Cathedral of St. John the Divine. The neighborhood features a mix of pre-war co-ops, university-affiliated housing, and landmark institutional buildings, with an average price per square foot of approximately $800.",
+      "avgPricePerSqft": 800,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 96,
+      "transitScore": 90,
+      "topSchool": "PS 165 Robert E. Simon",
+      "nearestSubway": [
+        "1 at 116th St-Columbia University",
+        "1 at 110th St-Cathedral Pkwy",
+        "B/C at 116th St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Morningside Heights?",
+          "answer": "The median sale price in Morningside Heights is approximately $650,000. Pre-war co-ops make up the majority of available inventory, typically ranging from $400,000 for studios to $1.2 million for three-bedrooms. Condos are less common but command higher per-square-foot prices."
+        },
+        {
+          "question": "What subway lines serve Morningside Heights?",
+          "answer": "The 1 train stops at 110th Street-Cathedral Parkway and 116th Street-Columbia University along Broadway. The B and C trains stop at 110th Street-Cathedral Parkway and 116th Street on Central Park West. Express service on the 2/3 is available at 96th Street to the south."
+        },
+        {
+          "question": "What parks and green spaces are in Morningside Heights?",
+          "answer": "Morningside Park runs along the eastern edge from 110th to 123rd Street, offering playgrounds, sports courts, and a waterfall. Riverside Park is accessible along the western edge with Hudson River views. Sakura Park near Grant's Tomb features cherry blossoms each spring."
+        },
+        {
+          "question": "What types of buildings are available in Morningside Heights?",
+          "answer": "The neighborhood is predominantly pre-war co-ops built between 1900 and 1940, many with classic six and seven-room layouts, high ceilings, and original details. Some newer condo developments have appeared along Broadway, and a small number of townhouses exist on the side streets."
+        },
+        {
+          "question": "What are the notable landmarks in Morningside Heights?",
+          "answer": "The Cathedral of St. John the Divine is the world's largest Anglican cathedral. Grant's Tomb overlooks the Hudson River. The Columbia University campus, designed by McKim, Mead & White, features the iconic Low Memorial Library. Riverside Church has a 74-bell carillon and observation deck."
+        },
+        {
+          "question": "How much is rent in Morningside Heights?",
+          "answer": "Median rent in Morningside Heights is approximately $2,800 per month for a one-bedroom. Studios average $2,100, two-bedrooms $3,600, and three-bedrooms $4,500. Rents tend to be lower than the adjacent Upper West Side by 15-25%."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 650000,
+        "medianRent": 2800,
+        "avgDaysOnMarket": 50,
+        "yoyChange": 3.8,
+        "pricePerSqft": 800,
+        "inventory": 80,
+        "closedSales": 60,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Riviera",
+          "nickname": null,
+          "architect": "Rouse & Goldstone",
+          "yearBuilt": 1910,
+          "type": "Co-op",
+          "units": 113,
+          "priceRange": "$400K - $1.5M",
+          "slug": "the-riviera-790-riverside-drive"
+        },
+        {
+          "name": "415 West 115th Street",
+          "nickname": null,
+          "architect": "Neville & Bagge",
+          "yearBuilt": 1909,
+          "type": "Co-op",
+          "units": 74,
+          "priceRange": "$350K - $1.1M",
+          "slug": "415-west-115th-street"
+        },
+        {
+          "name": "Morningside Gardens",
+          "nickname": null,
+          "architect": "Archibald Manning Brown",
+          "yearBuilt": 1957,
+          "type": "Co-op",
+          "units": 980,
+          "priceRange": "$150K - $450K",
+          "slug": "morningside-gardens"
+        },
+        {
+          "name": "The Orsay",
+          "nickname": null,
+          "architect": "Gaetan Ajello",
+          "yearBuilt": 1924,
+          "type": "Co-op",
+          "units": 50,
+          "priceRange": "$500K - $1.4M",
+          "slug": "the-orsay-424-west-116th"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Morningside Heights is a compact neighborhood where Broadway serves as the commercial spine. Side streets between Broadway and Riverside Drive tend to be quieter and more residential, while blocks closer to Morningside Park offer views of the Harlem plain below.",
+        "bestBlocksForParks": [
+          "Riverside Drive between 116th and 122nd",
+          "Morningside Drive between 110th and 120th",
+          "West 122nd Street near Sakura Park"
+        ],
+        "bestBlocksForNightlife": [
+          "Broadway between 110th and 116th",
+          "Amsterdam Avenue between 110th and 113th",
+          "Broadway near 112th Street"
+        ],
+        "quietStreets": [
+          "Claremont Avenue",
+          "West 116th between Broadway and Riverside",
+          "Riverside Drive in the 120s"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Pre-war co-ops with classic layouts, high ceilings, and original details at price points below the Upper West Side average.",
+          "budgetRange": "$350K - $650K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Classic six and seven-room apartments with formal dining rooms, windowed kitchens, and spacious floor plans in pre-war buildings.",
+          "budgetRange": "$800K - $1.5M",
+          "propertyType": "3-bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near the 1 train on Broadway with direct express access to Midtown via transfer at 96th Street, offering short commute times.",
+          "budgetRange": "$400K - $800K",
+          "propertyType": "1-2 bedroom co-op"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with consistent rental demand due to proximity to Columbia University and multiple hospitals, with strong year-round occupancy.",
+          "budgetRange": "$400K - $900K",
+          "propertyType": "1-2 bedroom co-op or condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Morningside Heights Listings",
+          "href": "/buy?neighborhood=morningside-heights"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Morningside Heights",
+          "href": "/rent?neighborhood=morningside-heights"
+        }
+      },
+      "boundaries": {
+        "north": "125th Street",
+        "south": "110th Street (Cathedral Parkway)",
+        "east": "Morningside Park / Morningside Avenue",
+        "west": "Hudson River / Riverside Park"
+      },
+      "transit": [
+        "1",
+        "B",
+        "C"
+      ],
+      "zipCodes": [
+        "10025",
+        "10027"
+      ],
+      "adjacentNeighborhoods": [
+        "harlem",
+        "upper-west-side",
+        "manhattanville"
+      ],
+      "attractions": [
+        {
+          "name": "Cathedral of St. John the Divine",
+          "type": "Landmark",
+          "description": "The largest Anglican cathedral in the world, with ongoing construction since 1892 and a mix of Romanesque and Gothic architecture"
+        },
+        {
+          "name": "Riverside Park and Sakura Park",
+          "type": "Park",
+          "description": "Riverside Park extends along the Hudson River with running paths and playgrounds; Sakura Park features cherry trees donated by Japan in 1912"
+        },
+        {
+          "name": "General Grant National Memorial",
+          "type": "Landmark",
+          "description": "The largest mausoleum in North America, honoring President Ulysses S. Grant, with panoramic Hudson River views"
+        },
+        {
+          "name": "Columbia University Campus",
+          "type": "Landmark",
+          "description": "McKim, Mead & White-designed campus centered on Low Memorial Library, featuring the iconic Alma Mater statue and Butler Library"
+        },
+        {
+          "name": "Morningside Park",
+          "type": "Park",
+          "description": "Olmsted and Vaux-designed park with a natural waterfall, sports courts, dog runs, and dramatic views from the bluff"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Tom's Restaurant",
+          "cuisine": "American Diner",
+          "priceRange": "$"
+        },
+        {
+          "name": "Community Food & Juice",
+          "cuisine": "American / Brunch",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Jin Ramen",
+          "cuisine": "Japanese",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Massawa",
+          "cuisine": "Eritrean / Ethiopian",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Hungarian Pastry Shop",
+          "cuisine": "Cafe / Bakery",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "morningside heights apartments",
+        "morningside heights real estate",
+        "morningside heights co-ops for sale",
+        "columbia university apartments",
+        "morningside heights condos",
+        "morningside heights rentals",
+        "manhattan apartments near columbia",
+        "pre-war co-ops morningside heights",
+        "morningside heights one bedroom",
+        "cathedral parkway apartments"
+      ]
+    },
+    {
+      "slug": "east-harlem",
+      "name": "East Harlem",
+      "fullName": "East Harlem, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Historic Character with Modern Momentum",
+      "heroImage": "/images/neighborhoods/east-harlem-hero.jpg",
+      "ogImage": "/images/neighborhoods/east-harlem-og.jpg",
+      "summary": "East Harlem is one of Upper Manhattan's most dynamic neighborhoods, stretching from 96th Street to the Harlem River. The area features a blend of pre-war walk-ups, NYCHA developments, and an increasing number of new-construction condos, with an average price per square foot of approximately $750.",
+      "avgPricePerSqft": 750,
+      "dominantPropertyType": "Condo",
+      "walkScore": 95,
+      "transitScore": 84,
+      "topSchool": "PS 171 Patrick Henry",
+      "nearestSubway": [
+        "6 at 116th St",
+        "6 at 110th St",
+        "4/5/6 at 125th St",
+        "Q at 96th St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in East Harlem?",
+          "answer": "The median sale price in East Harlem is approximately $525,000. New-construction condos range from $600,000 to $1.5 million, while co-ops and older condos can start around $300,000. The neighborhood offers some of Manhattan's most accessible price points."
+        },
+        {
+          "question": "What subway lines serve East Harlem?",
+          "answer": "The 6 train runs along Lexington Avenue with stops at 96th, 103rd, 110th, 116th, and 125th Streets. The 4 and 5 express trains stop at 125th Street. The Q train (Second Avenue Subway) currently terminates at 96th Street at the southern border, with planned extension to 125th Street."
+        },
+        {
+          "question": "What parks and recreational areas are in East Harlem?",
+          "answer": "East Harlem has extensive parkland including Randall's Island (accessible via footbridge at 103rd Street), Thomas Jefferson Park with an outdoor pool, Marcus Garvey Park, and the Harlem River waterfront. Central Park's northeast corner is also accessible from the western edge of the neighborhood."
+        },
+        {
+          "question": "What types of new development are happening in East Harlem?",
+          "answer": "East Harlem has seen significant new condo development, particularly along Park Avenue, Third Avenue, and near the 125th Street corridor. New buildings feature modern amenities including rooftop terraces, fitness centers, and doorman service. Several mixed-use projects include ground-floor retail."
+        },
+        {
+          "question": "What is the rental market like in East Harlem?",
+          "answer": "Median rent is approximately $2,300 per month for a one-bedroom. Studios average $1,800, two-bedrooms $2,800, and three-bedrooms $3,400. East Harlem remains one of Manhattan's more affordable rental markets with increasing inventory from new construction."
+        },
+        {
+          "question": "What are notable cultural institutions in East Harlem?",
+          "answer": "El Museo del Barrio on Museum Mile showcases Latin American and Caribbean art. The Museum of the City of New York is at 103rd and Fifth Avenue. La Marqueta under the Metro-North viaduct is a historic marketplace. The neighborhood has a rich mural tradition visible on building facades throughout."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 525000,
+        "medianRent": 2300,
+        "avgDaysOnMarket": 65,
+        "yoyChange": 5.2,
+        "pricePerSqft": 750,
+        "inventory": 120,
+        "closedSales": 95,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "One East Harlem",
+          "nickname": null,
+          "architect": "Marvel Architects",
+          "yearBuilt": 2023,
+          "type": "Condo",
+          "units": 404,
+          "priceRange": "$500K - $1.4M",
+          "slug": "one-east-harlem"
+        },
+        {
+          "name": "Sendero Verde",
+          "nickname": null,
+          "architect": "Handel Architects",
+          "yearBuilt": 2022,
+          "type": "Condo",
+          "units": 361,
+          "priceRange": "$400K - $900K",
+          "slug": "sendero-verde"
+        },
+        {
+          "name": "The Heritage at 1289 Lexington",
+          "nickname": null,
+          "architect": "SLCE Architects",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 60,
+          "priceRange": "$600K - $1.3M",
+          "slug": "the-heritage-1289-lexington"
+        },
+        {
+          "name": "Carmel Place (nARCHITECTS)",
+          "nickname": null,
+          "architect": "nARCHITECTS",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 55,
+          "priceRange": "$400K - $650K",
+          "slug": "carmel-place-335-east-27th"
+        }
+      ],
+      "streetGuidance": {
+        "description": "East Harlem covers a broad area with distinct micro-neighborhoods. The blocks nearest to Central Park along Fifth Avenue are the most premium. Third Avenue and Lexington Avenue are commercial corridors, while Pleasant Avenue near the East River is notably quieter.",
+        "bestBlocksForParks": [
+          "Fifth Avenue between 104th and 110th (Central Park access)",
+          "East 111th Street near Thomas Jefferson Park",
+          "East 103rd Street near Randall's Island footbridge"
+        ],
+        "bestBlocksForNightlife": [
+          "East 116th Street between Park and Lexington",
+          "First Avenue in the low 100s",
+          "Third Avenue between 104th and 110th"
+        ],
+        "quietStreets": [
+          "Pleasant Avenue",
+          "East End Avenue above 96th",
+          "East 104th Street between Fifth and Madison"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Manhattan condos and co-ops at accessible price points, many in new-construction buildings with modern finishes and full amenity packages.",
+          "budgetRange": "$300K - $600K",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "New-construction condos with strong rental demand, proximity to planned Second Avenue Subway expansion, and ongoing neighborhood infrastructure improvements.",
+          "budgetRange": "$500K - $1M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Larger apartments with modern open layouts, terraces, and full amenity buildings offering above-average square footage for Manhattan.",
+          "budgetRange": "$800K - $1.4M",
+          "propertyType": "2-3 bedroom condo"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near the 6 train and Metro-North at 125th Street, providing direct access to both Midtown and the northern suburbs.",
+          "budgetRange": "$400K - $800K",
+          "propertyType": "1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse East Harlem Listings",
+          "href": "/buy?neighborhood=east-harlem"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in East Harlem",
+          "href": "/rent?neighborhood=east-harlem"
+        }
+      },
+      "boundaries": {
+        "north": "Harlem River / 142nd Street",
+        "south": "96th Street",
+        "east": "East River / FDR Drive",
+        "west": "Fifth Avenue / Park Avenue"
+      },
+      "transit": [
+        "4",
+        "5",
+        "6",
+        "Q"
+      ],
+      "zipCodes": [
+        "10029",
+        "10035"
+      ],
+      "adjacentNeighborhoods": [
+        "upper-east-side",
+        "harlem",
+        "yorkville"
+      ],
+      "attractions": [
+        {
+          "name": "El Museo del Barrio",
+          "type": "Museum",
+          "description": "Museum dedicated to Latin American, Caribbean, and Latino art at the top of Museum Mile on Fifth Avenue"
+        },
+        {
+          "name": "Museum of the City of New York",
+          "type": "Museum",
+          "description": "Museum chronicling New York City's history, architecture, and culture at 103rd Street and Fifth Avenue"
+        },
+        {
+          "name": "Thomas Jefferson Park",
+          "type": "Park",
+          "description": "15-acre park with an outdoor Olympic-size pool, athletic fields, playgrounds, and community recreation center"
+        },
+        {
+          "name": "Randall's Island Park",
+          "type": "Park",
+          "description": "Accessible via pedestrian bridge at 103rd Street, featuring 60+ athletic fields, an urban farm, and waterfront trails"
+        },
+        {
+          "name": "La Marqueta",
+          "type": "Market",
+          "description": "Historic marketplace under the Metro-North viaduct at 115th Street, with food vendors and community programming"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Rao's",
+          "cuisine": "Italian",
+          "priceRange": "$$$$"
+        },
+        {
+          "name": "Patsy's Pizzeria",
+          "cuisine": "Pizza / Italian",
+          "priceRange": "$"
+        },
+        {
+          "name": "Taco Mix",
+          "cuisine": "Mexican",
+          "priceRange": "$"
+        },
+        {
+          "name": "Ricardo Steak House",
+          "cuisine": "Steakhouse",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Amor Cubano",
+          "cuisine": "Cuban",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "east harlem apartments for sale",
+        "east harlem real estate",
+        "east harlem condos",
+        "east harlem new construction",
+        "manhattan affordable apartments",
+        "east harlem rentals",
+        "east harlem co-ops",
+        "el barrio apartments",
+        "east harlem investment property",
+        "east harlem two bedroom",
+        "east harlem condo amenities",
+        "upper manhattan real estate"
+      ]
+    },
+    {
+      "slug": "roosevelt-island",
+      "name": "Roosevelt Island",
+      "fullName": "Roosevelt Island, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Waterfront Serenity in the Heart of the City",
+      "heroImage": "/images/neighborhoods/roosevelt-island-hero.jpg",
+      "ogImage": "/images/neighborhoods/roosevelt-island-og.jpg",
+      "summary": "Roosevelt Island is a narrow, two-mile-long island in the East River between Manhattan and Queens, offering a unique waterfront lifestyle with panoramic skyline views. The neighborhood features a car-free main street, extensive green spaces, and a mix of modern condos and Mitchell-Lama co-ops, with an average price per square foot of approximately $1,050.",
+      "avgPricePerSqft": 1050,
+      "dominantPropertyType": "Condo",
+      "walkScore": 85,
+      "transitScore": 78,
+      "topSchool": "PS/IS 217 Roosevelt Island School",
+      "nearestSubway": [
+        "F at Roosevelt Island",
+        "Tram at 59th St & 2nd Ave"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price on Roosevelt Island?",
+          "answer": "The median sale price on Roosevelt Island is approximately $700,000. Market-rate condos range from $500,000 for one-bedrooms to $2 million+ for three-bedrooms. The island also has a significant stock of Mitchell-Lama co-ops with income restrictions and resale limitations."
+        },
+        {
+          "question": "How do residents get to and from Roosevelt Island?",
+          "answer": "The F train stops at Roosevelt Island, providing direct service to Midtown (Lexington/63rd), the Lower East Side, and Brooklyn. The Roosevelt Island Tramway runs from 59th Street and Second Avenue every 7-15 minutes. A bridge connects to Queens (36th Avenue in Astoria). NYC Ferry also serves the island."
+        },
+        {
+          "question": "What is the tramway and how does it work?",
+          "answer": "The Roosevelt Island Tramway is an aerial riders tram connecting the island to Manhattan at 59th Street and Second Avenue. It takes about 4 minutes each way, runs every 7-15 minutes, and accepts MetroCard/OMNY like the subway. The views of the East River and Midtown skyline are a unique riders perk."
+        },
+        {
+          "question": "What parks and outdoor spaces are on Roosevelt Island?",
+          "answer": "Four Freedoms Park at the southern tip is a Louis Kahn-designed memorial with dramatic river views. Lighthouse Park at the northern tip features a historic lighthouse. The island has a continuous waterfront promenade, cherry blossom groves, and several playgrounds. The car-free Main Street creates a pedestrian-oriented environment."
+        },
+        {
+          "question": "What is the difference between Mitchell-Lama co-ops and market-rate condos on Roosevelt Island?",
+          "answer": "Mitchell-Lama co-ops (like Westview and Eastwood) have income restrictions, below-market prices, and resale limitations. Market-rate condos (like Riverwalk and The Octagon) sell at full market value with no income restrictions. The distinction significantly affects pricing, financing, and resale flexibility."
+        },
+        {
+          "question": "How much is rent on Roosevelt Island?",
+          "answer": "Median rent on Roosevelt Island is approximately $3,200 per month for a one-bedroom in market-rate buildings. Studios average $2,400, two-bedrooms $4,200, and three-bedrooms $5,500. Rents are generally 10-15% below comparable Manhattan waterfront neighborhoods."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 700000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 58,
+        "yoyChange": 4.1,
+        "pricePerSqft": 1050,
+        "inventory": 45,
+        "closedSales": 35,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "The Octagon",
+          "nickname": null,
+          "architect": "Becker + Becker",
+          "yearBuilt": 2006,
+          "type": "Condo",
+          "units": 500,
+          "priceRange": "$550K - $2.2M",
+          "slug": "the-octagon"
+        },
+        {
+          "name": "Riverwalk Point",
+          "nickname": null,
+          "architect": "Perkins Eastman",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 264,
+          "priceRange": "$600K - $2.5M",
+          "slug": "riverwalk-point"
+        },
+        {
+          "name": "Riverwalk Crossing",
+          "nickname": null,
+          "architect": "Perkins Eastman",
+          "yearBuilt": 2016,
+          "type": "Condo",
+          "units": 210,
+          "priceRange": "$550K - $2M",
+          "slug": "riverwalk-crossing"
+        },
+        {
+          "name": "Riverwalk Court",
+          "nickname": null,
+          "architect": "Perkins Eastman",
+          "yearBuilt": 2014,
+          "type": "Condo",
+          "units": 168,
+          "priceRange": "$500K - $1.8M",
+          "slug": "riverwalk-court"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Roosevelt Island is a unique linear neighborhood where Main Street is the central pedestrian corridor. Buildings are oriented east-west to maximize water views. Western-facing units overlook the Manhattan skyline, while eastern-facing units look toward Queens and the Queensboro Bridge.",
+        "bestBlocksForParks": [
+          "Southern tip near Four Freedoms Park",
+          "Northern tip near Lighthouse Park",
+          "East promenade with Manhattan skyline views"
+        ],
+        "bestBlocksForNightlife": [
+          "Main Street between the tram station and Riverwalk",
+          "The Octagon retail area at the north end"
+        ],
+        "quietStreets": [
+          "The entire island is relatively quiet due to car restrictions",
+          "Southern waterfront promenade near Four Freedoms",
+          "Lighthouse Park area at the northern tip"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Waterfront condos with private balconies, floor-to-ceiling windows, East River views, and access to continuous shoreline promenades and parks.",
+          "budgetRange": "$800K - $2.2M",
+          "propertyType": "2-3 bedroom condo"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings with direct F train access to Midtown and Lower Manhattan plus the aerial tramway to the Upper East Side, all within a quiet waterfront setting.",
+          "budgetRange": "$500K - $900K",
+          "propertyType": "1-bedroom condo"
+        },
+        {
+          "type": "Market Entry Points",
+          "description": "Manhattan-address condos at price points below comparable waterfront neighborhoods, with modern amenities and doorman service.",
+          "budgetRange": "$450K - $700K",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Secondary Residences & Studios",
+          "description": "Turnkey waterfront units with hotel-like amenities, concierge service, and easy lock-and-leave convenience in a car-optional setting.",
+          "budgetRange": "$500K - $1.2M",
+          "propertyType": "Studio or 1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Roosevelt Island Listings",
+          "href": "/buy?neighborhood=roosevelt-island"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent on Roosevelt Island",
+          "href": "/rent?neighborhood=roosevelt-island"
+        }
+      },
+      "boundaries": {
+        "north": "Lighthouse Park",
+        "south": "Four Freedoms Park",
+        "east": "East River (Queens side)",
+        "west": "East River (Manhattan side)"
+      },
+      "transit": [
+        "F",
+        "Tram"
+      ],
+      "zipCodes": [
+        "10044"
+      ],
+      "adjacentNeighborhoods": [
+        "upper-east-side",
+        "midtown-east",
+        "yorkville"
+      ],
+      "attractions": [
+        {
+          "name": "Franklin D. Roosevelt Four Freedoms Park",
+          "type": "Park",
+          "description": "Louis Kahn-designed memorial at the island's southern tip with sweeping views of the East River, the UN, and the Manhattan skyline"
+        },
+        {
+          "name": "Roosevelt Island Tramway",
+          "type": "Landmark",
+          "description": "Iconic aerial commuter tramway spanning the East River to 59th Street, offering panoramic skyline views during the 4-minute crossing"
+        },
+        {
+          "name": "Lighthouse Park",
+          "type": "Park",
+          "description": "Northern tip park featuring a Gothic Revival lighthouse built in 1872, with views of the Queensboro Bridge and Hell Gate"
+        },
+        {
+          "name": "Smallpox Hospital Ruins",
+          "type": "Landmark",
+          "description": "Landmarked ruins of the 1856 James Renwick Jr.-designed hospital, dramatically lit at night and visible from the southern waterfront"
+        },
+        {
+          "name": "Cornell Tech Campus",
+          "type": "Landmark",
+          "description": "World-class technology campus with the first residential Passive House high-rise and Bloomberg Center, opened 2017"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Riverwalk Bar & Grill",
+          "cuisine": "American",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Fuji East",
+          "cuisine": "Japanese / Sushi",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Bread & Butter",
+          "cuisine": "American / Brunch",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "roosevelt island apartments for sale",
+        "roosevelt island real estate",
+        "roosevelt island condos",
+        "manhattan waterfront apartments",
+        "roosevelt island rentals",
+        "roosevelt island condo amenities",
+        "east river views manhattan",
+        "roosevelt island tram",
+        "cornell tech apartments",
+        "roosevelt island two bedroom"
+      ]
+    },
+    {
+      "slug": "yorkville",
+      "name": "Yorkville",
+      "fullName": "Yorkville, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Upper East Side Value with Neighborhood Character",
+      "heroImage": "/images/neighborhoods/yorkville-hero.jpg",
+      "ogImage": "/images/neighborhoods/yorkville-og.jpg",
+      "summary": "Yorkville occupies the northeastern section of the Upper East Side, roughly east of Lexington Avenue between 79th and 96th Streets. Known for its more accessible price points compared to the western blocks of the UES, Yorkville features a mix of pre-war walk-ups, postwar towers, and new condos, with an average price per square foot of approximately $1,100.",
+      "avgPricePerSqft": 1100,
+      "dominantPropertyType": "Co-op",
+      "walkScore": 97,
+      "transitScore": 88,
+      "topSchool": "PS 290 Manhattan New School",
+      "nearestSubway": [
+        "4/5/6 at 86th St",
+        "Q at 86th St",
+        "Q at 96th St",
+        "6 at 96th St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Yorkville?",
+          "answer": "The median sale price in Yorkville is approximately $750,000. Pre-war co-ops range from $400,000 to $1.2 million, while newer condos range from $700,000 to $3 million. Yorkville is generally 15-25% less expensive per square foot than the western blocks of the Upper East Side."
+        },
+        {
+          "question": "What subway lines serve Yorkville?",
+          "answer": "The 4, 5, and 6 trains stop at 86th Street on Lexington Avenue, providing express and local service. The Q train (Second Avenue Subway, opened 2017) stops at 86th Street and 96th Street, dramatically improving transit access to the eastern blocks. The 6 local also stops at 96th Street."
+        },
+        {
+          "question": "How has the Second Avenue Subway affected Yorkville?",
+          "answer": "The Q train's arrival in 2017 was transformative for Yorkville. It cut commute times to Midtown significantly for residents east of Lexington Avenue. Property values on Second and Third Avenues have increased, and new retail and dining options have opened along Second Avenue near the stations."
+        },
+        {
+          "question": "What parks and outdoor spaces are near Yorkville?",
+          "answer": "Carl Schurz Park along the East River features the Gracie Mansion promenade and John Finley Walk with river views. Central Park's northern entrances at 84th, 86th, and 90th Streets are accessible from the western edge. John Jay Park at 77th and the FDR has a pool and playground."
+        },
+        {
+          "question": "What types of buildings are available in Yorkville?",
+          "answer": "Yorkville has a diverse building stock: pre-war walk-ups and elevator buildings east of Third Avenue, postwar white-brick towers along Second and Third Avenues, and newer luxury condos. The neighborhood also has some remaining townhouses on the side streets in the low 80s."
+        },
+        {
+          "question": "How much is rent in Yorkville?",
+          "answer": "Median rent in Yorkville is approximately $3,200 per month for a one-bedroom. Studios average $2,400, two-bedrooms $4,400, and three-bedrooms $6,200. Yorkville rents are typically 10-20% lower than the western blocks of the Upper East Side, making it a relative value within the neighborhood."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 750000,
+        "medianRent": 3200,
+        "avgDaysOnMarket": 62,
+        "yoyChange": 4.5,
+        "pricePerSqft": 1100,
+        "inventory": 210,
+        "closedSales": 340,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "200 East 89th Street",
+          "nickname": null,
+          "architect": "CetraRuddy",
+          "yearBuilt": 2023,
+          "type": "Condo",
+          "units": 56,
+          "priceRange": "$1.2M - $8M",
+          "slug": "200-east-89th-street"
+        },
+        {
+          "name": "389 East 89th Street",
+          "nickname": "The Kent",
+          "architect": "Extell Development / Beyer Blinder Belle",
+          "yearBuilt": 2018,
+          "type": "Condo",
+          "units": 83,
+          "priceRange": "$1M - $5M",
+          "slug": "the-kent-389-east-89th"
+        },
+        {
+          "name": "1538 Second Avenue",
+          "nickname": "Vitre",
+          "architect": "BKSK Architects",
+          "yearBuilt": 2020,
+          "type": "Condo",
+          "units": 42,
+          "priceRange": "$800K - $3.5M",
+          "slug": "vitre-1538-second-avenue"
+        },
+        {
+          "name": "345 East 80th Street",
+          "nickname": null,
+          "architect": "Philip Birnbaum",
+          "yearBuilt": 1963,
+          "type": "Co-op",
+          "units": 246,
+          "priceRange": "$400K - $1.2M",
+          "slug": "345-east-80th-street"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Yorkville's character shifts distinctly from west to east. Lexington Avenue is a busy commercial corridor. Third Avenue has shops and restaurants. Second Avenue has benefited enormously from the new subway. First Avenue and York Avenue are quieter residential stretches, and East End Avenue is among the most exclusive addresses.",
+        "bestBlocksForParks": [
+          "East End Avenue near Carl Schurz Park",
+          "East 86th Street entrance to Central Park",
+          "John Jay Park area near East 77th and FDR"
+        ],
+        "bestBlocksForNightlife": [
+          "Second Avenue between 80th and 90th",
+          "Third Avenue between 82nd and 88th",
+          "First Avenue in the low 80s"
+        ],
+        "quietStreets": [
+          "East End Avenue",
+          "Side streets between York and East End",
+          "Gracie Square (East 84th near the river)"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Market Entry Points",
+          "description": "Upper East Side-address apartments at price points 15-25% below the western blocks, in well-maintained pre-war and postwar buildings with elevator service.",
+          "budgetRange": "$400K - $750K",
+          "propertyType": "Studio or 1-bedroom co-op"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near the new Q train stations on Second Avenue, with express 4/5 access at 86th Street for fast Midtown commutes.",
+          "budgetRange": "$600K - $1.2M",
+          "propertyType": "1-2 bedroom co-op or condo"
+        },
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties near Carl Schurz Park and the East River promenade, with East End Avenue townhouses and apartments offering garden access and river views.",
+          "budgetRange": "$1.5M - $5M",
+          "propertyType": "3-bedroom condo or townhouse"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "New-construction condos along Second Avenue benefiting from the subway extension, with strong appreciation trends and high rental demand.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "1-2 bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Yorkville Listings",
+          "href": "/buy?neighborhood=yorkville"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Yorkville",
+          "href": "/rent?neighborhood=yorkville"
+        }
+      },
+      "boundaries": {
+        "north": "96th Street",
+        "south": "79th Street",
+        "east": "East River / FDR Drive",
+        "west": "Lexington Avenue"
+      },
+      "transit": [
+        "4",
+        "5",
+        "6",
+        "Q"
+      ],
+      "zipCodes": [
+        "10028",
+        "10128"
+      ],
+      "adjacentNeighborhoods": [
+        "upper-east-side",
+        "east-harlem",
+        "lenox-hill"
+      ],
+      "attractions": [
+        {
+          "name": "Carl Schurz Park",
+          "type": "Park",
+          "description": "15-acre riverside park stretching from 84th to 90th Street, home to Gracie Mansion and the John Finley Walk promenade with East River views"
+        },
+        {
+          "name": "Gracie Mansion",
+          "type": "Landmark",
+          "description": "The official residence of the Mayor of New York City since 1942, a Federal-style mansion built in 1799 overlooking the East River"
+        },
+        {
+          "name": "John Jay Park",
+          "type": "Park",
+          "description": "Community park at East 77th Street with a public outdoor swimming pool, basketball courts, and playground"
+        },
+        {
+          "name": "Henderson Place Historic District",
+          "type": "Landmark",
+          "description": "Charming row of 24 Queen Anne-style houses built in 1882, one of Manhattan's most picturesque surviving historic enclaves"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Heidelberg Restaurant",
+          "cuisine": "German",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Schaller & Weber",
+          "cuisine": "German Deli / Charcuterie",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Cafe d'Alsace",
+          "cuisine": "French / Alsatian",
+          "priceRange": "$$$"
+        },
+        {
+          "name": "Nectar Coffee and Wine",
+          "cuisine": "Cafe / Wine Bar",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Anable Basin Sailing Bar & Grill",
+          "cuisine": "American / Seafood",
+          "priceRange": "$$"
+        }
+      ],
+      "seoKeywords": [
+        "yorkville apartments for sale",
+        "yorkville real estate",
+        "yorkville co-ops",
+        "yorkville condos",
+        "upper east side affordable apartments",
+        "second avenue subway apartments",
+        "yorkville rentals",
+        "yorkville one bedroom",
+        "east 86th street apartments",
+        "carl schurz park apartments",
+        "yorkville new construction",
+        "yorkville manhattan real estate"
+      ]
+    },
+    {
+      "slug": "two-bridges",
+      "name": "Two Bridges",
+      "fullName": "Two Bridges, Manhattan",
+      "borough": "Manhattan",
+      "tagline": "Waterfront Living Between Two Iconic Bridges",
+      "heroImage": "/images/neighborhoods/two-bridges-hero.jpg",
+      "ogImage": "/images/neighborhoods/two-bridges-og.jpg",
+      "summary": "Two Bridges is a compact waterfront neighborhood on Manhattan's Lower East Side, nestled between the Manhattan and Brooklyn Bridges along the East River. The area features dramatic bridge and river views, a mix of public housing and luxury high-rise development, and proximity to both Chinatown and the Financial District, with an average price per square foot of approximately $1,200.",
+      "avgPricePerSqft": 1200,
+      "dominantPropertyType": "Condo",
+      "walkScore": 96,
+      "transitScore": 86,
+      "topSchool": "PS 126 Jacob August Riis",
+      "nearestSubway": [
+        "F at East Broadway",
+        "B/D at Grand St",
+        "J/Z at Chambers St"
+      ],
+      "faqs": [
+        {
+          "question": "What is the average apartment price in Two Bridges?",
+          "answer": "The median sale price in Two Bridges is approximately $875,000, driven primarily by new luxury condo development. New-construction waterfront condos range from $700,000 for one-bedrooms to $5 million+ for penthouses. Older co-ops in the area can be found starting around $350,000."
+        },
+        {
+          "question": "What subway lines serve Two Bridges?",
+          "answer": "The F train stops at East Broadway. The B and D trains stop at Grand Street. The J and Z trains run along the Manhattan Bridge with stops nearby. The 4/5/6, N/Q/R/W, and J/Z are accessible at the Brooklyn Bridge-City Hall station to the west. Multiple bus routes also serve the neighborhood."
+        },
+        {
+          "question": "What are the views like in Two Bridges?",
+          "answer": "Two Bridges offers some of Manhattan's most dramatic views. Higher-floor apartments have sweeping panoramas of the Brooklyn Bridge, Manhattan Bridge, East River, Brooklyn waterfront, Statue of Liberty, and the downtown Manhattan skyline. The bridges are illuminated at night, creating a striking backdrop."
+        },
+        {
+          "question": "What new development has occurred in Two Bridges?",
+          "answer": "Several major luxury towers have been built or approved in Two Bridges, including One Manhattan Square (815 units with 100,000+ sq ft of amenities), 247 Cherry Street, and 260 South Street. These developments have added significant luxury inventory to a neighborhood that was previously dominated by public housing and walk-ups."
+        },
+        {
+          "question": "What parks and waterfront access does Two Bridges have?",
+          "answer": "The neighborhood has direct access to the East River Esplanade running along the FDR Drive, with pedestrian paths, benches, and open space. Cherry Clinton Playground and Coleman Playground serve the area. The Manhattan Bridge pedestrian walkway provides a scenic path to Brooklyn."
+        },
+        {
+          "question": "How much is rent in Two Bridges?",
+          "answer": "Median rent in Two Bridges is approximately $3,500 per month for a one-bedroom in market-rate buildings. Studios average $2,800, two-bedrooms $4,800, and three-bedrooms $6,500. Luxury towers with amenity packages command premium rents, while older walk-up units are more affordable."
+        }
+      ],
+      "marketStats": {
+        "medianSalePrice": 875000,
+        "medianRent": 3500,
+        "avgDaysOnMarket": 72,
+        "yoyChange": 3.2,
+        "pricePerSqft": 1200,
+        "inventory": 65,
+        "closedSales": 50,
+        "priceTrend": "up"
+      },
+      "featuredBuildings": [
+        {
+          "name": "One Manhattan Square",
+          "nickname": null,
+          "architect": "Adamson Associates",
+          "yearBuilt": 2019,
+          "type": "Condo",
+          "units": 815,
+          "priceRange": "$700K - $5M+",
+          "slug": "one-manhattan-square"
+        },
+        {
+          "name": "247 Cherry Street",
+          "nickname": null,
+          "architect": "SHoP Architects",
+          "yearBuilt": 2024,
+          "type": "Condo",
+          "units": 115,
+          "priceRange": "$800K - $4M",
+          "slug": "247-cherry-street"
+        },
+        {
+          "name": "Extell 227 Cherry Street",
+          "nickname": null,
+          "architect": "Gary Handel + Associates",
+          "yearBuilt": 2025,
+          "type": "Condo",
+          "units": 730,
+          "priceRange": "$600K - $3.5M",
+          "slug": "227-cherry-street"
+        },
+        {
+          "name": "275 South Street",
+          "nickname": "Southbridge Towers",
+          "architect": "Herman Jessor",
+          "yearBuilt": 1969,
+          "type": "Co-op",
+          "units": 1651,
+          "priceRange": "$300K - $800K",
+          "slug": "southbridge-towers"
+        }
+      ],
+      "streetGuidance": {
+        "description": "Two Bridges is a small but vertically dramatic neighborhood. Cherry Street and South Street are the main thoroughfares. The FDR Drive separates the residential blocks from the waterfront, but pedestrian crossings provide river access. Higher floors in the new towers unlock sweeping bridge and water views.",
+        "bestBlocksForParks": [
+          "East River Esplanade along South Street",
+          "Cherry Clinton Playground area",
+          "Manhattan Bridge pedestrian walkway entrance"
+        ],
+        "bestBlocksForNightlife": [
+          "Cherry Street near the new developments",
+          "Madison Street near East Broadway",
+          "Adjacent Lower East Side along Orchard and Ludlow"
+        ],
+        "quietStreets": [
+          "Rutgers Slip near the river",
+          "Market Slip waterfront area",
+          "Pike Street south of East Broadway"
+        ]
+      },
+      "buyerPersonas": [
+        {
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Waterfront condos with private balconies, floor-to-ceiling windows, and panoramic views of the Brooklyn Bridge, Manhattan Bridge, and East River from upper floors.",
+          "budgetRange": "$1.2M - $5M+",
+          "propertyType": "2-3 bedroom condo"
+        },
+        {
+          "type": "Market Entry Points",
+          "description": "New-construction condos with full amenity packages at below-average Manhattan price points, offering modern finishes and building services.",
+          "budgetRange": "$600K - $900K",
+          "propertyType": "Studio or 1-bedroom condo"
+        },
+        {
+          "type": "Strong Investment & Rental Potential",
+          "description": "New luxury towers with high rental demand from the proximity to the Financial District and Midtown, strong amenity packages attracting premium rents.",
+          "budgetRange": "$700K - $1.5M",
+          "propertyType": "1-2 bedroom condo"
+        },
+        {
+          "type": "Commuter-Centric Listings",
+          "description": "Listings with walking distance to the Financial District, multiple subway lines, and easy Brooklyn Bridge access for cross-borough commutes.",
+          "budgetRange": "$700K - $1.2M",
+          "propertyType": "1-bedroom condo"
+        }
+      ],
+      "ctas": {
+        "primary": {
+          "label": "Browse Two Bridges Listings",
+          "href": "/buy?neighborhood=two-bridges"
+        },
+        "secondary": {
+          "label": "Get a Free Home Valuation",
+          "href": "/sell"
+        },
+        "rental": {
+          "label": "Rent in Two Bridges",
+          "href": "/rent?neighborhood=two-bridges"
+        }
+      },
+      "boundaries": {
+        "north": "East Broadway / Canal Street",
+        "south": "Brooklyn Bridge",
+        "east": "Montgomery Street",
+        "west": "St. James Place / Pearl Street"
+      },
+      "transit": [
+        "F",
+        "B",
+        "D",
+        "J",
+        "Z"
+      ],
+      "zipCodes": [
+        "10002",
+        "10038"
+      ],
+      "adjacentNeighborhoods": [
+        "lower-east-side",
+        "chinatown",
+        "financial-district"
+      ],
+      "attractions": [
+        {
+          "name": "Manhattan Bridge Pedestrian Walkway",
+          "type": "Landmark",
+          "description": "Scenic pedestrian and bicycle path across the Manhattan Bridge with views of the Brooklyn Bridge, Statue of Liberty, and downtown skyline"
+        },
+        {
+          "name": "East River Esplanade",
+          "type": "Park",
+          "description": "Waterfront path along the East River with benches, open space, and views of Brooklyn and the two bridges"
+        },
+        {
+          "name": "Cherry Clinton Playground",
+          "type": "Park",
+          "description": "Community park with playground equipment, basketball courts, and open space at Cherry and Clinton Streets"
+        },
+        {
+          "name": "Museum at Eldridge Street",
+          "type": "Museum",
+          "description": "National Historic Landmark synagogue built in 1887, featuring stunning stained glass and architectural restoration, located just north of the neighborhood"
+        }
+      ],
+      "dining": [
+        {
+          "name": "Scarr's Pizza",
+          "cuisine": "Pizza",
+          "priceRange": "$"
+        },
+        {
+          "name": "Golden Steamer",
+          "cuisine": "Chinese / Dim Sum",
+          "priceRange": "$"
+        },
+        {
+          "name": "Nom Wah Tea Parlor",
+          "cuisine": "Chinese / Dim Sum",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Dimes",
+          "cuisine": "Californian / Health-Forward",
+          "priceRange": "$$"
+        },
+        {
+          "name": "Super Taste",
+          "cuisine": "Chinese / Noodles",
+          "priceRange": "$"
+        }
+      ],
+      "seoKeywords": [
+        "two bridges apartments for sale",
+        "two bridges real estate",
+        "two bridges condos",
+        "manhattan waterfront condos",
+        "two bridges new construction",
+        "lower east side waterfront",
+        "one manhattan square",
+        "two bridges rentals",
+        "brooklyn bridge view apartments",
+        "two bridges luxury condos",
+        "cherry street condos manhattan",
+        "two bridges manhattan real estate"
+      ]
     }
   ]
 }
