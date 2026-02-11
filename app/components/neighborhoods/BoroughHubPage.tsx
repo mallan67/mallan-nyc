@@ -3,7 +3,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from './NeighborhoodBreadcrumb';
-import NeighborhoodHubGrid from './NeighborhoodHubGrid';
+import NeighborhoodSearch from './NeighborhoodSearch';
 import type { Neighborhood, Borough, BoroughSlug } from '@/lib/types/neighborhood';
 
 interface HubFAQ {
@@ -65,8 +65,8 @@ export default function BoroughHubPage({
           </div>
         </section>
 
-        {/* Neighborhood Grid */}
-        <NeighborhoodHubGrid neighborhoods={neighborhoods} boroughSlug={boroughSlug} />
+        {/* Neighborhood Search + Grid */}
+        <NeighborhoodSearch neighborhoods={neighborhoods} boroughSlug={boroughSlug} />
 
         {/* Hub FAQ */}
         <section className="py-10 sm:py-14 bg-gray-50">
