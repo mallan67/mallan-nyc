@@ -118,26 +118,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the market who want strong transit access to Manhattan at a fraction of Manhattan prices, with a walkable neighborhood feel.",
+          "type": "Market Entry Points",
+          "description": "Listings with strong transit access to Manhattan at a fraction of Manhattan prices, with a walkable neighborhood feel.",
           "budgetRange": "$350K - $650K",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Manhattan commuters drawn to Astoria's dining scene, waterfront parks, and quick N/W subway ride to Midtown.",
+          "type": "Metropolitan Connectivity",
+          "description": "Quick N/W subway ride to Midtown with a walkable dining scene, waterfront parks, and neighborhood charm.",
           "budgetRange": "$450K - $800K",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors seeking multi-family properties or condos with strong rental demand driven by proximity to Manhattan and neighborhood amenities.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Multi-family properties and condos with strong rental demand driven by proximity to Manhattan and neighborhood amenities.",
           "budgetRange": "$1.2M - $2.5M",
           "propertyType": "Multi-family or condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking more space, good schools, and a neighborhood community feel with easy access to parks and playgrounds.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring more space, good schools, and a neighborhood community feel with easy access to parks and playgrounds.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "2-3 bedroom condo or multi-family"
         }
@@ -353,26 +353,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Manhattan commuters seeking modern amenity-rich condos with skyline views at a significant discount to Manhattan pricing.",
+          "type": "Metropolitan Connectivity",
+          "description": "Listings with modern amenity-rich condos with skyline views at a significant discount to Manhattan pricing.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting high rental demand in new-construction condos with strong tenant pools drawn by LIC's transit and amenities.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with high rental demand in new-construction condos with strong tenant pools drawn by LIC's transit and amenities.",
           "budgetRange": "$500K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families attracted to the waterfront parks, new schools, and spacious new-construction layouts not available in Manhattan.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Waterfront parks, new schools, and spacious new-construction layouts not available in Manhattan.",
           "budgetRange": "$1M - $2M",
           "propertyType": "2-3 bedroom condo"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking a convenient NYC foothold with easy airport access (LGA/JFK) and one-stop Manhattan commute.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a convenient NYC foothold with easy airport access (LGA/JFK) and one-stop Manhattan commute.",
           "budgetRange": "$500K - $900K",
           "propertyType": "Studio or 1-bedroom condo"
         }
@@ -587,26 +587,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "Budget-conscious buyers looking for a spacious pre-war co-op with garden access and strong transit at well below Manhattan prices.",
+          "type": "Market Entry Points",
+          "description": "Budget-conscious Properties featuring a spacious pre-war co-op with garden access and strong transit at well below Manhattan prices.",
           "budgetRange": "$200K - $400K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking generous pre-war layouts, shared garden spaces, and a culturally rich community with good schools.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring generous pre-war layouts, shared garden spaces, and a culturally rich community with good schools.",
           "budgetRange": "$350K - $600K",
           "propertyType": "2-3 bedroom co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Commuters who value the express 7 train to Midtown and want to live in a vibrant, walkable neighborhood with exceptional dining.",
+          "type": "Metropolitan Connectivity",
+          "description": "Express 7 train to Midtown and want to live in a vibrant, walkable neighborhood with exceptional dining.",
           "budgetRange": "$250K - $500K",
           "propertyType": "1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting multi-family properties near the transit hub where rental demand is consistently strong.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with multi-family properties near the transit hub where rental demand is consistently strong.",
           "budgetRange": "$1M - $2.2M",
           "propertyType": "Multi-family"
         }
@@ -816,26 +816,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Investor",
-          "description": "Investors targeting Flushing's strong rental market driven by commercial activity, new development, and international buyer interest.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with Flushing's strong rental market driven by commercial activity, new development, and strong demand.",
           "budgetRange": "$450K - $1.2M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers seeking modern new-construction condos with amenities at prices well below Manhattan, with strong transit connections.",
+          "type": "Market Entry Points",
+          "description": "Properties featuring modern new-construction condos with amenities at prices well below Manhattan, with strong transit connections.",
           "budgetRange": "$400K - $700K",
           "propertyType": "1-bedroom condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families wanting proximity to good schools, parks, and a vibrant commercial center with access to cultural amenities.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Proximity to good schools, parks, and a vibrant commercial center with access to cultural amenities.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "2-3 bedroom condo or single-family"
         },
         {
-          "type": "Right-Sizer",
-          "description": "Buyers moving from larger single-family homes to modern condos with building amenities while staying in a familiar Queens community.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties with modern condos with building amenities while staying in a familiar Queens community.",
           "budgetRange": "$500K - $900K",
           "propertyType": "1-2 bedroom condo"
         }
@@ -1044,26 +1044,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families prioritizing top schools, safe tree-lined streets, and access to Forest Park in a community-focused neighborhood.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Top schools, safe tree-lined streets, and access to Forest Park in a community-focused neighborhood.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-3 bedroom co-op"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Homeowners moving from houses to well-maintained co-ops while staying in a quiet, established neighborhood with walkable amenities.",
           "budgetRange": "$300K - $600K",
           "propertyType": "1-2 bedroom co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Commuters who value the express E/F subway to Midtown and want a neighborhood with character, dining, and green space.",
+          "type": "Metropolitan Connectivity",
+          "description": "Express E/F subway to Midtown and want a neighborhood with character, dining, and green space.",
           "budgetRange": "$250K - $500K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Budget-conscious buyers entering the market in a stable, appreciating neighborhood with strong resale value and community infrastructure.",
+          "type": "Market Entry Points",
+          "description": "Properties in a stable, appreciating neighborhood with strong resale value and community infrastructure.",
           "budgetRange": "$200K - $400K",
           "propertyType": "Studio or 1-bedroom co-op"
         }
@@ -1271,26 +1271,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "Budget-conscious buyers who want a quick commute to Midtown via the 7 train and a neighborhood with genuine community character.",
+          "type": "Market Entry Points",
+          "description": "Budget-conscious Properties that want a quick commute to Midtown via the 7 train and a neighborhood with genuine community character.",
           "budgetRange": "$200K - $400K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Manhattan workers seeking an affordable, well-connected neighborhood with walkable dining and a neighborhood feel that rivals Brooklyn.",
+          "type": "Metropolitan Connectivity",
+          "description": "Listings in an affordable, well-connected neighborhood with walkable dining and a neighborhood feel that rivals Brooklyn.",
           "budgetRange": "$300K - $550K",
           "propertyType": "1-bedroom co-op or condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families looking for spacious pre-war apartments or Sunnyside Gardens homes with community green spaces and good schools.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Spacious pre-war apartments or Sunnyside Gardens homes with community green spaces and good schools.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-bedroom co-op or Sunnyside Gardens home"
         },
         {
-          "type": "Investor",
-          "description": "Investors seeking value along the 7 train corridor, where purchase prices are lower but rental demand remains strong.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with value along the 7 train corridor, where purchase prices are lower but rental demand remains strong.",
           "budgetRange": "$300K - $700K",
           "propertyType": "1-bedroom co-op or condo"
         }
@@ -1496,26 +1496,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families prioritizing top public schools, a safe suburban environment, and outdoor space while remaining within New York City.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Top public schools, a safe suburban environment, and outdoor space while remaining within New York City.",
           "budgetRange": "$650K - $1.3M",
           "propertyType": "Single-family detached"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Homeowners transitioning from large homes to co-ops or condos in a familiar, quiet neighborhood with waterfront amenities.",
           "budgetRange": "$300K - $600K",
           "propertyType": "1-2 bedroom co-op or condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the market through Bayside's affordable co-op inventory while benefiting from strong community and schools.",
+          "type": "Market Entry Points",
+          "description": "Affordable co-op inventory while benefiting from strong community and schools.",
           "budgetRange": "$200K - $450K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors seeking stable, low-turnover residential properties in a neighborhood with consistent demand and strong school district appeal.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with stable, low-turnover residential properties in a neighborhood with consistent demand and strong school district appeal.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "Multi-family or single-family rental"
         }

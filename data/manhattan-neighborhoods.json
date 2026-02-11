@@ -117,26 +117,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking top schools, park access, and quiet residential streets with classic pre-war apartments.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring top schools, park access, and quiet residential streets with classic pre-war apartments.",
           "budgetRange": "$1.5M - $5M",
           "propertyType": "3-4 bedroom co-op"
         },
         {
-          "type": "Right-Sizer",
-          "description": "Long-time New Yorkers moving from larger homes who want to stay in a refined, walkable neighborhood.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties in a refined, walkable neighborhood.",
           "budgetRange": "$800K - $2M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking a prestigious Manhattan address with strong resale value and rental flexibility.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a prestigious Manhattan address with strong resale value and rental flexibility.",
           "budgetRange": "$2M - $10M",
           "propertyType": "Luxury condo"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Finance and medical professionals drawn to Yorkville's relative affordability and Second Avenue Subway access.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near Yorkville's relative affordability and Second Avenue Subway access.",
           "budgetRange": "$500K - $1.2M",
           "propertyType": "Studio or 1-bedroom co-op"
         }
@@ -352,20 +352,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families drawn to top schools, dual-park access, and the neighborhood's intellectual, community-oriented atmosphere.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering top schools, dual-park access, and the neighborhood's intellectual, community-oriented atmosphere.",
           "budgetRange": "$1.2M - $4M",
           "propertyType": "3-bedroom pre-war co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Media, tech, and academic professionals who value the UWS's cultural institutions and vibrant neighborhood life.",
+          "type": "Commuter-Centric Listings",
+          "description": "Area known for the UWS's cultural institutions and vibrant neighborhood life.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting stable rental demand near Lincoln Center, Columbia University, and major hospitals.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with stable rental demand near Lincoln Center, Columbia University, and major hospitals.",
           "budgetRange": "$800K - $2.5M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -563,20 +563,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Affluent families seeking spacious loft living, top schools, and a village feel within walking distance of Hudson River Park.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering spacious loft living, top schools, and a village feel within walking distance of Hudson River Park.",
           "budgetRange": "$3M - $10M",
           "propertyType": "3+ bedroom loft or townhouse"
         },
         {
-          "type": "Investor",
-          "description": "High-net-worth investors attracted by Tribeca's strong appreciation history and premium rental yields.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties benefiting from Tribeca's strong appreciation history and premium rental yields.",
           "budgetRange": "$2M - $8M",
           "propertyType": "2-bedroom luxury condo"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking a trophy asset in Manhattan's most exclusive residential neighborhood.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a trophy asset in Manhattan's most exclusive residential neighborhood.",
           "budgetRange": "$5M - $30M+",
           "propertyType": "Full-floor loft or penthouse"
         }
@@ -774,20 +774,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Fashion, media, and tech professionals drawn to SoHo's creative energy, dining scene, and walkable lifestyle.",
+          "type": "Commuter-Centric Listings",
+          "description": "Properties near SoHo's creative energy, dining scene, and walkable lifestyle.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "1-bedroom loft"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting SoHo's strong rental demand from international visitors and luxury tenants.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with SoHo's strong rental demand from international visitors and luxury tenants.",
           "budgetRange": "$2M - $6M",
           "propertyType": "2-bedroom condo"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking an iconic Manhattan loft in one of the world's most recognizable neighborhoods.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring an iconic Manhattan loft in one of the world's most recognizable neighborhoods.",
           "budgetRange": "$3M - $15M",
           "propertyType": "Full-floor cast-iron loft"
         }
@@ -990,20 +990,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Creative and tech professionals drawn to the gallery scene, dining, and High Line lifestyle.",
+          "type": "Commuter-Centric Listings",
+          "description": "Properties near the gallery scene, dining, and High Line lifestyle.",
           "budgetRange": "$800K - $2M",
           "propertyType": "1-bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting Chelsea's strong rental demand from corporate relocations and gallery-district tenants.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with Chelsea's strong rental demand from corporate relocations and gallery-district tenants.",
           "budgetRange": "$1M - $3M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Right-Sizer",
-          "description": "Art collectors and cultural enthusiasts downsizing to a walkable, gallery-rich neighborhood.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties in a walkable, gallery-rich neighborhood.",
           "budgetRange": "$1.5M - $5M",
           "propertyType": "2-bedroom High Line condo"
         }
@@ -1207,20 +1207,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "Young professionals seeking modern condos at Manhattan's best price-per-square-foot with excellent transit.",
+          "type": "Market Entry Points",
+          "description": "Listings featuring modern condos at Manhattan's best price-per-square-foot with excellent transit.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors drawn to FiDi's strong rental yields and ongoing neighborhood growth trajectory.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with FiDi's strong rental yields and ongoing neighborhood growth trajectory.",
           "budgetRange": "$700K - $2M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Finance and tech workers seeking short commutes, modern amenities, and waterfront living.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings with short commutes, modern amenities, and waterfront living.",
           "budgetRange": "$800K - $1.8M",
           "propertyType": "1-bedroom luxury condo"
         }
@@ -1428,20 +1428,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Creative and tech professionals who value walkability, culture, and the Village's bohemian spirit.",
+          "type": "Commuter-Centric Listings",
+          "description": "Properties with walkability, culture, and the Village's bohemian spirit.",
           "budgetRange": "$700K - $2M",
           "propertyType": "1-bedroom co-op"
         },
         {
-          "type": "Right-Sizer",
-          "description": "Long-time New Yorkers drawn to the Village's charm, dining scene, and walkable scale.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties with the Village's charm, dining scene, and walkable scale.",
           "budgetRange": "$1.5M - $5M",
           "propertyType": "2-bedroom townhouse floor or condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking tree-lined streets, local schools, and a village atmosphere within Manhattan.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring tree-lined streets, local schools, and a village atmosphere within Manhattan.",
           "budgetRange": "$2M - $8M",
           "propertyType": "Townhouse or 3-bedroom co-op"
         }
@@ -1647,20 +1647,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Finance and corporate professionals wanting a short commute to Midtown offices and Grand Central access.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near a short commute to Midtown offices and Grand Central access.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Diplomatic and international business buyers near the United Nations seeking flexible condo ownership.",
+          "type": "Secondary Residences & Studios",
+          "description": "Flexible-use residences near the United Nations seeking flexible condo ownership.",
           "budgetRange": "$2M - $10M",
           "propertyType": "2-3 bedroom luxury condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting corporate rental demand and pied-a-terre usage near Manhattan's business core.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with corporate rental demand and pied-a-terre usage near Manhattan's business core.",
           "budgetRange": "$800K - $3M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -1844,20 +1844,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Theater, media, and hospitality workers drawn to Midtown proximity and vibrant dining.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings with Midtown proximity and vibrant dining.",
           "budgetRange": "$500K - $1.2M",
           "propertyType": "Studio or 1-bedroom"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers seeking Midtown convenience at below-average Manhattan prices.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties featuring Midtown convenience at below-average Manhattan prices.",
           "budgetRange": "$400K - $900K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting strong rental demand from the Midtown workforce.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with strong rental demand from the Midtown workforce.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-bedroom condo"
         }
@@ -2034,20 +2034,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Creative professionals and entrepreneurs drawn to the neighborhood's authenticity and nightlife.",
+          "type": "Commuter-Centric Listings",
+          "description": "Properties in the neighborhood's authenticity and nightlife.",
           "budgetRange": "$500K - $1.2M",
           "propertyType": "1-bedroom co-op"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers seeking a central Manhattan location with character and value.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties featuring a central Manhattan location with character and value.",
           "budgetRange": "$400K - $850K",
           "propertyType": "Studio co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting the East Village's strong rental demand from young professionals.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with the East Village's strong rental demand from the area's workforce.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-bedroom condo"
         }
@@ -2212,20 +2212,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Creatives and nightlife-industry professionals drawn to the LES energy and relatively affordable prices.",
+          "type": "Commuter-Centric Listings",
+          "description": "Properties with the LES energy and relatively affordable prices.",
           "budgetRange": "$500K - $1.2M",
           "propertyType": "1-bedroom condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers seeking lower Manhattan at accessible price points.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties featuring lower Manhattan at accessible price points.",
           "budgetRange": "$400K - $900K",
           "propertyType": "Studio or 1-bedroom"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting rapid appreciation and strong rental yields in a transforming neighborhood.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with rapid appreciation and strong rental yields in a transforming neighborhood.",
           "budgetRange": "$600K - $2M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -2388,20 +2388,20 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers seeking Manhattan's most affordable entry with excellent transit and culture.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties featuring Manhattan's most affordable entry with excellent transit and culture.",
           "budgetRange": "$350K - $700K",
           "propertyType": "1-bedroom co-op or condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting Harlem's strong appreciation trajectory and brownstone renovation opportunities.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with Harlem's strong appreciation trajectory and brownstone renovation opportunities.",
           "budgetRange": "$1M - $4M",
           "propertyType": "Multi-unit brownstone"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families drawn to spacious brownstone living and community parks at accessible prices.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering spacious brownstone living and community parks at accessible prices.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone"
         }
@@ -2567,14 +2567,14 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Food and hospitality professionals drawn to NoMad's restaurant scene and central location.",
+          "type": "Commuter-Centric Listings",
+          "description": "Properties near NoMad's restaurant scene and central location.",
           "budgetRange": "$800K - $2M",
           "propertyType": "1-bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting premium rental yields in a supply-constrained luxury micro-neighborhood.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with premium rental yields in a supply-constrained luxury micro-neighborhood.",
           "budgetRange": "$1M - $4M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -2740,14 +2740,14 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Tech and media professionals drawn to the central location and vibrant restaurant scene.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings near the central location and vibrant restaurant scene.",
           "budgetRange": "$700K - $1.8M",
           "propertyType": "1-bedroom condo or loft"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting strong demand from the tech corridor and corporate tenants.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with strong demand from the tech corridor and corporate tenants.",
           "budgetRange": "$800K - $2.5M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -2914,14 +2914,14 @@
       },
       "buyerPersonas": [
         {
-          "type": "Right-Sizer",
-          "description": "Long-time New Yorkers seeking an exclusive, tranquil address with park key access.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties with an exclusive, tranquil address with park key access.",
           "budgetRange": "$1M - $4M",
           "propertyType": "2-bedroom co-op with park key"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Finance and law professionals drawn to the quiet elegance and central location.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings with the quiet elegance and central location.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "1-bedroom co-op"
         }
@@ -3082,14 +3082,14 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking space, safety, waterfront parks, and excellent schools at below-Tribeca prices.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring space, safety, waterfront parks, and excellent schools at below-Tribeca prices.",
           "budgetRange": "$1M - $3M",
           "propertyType": "2-3 bedroom condo"
         },
         {
-          "type": "Right-Sizer",
-          "description": "Retirees drawn to the waterfront lifestyle, walkability, and community feel.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties with the waterfront lifestyle, walkability, and community feel.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -3241,14 +3241,14 @@
       },
       "buyerPersonas": [
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking new construction with full-service amenities and a prestigious Manhattan address.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring new construction with full-service amenities and a prestigious Manhattan address.",
           "budgetRange": "$2M - $15M",
           "propertyType": "2-3 bedroom luxury condo"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Tech and finance professionals drawn to modern luxury living with integrated shopping and dining.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings featuring modern luxury living with integrated shopping and dining.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -3412,14 +3412,14 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals who prioritize commute convenience above all and work in Midtown offices.",
+          "type": "Commuter-Centric Listings",
+          "description": "Listings that prioritize commute convenience above all and work in Midtown offices.",
           "budgetRange": "$500K - $1.2M",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting Midtown's endless corporate rental demand.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with Midtown's endless corporate rental demand.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         }
