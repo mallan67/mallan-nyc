@@ -146,7 +146,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
           {/* Desktop Nav */}
           <NavigationMenu.Root
-            className="hidden lg:flex items-center ml-auto"
+            className="hidden lg:flex items-center ml-auto pl-8 xl:pl-12"
             aria-label="Main navigation"
           >
             <NavigationMenu.List className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
