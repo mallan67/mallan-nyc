@@ -115,26 +115,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking top schools, green space, and a safe suburban environment without leaving NYC. Riverdale's school options and parks are a major draw.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring top schools, green space, and a safe suburban environment without leaving NYC. Riverdale's school options and parks are a major draw.",
           "budgetRange": "$400K - $1.2M",
           "propertyType": "3-bedroom co-op or single-family home"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Homeowners transitioning from larger suburban properties in Westchester who want to remain close to the city while keeping a neighborhood feel.",
           "budgetRange": "$300K - $600K",
           "propertyType": "1-2 bedroom co-op with river views"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers priced out of Manhattan seeking affordable co-ops with generous square footage and excellent transit connections.",
+          "type": "Market Entry Points",
+          "description": "Listings with affordable co-ops with generous square footage and excellent transit connections.",
           "budgetRange": "$200K - $450K",
           "propertyType": "1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors attracted to Riverdale's strong rental demand from families and professionals commuting to Manhattan and Westchester.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with Riverdale's strong rental demand from residents commuting to Manhattan and Westchester.",
           "budgetRange": "$250K - $600K",
           "propertyType": "1-2 bedroom co-op"
         }
@@ -339,26 +339,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Right-Sizer",
-          "description": "Buyers seeking a slower pace of life with waterfront living, maritime culture, and a strong community atmosphere within NYC.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties featuring a slower pace of life with waterfront living, maritime culture, and a strong community atmosphere within NYC.",
           "budgetRange": "$400K - $700K",
           "propertyType": "Single-family home"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers seeking affordable homeownership in NYC who value character and community over nightlife and convenience.",
+          "type": "Market Entry Points",
+          "description": "Properties featuring affordable homeownership in NYC who value character and community over nightlife and convenience.",
           "budgetRange": "$300K - $500K",
           "propertyType": "Bungalow or small home"
         },
         {
-          "type": "Investor",
-          "description": "Investors drawn to City Island's scarcity value — limited land, strong seasonal tourism, and growing interest from buyers seeking unique NYC properties.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with City Island's scarcity value — limited land, strong seasonal tourism, and growing interest from Properties featuring unique NYC properties.",
           "budgetRange": "$450K - $800K",
           "propertyType": "Multi-family or waterfront single-family"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers looking for a weekend retreat or seasonal waterfront property that feels worlds away from the city while remaining within NYC limits.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a weekend retreat or seasonal waterfront property that feels worlds away from the city while remaining within NYC limits.",
           "budgetRange": "$350K - $600K",
           "propertyType": "Waterfront cottage or condo"
         }
@@ -564,26 +564,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals working in Manhattan who want modern amenities, quick commutes, and significantly more space than Manhattan offers at similar price points.",
+          "type": "Metropolitan Connectivity",
+          "description": "Modern amenity-rich listings with quick Manhattan commutes and significantly more space than Manhattan offers at similar price points.",
           "budgetRange": "$450K - $800K",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the NYC market attracted to new construction with modern finishes and amenities at prices well below Manhattan equivalents.",
+          "type": "Market Entry Points",
+          "description": "Listings with new construction with modern finishes and amenities at prices well below Manhattan equivalents.",
           "budgetRange": "$300K - $550K",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors capitalizing on strong rental demand from Manhattan-bound commuters and the neighborhood's growing amenity base and waterfront development.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties benefiting from strong rental demand from Manhattan-bound residents and the neighborhood's growing amenity base and waterfront development.",
           "budgetRange": "$400K - $900K",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families drawn to Mott Haven's historic brownstones, proximity to St. Mary's Park, and access to both Bronx and Manhattan resources.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering Mott Haven's historic brownstones, proximity to St. Mary's Park, and access to both Bronx and Manhattan resources.",
           "budgetRange": "$800K - $1.5M",
           "propertyType": "Brownstone or townhouse"
         }
@@ -792,25 +792,25 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking detached homes with yards, good schools, and immediate access to NYC's largest park for outdoor recreation.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring detached homes with yards, good schools, and immediate access to NYC's largest park for outdoor recreation.",
           "budgetRange": "$450K - $750K",
           "propertyType": "Single-family home"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers seeking the most affordable path to NYC homeownership with subway access, choosing co-ops in the neighborhood's mid-rise buildings.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties featuring the most affordable path to NYC homeownership with subway access, choosing co-ops in the neighborhood's mid-rise buildings.",
           "budgetRange": "$150K - $350K",
           "propertyType": "1-2 bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors acquiring multi-family properties in a neighborhood with steady rental demand and stable long-term residents.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Multi-family properties with steady rental demand and stable long-term residents.",
           "budgetRange": "$500K - $900K",
           "propertyType": "2-3 family home"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Homeowners seeking to move to a manageable co-op or smaller home while remaining in a neighborhood with strong community ties and outdoor access.",
           "budgetRange": "$200K - $400K",
           "propertyType": "1-2 bedroom co-op"
@@ -1021,26 +1021,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers seeking NYC's most affordable co-ops with subway access. Fordham offers entry-level homeownership with strong institutional anchors nearby.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties featuring NYC's most affordable co-ops with subway access. Fordham offers entry-level homeownership with strong institutional anchors nearby.",
           "budgetRange": "$100K - $275K",
           "propertyType": "1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors acquiring multi-family properties near Fordham University and Montefiore Medical Center, which generate consistent rental demand year-round.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Multi-family properties near Fordham University and Montefiore Medical Center, which generate consistent rental demand year-round.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-3 family home"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Healthcare professionals working at Montefiore Medical Center or educators at Fordham University seeking affordable housing within walking distance of work.",
+          "type": "Metropolitan Connectivity",
+          "description": "Listings near Montefiore Medical Center and Fordham University with affordable housing within walking distance of work.",
           "budgetRange": "$150K - $350K",
           "propertyType": "1-2 bedroom co-op"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking affordable space with access to the Bronx Zoo, Botanical Garden, and a strong neighborhood school network.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring affordable space with access to the Bronx Zoo, Botanical Garden, and a strong neighborhood school network.",
           "budgetRange": "$250K - $500K",
           "propertyType": "2-3 bedroom co-op or multi-family"
         }

@@ -121,26 +121,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking top public schools, safe tree-lined streets, and proximity to Brooklyn Bridge Park's playgrounds and green space.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring top public schools, safe tree-lined streets, and proximity to Brooklyn Bridge Park's playgrounds and green space.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom co-op or brownstone"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Finance and legal professionals who work in Lower Manhattan and want a short commute with a neighborhood feel.",
+          "type": "Metropolitan Connectivity",
+          "description": "Short commute to Lower Manhattan with a short commute with a neighborhood feel.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Long-time Brooklyn residents looking to transition from larger homes while staying in a walkable, historic neighborhood.",
           "budgetRange": "$900K - $2M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking a Manhattan-adjacent residence with skyline views and landmark architecture at a relative value compared to Manhattan.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a Manhattan-adjacent residence with skyline views and landmark architecture at a relative value compared to Manhattan.",
           "budgetRange": "$1M - $3M",
           "propertyType": "Luxury condo with views"
         }
@@ -355,26 +355,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Tech, media, and creative professionals who want a vibrant neighborhood with direct Manhattan access via the L train.",
+          "type": "Metropolitan Connectivity",
+          "description": "Vibrant neighborhood with direct Manhattan access via the L train, creative energy, and a thriving dining and nightlife scene.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "1-bedroom waterfront condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors seeking strong rental demand driven by Williamsburg's popularity among renters and consistent year-over-year appreciation.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with strong rental demand driven by Williamsburg's popularity among tenants and consistent year-over-year appreciation.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families attracted to the new waterfront parks, improving schools, and spacious new-construction units with modern amenities.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "New waterfront parks, improving schools, and spacious new-construction units with modern amenities.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "2-3 bedroom condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Renters ready to buy in the neighborhood they already love, often transitioning from a rental in North Williamsburg.",
+          "type": "Market Entry Points",
+          "description": "Properties in North Williamsburg with accessible pricing for entering a high-demand Brooklyn market.",
           "budgetRange": "$500K - $900K",
           "propertyType": "Studio or 1-bedroom condo"
         }
@@ -588,26 +588,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Tech and creative professionals who work in DUMBO or Lower Manhattan and want a short commute with industrial-loft living.",
+          "type": "Metropolitan Connectivity",
+          "description": "Short commute to DUMBO or Lower Manhattan with a short commute with industrial-loft living.",
           "budgetRange": "$900K - $2M",
           "propertyType": "1-bedroom loft condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting high rental demand in a supply-constrained market with consistent appreciation and strong tenant quality.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with high rental demand in a supply-constrained market with consistent appreciation and strong tenant quality.",
           "budgetRange": "$800K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking spacious loft layouts with Brooklyn Bridge Park as their backyard and easy access to Manhattan schools.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring spacious loft layouts with Brooklyn Bridge Park as their backyard and easy access to Manhattan schools.",
           "budgetRange": "$1.8M - $4.5M",
           "propertyType": "2-3 bedroom loft"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking a distinctive Brooklyn address with iconic views for part-time use, with strong rental potential when not in residence.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a distinctive Brooklyn address with iconic views for part-time use, with strong rental potential when not in residence.",
           "budgetRange": "$1M - $3M",
           "propertyType": "1-bedroom condo with bridge views"
         }
@@ -824,26 +824,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families prioritizing top public schools, Prospect Park access, and a walkable neighborhood with strong community feel.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Top public schools, Prospect Park access, and a walkable neighborhood with strong community feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone or co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals working in Downtown Brooklyn or Lower Manhattan who want an urban village lifestyle with easy subway access.",
+          "type": "Metropolitan Connectivity",
+          "description": "Easy access to Downtown Brooklyn and Lower Manhattan with an urban village lifestyle with easy subway access.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "1-bedroom co-op or condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting multi-family brownstones with both appreciation potential and rental income from garden and parlor floor units.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with multi-family brownstones with both appreciation potential and rental income from garden and parlor floor units.",
           "budgetRange": "$2.5M - $5M",
           "propertyType": "2-4 family brownstone"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the market in one of Brooklyn's most stable neighborhoods, often starting with a smaller unit with plans to upsize later.",
+          "type": "Market Entry Points",
+          "description": "One of Brooklyn's most stable neighborhoods, often starting with a smaller unit with plans to upsize later.",
           "budgetRange": "$450K - $800K",
           "propertyType": "Studio or 1-bedroom co-op"
         }
@@ -1064,26 +1064,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families drawn to PS 29, the village-scale streets, and the ability to walk to everything from playgrounds to grocery stores.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering PS 29, the village-scale streets, and the ability to walk to everything from playgrounds to grocery stores.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone or co-op"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals in finance or law seeking a refined, quiet residential neighborhood with quick subway access to Downtown Brooklyn and Manhattan.",
+          "type": "Metropolitan Connectivity",
+          "description": "Properties offering a refined, quiet residential neighborhood with quick subway access to Downtown Brooklyn and Manhattan.",
           "budgetRange": "$700K - $1.3M",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Right-Sizer",
-          "description": "Buyers transitioning from larger homes who want to remain in a walkable brownstone neighborhood with character and community.",
+          "type": "Flex-Space & Grand Layouts",
+          "description": "Properties in a walkable brownstone neighborhood with character and community.",
           "budgetRange": "$800K - $1.8M",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors seeking brownstone properties in a supply-constrained historic district with strong long-term appreciation and consistent rental demand.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with brownstone properties in a supply-constrained historic district with strong long-term appreciation and consistent rental demand.",
           "budgetRange": "$2M - $4.5M",
           "propertyType": "2-family brownstone"
         }
@@ -1296,26 +1296,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking the signature deep-garden brownstones, strong public schools, and an active neighborhood community with a village feel.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring the signature deep-garden brownstones, strong public schools, and an active neighborhood community with a village feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals who value walkability, great dining, and easy F/G train access to Manhattan offices.",
+          "type": "Metropolitan Connectivity",
+          "description": "Walkable streets, great dining, and easy F/G train access to Manhattan offices.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the market in a neighborhood with strong fundamentals and diverse housing stock at multiple price points.",
+          "type": "Market Entry Points",
+          "description": "Neighborhood with strong fundamentals and diverse housing stock at multiple price points.",
           "budgetRange": "$450K - $800K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting multi-family brownstones in a high-demand, supply-constrained neighborhood with stable long-term returns.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with multi-family brownstones in a high-demand, supply-constrained neighborhood with stable long-term returns.",
           "budgetRange": "$2M - $4.5M",
           "propertyType": "2-3 family brownstone"
         }
@@ -1531,26 +1531,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Arts, media, and corporate professionals who value cultural proximity, exceptional transit, and architectural character.",
+          "type": "Metropolitan Connectivity",
+          "description": "Area featuring cultural proximity, exceptional transit, and architectural character.",
           "budgetRange": "$650K - $1.3M",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families drawn to Fort Greene Park, strong schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering Fort Greene Park, strong schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
           "budgetRange": "$1.5M - $3.5M",
           "propertyType": "3-bedroom brownstone or condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the market in a well-connected neighborhood with diverse housing options from studios to multi-family brownstones.",
+          "type": "Market Entry Points",
+          "description": "Well-connected neighborhood with diverse housing options from studios to multi-family brownstones.",
           "budgetRange": "$400K - $800K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting brownstones with rental income potential in a neighborhood with strong cultural anchors and continuous transit improvements.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with brownstones with rental income potential in a neighborhood with strong cultural anchors and continuous transit improvements.",
           "budgetRange": "$2M - $4M",
           "propertyType": "2-3 family brownstone"
         }
@@ -1775,26 +1775,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals drawn to exceptional transit access at Barclays Center, proximity to cultural institutions, and Vanderbilt Avenue's dining scene.",
+          "type": "Metropolitan Connectivity",
+          "description": "Listings near exceptional transit access at Barclays Center, proximity to cultural institutions, and Vanderbilt Avenue's dining scene.",
           "budgetRange": "$550K - $1.1M",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families prioritizing Prospect Park, the Brooklyn Museum, and Botanic Garden access with strong neighborhood schools and community.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Close to Prospect Park, the Brooklyn Museum, and Botanic Garden access with strong neighborhood schools and community.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "2-3 bedroom brownstone or condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers seeking relative value compared to neighboring Park Slope and Fort Greene while still accessing top amenities and transit.",
+          "type": "Market Entry Points",
+          "description": "Properties featuring relative value compared to neighboring Park Slope and Fort Greene while still accessing top amenities and transit.",
           "budgetRange": "$400K - $750K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors capitalizing on the Pacific Park development corridor and strong rental demand from the neighborhood's growing cultural and commercial infrastructure.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties near the Pacific Park development corridor with strong rental demand from the neighborhood's growing cultural and commercial infrastructure.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -2008,26 +2008,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Creative and tech professionals drawn to Greenpoint's indie culture, waterfront living, and ferry access to Midtown and Lower Manhattan.",
+          "type": "Metropolitan Connectivity",
+          "description": "Properties near Greenpoint's indie culture, waterfront living, and ferry access to Midtown and Lower Manhattan.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "1-bedroom waterfront condo"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families attracted to the quieter residential streets, waterfront parks, and a more neighborhood-scale feel than neighboring Williamsburg.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Quieter residential streets, waterfront parks, and a more neighborhood-scale feel than neighboring Williamsburg.",
           "budgetRange": "$1M - $2.5M",
           "propertyType": "2-3 bedroom condo or townhouse"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the market in a neighborhood with new construction inventory and relative value compared to Williamsburg and DUMBO.",
+          "type": "Market Entry Points",
+          "description": "New construction inventory and relative value compared to Williamsburg and DUMBO.",
           "budgetRange": "$450K - $800K",
           "propertyType": "Studio or 1-bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting the Greenpoint Landing corridor and waterfront development zone with strong new-construction appreciation trends.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with the Greenpoint Landing corridor and waterfront development zone with strong new-construction appreciation trends.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-bedroom condo"
         }
@@ -2235,26 +2235,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers seeking exceptional brownstone value with spacious layouts and architectural character at more accessible price points than neighboring areas.",
+          "type": "Market Entry Points",
+          "description": "Properties featuring exceptional brownstone value with spacious layouts and architectural character at more accessible price points than neighboring areas.",
           "budgetRange": "$400K - $750K",
           "propertyType": "1-bedroom condo or co-op"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting multi-family brownstones with strong rental demand, significant appreciation potential, and income from multiple units.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with multi-family brownstones with strong rental demand, significant appreciation potential, and income from multiple units.",
           "budgetRange": "$1.5M - $3.5M",
           "propertyType": "2-4 family brownstone"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families drawn to spacious brownstone living with private outdoor gardens, strong community ties, and room to grow.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties offering spacious brownstone living with private outdoor gardens, strong community ties, and room to grow.",
           "budgetRange": "$1.2M - $2.5M",
           "propertyType": "Brownstone townhouse"
         },
         {
-          "type": "Career-Focused Buyer",
-          "description": "Professionals who value distinctive architectural character, a thriving local culture, and multiple transit options to Manhattan and downtown Brooklyn.",
+          "type": "Metropolitan Connectivity",
+          "description": "Distinctive architectural character, a thriving local culture, and multiple transit options to Manhattan and downtown Brooklyn.",
           "budgetRange": "$500K - $1M",
           "propertyType": "1-bedroom condo or brownstone unit"
         }

@@ -115,26 +115,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Manhattan commuters seeking harbor views and a walkable neighborhood with a 25-minute free ferry ride to the Financial District.",
+          "type": "Metropolitan Connectivity",
+          "description": "Listings with harbor views and a walkable neighborhood with a 25-minute free ferry ride to the Financial District.",
           "budgetRange": "$350K - $600K",
           "propertyType": "Waterfront condo"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "Buyers entering the NYC market who want a vibrant, transit-connected neighborhood at a fraction of Manhattan prices.",
+          "type": "Market Entry Points",
+          "description": "Listings in a vibrant, transit-connected neighborhood at a fraction of Manhattan prices.",
           "budgetRange": "$300K - $475K",
           "propertyType": "1-2 bedroom condo"
         },
         {
-          "type": "Investor",
-          "description": "Investors drawn by waterfront revitalization, strong rental demand from ferry commuters, and ongoing development projects.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with waterfront revitalization, strong rental demand from ferry riders, and ongoing development projects.",
           "budgetRange": "$300K - $700K",
           "propertyType": "Condo or multi-family"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Families looking for spacious Victorian homes with character, good schools, and easy access to parks and cultural amenities.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Spacious Victorian homes with character, good schools, and easy access to parks and cultural amenities.",
           "budgetRange": "$500K - $750K",
           "propertyType": "Single-family Victorian"
         }
@@ -345,26 +345,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking spacious estate-style homes with large yards, excellent schools, and a safe residential environment.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring spacious estate-style homes with large yards, excellent schools, and a safe residential environment.",
           "budgetRange": "$900K - $2M",
           "propertyType": "4-5 bedroom single family"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Homeowners looking to relocate from other boroughs to a quieter setting while still being within New York City limits.",
           "budgetRange": "$700K - $1.2M",
           "propertyType": "3-4 bedroom single family"
         },
         {
-          "type": "Investor",
-          "description": "Investors seeking high-value residential properties with strong long-term appreciation in a low-inventory market.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with high-value residential properties with strong long-term appreciation in a low-inventory market.",
           "budgetRange": "$800K - $1.5M",
           "propertyType": "Single family or townhouse"
         },
         {
-          "type": "Pied-à-Terre Buyer",
-          "description": "Buyers seeking a spacious retreat from Manhattan with privacy, green space, and proximity to the Greenbelt.",
+          "type": "Secondary Residences & Studios",
+          "description": "Properties featuring a spacious retreat from Manhattan with privacy, green space, and proximity to the Greenbelt.",
           "budgetRange": "$650K - $1M",
           "propertyType": "3 bedroom townhouse"
         }
@@ -575,26 +575,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking detached homes with yards, strong schools, beach access, and active community programs.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring detached homes with yards, strong schools, beach access, and active community programs.",
           "budgetRange": "$550K - $850K",
           "propertyType": "3-4 bedroom single family"
         },
         {
-          "type": "First-Time Buyer",
+          "type": "Market Entry Points",
           "description": "First-time homeowners entering the NYC market who want a house with outdoor space at accessible price points.",
           "budgetRange": "$400K - $600K",
           "propertyType": "Semi-attached or starter home"
         },
         {
-          "type": "Right-Sizer",
+          "type": "Flex-Space & Grand Layouts",
           "description": "Homeowners seeking a well-established coastal community with marina access and a relaxed pace of life.",
           "budgetRange": "$500K - $700K",
           "propertyType": "2-3 bedroom ranch or cape"
         },
         {
-          "type": "Investor",
-          "description": "Investors targeting the South Shore's strong demand and limited inventory in a predominantly owner-occupied market.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with the South Shore's strong demand and limited inventory in a predominantly owner-occupied market.",
           "budgetRange": "$400K - $650K",
           "propertyType": "Multi-family or rental conversion"
         }
@@ -804,26 +804,26 @@
       },
       "buyerPersonas": [
         {
-          "type": "Career-Focused Buyer",
-          "description": "Manhattan professionals seeking affordable Victorian charm with a short commute via the nearby Staten Island Ferry.",
+          "type": "Metropolitan Connectivity",
+          "description": "Manhattan Listings featuring affordable Victorian charm with a short commute via the nearby Staten Island Ferry.",
           "budgetRange": "$400K - $650K",
           "propertyType": "Renovated Victorian single family"
         },
         {
-          "type": "First-Time Buyer",
-          "description": "First-time buyers drawn to the neighborhood's historic character, walkability, and proximity to cultural amenities.",
+          "type": "Market Entry Points",
+          "description": "First-time Properties near the neighborhood's historic character, walkability, and proximity to cultural amenities.",
           "budgetRange": "$325K - $500K",
           "propertyType": "Condo or starter home"
         },
         {
-          "type": "Investor",
-          "description": "Investors recognizing the North Shore's strong appreciation potential and rental demand from ferry commuters.",
+          "type": "Strong Investment & Rental Potential",
+          "description": "Properties with the North Shore's strong appreciation potential and rental demand from ferry riders.",
           "budgetRange": "$550K - $950K",
           "propertyType": "Multi-family brownstone"
         },
         {
-          "type": "Space-Focused Buyer",
-          "description": "Buyers seeking spacious homes with architectural character, good schools, and access to parks and cultural centers.",
+          "type": "Expansive Indoor-Outdoor Living",
+          "description": "Properties featuring spacious homes with architectural character, good schools, and access to parks and cultural centers.",
           "budgetRange": "$500K - $800K",
           "propertyType": "3-4 bedroom Victorian"
         }

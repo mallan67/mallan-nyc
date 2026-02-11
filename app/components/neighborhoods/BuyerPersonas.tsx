@@ -10,12 +10,12 @@ export default function BuyerPersonas({ name, personas }: BuyerPersonasProps) {
 
   return (
     <section
-      aria-label={`Who Lives in ${name}`}
+      aria-label={`Buying in ${name}`}
       className="py-10 sm:py-14 bg-gray-50"
     >
       <div className="max-w-7xl mx-auto px-4">
         <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-6">
-          Who Lives in {name}
+          Buying in {name}
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
