@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 interface CSVPreviewRow {
@@ -42,8 +42,9 @@ export default function ListingsAdmin() {
   const [listings, setListings] = useState<CSVPreviewRow[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing listings on mount
-  useState(() => {
+  // Load existing listings on mount (client-side only)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     fetch('/api/admin/listings')
       .then((res) => res.json())
       .then((data) => {
@@ -64,8 +65,10 @@ export default function ListingsAdmin() {
           );
         }
       })
-      .catch(console.error);
-  });
+      .catch(() => {
+        // Silently handle - listings will show empty state
+      });
+  }, []);
 
   const parseCSV = (text: string): { headers: string[]; rows: CSVPreviewRow[] } => {
     const lines = text.split('\n').filter((line) => line.trim());
