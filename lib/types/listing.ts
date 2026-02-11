@@ -168,6 +168,8 @@ export interface ListingAddress {
   neighborhood: string;
   neighborhoodDisplay: string;
   buildingTaxLot: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ListingPrice {

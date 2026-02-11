@@ -9,7 +9,6 @@
       "mlsStatus": "Active",
       "listingType": "sale",
       "status": "active",
-
       "address": {
         "streetNumber": "400",
         "streetName": "East 90th Street",
@@ -22,9 +21,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-east-side",
         "neighborhoodDisplay": "Upper East Side",
-        "buildingTaxLot": "1-01234-0056"
+        "buildingTaxLot": "1-01234-0056",
+        "latitude": 40.7795,
+        "longitude": -73.9491
       },
-
       "price": {
         "listPrice": 1250000,
         "pricePerSqft": 1136,
@@ -32,7 +32,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Residential",
@@ -50,7 +49,6 @@
         "floorsInBuilding": 32,
         "unitFloor": 12
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": 1850,
@@ -70,25 +68,45 @@
         "maxFinancing": 80,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "400 East 90th Street Condominium",
         "associationFee": 1850,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Water", "Sewer", "Trash", "Building Insurance", "Common Area Maintenance"],
+        "associationFeeIncludes": [
+          "Water",
+          "Sewer",
+          "Trash",
+          "Building Insurance",
+          "Common Area Maintenance"
+        ],
         "associationPhone": "(212) 555-0100"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Disposal"],
+          "flooring": [
+            "Hardwood"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Disposal"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Forced Air", "Gas"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Forced Air",
+            "Gas"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Double Pane", "Storm Windows"],
+          "windowFeatures": [
+            "Double Pane",
+            "Storm Windows"
+          ],
           "accessibility": []
         },
         "building": {
@@ -107,7 +125,11 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": true,
-          "security": ["24 Hour Security", "Video Intercom", "Key Fob Entry"],
+          "security": [
+            "24 Hour Security",
+            "Video Intercom",
+            "Key Fob Entry"
+          ],
           "attendanceType": "Full Time Doorman"
         },
         "pets": {
@@ -125,10 +147,15 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["City", "East River"],
-        "exposure": ["East", "South"]
+        "views": [
+          "City",
+          "East River"
+        ],
+        "exposure": [
+          "East",
+          "South"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -136,7 +163,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2026-01-11",
         "expirationDate": "2026-07-11",
@@ -149,7 +175,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "maya-allan",
         "listAgentName": "Maya Allan",
@@ -160,7 +185,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "3%",
         "buyerAgentCompensationType": "Percentage",
@@ -169,7 +193,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -183,12 +206,9 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Stunning corner 2-bedroom residence with panoramic East River views and abundant natural light. This meticulously renovated apartment features an open chef's kitchen with top-of-the-line appliances, custom cabinetry, and breakfast bar. The spacious living room opens to a formal dining area, perfect for entertaining. The primary suite boasts a walk-in closet and en-suite bathroom with marble finishes. Full-service building with 24-hour doorman, fitness center, and rooftop terrace.",
-
       "privateRemarks": null,
       "showingRemarks": "Please call listing agent at least 24 hours in advance.",
-
       "openHouse": {
         "scheduled": true,
         "date": "2026-01-26",
@@ -197,7 +217,6 @@
         "type": "Public",
         "remarks": "No appointment necessary"
       },
-
       "flags": {
         "isExclusive": true,
         "isFeatured": true,
@@ -206,7 +225,6 @@
         "isOpenHouse": true,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -220,7 +238,6 @@
       "mlsStatus": "Active",
       "listingType": "sale",
       "status": "active",
-
       "address": {
         "streetNumber": "225",
         "streetName": "East 86th Street",
@@ -233,9 +250,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-east-side",
         "neighborhoodDisplay": "Upper East Side",
-        "buildingTaxLot": "1-01456-0078"
+        "buildingTaxLot": "1-01456-0078",
+        "latitude": 40.7793,
+        "longitude": -73.9536
       },
-
       "price": {
         "listPrice": 875000,
         "pricePerSqft": 1167,
@@ -243,7 +261,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Co-op",
         "propertySubType": "Residential",
@@ -261,7 +278,6 @@
         "floorsInBuilding": 15,
         "unitFloor": 8
       },
-
       "nycSpecific": {
         "coopCondo": "Co-op",
         "maintenanceFee": 1450,
@@ -281,25 +297,45 @@
         "maxFinancing": 75,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "225 East 86th Street Corp",
         "associationFee": 1450,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Heat", "Hot Water", "Gas", "Electric", "Building Insurance", "Doorman", "Super"],
+        "associationFeeIncludes": [
+          "Heat",
+          "Hot Water",
+          "Gas",
+          "Electric",
+          "Building Insurance",
+          "Doorman",
+          "Super"
+        ],
         "associationPhone": "(212) 555-0200"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Original"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood",
+            "Original"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Window Unit"],
-          "heating": ["Steam", "Radiator"],
+          "cooling": [
+            "Window Unit"
+          ],
+          "heating": [
+            "Steam",
+            "Radiator"
+          ],
           "fireplace": true,
           "basement": "None",
-          "windowFeatures": ["Original"],
+          "windowFeatures": [
+            "Original"
+          ],
           "accessibility": []
         },
         "building": {
@@ -318,7 +354,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": false,
-          "security": ["24 Hour Doorman", "Intercom"],
+          "security": [
+            "24 Hour Doorman",
+            "Intercom"
+          ],
           "attendanceType": "Full Time Doorman"
         },
         "pets": {
@@ -336,10 +375,13 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["City"],
-        "exposure": ["South"]
+        "views": [
+          "City"
+        ],
+        "exposure": [
+          "South"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -347,7 +389,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2025-12-28",
         "expirationDate": "2026-06-28",
@@ -360,7 +401,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "sarah-chen",
         "listAgentName": "Sarah Chen",
@@ -371,7 +411,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "3%",
         "buyerAgentCompensationType": "Percentage",
@@ -380,7 +419,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -394,14 +432,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Charming pre-war one-bedroom in prime Upper East Side location. This elegant residence features high ceilings, original moldings, and hardwood floors throughout. The windowed kitchen has been updated with modern appliances while maintaining classic charm. Enjoy the convenience of a full-service building with doorman, live-in super, and laundry room. Steps from Central Park, fine dining, and shopping along Madison Avenue. Maintenance includes all utilities except electric.",
-
       "privateRemarks": null,
       "showingRemarks": "Tenant occupied. 48 hours notice required.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": false,
         "isFeatured": false,
@@ -410,7 +444,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -424,7 +457,6 @@
       "mlsStatus": "Active",
       "listingType": "sale",
       "status": "active",
-
       "address": {
         "streetNumber": "180",
         "streetName": "Montague Street",
@@ -437,9 +469,10 @@
         "cityRegion": "Brooklyn",
         "neighborhood": "brooklyn-heights",
         "neighborhoodDisplay": "Brooklyn Heights",
-        "buildingTaxLot": "3-00234-0012"
+        "buildingTaxLot": "3-00234-0012",
+        "latitude": 40.693,
+        "longitude": -73.9912
       },
-
       "price": {
         "listPrice": 1450000,
         "pricePerSqft": 1036,
@@ -447,7 +480,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Residential",
@@ -465,7 +497,6 @@
         "floorsInBuilding": 4,
         "unitFloor": 2
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": 650,
@@ -485,25 +516,43 @@
         "maxFinancing": 90,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "180 Montague Condominium",
         "associationFee": 650,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Water", "Sewer", "Building Insurance"],
+        "associationFeeIncludes": [
+          "Water",
+          "Sewer",
+          "Building Insurance"
+        ],
         "associationPhone": "(718) 555-0300"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Wide Plank"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler"],
+          "flooring": [
+            "Hardwood",
+            "Wide Plank"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Wine Cooler"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Forced Air"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Forced Air"
+          ],
           "fireplace": true,
           "basement": "None",
-          "windowFeatures": ["Original", "Oversized"],
+          "windowFeatures": [
+            "Original",
+            "Oversized"
+          ],
           "accessibility": []
         },
         "building": {
@@ -522,7 +571,9 @@
           "laundryRoom": false,
           "playroom": false,
           "communityRoom": false,
-          "security": ["Video Intercom"],
+          "security": [
+            "Video Intercom"
+          ],
           "attendanceType": "None"
         },
         "pets": {
@@ -540,10 +591,14 @@
           "garden": true,
           "roofRights": false
         },
-        "views": ["Garden"],
-        "exposure": ["South", "West"]
+        "views": [
+          "Garden"
+        ],
+        "exposure": [
+          "South",
+          "West"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -551,7 +606,6 @@
         "netOperatingIncome": null,
         "professionalManagement": false
       },
-
       "listing": {
         "listingDate": "2026-01-18",
         "expirationDate": "2026-07-18",
@@ -564,7 +618,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "david-thompson",
         "listAgentName": "David Thompson",
@@ -575,7 +628,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "3%",
         "buyerAgentCompensationType": "Percentage",
@@ -584,7 +636,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -598,12 +649,9 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Magnificent 3-bedroom duplex in a historic Brooklyn Heights brownstone. This rare offering spans two floors with soaring ceilings, exposed brick, and private garden access. The main level features an open living and dining area with decorative fireplace, chef's kitchen with marble countertops, and access to the lush private garden. Upper level includes three bedrooms and two full bathrooms. Original details include crown moldings, pocket doors, and refinished hardwood floors.",
-
       "privateRemarks": null,
       "showingRemarks": "Vacant. Lockbox code available upon confirmed showing.",
-
       "openHouse": {
         "scheduled": true,
         "date": "2026-01-26",
@@ -612,7 +660,6 @@
         "type": "Public",
         "remarks": "No appointment necessary"
       },
-
       "flags": {
         "isExclusive": true,
         "isFeatured": true,
@@ -621,7 +668,6 @@
         "isOpenHouse": true,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -635,7 +681,6 @@
       "mlsStatus": "Active",
       "listingType": "sale",
       "status": "active",
-
       "address": {
         "streetNumber": "50",
         "streetName": "West 66th Street",
@@ -648,9 +693,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-west-side",
         "neighborhoodDisplay": "Upper West Side",
-        "buildingTaxLot": "1-01122-0034"
+        "buildingTaxLot": "1-01122-0034",
+        "latitude": 40.7738,
+        "longitude": -73.9817
       },
-
       "price": {
         "listPrice": 2850000,
         "pricePerSqft": 1583,
@@ -658,7 +704,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Residential",
@@ -676,7 +721,6 @@
         "floorsInBuilding": 45,
         "unitFloor": 32
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": 2450,
@@ -696,25 +740,48 @@
         "maxFinancing": 90,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "Lincoln Tower Condominium",
         "associationFee": 2450,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Water", "Sewer", "Trash", "Building Insurance", "Doorman", "Gym", "Pool"],
+        "associationFeeIncludes": [
+          "Water",
+          "Sewer",
+          "Trash",
+          "Building Insurance",
+          "Doorman",
+          "Gym",
+          "Pool"
+        ],
         "associationPhone": "(212) 555-0400"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "White Oak"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler", "Washer", "Dryer"],
+          "flooring": [
+            "Hardwood",
+            "White Oak"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Wine Cooler",
+            "Washer",
+            "Dryer"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Floor to Ceiling"],
+          "windowFeatures": [
+            "Floor to Ceiling"
+          ],
           "accessibility": []
         },
         "building": {
@@ -733,7 +800,11 @@
           "laundryRoom": true,
           "playroom": true,
           "communityRoom": true,
-          "security": ["24 Hour Concierge", "Key Fob", "Video Surveillance"],
+          "security": [
+            "24 Hour Concierge",
+            "Key Fob",
+            "Video Surveillance"
+          ],
           "attendanceType": "Full Time Concierge"
         },
         "pets": {
@@ -751,10 +822,15 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["Central Park", "City Skyline"],
-        "exposure": ["North", "West"]
+        "views": [
+          "Central Park",
+          "City Skyline"
+        ],
+        "exposure": [
+          "North",
+          "West"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -762,7 +838,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2026-01-05",
         "expirationDate": "2026-07-05",
@@ -775,7 +850,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "jennifer-park",
         "listAgentName": "Jennifer Park",
@@ -786,7 +860,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "2.5%",
         "buyerAgentCompensationType": "Percentage",
@@ -795,7 +868,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -809,14 +881,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Spectacular 3-bedroom residence with breathtaking Central Park views in a premier Upper West Side condominium. This corner unit features floor-to-ceiling windows, custom Italian kitchen with Miele appliances, and elegant master suite with spa-like bathroom. Private balcony offers stunning sunset views. Building amenities include 24-hour concierge, fitness center, swimming pool, children's playroom, and resident lounge. Steps to Lincoln Center and Central Park.",
-
       "privateRemarks": null,
       "showingRemarks": "By appointment only.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": true,
@@ -825,7 +893,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -839,7 +906,6 @@
       "mlsStatus": "Active",
       "listingType": "sale",
       "status": "active",
-
       "address": {
         "streetNumber": "100",
         "streetName": "Barclay Street",
@@ -852,9 +918,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "tribeca",
         "neighborhoodDisplay": "Tribeca",
-        "buildingTaxLot": "1-00145-0067"
+        "buildingTaxLot": "1-00145-0067",
+        "latitude": 40.7127,
+        "longitude": -74.0121
       },
-
       "price": {
         "listPrice": 3950000,
         "pricePerSqft": 1975,
@@ -862,7 +929,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Residential",
@@ -880,7 +946,6 @@
         "floorsInBuilding": 58,
         "unitFloor": 28
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": 3200,
@@ -900,25 +965,50 @@
         "maxFinancing": 90,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "100 Barclay Condominium",
         "associationFee": 3200,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Water", "Sewer", "Trash", "Building Insurance", "Doorman", "Gym", "Pool", "Valet"],
+        "associationFeeIncludes": [
+          "Water",
+          "Sewer",
+          "Trash",
+          "Building Insurance",
+          "Doorman",
+          "Gym",
+          "Pool",
+          "Valet"
+        ],
         "associationPhone": "(212) 555-0500"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "European Oak"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler", "Washer", "Dryer"],
+          "flooring": [
+            "Hardwood",
+            "European Oak"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Wine Cooler",
+            "Washer",
+            "Dryer"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Floor to Ceiling", "Oversized"],
+          "windowFeatures": [
+            "Floor to Ceiling",
+            "Oversized"
+          ],
           "accessibility": []
         },
         "building": {
@@ -937,7 +1027,12 @@
           "laundryRoom": true,
           "playroom": true,
           "communityRoom": true,
-          "security": ["24 Hour Concierge", "Key Fob", "Video Surveillance", "Attended Lobby"],
+          "security": [
+            "24 Hour Concierge",
+            "Key Fob",
+            "Video Surveillance",
+            "Attended Lobby"
+          ],
           "attendanceType": "Full Time Concierge"
         },
         "pets": {
@@ -955,10 +1050,15 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["Hudson River", "City Skyline"],
-        "exposure": ["West", "South"]
+        "views": [
+          "Hudson River",
+          "City Skyline"
+        ],
+        "exposure": [
+          "West",
+          "South"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -966,7 +1066,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2026-01-15",
         "expirationDate": "2026-07-15",
@@ -979,7 +1078,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "michael-rodriguez",
         "listAgentName": "Michael Rodriguez",
@@ -990,7 +1088,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "2.5%",
         "buyerAgentCompensationType": "Percentage",
@@ -999,7 +1096,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -1013,14 +1109,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Exceptional 3-bedroom residence in the iconic 100 Barclay Street, one of Tribeca's most prestigious addresses. This meticulously designed home features expansive living spaces with 11-foot ceilings, custom millwork, and premium finishes throughout. Chef's kitchen with Gaggenau appliances and marble countertops. Private terrace with stunning Hudson River views. World-class amenities include 40,000 sq ft of indoor/outdoor space, 75-foot lap pool, full-service spa, and private dining room.",
-
       "privateRemarks": null,
       "showingRemarks": "By appointment only. 24 hours notice required.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": true,
@@ -1029,7 +1121,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -1043,7 +1134,6 @@
       "mlsStatus": "Active",
       "listingType": "rent",
       "status": "active",
-
       "address": {
         "streetNumber": "123",
         "streetName": "East 72nd Street",
@@ -1056,9 +1146,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-east-side",
         "neighborhoodDisplay": "Upper East Side",
-        "buildingTaxLot": "1-01567-0089"
+        "buildingTaxLot": "1-01567-0089",
+        "latitude": 40.7695,
+        "longitude": -73.961
       },
-
       "price": {
         "listPrice": 4500,
         "pricePerSqft": null,
@@ -1066,7 +1157,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Rental",
@@ -1084,7 +1174,6 @@
         "floorsInBuilding": 12,
         "unitFloor": 6
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": null,
@@ -1104,7 +1193,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "123 East 72nd Condominium",
         "associationFee": null,
@@ -1112,17 +1200,28 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Window Unit"],
-          "heating": ["Steam"],
+          "cooling": [
+            "Window Unit"
+          ],
+          "heating": [
+            "Steam"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Original"],
+          "windowFeatures": [
+            "Original"
+          ],
           "accessibility": []
         },
         "building": {
@@ -1141,7 +1240,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": false,
-          "security": ["24 Hour Doorman", "Intercom"],
+          "security": [
+            "24 Hour Doorman",
+            "Intercom"
+          ],
           "attendanceType": "Full Time Doorman"
         },
         "pets": {
@@ -1159,12 +1261,14 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["City"],
-        "exposure": ["South"]
+        "views": [
+          "City"
+        ],
+        "exposure": [
+          "South"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2026-01-20",
         "expirationDate": "2026-04-20",
@@ -1177,7 +1281,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "sarah-chen",
         "listAgentName": "Sarah Chen",
@@ -1188,7 +1291,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -1197,7 +1299,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -1211,14 +1312,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Elegant pre-war one-bedroom in a coveted Upper East Side location. This beautifully maintained residence features high ceilings, original moldings, and gracious proportions. The windowed eat-in kitchen and renovated bathroom complement the classic charm. White-glove building with doorman and live-in superintendent. Steps from Central Park, Madison Avenue boutiques, and world-class museums. Available immediately.",
-
       "privateRemarks": null,
       "showingRemarks": "Current tenant present. Please be respectful.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": false,
         "isFeatured": true,
@@ -1227,7 +1324,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -1241,7 +1337,6 @@
       "mlsStatus": "Active",
       "listingType": "rent",
       "status": "active",
-
       "address": {
         "streetNumber": "456",
         "streetName": "West 34th Street",
@@ -1254,9 +1349,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "hudson-yards",
         "neighborhoodDisplay": "Hudson Yards",
-        "buildingTaxLot": "1-00789-0123"
+        "buildingTaxLot": "1-00789-0123",
+        "latitude": 40.7547,
+        "longitude": -74
       },
-
       "price": {
         "listPrice": 6500,
         "pricePerSqft": null,
@@ -1264,7 +1360,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Rental",
@@ -1282,7 +1377,6 @@
         "floorsInBuilding": 65,
         "unitFloor": 18
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": null,
@@ -1302,7 +1396,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "Hudson Yards Residences",
         "associationFee": null,
@@ -1310,17 +1403,33 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Wide Plank Oak"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler", "Washer", "Dryer"],
+          "flooring": [
+            "Hardwood",
+            "Wide Plank Oak"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Wine Cooler",
+            "Washer",
+            "Dryer"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Floor to Ceiling"],
+          "windowFeatures": [
+            "Floor to Ceiling"
+          ],
           "accessibility": []
         },
         "building": {
@@ -1339,7 +1448,11 @@
           "laundryRoom": true,
           "playroom": true,
           "communityRoom": true,
-          "security": ["24 Hour Concierge", "Key Fob", "Video Surveillance"],
+          "security": [
+            "24 Hour Concierge",
+            "Key Fob",
+            "Video Surveillance"
+          ],
           "attendanceType": "Full Time Concierge"
         },
         "pets": {
@@ -1357,12 +1470,16 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["City", "Hudson River"],
-        "exposure": ["West", "South"]
+        "views": [
+          "City",
+          "Hudson River"
+        ],
+        "exposure": [
+          "West",
+          "South"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2026-01-22",
         "expirationDate": "2026-04-22",
@@ -1375,7 +1492,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "jennifer-park",
         "listAgentName": "Jennifer Park",
@@ -1386,7 +1502,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -1395,7 +1510,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -1409,14 +1523,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Stunning 2-bedroom, 2-bath rental in Hudson Yards' most sought-after building. This corner unit features floor-to-ceiling windows with spectacular city views, open chef's kitchen with premium appliances, and private balcony. Resort-style amenities include 75-foot pool, state-of-the-art fitness center, yoga studio, and landscaped roof terrace. Adjacent to The Shops at Hudson Yards and The High Line. Immediate occupancy available.",
-
       "privateRemarks": null,
       "showingRemarks": "Vacant. See concierge for access.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": true,
@@ -1425,7 +1535,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -1439,7 +1548,6 @@
       "mlsStatus": "Active",
       "listingType": "rent",
       "status": "active",
-
       "address": {
         "streetNumber": "250",
         "streetName": "South Street",
@@ -1452,9 +1560,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "lower-east-side",
         "neighborhoodDisplay": "Lower East Side",
-        "buildingTaxLot": "1-00234-0098"
+        "buildingTaxLot": "1-00234-0098",
+        "latitude": 40.7098,
+        "longitude": -73.9858
       },
-
       "price": {
         "listPrice": 12500,
         "pricePerSqft": null,
@@ -1462,7 +1571,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Rental",
@@ -1480,7 +1588,6 @@
         "floorsInBuilding": 50,
         "unitFloor": 50
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": null,
@@ -1500,7 +1607,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "One Manhattan Square",
         "associationFee": null,
@@ -1508,17 +1614,34 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "White Oak"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler", "Washer", "Dryer"],
+          "flooring": [
+            "Hardwood",
+            "White Oak"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Wine Cooler",
+            "Washer",
+            "Dryer"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Floor to Ceiling", "Corner"],
+          "windowFeatures": [
+            "Floor to Ceiling",
+            "Corner"
+          ],
           "accessibility": []
         },
         "building": {
@@ -1537,7 +1660,11 @@
           "laundryRoom": true,
           "playroom": true,
           "communityRoom": true,
-          "security": ["24 Hour Concierge", "Key Fob", "Video Surveillance"],
+          "security": [
+            "24 Hour Concierge",
+            "Key Fob",
+            "Video Surveillance"
+          ],
           "attendanceType": "Full Time Concierge"
         },
         "pets": {
@@ -1555,12 +1682,18 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["East River", "Brooklyn Bridge", "City Skyline"],
-        "exposure": ["East", "South", "West"]
+        "views": [
+          "East River",
+          "Brooklyn Bridge",
+          "City Skyline"
+        ],
+        "exposure": [
+          "East",
+          "South",
+          "West"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2026-01-18",
         "expirationDate": "2026-04-18",
@@ -1573,7 +1706,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "maya-allan",
         "listAgentName": "Maya Allan",
@@ -1584,7 +1716,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -1593,7 +1724,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -1607,14 +1737,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Extraordinary penthouse rental with panoramic views of the East River, Brooklyn Bridge, and Manhattan skyline. This stunning 3-bedroom residence features floor-to-ceiling windows, private wrap-around terrace, gourmet kitchen with top-of-the-line appliances, and luxurious master suite with spa bathroom. Building offers 100,000 sq ft of amenities including pools, fitness center, spa, basketball court, and private IMAX theater. Furnished or unfurnished options available.",
-
       "privateRemarks": null,
       "showingRemarks": "By appointment only.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": true,
@@ -1623,7 +1749,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -1637,7 +1762,6 @@
       "mlsStatus": "Active",
       "listingType": "rent",
       "status": "active",
-
       "address": {
         "streetNumber": "350",
         "streetName": "5th Avenue",
@@ -1650,9 +1774,10 @@
         "cityRegion": "Brooklyn",
         "neighborhood": "park-slope",
         "neighborhoodDisplay": "Park Slope",
-        "buildingTaxLot": "3-00567-0045"
+        "buildingTaxLot": "3-00567-0045",
+        "latitude": 40.6724,
+        "longitude": -73.982
       },
-
       "price": {
         "listPrice": 3800,
         "pricePerSqft": null,
@@ -1660,7 +1785,6 @@
         "closePrice": null,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Co-op",
         "propertySubType": "Rental",
@@ -1678,7 +1802,6 @@
         "floorsInBuilding": 6,
         "unitFloor": 4
       },
-
       "nycSpecific": {
         "coopCondo": "Co-op",
         "maintenanceFee": null,
@@ -1698,7 +1821,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "350 5th Avenue Owners Corp",
         "associationFee": null,
@@ -1706,17 +1828,31 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Original"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood",
+            "Original"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Window Unit"],
-          "heating": ["Steam", "Radiator"],
+          "cooling": [
+            "Window Unit"
+          ],
+          "heating": [
+            "Steam",
+            "Radiator"
+          ],
           "fireplace": true,
           "basement": "None",
-          "windowFeatures": ["Original", "Oversized"],
+          "windowFeatures": [
+            "Original",
+            "Oversized"
+          ],
           "accessibility": []
         },
         "building": {
@@ -1735,7 +1871,9 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": false,
-          "security": ["Video Intercom"],
+          "security": [
+            "Video Intercom"
+          ],
           "attendanceType": "None"
         },
         "pets": {
@@ -1753,12 +1891,15 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["Tree-Lined Street"],
-        "exposure": ["South", "West"]
+        "views": [
+          "Tree-Lined Street"
+        ],
+        "exposure": [
+          "South",
+          "West"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2026-01-21",
         "expirationDate": "2026-04-21",
@@ -1771,7 +1912,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "david-thompson",
         "listAgentName": "David Thompson",
@@ -1782,7 +1922,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -1791,7 +1930,6 @@
         "buyerFinancing": null,
         "closeDate": null
       },
-
       "media": {
         "images": [
           {
@@ -1805,14 +1943,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Charming 2-bedroom in the heart of Park Slope. This sun-drenched pre-war apartment features high ceilings, original hardwood floors, decorative fireplace, and gracious room sizes. Updated eat-in kitchen with dishwasher. One block from Prospect Park and steps from excellent restaurants, cafes, and shopping on 5th and 7th Avenues. Board approval required. Available March 1st.",
-
       "privateRemarks": null,
       "showingRemarks": "Current tenant vacating end of February.",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": false,
         "isFeatured": false,
@@ -1821,7 +1955,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -1835,7 +1968,6 @@
       "mlsStatus": "Closed",
       "listingType": "sale",
       "status": "sold",
-
       "address": {
         "streetNumber": "515",
         "streetName": "Park Avenue",
@@ -1848,9 +1980,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-east-side",
         "neighborhoodDisplay": "Upper East Side",
-        "buildingTaxLot": "1-01345-0067"
+        "buildingTaxLot": "1-01345-0067",
+        "latitude": 40.7629,
+        "longitude": -73.969
       },
-
       "price": {
         "listPrice": 2200000,
         "pricePerSqft": 1467,
@@ -1858,7 +1991,6 @@
         "closePrice": 2150000,
         "closePricePerSqft": 1433
       },
-
       "propertyInfo": {
         "propertyType": "Co-op",
         "propertySubType": "Residential",
@@ -1876,7 +2008,6 @@
         "floorsInBuilding": 18,
         "unitFloor": 15
       },
-
       "nycSpecific": {
         "coopCondo": "Co-op",
         "maintenanceFee": 3200,
@@ -1896,25 +2027,44 @@
         "maxFinancing": 50,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "515 Park Avenue Corp",
         "associationFee": 3200,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Heat", "Hot Water", "Gas", "Electric", "Doorman", "Building Insurance"],
+        "associationFeeIncludes": [
+          "Heat",
+          "Hot Water",
+          "Gas",
+          "Electric",
+          "Doorman",
+          "Building Insurance"
+        ],
         "associationPhone": "(212) 555-0600"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Herringbone"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood",
+            "Herringbone"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": true,
           "basement": "None",
-          "windowFeatures": ["Original", "Oversized"],
+          "windowFeatures": [
+            "Original",
+            "Oversized"
+          ],
           "accessibility": []
         },
         "building": {
@@ -1933,7 +2083,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": true,
-          "security": ["24 Hour Doorman", "Attended Lobby"],
+          "security": [
+            "24 Hour Doorman",
+            "Attended Lobby"
+          ],
           "attendanceType": "Full Time Doorman"
         },
         "pets": {
@@ -1951,10 +2104,14 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["Park Avenue"],
-        "exposure": ["East", "South"]
+        "views": [
+          "Park Avenue"
+        ],
+        "exposure": [
+          "East",
+          "South"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -1962,7 +2119,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2025-09-15",
         "expirationDate": "2026-03-15",
@@ -1975,7 +2131,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "maya-allan",
         "listAgentName": "Maya Allan",
@@ -1986,7 +2141,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "3%",
         "buyerAgentCompensationType": "Percentage",
@@ -1995,7 +2149,6 @@
         "buyerFinancing": "Conventional",
         "closeDate": "2025-12-11"
       },
-
       "media": {
         "images": [
           {
@@ -2009,14 +2162,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Elegant pre-war 3-bedroom in one of Park Avenue's most distinguished cooperatives. This gracious residence features grand proportions, 10-foot ceilings, herringbone floors, and working fireplace. Formal living room with Park Avenue views, separate dining room, renovated kitchen, and three well-proportioned bedrooms. White-glove building with 24-hour doorman, concierge, fitness center, and rooftop terrace.",
-
       "privateRemarks": null,
       "showingRemarks": "SOLD December 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": false,
@@ -2025,7 +2174,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -2039,7 +2187,6 @@
       "mlsStatus": "Closed",
       "listingType": "sale",
       "status": "sold",
-
       "address": {
         "streetNumber": "88",
         "streetName": "Greenwich Street",
@@ -2052,9 +2199,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "financial-district",
         "neighborhoodDisplay": "Financial District",
-        "buildingTaxLot": "1-00089-0042"
+        "buildingTaxLot": "1-00089-0042",
+        "latitude": 40.7088,
+        "longitude": -74.0133
       },
-
       "price": {
         "listPrice": 1650000,
         "pricePerSqft": 1500,
@@ -2062,7 +2210,6 @@
         "closePrice": 1625000,
         "closePricePerSqft": 1477
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Residential",
@@ -2080,7 +2227,6 @@
         "floorsInBuilding": 60,
         "unitFloor": 42
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": 1650,
@@ -2100,25 +2246,46 @@
         "maxFinancing": 80,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "88 Greenwich Condominium",
         "associationFee": 1650,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Water", "Sewer", "Trash", "Building Insurance", "Doorman", "Gym"],
+        "associationFeeIncludes": [
+          "Water",
+          "Sewer",
+          "Trash",
+          "Building Insurance",
+          "Doorman",
+          "Gym"
+        ],
         "associationPhone": "(212) 555-0700"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Wide Plank"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Washer", "Dryer"],
+          "flooring": [
+            "Hardwood",
+            "Wide Plank"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Washer",
+            "Dryer"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Floor to Ceiling"],
+          "windowFeatures": [
+            "Floor to Ceiling"
+          ],
           "accessibility": []
         },
         "building": {
@@ -2137,7 +2304,11 @@
           "laundryRoom": true,
           "playroom": true,
           "communityRoom": true,
-          "security": ["24 Hour Concierge", "Key Fob", "Video Surveillance"],
+          "security": [
+            "24 Hour Concierge",
+            "Key Fob",
+            "Video Surveillance"
+          ],
           "attendanceType": "Full Time Concierge"
         },
         "pets": {
@@ -2155,10 +2326,15 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["City", "Hudson River"],
-        "exposure": ["West", "South"]
+        "views": [
+          "City",
+          "Hudson River"
+        ],
+        "exposure": [
+          "West",
+          "South"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -2166,7 +2342,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2025-08-01",
         "expirationDate": "2026-02-01",
@@ -2179,7 +2354,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "michael-rodriguez",
         "listAgentName": "Michael Rodriguez",
@@ -2190,7 +2364,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "2.5%",
         "buyerAgentCompensationType": "Percentage",
@@ -2199,7 +2372,6 @@
         "buyerFinancing": "Cash",
         "closeDate": "2025-11-04"
       },
-
       "media": {
         "images": [
           {
@@ -2213,14 +2385,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Modern 2-bedroom residence with stunning Hudson River views in a full-service Financial District condominium. This impeccably designed home features an open floor plan, floor-to-ceiling windows, custom Italian kitchen, and spa-like bathrooms. Building amenities include swimming pool, fitness center, rooftop terrace, and children's playroom. Steps to Brookfield Place, the Oculus, and waterfront parks.",
-
       "privateRemarks": null,
       "showingRemarks": "SOLD November 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": false,
@@ -2229,7 +2397,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -2243,7 +2410,6 @@
       "mlsStatus": "Closed",
       "listingType": "sale",
       "status": "sold",
-
       "address": {
         "streetNumber": "425",
         "streetName": "East 58th Street",
@@ -2256,9 +2422,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "sutton-place",
         "neighborhoodDisplay": "Sutton Place",
-        "buildingTaxLot": "1-01234-0089"
+        "buildingTaxLot": "1-01234-0089",
+        "latitude": 40.7598,
+        "longitude": -73.9594
       },
-
       "price": {
         "listPrice": 1150000,
         "pricePerSqft": 1278,
@@ -2266,7 +2433,6 @@
         "closePrice": 1125000,
         "closePricePerSqft": 1250
       },
-
       "propertyInfo": {
         "propertyType": "Co-op",
         "propertySubType": "Residential",
@@ -2284,7 +2450,6 @@
         "floorsInBuilding": 14,
         "unitFloor": 9
       },
-
       "nycSpecific": {
         "coopCondo": "Co-op",
         "maintenanceFee": 1850,
@@ -2304,25 +2469,42 @@
         "maxFinancing": 70,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "425 East 58th Street Corp",
         "associationFee": 1850,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Heat", "Hot Water", "Gas", "Doorman", "Building Insurance"],
+        "associationFeeIncludes": [
+          "Heat",
+          "Hot Water",
+          "Gas",
+          "Doorman",
+          "Building Insurance"
+        ],
         "associationPhone": "(212) 555-0800"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Window Unit"],
-          "heating": ["Steam", "Radiator"],
+          "cooling": [
+            "Window Unit"
+          ],
+          "heating": [
+            "Steam",
+            "Radiator"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Original"],
+          "windowFeatures": [
+            "Original"
+          ],
           "accessibility": []
         },
         "building": {
@@ -2341,7 +2523,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": false,
-          "security": ["24 Hour Doorman", "Intercom"],
+          "security": [
+            "24 Hour Doorman",
+            "Intercom"
+          ],
           "attendanceType": "Full Time Doorman"
         },
         "pets": {
@@ -2359,10 +2544,13 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["East River"],
-        "exposure": ["East"]
+        "views": [
+          "East River"
+        ],
+        "exposure": [
+          "East"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -2370,7 +2558,6 @@
         "netOperatingIncome": null,
         "professionalManagement": true
       },
-
       "listing": {
         "listingDate": "2025-07-10",
         "expirationDate": "2026-01-10",
@@ -2383,7 +2570,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "sarah-chen",
         "listAgentName": "Sarah Chen",
@@ -2394,7 +2580,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "3%",
         "buyerAgentCompensationType": "Percentage",
@@ -2403,7 +2588,6 @@
         "buyerFinancing": "Conventional",
         "closeDate": "2025-09-26"
       },
-
       "media": {
         "images": [
           {
@@ -2417,14 +2601,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Charming pre-war 2-bedroom in prestigious Sutton Place. This bright corner residence features classic details including high ceilings, crown moldings, and hardwood floors. Renovated windowed kitchen and updated bathroom. Building offers 24-hour doorman, rooftop terrace, and storage. Prime location near Sutton Place Park and East River esplanade.",
-
       "privateRemarks": null,
       "showingRemarks": "SOLD September 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": false,
@@ -2433,7 +2613,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -2447,7 +2626,6 @@
       "mlsStatus": "Closed",
       "listingType": "sale",
       "status": "sold",
-
       "address": {
         "streetNumber": "322",
         "streetName": "Carroll Street",
@@ -2460,9 +2638,10 @@
         "cityRegion": "Brooklyn",
         "neighborhood": "carroll-gardens",
         "neighborhoodDisplay": "Carroll Gardens",
-        "buildingTaxLot": "3-00456-0023"
+        "buildingTaxLot": "3-00456-0023",
+        "latitude": 40.6803,
+        "longitude": -73.9965
       },
-
       "price": {
         "listPrice": 1895000,
         "pricePerSqft": 1053,
@@ -2470,7 +2649,6 @@
         "closePrice": 1875000,
         "closePricePerSqft": 1042
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Residential",
@@ -2488,7 +2666,6 @@
         "floorsInBuilding": 3,
         "unitFloor": 1
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": 450,
@@ -2508,25 +2685,44 @@
         "maxFinancing": 90,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "322 Carroll Street Condominium",
         "associationFee": 450,
         "associationFeeFrequency": "Monthly",
-        "associationFeeIncludes": ["Water", "Sewer", "Building Insurance"],
+        "associationFeeIncludes": [
+          "Water",
+          "Sewer",
+          "Building Insurance"
+        ],
         "associationPhone": "(718) 555-0400"
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Wide Plank", "Original"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Wine Cooler"],
+          "flooring": [
+            "Hardwood",
+            "Wide Plank",
+            "Original"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Wine Cooler"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": true,
           "basement": "None",
-          "windowFeatures": ["Original", "Oversized"],
+          "windowFeatures": [
+            "Original",
+            "Oversized"
+          ],
           "accessibility": []
         },
         "building": {
@@ -2545,7 +2741,9 @@
           "laundryRoom": false,
           "playroom": false,
           "communityRoom": false,
-          "security": ["Video Intercom"],
+          "security": [
+            "Video Intercom"
+          ],
           "attendanceType": "None"
         },
         "pets": {
@@ -2563,10 +2761,14 @@
           "garden": true,
           "roofRights": false
         },
-        "views": ["Garden"],
-        "exposure": ["South", "North"]
+        "views": [
+          "Garden"
+        ],
+        "exposure": [
+          "South",
+          "North"
+        ]
       },
-
       "financials": {
         "capRate": null,
         "grossIncome": null,
@@ -2574,7 +2776,6 @@
         "netOperatingIncome": null,
         "professionalManagement": false
       },
-
       "listing": {
         "listingDate": "2025-06-15",
         "expirationDate": "2025-12-15",
@@ -2587,7 +2788,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "david-thompson",
         "listAgentName": "David Thompson",
@@ -2598,7 +2798,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "3%",
         "buyerAgentCompensationType": "Percentage",
@@ -2607,7 +2806,6 @@
         "buyerFinancing": "Conventional",
         "closeDate": "2025-08-16"
       },
-
       "media": {
         "images": [
           {
@@ -2621,14 +2819,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Stunning duplex in a beautifully restored Carroll Gardens brownstone. This rare offering features soaring ceilings, original details, chef's kitchen with marble countertops, and private garden. Living room with working fireplace, formal dining room, and three generous bedrooms. Master suite spans the top floor with walk-in closet and en-suite bath. Perfect blend of historic charm and modern luxury.",
-
       "privateRemarks": null,
       "showingRemarks": "SOLD August 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": false,
@@ -2637,7 +2831,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -2651,7 +2844,6 @@
       "mlsStatus": "Closed",
       "listingType": "rent",
       "status": "rented",
-
       "address": {
         "streetNumber": "200",
         "streetName": "East 94th Street",
@@ -2664,9 +2856,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-east-side",
         "neighborhoodDisplay": "Upper East Side",
-        "buildingTaxLot": "1-01567-0034"
+        "buildingTaxLot": "1-01567-0034",
+        "latitude": 40.7824,
+        "longitude": -73.9496
       },
-
       "price": {
         "listPrice": 3200,
         "pricePerSqft": null,
@@ -2674,7 +2867,6 @@
         "closePrice": 3200,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Co-op",
         "propertySubType": "Rental",
@@ -2692,7 +2884,6 @@
         "floorsInBuilding": 8,
         "unitFloor": 5
       },
-
       "nycSpecific": {
         "coopCondo": "Co-op",
         "maintenanceFee": null,
@@ -2712,7 +2903,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "200 East 94th Street Corp",
         "associationFee": null,
@@ -2720,17 +2910,28 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Window Unit"],
-          "heating": ["Steam"],
+          "cooling": [
+            "Window Unit"
+          ],
+          "heating": [
+            "Steam"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Original"],
+          "windowFeatures": [
+            "Original"
+          ],
           "accessibility": []
         },
         "building": {
@@ -2749,7 +2950,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": false,
-          "security": ["Part Time Doorman", "Intercom"],
+          "security": [
+            "Part Time Doorman",
+            "Intercom"
+          ],
           "attendanceType": "Part Time Doorman"
         },
         "pets": {
@@ -2767,12 +2971,14 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["Courtyard"],
-        "exposure": ["South"]
+        "views": [
+          "Courtyard"
+        ],
+        "exposure": [
+          "South"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2025-10-01",
         "expirationDate": "2026-01-01",
@@ -2785,7 +2991,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "sarah-chen",
         "listAgentName": "Sarah Chen",
@@ -2796,7 +3001,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -2805,7 +3009,6 @@
         "buyerFinancing": null,
         "closeDate": "2025-10-22"
       },
-
       "media": {
         "images": [
           {
@@ -2819,14 +3022,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Lovely pre-war one-bedroom in a well-maintained Upper East Side co-op. Features high ceilings, hardwood floors, and sunny southern exposure. Updated kitchen with dishwasher. Building has part-time doorman, laundry room, and storage. Excellent location near restaurants, shops, and the 6 train.",
-
       "privateRemarks": null,
       "showingRemarks": "RENTED October 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": false,
         "isFeatured": false,
@@ -2835,7 +3034,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -2849,7 +3047,6 @@
       "mlsStatus": "Closed",
       "listingType": "rent",
       "status": "rented",
-
       "address": {
         "streetNumber": "55",
         "streetName": "Berry Street",
@@ -2862,9 +3059,10 @@
         "cityRegion": "Brooklyn",
         "neighborhood": "williamsburg",
         "neighborhoodDisplay": "Williamsburg",
-        "buildingTaxLot": "3-00789-0056"
+        "buildingTaxLot": "3-00789-0056",
+        "latitude": 40.7157,
+        "longitude": -73.9602
       },
-
       "price": {
         "listPrice": 4200,
         "pricePerSqft": null,
@@ -2872,7 +3070,6 @@
         "closePrice": 4200,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Condo",
         "propertySubType": "Rental",
@@ -2890,7 +3087,6 @@
         "floorsInBuilding": 6,
         "unitFloor": 2
       },
-
       "nycSpecific": {
         "coopCondo": "Condo",
         "maintenanceFee": null,
@@ -2910,7 +3106,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": false
       },
-
       "association": {
         "associationName": "55 Berry Street Condominium",
         "associationFee": null,
@@ -2918,17 +3113,33 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Concrete", "Polished"],
-          "appliances": ["Dishwasher", "Microwave", "Refrigerator", "Range", "Washer", "Dryer"],
+          "flooring": [
+            "Concrete",
+            "Polished"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Microwave",
+            "Refrigerator",
+            "Range",
+            "Washer",
+            "Dryer"
+          ],
           "laundry": "In Unit",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": false,
           "basement": "None",
-          "windowFeatures": ["Oversized", "Industrial"],
+          "windowFeatures": [
+            "Oversized",
+            "Industrial"
+          ],
           "accessibility": []
         },
         "building": {
@@ -2947,7 +3158,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": false,
-          "security": ["Key Fob", "Video Intercom"],
+          "security": [
+            "Key Fob",
+            "Video Intercom"
+          ],
           "attendanceType": "None"
         },
         "pets": {
@@ -2965,12 +3179,15 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["City"],
-        "exposure": ["South", "West"]
+        "views": [
+          "City"
+        ],
+        "exposure": [
+          "South",
+          "West"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2025-11-01",
         "expirationDate": "2026-02-01",
@@ -2983,7 +3200,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "david-thompson",
         "listAgentName": "David Thompson",
@@ -2994,7 +3210,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -3003,7 +3218,6 @@
         "buyerFinancing": null,
         "closeDate": "2025-11-15"
       },
-
       "media": {
         "images": [
           {
@@ -3017,14 +3231,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Stylish loft-style one-bedroom in the heart of Williamsburg. This industrial-chic residence features 12-foot ceilings, oversized windows, polished concrete floors, and washer/dryer in unit. Open chef's kitchen with stainless appliances. Building amenities include rooftop deck, fitness center, and bike storage. Steps from Bedford Avenue shops, restaurants, and L train.",
-
       "privateRemarks": null,
       "showingRemarks": "RENTED November 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": false,
@@ -3033,7 +3243,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
@@ -3047,7 +3256,6 @@
       "mlsStatus": "Closed",
       "listingType": "rent",
       "status": "rented",
-
       "address": {
         "streetNumber": "15",
         "streetName": "Central Park West",
@@ -3060,9 +3268,10 @@
         "cityRegion": "Manhattan",
         "neighborhood": "upper-west-side",
         "neighborhoodDisplay": "Upper West Side",
-        "buildingTaxLot": "1-01234-0056"
+        "buildingTaxLot": "1-01234-0056",
+        "latitude": 40.7695,
+        "longitude": -73.981
       },
-
       "price": {
         "listPrice": 8500,
         "pricePerSqft": null,
@@ -3070,7 +3279,6 @@
         "closePrice": 8500,
         "closePricePerSqft": null
       },
-
       "propertyInfo": {
         "propertyType": "Co-op",
         "propertySubType": "Rental",
@@ -3088,7 +3296,6 @@
         "floorsInBuilding": 15,
         "unitFloor": 8
       },
-
       "nycSpecific": {
         "coopCondo": "Co-op",
         "maintenanceFee": null,
@@ -3108,7 +3315,6 @@
         "maxFinancing": null,
         "boardApprovalRequired": true
       },
-
       "association": {
         "associationName": "15 Central Park West Corp",
         "associationFee": null,
@@ -3116,17 +3322,30 @@
         "associationFeeIncludes": null,
         "associationPhone": null
       },
-
       "features": {
         "interior": {
-          "flooring": ["Hardwood", "Original"],
-          "appliances": ["Dishwasher", "Refrigerator", "Range"],
+          "flooring": [
+            "Hardwood",
+            "Original"
+          ],
+          "appliances": [
+            "Dishwasher",
+            "Refrigerator",
+            "Range"
+          ],
           "laundry": "Common",
-          "cooling": ["Central Air"],
-          "heating": ["Central"],
+          "cooling": [
+            "Central Air"
+          ],
+          "heating": [
+            "Central"
+          ],
           "fireplace": true,
           "basement": "None",
-          "windowFeatures": ["Original", "Oversized"],
+          "windowFeatures": [
+            "Original",
+            "Oversized"
+          ],
           "accessibility": []
         },
         "building": {
@@ -3145,7 +3364,10 @@
           "laundryRoom": true,
           "playroom": false,
           "communityRoom": true,
-          "security": ["24 Hour Doorman", "Attended Lobby"],
+          "security": [
+            "24 Hour Doorman",
+            "Attended Lobby"
+          ],
           "attendanceType": "Full Time Doorman"
         },
         "pets": {
@@ -3163,12 +3385,14 @@
           "garden": false,
           "roofRights": false
         },
-        "views": ["Central Park"],
-        "exposure": ["East"]
+        "views": [
+          "Central Park"
+        ],
+        "exposure": [
+          "East"
+        ]
       },
-
       "financials": null,
-
       "listing": {
         "listingDate": "2025-09-15",
         "expirationDate": "2025-12-15",
@@ -3181,7 +3405,6 @@
         "virtualTourUrl": null,
         "videoTourUrl": null
       },
-
       "agent": {
         "listAgentId": "maya-allan",
         "listAgentName": "Maya Allan",
@@ -3192,7 +3415,6 @@
         "coListAgentId": null,
         "coListAgentName": null
       },
-
       "buyer": {
         "buyerAgentCompensation": "One Month",
         "buyerAgentCompensationType": "Fixed",
@@ -3201,7 +3423,6 @@
         "buyerFinancing": null,
         "closeDate": "2025-10-13"
       },
-
       "media": {
         "images": [
           {
@@ -3215,14 +3436,10 @@
         "virtualTourUrl": null,
         "videoUrl": null
       },
-
       "description": "Magnificent 3-bedroom residence with direct Central Park views in one of the Upper West Side's most prestigious cooperatives. This gracious pre-war home features 10-foot ceilings, original details, working fireplace, and elegant formal rooms. The renovated kitchen and bathrooms complement the classic architecture. Full-service building with doorman, concierge, fitness center, and rooftop terrace. Steps from Lincoln Center and Columbus Circle.",
-
       "privateRemarks": null,
       "showingRemarks": "RENTED October 2025",
-
       "openHouse": null,
-
       "flags": {
         "isExclusive": true,
         "isFeatured": false,
@@ -3231,7 +3448,6 @@
         "isOpenHouse": false,
         "participantOnlyNetwork": false
       },
-
       "compliance": {
         "idxOptOut": false,
         "vowOptOut": false,
