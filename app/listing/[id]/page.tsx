@@ -491,6 +491,68 @@ export default async function ListingPage({ params }: Props) {
                 </section>
               )}
 
+              {/* Public Records */}
+              {listing.address.buildingTaxLot && (() => {
+                const [boro, block, lot] = listing.address.buildingTaxLot.split('-');
+                const boroCode: Record<string, string> = {
+                  'Manhattan': '1', 'Bronx': '2', 'Brooklyn': '3', 'Queens': '4', 'Staten Island': '5',
+                };
+                const bc = boroCode[listing.address.borough] || boro;
+                const streetEncoded = encodeURIComponent(listing.address.streetName);
+                return (
+                  <section className="bg-white rounded-lg p-6 border">
+                    <h2 className="text-xl font-sans mb-2">Public Records</h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      View official NYC records for this property (BBL: {listing.address.buildingTaxLot})
+                    </p>
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <a
+                        href={`https://a836-acris.nyc.gov/DS/DocumentSearch/BBLResult?Borough=${bc}&Block=${block}&Lot=${lot}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border hover:border-brand-gold hover:bg-brand-gold/5 transition-colors text-sm font-medium text-gray-700"
+                      >
+                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div>
+                          <span className="block">ACRIS</span>
+                          <span className="block text-xs text-gray-400 font-normal">Deeds, Mortgages, Liens</span>
+                        </div>
+                      </a>
+                      <a
+                        href={`https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?boro=${bc}&houseno=${listing.address.streetNumber}&street=${streetEncoded}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border hover:border-brand-gold hover:bg-brand-gold/5 transition-colors text-sm font-medium text-gray-700"
+                      >
+                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <div>
+                          <span className="block">DOB</span>
+                          <span className="block text-xs text-gray-400 font-normal">Permits, Violations</span>
+                        </div>
+                      </a>
+                      <a
+                        href={`https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop&boro=${bc}&block=${block}&lot=${lot}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-lg border hover:border-brand-gold hover:bg-brand-gold/5 transition-colors text-sm font-medium text-gray-700"
+                      >
+                        <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <span className="block">NYC Finance</span>
+                          <span className="block text-xs text-gray-400 font-normal">Property Taxes</span>
+                        </div>
+                      </a>
+                    </div>
+                  </section>
+                );
+              })()}
+
               {/* Neighborhood Link */}
               <section className="bg-white rounded-lg p-6 border">
                 <h2 className="text-xl font-sans mb-2">About {listing.address.neighborhoodDisplay}</h2>
