@@ -86,13 +86,14 @@ export default async function NeighborhoodPage({
   return (
     <>
       <Header dark />
-      <NeighborhoodBreadcrumb neighborhoodName={n.name} borough="Manhattan" boroughSlug="manhattan" />
       <NeighborhoodHero
         name={n.name}
         tagline={n.tagline}
         heroImage={n.heroImage}
         transit={n.transit}
-      />
+      >
+        <NeighborhoodBreadcrumb neighborhoodName={n.name} borough="Manhattan" boroughSlug="manhattan" />
+      </NeighborhoodHero>
 
       <main>
         <AnswerBox neighborhood={n} />

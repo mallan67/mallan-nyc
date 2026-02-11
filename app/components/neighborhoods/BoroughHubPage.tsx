@@ -35,23 +35,30 @@ export default function BoroughHubPage({
   return (
     <>
       <Header dark />
-      <NeighborhoodBreadcrumb isHub borough={borough} boroughSlug={boroughSlug} />
 
       {/* Hero */}
-      <section className="relative h-[300px] sm:h-[360px] overflow-hidden">
+      <section className="relative h-[340px] sm:h-[400px] md:h-[440px] overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
-        <div className="relative h-full flex flex-col justify-end max-w-7xl mx-auto px-4 pb-8 sm:pb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
-            {borough} Real Estate Guide
-          </h1>
-          <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
-            Explore {neighborhoods.length} neighborhoods with market data, featured buildings, and
-            broker insights to find your ideal {borough} address.
-          </p>
+        <div className="relative h-full flex flex-col justify-between max-w-7xl mx-auto px-4">
+          {/* Breadcrumb at top */}
+          <div className="pt-20 sm:pt-24">
+            <NeighborhoodBreadcrumb isHub borough={borough} boroughSlug={boroughSlug} />
+          </div>
+
+          {/* Title at bottom */}
+          <div className="pb-8 sm:pb-12">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
+              {borough} Real Estate Guide
+            </h1>
+            <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
+              Explore {neighborhoods.length} neighborhoods with market data, featured buildings, and
+              broker insights to find your ideal {borough} address.
+            </p>
+          </div>
         </div>
       </section>
 
