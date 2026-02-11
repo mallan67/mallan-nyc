@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 
 type ResourceItem = { title: string; href: string };
 
@@ -38,29 +37,57 @@ function ChevronIcon({ open }: { open?: boolean }) {
 }
 
 function NavDropdown({ label, items }: { label: string; items: { title: string; href: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>();
+  const ref = useRef<HTMLDivElement>(null);
+
+  const enter = () => {
+    clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+
+  const leave = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   return (
-    <NavigationMenu.Item>
-      <NavigationMenu.Trigger className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors h-full group">
+    <div ref={ref} className="relative" onMouseEnter={enter} onMouseLeave={leave}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors"
+      >
         {label}
-        <ChevronIcon />
-      </NavigationMenu.Trigger>
-      <NavigationMenu.Content className="data-[motion=from-start]:animate-enterFromLeft data-[motion=from-end]:animate-enterFromRight data-[motion=to-start]:animate-exitToLeft data-[motion=to-end]:animate-exitToRight">
-        <ul className="min-w-[180px]">
+        <ChevronIcon open={open} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden py-1">
           {items.map((item) => (
-            <li key={item.href}>
-              <NavigationMenu.Link asChild>
-                <Link
-                  href={item.href}
-                  className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                >
-                  {item.title}
-                </Link>
-              </NavigationMenu.Link>
-            </li>
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors font-normal"
+            >
+              {item.title}
+            </Link>
           ))}
-        </ul>
-      </NavigationMenu.Content>
-    </NavigationMenu.Item>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -173,57 +200,44 @@ export default function Header({ dark = false }: HeaderProps = {}) {
           </Link>
 
           {/* Desktop Nav */}
-          <NavigationMenu.Root
-            className="hidden lg:flex items-center ml-auto pl-8 xl:pl-12 relative"
+          <nav
+            className="hidden lg:flex items-center ml-auto pl-8 xl:pl-12"
             aria-label="Main navigation"
           >
-            <NavigationMenu.List className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
-              <NavDropdown label="Buy" items={buyItems} />
-              <NavDropdown label="Rent" items={rentItems} />
-              <NavDropdown label="Sell" items={sellItems} />
-              <NavDropdown label="Exclusives" items={exclusivesItems} />
-              <NavDropdown label="Neighborhoods" items={neighborhoodItems} />
+            <ul className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
+              <li><NavDropdown label="Buy" items={buyItems} /></li>
+              <li><NavDropdown label="Rent" items={rentItems} /></li>
+              <li><NavDropdown label="Sell" items={sellItems} /></li>
+              <li><NavDropdown label="Exclusives" items={exclusivesItems} /></li>
+              <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} /></li>
 
-              <NavigationMenu.Item>
-                <NavigationMenu.Link asChild>
-                  <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                    Open Houses
-                  </Link>
-                </NavigationMenu.Link>
-              </NavigationMenu.Item>
+              <li>
+                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                  Open Houses
+                </Link>
+              </li>
 
-              <NavDropdown label="Resources" items={resources} />
+              <li><NavDropdown label="Resources" items={resources} /></li>
 
-              <NavigationMenu.Item>
-                <NavigationMenu.Link asChild>
-                  <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                    Agents
-                  </Link>
-                </NavigationMenu.Link>
-              </NavigationMenu.Item>
+              <li>
+                <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                  Agents
+                </Link>
+              </li>
 
-              <NavigationMenu.Item>
-                <NavigationMenu.Link asChild>
-                  <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                    About
-                  </Link>
-                </NavigationMenu.Link>
-              </NavigationMenu.Item>
+              <li>
+                <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                  About
+                </Link>
+              </li>
 
-              <NavigationMenu.Item>
-                <NavigationMenu.Link asChild>
-                  <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                    Sign Up / Sign In
-                  </Link>
-                </NavigationMenu.Link>
-              </NavigationMenu.Item>
-            </NavigationMenu.List>
-
-            {/* Radix Viewport — renders dropdown content here, properly layered */}
-            <div className="absolute top-full left-0 right-0 flex justify-start" style={{ perspective: '2000px' }}>
-              <NavigationMenu.Viewport className="relative mt-2 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 overflow-hidden origin-top-center transition-[width,height] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 h-[var(--radix-navigation-menu-viewport-height)] w-[var(--radix-navigation-menu-viewport-width)]" />
-            </div>
-          </NavigationMenu.Root>
+              <li>
+                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                  Sign Up / Sign In
+                </Link>
+              </li>
+            </ul>
+          </nav>
 
           {/* Mobile menu button */}
           <button
