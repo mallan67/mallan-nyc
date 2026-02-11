@@ -4,7 +4,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from '@/app/components/neighborhoods/NeighborhoodBreadcrumb';
-import NeighborhoodHubGrid from '@/app/components/neighborhoods/NeighborhoodHubGrid';
+import NeighborhoodSearch from '@/app/components/neighborhoods/NeighborhoodSearch';
 import { loadNeighborhoods, getBoroughConfig } from '@/lib/neighborhoods/boroughs';
 
 const config = getBoroughConfig('manhattan');
@@ -114,8 +114,8 @@ export default function ManhattanHubPage() {
           </div>
         </section>
 
-        {/* Neighborhood Grid */}
-        <NeighborhoodHubGrid neighborhoods={neighborhoods} boroughSlug="manhattan" />
+        {/* Neighborhood Search + Grid */}
+        <NeighborhoodSearch neighborhoods={neighborhoods} boroughSlug="manhattan" />
 
         {/* Hub FAQ */}
         <section className="py-10 sm:py-14 bg-gray-50">
