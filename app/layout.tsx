@@ -138,7 +138,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
