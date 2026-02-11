@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, FormEvent } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 
 export default function AffordabilityCalculator() {

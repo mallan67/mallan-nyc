@@ -22,7 +22,7 @@ export default function RentVsBuyCalculator({
   const [yearsToStay, setYearsToStay] = useState(5);
   const [rentAmount, setRentAmount] = useState(monthlyRent || Math.round(purchasePrice * 0.004));
   const [annualRentIncrease, setAnnualRentIncrease] = useState(3);
-  const [annualAppreciation, setAnnualAppreciation] = useState(3);
+  const [annualAppreciation, _setAnnualAppreciation] = useState(3);
 
   const calculations = useMemo(() => {
     const downPayment = purchasePrice * (downPaymentPercent / 100);
