@@ -8,9 +8,7 @@ import { NextResponse } from "next/server";
  * This prevents 405s caused by middleware intercepting /api/*.
  */
 export const config = {
-  matcher: [
-    "/((?!api/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
-  ],
+  matcher: ["/admin/:path*", "/listing/:path*"],
 };
 
 /**
