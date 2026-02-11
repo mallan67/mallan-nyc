@@ -74,13 +74,13 @@ function NavDropdown({ label, items }: { label: string; items: { title: string; 
         <ChevronIcon open={open} />
       </button>
       {open && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden py-1">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg ring-1 ring-black/5 z-50 overflow-hidden whitespace-nowrap">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors font-normal"
+              className="block px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors font-normal"
             >
               {item.title}
             </Link>
