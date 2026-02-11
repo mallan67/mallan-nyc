@@ -3,6 +3,8 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import AgentsGrid from '@/app/components/AgentsGrid';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'Our Agents | Mallan Real Estate',
   description: 'Meet our team of experienced real estate professionals serving New York City.',

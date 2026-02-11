@@ -5,6 +5,8 @@ import Footer from '@/app/components/Footer';
 import PropertySearch from '@/app/components/PropertySearch';
 import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'Rent in NYC | Mallan Real Estate',
   description: 'Search apartments and homes for rent in New York City. Find your perfect rental in Manhattan, Brooklyn, and beyond.',

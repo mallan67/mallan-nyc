@@ -4,6 +4,8 @@ import Footer from '@/app/components/Footer';
 import ServerLegalPage from '@/app/components/ServerLegalPage';
 import privacyData from '@/data/pages/privacy.json';
 
+export const revalidate = 604800;
+
 export const metadata: Metadata = {
   title: 'Privacy Policy | Mallan Real Estate',
   description: 'How Mallan Real Estate Inc. collects, uses, and protects your personal information under the NY SHIELD Act.',

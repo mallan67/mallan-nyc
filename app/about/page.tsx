@@ -3,6 +3,8 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import AboutContent from '@/app/components/AboutContent';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'About Us | Mallan Real Estate',
   description: 'Learn about Mallan Real Estate - our story, mission, and commitment to exceptional service in NYC real estate.',

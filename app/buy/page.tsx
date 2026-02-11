@@ -4,6 +4,8 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import PropertySearch from '@/app/components/PropertySearch';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'Buy Property in NYC | Mallan Real Estate',
   description: 'Search properties for sale in New York City. Condos, co-ops, and townhouses across Manhattan, Brooklyn, and beyond.',
