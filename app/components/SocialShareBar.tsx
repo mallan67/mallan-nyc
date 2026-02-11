@@ -115,38 +115,8 @@ export default function SocialShareBar({ title, description }: SocialShareBarPro
 
   return (
     <>
-      {/* Desktop: Fixed vertical sidebar */}
-      <div className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-40 flex-col gap-2" aria-label="Share this page">
-        {shareLinks.map((link) => (
-          <a
-            key={link.name}
-            href={link.href()}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Share on ${link.name}`}
-            className="group relative w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-brand-gold hover:border-brand-gold hover:shadow-md transition-all duration-200"
-          >
-            {link.icon}
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" role="tooltip">
-              {link.name}
-            </span>
-          </a>
-        ))}
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label="Copy link to clipboard"
-          className="group relative w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-brand-gold hover:border-brand-gold hover:shadow-md transition-all duration-200"
-        >
-          {copied ? <CheckIcon /> : <LinkIcon />}
-          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" role="tooltip">
-            {copied ? 'Copied!' : 'Copy Link'}
-          </span>
-        </button>
-      </div>
-
-      {/* Mobile/Tablet: Inline horizontal row */}
-      <div className="lg:hidden border-t bg-gray-50">
+      {/* Inline horizontal share row */}
+      <div className="border-t bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <p className="text-sm text-gray-500 text-center mb-3">Share this page</p>
           <div className="flex justify-center items-center gap-3">
