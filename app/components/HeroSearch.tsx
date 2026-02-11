@@ -39,7 +39,7 @@ const TAB_BASE = 'px-4 py-2 text-sm sm:text-base font-medium capitalize transiti
 const TAB_INACTIVE = 'text-white/85 hover:text-white hover:bg-white/10';
 const TAB_ACTIVE = 'bg-white/20 text-white';
 
-// Mock suggestions for typeahead - TODO: Replace with real API call
+// Static suggestions — will be replaced with /api/search/suggest once backend search is complete
 const MOCK_SUGGESTIONS: SearchSuggestion[] = [
   { type: 'neighborhood', label: 'Upper East Side', value: 'upper-east-side' },
   { type: 'neighborhood', label: 'Upper West Side', value: 'upper-west-side' },
@@ -63,13 +63,12 @@ const MOCK_SUGGESTIONS: SearchSuggestion[] = [
 
 export default function HeroSearch() {
   const router = useRouter();
-  const [activeTab, _setActiveTab] = useState<SearchTab>('buy');
+  const activeTab: SearchTab = 'buy';
   const [query, setQuery] = useState('');
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(DEFAULT_HERO);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [selectedAmenities, _setSelectedAmenities] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -89,19 +88,12 @@ export default function HeroSearch() {
       });
   }, []);
 
-  // Fetch suggestions based on query
-  // TODO: Replace with real API call to /api/search/suggest
+  // Filter static suggestions client-side (swap for /api/search/suggest when backend is ready)
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
       setSuggestions([]);
       return;
     }
-
-    // Simulate async fetch with mock data
-    // TODO: Replace with actual API call:
-    // const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(searchQuery)}`);
-    // const data = await res.json();
-    // setSuggestions(data.suggestions);
 
     const filtered = MOCK_SUGGESTIONS.filter(s =>
       s.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -138,10 +130,6 @@ export default function HeroSearch() {
     const params = new URLSearchParams();
     params.set('type', activeTab);
     if (query) params.set('q', query);
-    // Include selected amenities in search
-    if (selectedAmenities.size > 0) {
-      params.set('amenities', Array.from(selectedAmenities).join(','));
-    }
     router.push(`/search?${params.toString()}`);
   };
 

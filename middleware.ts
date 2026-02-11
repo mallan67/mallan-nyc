@@ -22,11 +22,24 @@ const BLOCKED_BOTS =
   /AhrefsBot|SemrushBot|DotBot|MJ12bot|GPTBot|CCBot|ClaudeBot|ChatGPT-User|Bytespider|PetalBot|Sogou|YandexBot|BLEXBot|DataForSeoBot|serpstatbot/i;
 
 export default function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
   // Bot blocking — only on listing page routes (high-cost SSR/ISR pages)
-  if (req.nextUrl.pathname.startsWith("/listing")) {
+  if (pathname.startsWith("/listing")) {
     const ua = req.headers.get("user-agent") ?? "";
     if (BLOCKED_BOTS.test(ua)) {
       return new NextResponse("Forbidden", { status: 403 });
+    }
+  }
+
+  // Admin route protection — require pc_auth cookie
+  if (pathname.startsWith("/admin")) {
+    const auth = req.cookies.get("pc_auth")?.value;
+    if (auth !== process.env.PRIVATE_COLLECTION_PASS) {
+      const loginUrl = req.nextUrl.clone();
+      loginUrl.pathname = "/sign-in";
+      loginUrl.searchParams.set("from", pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 
