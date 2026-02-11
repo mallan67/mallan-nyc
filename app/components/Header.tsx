@@ -44,8 +44,8 @@ function NavDropdown({ label, items }: { label: string; items: { title: string; 
         {label}
         <ChevronIcon />
       </NavigationMenu.Trigger>
-      <NavigationMenu.Content className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 min-w-[180px] z-50 overflow-hidden">
-        <ul>
+      <NavigationMenu.Content className="data-[motion=from-start]:animate-enterFromLeft data-[motion=from-end]:animate-enterFromRight data-[motion=to-start]:animate-exitToLeft data-[motion=to-end]:animate-exitToRight">
+        <ul className="min-w-[180px]">
           {items.map((item) => (
             <li key={item.href}>
               <NavigationMenu.Link asChild>
@@ -132,6 +132,34 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   // Glass effect background for dark mode / mobile menu
   const bgClass = mobileOpen || dark ? 'bg-black/80 backdrop-blur-md' : '';
 
+  const mobileDropdownItem = (item: { title: string; href: string }) => (
+    <div
+      key={item.href}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setMobileOpen(false);
+        setTimeout(() => router.push(item.href), 100);
+      }}
+      onClick={(e) => {
+        e.preventDefault();
+        setMobileOpen(false);
+        router.push(item.href);
+      }}
+      role="button"
+      tabIndex={0}
+      className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+      style={{
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        touchAction: 'manipulation'
+      }}
+    >
+      {item.title}
+    </div>
+  );
+
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
       <div className="max-w-7xl mx-auto px-4">
@@ -146,7 +174,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
           {/* Desktop Nav */}
           <NavigationMenu.Root
-            className="hidden lg:flex items-center ml-auto pl-8 xl:pl-12"
+            className="hidden lg:flex items-center ml-auto pl-8 xl:pl-12 relative"
             aria-label="Main navigation"
           >
             <NavigationMenu.List className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
@@ -190,6 +218,11 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </NavigationMenu.Link>
               </NavigationMenu.Item>
             </NavigationMenu.List>
+
+            {/* Radix Viewport — renders dropdown content here, properly layered */}
+            <div className="absolute top-full left-0 right-0 flex justify-start" style={{ perspective: '2000px' }}>
+              <NavigationMenu.Viewport className="relative mt-2 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 overflow-hidden origin-top-center transition-[width,height] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 h-[var(--radix-navigation-menu-viewport-height)] w-[var(--radix-navigation-menu-viewport-width)]" />
+            </div>
           </NavigationMenu.Root>
 
           {/* Mobile menu button */}
@@ -206,7 +239,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg font-bold" aria-label="Mobile navigation">
+          <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg font-bold max-h-[calc(100vh-5rem)] overflow-y-auto" aria-label="Mobile navigation">
             <div className="flex flex-col gap-1">
               {/* Buy */}
               <div>
@@ -220,33 +253,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </button>
                 {buyOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
-                    {buyItems.map((item) => (
-                      <div
-                        key={item.href}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMobileOpen(false);
-                          setTimeout(() => router.push(item.href), 100);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileOpen(false);
-                          router.push(item.href);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{
-                          WebkitTouchCallout: 'none',
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          touchAction: 'manipulation'
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    ))}
+                    {buyItems.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
@@ -263,33 +270,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </button>
                 {rentOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
-                    {rentItems.map((item) => (
-                      <div
-                        key={item.href}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMobileOpen(false);
-                          setTimeout(() => router.push(item.href), 100);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileOpen(false);
-                          router.push(item.href);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{
-                          WebkitTouchCallout: 'none',
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          touchAction: 'manipulation'
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    ))}
+                    {rentItems.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
@@ -306,33 +287,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </button>
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
-                    {sellItems.map((item) => (
-                      <div
-                        key={item.href}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMobileOpen(false);
-                          setTimeout(() => router.push(item.href), 100);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileOpen(false);
-                          router.push(item.href);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{
-                          WebkitTouchCallout: 'none',
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          touchAction: 'manipulation'
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    ))}
+                    {sellItems.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
@@ -349,33 +304,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </button>
                 {exclusivesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
-                    {exclusivesItems.map((item) => (
-                      <div
-                        key={item.href}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMobileOpen(false);
-                          setTimeout(() => router.push(item.href), 100);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileOpen(false);
-                          router.push(item.href);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{
-                          WebkitTouchCallout: 'none',
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          touchAction: 'manipulation'
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    ))}
+                    {exclusivesItems.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
@@ -392,33 +321,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </button>
                 {neighborhoodsOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
-                    {neighborhoodItems.map((item) => (
-                      <div
-                        key={item.href}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMobileOpen(false);
-                          setTimeout(() => router.push(item.href), 100);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileOpen(false);
-                          router.push(item.href);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{
-                          WebkitTouchCallout: 'none',
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          touchAction: 'manipulation'
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    ))}
+                    {neighborhoodItems.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
@@ -442,33 +345,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </button>
                 {resourcesOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
-                    {resources.map((item) => (
-                      <div
-                        key={item.href}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setMobileOpen(false);
-                          setTimeout(() => router.push(item.href), 100);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setMobileOpen(false);
-                          router.push(item.href);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
-                        style={{
-                          WebkitTouchCallout: 'none',
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          touchAction: 'manipulation'
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    ))}
+                    {resources.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
