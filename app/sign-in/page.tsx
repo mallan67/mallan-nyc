@@ -3,6 +3,8 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: 'Sign In | Mallan Real Estate',
   description: 'Sign in to your Mallan Real Estate account to access saved searches, favorites, and more.',

@@ -4,6 +4,8 @@ import Footer from '@/app/components/Footer';
 import ServerLegalPage from '@/app/components/ServerLegalPage';
 import fairHousingData from '@/data/pages/fair-housing.json';
 
+export const revalidate = 604800;
+
 export const metadata: Metadata = {
   title: 'Fair Housing Statement | Mallan Real Estate',
   description: 'Mallan Real Estate commitment to fair housing, equal opportunity, and compliance with federal, New York State, and NYC human rights laws.',

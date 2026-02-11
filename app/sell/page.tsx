@@ -4,6 +4,8 @@ import Footer from '@/app/components/Footer';
 import Image from 'next/image';
 import Link from 'next/link';
 
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: 'Sell Your Property | Mallan Real Estate',
   description: 'Sell your NYC property with Mallan Real Estate. Expert guidance, professional marketing, and proven results.',

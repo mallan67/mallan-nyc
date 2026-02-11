@@ -3,6 +3,16 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import ResourceContent from '@/app/components/ResourceContent';
 
+export const revalidate = 604800;
+
+export function generateStaticParams() {
+  return [
+    { slug: 'buyers-guide' },
+    { slug: 'sellers-guide' },
+    { slug: 'investors-guide' },
+  ];
+}
+
 type Props = {
   params: Promise<{ slug: string }>;
 };

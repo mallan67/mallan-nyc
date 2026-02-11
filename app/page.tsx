@@ -6,6 +6,8 @@ import ValueProposition from './components/ValueProposition';
 import TrustMarkers from './components/TrustMarkers';
 import Footer from './components/Footer';
 
+export const revalidate = 3600;
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white font-sans">

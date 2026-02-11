@@ -4,6 +4,8 @@ import Footer from '@/app/components/Footer';
 import ServerLegalPage from '@/app/components/ServerLegalPage';
 import termsData from '@/data/pages/terms.json';
 
+export const revalidate = 604800;
+
 export const metadata: Metadata = {
   title: 'Terms of Service | Mallan Real Estate',
   description: 'Terms and conditions for using the Mallan Real Estate Inc. website and real estate services.',
