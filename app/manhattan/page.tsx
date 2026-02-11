@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from '@/app/components/neighborhoods/NeighborhoodBreadcrumb';
 import NeighborhoodHubGrid from '@/app/components/neighborhoods/NeighborhoodHubGrid';
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/manhattan',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Manhattan Neighborhoods | Real Estate Guide | Mallan Real Estate',
     description:
       'Explore Manhattan neighborhoods with market data, featured buildings, and listings.',
@@ -186,6 +188,7 @@ export default function ManhattanHubPage() {
         <IDXDisclaimer variant="compact" />
       </div>
 
+      <SocialShareBar title="Manhattan Neighborhoods | Mallan Real Estate" />
       <Footer />
 
       {/* JSON-LD */}

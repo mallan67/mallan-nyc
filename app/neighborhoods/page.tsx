@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { ALL_BOROUGH_SLUGS, getBoroughConfig, loadNeighborhoods } from '@/lib/neighborhoods/boroughs';
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/neighborhoods',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'NYC Neighborhoods | All 5 Boroughs | Mallan Real Estate',
     description:
       'Explore neighborhoods across all five NYC boroughs with market data and real estate guides.',
@@ -146,6 +148,7 @@ export default function NeighborhoodsIndexPage() {
         <IDXDisclaimer variant="compact" />
       </div>
 
+      <SocialShareBar title="NYC Neighborhoods | Mallan Real Estate" />
       <Footer />
 
       <script

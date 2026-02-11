@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import OpenHousesList from '@/app/components/OpenHousesList';
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/open-houses',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Open Houses | Mallan Real Estate',
     description: 'Browse upcoming open houses across Manhattan, Brooklyn, and NYC. Schedule a visit with Mallan Real Estate.',
   },
@@ -25,6 +27,7 @@ export default function OpenHousesPage() {
       <main className="pt-20">
         <OpenHousesList />
       </main>
+      <SocialShareBar title="Open Houses | Mallan Real Estate" />
       <Footer />
     </div>
   );

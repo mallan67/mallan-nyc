@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/bronx',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Bronx Neighborhoods | Real Estate Guide | Mallan Real Estate',
     description:
       'Explore Bronx neighborhoods with market data, featured buildings, and listings.',

@@ -10,6 +10,7 @@ export const metadata: Metadata = {
     url: 'https://mallan.nyc/contact',
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Contact Us | Mallan Real Estate',
     description: 'Contact Mallan Real Estate Inc. for buying, selling, or renting in NYC. Call (646) 258-4460 or send us a message.',
   },

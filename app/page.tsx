@@ -5,6 +5,7 @@ import ExploreNeighborhoods from './components/ExploreNeighborhoods';
 import ValueProposition from './components/ValueProposition';
 import TrustMarkers from './components/TrustMarkers';
 import Footer from './components/Footer';
+import SocialShareBar from './components/SocialShareBar';
 
 export const revalidate = 3600;
 
@@ -19,6 +20,7 @@ export default function HomePage() {
         <ExploreNeighborhoods />
         <TrustMarkers />
       </main>
+      <SocialShareBar title="Mallan Real Estate Inc. | Licensed NYC Real Estate Broker" />
       <Footer />
     </div>
   );

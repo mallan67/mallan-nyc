@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from './NeighborhoodBreadcrumb';
 import NeighborhoodHubGrid from './NeighborhoodHubGrid';
@@ -137,6 +138,7 @@ export default function BoroughHubPage({
         <IDXDisclaimer variant="compact" />
       </div>
 
+      <SocialShareBar title={`${borough} Neighborhoods | Mallan Real Estate`} />
       <Footer />
 
       {/* JSON-LD */}
