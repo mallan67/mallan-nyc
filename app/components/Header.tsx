@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 type ResourceItem = { title: string; href: string };
@@ -194,8 +195,15 @@ export default function Header({ dark = false }: HeaderProps = {}) {
           {/* Brand */}
           <Link
             href="/"
-            className="text-white text-xl sm:text-2xl lg:text-[1.75rem] font-semibold tracking-tight hover:text-white/80 transition-colors whitespace-nowrap"
+            className="flex items-center gap-2 text-white text-xl sm:text-2xl lg:text-[1.75rem] font-semibold tracking-tight hover:text-white/80 transition-colors whitespace-nowrap"
           >
+            <Image
+              src="/images/mallan-logo.png"
+              alt="Mallan Real Estate logo"
+              width={40}
+              height={40}
+              className="h-8 w-8 sm:h-10 sm:w-10"
+            />
             Mallan Real Estate Inc.
           </Link>
 
