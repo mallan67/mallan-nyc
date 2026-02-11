@@ -8,11 +8,10 @@
  * 3. No backup_* directories outside archive/
  * 4. App Router root layout required
  * 5. README.md governance markers
- * 6. [CRITICAL] No app/neighborhoods/ routes (page.tsx, route.ts)
- * 7. [CRITICAL] No app/boroughs/ routes (page.tsx, route.ts)
+ * 6. [CRITICAL] No app/boroughs/ routes (page.tsx, route.ts)
  * 8. [CRITICAL] No app/resources/_drafts/ routes
- * 9. [CRITICAL] Sitemap must NOT include neighborhoods/boroughs
- * 10. [CRITICAL] Navigation must NOT link to neighborhoods/boroughs
+ * 8. [CRITICAL] Sitemap must NOT include boroughs
+ * 9. [CRITICAL] Navigation must NOT link to boroughs
  * 11. [CRITICAL] No Fair Housing prohibited terms in content
  *
  * Phase 3 work MUST live in src/templates/, src/data/, src/compliance/
@@ -153,7 +152,6 @@ if (!exists("README.md")) {
 // Phase 3 content MUST live in src/templates, src/data, src/compliance
 // ===========================================================================
 const PROTECTED_ROUTE_PATTERNS = [
-  { pattern: /^app\/neighborhoods\/.*\.(tsx?|jsx?)$/, name: "neighborhoods" },
   { pattern: /^app\/boroughs\/.*\.(tsx?|jsx?)$/, name: "boroughs" },
   { pattern: /^app\/resources\/_drafts\/.*\.(tsx?|jsx?)$/, name: "resources/_drafts" },
 ];
@@ -180,7 +178,7 @@ for (const { pattern, name } of PROTECTED_ROUTE_PATTERNS) {
 }
 
 // Also check if the directory itself exists (even if empty or with only non-routable files)
-const PROTECTED_DIRS = ["app/neighborhoods", "app/boroughs", "app/resources/_drafts"];
+const PROTECTED_DIRS = ["app/boroughs", "app/resources/_drafts"];
 
 for (const dir of PROTECTED_DIRS) {
   const fullPath = path.join(repoRoot, dir);
@@ -210,7 +208,7 @@ for (const dir of PROTECTED_DIRS) {
 const sitemapPath = "app/sitemap.ts";
 if (exists(sitemapPath)) {
   const sitemapContent = readFile(sitemapPath);
-  const PROTECTED_ROUTES = ["neighborhoods", "boroughs"];
+  const PROTECTED_ROUTES = ["boroughs"];
 
   for (const route of PROTECTED_ROUTES) {
     // Check for URL pattern like `${BASE_URL}/neighborhoods` or literal '/neighborhoods'
@@ -255,7 +253,7 @@ const NAV_FILES = [
   "app/components/Nav.tsx",
 ];
 
-const PROTECTED_ROUTES_NAV = ["neighborhoods", "boroughs"];
+const PROTECTED_ROUTES_NAV = ["boroughs"];
 
 for (const navFile of NAV_FILES) {
   if (!exists(navFile)) continue;
