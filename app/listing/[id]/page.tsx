@@ -530,11 +530,11 @@ export default async function ListingPage({ params }: Props) {
                         </div>
                       </>
                     )}
-                    {/* Buyer's Agent Compensation */}
+                    {/* Agent Compensation */}
                     {listing.buyer?.buyerAgentCompensation && (
                       <div className="mt-3 pt-3 border-t">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">Buyer&apos;s Agent Compensation</span>
+                          <span className="text-gray-500">{isRental ? 'Tenant' : 'Buyer'}&apos;s Agent Compensation</span>
                           <span className="font-medium text-gray-700">{listing.buyer.buyerAgentCompensation}</span>
                         </div>
                       </div>
