@@ -22,13 +22,6 @@ const DEFAULT_HERO: HeroSettings = {
   heroTagline: 'One Search. Every Space. Homes. Businesses. Investments.',
 };
 
-const AMENITY_PILLS = [
-  { id: 'doorman', label: 'Doorman' },
-  { id: 'health-club', label: 'Health Club' },
-  { id: 'pets', label: 'Pets' },
-  { id: 'pool', label: 'Pool' },
-  { id: 'roof-deck', label: 'Roof Deck' },
-];
 
 /*
   =============================================================================
@@ -40,11 +33,6 @@ const AMENITY_PILLS = [
 
   =============================================================================
 */
-
-// E) AMENITY CHIPS - glass pills, no container box
-const CHIP_BASE = 'px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150';
-const CHIP_UNSELECTED = 'bg-black/35 backdrop-blur-md border border-white/15 text-white/90 hover:bg-black/45 hover:text-white';
-const CHIP_SELECTED = 'bg-black/45 backdrop-blur-md border border-white/30 text-white';
 
 // D) TAB CLASSES - premium segmented controls
 const TAB_BASE = 'px-4 py-2 text-sm sm:text-base font-medium capitalize transition-all duration-150';
@@ -75,13 +63,13 @@ const MOCK_SUGGESTIONS: SearchSuggestion[] = [
 
 export default function HeroSearch() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<SearchTab>('buy');
+  const [activeTab, _setActiveTab] = useState<SearchTab>('buy');
   const [query, setQuery] = useState('');
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(DEFAULT_HERO);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [selectedAmenities, setSelectedAmenities] = useState<Set<string>>(new Set());
+  const [selectedAmenities, _setSelectedAmenities] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -145,25 +133,6 @@ export default function HeroSearch() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const handleAmenityToggle = (amenityId: string) => {
-    setSelectedAmenities(prev => {
-      const next = new Set(prev);
-      if (next.has(amenityId)) {
-        next.delete(amenityId);
-      } else {
-        next.add(amenityId);
-      }
-      return next;
-    });
-  };
-
-  const handleAmenitySearch = () => {
-    if (selectedAmenities.size === 0) return;
-    const basePath = activeTab === 'sell' ? '/sell' : `/${activeTab}`;
-    const amenityParams = Array.from(selectedAmenities).join(',');
-    router.push(`${basePath}?amenities=${amenityParams}`);
-  };
 
   const handleSearch = () => {
     const params = new URLSearchParams();

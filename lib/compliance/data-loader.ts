@@ -244,7 +244,7 @@ if (typeof window === 'undefined') {
   );
 }
 
-export default {
+const dataLoader = {
   getCurrentRLSRules,
   getRulesVersion,
   getRequiredFields,
@@ -257,3 +257,5 @@ export default {
   getMissingRequiredFields,
   getConditionalViolations,
 };
+
+export default dataLoader;

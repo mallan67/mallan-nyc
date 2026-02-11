@@ -15,7 +15,7 @@ export default function InvestorCalculator({
   maintenanceFee = 0,
   monthlyTaxes = 0,
   bedrooms = 1,
-  neighborhood = '',
+  neighborhood: _neighborhood = '',
 }: InvestorCalculatorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [downPaymentPercent, setDownPaymentPercent] = useState(25);

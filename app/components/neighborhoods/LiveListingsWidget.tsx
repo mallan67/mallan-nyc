@@ -133,6 +133,7 @@ function ListingCard({ listing }: { listing: Listing }) {
       {/* Image placeholder */}
       <div className="aspect-[4/3] bg-gray-100 relative">
         {listing.media?.images?.[0]?.url ? (
+          /* eslint-disable-next-line @next/next/no-img-element -- IDX listing images bypass next/image per image strategy */
           <img
             src={listing.media.images[0].url}
             alt={showAddress ? `${listing.address.streetNumber} ${listing.address.streetName}` : 'Listing photo'}

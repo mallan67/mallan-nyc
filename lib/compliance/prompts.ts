@@ -295,10 +295,12 @@ Return ONLY the JSON with publicRemarks.`;
   return { systemPrompt, userMessage };
 }
 
-export default {
+const prompts = {
   buildValidationPrompt,
   buildFieldValidationPrompt,
   buildFairHousingPrompt,
   buildPublicRemarksPrompt,
   parseValidationResponse,
 };
+
+export default prompts;
