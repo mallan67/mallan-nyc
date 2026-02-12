@@ -13,12 +13,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const leads = await prisma.lead.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+  const [leads, agents] = await Promise.all([
+    prisma.lead.findMany({ orderBy: { createdAt: 'desc' } }),
+    prisma.agent.findMany({ orderBy: { full_name: 'asc' } }),
+  ]);
 
   return NextResponse.json({
     total: leads.length,
+    agents: agents.map(a => ({
+      email: a.email || '',
+      name: a.full_name || `${a.first_name} ${a.last_name}`,
+    })),
     leads: leads.map(l => ({
       id: l.id.toString(),
       firstName: l.firstName,
