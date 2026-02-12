@@ -179,11 +179,12 @@ export default function SignUpPage() {
               {/* Phone */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium mb-1">
-                  Phone Number
+                  Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   id="phone"
+                  required
                   className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                   placeholder="(212) 555-0100"
                 />
@@ -210,7 +211,7 @@ export default function SignUpPage() {
                   I&apos;m interested in... <span className="text-red-500">*</span>
                   <span className="text-gray-400 font-normal ml-1">(select all that apply)</span>
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-wrap gap-2">
                   {roles.map((role) => {
                     const c = colorMap[role.color];
                     const isActive = selectedRoles.includes(role.id);
@@ -219,30 +220,27 @@ export default function SignUpPage() {
                         type="button"
                         key={role.id}
                         onClick={() => toggleRole(role.id)}
-                        className={`relative flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all hover:shadow-sm ${
-                          isActive ? `${c.activeBg} ${c.activeBorder}` : `bg-white ${c.border} hover:${c.bg}`
+                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all text-sm font-medium ${
+                          isActive
+                            ? `${c.activeBg} ${c.activeBorder} ${c.text}`
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
+                        <svg className={`w-4 h-4 ${isActive ? c.text : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={role.icon} />
+                        </svg>
+                        {role.label}
                         {isActive && (
-                          <div className="absolute top-2 right-2">
-                            <svg className={`w-5 h-5 ${c.text}`} fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? c.activeBg : c.bg}`}>
-                          <svg className={`w-5 h-5 ${c.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={role.icon} />
+                          <svg className={`w-4 h-4 ${c.text}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
-                        </div>
-                        <span className="text-sm font-semibold">{role.label}</span>
-                        <span className="text-xs text-gray-500 text-center">{role.description}</span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
                 {selectedRoles.length === 0 && (
-                  <p className="text-xs text-gray-400 mt-2">Please select at least one role</p>
+                  <p className="text-xs text-gray-400 mt-2">Please select at least one</p>
                 )}
               </div>
 
