@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
-  // Simple auth check — require the same key used for other admin endpoints
-  const key = req.nextUrl.searchParams.get('key');
-  if (key !== process.env.PRIVATE_COLLECTION_PASS) {
+  // Basic auth check — same credentials as other admin pages
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Basic ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const decoded = atob(authHeader.slice(6));
+  const [user, pass] = decoded.split(':');
+  if (user !== process.env.ADMIN_BASIC_USER || pass !== process.env.ADMIN_BASIC_PASS) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
