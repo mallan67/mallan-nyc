@@ -1,0 +1,300 @@
+'use client';
+
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
+import Link from 'next/link';
+import { useState } from 'react';
+
+const roles = [
+  {
+    id: 'buyer',
+    label: 'Buyer',
+    description: 'I want to buy a property',
+    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    color: 'blue',
+  },
+  {
+    id: 'renter',
+    label: 'Renter',
+    description: 'I want to rent a property',
+    icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
+    color: 'purple',
+  },
+  {
+    id: 'seller',
+    label: 'Seller',
+    description: 'I want to sell my property',
+    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    color: 'green',
+  },
+  {
+    id: 'landlord',
+    label: 'Landlord',
+    description: 'I want to rent out my property',
+    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+    color: 'teal',
+  },
+];
+
+const colorMap: Record<string, { bg: string; border: string; text: string; activeBg: string; activeBorder: string }> = {
+  blue: { bg: 'bg-blue-50', border: 'border-gray-200', text: 'text-blue-600', activeBg: 'bg-blue-100', activeBorder: 'border-blue-500' },
+  purple: { bg: 'bg-purple-50', border: 'border-gray-200', text: 'text-purple-600', activeBg: 'bg-purple-100', activeBorder: 'border-purple-500' },
+  green: { bg: 'bg-green-50', border: 'border-gray-200', text: 'text-green-600', activeBg: 'bg-green-100', activeBorder: 'border-green-500' },
+  teal: { bg: 'bg-teal-50', border: 'border-gray-200', text: 'text-teal-600', activeBg: 'bg-teal-100', activeBorder: 'border-teal-500' },
+};
+
+export default function SignUpPage() {
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [firstName, setFirstName] = useState('');
+
+  // Pre-select role from URL param (e.g., /sign-up?role=seller)
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const role = params.get('role');
+      if (role && roles.some(r => r.id === role)) {
+        setSelectedRoles([role]);
+      }
+    }
+  });
+
+  function toggleRole(id: string) {
+    setSelectedRoles(prev =>
+      prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
+    );
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-white font-sans">
+        <Header dark />
+        <main className="pt-20 py-16">
+          <div className="max-w-md mx-auto px-4 text-center">
+            <div className="bg-white rounded-lg shadow-sm border p-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-semibold mb-2">Welcome, {firstName || 'there'}!</h1>
+              <p className="text-gray-600 mb-2">Your account has been created successfully.</p>
+              <div className="flex flex-wrap gap-2 justify-center mb-6">
+                {selectedRoles.map(r => {
+                  const role = roles.find(x => x.id === r);
+                  return role ? (
+                    <span key={r} className="px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full font-medium">
+                      {role.label}
+                    </span>
+                  ) : null;
+                })}
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Your agent will reach out shortly to set up your personalized portal.
+                You&apos;ll receive an email with login details.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  href="/"
+                  className="px-6 py-3 bg-brand-dark text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                >
+                  Browse Properties
+                </Link>
+                <Link
+                  href="/agents"
+                  className="px-6 py-3 border border-brand-dark text-brand-dark rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Contact an Agent
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white font-sans">
+      <Header dark />
+      <main className="pt-20 py-16">
+        <div className="max-w-lg mx-auto px-4">
+          <div className="bg-white rounded-lg shadow-sm border p-8">
+            <h1 className="text-2xl font-semibold text-center mb-2">Create Your Account</h1>
+            <p className="text-gray-500 text-center text-sm mb-8">
+              Join Mallan Real Estate to access your personalized portal
+            </p>
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              {/* Name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium mb-1">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    required
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium mb-1">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    required
+                    className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium mb-1">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  required
+                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  placeholder="(212) 555-0100"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium mb-1">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  required
+                  minLength={8}
+                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  placeholder="Create a password (min 8 characters)"
+                />
+              </div>
+
+              {/* Role Picker */}
+              <div>
+                <label className="block text-sm font-medium mb-3">
+                  I&apos;m interested in... <span className="text-red-500">*</span>
+                  <span className="text-gray-400 font-normal ml-1">(select all that apply)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {roles.map((role) => {
+                    const c = colorMap[role.color];
+                    const isActive = selectedRoles.includes(role.id);
+                    return (
+                      <button
+                        type="button"
+                        key={role.id}
+                        onClick={() => toggleRole(role.id)}
+                        className={`relative flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all hover:shadow-sm ${
+                          isActive ? `${c.activeBg} ${c.activeBorder}` : `bg-white ${c.border} hover:${c.bg}`
+                        }`}
+                      >
+                        {isActive && (
+                          <div className="absolute top-2 right-2">
+                            <svg className={`w-5 h-5 ${c.text}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? c.activeBg : c.bg}`}>
+                          <svg className={`w-5 h-5 ${c.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={role.icon} />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-semibold">{role.label}</span>
+                        <span className="text-xs text-gray-500 text-center">{role.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedRoles.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-2">Please select at least one role</p>
+                )}
+              </div>
+
+              {/* Agent Login Note */}
+              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-amber-800">
+                  Licensed agents? <Link href="/sign-in" className="font-semibold underline">Sign in here</Link> with your agent credentials.
+                </p>
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={selectedRoles.length === 0}
+                className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                  selectedRoles.length > 0
+                    ? 'bg-brand-dark text-white hover:bg-gray-800 cursor-pointer'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                Create Account
+              </button>
+            </form>
+
+            {/* Sign In Link */}
+            <div className="mt-6 pt-6 border-t text-center">
+              <p className="text-gray-600 text-sm">
+                Already have an account?{' '}
+                <Link href="/sign-in" className="text-brand-gold font-semibold hover:underline">
+                  Sign In
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-gray-400 mt-6">
+            By creating an account, you agree to our{' '}
+            <Link href="/terms" className="hover:text-brand-gold">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="hover:text-brand-gold">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}

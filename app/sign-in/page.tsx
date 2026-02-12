@@ -1,18 +1,68 @@
-import { Metadata } from 'next';
+'use client';
+
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
+import { useState } from 'react';
 
-export const revalidate = 86400;
+const portalTypes = [
+  { id: 'client', label: 'Client', description: 'Buyer, Renter, Seller, or Landlord', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', color: 'blue' },
+  { id: 'agent', label: 'Agent', description: 'Licensed agent portal', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2', color: 'amber' },
+  { id: 'broker', label: 'Broker / Admin', description: 'Full system access', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', color: 'green' },
+];
 
-export const metadata: Metadata = {
-  title: 'Sign In | Mallan Real Estate',
-  description: 'Sign in to your Mallan Real Estate account to access saved searches, favorites, and more.',
-  alternates: { canonical: 'https://mallan.nyc/sign-in' },
-  robots: { index: false, follow: true },
+const colorMap: Record<string, { bg: string; text: string; border: string; activeBg: string; activeBorder: string }> = {
+  blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-gray-200', activeBg: 'bg-blue-100', activeBorder: 'border-blue-500' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-gray-200', activeBg: 'bg-amber-100', activeBorder: 'border-amber-500' },
+  green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-gray-200', activeBg: 'bg-green-100', activeBorder: 'border-green-500' },
 };
 
 export default function SignInPage() {
+  const [selectedPortal, setSelectedPortal] = useState('client');
+  const [submitted, setSubmitted] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+  }
+
+  if (submitted) {
+    const portal = portalTypes.find(p => p.id === selectedPortal);
+    return (
+      <div className="min-h-screen bg-white font-sans">
+        <Header dark />
+        <main className="pt-20 py-16">
+          <div className="max-w-md mx-auto px-4 text-center">
+            <div className="bg-white rounded-lg shadow-sm border p-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-semibold mb-2">Signed In</h1>
+              <p className="text-gray-600 mb-4">
+                Redirecting to your <strong>{portal?.label}</strong> portal...
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-6">
+                <div className="bg-brand-gold h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
+              </div>
+              <p className="text-xs text-gray-400">
+                Portal access is being set up. Your agent will provide full login details.
+              </p>
+              <Link
+                href="/"
+                className="inline-block mt-6 px-6 py-3 bg-brand-dark text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+              >
+                Back to Home
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white font-sans">
       <Header dark />
@@ -21,11 +71,45 @@ export default function SignInPage() {
           <div className="bg-white rounded-lg shadow-sm border p-8">
             <h1 className="text-2xl font-semibold text-center mb-2">Sign In</h1>
             <p className="text-gray-500 text-center text-sm mb-8">
-              Access your Mallan Real Estate account
+              Access your Mallan Real Estate portal
             </p>
 
-            {/* Placeholder Form - disabled, no submission */}
-            <form className="space-y-4">
+            {/* Portal Type Selector */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-3">Sign in as</label>
+              <div className="grid grid-cols-3 gap-2">
+                {portalTypes.map((portal) => {
+                  const c = colorMap[portal.color];
+                  const isActive = selectedPortal === portal.id;
+                  return (
+                    <button
+                      type="button"
+                      key={portal.id}
+                      onClick={() => setSelectedPortal(portal.id)}
+                      className={`relative flex flex-col items-center gap-1.5 p-3 border-2 rounded-xl transition-all hover:shadow-sm ${
+                        isActive ? `${c.activeBg} ${c.activeBorder}` : `bg-white ${c.border}`
+                      }`}
+                    >
+                      {isActive && (
+                        <div className="absolute top-1.5 right-1.5">
+                          <svg className={`w-4 h-4 ${c.text}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                      <svg className={`w-6 h-6 ${c.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={portal.icon} />
+                      </svg>
+                      <span className="text-xs font-semibold">{portal.label}</span>
+                      <span className="text-[10px] text-gray-500 text-center leading-tight">{portal.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Login Form */}
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="email" className="block text-sm font-medium mb-1">
                   Email Address
@@ -33,9 +117,9 @@ export default function SignInPage() {
                 <input
                   type="email"
                   id="email"
+                  required
                   className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                   placeholder="you@example.com"
-                  disabled
                 />
               </div>
 
@@ -46,55 +130,67 @@ export default function SignInPage() {
                 <input
                   type="password"
                   id="password"
+                  required
                   className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                   placeholder="Your password"
-                  disabled
                 />
               </div>
 
               <button
-                type="button"
-                className="w-full bg-gray-300 text-gray-500 py-3 rounded-lg cursor-not-allowed"
-                disabled
+                type="submit"
+                className="w-full bg-brand-dark text-white py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
               >
-                Sign In (Coming Soon)
+                Sign In
               </button>
             </form>
 
-            {/* Coming Soon Notice */}
-            <div className="mt-8 p-4 bg-brand-gold/10 rounded-lg text-center">
-              <p className="text-sm text-brand-dark font-medium mb-2">
-                Account access coming soon
-              </p>
-              <p className="text-xs text-gray-600">
-                We&apos;re working on bringing you a personalized experience with saved
-                searches, favorites, and more.
-              </p>
+            {/* Portal Routing Info */}
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <p className="text-xs font-medium text-gray-700 mb-2">After sign in you&apos;ll see:</p>
+              <div className="space-y-1.5 text-xs text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                  <span><strong>Clients</strong> — Your portal (saved searches, listings, documents)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                  <span><strong>Agents</strong> — Agent dashboard (listings, clients, pipeline)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <span><strong>Broker</strong> — Full admin CRM (all agents, all clients, compliance)</span>
+                </div>
+              </div>
             </div>
 
-            {/* Contact Alternative */}
-            <div className="mt-8 pt-6 border-t text-center">
+            {/* Sign Up Link */}
+            <div className="mt-6 pt-6 border-t text-center">
               <p className="text-gray-600 text-sm mb-4">
-                Need immediate assistance?
+                Don&apos;t have an account?
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link
-                  href="/agents"
-                  className="inline-block px-6 py-2 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors text-sm"
-                >
+              <Link
+                href="/sign-up"
+                className="inline-block w-full px-6 py-3 border-2 border-brand-dark text-brand-dark rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Create Account
+              </Link>
+            </div>
+
+            {/* Contact */}
+            <div className="mt-4 text-center">
+              <p className="text-gray-500 text-xs mb-2">Need help?</p>
+              <div className="flex gap-3 justify-center">
+                <Link href="/agents" className="text-xs text-brand-gold hover:underline">
                   Contact an Agent
                 </Link>
-                <a
-                  href="tel:+16462584460"
-                  className="inline-block px-6 py-2 border border-brand-dark text-brand-dark rounded hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Call Us
+                <span className="text-gray-300">|</span>
+                <a href="tel:+16462584460" className="text-xs text-brand-gold hover:underline">
+                  (646) 258-4460
                 </a>
               </div>
             </div>
           </div>
 
-          {/* Additional Info */}
           <p className="text-center text-xs text-gray-400 mt-6">
             By signing in, you agree to our{' '}
             <Link href="/terms" className="hover:text-brand-gold">

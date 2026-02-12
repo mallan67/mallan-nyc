@@ -240,8 +240,11 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               </li>
 
               <li>
-                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                  Sign Up / Sign In
+                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-4 py-1.5 bg-brand-gold text-white rounded text-sm font-medium hover:bg-brand-gold/90 transition-colors">
+                  Sign Up
+                </Link>
+                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap ml-3 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                  Sign In
                 </Link>
               </li>
             </ul>
@@ -389,11 +392,18 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               </Link>
 
               <Link
+                href="/sign-up"
+                onClick={() => setMobileOpen(false)}
+                className="py-3 min-h-[44px] text-brand-gold font-medium"
+              >
+                Sign Up
+              </Link>
+              <Link
                 href="/sign-in"
                 onClick={() => setMobileOpen(false)}
                 className="py-3 min-h-[44px] text-white/90 hover:text-white"
               >
-                Sign Up / Sign In
+                Sign In
               </Link>
             </div>
           </nav>
