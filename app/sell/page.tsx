@@ -247,6 +247,12 @@ export default function SellPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
+                href="/sign-up?role=seller"
+                className="inline-block px-8 py-3 bg-brand-gold text-white font-medium rounded hover:bg-brand-gold/90 transition-colors"
+              >
+                Get Started — Create Account
+              </Link>
+              <Link
                 href="/agents"
                 className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded hover:bg-gray-100 transition-colors"
               >
