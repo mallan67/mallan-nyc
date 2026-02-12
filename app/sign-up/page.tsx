@@ -47,6 +47,11 @@ export default function SignUpPage() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   // Pre-select role from URL param (e.g., /sign-up?role=seller)
   useState(() => {
@@ -65,9 +70,37 @@ export default function SignUpPage() {
     );
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    setError('');
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/sign-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          phone,
+          roles: selectedRoles,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong');
+        setSubmitting(false);
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      setError('Network error. Please try again.');
+      setSubmitting(false);
+    }
   }
 
   if (submitted) {
@@ -156,6 +189,8 @@ export default function SignUpPage() {
                     type="text"
                     id="lastName"
                     required
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
                     className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                     placeholder="Last name"
                   />
@@ -171,6 +206,8 @@ export default function SignUpPage() {
                   type="email"
                   id="email"
                   required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
                   className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                   placeholder="you@example.com"
                 />
@@ -185,6 +222,8 @@ export default function SignUpPage() {
                   type="tel"
                   id="phone"
                   required
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
                   className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                   placeholder="(212) 555-0100"
                 />
@@ -249,17 +288,24 @@ export default function SignUpPage() {
                 </p>
               </div>
 
+              {/* Error */}
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
               {/* Submit */}
               <button
                 type="submit"
-                disabled={selectedRoles.length === 0}
+                disabled={selectedRoles.length === 0 || submitting}
                 className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                  selectedRoles.length > 0
+                  selectedRoles.length > 0 && !submitting
                     ? 'bg-brand-dark text-white hover:bg-gray-800 cursor-pointer'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                Create Account
+                {submitting ? 'Creating Account...' : 'Create Account'}
               </button>
             </form>
 

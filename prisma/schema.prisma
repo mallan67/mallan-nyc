@@ -39,6 +39,25 @@ model Deal {
   @@map("deals")
 }
 
+/// Client sign-up leads from mallan.nyc/sign-up
+model Lead {
+  id        BigInt   @id @default(autoincrement())
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  email     String   @unique
+  phone     String
+  roles     String[] // ["buyer","renter","seller","landlord"]
+  status    String   @default("new") // new, contacted, active, closed
+  assignedAgent String? @map("assigned_agent")
+  source    String   @default("website") // website, referral, manual
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("leads")
+}
+
 /// IDX/RLS listing synced from Trestle.
 /// Flat columns for WHERE-clause fields; JSON for nested data.
 model Listing {
