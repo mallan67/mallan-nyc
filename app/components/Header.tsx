@@ -239,12 +239,13 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </Link>
               </li>
 
-              <li>
+              <li className="flex items-center gap-1.5 ml-1">
+                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap px-3 py-1.5 text-white/80 hover:text-white text-sm transition-colors">
+                  Sign In
+                </Link>
+                <span className="text-white/30">|</span>
                 <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-4 py-1.5 bg-brand-gold text-white rounded text-sm font-medium hover:bg-brand-gold/90 transition-colors">
                   Sign Up
-                </Link>
-                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap ml-3 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                  Sign In
                 </Link>
               </li>
             </ul>
