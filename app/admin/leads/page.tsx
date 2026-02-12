@@ -35,12 +35,16 @@ export default function LeadsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [key, setKey] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [authed, setAuthed] = useState(false);
 
-  function fetchLeads(authKey: string) {
+  function fetchLeads(user: string, pass: string) {
     setLoading(true);
-    fetch(`/api/leads?key=${encodeURIComponent(authKey)}`)
+    setError('');
+    fetch('/api/leads', {
+      headers: { 'Authorization': 'Basic ' + btoa(user + ':' + pass) },
+    })
       .then(res => {
         if (!res.ok) throw new Error('Unauthorized');
         return res.json();
@@ -50,18 +54,19 @@ export default function LeadsPage() {
         setTotal(data.total);
         setAuthed(true);
         setLoading(false);
-        sessionStorage.setItem('admin_key', authKey);
+        sessionStorage.setItem('admin_creds', btoa(user + ':' + pass));
       })
       .catch(() => {
-        setError('Invalid key');
+        setError('Invalid credentials');
         setLoading(false);
       });
   }
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('admin_key');
+    const saved = sessionStorage.getItem('admin_creds');
     if (saved) {
-      fetchLeads(saved);
+      const [u, p] = atob(saved).split(':');
+      fetchLeads(u, p);
     } else {
       setLoading(false);
     }
@@ -72,12 +77,19 @@ export default function LeadsPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-sm border p-8 max-w-sm w-full">
           <h1 className="text-xl font-bold mb-4">Admin Access</h1>
-          <form onSubmit={e => { e.preventDefault(); fetchLeads(key); }}>
+          <form onSubmit={e => { e.preventDefault(); fetchLeads(username, password); }}>
+            <input
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(''); }}
+              placeholder="Username"
+              className="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            />
             <input
               type="password"
-              value={key}
-              onChange={e => { setKey(e.target.value); setError(''); }}
-              placeholder="Enter admin key"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(''); }}
+              placeholder="Password"
               className="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             />
             {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
@@ -129,7 +141,7 @@ export default function LeadsPage() {
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="p-4 border-b flex items-center justify-between">
             <h2 className="font-semibold">Client Leads</h2>
-            <button onClick={() => fetchLeads(sessionStorage.getItem('admin_key') || '')} className="text-sm text-blue-600 hover:underline">
+            <button onClick={() => { const s = sessionStorage.getItem('admin_creds'); if (s) { const [u,p] = atob(s).split(':'); fetchLeads(u,p); } }} className="text-sm text-blue-600 hover:underline">
               Refresh
             </button>
           </div>
