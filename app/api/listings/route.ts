@@ -2,6 +2,27 @@ import { NextResponse } from 'next/server';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 import { logAccessDenied } from '@/lib/idx';
+import { isDisplayableInIDX, sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
+
+/**
+ * Simple in-memory rate limiter (60 requests per minute per IP)
+ * Prevents bulk scraping of listing data per REBNY RLS compliance
+ */
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 60;
+const RATE_WINDOW_MS = 60_000;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
 
 /**
  * Check if this endpoint should serve IDX data
@@ -39,6 +60,15 @@ function isIDXDataRequest(request: Request): boolean {
  * Future: This endpoint will be enhanced to pull from IDX/RLS feeds
  */
 export async function GET(request: Request) {
+  // Rate limiting — prevent bulk scraping
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { success: false, error: 'Rate limit exceeded. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    );
+  }
+
   // Gate IDX data requests until integration is complete
   if (isIDXDataRequest(request)) {
     const idxEnabled = process.env.IDX_ENABLED === 'true';
@@ -76,13 +106,10 @@ export async function GET(request: Request) {
     // Type the listings array using REBNY-compliant schema
     let listings = listingsData.listings as unknown as Listing[];
 
-    // Apply filters
+    // Apply filters — REBNY RLS: Enforce all 6 distribution gates
     listings = listings.filter(listing => {
-      // Status filter - only active listings
-      if (listing.status !== 'active') return false;
-
-      // IDX opt-out: exclude listings where owner has opted out of IDX display
-      if (listing.compliance?.idxOptOut) return false;
+      // Centralized IDX display gate (all 6 REBNY distribution gates)
+      if (!isDisplayableInIDX(listing)) return false;
 
       // Type filter
       if (listingType) {
@@ -128,11 +155,14 @@ export async function GET(request: Request) {
     // Apply limit
     listings = listings.slice(0, limit);
 
+    // REBNY COMPLIANCE: Sanitize listings for public display — strip private data
+    const sanitizedListings = listings.map(sanitizeForPublicDisplay);
+
     return NextResponse.json(
       {
         success: true,
-        count: listings.length,
-        listings,
+        count: sanitizedListings.length,
+        listings: sanitizedListings,
         // Compliance metadata
         _compliance: {
           source: 'exclusive', // Currently serving exclusive/manual listings only

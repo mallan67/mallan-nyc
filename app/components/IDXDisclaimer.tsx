@@ -91,8 +91,8 @@ export default function IDXDisclaimer({
 
         <p>
           <strong>Broker Representation:</strong> Mallan Real Estate Inc. is a licensed
-          real estate broker in New York State. The listing broker&apos;s offer of compensation
-          is made to participants of the REBNY RLS where the listing is filed.
+          real estate broker in New York State and a participant in the REBNY
+          Residential Listing Service (RLS).
         </p>
 
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
@@ -127,13 +127,29 @@ function EqualHousingIcon({ className = '' }: { className?: string }) {
 
 /**
  * Inline disclaimer for search results
+ *
+ * REBNY COMPLIANCE: Includes brokerage name (NY DOS 175.25), data update timestamp,
+ * statistical data disclaimer, and Equal Housing Opportunity notice.
  */
 export function IDXSearchDisclaimer({ className = '' }: { className?: string }) {
+  const now = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
-    <p className={`text-xs text-gray-400 ${className}`}>
-      Listing data provided by REBNY RLS. Information deemed reliable but not guaranteed.{' '}
-      <EqualHousingIcon className="w-3 h-3 inline-block align-text-bottom" />
-    </p>
+    <div className={`text-xs text-gray-400 text-right space-y-0.5 ${className}`}>
+      <p>
+        Listing data provided by REBNY RLS. Data last updated: {now}.{' '}
+        <EqualHousingIcon className="w-3 h-3 inline-block align-text-bottom" />
+      </p>
+      <p>
+        Based on information from the REBNY Listing Service as of {now}. Information deemed reliable but not guaranteed.
+      </p>
+      <p>Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State.</p>
+      <p>Commission rates are not set by law and are fully negotiable.</p>
+    </div>
   );
 }
 
