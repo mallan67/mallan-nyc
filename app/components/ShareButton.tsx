@@ -149,7 +149,7 @@ export default function ShareButton({ title, description }: ShareButtonProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg ring-1 ring-black/5 z-50 py-1 w-48">
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg ring-1 ring-black/5 z-50 p-2 flex items-center gap-1">
           {shareLinks.map((link) => (
             <a
               key={link.name}
@@ -157,21 +157,19 @@ export default function ShareButton({ title, description }: ShareButtonProps) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-brand-gold hover:bg-gray-50 transition-colors"
               aria-label={`Share on ${link.name}`}
             >
-              <span className="text-gray-400">{link.icon}</span>
-              {link.name}
+              {link.icon}
             </a>
           ))}
           <button
             type="button"
             onClick={handleCopy}
-            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors w-full"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-brand-gold hover:bg-gray-50 transition-colors"
             aria-label="Copy link to clipboard"
           >
-            <span className="text-gray-400">{copied ? <CheckIcon /> : <LinkIcon />}</span>
-            {copied ? 'Copied!' : 'Copy Link'}
+            {copied ? <CheckIcon /> : <LinkIcon />}
           </button>
         </div>
       )}
