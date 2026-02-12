@@ -1,10 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import dns from 'dns/promises';
+import { isDisposableDomain } from '@/lib/disposable-domains';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
-/** Check that the email domain has valid MX records (real mail server) */
+// --- Rate limiter: 3 sign-ups per IP per hour (in-memory) ---
+const rateMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 3;
+const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+// Clean up stale entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateMap) {
+    if (now > entry.resetAt) rateMap.delete(ip);
+  }
+}, 10 * 60 * 1000);
+
+/** Check that the email domain has valid MX records */
 async function verifyEmailDomain(email: string): Promise<boolean> {
   const domain = email.split('@')[1];
   if (!domain) return false;
@@ -19,7 +45,27 @@ async function verifyEmailDomain(email: string): Promise<boolean> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { firstName, lastName, email, phone, roles } = body;
+    const { firstName, lastName, email, phone, roles, website } = body;
+
+    // --- Honeypot: bots fill the hidden "website" field, humans don't ---
+    if (website) {
+      // Silently accept but don't save — bot thinks it succeeded
+      return NextResponse.json(
+        { success: true, message: 'Account created successfully', id: '0' },
+        { status: 201 }
+      );
+    }
+
+    // --- Rate limit by IP ---
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('x-real-ip')
+      || 'unknown';
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: 'Too many sign-up attempts. Please try again in an hour.' },
+        { status: 429 }
+      );
+    }
 
     // Validate required fields
     if (!firstName || !lastName || !email || !phone || !roles?.length) {
@@ -37,7 +83,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate email domain has MX records (real mail server)
+    // --- Block disposable/temporary email domains ---
+    if (isDisposableDomain(email)) {
+      return NextResponse.json(
+        { error: 'Disposable email addresses are not allowed. Please use your real email.' },
+        { status: 400 }
+      );
+    }
+
+    // --- Validate email domain has MX records (real mail server) ---
     const hasMx = await verifyEmailDomain(email);
     if (!hasMx) {
       return NextResponse.json(
