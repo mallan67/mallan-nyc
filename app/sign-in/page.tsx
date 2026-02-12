@@ -77,7 +77,7 @@ export default function SignInPage() {
             {/* Portal Type Selector */}
             <div className="mb-6">
               <label className="block text-sm font-medium mb-3">Sign in as</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex gap-2">
                 {portalTypes.map((portal) => {
                   const c = colorMap[portal.color];
                   const isActive = selectedPortal === portal.id;
@@ -86,22 +86,16 @@ export default function SignInPage() {
                       type="button"
                       key={portal.id}
                       onClick={() => setSelectedPortal(portal.id)}
-                      className={`relative flex flex-col items-center gap-1.5 p-3 border-2 rounded-xl transition-all hover:shadow-sm ${
-                        isActive ? `${c.activeBg} ${c.activeBorder}` : `bg-white ${c.border}`
+                      className={`flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-full border-2 transition-all text-sm font-medium ${
+                        isActive
+                          ? `${c.activeBg} ${c.activeBorder} ${c.text}`
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      {isActive && (
-                        <div className="absolute top-1.5 right-1.5">
-                          <svg className={`w-4 h-4 ${c.text}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                      <svg className={`w-6 h-6 ${c.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-4 h-4 ${isActive ? c.text : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={portal.icon} />
                       </svg>
-                      <span className="text-xs font-semibold">{portal.label}</span>
-                      <span className="text-[10px] text-gray-500 text-center leading-tight">{portal.description}</span>
+                      {portal.label}
                     </button>
                   );
                 })}
