@@ -4,7 +4,7 @@
  */
 
 export type ListingType = 'sale' | 'rent';
-export type MLSStatus = 'Active' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' | 'Expired';
+export type MLSStatus = 'Active' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' | 'Expired' | 'Closed';
 export type PropertyType = 'Condo' | 'Co-op' | 'Condop' | 'Townhouse' | 'Multi-Family' | 'Mixed-Use' | 'Land';
 export type Borough = 'Manhattan' | 'Brooklyn' | 'Queens' | 'Bronx' | 'Staten Island';
 
@@ -27,8 +27,8 @@ export type LuxuryTier =
  * Market positioning for luxury properties
  */
 export type LuxuryMarketPosition =
-  | 'off-market'           // Private, never publicly listed
-  | 'pocket-listing'       // Shared only within network
+  | 'private'              // Private, never publicly listed
+  | 'network-exclusive'    // Shared only within network
   | 'pre-market'           // Coming soon, exclusive preview
   | 'quietly-available'    // Listed but minimal marketing
   | 'full-market';         // Standard market exposure
@@ -366,8 +366,8 @@ export interface ListingFlags {
   isLuxury: boolean;              // True if tier >= 'luxury'
   isUltraLuxury: boolean;         // True if tier >= 'ultra-luxury'
   isTrophy: boolean;              // True if tier === 'trophy'
-  isOffMarket: boolean;           // Not publicly advertised
-  isPocketListing: boolean;       // Network-only distribution
+  isPrivateListing: boolean;      // Not publicly advertised
+  isNetworkExclusive: boolean;    // Network-only distribution
   isWhiteGlove: boolean;          // Requires premium showing protocol
   isInvestmentGrade: boolean;     // Suitable for institutional buyers
   requiresNDA: boolean;           // NDA required before showing
@@ -378,6 +378,10 @@ export interface ListingCompliance {
   idxOptOut: boolean;
   vowOptOut: boolean;
   syndicationOptOut: boolean;
+  internetAddressDisplayYN: boolean;
+  internetEntireListingDisplayYN: boolean;
+  participantOnlyNetwork: boolean;
+  comingSoonDate: string | null;
   lastVerified: string;
 }
 
@@ -534,8 +538,8 @@ export function requiresWhiteGloveService(listing: Listing): boolean {
     listing.luxury.tier === 'ultra-luxury' ||
     listing.luxury.requiresNDA ||
     listing.luxury.privateShowingsOnly ||
-    listing.luxury.marketPosition === 'off-market' ||
-    listing.luxury.marketPosition === 'pocket-listing'
+    listing.luxury.marketPosition === 'private' ||
+    listing.luxury.marketPosition === 'network-exclusive'
   );
 }
 

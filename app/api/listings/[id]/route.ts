@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import listingsData from '@/data/listings.json';
 import { logAccessDenied } from '@/lib/idx';
+import { sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -59,10 +60,13 @@ export async function GET(request: Request, { params }: Props) {
       );
     }
 
+    // REBNY COMPLIANCE: Sanitize listing for public display — strip private data
+    const sanitizedListing = sanitizeForPublicDisplay(listing as unknown as import('@/lib/types/listing').Listing);
+
     return NextResponse.json(
       {
         success: true,
-        listing,
+        listing: sanitizedListing,
         _compliance: {
           source: 'exclusive', // Currently serving exclusive/manual listings only
           idxEnabled: process.env.IDX_ENABLED === 'true',

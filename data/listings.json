@@ -186,8 +186,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "3%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -208,7 +208,7 @@
       },
       "description": "Stunning corner 2-bedroom residence with panoramic East River views and abundant natural light. This meticulously renovated apartment features an open chef's kitchen with top-of-the-line appliances, custom cabinetry, and breakfast bar. The spacious living room opens to a formal dining area, perfect for entertaining. The primary suite boasts a walk-in closet and en-suite bathroom with marble finishes. Full-service building with 24-hour doorman, fitness center, and rooftop terrace.",
       "privateRemarks": null,
-      "showingRemarks": "Please call listing agent at least 24 hours in advance.",
+      "showingRemarks": null,
       "openHouse": {
         "scheduled": true,
         "date": "2026-01-26",
@@ -229,7 +229,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T10:00:00Z"
+        "lastVerified": "2026-01-25T10:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -412,8 +416,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "3%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -434,7 +438,7 @@
       },
       "description": "Charming pre-war one-bedroom in prime Upper East Side location. This elegant residence features high ceilings, original moldings, and hardwood floors throughout. The windowed kitchen has been updated with modern appliances while maintaining classic charm. Enjoy the convenience of a full-service building with doorman, live-in super, and laundry room. Steps from Central Park, fine dining, and shopping along Madison Avenue. Maintenance includes all utilities except electric.",
       "privateRemarks": null,
-      "showingRemarks": "Tenant occupied. 48 hours notice required.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": false,
@@ -448,7 +452,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-20T14:00:00Z"
+        "lastVerified": "2026-01-20T14:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -629,8 +637,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "3%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -651,7 +659,7 @@
       },
       "description": "Magnificent 3-bedroom duplex in a historic Brooklyn Heights brownstone. This rare offering spans two floors with soaring ceilings, exposed brick, and private garden access. The main level features an open living and dining area with decorative fireplace, chef's kitchen with marble countertops, and access to the lush private garden. Upper level includes three bedrooms and two full bathrooms. Original details include crown moldings, pocket doors, and refinished hardwood floors.",
       "privateRemarks": null,
-      "showingRemarks": "Vacant. Lockbox code available upon confirmed showing.",
+      "showingRemarks": null,
       "openHouse": {
         "scheduled": true,
         "date": "2026-01-26",
@@ -672,7 +680,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T09:00:00Z"
+        "lastVerified": "2026-01-25T09:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -861,8 +873,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "2.5%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -883,7 +895,7 @@
       },
       "description": "Spectacular 3-bedroom residence with breathtaking Central Park views in a premier Upper West Side condominium. This corner unit features floor-to-ceiling windows, custom Italian kitchen with Miele appliances, and elegant master suite with spa-like bathroom. Private balcony offers stunning sunset views. Building amenities include 24-hour concierge, fitness center, swimming pool, children's playroom, and resident lounge. Steps to Lincoln Center and Central Park.",
       "privateRemarks": null,
-      "showingRemarks": "By appointment only.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -897,7 +909,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-24T15:00:00Z"
+        "lastVerified": "2026-01-24T15:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -1089,8 +1105,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "2.5%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -1111,7 +1127,7 @@
       },
       "description": "Exceptional 3-bedroom residence in the iconic 100 Barclay Street, one of Tribeca's most prestigious addresses. This meticulously designed home features expansive living spaces with 11-foot ceilings, custom millwork, and premium finishes throughout. Chef's kitchen with Gaggenau appliances and marble countertops. Private terrace with stunning Hudson River views. World-class amenities include 40,000 sq ft of indoor/outdoor space, 75-foot lap pool, full-service spa, and private dining room.",
       "privateRemarks": null,
-      "showingRemarks": "By appointment only. 24 hours notice required.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -1125,7 +1141,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T11:00:00Z"
+        "lastVerified": "2026-01-25T11:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -1292,8 +1312,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -1314,7 +1334,7 @@
       },
       "description": "Elegant pre-war one-bedroom in a coveted Upper East Side location. This beautifully maintained residence features high ceilings, original moldings, and gracious proportions. The windowed eat-in kitchen and renovated bathroom complement the classic charm. White-glove building with doorman and live-in superintendent. Steps from Central Park, Madison Avenue boutiques, and world-class museums. Available immediately.",
       "privateRemarks": null,
-      "showingRemarks": "Current tenant present. Please be respectful.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": false,
@@ -1328,7 +1348,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T08:00:00Z"
+        "lastVerified": "2026-01-25T08:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -1503,8 +1527,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -1525,7 +1549,7 @@
       },
       "description": "Stunning 2-bedroom, 2-bath rental in Hudson Yards' most sought-after building. This corner unit features floor-to-ceiling windows with spectacular city views, open chef's kitchen with premium appliances, and private balcony. Resort-style amenities include 75-foot pool, state-of-the-art fitness center, yoga studio, and landscaped roof terrace. Adjacent to The Shops at Hudson Yards and The High Line. Immediate occupancy available.",
       "privateRemarks": null,
-      "showingRemarks": "Vacant. See concierge for access.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -1539,7 +1563,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T10:00:00Z"
+        "lastVerified": "2026-01-25T10:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -1717,8 +1745,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -1739,7 +1767,7 @@
       },
       "description": "Extraordinary penthouse rental with panoramic views of the East River, Brooklyn Bridge, and Manhattan skyline. This stunning 3-bedroom residence features floor-to-ceiling windows, private wrap-around terrace, gourmet kitchen with top-of-the-line appliances, and luxurious master suite with spa bathroom. Building offers 100,000 sq ft of amenities including pools, fitness center, spa, basketball court, and private IMAX theater. Furnished or unfurnished options available.",
       "privateRemarks": null,
-      "showingRemarks": "By appointment only.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -1753,7 +1781,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T10:00:00Z"
+        "lastVerified": "2026-01-25T10:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -1923,8 +1955,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -1945,7 +1977,7 @@
       },
       "description": "Charming 2-bedroom in the heart of Park Slope. This sun-drenched pre-war apartment features high ceilings, original hardwood floors, decorative fireplace, and gracious room sizes. Updated eat-in kitchen with dishwasher. One block from Prospect Park and steps from excellent restaurants, cafes, and shopping on 5th and 7th Avenues. Board approval required. Available March 1st.",
       "privateRemarks": null,
-      "showingRemarks": "Current tenant vacating end of February.",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": false,
@@ -1959,7 +1991,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2026-01-25T09:00:00Z"
+        "lastVerified": "2026-01-25T09:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -2142,8 +2178,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "3%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": "external-agent-001",
         "buyerAgentName": "External Agent",
         "buyerFinancing": "Conventional",
@@ -2164,7 +2200,7 @@
       },
       "description": "Elegant pre-war 3-bedroom in one of Park Avenue's most distinguished cooperatives. This gracious residence features grand proportions, 10-foot ceilings, herringbone floors, and working fireplace. Formal living room with Park Avenue views, separate dining room, renovated kitchen, and three well-proportioned bedrooms. White-glove building with 24-hour doorman, concierge, fitness center, and rooftop terrace.",
       "privateRemarks": null,
-      "showingRemarks": "SOLD December 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -2178,7 +2214,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-12-11T14:00:00Z"
+        "lastVerified": "2025-12-11T14:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -2365,8 +2405,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "2.5%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": "external-agent-002",
         "buyerAgentName": "External Agent",
         "buyerFinancing": "Cash",
@@ -2387,7 +2427,7 @@
       },
       "description": "Modern 2-bedroom residence with stunning Hudson River views in a full-service Financial District condominium. This impeccably designed home features an open floor plan, floor-to-ceiling windows, custom Italian kitchen, and spa-like bathrooms. Building amenities include swimming pool, fitness center, rooftop terrace, and children's playroom. Steps to Brookfield Place, the Oculus, and waterfront parks.",
       "privateRemarks": null,
-      "showingRemarks": "SOLD November 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -2401,7 +2441,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-11-04T15:00:00Z"
+        "lastVerified": "2025-11-04T15:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -2581,8 +2625,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "3%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": "external-agent-003",
         "buyerAgentName": "External Agent",
         "buyerFinancing": "Conventional",
@@ -2603,7 +2647,7 @@
       },
       "description": "Charming pre-war 2-bedroom in prestigious Sutton Place. This bright corner residence features classic details including high ceilings, crown moldings, and hardwood floors. Renovated windowed kitchen and updated bathroom. Building offers 24-hour doorman, rooftop terrace, and storage. Prime location near Sutton Place Park and East River esplanade.",
       "privateRemarks": null,
-      "showingRemarks": "SOLD September 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -2617,7 +2661,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-09-26T14:00:00Z"
+        "lastVerified": "2025-09-26T14:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -2799,8 +2847,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "3%",
-        "buyerAgentCompensationType": "Percentage",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": "external-agent-004",
         "buyerAgentName": "External Agent",
         "buyerFinancing": "Conventional",
@@ -2821,7 +2869,7 @@
       },
       "description": "Stunning duplex in a beautifully restored Carroll Gardens brownstone. This rare offering features soaring ceilings, original details, chef's kitchen with marble countertops, and private garden. Living room with working fireplace, formal dining room, and three generous bedrooms. Master suite spans the top floor with walk-in closet and en-suite bath. Perfect blend of historic charm and modern luxury.",
       "privateRemarks": null,
-      "showingRemarks": "SOLD August 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -2835,7 +2883,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-08-16T15:00:00Z"
+        "lastVerified": "2025-08-16T15:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -3002,8 +3054,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -3024,7 +3076,7 @@
       },
       "description": "Lovely pre-war one-bedroom in a well-maintained Upper East Side co-op. Features high ceilings, hardwood floors, and sunny southern exposure. Updated kitchen with dishwasher. Building has part-time doorman, laundry room, and storage. Excellent location near restaurants, shops, and the 6 train.",
       "privateRemarks": null,
-      "showingRemarks": "RENTED October 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": false,
@@ -3038,7 +3090,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-10-22T14:00:00Z"
+        "lastVerified": "2025-10-22T14:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -3211,8 +3267,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -3233,7 +3289,7 @@
       },
       "description": "Stylish loft-style one-bedroom in the heart of Williamsburg. This industrial-chic residence features 12-foot ceilings, oversized windows, polished concrete floors, and washer/dryer in unit. Open chef's kitchen with stainless appliances. Building amenities include rooftop deck, fitness center, and bike storage. Steps from Bedford Avenue shops, restaurants, and L train.",
       "privateRemarks": null,
-      "showingRemarks": "RENTED November 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -3247,7 +3303,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-11-15T15:00:00Z"
+        "lastVerified": "2025-11-15T15:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     },
     {
@@ -3416,8 +3476,8 @@
         "coListAgentName": null
       },
       "buyer": {
-        "buyerAgentCompensation": "One Month",
-        "buyerAgentCompensationType": "Fixed",
+        "buyerAgentCompensation": null,
+        "buyerAgentCompensationType": null,
         "buyerAgentId": null,
         "buyerAgentName": null,
         "buyerFinancing": null,
@@ -3438,7 +3498,7 @@
       },
       "description": "Magnificent 3-bedroom residence with direct Central Park views in one of the Upper West Side's most prestigious cooperatives. This gracious pre-war home features 10-foot ceilings, original details, working fireplace, and elegant formal rooms. The renovated kitchen and bathrooms complement the classic architecture. Full-service building with doorman, concierge, fitness center, and rooftop terrace. Steps from Lincoln Center and Columbus Circle.",
       "privateRemarks": null,
-      "showingRemarks": "RENTED October 2025",
+      "showingRemarks": null,
       "openHouse": null,
       "flags": {
         "isExclusive": true,
@@ -3452,7 +3512,11 @@
         "idxOptOut": false,
         "vowOptOut": false,
         "syndicationOptOut": false,
-        "lastVerified": "2025-10-13T14:00:00Z"
+        "lastVerified": "2025-10-13T14:00:00Z",
+        "internetAddressDisplayYN": true,
+        "internetEntireListingDisplayYN": true,
+        "participantOnlyNetwork": false,
+        "comingSoonDate": null
       }
     }
   ]

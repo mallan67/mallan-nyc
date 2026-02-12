@@ -294,13 +294,8 @@ function ListingCard({ listing, onSelect, selected }: { listing: Listing; onSele
         <div className="text-sm text-slate-600 mt-1">{listing.address}</div>
         <div className="text-sm text-slate-600">{listing.neighborhood} {listing.zip ? `• ${listing.zip}` : ""}</div>
         <div className="text-sm mt-1">{listing.beds} bd • {listing.baths} ba • {listing.sqft ? `${listing.sqft} sf` : "—"}</div>
-        {/* Compensation flags */}
-        {!listing.isRent && listing.buyerAgentComp && (
-          <div className="text-xs text-slate-600 mt-1">Buyer’s Agent Compensation: {listing.buyerAgentComp.type === "percent" ? `${listing.buyerAgentComp.value}%` : usd(listing.buyerAgentComp.value)}</div>
-        )}
-        {listing.isRent && listing.ownerPaysTenantAgent != null && (
-          <div className="text-xs text-slate-600 mt-1">Owner Pays Tenant’s Agent: {listing.ownerPaysTenantAgent ? "Yes" : "No"}</div>
-        )}
+        {/* REBNY COMPLIANCE: Compensation MUST NOT be displayed publicly (IDX/VOW context).
+           Only visible in authenticated broker/agent CRM. */}
         <RLSAttribution listing={listing} />
         <SaveShareBar listing={listing} onSelect={onSelect} selected={!!selected} />
       </div>
@@ -738,12 +733,7 @@ export default function MallanApp() {
                 <div className="text-xs text-slate-600 mt-2">BBL: {(auto?.borough && auto?.block && auto?.lot) ? `${auto?.borough}-${auto?.block}-${auto?.lot}` : (auto?.loading ? 'Resolving…' : '—')}</div>
                 {auto && (auto as any).error && <div className="text-xs text-red-600">Geoclient: {(auto as any).error}</div>}
                 {/* Comp flags */}
-                {!primary.isRent && primary.buyerAgentComp && (
-                  <div className="text-xs text-slate-600 mt-1">Buyer’s Agent Compensation: {primary.buyerAgentComp.type === "percent" ? `${primary.buyerAgentComp.value}%` : usd(primary.buyerAgentComp.value)}</div>
-                )}
-                {primary.isRent && primary.ownerPaysTenantAgent != null && (
-                  <div className="text-xs text-slate-600 mt-1">Owner Pays Tenant’s Agent: {primary.ownerPaysTenantAgent ? "Yes" : "No"}</div>
-                )}
+                {/* REBNY COMPLIANCE: Compensation MUST NOT be displayed publicly. */}
                 <ContactAgentBar />
                 <MortgageCalculator price={primary.price} taxes={primary.taxes} maint={primary.maintenance} />
               </div>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import IDXImage from '@/app/components/IDXImage';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
+import { isDisplayableInIDX, canDisplayAddress, getComingSoonDate, formatComingSoonBadge } from '@/lib/compliance/idx-display-gate';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 
 function formatPrice(price: number, isRental: boolean): string {
@@ -28,8 +29,9 @@ export default function PropertySearch({ type }: PropertySearchProps) {
   const isRental = type === 'rent';
 
   // Get all listings of the appropriate type
+  // REBNY RLS: Enforce all 6 distribution gates via centralized utility
   const allListings = (listingsData.listings as unknown as Listing[]).filter(
-    (l) => (isRental ? l.listingType === 'rent' : l.listingType === 'sale') && l.status === 'active' && !l.compliance?.idxOptOut
+    (l) => isDisplayableInIDX(l) && (isRental ? l.listingType === 'rent' : l.listingType === 'sale')
   );
 
   // URL params for initial filters
@@ -39,7 +41,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>(
-    isRental ? [0, 15000] : [0, 5000000]
+    isRental ? [0, 99999] : [0, 99999999]
   );
   const [beds, setBeds] = useState<number | null>(null);
   const [propertyType, setPropertyType] = useState<string>('');
@@ -154,7 +156,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
 
   const clearFilters = () => {
     setSearchQuery('');
-    setPriceRange(isRental ? [0, 15000] : [0, 5000000]);
+    setPriceRange(isRental ? [0, 99999] : [0, 99999999]);
     setBeds(null);
     setPropertyType('');
     setNeighborhoodFilter('');
@@ -172,7 +174,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     boroughFilter ||
     amenityFilter ||
     petsAllowed !== null ||
-    (isRental ? priceRange[0] !== 0 || priceRange[1] !== 15000 : priceRange[0] !== 0 || priceRange[1] !== 5000000);
+    (isRental ? priceRange[0] !== 0 || priceRange[1] !== 99999 : priceRange[0] !== 0 || priceRange[1] !== 99999999);
 
   return (
     <div className="min-h-screen bg-white pt-20">
@@ -188,25 +190,31 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               Back to Home
             </Link>
           </div>
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4" role="search" aria-label="Property search filters">
             {/* Search Input */}
             <div className="flex-1">
+              <label htmlFor="ps-search-query" className="sr-only">Search properties</label>
               <input
+                id="ps-search-query"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by address, neighborhood, zip, or borough..."
                 className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                aria-label="Search by address, neighborhood, zip, or borough"
               />
             </div>
 
             {/* Filters Row 1 */}
             <div className="flex gap-3 flex-wrap">
               {/* Borough */}
+              <label htmlFor="ps-borough-filter" className="sr-only">Borough</label>
               <select
+                id="ps-borough-filter"
                 value={boroughFilter}
                 onChange={(e) => setBoroughFilter(e.target.value)}
                 className="border rounded-lg px-4 py-3 bg-white text-sm"
+                aria-label="Borough"
               >
                 <option value="">All Boroughs</option>
                 {boroughs.map((b) => (
@@ -215,22 +223,26 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               </select>
 
               {/* Price */}
+              <label htmlFor="ps-price-filter" className="sr-only">Price range</label>
               <select
+                id="ps-price-filter"
                 value={`${priceRange[0]}-${priceRange[1]}`}
                 onChange={(e) => {
                   const [min, max] = e.target.value.split('-').map(Number);
                   setPriceRange([min, max]);
                 }}
                 className="border rounded-lg px-4 py-3 bg-white text-sm"
+                aria-label="Price range"
               >
-                <option value={isRental ? '0-15000' : '0-5000000'}>Any Price</option>
+                <option value={isRental ? '0-99999' : '0-99999999'}>Any Price</option>
                 {isRental ? (
                   <>
                     <option value="0-3000">Under $3,000</option>
                     <option value="3000-5000">$3,000 - $5,000</option>
                     <option value="5000-7500">$5,000 - $7,500</option>
                     <option value="7500-10000">$7,500 - $10,000</option>
-                    <option value="10000-15000">$10,000+</option>
+                    <option value="10000-15000">$10,000 - $15,000</option>
+                    <option value="15000-99999">$15,000+</option>
                   </>
                 ) : (
                   <>
@@ -238,18 +250,24 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                     <option value="750000-1000000">$750K - $1M</option>
                     <option value="1000000-1500000">$1M - $1.5M</option>
                     <option value="1500000-2500000">$1.5M - $2.5M</option>
-                    <option value="2500000-5000000">$2.5M+</option>
+                    <option value="2500000-5000000">$2.5M - $5M</option>
+                    <option value="5000000-10000000">$5M - $10M</option>
+                    <option value="10000000-99999999">$10M+</option>
                   </>
                 )}
               </select>
 
               {/* Beds */}
+              <label htmlFor="ps-beds-filter" className="sr-only">Number of bedrooms</label>
               <select
+                id="ps-beds-filter"
                 value={beds ?? ''}
                 onChange={(e) => setBeds(e.target.value ? Number(e.target.value) : null)}
                 className="border rounded-lg px-4 py-3 bg-white text-sm"
+                aria-label="Number of bedrooms"
               >
                 <option value="">Any Beds</option>
+                <option value="0">Studio</option>
                 <option value="1">1+ Bed</option>
                 <option value="2">2+ Beds</option>
                 <option value="3">3+ Beds</option>
@@ -257,10 +275,13 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               </select>
 
               {/* Type */}
+              <label htmlFor="ps-type-filter" className="sr-only">Property type</label>
               <select
+                id="ps-type-filter"
                 value={propertyType}
                 onChange={(e) => setPropertyType(e.target.value)}
                 className="border rounded-lg px-4 py-3 bg-white text-sm"
+                aria-label="Property type"
               >
                 <option value="">Any Type</option>
                 {propertyTypes.map((t) => (
@@ -269,13 +290,16 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               </select>
 
               {/* Pets */}
+              <label htmlFor="ps-pets-filter" className="sr-only">Pets policy</label>
               <select
+                id="ps-pets-filter"
                 value={petsAllowed === null ? '' : petsAllowed ? 'yes' : 'no'}
                 onChange={(e) => {
                   if (e.target.value === '') setPetsAllowed(null);
                   else setPetsAllowed(e.target.value === 'yes');
                 }}
                 className="border rounded-lg px-4 py-3 bg-white text-sm"
+                aria-label="Pets policy"
               >
                 <option value="">Any Pets Policy</option>
                 <option value="yes">Pets Allowed</option>
@@ -283,10 +307,13 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               </select>
 
               {/* Sort */}
+              <label htmlFor="ps-sort-filter" className="sr-only">Sort order</label>
               <select
+                id="ps-sort-filter"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                 className="border rounded-lg px-4 py-3 bg-white text-sm"
+                aria-label="Sort order"
               >
                 <option value="featured">Featured First</option>
                 <option value="newest">Newest</option>
@@ -339,7 +366,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
-            <p className="text-gray-600">
+            <p className="text-gray-600" aria-live="polite" aria-atomic="true">
               {sortedListings.length} {sortedListings.length === 1 ? 'property' : 'properties'} found
             </p>
             <IDXSearchDisclaimer />
@@ -374,7 +401,12 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                         Exclusive
                       </span>
                     )}
-                    {listing.openHouse?.scheduled && (
+                    {getComingSoonDate(listing) && (
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded">
+                        {formatComingSoonBadge(getComingSoonDate(listing)!)}
+                      </span>
+                    )}
+                    {listing.openHouse?.scheduled && !getComingSoonDate(listing) && (
                       <span className="absolute top-3 right-3 px-3 py-1 bg-white text-brand-dark text-xs rounded shadow">
                         Open House
                       </span>
@@ -387,7 +419,13 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                       {formatPrice(listing.price.listPrice, isRental)}
                     </p>
                     <p className="text-gray-800">
-                      {listing.address.streetNumber} {listing.address.streetName}, {listing.address.unit}
+                      {canDisplayAddress(listing) ? (
+                        <>
+                          {listing.address.streetNumber} {listing.address.streetName}, {listing.address.unit}
+                        </>
+                      ) : (
+                        <span className="italic text-gray-500">Address Undisclosed</span>
+                      )}
                     </p>
                     <p className="text-gray-500 text-sm">{listing.address.neighborhoodDisplay}, {listing.address.borough}</p>
 

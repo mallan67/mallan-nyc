@@ -48,7 +48,7 @@ const buyFaqSchema = {
       name: 'Do I need a buyer\'s agent in NYC?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'While not legally required, having a licensed buyer\'s agent in NYC is highly recommended. A buyer\'s agent represents your interests exclusively, helps negotiate price and terms, guides you through board applications (for co-ops), coordinates with attorneys, and provides access to listings including off-market and exclusive properties.',
+        text: 'While not legally required, having a licensed buyer\'s agent in NYC is highly recommended. A buyer\'s agent represents your interests exclusively, helps negotiate price and terms, guides you through board applications (for co-ops), coordinates with attorneys, and provides access to listings including exclusive and pre-market properties.',
       },
     },
     {

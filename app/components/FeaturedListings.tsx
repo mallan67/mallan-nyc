@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
+import IDXDisclaimer from '@/app/components/IDXDisclaimer';
+import { isDisplayableInIDX } from '@/lib/compliance/idx-display-gate';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 
@@ -69,6 +71,12 @@ function ListingCard({ listing }: { listing: Listing }) {
             {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
           </p>
         )}
+        {/* REBNY H1/F6: Listing Courtesy attribution required */}
+        {listing.agent?.listOfficeName && (
+          <p className="text-[10px] text-gray-400 mt-1.5">
+            Listing Courtesy of {listing.agent.listOfficeName}
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -76,8 +84,9 @@ function ListingCard({ listing }: { listing: Listing }) {
 
 export default function FeaturedListings() {
   // Get featured listings, prioritizing exclusives and featured flags
+  // REBNY RLS: Enforce all 6 distribution gates before displaying
   const listings = (listingsData.listings as unknown as Listing[])
-    .filter((l) => l.status === 'active')
+    .filter((l) => l.status === 'active' && isDisplayableInIDX(l))
     .sort((a, b) => {
       // Featured first
       if (a.flags.isFeatured && !b.flags.isFeatured) return -1;
@@ -115,6 +124,8 @@ export default function FeaturedListings() {
             View All Listings
           </Link>
         </div>
+        {/* REBNY RLS: IDX disclaimer required on any page displaying listing data */}
+        <IDXDisclaimer variant="compact" />
       </div>
     </section>
   );

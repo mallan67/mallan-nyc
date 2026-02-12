@@ -16,6 +16,7 @@ import ShareButton from '@/app/components/ShareButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
+import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
 
 // ISR: revalidate every 15 min (matches cron sync interval)
 export const revalidate = 900;
@@ -436,6 +437,11 @@ export default async function ListingPage({ params }: Props) {
                         {amenity}
                       </span>
                     ))}
+                    {listing.features.building.security.map((item) => (
+                      <span key={item} className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm">
+                        {item}
+                      </span>
+                    ))}
                     <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium ${
                       listing.features.pets.allowed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                     }`}>
@@ -453,18 +459,6 @@ export default async function ListingPage({ params }: Props) {
                   </div>
                   {listing.features.pets.comments && (
                     <p className="text-sm text-gray-500 mt-2">{listing.features.pets.comments}</p>
-                  )}
-                  {listing.features.building.security.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-sm text-gray-500 mb-2">Security Features:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {listing.features.building.security.map((item) => (
-                          <span key={item} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
                   )}
                 </section>
               )}
@@ -490,24 +484,15 @@ export default async function ListingPage({ params }: Props) {
                 </section>
               )}
 
-              {/* Public Records — Sale listings only */}
-              {!isRental && listing.address.buildingTaxLot && (
-                <section className="bg-white rounded-lg p-6 border">
-                  <h2 className="text-xl font-sans mb-2">Public Records</h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Official NYC records for this property
-                  </p>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-gray-500">BBL</span>
-                      <span className="font-medium">{listing.address.buildingTaxLot}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-gray-500">Borough</span>
-                      <span className="font-medium">{listing.address.borough}</span>
-                    </div>
-                  </div>
-                </section>
+              {/* Public Records */}
+              {listing.address.buildingTaxLot && (
+                <PublicRecordsPanel
+                  bbl={listing.address.buildingTaxLot}
+                  borough={listing.address.borough}
+                  houseNumber={listing.address.streetNumber}
+                  street={listing.address.streetName}
+                  listedMonthlyTax={listing.nycSpecific?.realEstateTaxes}
+                />
               )}
 
               {/* Neighborhood Link */}
@@ -568,15 +553,8 @@ export default async function ListingPage({ params }: Props) {
                         </div>
                       </>
                     )}
-                    {/* Agent Compensation */}
-                    {listing.buyer?.buyerAgentCompensation && (
-                      <div className="mt-3 pt-3 border-t">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">{isRental ? 'Tenant' : 'Buyer'}&apos;s Agent Compensation</span>
-                          <span className="font-medium text-gray-700">{listing.buyer.buyerAgentCompensation}</span>
-                        </div>
-                      </div>
-                    )}
+                    {/* REBNY COMPLIANCE: Agent compensation MUST NOT be displayed publicly.
+                       Only visible in authenticated broker/agent CRM (VOW) context. */}
                   </div>
 
                   <div className="space-y-3">

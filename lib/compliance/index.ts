@@ -43,6 +43,15 @@ export {
   parseValidationResponse,
 } from './prompts';
 
+export {
+  isDisplayableInIDX,
+  canDisplayAddress,
+  getComingSoonDate,
+  formatComingSoonBadge,
+  sanitizeForPublicDisplay,
+  shouldRemoveClosedListing,
+} from './idx-display-gate';
+
 // Re-export rules for reference
 import rlsRules from './rls-rules.json';
 export { rlsRules };
