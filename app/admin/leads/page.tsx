@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 interface Lead {
@@ -36,30 +35,28 @@ const statusConfig: { value: string; label: string; color: string }[] = [
   { value: 'closed', label: 'Closed', color: 'bg-gray-100 text-gray-500' },
 ];
 
-export default function LeadsPageWrapper() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading...</div>}>
-      <LeadsPage />
-    </Suspense>
-  );
+function getPass(): string {
+  return sessionStorage.getItem('admin_pass') || '';
 }
 
-function LeadsPage() {
-  const searchParams = useSearchParams();
-  const key = searchParams.get('key') || '';
-
+export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [password, setPassword] = useState('');
+  const [authed, setAuthed] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  function fetchLeads() {
+  function fetchLeads(pass: string) {
     setLoading(true);
-    fetch(`/api/leads?key=${encodeURIComponent(key)}`)
+    setError('');
+    fetch('/api/leads', {
+      headers: { 'x-admin-pass': pass },
+    })
       .then(res => {
         if (!res.ok) throw new Error('Unauthorized');
         return res.json();
@@ -68,18 +65,24 @@ function LeadsPage() {
         setLeads(data.leads);
         setAgents(data.agents || []);
         setTotal(data.total);
+        setAuthed(true);
         setLoading(false);
+        sessionStorage.setItem('admin_pass', pass);
       })
       .catch(() => {
-        setError('Unauthorized — invalid key');
+        setError('Wrong password');
         setLoading(false);
+        sessionStorage.removeItem('admin_pass');
       });
   }
 
   function updateLead(id: string, updates: Record<string, string | null>) {
-    fetch(`/api/leads/${id}?key=${encodeURIComponent(key)}`, {
+    fetch(`/api/leads/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-pass': getPass(),
+      },
       body: JSON.stringify(updates),
     })
       .then(res => res.json())
@@ -93,10 +96,14 @@ function LeadsPage() {
   }
 
   useEffect(() => {
-    if (key) fetchLeads();
-    else { setError('Missing key — add ?key=YOUR_KEY to the URL'); setLoading(false); }
+    const saved = sessionStorage.getItem('admin_pass');
+    if (saved) {
+      fetchLeads(saved);
+    } else {
+      setLoading(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, []);
 
   const filtered = leads.filter(l => {
     if (filterRole !== 'all' && !l.roles.includes(filterRole)) return false;
@@ -104,17 +111,35 @@ function LeadsPage() {
     return true;
   });
 
-  if (error) {
+  // --- Login screen ---
+  if (!authed) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-sm border p-8 max-w-sm w-full text-center">
-          <h1 className="text-xl font-bold mb-2">Lead Distribution Hub</h1>
-          <p className="text-sm text-red-500">{error}</p>
+        <div className="bg-white rounded-xl shadow-sm border p-8 max-w-sm w-full">
+          <div className="text-center mb-6">
+            <h1 className="text-lg font-bold tracking-wide" style={{ color: '#C4A052' }}>MALLAN</h1>
+            <p className="text-sm text-gray-500 mt-1">Lead Distribution Hub</p>
+          </div>
+          <form onSubmit={e => { e.preventDefault(); fetchLeads(password); }}>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(''); }}
+              placeholder="Admin password"
+              autoFocus
+              className="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+            />
+            {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+            <button type="submit" disabled={!password} className={`w-full py-3 rounded-lg font-medium transition-colors ${password ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-400'}`}>
+              View Leads
+            </button>
+          </form>
         </div>
       </div>
     );
   }
 
+  // --- Dashboard ---
   const newCount = leads.filter(l => l.status === 'new').length;
   const contactedCount = leads.filter(l => l.status === 'contacted').length;
   const activeCount = leads.filter(l => l.status === 'active').length;
@@ -131,6 +156,9 @@ function LeadsPage() {
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-300">{total} total leads</span>
           <Link href="/admin" className="text-sm text-gray-400 hover:text-white">Admin</Link>
+          <button onClick={() => { sessionStorage.removeItem('admin_pass'); setAuthed(false); setPassword(''); }} className="text-sm text-gray-500 hover:text-white">
+            Logout
+          </button>
         </div>
       </header>
 
@@ -171,7 +199,7 @@ function LeadsPage() {
           <span className="text-xs text-gray-400 self-center ml-2">
             Showing {filtered.length} of {total}
           </span>
-          <button onClick={fetchLeads} className="ml-auto text-xs text-blue-600 hover:underline self-center">
+          <button onClick={() => fetchLeads(getPass())} className="ml-auto text-xs text-blue-600 hover:underline self-center">
             Refresh
           </button>
         </div>
@@ -195,9 +223,7 @@ function LeadsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Assigned To</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Registered</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase w-10">
-                      <span className="sr-only">Expand</span>
-                    </th>
+                    <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -261,7 +287,6 @@ function LeadsPage() {
                           <tr key={lead.id + '-detail'} className="bg-gray-50">
                             <td colSpan={7} className="px-4 py-4">
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                {/* Quick Actions */}
                                 <div>
                                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Quick Actions</h4>
                                   <div className="flex flex-col gap-2">
@@ -288,8 +313,6 @@ function LeadsPage() {
                                     </a>
                                   </div>
                                 </div>
-
-                                {/* Lead Details */}
                                 <div>
                                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Lead Details</h4>
                                   <div className="bg-white rounded-lg border p-3 space-y-2 text-sm">
@@ -311,8 +334,6 @@ function LeadsPage() {
                                     </div>
                                   </div>
                                 </div>
-
-                                {/* Activity */}
                                 <div>
                                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Activity</h4>
                                   <div className="bg-white rounded-lg border p-3 text-sm text-gray-400 italic">
