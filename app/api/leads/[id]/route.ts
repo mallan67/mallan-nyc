@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Basic ')) return false;
-  const decoded = atob(authHeader.slice(6));
-  const [user, pass] = decoded.split(':');
-  return user === process.env.ADMIN_BASIC_USER && pass === process.env.ADMIN_BASIC_PASS;
-}
-
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!checkAuth(req)) {
+  const key = req.nextUrl.searchParams.get('key');
+  if (!key || key !== process.env.ADMIN_DEBUG_KEY) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

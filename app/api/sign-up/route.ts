@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import dns from 'dns/promises';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
+
+/** Check that the email domain has valid MX records (real mail server) */
+async function verifyEmailDomain(email: string): Promise<boolean> {
+  const domain = email.split('@')[1];
+  if (!domain) return false;
+  try {
+    const mx = await dns.resolveMx(domain);
+    return mx && mx.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,10 +29,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate email format
+    // Validate email syntax
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
         { error: 'Invalid email address' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email domain has MX records (real mail server)
+    const hasMx = await verifyEmailDomain(email);
+    if (!hasMx) {
+      return NextResponse.json(
+        { error: 'This email domain does not appear to accept mail. Please use a valid email address.' },
         { status: 400 }
       );
     }
@@ -34,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for existing lead with same email
-    const existing = await prisma.lead.findUnique({ where: { email } });
+    const existing = await prisma.lead.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this email already exists. Please sign in.' },
