@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Lead {
@@ -28,37 +29,37 @@ const roleColors: Record<string, string> = {
   landlord: 'bg-teal-100 text-teal-700',
 };
 
-const statusConfig: { value: string; label: string; color: string; dot: string }[] = [
-  { value: 'new', label: 'New', color: 'bg-red-100 text-red-700', dot: 'bg-red-500' },
-  { value: 'contacted', label: 'Contacted', color: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
-  { value: 'active', label: 'Active', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
-  { value: 'closed', label: 'Closed', color: 'bg-gray-100 text-gray-500', dot: 'bg-gray-400' },
+const statusConfig: { value: string; label: string; color: string }[] = [
+  { value: 'new', label: 'New', color: 'bg-red-100 text-red-700' },
+  { value: 'contacted', label: 'Contacted', color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'active', label: 'Active', color: 'bg-blue-100 text-blue-700' },
+  { value: 'closed', label: 'Closed', color: 'bg-gray-100 text-gray-500' },
 ];
 
-function getAuthHeader(): string {
-  const saved = sessionStorage.getItem('admin_creds');
-  return saved ? 'Basic ' + saved : '';
+export default function LeadsPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading...</div>}>
+      <LeadsPage />
+    </Suspense>
+  );
 }
 
-export default function LeadsPage() {
+function LeadsPage() {
+  const searchParams = useSearchParams();
+  const key = searchParams.get('key') || '';
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [authed, setAuthed] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  function fetchLeads(user: string, pass: string) {
+  function fetchLeads() {
     setLoading(true);
-    setError('');
-    fetch('/api/leads', {
-      headers: { 'Authorization': 'Basic ' + btoa(user + ':' + pass) },
-    })
+    fetch(`/api/leads?key=${encodeURIComponent(key)}`)
       .then(res => {
         if (!res.ok) throw new Error('Unauthorized');
         return res.json();
@@ -67,23 +68,18 @@ export default function LeadsPage() {
         setLeads(data.leads);
         setAgents(data.agents || []);
         setTotal(data.total);
-        setAuthed(true);
         setLoading(false);
-        sessionStorage.setItem('admin_creds', btoa(user + ':' + pass));
       })
       .catch(() => {
-        setError('Invalid credentials');
+        setError('Unauthorized — invalid key');
         setLoading(false);
       });
   }
 
   function updateLead(id: string, updates: Record<string, string | null>) {
-    fetch(`/api/leads/${id}`, {
+    fetch(`/api/leads/${id}?key=${encodeURIComponent(key)}`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': getAuthHeader(),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     })
       .then(res => res.json())
@@ -97,14 +93,10 @@ export default function LeadsPage() {
   }
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('admin_creds');
-    if (saved) {
-      const [u, p] = atob(saved).split(':');
-      fetchLeads(u, p);
-    } else {
-      setLoading(false);
-    }
-  }, []);
+    if (key) fetchLeads();
+    else { setError('Missing key — add ?key=YOUR_KEY to the URL'); setLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   const filtered = leads.filter(l => {
     if (filterRole !== 'all' && !l.roles.includes(filterRole)) return false;
@@ -112,32 +104,12 @@ export default function LeadsPage() {
     return true;
   });
 
-  if (!authed) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-sm border p-8 max-w-sm w-full">
-          <h1 className="text-xl font-bold mb-1">Lead Distribution Hub</h1>
-          <p className="text-sm text-gray-500 mb-6">Broker admin access required</p>
-          <form onSubmit={e => { e.preventDefault(); fetchLeads(username, password); }}>
-            <input
-              type="text"
-              value={username}
-              onChange={e => { setUsername(e.target.value); setError(''); }}
-              placeholder="Username"
-              className="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={e => { setPassword(e.target.value); setError(''); }}
-              placeholder="Password"
-              className="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-            {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-            <button type="submit" className="w-full bg-gray-900 text-white py-3 rounded-lg font-medium hover:bg-gray-800">
-              Sign In
-            </button>
-          </form>
+        <div className="bg-white rounded-xl shadow-sm border p-8 max-w-sm w-full text-center">
+          <h1 className="text-xl font-bold mb-2">Lead Distribution Hub</h1>
+          <p className="text-sm text-red-500">{error}</p>
         </div>
       </div>
     );
@@ -147,11 +119,6 @@ export default function LeadsPage() {
   const contactedCount = leads.filter(l => l.status === 'contacted').length;
   const activeCount = leads.filter(l => l.status === 'active').length;
   const unassigned = leads.filter(l => !l.assignedAgent).length;
-
-  function refresh() {
-    const saved = sessionStorage.getItem('admin_creds');
-    if (saved) { const [u,p] = atob(saved).split(':'); fetchLeads(u,p); }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,9 +131,6 @@ export default function LeadsPage() {
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-300">{total} total leads</span>
           <Link href="/admin" className="text-sm text-gray-400 hover:text-white">Admin</Link>
-          <button onClick={() => { sessionStorage.removeItem('admin_creds'); setAuthed(false); }} className="text-sm text-gray-500 hover:text-white">
-            Logout
-          </button>
         </div>
       </header>
 
@@ -207,7 +171,7 @@ export default function LeadsPage() {
           <span className="text-xs text-gray-400 self-center ml-2">
             Showing {filtered.length} of {total}
           </span>
-          <button onClick={refresh} className="ml-auto text-xs text-blue-600 hover:underline self-center">
+          <button onClick={fetchLeads} className="ml-auto text-xs text-blue-600 hover:underline self-center">
             Refresh
           </button>
         </div>
@@ -232,7 +196,7 @@ export default function LeadsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Assigned To</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Registered</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase w-10">
-                      <span className="sr-only">Actions</span>
+                      <span className="sr-only">Expand</span>
                     </th>
                   </tr>
                 </thead>
@@ -241,8 +205,8 @@ export default function LeadsPage() {
                     const isExpanded = expandedId === lead.id;
                     const sc = statusConfig.find(s => s.value === lead.status) || statusConfig[0];
                     return (
-                      <>
-                        <tr key={lead.id} className={`hover:bg-gray-50 cursor-pointer ${lead.status === 'new' ? 'bg-yellow-50/50' : ''}`}
+                      <>{/* eslint-disable-next-line react/jsx-key */}
+                        <tr className={`hover:bg-gray-50 cursor-pointer ${lead.status === 'new' ? 'bg-yellow-50/50' : ''}`}
                           onClick={() => setExpandedId(isExpanded ? null : lead.id)}>
                           <td className="px-4 py-3">
                             <p className="font-medium text-sm">{lead.firstName} {lead.lastName}</p>
@@ -348,12 +312,12 @@ export default function LeadsPage() {
                                   </div>
                                 </div>
 
-                                {/* Notes / Future */}
+                                {/* Activity */}
                                 <div>
                                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Activity</h4>
                                   <div className="bg-white rounded-lg border p-3 text-sm text-gray-400 italic">
                                     <p>Search history and activity tracking will be available when the client portal launches.</p>
-                                    <p className="mt-2 text-xs">Planned features: saved searches, showing feedback, document uploads, offer history.</p>
+                                    <p className="mt-2 text-xs">Planned: saved searches, showing feedback, document uploads, offer history.</p>
                                   </div>
                                 </div>
                               </div>
