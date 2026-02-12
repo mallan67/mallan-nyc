@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get('key');
-  if (!key || key !== process.env.ADMIN_DEBUG_KEY) {
+  const pass = req.headers.get('x-admin-pass');
+  if (!pass || pass !== process.env.ADMIN_BASIC_PASS) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
