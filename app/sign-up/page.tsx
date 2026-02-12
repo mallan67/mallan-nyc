@@ -85,6 +85,7 @@ export default function SignUpPage() {
           email,
           phone,
           roles: selectedRoles,
+          website: (document.getElementById('website') as HTMLInputElement)?.value || '',
         }),
       });
 
@@ -242,6 +243,12 @@ export default function SignUpPage() {
                   className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
                   placeholder="Create a password (min 8 characters)"
                 />
+              </div>
+
+              {/* Honeypot — hidden from humans, bots auto-fill it */}
+              <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <label htmlFor="website">Website</label>
+                <input type="text" id="website" name="website" tabIndex={-1} autoComplete="off" />
               </div>
 
               {/* Role Picker */}
