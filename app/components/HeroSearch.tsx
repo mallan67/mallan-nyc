@@ -163,7 +163,10 @@ export default function HeroSearch() {
           alt="New York City real estate"
           fill
           className="object-cover object-center animate-ken-burns"
-          style={{ objectPosition: 'center 85%' }}
+          style={{
+            objectPosition: 'center 85%',
+            filter: 'saturate(1.1) contrast(1.04)',
+          }}
           priority
           sizes="100vw"
           quality={100}

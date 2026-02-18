@@ -87,6 +87,50 @@
   background: #C4A052;
 }
 
+/* ─── Liquid Glass Card System ───────────────────────────────────────────────
+   Recreates the glossy, crisp, liquid feel of Serhant/Elliman property cards.
+   Key levers:
+   1. Spring easing (Apple-derived) — not mechanical linear
+   2. Multi-layer box-shadow — real depth, glass edge highlight
+   3. translateY lift — card floats on hover
+   4. Image filter: saturate + contrast — makes photos pop, feel wet/vivid
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-card:
+    0 4px 6px -2px rgba(0,0,0,0.08),
+    0 16px 40px -8px rgba(0,0,0,0.2),
+    0 0 0 1px rgba(255,255,255,0.06);       /* glass edge */
+  --shadow-card-hover:
+    0 8px 12px -4px rgba(0,0,0,0.15),
+    0 32px 64px -8px rgba(0,0,0,0.4),
+    0 0 0 1px rgba(255,255,255,0.10),       /* brighter glass edge on hover */
+    inset 0 1px 0 rgba(255,255,255,0.12);  /* top sheen */
+}
+
+.liquid-card {
+  box-shadow: var(--shadow-card);
+  transition: transform 0.55s var(--ease-spring),
+              box-shadow 0.55s var(--ease-spring);
+  will-change: transform, box-shadow;
+}
+.liquid-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Image inside a liquid card — vibrancy filter + spring zoom */
+.liquid-card .card-img {
+  transition: transform 0.7s var(--ease-spring),
+              filter 0.7s var(--ease-spring);
+  filter: saturate(1.05) contrast(1.02);
+}
+.liquid-card:hover .card-img {
+  transform: scale(1.08);
+  filter: saturate(1.14) contrast(1.05) brightness(1.02);
+}
+
 /* ---------- Cards & Tiles ---------- */
 .cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .card{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}

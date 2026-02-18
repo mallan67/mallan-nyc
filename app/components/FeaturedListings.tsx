@@ -30,19 +30,21 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="group block relative rounded-xl overflow-hidden aspect-[4/3] bg-gray-900 shadow-lg hover:shadow-2xl transition-all duration-500"
+      className="liquid-card group block relative rounded-2xl overflow-hidden aspect-[4/3] bg-gray-950"
     >
       {/* Full-bleed photo */}
-      <div className="absolute inset-0">
-        <IDXImage
-          src={primaryImage}
-          alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-          aspect="card"
-        />
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="card-img absolute inset-0">
+          <IDXImage
+            src={primaryImage}
+            alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
+            aspect="card"
+          />
+        </div>
       </div>
 
       {/* Hover darkening */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 z-10" />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all duration-500 z-10" style={{ transition: 'background 0.55s cubic-bezier(0.22,1,0.36,1)' }} />
 
       {/* Top badges */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
@@ -129,18 +131,20 @@ export default function FeaturedListings() {
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="group block relative rounded-2xl overflow-hidden mb-5 sm:mb-6 bg-gray-900 shadow-xl hover:shadow-2xl transition-all duration-500"
+            className="liquid-card group block relative rounded-2xl overflow-hidden mb-5 sm:mb-6 bg-gray-950"
           >
-            <div className="relative aspect-[16/7] overflow-hidden">
-              <IDXImage
-                src={
-                  hero.media.images.find(img => img.isPrimary)?.url ||
-                  hero.media.images[0]?.url ||
-                  '/images/listing-placeholder.svg'
-                }
-                alt={`${hero.propertyInfo.propertyType} in ${hero.address.neighborhoodDisplay}`}
-                aspect="card"
-              />
+            <div className="relative aspect-[16/7] overflow-hidden rounded-2xl">
+              <div className="card-img absolute inset-0">
+                <IDXImage
+                  src={
+                    hero.media.images.find(img => img.isPrimary)?.url ||
+                    hero.media.images[0]?.url ||
+                    '/images/listing-placeholder.svg'
+                  }
+                  alt={`${hero.propertyInfo.propertyType} in ${hero.address.neighborhoodDisplay}`}
+                  aspect="card"
+                />
+              </div>
               {/* Hover darken */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all duration-500" />
 
