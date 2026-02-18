@@ -190,8 +190,9 @@ export default function HeroSearch() {
           />
         )}
 
-        {/* Layered overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/50" />
+        {/* Layered overlay — cinematic gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/10 to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
       </div>
 
       {/* Content — stripped down, Serhant/Elliman style: big photo + bold type + search */}
@@ -205,7 +206,7 @@ export default function HeroSearch() {
         </h1>
 
         {/* Search module */}
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-3xl">
           <div className="relative">
             {/* Tabs */}
             <div className="inline-flex rounded-t-xl bg-black/50 backdrop-blur-md border border-white/15 border-b-0 overflow-hidden">
@@ -278,6 +279,13 @@ export default function HeroSearch() {
           <span className="w-px h-3 bg-white/20" />
           <span>Since 2010</span>
         </div>
+      </div>
+
+      {/* Scroll-down chevron */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce-down">
+        <svg className="w-8 h-8 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
     </section>
   );

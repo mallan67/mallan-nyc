@@ -33,7 +33,7 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500"
+      className="liquid-card group block rounded-2xl overflow-hidden"
     >
       {/* Photo — clean, bright, no overlay */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
@@ -42,7 +42,7 @@ function ListingCard({ listing }: { listing: Listing }) {
           <img
             src={src}
             alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+            className="card-img absolute inset-0 w-full h-full object-cover"
             loading="lazy"
           />
         )}
@@ -98,7 +98,7 @@ export default function FeaturedListings() {
       if (!a.flags.isExclusive && b.flags.isExclusive) return 1;
       return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
     })
-    .slice(0, 6);
+    .slice(0, 12);
 
   const [hero, ...rest] = listings;
 
@@ -128,7 +128,7 @@ export default function FeaturedListings() {
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500 mb-5 sm:mb-6"
+            className="liquid-card group block rounded-2xl overflow-hidden mb-5 sm:mb-6"
           >
             {/* Wide cinematic photo */}
             <div className="relative aspect-[21/9] overflow-hidden bg-gray-100">
@@ -141,7 +141,7 @@ export default function FeaturedListings() {
                   <img
                     src={heroSrc}
                     alt={`${hero.propertyInfo.propertyType} in ${hero.address.neighborhoodDisplay}`}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
+                    className="card-img absolute inset-0 w-full h-full object-cover"
                     loading="eager"
                   />
                 ) : null;
@@ -184,8 +184,15 @@ export default function FeaturedListings() {
           </Link>
         )}
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
+        {/* Mobile: horizontal scroll | Desktop: grid */}
+        <div className="sm:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {rest.map((listing) => (
+            <div key={listing.id} className="flex-shrink-0 w-[280px] snap-start">
+              <ListingCard listing={listing} />
+            </div>
+          ))}
+        </div>
+        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
           {rest.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
@@ -195,7 +202,7 @@ export default function FeaturedListings() {
         <div className="mt-14 sm:mt-20 text-center">
           <Link
             href="/buy"
-            className="inline-flex items-center gap-3 px-10 py-4 bg-gray-950 text-white font-black rounded-full hover:bg-gray-800 transition-colors text-sm tracking-widest uppercase"
+            className="btn-dark"
           >
             Browse All Properties →
           </Link>

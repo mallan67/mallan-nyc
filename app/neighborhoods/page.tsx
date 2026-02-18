@@ -95,12 +95,12 @@ export default function NeighborhoodsIndexPage() {
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500"
+                  className="liquid-card group block rounded-2xl overflow-hidden"
                 >
                   {/* Photo — clean, bright */}
                   <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
                     <div
-                      className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                      className="card-img absolute inset-0 bg-cover bg-center"
                       style={{ backgroundImage: `url(${b.heroImage})` }}
                     />
                   </div>

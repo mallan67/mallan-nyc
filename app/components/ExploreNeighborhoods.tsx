@@ -52,7 +52,7 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500"
+      className="liquid-card group block rounded-2xl overflow-hidden"
     >
       {/* Photo — clean, bright */}
       <div className={`relative overflow-hidden bg-gray-100 ${large ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
@@ -60,7 +60,7 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
         <img
           src={neighborhood.thumbnail}
           alt={neighborhood.name}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+          className="card-img absolute inset-0 w-full h-full object-cover"
           loading="lazy"
         />
         <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-gray-600 text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide">
@@ -118,7 +118,16 @@ export default function ExploreNeighborhoods() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+        {/* Mobile: horizontal scroll */}
+        <div className="sm:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {neighborhoods.map((n) => (
+            <div key={n.id} className="flex-shrink-0 w-[260px] snap-start">
+              <NeighborhoodCard neighborhood={n} />
+            </div>
+          ))}
+        </div>
+        {/* Desktop: grid */}
+        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
           {featured && (
             <div className="col-span-2">
               <NeighborhoodCard neighborhood={featured} large />
@@ -132,7 +141,7 @@ export default function ExploreNeighborhoods() {
         <div className="mt-14 sm:mt-20 text-center">
           <Link
             href="/neighborhoods"
-            className="inline-flex items-center gap-3 px-10 py-4 border-2 border-gray-950 text-gray-950 font-black rounded-full hover:bg-gray-950 hover:text-white transition-all duration-300 text-sm tracking-widest uppercase"
+            className="btn-outline"
           >
             All Neighborhoods →
           </Link>
