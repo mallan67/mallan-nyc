@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 const HERO_VIDEO = '/videos/nyc-hero.mp4';
-const HERO_IMAGE = '/images/hero.jpg';
 
 export default function HeroSearch() {
   const router = useRouter();
@@ -32,14 +31,13 @@ export default function HeroSearch() {
   return (
     <section className="relative w-full min-h-screen flex flex-col">
       {/* Background */}
-      <div className="absolute inset-0 bg-gray-900">
+      <div className="absolute inset-0 bg-black">
         <video
           ref={videoRef}
           autoPlay
           muted
           loop
           playsInline
-          poster=""
           className="absolute inset-0 w-full h-full object-cover"
         >
           <source src={HERO_VIDEO} type="video/mp4" />
