@@ -189,7 +189,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
-      <div className="max-w-[90rem] mx-auto pl-2 pr-4 lg:pl-4 lg:pr-6">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Brand — typographic wordmark, no image */}
           <Link
