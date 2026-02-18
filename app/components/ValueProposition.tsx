@@ -1,12 +1,31 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
 import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
 import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
 
-/**
- * Value Proposition Section
- * Compliance: No guarantees, NYC-specific, Fair Housing compliant
- */
+function MobileCalcToggle({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="md:contents">
+      <button
+        onClick={() => setOpen(!open)}
+        className="md:hidden flex items-center justify-between w-full px-4 py-3 text-sm font-semibold text-[#C4A052] border border-white/10 rounded-xl mt-3"
+      >
+        {open ? 'Hide' : 'Show'} {label}
+        <svg className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div className={`${open ? 'block' : 'hidden'} md:block`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function ValueProposition() {
   return (
     <section className="bg-gray-950 py-24 sm:py-28 md:py-36 px-4">
@@ -48,7 +67,9 @@ export default function ValueProposition() {
                 Browse Sales <span aria-hidden>→</span>
               </Link>
             </div>
-            <AffordabilityCalculator />
+            <MobileCalcToggle label="Affordability Calculator">
+              <AffordabilityCalculator />
+            </MobileCalcToggle>
           </div>
 
           {/* Rent */}
@@ -71,7 +92,9 @@ export default function ValueProposition() {
                 Browse Rentals <span aria-hidden>→</span>
               </Link>
             </div>
-            <RentVsBuyStandalone />
+            <MobileCalcToggle label="Rent vs Buy Calculator">
+              <RentVsBuyStandalone />
+            </MobileCalcToggle>
           </div>
 
           {/* Sell */}
@@ -94,7 +117,9 @@ export default function ValueProposition() {
                 Sell Your Property <span aria-hidden>→</span>
               </Link>
             </div>
-            <SellerClosingCostCalculator />
+            <MobileCalcToggle label="Closing Cost Calculator">
+              <SellerClosingCostCalculator />
+            </MobileCalcToggle>
           </div>
         </div>
 
@@ -104,7 +129,7 @@ export default function ValueProposition() {
           <Link
             href="/contact"
             data-analytics-cta="cta_contact_primary"
-            className="inline-block px-10 py-4 bg-[#C4A052] text-gray-950 font-bold rounded-xl hover:bg-[#d4b060] shadow-lg transition-all text-sm sm:text-base tracking-wide"
+            className="btn-gold text-sm sm:text-base tracking-wide"
           >
             Talk to a Broker
           </Link>

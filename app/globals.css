@@ -251,3 +251,119 @@ header button:focus-visible {
 
 /* Color contrast: Tailwind v4 gray-500 (#6b7280) passes AA 4.5:1 on white */
 /* Color contrast: Tailwind v4 gray-400 (#9ca3af) — decorative/non-essential only */
+
+/* ---------- Scroll Reveal ---------- */
+.sr-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s var(--ease-spring), transform 0.7s var(--ease-spring);
+}
+.sr-reveal.sr-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- CTA Button System ---------- */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2rem;
+  background: #C4A052;
+  color: #1a1a1a;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: transform 0.4s var(--ease-spring),
+              box-shadow 0.4s var(--ease-spring),
+              background 0.25s ease;
+}
+.btn-gold:hover {
+  transform: translateY(-1px);
+  background: #d4b060;
+  box-shadow: 0 8px 24px -4px rgba(196, 160, 82, 0.45);
+}
+
+.btn-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  background: #0a0a0a;
+  color: #fff;
+  font-weight: 900;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.875rem;
+  transition: transform 0.4s var(--ease-spring),
+              box-shadow 0.4s var(--ease-spring),
+              background 0.25s ease;
+}
+.btn-dark:hover {
+  transform: translateY(-1px);
+  background: #1f1f1f;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  background: transparent;
+  color: #0a0a0a;
+  font-weight: 900;
+  border: 2px solid #0a0a0a;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.875rem;
+  transition: transform 0.4s var(--ease-spring),
+              box-shadow 0.4s var(--ease-spring),
+              background 0.25s ease,
+              color 0.25s ease;
+}
+.btn-outline:hover {
+  transform: translateY(-1px);
+  background: #0a0a0a;
+  color: #fff;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Section Divider ---------- */
+.section-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  max-width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C4A052, transparent);
+}
+.section-divider::before {
+  background: linear-gradient(90deg, transparent, #C4A052);
+}
+.section-divider::after {
+  background: linear-gradient(90deg, #C4A052, transparent);
+}
+.section-divider-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #C4A052;
+}
+
+/* ---------- Bouncing Scroll Chevron ---------- */
+@keyframes bounceDown {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+.animate-bounce-down {
+  animation: bounceDown 2s ease-in-out infinite;
+}
