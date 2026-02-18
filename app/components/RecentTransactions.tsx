@@ -78,8 +78,8 @@ export default function RecentTransactions() {
               </div>
             );
           })}
-          {/* Spacer so last card isn't clipped */}
-          <div className="flex-shrink-0 w-1" aria-hidden />
+          {/* Spacer so last card isn't clipped at right edge */}
+          <div className="flex-shrink-0 w-4" aria-hidden />
         </div>
       </div>
     </section>
