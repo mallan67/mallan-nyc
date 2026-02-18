@@ -5,6 +5,7 @@ import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
 import MovingCostEstimator from '@/app/components/MovingCostEstimator';
+import PageHero from '@/app/components/PageHero';
 
 export const revalidate = 3600;
 
@@ -83,6 +84,12 @@ export default function RentPage() {
       />
       <Header dark />
       <main>
+        <PageHero
+          eyebrow="New York City"
+          title="Rent in NYC."
+          subtitle="Apartments, lofts, and homes across Manhattan, Brooklyn, Queens and beyond."
+          compact
+        />
         <Suspense fallback={<SearchLoading />}>
           <PropertySearch type="rent" />
         </Suspense>

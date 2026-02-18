@@ -77,12 +77,11 @@ export default function NeighborhoodsIndexPage() {
 
           {/* Title at bottom */}
           <div className="pb-8 sm:pb-12">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
-              NYC Neighborhood Guides
+            <h1 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-white tracking-tight leading-none">
+              NYC Neighborhood Guides.
             </h1>
-            <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
-              Explore real estate across all five boroughs with market data, building intelligence,
-              and broker insights.
+            <p className="mt-4 text-lg text-white/65 max-w-2xl">
+              Explore real estate across all five boroughs with market data, building intelligence, and broker insights.
             </p>
           </div>
         </div>
@@ -91,24 +90,36 @@ export default function NeighborhoodsIndexPage() {
       <main>
         <section className="py-12 sm:py-16">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {boroughs.map((b) => (
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="group block relative overflow-hidden rounded-lg aspect-[3/2]"
+                  className="liquid-card group block relative overflow-hidden rounded-2xl aspect-[3/2] bg-gray-900"
                 >
-                  <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${b.heroImage})` }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h2 className="text-2xl font-semibold text-white">{b.name}</h2>
-                    <p className="text-sm text-white/80 mt-1">{b.tagline}</p>
-                    <p className="text-xs text-white/60 mt-2">
-                      {b.count} neighborhood{b.count !== 1 ? 's' : ''}
-                    </p>
+                  <div className="absolute inset-0 overflow-hidden">
+                    <div
+                      className="card-img absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url(${b.heroImage})` }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                       style={{ boxShadow: 'inset 0 0 0 2px rgba(196,160,82,0.6)' }} />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 60%)' }} />
+                  <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
+                    <h2 className="font-sans font-black text-2xl sm:text-3xl text-white leading-none mb-1 group-hover:-translate-y-6 transition-transform duration-500"
+                        style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>
+                      {b.name}
+                    </h2>
+                    <div className="overflow-hidden">
+                      <div className="translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500"
+                           style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>
+                        <p className="text-white/65 text-sm">{b.tagline}</p>
+                        <p className="text-[#C4A052] text-xs font-bold mt-2 tracking-wide">
+                          {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </Link>
               ))}
@@ -119,8 +130,8 @@ export default function NeighborhoodsIndexPage() {
         {/* CTA */}
         <section className="py-10 sm:py-14 bg-gray-50">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-3">
-              Find Your NYC Home
+            <h2 className="font-sans font-black text-3xl sm:text-4xl text-gray-950 mb-3 tracking-tight leading-none">
+              Find Your NYC Home.
             </h2>
             <p className="text-gray-500 mb-8 max-w-xl mx-auto">
               Search active listings across all five boroughs or speak with our team for
