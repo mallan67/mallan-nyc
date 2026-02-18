@@ -43,12 +43,12 @@ export default function PhotoPageHero({
         />
       </div>
 
-      {/* Dark gradient overlay */}
+      {/* Subtle gradient overlay — photo stays visible */}
       <div
         className="absolute inset-0 z-10"
         style={{
           background:
-            'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.3) 55%, rgba(0,0,0,0.5) 100%)',
+            'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.1) 100%)',
         }}
       />
 

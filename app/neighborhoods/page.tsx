@@ -56,7 +56,7 @@ export default function NeighborhoodsIndexPage() {
               'url(https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1600&q=80)',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         <div className="relative h-full flex flex-col justify-between max-w-7xl mx-auto px-4">
           {/* Breadcrumb at top */}
           <div className="pt-20 sm:pt-24">
@@ -105,7 +105,7 @@ export default function NeighborhoodsIndexPage() {
                   </div>
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                        style={{ boxShadow: 'inset 0 0 0 2px rgba(196,160,82,0.6)' }} />
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 60%)' }} />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.12) 35%, transparent 55%)' }} />
                   <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
                     <h2 className="font-sans font-black text-2xl sm:text-3xl text-white leading-none mb-1 group-hover:-translate-y-6 transition-transform duration-500"
                         style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>

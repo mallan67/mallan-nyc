@@ -195,16 +195,16 @@
       },
       "media": {
         "images": [
-          {
-            "url": "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1200&q=90&auto=format&fit=crop",
-            "caption": "Living Room",
-            "order": 1,
-            "isPrimary": true
-          }
+          { "url": "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1200&q=90&auto=format&fit=crop", "caption": "Living Room", "order": 1, "isPrimary": true },
+          { "url": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=90&auto=format&fit=crop", "caption": "Kitchen", "order": 2, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=1200&q=90&auto=format&fit=crop", "caption": "Primary Bedroom", "order": 3, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=1200&q=90&auto=format&fit=crop", "caption": "Bathroom", "order": 4, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&q=90&auto=format&fit=crop", "caption": "Building Exterior", "order": 5, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=1200&q=90&auto=format&fit=crop", "caption": "City View", "order": 6, "isPrimary": false }
         ],
-        "floorPlanUrl": null,
-        "virtualTourUrl": null,
-        "videoUrl": null
+        "floorPlanUrl": "https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?w=1200&q=90&auto=format&fit=crop",
+        "virtualTourUrl": "https://my.matterport.com/show/?m=SxQL3iGyvQk",
+        "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
       },
       "description": "Stunning corner 2-bedroom residence with panoramic East River views and abundant natural light. This meticulously renovated apartment features an open chef's kitchen with top-of-the-line appliances, custom cabinetry, and breakfast bar. The spacious living room opens to a formal dining area, perfect for entertaining. The primary suite boasts a walk-in closet and en-suite bathroom with marble finishes. Full-service building with 24-hour doorman, fitness center, and rooftop terrace.",
       "privateRemarks": null,
@@ -425,14 +425,12 @@
       },
       "media": {
         "images": [
-          {
-            "url": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=90&auto=format&fit=crop",
-            "caption": "Living Room",
-            "order": 1,
-            "isPrimary": true
-          }
+          { "url": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=90&auto=format&fit=crop", "caption": "Living Room", "order": 1, "isPrimary": true },
+          { "url": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=90&auto=format&fit=crop", "caption": "Kitchen", "order": 2, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=1200&q=90&auto=format&fit=crop", "caption": "Bedroom", "order": 3, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=1200&q=90&auto=format&fit=crop", "caption": "Dining Area", "order": 4, "isPrimary": false }
         ],
-        "floorPlanUrl": null,
+        "floorPlanUrl": "https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?w=1200&q=90&auto=format&fit=crop",
         "virtualTourUrl": null,
         "videoUrl": null
       },
@@ -646,15 +644,14 @@
       },
       "media": {
         "images": [
-          {
-            "url": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=90&auto=format&fit=crop",
-            "caption": "Living Room",
-            "order": 1,
-            "isPrimary": true
-          }
+          { "url": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=90&auto=format&fit=crop", "caption": "Open Living Space", "order": 1, "isPrimary": true },
+          { "url": "https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?w=1200&q=90&auto=format&fit=crop", "caption": "Modern Kitchen", "order": 2, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&q=90&auto=format&fit=crop", "caption": "Primary Suite", "order": 3, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1600210492493-0946911123ea?w=1200&q=90&auto=format&fit=crop", "caption": "View", "order": 4, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=1200&q=90&auto=format&fit=crop", "caption": "Second Bedroom", "order": 5, "isPrimary": false }
         ],
         "floorPlanUrl": null,
-        "virtualTourUrl": null,
+        "virtualTourUrl": "https://my.matterport.com/show/?m=SxQL3iGyvQk",
         "videoUrl": null
       },
       "description": "Magnificent 3-bedroom duplex in a historic Brooklyn Heights brownstone. This rare offering spans two floors with soaring ceilings, exposed brick, and private garden access. The main level features an open living and dining area with decorative fireplace, chef's kitchen with marble countertops, and access to the lush private garden. Upper level includes three bedrooms and two full bathrooms. Original details include crown moldings, pocket doors, and refinished hardwood floors.",
@@ -882,16 +879,13 @@
       },
       "media": {
         "images": [
-          {
-            "url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&q=90&auto=format&fit=crop",
-            "caption": "Living Room",
-            "order": 1,
-            "isPrimary": true
-          }
+          { "url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&q=90&auto=format&fit=crop", "caption": "Grand Living Room", "order": 1, "isPrimary": true },
+          { "url": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=90&auto=format&fit=crop", "caption": "Gourmet Kitchen", "order": 2, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=90&auto=format&fit=crop", "caption": "Master Bath", "order": 3, "isPrimary": false }
         ],
-        "floorPlanUrl": null,
-        "virtualTourUrl": null,
-        "videoUrl": null
+        "floorPlanUrl": "https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?w=1200&q=90&auto=format&fit=crop",
+        "virtualTourUrl": "https://my.matterport.com/show/?m=SxQL3iGyvQk",
+        "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
       },
       "description": "Spectacular 3-bedroom residence with breathtaking Central Park views in a premier Upper West Side condominium. This corner unit features floor-to-ceiling windows, custom Italian kitchen with Miele appliances, and elegant master suite with spa-like bathroom. Private balcony offers stunning sunset views. Building amenities include 24-hour concierge, fitness center, swimming pool, children's playroom, and resident lounge. Steps to Lincoln Center and Central Park.",
       "privateRemarks": null,
@@ -1321,16 +1315,14 @@
       },
       "media": {
         "images": [
-          {
-            "url": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=90&auto=format&fit=crop",
-            "caption": "Living Room",
-            "order": 1,
-            "isPrimary": true
-          }
+          { "url": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&q=90&auto=format&fit=crop", "caption": "Living Room", "order": 1, "isPrimary": true },
+          { "url": "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1200&q=90&auto=format&fit=crop", "caption": "Chef Kitchen", "order": 2, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=1200&q=90&auto=format&fit=crop", "caption": "Bedroom", "order": 3, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1613545325278-f24b0cae1224?w=1200&q=90&auto=format&fit=crop", "caption": "Bathroom", "order": 4, "isPrimary": false }
         ],
         "floorPlanUrl": null,
         "virtualTourUrl": null,
-        "videoUrl": null
+        "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
       },
       "description": "Elegant pre-war one-bedroom in a coveted Upper East Side location. This beautifully maintained residence features high ceilings, original moldings, and gracious proportions. The windowed eat-in kitchen and renovated bathroom complement the classic charm. White-glove building with doorman and live-in superintendent. Steps from Central Park, Madison Avenue boutiques, and world-class museums. Available immediately.",
       "privateRemarks": null,
@@ -1536,14 +1528,11 @@
       },
       "media": {
         "images": [
-          {
-            "url": "https://images.unsplash.com/photo-1600210492493-0946911123ea?w=1200&q=90&auto=format&fit=crop",
-            "caption": "Living Room",
-            "order": 1,
-            "isPrimary": true
-          }
+          { "url": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=90&auto=format&fit=crop", "caption": "Sun-Drenched Living Room", "order": 1, "isPrimary": true },
+          { "url": "https://images.unsplash.com/photo-1600210492493-0946911123ea?w=1200&q=90&auto=format&fit=crop", "caption": "Renovated Kitchen", "order": 2, "isPrimary": false },
+          { "url": "https://images.unsplash.com/photo-1617104678098-de229db51175?w=1200&q=90&auto=format&fit=crop", "caption": "Primary Bedroom", "order": 3, "isPrimary": false }
         ],
-        "floorPlanUrl": null,
+        "floorPlanUrl": "https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?w=1200&q=90&auto=format&fit=crop",
         "virtualTourUrl": null,
         "videoUrl": null
       },
