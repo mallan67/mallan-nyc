@@ -36,7 +36,7 @@ export default function ValueProposition() {
           <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-3">
             Full-Service Brokerage
           </p>
-          <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-white leading-none tracking-tight max-w-3xl mx-auto">
+          <h2 className="font-display italic text-4xl sm:text-5xl md:text-6xl text-white leading-none tracking-tight max-w-3xl mx-auto">
             Every side of a New York real estate transaction.
           </h2>
           <p className="mt-6 text-base sm:text-lg text-white/45 max-w-xl mx-auto leading-relaxed">

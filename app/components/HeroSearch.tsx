@@ -21,7 +21,7 @@ type SearchSuggestion = {
 const DEFAULT_HERO: HeroSettings = {
   heroImage: '/images/hero.jpg',
   heroTagline: 'Find your place in New York City.',
-  heroVideo: '',  // Set via CMS — e.g. '/videos/nyc-hero.mp4'
+  heroVideo: '/videos/nyc-hero.mp4',
 };
 
 const TAB_BASE = 'px-5 py-2.5 text-sm font-semibold capitalize transition-all duration-150 tracking-wide';
@@ -200,7 +200,7 @@ export default function HeroSearch() {
 
         {/* Main headline — scales properly across ALL screen sizes
             13" (1024-1280px) = 48px  14-15" (1280px) = 54px  16"+ = 60px  */}
-        <h1 className="font-sans font-black text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-[3.5rem] 2xl:text-6xl text-white text-center leading-[1.05] tracking-tight max-w-3xl mb-8 animate-fade-in-up"
+        <h1 className="font-display italic text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-7xl 2xl:text-8xl text-white text-center leading-[1.0] tracking-tight max-w-4xl mb-8 animate-fade-in-up"
             style={{ textShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>
           {heroSettings.heroTagline}
         </h1>
@@ -242,7 +242,7 @@ export default function HeroSearch() {
                 <button
                   onClick={handleSearch}
                   data-analytics-cta="hero_search"
-                  className="px-8 py-4 bg-[#C4A052] text-gray-950 font-bold rounded-xl hover:bg-[#d4b060] shadow-lg transition-all text-sm sm:text-base tracking-wide whitespace-nowrap"
+                  className="btn-gold text-sm sm:text-base tracking-wide whitespace-nowrap shadow-lg"
                 >
                   Search
                 </button>
