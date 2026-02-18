@@ -65,10 +65,10 @@ function ListingCard({ listing }: { listing: Listing }) {
         </span>
       </div>
 
-      {/* Price + info overlay — gradient from bottom */}
+      {/* Price + info overlay — soft transitional gray, not black */}
       <div
-        className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-12 pb-4"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)' }}
+        className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-16 pb-4"
+        style={{ background: 'linear-gradient(to top, rgba(15,15,25,0.78) 0%, rgba(0,0,0,0.2) 55%, transparent 85%)' }}
       >
         <p className="text-white font-black text-xl sm:text-2xl leading-none mb-1">
           {formatPrice(listing.price.listPrice, isRental)}
@@ -151,7 +151,7 @@ export default function FeaturedListings() {
             {/* Overlay */}
             <div
               className="absolute bottom-0 left-0 right-0 px-6 sm:px-8 pt-20 pb-6 sm:pb-8"
-              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)' }}
+              style={{ background: 'linear-gradient(to top, rgba(15,15,25,0.80) 0%, rgba(0,0,0,0.15) 55%, transparent 90%)' }}
             >
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                 <div>
