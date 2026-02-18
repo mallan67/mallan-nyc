@@ -174,27 +174,14 @@ export default function HeroSearch() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/75" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-32 pb-20">
+      {/* Content — stripped down, Serhant/Elliman style: big photo + bold type + search */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-28 pb-16">
 
-        {/* Eyebrow */}
-        <p className="text-xs sm:text-sm font-bold tracking-[0.3em] uppercase text-[#C4A052] mb-5 animate-fade-in-up">
-          Licensed NYC Real Estate Broker
-        </p>
-
-        {/* Gold rule accent */}
-        <span className="gold-rule mb-6 animate-fade-in-up animate-fade-in-up-delay-1" />
-
-        {/* Main headline — Playfair Display serif for luxury feel */}
-        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-[4rem] font-bold italic text-white text-center leading-[1.1] max-w-4xl mb-6 animate-fade-in-up animate-fade-in-up-delay-1"
-            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4)' }}>
+        {/* Main headline — heavy sans-serif, NOT italic serif. Bold = assertive. */}
+        <h1 className="font-sans font-black text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] text-white text-center leading-[0.95] tracking-tight max-w-4xl mb-10 animate-fade-in-up"
+            style={{ textShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>
           {heroSettings.heroTagline}
         </h1>
-
-        {/* Sub-headline */}
-        <p className="text-base sm:text-lg text-white/65 text-center max-w-lg mb-10 leading-relaxed font-normal animate-fade-in-up animate-fade-in-up-delay-2">
-          Every borough. Every property type. One team that knows this city inside out.
-        </p>
 
         {/* Search module */}
         <div className="w-full max-w-2xl">
@@ -262,18 +249,15 @@ export default function HeroSearch() {
           </div>
         </div>
 
-        {/* Social proof strip */}
-        <div className="flex items-center gap-6 sm:gap-10 mt-10 text-white/50 text-xs sm:text-sm">
-          <span><span className="text-white font-semibold">5 Boroughs</span> covered</span>
-          <span className="w-px h-4 bg-white/20" />
-          <span><span className="text-white font-semibold">Residential</span> &amp; Commercial</span>
-          <span className="w-px h-4 bg-white/20" />
-          <span><span className="text-white font-semibold">REBNY</span> Licensed</span>
+        {/* Minimal credential strip */}
+        <div className="flex items-center gap-5 sm:gap-8 mt-8 text-white/40 text-[11px] tracking-widest uppercase font-semibold">
+          <span>5 Boroughs</span>
+          <span className="w-px h-3 bg-white/20" />
+          <span>REBNY Licensed</span>
+          <span className="w-px h-3 bg-white/20" />
+          <span>Since 2010</span>
         </div>
       </div>
-
-      {/* Bottom fade into next section */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none" />
     </section>
   );
 }

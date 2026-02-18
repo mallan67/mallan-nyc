@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
@@ -32,55 +30,56 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="group block bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+      className="group block relative rounded-xl overflow-hidden aspect-[4/3] bg-gray-900 shadow-lg hover:shadow-2xl transition-all duration-500"
     >
-      {/* Photo */}
-      <div className="relative">
+      {/* Full-bleed photo */}
+      <div className="absolute inset-0">
         <IDXImage
           src={primaryImage}
           alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
           aspect="card"
         />
-        {/* Badge */}
+      </div>
+
+      {/* Hover darkening */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 z-10" />
+
+      {/* Top badges */}
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
         {listing.flags.isExclusive && (
-          <span className="absolute top-3 left-3 bg-[#C4A052] text-white text-[11px] px-2.5 py-1 font-bold rounded tracking-wider uppercase z-10 shadow-md">
+          <span className="bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded shadow-lg">
             Exclusive
           </span>
         )}
         {listing.flags.isNewListing && !listing.flags.isExclusive && (
-          <span className="absolute top-3 left-3 bg-gray-900 text-white text-[11px] px-2.5 py-1 font-bold rounded tracking-wider uppercase z-10 shadow-md">
+          <span className="bg-white text-gray-900 text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded shadow-lg">
             New
           </span>
         )}
-        {/* Type pill */}
-        <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 font-semibold rounded tracking-widest uppercase z-10">
+      </div>
+
+      {/* Type pill top-right */}
+      <div className="absolute top-3 right-3 z-20">
+        <span className="bg-black/50 backdrop-blur-sm text-white text-[10px] px-2 py-1 font-semibold tracking-widest uppercase rounded">
           {isRental ? 'Rental' : 'Sale'}
         </span>
       </div>
 
-      {/* Info */}
-      <div className="p-4">
-        {/* Price */}
-        <p className="text-xl font-black text-[#C4A052] min-h-[1.75rem] tracking-tight">
+      {/* Price + info overlay — Serhant/Elliman style gradient overlay at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-16 pb-4"
+           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }}>
+        <p className="text-white font-black text-xl sm:text-2xl leading-none mb-1 drop-shadow-lg">
           {formatPrice(listing.price.listPrice, isRental)}
         </p>
-        {/* Address */}
-        <p className="text-sm font-semibold text-gray-900 mt-1 min-h-[1.25rem]">
+        <p className="text-white/80 text-xs font-medium">
           {listing.propertyInfo.propertyType} &middot; {listing.address.neighborhoodDisplay}
         </p>
-        {/* Details */}
-        <p className="text-xs text-gray-500 mt-1 min-h-[1rem]">
+        <p className="text-white/60 text-xs mt-0.5">
           {beds} bed &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
           {sqft > 0 && ` · ${sqft.toLocaleString()} sf`}
         </p>
-        {!isRental && listing.nycSpecific.maintenanceFee && (
-          <p className="text-xs text-gray-400 mt-0.5">
-            {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
-          </p>
-        )}
-        {/* REBNY H1/F6 attribution */}
         {listing.agent?.listOfficeName && (
-          <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+          <p className="text-white/40 text-[9px] mt-2">
             Courtesy of {listing.agent.listOfficeName}
           </p>
         )}
@@ -104,76 +103,78 @@ export default function FeaturedListings() {
   const [hero, ...rest] = listings;
 
   return (
-    <section className="py-16 sm:py-20 md:py-24 px-4 bg-stone-50">
+    <section className="py-24 sm:py-28 md:py-36 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 sm:mb-12">
+        {/* Section header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 sm:mb-16">
           <div>
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-3">
-              Hand-Selected Properties
+            <p className="text-xs font-black tracking-[0.3em] uppercase text-[#C4A052] mb-4">
+              Hand-Selected
             </p>
-            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
-              Featured Listings
+            <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl tracking-tight text-gray-950 leading-none">
+              Featured<br />Listings.
             </h2>
           </div>
           <Link
             href="/buy"
-            className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors underline underline-offset-4 decoration-gray-300 hover:decoration-gray-600 whitespace-nowrap"
+            className="group inline-flex items-center gap-2 text-sm font-bold text-gray-900 hover:text-[#C4A052] transition-colors whitespace-nowrap"
           >
-            View all listings →
+            View all listings
+            <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
           </Link>
         </div>
 
-        {/* Editorial hero card — first listing spans full width */}
+        {/* Editorial hero listing — full width, photo left / overlay info */}
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="group block bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 mb-5 sm:mb-6"
+            className="group block relative rounded-2xl overflow-hidden mb-5 sm:mb-6 bg-gray-900 shadow-xl hover:shadow-2xl transition-all duration-500"
           >
-            <div className="flex flex-col md:flex-row">
-              {/* Photo — 55% width on desktop */}
-              <div className="relative md:w-[55%] aspect-[4/3] md:aspect-auto md:min-h-[360px] overflow-hidden bg-gray-100 flex-shrink-0">
-                <IDXImage
-                  src={
-                    hero.media.images.find(img => img.isPrimary)?.url ||
-                    hero.media.images[0]?.url ||
-                    '/images/listing-placeholder.svg'
-                  }
-                  alt={`${hero.propertyInfo.propertyType} in ${hero.address.neighborhoodDisplay}`}
-                  aspect="card"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10 group-hover:to-black/5 transition-all duration-500" />
-                {hero.flags.isExclusive && (
-                  <span className="absolute top-4 left-4 bg-[#C4A052] text-white text-[11px] px-3 py-1 font-bold rounded tracking-wider uppercase shadow-md z-10">
-                    Exclusive
+            <div className="relative aspect-[16/7] overflow-hidden">
+              <IDXImage
+                src={
+                  hero.media.images.find(img => img.isPrimary)?.url ||
+                  hero.media.images[0]?.url ||
+                  '/images/listing-placeholder.svg'
+                }
+                alt={`${hero.propertyInfo.propertyType} in ${hero.address.neighborhoodDisplay}`}
+                aspect="card"
+              />
+              {/* Hover darken */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all duration-500" />
+
+              {/* Overlay — bottom left */}
+              <div className="absolute bottom-0 left-0 right-0 px-8 pt-24 pb-8 sm:px-10 sm:pb-10"
+                   style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                  <div>
+                    {hero.flags.isExclusive && (
+                      <span className="inline-block bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded mb-3 shadow-lg">
+                        Exclusive
+                      </span>
+                    )}
+                    <p className="text-white font-black text-3xl sm:text-4xl md:text-5xl leading-none mb-2 drop-shadow-xl">
+                      {hero.listingType === 'rent'
+                        ? `$${hero.price.listPrice.toLocaleString()}/mo`
+                        : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
+                      }
+                    </p>
+                    <p className="text-white/80 text-sm font-semibold">
+                      {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
+                    </p>
+                    <p className="text-white/60 text-xs mt-1">
+                      {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
+                      {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
+                      {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/40 hover:border-white px-5 py-3 rounded-lg transition-colors whitespace-nowrap backdrop-blur-sm bg-white/10 group-hover:bg-white/20">
+                    View Listing →
                   </span>
-                )}
-              </div>
-              {/* Details */}
-              <div className="flex flex-col justify-center p-8 md:p-10 lg:p-12">
-                <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-3">
-                  {hero.listingType === 'rent' ? 'Rental' : 'For Sale'} · {hero.propertyInfo.propertyType}
-                </p>
-                <p className="font-display text-3xl sm:text-4xl font-bold text-[#C4A052] leading-none mb-3">
-                  {hero.listingType === 'rent'
-                    ? `$${hero.price.listPrice.toLocaleString()}/mo`
-                    : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
-                  }
-                </p>
-                <h3 className="font-display text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                  {hero.address.neighborhoodDisplay}
-                </h3>
-                <p className="text-gray-500 text-sm mb-6">
-                  {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
-                  {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
-                  {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
-                </p>
-                <div className="flex items-center gap-2 text-gray-900 font-semibold text-sm group-hover:gap-3 transition-all">
-                  View Listing <span aria-hidden>→</span>
                 </div>
                 {hero.agent?.listOfficeName && (
-                  <p className="text-[10px] text-gray-400 mt-6 pt-4 border-t border-gray-100">
+                  <p className="text-white/35 text-[9px] mt-4">
                     Courtesy of {hero.agent.listOfficeName}
                   </p>
                 )}
@@ -182,7 +183,7 @@ export default function FeaturedListings() {
           </Link>
         )}
 
-        {/* Standard grid for remaining listings */}
+        {/* 3-col grid */}
         <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
           {rest.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
@@ -190,17 +191,17 @@ export default function FeaturedListings() {
         </div>
 
         {/* CTA */}
-        <div className="mt-12 sm:mt-16 text-center">
+        <div className="mt-16 sm:mt-20 text-center">
           <Link
             href="/buy"
-            className="inline-block px-10 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 shadow-lg hover:shadow-xl transition-all text-sm sm:text-base tracking-wide"
+            className="inline-flex items-center gap-3 px-12 py-5 bg-gray-950 text-white font-black rounded-xl hover:bg-gray-800 shadow-xl hover:shadow-2xl transition-all text-sm sm:text-base tracking-widest uppercase"
           >
             Browse All Properties
+            <span aria-hidden>→</span>
           </Link>
         </div>
 
-        {/* REBNY IDX disclaimer */}
-        <IDXDisclaimer variant="compact" className="mt-8" />
+        <IDXDisclaimer variant="compact" className="mt-10" />
       </div>
     </section>
   );

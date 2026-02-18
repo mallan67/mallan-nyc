@@ -9,7 +9,7 @@ import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalcu
  */
 export default function ValueProposition() {
   return (
-    <section className="bg-gray-950 py-16 sm:py-20 md:py-24 px-4">
+    <section className="bg-gray-950 py-24 sm:py-28 md:py-36 px-4">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
@@ -17,11 +17,11 @@ export default function ValueProposition() {
           <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-3">
             Full-Service Brokerage
           </p>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold italic text-white leading-tight max-w-3xl mx-auto">
+          <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-white leading-none tracking-tight max-w-3xl mx-auto">
             Every side of a New York real estate transaction.
           </h2>
-          <p className="mt-5 text-base sm:text-lg text-white/50 max-w-xl mx-auto leading-relaxed">
-            Residential, commercial, and investment properties. One licensed broker who picks up the phone.
+          <p className="mt-6 text-base sm:text-lg text-white/45 max-w-xl mx-auto leading-relaxed">
+            Residential, commercial, and investment properties across all five boroughs. One broker who picks up the phone.
           </p>
         </div>
 
