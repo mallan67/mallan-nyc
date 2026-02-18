@@ -39,7 +39,7 @@ export default function HeroSearch() {
           muted
           loop
           playsInline
-          poster={HERO_IMAGE}
+          poster=""
           className="absolute inset-0 w-full h-full object-cover"
         >
           <source src={HERO_VIDEO} type="video/mp4" />
