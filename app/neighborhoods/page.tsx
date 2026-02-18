@@ -95,26 +95,23 @@ export default function NeighborhoodsIndexPage() {
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="liquid-card group block rounded-2xl overflow-hidden"
+                  className="liquid-card group block rounded-2xl overflow-hidden relative"
                 >
-                  {/* Photo — clean, bright */}
-                  <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                     <div
                       className="card-img absolute inset-0 bg-cover bg-center"
                       style={{ backgroundImage: `url(${b.heroImage})` }}
                     />
-                  </div>
-                  {/* Glossy black info */}
-                  <div className="relative bg-gray-950 overflow-hidden">
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.03]" />
-                    <div className="relative z-10 p-5 sm:p-6">
-                      <h2 className="font-sans font-black text-xl sm:text-2xl text-white leading-none">
-                        {b.name}
-                      </h2>
-                      <p className="text-white/50 text-sm mt-1">{b.tagline}</p>
-                      <p className="text-[#C4A052] text-xs font-bold mt-3 tracking-wide group-hover:translate-x-1 transition-transform">
-                        {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
-                      </p>
+                    {/* Translucent glass info */}
+                    <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
+                      <div className="px-4 py-3 sm:px-5 sm:py-4">
+                        <h2 className="font-sans font-black text-lg sm:text-xl text-white leading-none">
+                          {b.name}
+                        </h2>
+                        <p className="text-[#C4A052] text-xs font-bold mt-1.5 tracking-wide group-hover:translate-x-1 transition-transform">
+                          {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </Link>

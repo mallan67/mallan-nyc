@@ -15,10 +15,6 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-/* Glossy dark panel style — shared across cards */
-const glossPanel = 'relative bg-gray-950 overflow-hidden';
-const glossSheen = 'pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.03]';
-
 function ListingCard({ listing }: { listing: Listing }) {
   const isRental = listing.listingType === 'rent';
   const src =
@@ -33,10 +29,10 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="liquid-card group block rounded-2xl overflow-hidden"
+      className="liquid-card group block rounded-2xl overflow-hidden relative"
     >
-      {/* Photo — clean, bright, no overlay */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+      {/* Full-bleed photo */}
+      <div className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-gray-100">
         {src && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -46,7 +42,9 @@ function ListingCard({ listing }: { listing: Listing }) {
             loading="lazy"
           />
         )}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+
+        {/* Top badges */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
           {listing.flags.isExclusive && (
             <span className="bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded-full">
               Exclusive
@@ -58,30 +56,23 @@ function ListingCard({ listing }: { listing: Listing }) {
             </span>
           )}
         </div>
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 z-10">
           <span className="bg-white/90 backdrop-blur-sm text-gray-700 text-[10px] px-2.5 py-1 font-semibold tracking-widest uppercase rounded-full">
             {isRental ? 'Rental' : 'Sale'}
           </span>
         </div>
-      </div>
 
-      {/* Info — glossy black panel */}
-      <div className={glossPanel}>
-        <div className={glossSheen} />
-        <div className="relative z-10 p-4">
-          <p className="text-white font-black text-xl leading-tight">
-            {formatPrice(listing.price.listPrice, isRental)}
-          </p>
-          <p className="text-white/60 text-sm font-medium mt-1">
-            {listing.propertyInfo.propertyType} &middot; {listing.address.neighborhoodDisplay}
-          </p>
-          <p className="text-white/40 text-xs mt-1">
-            {beds} bed &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
-            {sqft > 0 && ` · ${sqft.toLocaleString()} sf`}
-          </p>
-          {listing.agent?.listOfficeName && (
-            <p className="text-white/20 text-[10px] mt-2 tracking-wide">Courtesy of {listing.agent.listOfficeName}</p>
-          )}
+        {/* Translucent glass info overlay */}
+        <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
+          <div className="px-4 py-3">
+            <p className="text-white font-black text-lg leading-tight">
+              {formatPrice(listing.price.listPrice, isRental)}
+            </p>
+            <p className="text-white/70 text-xs font-medium mt-0.5">
+              {listing.address.neighborhoodDisplay} &middot; {beds}bd {baths}{halfBaths > 0 ? `.${halfBaths}` : ''}ba
+              {sqft > 0 && ` · ${sqft.toLocaleString()}sf`}
+            </p>
+          </div>
         </div>
       </div>
     </Link>
@@ -103,16 +94,16 @@ export default function FeaturedListings() {
   const [hero, ...rest] = listings;
 
   return (
-    <section className="py-20 sm:py-24 md:py-32 px-4 bg-stone-50">
+    <section className="py-16 sm:py-20 md:py-24 px-4 bg-stone-50">
       <div className="max-w-7xl mx-auto">
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-10 sm:mb-14">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8 sm:mb-10">
           <div>
-            <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-3">
+            <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-2">
               Hand-Selected
             </p>
-            <h2 className="font-sans font-black text-4xl sm:text-5xl tracking-tight text-gray-950 leading-none">
+            <h2 className="font-sans font-black text-3xl sm:text-4xl tracking-tight text-gray-950 leading-none">
               Featured Listings.
             </h2>
           </div>
@@ -128,9 +119,8 @@ export default function FeaturedListings() {
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="liquid-card group block rounded-2xl overflow-hidden mb-5 sm:mb-6"
+            className="liquid-card group block rounded-2xl overflow-hidden mb-5 sm:mb-6 relative"
           >
-            {/* Wide cinematic photo */}
             <div className="relative aspect-[21/9] overflow-hidden bg-gray-100">
               {(() => {
                 const heroSrc =
@@ -147,39 +137,31 @@ export default function FeaturedListings() {
                 ) : null;
               })()}
               {hero.flags.isExclusive && (
-                <span className="absolute top-4 left-4 bg-[#C4A052] text-white text-[10px] px-3 py-1.5 font-bold tracking-widest uppercase rounded-full">
+                <span className="absolute top-4 left-4 z-10 bg-[#C4A052] text-white text-[10px] px-3 py-1.5 font-bold tracking-widest uppercase rounded-full">
                   Exclusive
                 </span>
               )}
-            </div>
 
-            {/* Glossy black info bar */}
-            <div className={glossPanel}>
-              <div className={glossSheen} />
-              <div className="relative z-10 px-6 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <p className="text-white font-black text-2xl sm:text-3xl leading-tight">
-                    {hero.listingType === 'rent'
-                      ? `$${hero.price.listPrice.toLocaleString()}/mo`
-                      : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
-                    }
-                  </p>
-                  <p className="text-white/60 text-sm font-medium mt-1">
-                    {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
-                  </p>
-                  <p className="text-white/40 text-xs mt-0.5">
-                    {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
-                    {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
-                    {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
-                  </p>
+              {/* Glass info bar */}
+              <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
+                <div className="px-5 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <p className="text-white font-black text-2xl sm:text-3xl leading-tight">
+                      {hero.listingType === 'rent'
+                        ? `$${hero.price.listPrice.toLocaleString()}/mo`
+                        : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
+                      }
+                    </p>
+                    <p className="text-white/70 text-sm font-medium mt-0.5">
+                      {hero.address.neighborhoodDisplay} &middot; {hero.propertyInfo.bedroomsTotal}bd {hero.propertyInfo.bathroomsFull}{hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''}ba
+                      {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()}sf`}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/25 px-5 py-2.5 rounded-full group-hover:border-[#C4A052] group-hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto">
+                    View Listing →
+                  </span>
                 </div>
-                <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/20 px-6 py-3 rounded-full group-hover:border-[#C4A052] group-hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto">
-                  View Listing →
-                </span>
               </div>
-              {hero.agent?.listOfficeName && (
-                <p className="relative z-10 px-6 sm:px-8 pb-4 text-white/20 text-[10px] tracking-wide -mt-2">Courtesy of {hero.agent.listOfficeName}</p>
-              )}
             </div>
           </Link>
         )}
@@ -187,23 +169,20 @@ export default function FeaturedListings() {
         {/* Mobile: horizontal scroll | Desktop: grid */}
         <div className="sm:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {rest.map((listing) => (
-            <div key={listing.id} className="flex-shrink-0 w-[280px] snap-start">
+            <div key={listing.id} className="flex-shrink-0 w-[240px] snap-start">
               <ListingCard listing={listing} />
             </div>
           ))}
         </div>
-        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
           {rest.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
 
         {/* CTA */}
-        <div className="mt-14 sm:mt-20 text-center">
-          <Link
-            href="/buy"
-            className="btn-dark"
-          >
+        <div className="mt-12 sm:mt-16 text-center">
+          <Link href="/buy" className="btn-dark">
             Browse All Properties →
           </Link>
         </div>
