@@ -183,7 +183,7 @@ export default function HeroSearch() {
         </p>
 
         {/* Main headline */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight text-white text-center leading-[1.05] max-w-5xl mb-5">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-black tracking-tight text-white text-center leading-[1.1] max-w-3xl mb-5">
           {heroSettings.heroTagline}
         </h1>
 
