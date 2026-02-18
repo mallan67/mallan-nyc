@@ -3,9 +3,6 @@
 import Link from 'next/link';
 import neighborhoodsData from '@/data/neighborhoods.json';
 
-const glossPanel = 'relative bg-gray-950 overflow-hidden';
-const glossSheen = 'pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.03]';
-
 type Neighborhood = {
   id: string;
   name: string;
@@ -46,16 +43,15 @@ function getNeighborhoodHref(id: string): string {
 
 function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood; large?: boolean }) {
   const formattedSalePrice = neighborhood.avgPrice.sale > 0
-    ? `$${(neighborhood.avgPrice.sale / 1000000).toFixed(1)}M avg`
+    ? `$${(neighborhood.avgPrice.sale / 1000000).toFixed(1)}M`
     : null;
 
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className="liquid-card group block rounded-2xl overflow-hidden"
+      className="liquid-card group block rounded-2xl overflow-hidden relative"
     >
-      {/* Photo — clean, bright */}
-      <div className={`relative overflow-hidden bg-gray-100 ${large ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+      <div className={`relative overflow-hidden bg-gray-100 ${large ? 'aspect-[16/9]' : 'aspect-[3/4] sm:aspect-[4/5]'}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={neighborhood.thumbnail}
@@ -63,28 +59,26 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
           className="card-img absolute inset-0 w-full h-full object-cover"
           loading="lazy"
         />
-        <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-gray-600 text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide">
+
+        {/* Listing count badge */}
+        <span className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm text-gray-600 text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide">
           {neighborhood.listingCount} listings
         </span>
-      </div>
 
-      {/* Glossy black info panel */}
-      <div className={glossPanel}>
-        <div className={glossSheen} />
-        <div className="relative z-10 p-4 sm:p-5">
-          <h3 className={`font-sans font-black text-white leading-tight ${large ? 'text-xl sm:text-2xl' : 'text-lg'}`}>
-            {neighborhood.name}
-          </h3>
-          <p className="text-white/50 text-sm mt-1 line-clamp-1">
-            {neighborhood.tagline}
-          </p>
-          <div className="flex items-center justify-between mt-3">
-            {formattedSalePrice && (
-              <span className="text-[#C4A052] text-xs font-bold">{formattedSalePrice}</span>
-            )}
-            <span className="ml-auto text-white/40 text-xs font-bold tracking-wide group-hover:text-[#C4A052] transition-colors">
-              Explore →
-            </span>
+        {/* Translucent glass info overlay */}
+        <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
+          <div className="px-4 py-3">
+            <h3 className={`font-sans font-black text-white leading-tight ${large ? 'text-xl' : 'text-base'}`}>
+              {neighborhood.name}
+            </h3>
+            <div className="flex items-center justify-between mt-1">
+              {formattedSalePrice && (
+                <span className="text-[#C4A052] text-xs font-bold">{formattedSalePrice} avg</span>
+              )}
+              <span className="ml-auto text-white/50 text-xs font-bold tracking-wide group-hover:text-[#C4A052] transition-colors">
+                Explore →
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -97,23 +91,23 @@ export default function ExploreNeighborhoods() {
   const [featured, ...rest] = neighborhoods;
 
   return (
-    <section className="py-24 sm:py-28 md:py-36 px-4 bg-white">
+    <section className="py-16 sm:py-20 md:py-24 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
 
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 sm:mb-16">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8 sm:mb-10">
           <div>
-            <p className="text-[11px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-4">
+            <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-2">
               All Five Boroughs
             </p>
-            <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-gray-950 leading-none tracking-tight">
-              Explore<br />Neighborhoods.
+            <h2 className="font-sans font-black text-3xl sm:text-4xl text-gray-950 leading-none tracking-tight">
+              Explore Neighborhoods.
             </h2>
           </div>
           <Link
             href="/neighborhoods"
             className="group inline-flex items-center gap-2 text-sm font-bold text-gray-900 hover:text-[#C4A052] transition-colors whitespace-nowrap"
           >
-            View all neighborhoods
+            View all
             <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
           </Link>
         </div>
@@ -121,13 +115,13 @@ export default function ExploreNeighborhoods() {
         {/* Mobile: horizontal scroll */}
         <div className="sm:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {neighborhoods.map((n) => (
-            <div key={n.id} className="flex-shrink-0 w-[260px] snap-start">
+            <div key={n.id} className="flex-shrink-0 w-[220px] snap-start">
               <NeighborhoodCard neighborhood={n} />
             </div>
           ))}
         </div>
         {/* Desktop: grid */}
-        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
           {featured && (
             <div className="col-span-2">
               <NeighborhoodCard neighborhood={featured} large />
@@ -138,11 +132,8 @@ export default function ExploreNeighborhoods() {
           ))}
         </div>
 
-        <div className="mt-14 sm:mt-20 text-center">
-          <Link
-            href="/neighborhoods"
-            className="btn-outline"
-          >
+        <div className="mt-12 sm:mt-16 text-center">
+          <Link href="/neighborhoods" className="btn-outline">
             All Neighborhoods →
           </Link>
         </div>
