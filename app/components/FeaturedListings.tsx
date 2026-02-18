@@ -6,6 +6,8 @@ import { isDisplayableInIDX } from '@/lib/compliance/idx-display-gate';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 
+const TEXT_SHADOW = '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)';
+
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
   return new Intl.NumberFormat('en-US', {
@@ -29,10 +31,9 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="liquid-card group block relative rounded-2xl overflow-hidden bg-gray-900"
+      className="liquid-card group block relative rounded-2xl overflow-hidden bg-gray-200"
       style={{ aspectRatio: '4/3' }}
     >
-      {/* Photo — direct img, no wrapper div conflict */}
       {src && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -43,8 +44,7 @@ function ListingCard({ listing }: { listing: Listing }) {
         />
       )}
 
-      {/* Hover darken */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500 z-10" />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 z-10" />
 
       {/* Badges */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
@@ -60,28 +60,25 @@ function ListingCard({ listing }: { listing: Listing }) {
         )}
       </div>
       <div className="absolute top-3 right-3 z-20">
-        <span className="bg-black/50 backdrop-blur-sm text-white text-[10px] px-2 py-1 font-semibold tracking-widest uppercase rounded">
+        <span className="bg-black/40 backdrop-blur-sm text-white text-[10px] px-2 py-1 font-semibold tracking-widest uppercase rounded">
           {isRental ? 'Rental' : 'Sale'}
         </span>
       </div>
 
-      {/* Price overlay — compact bottom band, most of photo stays clear */}
-      <div
-        className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-10 pb-3"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.05) 70%, transparent 100%)' }}
-      >
-        <p className="text-white font-black text-xl sm:text-2xl leading-none mb-1">
+      {/* Text — no gradient, just text-shadow */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-3">
+        <p className="text-white font-black text-xl sm:text-2xl leading-none mb-1" style={{ textShadow: TEXT_SHADOW }}>
           {formatPrice(listing.price.listPrice, isRental)}
         </p>
-        <p className="text-white/75 text-xs font-medium">
+        <p className="text-white text-xs font-medium" style={{ textShadow: TEXT_SHADOW }}>
           {listing.propertyInfo.propertyType} &middot; {listing.address.neighborhoodDisplay}
         </p>
-        <p className="text-white/55 text-xs mt-0.5">
+        <p className="text-white/80 text-xs mt-0.5" style={{ textShadow: TEXT_SHADOW }}>
           {beds} bed &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
           {sqft > 0 && ` · ${sqft.toLocaleString()} sf`}
         </p>
         {listing.agent?.listOfficeName && (
-          <p className="text-white/35 text-[9px] mt-1.5">Courtesy of {listing.agent.listOfficeName}</p>
+          <p className="text-white/60 text-[9px] mt-1.5" style={{ textShadow: TEXT_SHADOW }}>Courtesy of {listing.agent.listOfficeName}</p>
         )}
       </div>
     </Link>
@@ -124,11 +121,11 @@ export default function FeaturedListings() {
           </Link>
         </div>
 
-        {/* Featured editorial card */}
+        {/* Featured editorial card — full photo, no dark band */}
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="liquid-card group block relative rounded-2xl overflow-hidden mb-4 sm:mb-5 bg-gray-900"
+            className="liquid-card group block relative rounded-2xl overflow-hidden mb-4 sm:mb-5 bg-gray-200"
             style={{ aspectRatio: '21/9' }}
           >
             {(() => {
@@ -146,13 +143,10 @@ export default function FeaturedListings() {
               ) : null;
             })()}
 
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-500" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
 
-            {/* Overlay — compact bottom band, most of photo stays clear */}
-            <div
-              className="absolute bottom-0 left-0 right-0 px-6 sm:px-8 pt-14 pb-5 sm:pb-6"
-              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.3) 35%, rgba(0,0,0,0.05) 65%, transparent 100%)' }}
-            >
+            {/* Text — no gradient overlay, text-shadow only */}
+            <div className="absolute bottom-0 left-0 right-0 px-6 sm:px-8 pb-5 sm:pb-6 z-10">
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                 <div>
                   {hero.flags.isExclusive && (
@@ -160,27 +154,27 @@ export default function FeaturedListings() {
                       Exclusive
                     </span>
                   )}
-                  <p className="text-white font-black text-2xl sm:text-3xl md:text-4xl leading-none mb-1.5">
+                  <p className="text-white font-black text-2xl sm:text-3xl md:text-4xl leading-none mb-1.5" style={{ textShadow: TEXT_SHADOW }}>
                     {hero.listingType === 'rent'
                       ? `$${hero.price.listPrice.toLocaleString()}/mo`
                       : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
                     }
                   </p>
-                  <p className="text-white/75 text-sm">
+                  <p className="text-white text-sm" style={{ textShadow: TEXT_SHADOW }}>
                     {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
                   </p>
-                  <p className="text-white/55 text-xs mt-0.5">
+                  <p className="text-white/80 text-xs mt-0.5" style={{ textShadow: TEXT_SHADOW }}>
                     {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
                     {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
                     {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/30 px-5 py-2.5 rounded-lg backdrop-blur-sm bg-white/10 group-hover:bg-white/20 transition-all whitespace-nowrap self-start sm:self-auto">
+                <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/40 px-5 py-2.5 rounded-lg backdrop-blur-sm bg-white/15 group-hover:bg-white/25 transition-all whitespace-nowrap self-start sm:self-auto" style={{ textShadow: TEXT_SHADOW }}>
                   View Listing →
                 </span>
               </div>
               {hero.agent?.listOfficeName && (
-                <p className="text-white/30 text-[9px] mt-3">Courtesy of {hero.agent.listOfficeName}</p>
+                <p className="text-white/50 text-[9px] mt-3" style={{ textShadow: TEXT_SHADOW }}>Courtesy of {hero.agent.listOfficeName}</p>
               )}
             </div>
           </Link>

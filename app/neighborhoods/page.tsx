@@ -95,7 +95,7 @@ export default function NeighborhoodsIndexPage() {
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="liquid-card group block relative overflow-hidden rounded-2xl aspect-[3/2] bg-gray-900"
+                  className="liquid-card group block relative overflow-hidden rounded-2xl aspect-[3/2] bg-gray-200"
                 >
                   <div className="absolute inset-0 overflow-hidden">
                     <div
@@ -105,16 +105,16 @@ export default function NeighborhoodsIndexPage() {
                   </div>
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                        style={{ boxShadow: 'inset 0 0 0 2px rgba(196,160,82,0.6)' }} />
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.12) 35%, transparent 55%)' }} />
+                  {/* No dark overlay — photo fills card fully */}
                   <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
                     <h2 className="font-sans font-black text-2xl sm:text-3xl text-white leading-none mb-1 group-hover:-translate-y-6 transition-transform duration-500"
-                        style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>
+                        style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)', textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>
                       {b.name}
                     </h2>
                     <div className="overflow-hidden">
                       <div className="translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500"
                            style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>
-                        <p className="text-white/65 text-sm">{b.tagline}</p>
+                        <p className="text-white/80 text-sm" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>{b.tagline}</p>
                         <p className="text-[#C4A052] text-xs font-bold mt-2 tracking-wide">
                           {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
                         </p>
