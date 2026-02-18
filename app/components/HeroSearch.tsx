@@ -31,7 +31,7 @@ export default function HeroSearch() {
   return (
     <section className="relative w-full min-h-screen flex flex-col">
       {/* Background */}
-      <div className="absolute inset-0 bg-black">
+      <div className="absolute inset-0 bg-gray-900 bg-cover bg-center" style={{ backgroundImage: "url('/images/hero.jpg')" }}>
         <video
           ref={videoRef}
           autoPlay
