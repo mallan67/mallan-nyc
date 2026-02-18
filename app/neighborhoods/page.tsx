@@ -95,31 +95,24 @@ export default function NeighborhoodsIndexPage() {
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="liquid-card group block relative overflow-hidden rounded-2xl aspect-[3/2] bg-gray-200"
+                  className="group block rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-shadow duration-500"
                 >
-                  <div className="absolute inset-0 overflow-hidden">
+                  {/* Photo — clean, no overlay */}
+                  <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
                     <div
-                      className="card-img absolute inset-0 bg-cover bg-center"
+                      className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 ease-out"
                       style={{ backgroundImage: `url(${b.heroImage})` }}
                     />
                   </div>
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                       style={{ boxShadow: 'inset 0 0 0 2px rgba(196,160,82,0.6)' }} />
-                  {/* No dark overlay — photo fills card fully */}
-                  <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
-                    <h2 className="font-sans font-black text-2xl sm:text-3xl text-white leading-none mb-1 group-hover:-translate-y-6 transition-transform duration-500"
-                        style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)', textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>
+                  {/* Info below photo */}
+                  <div className="p-5 sm:p-6">
+                    <h2 className="font-sans font-black text-xl sm:text-2xl text-gray-950 leading-none">
                       {b.name}
                     </h2>
-                    <div className="overflow-hidden">
-                      <div className="translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500"
-                           style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>
-                        <p className="text-white/80 text-sm" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>{b.tagline}</p>
-                        <p className="text-[#C4A052] text-xs font-bold mt-2 tracking-wide">
-                          {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
-                        </p>
-                      </div>
-                    </div>
+                    <p className="text-gray-500 text-sm mt-1">{b.tagline}</p>
+                    <p className="text-[#C4A052] text-xs font-bold mt-3 tracking-wide group-hover:translate-x-1 transition-transform">
+                      {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
+                    </p>
                   </div>
                 </Link>
               ))}
