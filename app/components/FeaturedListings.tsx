@@ -170,6 +170,7 @@ export default function FeaturedListings() {
               <ListingCard listing={listing} />
             </div>
           ))}
+          <div className="flex-shrink-0 w-4" aria-hidden />
         </div>
         <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
           {rest.map((listing) => (

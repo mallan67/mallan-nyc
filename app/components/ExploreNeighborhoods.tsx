@@ -116,6 +116,7 @@ export default function ExploreNeighborhoods() {
               <NeighborhoodCard neighborhood={n} />
             </div>
           ))}
+          <div className="flex-shrink-0 w-4" aria-hidden />
         </div>
         {/* Desktop: uniform 3-col grid — no mismatched heights */}
         <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
