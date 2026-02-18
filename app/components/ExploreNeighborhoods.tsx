@@ -64,10 +64,10 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
         loading="lazy"
       />
 
-      {/* Base overlay — light enough to see the photo */}
+      {/* Base overlay — subtle bottom scrim for text readability */}
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.08) 45%, transparent 70%)' }}
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.12) 35%, transparent 55%)' }}
       />
 
       {/* Gold border glow on hover */}

@@ -157,7 +157,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   // When not dark (homepage), use absolute so it overlays the hero
   const positionClass = dark ? 'fixed' : 'absolute';
   // Glass effect background for dark mode / mobile menu
-  const bgClass = mobileOpen || dark ? 'bg-black/80 backdrop-blur-md' : '';
+  const bgClass = mobileOpen ? 'bg-gray-950/95 backdrop-blur-xl' : dark ? 'bg-black/60 backdrop-blur-md' : '';
 
   const mobileDropdownItem = (item: { title: string; href: string }) => (
     <div

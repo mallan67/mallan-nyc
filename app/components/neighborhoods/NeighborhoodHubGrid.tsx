@@ -28,7 +28,7 @@ export default function NeighborhoodHubGrid({
                 className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: `url(${n.heroImage})` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
 
               {/* Content */}
               <div className="absolute bottom-0 left-0 right-0 p-5">
