@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import neighborhoodsData from '@/data/neighborhoods.json';
 
+const glossPanel = 'relative bg-gray-950 overflow-hidden';
+const glossSheen = 'pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.03]';
+
 type Neighborhood = {
   id: string;
   name: string;
@@ -49,9 +52,9 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className="group block rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-shadow duration-500"
+      className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500"
     >
-      {/* Photo — clean, bright, no overlay */}
+      {/* Photo — clean, bright */}
       <div className={`relative overflow-hidden bg-gray-100 ${large ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -60,28 +63,29 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
           loading="lazy"
         />
-
-        {/* Listing count pill */}
         <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-gray-600 text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide">
           {neighborhood.listingCount} listings
         </span>
       </div>
 
-      {/* Info below photo */}
-      <div className="p-4 sm:p-5">
-        <h3 className={`font-sans font-black text-gray-950 leading-tight ${large ? 'text-xl sm:text-2xl' : 'text-lg'}`}>
-          {neighborhood.name}
-        </h3>
-        <p className="text-gray-500 text-sm mt-1 line-clamp-1">
-          {neighborhood.tagline}
-        </p>
-        <div className="flex items-center justify-between mt-3">
-          {formattedSalePrice && (
-            <span className="text-[#C4A052] text-xs font-bold">{formattedSalePrice}</span>
-          )}
-          <span className="ml-auto text-gray-400 text-xs font-bold tracking-wide group-hover:text-[#C4A052] transition-colors">
-            Explore →
-          </span>
+      {/* Glossy black info panel */}
+      <div className={glossPanel}>
+        <div className={glossSheen} />
+        <div className="relative z-10 p-4 sm:p-5">
+          <h3 className={`font-sans font-black text-white leading-tight ${large ? 'text-xl sm:text-2xl' : 'text-lg'}`}>
+            {neighborhood.name}
+          </h3>
+          <p className="text-white/50 text-sm mt-1 line-clamp-1">
+            {neighborhood.tagline}
+          </p>
+          <div className="flex items-center justify-between mt-3">
+            {formattedSalePrice && (
+              <span className="text-[#C4A052] text-xs font-bold">{formattedSalePrice}</span>
+            )}
+            <span className="ml-auto text-white/40 text-xs font-bold tracking-wide group-hover:text-[#C4A052] transition-colors">
+              Explore →
+            </span>
+          </div>
         </div>
       </div>
     </Link>
@@ -96,7 +100,6 @@ export default function ExploreNeighborhoods() {
     <section className="py-24 sm:py-28 md:py-36 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
 
-        {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 sm:mb-16">
           <div>
             <p className="text-[11px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-4">
@@ -115,7 +118,6 @@ export default function ExploreNeighborhoods() {
           </Link>
         </div>
 
-        {/* Grid — featured large card + 4 standard */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
           {featured && (
             <div className="col-span-2">
@@ -127,7 +129,6 @@ export default function ExploreNeighborhoods() {
           ))}
         </div>
 
-        {/* CTA */}
         <div className="mt-14 sm:mt-20 text-center">
           <Link
             href="/neighborhoods"
