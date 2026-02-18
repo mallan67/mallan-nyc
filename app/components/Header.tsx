@@ -238,11 +238,11 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               </li>
 
               <li className="flex items-center gap-1 ml-1">
-                <Link href="/sign-in" className="hidden xl:inline-flex items-center whitespace-nowrap px-2.5 py-1.5 text-white/70 hover:text-white transition-colors">
+                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap px-2 py-1.5 text-white/70 hover:text-white text-[11px] xl:text-sm transition-colors">
                   Sign In
                 </Link>
-                <span className="hidden xl:inline text-white/30">|</span>
-                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-3 py-1.5 bg-brand-gold text-white rounded text-xs xl:text-sm font-bold hover:bg-brand-gold/90 transition-colors">
+                <span className="text-white/25 text-xs">|</span>
+                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-2.5 py-1.5 bg-brand-gold text-white rounded text-[11px] xl:text-sm font-bold hover:bg-brand-gold/90 transition-colors">
                   Sign Up
                 </Link>
               </li>

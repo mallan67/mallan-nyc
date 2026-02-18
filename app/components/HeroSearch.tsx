@@ -190,9 +190,6 @@ export default function HeroSearch() {
           />
         )}
 
-        {/* Light sweep shimmer — diagonal gloss over the photo */}
-        <div className="hero-light-sweep" aria-hidden />
-
         {/* Layered overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/35 to-black/70" />
       </div>
