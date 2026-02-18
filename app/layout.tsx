@@ -1,17 +1,25 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Manrope } from 'next/font/google';
+import { Manrope, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
 import ErrorBoundary from './components/ErrorBoundary';
 
-// Modern premium sans-serif for luxury feel
+// Premium sans-serif body font
 const manrope = Manrope({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
+});
+
+// Luxury serif for headlines — key to boutique brokerage feel
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+  style: ['normal', 'italic'],
 });
 
 const BASE_URL = 'https://mallan.nyc';
@@ -143,7 +151,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={manrope.variable}>
+    <html lang="en" className={`${manrope.variable} ${playfair.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />

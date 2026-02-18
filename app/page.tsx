@@ -1,6 +1,8 @@
 import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
+import StatsStrip from './components/StatsStrip';
 import FeaturedListings from './components/FeaturedListings';
+import TestimonialStrip from './components/TestimonialStrip';
 import ExploreNeighborhoods from './components/ExploreNeighborhoods';
 import ValueProposition from './components/ValueProposition';
 import TrustMarkers from './components/TrustMarkers';
@@ -15,9 +17,11 @@ export default function HomePage() {
       <Header />
       <main id="main-content" role="main" tabIndex={-1}>
         <HeroSearch />
+        <StatsStrip />
         <FeaturedListings />
-        <ValueProposition />
+        <TestimonialStrip />
         <ExploreNeighborhoods />
+        <ValueProposition />
         <TrustMarkers />
       </main>
       <SocialShareBar title="Mallan Real Estate Inc. | Licensed NYC Real Estate Broker" />

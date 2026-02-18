@@ -17,11 +17,11 @@ export default function ValueProposition() {
           <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-3">
             Full-Service Brokerage
           </p>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight max-w-3xl mx-auto">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold italic text-white leading-tight max-w-3xl mx-auto">
             Every side of a New York real estate transaction.
           </h2>
           <p className="mt-5 text-base sm:text-lg text-white/50 max-w-xl mx-auto leading-relaxed">
-            Residential, commercial, and investment properties. Licensed broker serving all five boroughs.
+            Residential, commercial, and investment properties. One licensed broker who picks up the phone.
           </p>
         </div>
 

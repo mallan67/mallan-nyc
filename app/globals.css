@@ -5,7 +5,8 @@
   --color-brand-dark: #1a1a1a;
   --color-brand-slate: #3d4556;
 
-  --font-sans: 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-sans), 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-display), 'Playfair Display', Georgia, serif;
 
   --breakpoint-xs: 475px;
   --breakpoint-sm: 640px;
@@ -25,9 +26,12 @@
     --bg-soft: #ffffff;
   }
   body {
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans), 'Manrope', system-ui, -apple-system, sans-serif;
     color: var(--ink);
     background: var(--bg);
+  }
+  .font-display {
+    font-family: var(--font-display), 'Playfair Display', Georgia, serif;
   }
   button {
     cursor: pointer;
@@ -51,21 +55,36 @@
 .hero .overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.45), transparent)}
 .hero .hero-inner{position:relative;padding:16px 0 24px}
 
-/* Hero tagline - shared class for both lines */
-.hero-tagline {
-  font-family: 'Aptos', system-ui, sans-serif;
-  font-weight: 500;
-  color: white;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
-  line-height: 1.3;
-  /* Responsive sizing: text-sm → text-base → text-lg */
-  font-size: 0.875rem; /* 14px mobile */
+/* Ken Burns — subtle living photo effect for hero background */
+@keyframes kenBurns {
+  0%   { transform: scale(1.0) translate(0, 0); }
+  33%  { transform: scale(1.06) translate(-1%, 0.5%); }
+  66%  { transform: scale(1.04) translate(0.5%, -0.5%); }
+  100% { transform: scale(1.0) translate(0, 0); }
 }
-@media (min-width: 640px) {
-  .hero-tagline { font-size: 1rem; } /* 16px tablet */
+.animate-ken-burns {
+  animation: kenBurns 22s ease-in-out infinite;
+  will-change: transform;
 }
-@media (min-width: 768px) {
-  .hero-tagline { font-size: 1.125rem; } /* 18px desktop */
+
+/* Fade in up — section entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.75s ease-out both;
+}
+.animate-fade-in-up-delay-1 { animation-delay: 0.1s; }
+.animate-fade-in-up-delay-2 { animation-delay: 0.2s; }
+.animate-fade-in-up-delay-3 { animation-delay: 0.3s; }
+
+/* Gold divider accent */
+.gold-rule {
+  display: block;
+  width: 48px;
+  height: 2px;
+  background: #C4A052;
 }
 
 /* ---------- Cards & Tiles ---------- */
