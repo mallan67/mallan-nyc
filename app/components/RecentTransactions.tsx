@@ -25,7 +25,7 @@ export default function RecentTransactions() {
           <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-2">
             Recently Closed
           </p>
-          <h2 className="font-sans font-black text-3xl sm:text-4xl tracking-tight text-gray-950 leading-none">
+          <h2 className="font-display text-3xl sm:text-4xl tracking-tight text-gray-950 leading-none">
             Recent Transactions.
           </h2>
         </div>
