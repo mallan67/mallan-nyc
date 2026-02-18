@@ -91,7 +91,7 @@ export default function ExploreNeighborhoods() {
             <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-2">
               All Five Boroughs
             </p>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-gray-900 leading-tight">
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
               Explore Neighborhoods
             </h2>
           </div>

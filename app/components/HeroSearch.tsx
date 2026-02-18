@@ -162,7 +162,7 @@ export default function HeroSearch() {
           src={heroSettings.heroImage}
           alt="New York City real estate"
           fill
-          className="object-cover object-center"
+          className="object-cover object-center animate-ken-burns"
           style={{ objectPosition: 'center 85%' }}
           priority
           sizes="100vw"
@@ -178,18 +178,22 @@ export default function HeroSearch() {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-32 pb-20">
 
         {/* Eyebrow */}
-        <p className="text-xs sm:text-sm font-semibold tracking-[0.25em] uppercase text-[#C4A052] mb-6">
+        <p className="text-xs sm:text-sm font-bold tracking-[0.3em] uppercase text-[#C4A052] mb-5 animate-fade-in-up">
           Licensed NYC Real Estate Broker
         </p>
 
-        {/* Main headline */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-black tracking-tight text-white text-center leading-[1.1] max-w-3xl mb-5">
+        {/* Gold rule accent */}
+        <span className="gold-rule mb-6 animate-fade-in-up animate-fade-in-up-delay-1" />
+
+        {/* Main headline — Playfair Display serif for luxury feel */}
+        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-[4rem] font-bold italic text-white text-center leading-[1.1] max-w-4xl mb-6 animate-fade-in-up animate-fade-in-up-delay-1"
+            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4)' }}>
           {heroSettings.heroTagline}
         </h1>
 
         {/* Sub-headline */}
-        <p className="text-base sm:text-lg md:text-xl text-white/70 text-center max-w-xl mb-10 font-normal leading-relaxed">
-          Residential, rental, and commercial properties across Manhattan, Brooklyn, Queens and beyond.
+        <p className="text-base sm:text-lg text-white/65 text-center max-w-lg mb-10 leading-relaxed font-normal animate-fade-in-up animate-fade-in-up-delay-2">
+          Every borough. Every property type. One team that knows this city inside out.
         </p>
 
         {/* Search module */}
