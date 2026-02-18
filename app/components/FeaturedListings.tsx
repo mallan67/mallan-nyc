@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { isDisplayableInIDX } from '@/lib/compliance/idx-display-gate';
 import listingsData from '@/data/listings.json';
@@ -18,10 +17,10 @@ function formatPrice(price: number, isRental: boolean): string {
 
 function ListingCard({ listing }: { listing: Listing }) {
   const isRental = listing.listingType === 'rent';
-  const primaryImage =
+  const src =
     listing.media.images.find(img => img.isPrimary)?.url ||
     listing.media.images[0]?.url ||
-    '/images/listing-placeholder.svg';
+    '';
   const beds = listing.propertyInfo.bedroomsTotal;
   const baths = listing.propertyInfo.bathroomsFull;
   const halfBaths = listing.propertyInfo.bathroomsHalf;
@@ -30,23 +29,24 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="liquid-card group block relative rounded-2xl overflow-hidden aspect-[4/3] bg-gray-950"
+      className="liquid-card group block relative rounded-2xl overflow-hidden bg-gray-900"
+      style={{ aspectRatio: '4/3' }}
     >
-      {/* Full-bleed photo */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="card-img absolute inset-0">
-          <IDXImage
-            src={primaryImage}
-            alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
-            aspect="card"
-          />
-        </div>
-      </div>
+      {/* Photo — direct img, no wrapper div conflict */}
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
+          className="card-img absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+      )}
 
-      {/* Hover darkening */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all duration-500 z-10" style={{ transition: 'background 0.55s cubic-bezier(0.22,1,0.36,1)' }} />
+      {/* Hover darken */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500 z-10" />
 
-      {/* Top badges */}
+      {/* Badges */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
         {listing.flags.isExclusive && (
           <span className="bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded shadow-lg">
@@ -59,31 +59,29 @@ function ListingCard({ listing }: { listing: Listing }) {
           </span>
         )}
       </div>
-
-      {/* Type pill top-right */}
       <div className="absolute top-3 right-3 z-20">
         <span className="bg-black/50 backdrop-blur-sm text-white text-[10px] px-2 py-1 font-semibold tracking-widest uppercase rounded">
           {isRental ? 'Rental' : 'Sale'}
         </span>
       </div>
 
-      {/* Price + info overlay — Serhant/Elliman style gradient overlay at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-16 pb-4"
-           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }}>
-        <p className="text-white font-black text-xl sm:text-2xl leading-none mb-1 drop-shadow-lg">
+      {/* Price + info overlay — gradient from bottom */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-12 pb-4"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)' }}
+      >
+        <p className="text-white font-black text-xl sm:text-2xl leading-none mb-1">
           {formatPrice(listing.price.listPrice, isRental)}
         </p>
-        <p className="text-white/80 text-xs font-medium">
+        <p className="text-white/75 text-xs font-medium">
           {listing.propertyInfo.propertyType} &middot; {listing.address.neighborhoodDisplay}
         </p>
-        <p className="text-white/60 text-xs mt-0.5">
+        <p className="text-white/55 text-xs mt-0.5">
           {beds} bed &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
           {sqft > 0 && ` · ${sqft.toLocaleString()} sf`}
         </p>
         {listing.agent?.listOfficeName && (
-          <p className="text-white/40 text-[9px] mt-2">
-            Courtesy of {listing.agent.listOfficeName}
-          </p>
+          <p className="text-white/35 text-[9px] mt-1.5">Courtesy of {listing.agent.listOfficeName}</p>
         )}
       </div>
     </Link>
@@ -105,107 +103,107 @@ export default function FeaturedListings() {
   const [hero, ...rest] = listings;
 
   return (
-    <section className="py-24 sm:py-28 md:py-36 px-4 bg-white">
+    <section className="py-20 sm:py-24 md:py-32 px-4 bg-stone-50 overflow-hidden">
       <div className="max-w-7xl mx-auto">
 
-        {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 sm:mb-16">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-10 sm:mb-12">
           <div>
-            <p className="text-xs font-black tracking-[0.3em] uppercase text-[#C4A052] mb-4">
+            <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-3">
               Hand-Selected
             </p>
-            <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl tracking-tight text-gray-950 leading-none">
-              Featured<br />Listings.
+            <h2 className="font-sans font-black text-4xl sm:text-5xl tracking-tight text-gray-950 leading-none">
+              Featured Listings.
             </h2>
           </div>
           <Link
             href="/buy"
-            className="group inline-flex items-center gap-2 text-sm font-bold text-gray-900 hover:text-[#C4A052] transition-colors whitespace-nowrap"
+            className="group inline-flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto"
           >
-            View all listings
-            <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
+            View all <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
           </Link>
         </div>
 
-        {/* Editorial hero listing — full width, photo left / overlay info */}
+        {/* Featured editorial card */}
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="liquid-card group block relative rounded-2xl overflow-hidden mb-5 sm:mb-6 bg-gray-950"
+            className="liquid-card group block relative rounded-2xl overflow-hidden mb-4 sm:mb-5 bg-gray-900"
+            style={{ aspectRatio: '21/9' }}
           >
-            <div className="relative aspect-[16/7] overflow-hidden rounded-2xl">
-              <div className="card-img absolute inset-0">
-                <IDXImage
-                  src={
-                    hero.media.images.find(img => img.isPrimary)?.url ||
-                    hero.media.images[0]?.url ||
-                    '/images/listing-placeholder.svg'
-                  }
+            {(() => {
+              const heroSrc =
+                hero.media.images.find(img => img.isPrimary)?.url ||
+                hero.media.images[0]?.url || '';
+              return heroSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={heroSrc}
                   alt={`${hero.propertyInfo.propertyType} in ${hero.address.neighborhoodDisplay}`}
-                  aspect="card"
+                  className="card-img absolute inset-0 w-full h-full object-cover"
+                  loading="eager"
                 />
-              </div>
-              {/* Hover darken */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-all duration-500" />
+              ) : null;
+            })()}
 
-              {/* Overlay — bottom left */}
-              <div className="absolute bottom-0 left-0 right-0 px-8 pt-24 pb-8 sm:px-10 sm:pb-10"
-                   style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                  <div>
-                    {hero.flags.isExclusive && (
-                      <span className="inline-block bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded mb-3 shadow-lg">
-                        Exclusive
-                      </span>
-                    )}
-                    <p className="text-white font-black text-3xl sm:text-4xl md:text-5xl leading-none mb-2 drop-shadow-xl">
-                      {hero.listingType === 'rent'
-                        ? `$${hero.price.listPrice.toLocaleString()}/mo`
-                        : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
-                      }
-                    </p>
-                    <p className="text-white/80 text-sm font-semibold">
-                      {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
-                    </p>
-                    <p className="text-white/60 text-xs mt-1">
-                      {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
-                      {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
-                      {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/40 hover:border-white px-5 py-3 rounded-lg transition-colors whitespace-nowrap backdrop-blur-sm bg-white/10 group-hover:bg-white/20">
-                    View Listing →
-                  </span>
-                </div>
-                {hero.agent?.listOfficeName && (
-                  <p className="text-white/35 text-[9px] mt-4">
-                    Courtesy of {hero.agent.listOfficeName}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 transition-colors duration-500" />
+
+            {/* Overlay */}
+            <div
+              className="absolute bottom-0 left-0 right-0 px-6 sm:px-8 pt-20 pb-6 sm:pb-8"
+              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)' }}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                <div>
+                  {hero.flags.isExclusive && (
+                    <span className="inline-block bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded mb-2 shadow-lg">
+                      Exclusive
+                    </span>
+                  )}
+                  <p className="text-white font-black text-2xl sm:text-3xl md:text-4xl leading-none mb-1.5">
+                    {hero.listingType === 'rent'
+                      ? `$${hero.price.listPrice.toLocaleString()}/mo`
+                      : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
+                    }
                   </p>
-                )}
+                  <p className="text-white/75 text-sm">
+                    {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
+                  </p>
+                  <p className="text-white/55 text-xs mt-0.5">
+                    {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
+                    {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
+                    {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/30 px-5 py-2.5 rounded-lg backdrop-blur-sm bg-white/10 group-hover:bg-white/20 transition-all whitespace-nowrap self-start sm:self-auto">
+                  View Listing →
+                </span>
               </div>
+              {hero.agent?.listOfficeName && (
+                <p className="text-white/30 text-[9px] mt-3">Courtesy of {hero.agent.listOfficeName}</p>
+              )}
             </div>
           </Link>
         )}
 
-        {/* 3-col grid */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
+        {/* Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
           {rest.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
 
         {/* CTA */}
-        <div className="mt-16 sm:mt-20 text-center">
+        <div className="mt-12 sm:mt-16 text-center">
           <Link
             href="/buy"
-            className="inline-flex items-center gap-3 px-12 py-5 bg-gray-950 text-white font-black rounded-xl hover:bg-gray-800 shadow-xl hover:shadow-2xl transition-all text-sm sm:text-base tracking-widest uppercase"
+            className="inline-flex items-center gap-3 px-10 py-4 bg-gray-950 text-white font-black rounded-xl hover:bg-gray-800 transition-colors text-sm tracking-widest uppercase"
           >
-            Browse All Properties
-            <span aria-hidden>→</span>
+            Browse All Properties →
           </Link>
         </div>
 
-        <IDXDisclaimer variant="compact" className="mt-10" />
+        <IDXDisclaimer variant="compact" className="mt-8" />
       </div>
     </section>
   );

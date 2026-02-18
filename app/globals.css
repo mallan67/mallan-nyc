@@ -25,6 +25,10 @@
     --bg: #ffffff;
     --bg-soft: #ffffff;
   }
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
   body {
     font-family: var(--font-sans), 'Manrope', system-ui, -apple-system, sans-serif;
     color: var(--ink);

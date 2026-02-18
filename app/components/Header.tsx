@@ -191,17 +191,17 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
       <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          {/* Brand — typographic wordmark, no image */}
+          {/* Brand — clean single-line logotype */}
           <Link
             href="/"
-            className="flex flex-col leading-none hover:opacity-75 transition-opacity whitespace-nowrap"
+            className="flex items-baseline gap-1.5 hover:opacity-75 transition-opacity whitespace-nowrap"
             aria-label="Mallan Real Estate — Home"
           >
-            <span className="text-white font-black tracking-[0.12em] uppercase text-xl sm:text-2xl lg:text-xl xl:text-2xl 2xl:text-[2rem]">
+            <span className="text-white font-black tracking-[0.08em] uppercase text-xl sm:text-2xl lg:text-xl xl:text-2xl">
               MALLAN
             </span>
-            <span className="text-white/60 font-bold tracking-[0.3em] uppercase text-[9px] sm:text-[10px] mt-0.5">
-              NEW YORK
+            <span className="text-[#C4A052] font-black text-[10px] sm:text-[11px] tracking-[0.15em] uppercase">
+              NYC
             </span>
           </Link>
 
