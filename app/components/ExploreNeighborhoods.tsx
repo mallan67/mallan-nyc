@@ -83,7 +83,7 @@ export default function ExploreNeighborhoods() {
   const [featured, ...rest] = neighborhoods;
 
   return (
-    <section className="py-16 sm:py-20 md:py-24 px-4 bg-white">
+    <section className="py-24 sm:py-28 md:py-36 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 sm:mb-12">
@@ -91,8 +91,8 @@ export default function ExploreNeighborhoods() {
             <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-2">
               All Five Boroughs
             </p>
-            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
-              Explore Neighborhoods
+            <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-gray-950 leading-none tracking-tight">
+              Explore<br />Neighborhoods.
             </h2>
           </div>
           <Link
