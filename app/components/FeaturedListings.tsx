@@ -164,13 +164,14 @@ export default function FeaturedListings() {
         )}
 
         {/* Mobile: horizontal scroll | Desktop: grid */}
-        <div className="sm:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {rest.map((listing) => (
-            <div key={listing.id} className="flex-shrink-0 w-[240px] snap-start">
-              <ListingCard listing={listing} />
-            </div>
-          ))}
-          <div className="flex-shrink-0 w-4" aria-hidden />
+        <div className="sm:hidden -mx-4 overflow-x-auto snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="inline-flex gap-4 px-4 pb-4">
+            {rest.map((listing) => (
+              <div key={listing.id} className="flex-shrink-0 w-[240px] snap-start">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
         </div>
         <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
           {rest.map((listing) => (
