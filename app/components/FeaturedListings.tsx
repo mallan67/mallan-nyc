@@ -95,7 +95,7 @@ export default function FeaturedListings() {
       <div className="max-w-7xl mx-auto">
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8 sm:mb-10">
+        <div className="flex items-end justify-between gap-3 mb-8 sm:mb-10">
           <div>
             <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-2">
               Hand-Selected
@@ -106,7 +106,7 @@ export default function FeaturedListings() {
           </div>
           <Link
             href="/buy"
-            className="group inline-flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto"
+            className="group inline-flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-[#C4A052] transition-colors whitespace-nowrap"
           >
             View all <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
           </Link>
@@ -118,7 +118,7 @@ export default function FeaturedListings() {
             href={`/listing/${hero.id}`}
             className="liquid-card group block rounded-2xl overflow-hidden mb-5 sm:mb-6"
           >
-            <div className="relative aspect-[21/9] overflow-hidden bg-gray-100">
+            <div className="relative aspect-[16/9] sm:aspect-[2/1] lg:aspect-[21/9] overflow-hidden bg-gray-100">
               {(() => {
                 const heroSrc =
                   hero.media.images.find(img => img.isPrimary)?.url ||

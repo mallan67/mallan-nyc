@@ -91,7 +91,7 @@ export default function ExploreNeighborhoods() {
     <section className="py-16 sm:py-20 md:py-24 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
 
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8 sm:mb-10">
+        <div className="flex items-end justify-between gap-3 mb-8 sm:mb-10">
           <div>
             <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-2">
               All Five Boroughs
