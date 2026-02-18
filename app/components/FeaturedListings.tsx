@@ -138,7 +138,7 @@ export default function FeaturedListings() {
         </div>
 
         {/* REBNY IDX disclaimer */}
-        <IDXDisclaimer variant="compact" />
+        <IDXDisclaimer variant="compact" className="mt-8" />
       </div>
     </section>
   );
