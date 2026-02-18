@@ -28,12 +28,12 @@ export default function NeighborhoodHubGrid({
                 className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                 style={{ backgroundImage: `url(${n.heroImage})` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
+              {/* No dark overlay */}
 
               {/* Content */}
               <div className="absolute bottom-0 left-0 right-0 p-5">
-                <h3 className="text-xl font-semibold text-white">{n.name}</h3>
-                <p className="text-sm text-white/80 mt-0.5">{n.tagline}</p>
+                <h3 className="text-xl font-semibold text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>{n.name}</h3>
+                <p className="text-sm text-white/90 mt-0.5" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>{n.tagline}</p>
 
                 <div className="flex items-center justify-between mt-3">
                   <div className="flex gap-1">
@@ -41,7 +41,7 @@ export default function NeighborhoodHubGrid({
                       <SubwayBadge key={line} line={line} />
                     ))}
                   </div>
-                  <span className="text-sm text-white/90 font-medium">
+                  <span className="text-sm text-white font-medium" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.5)' }}>
                     From $
                     {n.marketStats.medianSalePrice >= 1_000_000
                       ? `${(n.marketStats.medianSalePrice / 1_000_000).toFixed(1)}M`
