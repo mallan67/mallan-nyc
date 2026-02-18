@@ -46,19 +46,21 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className={`group block relative overflow-hidden rounded-2xl ${large ? 'aspect-[4/3]' : 'aspect-[4/3]'} shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5`}
+      className={`liquid-card group block relative overflow-hidden rounded-2xl aspect-[4/3]`}
     >
-      <div className="absolute inset-0 bg-gray-800">
-        <Image
-          src={neighborhood.thumbnail}
-          alt={neighborhood.name}
-          fill
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
-          sizes={large
-            ? "(max-width: 768px) 100vw, 50vw"
-            : "(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw"
-          }
-        />
+      <div className="absolute inset-0 bg-gray-800 overflow-hidden">
+        <div className="card-img absolute inset-0">
+          <Image
+            src={neighborhood.thumbnail}
+            alt={neighborhood.name}
+            fill
+            className="object-cover"
+            sizes={large
+              ? "(max-width: 768px) 100vw, 50vw"
+              : "(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            }
+          />
+        </div>
       </div>
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent transition-opacity duration-300 group-hover:from-black/70" />
