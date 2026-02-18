@@ -49,9 +49,9 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className="liquid-card group block rounded-2xl overflow-hidden relative"
+      className="liquid-card group block rounded-2xl overflow-hidden"
     >
-      <div className={`relative overflow-hidden bg-gray-100 ${large ? 'aspect-[16/9]' : 'aspect-[3/4] sm:aspect-[4/5]'}`}>
+      <div className={`relative overflow-hidden bg-gray-100 ${large ? 'aspect-[16/9]' : 'aspect-[3/2]'}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={neighborhood.thumbnail}
@@ -65,20 +65,18 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
           {neighborhood.listingCount} listings
         </span>
 
-        {/* Translucent glass info overlay */}
-        <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
-          <div className="px-4 py-3">
-            <h3 className={`font-sans font-black text-white leading-tight ${large ? 'text-xl' : 'text-base'}`}>
-              {neighborhood.name}
-            </h3>
-            <div className="flex items-center justify-between mt-1">
-              {formattedSalePrice && (
-                <span className="text-[#C4A052] text-xs font-bold">{formattedSalePrice} avg</span>
-              )}
-              <span className="ml-auto text-white/50 text-xs font-bold tracking-wide group-hover:text-[#C4A052] transition-colors">
-                Explore →
-              </span>
-            </div>
+        {/* Soft gradient fade + text */}
+        <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/25 to-transparent pt-12 pb-3.5 px-4">
+          <h3 className={`font-sans font-black text-white leading-tight drop-shadow-md ${large ? 'text-xl' : 'text-base'}`}>
+            {neighborhood.name}
+          </h3>
+          <div className="flex items-center justify-between mt-1">
+            {formattedSalePrice && (
+              <span className="text-[#C4A052] text-xs font-bold drop-shadow-sm">{formattedSalePrice} avg</span>
+            )}
+            <span className="ml-auto text-white/60 text-xs font-bold tracking-wide group-hover:text-[#C4A052] transition-colors drop-shadow-sm">
+              Explore →
+            </span>
           </div>
         </div>
       </div>
@@ -88,7 +86,6 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
 
 export default function ExploreNeighborhoods() {
   const neighborhoods = (neighborhoodsData.neighborhoods as Neighborhood[]).slice(0, 6);
-  const [featured, ...rest] = neighborhoods;
 
   return (
     <section className="py-16 sm:py-20 md:py-24 px-4 bg-white">
@@ -115,19 +112,14 @@ export default function ExploreNeighborhoods() {
         {/* Mobile: horizontal scroll */}
         <div className="sm:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {neighborhoods.map((n) => (
-            <div key={n.id} className="flex-shrink-0 w-[220px] snap-start">
+            <div key={n.id} className="flex-shrink-0 w-[260px] snap-start">
               <NeighborhoodCard neighborhood={n} />
             </div>
           ))}
         </div>
-        {/* Desktop: grid */}
-        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-          {featured && (
-            <div className="col-span-2">
-              <NeighborhoodCard neighborhood={featured} large />
-            </div>
-          )}
-          {rest.slice(0, 4).map((n) => (
+        {/* Desktop: uniform 3-col grid — no mismatched heights */}
+        <div className="hidden sm:grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
+          {neighborhoods.map((n) => (
             <NeighborhoodCard key={n.id} neighborhood={n} />
           ))}
         </div>
