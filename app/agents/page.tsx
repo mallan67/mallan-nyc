@@ -3,7 +3,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import AgentsGrid from '@/app/components/AgentsGrid';
-import PageHero from '@/app/components/PageHero';
+import PhotoPageHero from '@/app/components/PhotoPageHero';
 
 export const revalidate = 3600;
 
@@ -28,10 +28,11 @@ export default function AgentsPage() {
     <div className="min-h-screen bg-white font-sans">
       <Header dark />
       <main>
-        <PageHero
+        <PhotoPageHero
           eyebrow="The Team"
           title="Licensed NYC Brokers."
           subtitle="Specialists in residential and commercial real estate across all five boroughs."
+          focus="center 45%"
         />
         <AgentsGrid />
       </main>

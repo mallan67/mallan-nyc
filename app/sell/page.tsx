@@ -3,7 +3,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import Link from 'next/link';
-import PageHero from '@/app/components/PageHero';
+import PhotoPageHero from '@/app/components/PhotoPageHero';
 
 export const revalidate = 86400;
 
@@ -106,10 +106,11 @@ export default function SellPage() {
       />
       <Header dark />
       <main>
-        <PageHero
+        <PhotoPageHero
           eyebrow="Seller Representation"
           title="Sell Your Property."
           subtitle="Strategic pricing, professional marketing, and expert negotiation — from listing to closing."
+          focus="center 40%"
         />
 
         {/* Why Sell With Us */}
