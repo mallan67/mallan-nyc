@@ -55,15 +55,39 @@
 .hero .overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.45), transparent)}
 .hero .hero-inner{position:relative;padding:16px 0 24px}
 
-/* Ken Burns — subtle living photo effect for hero background */
+/* Ken Burns — more dramatic pan + zoom for hero background */
 @keyframes kenBurns {
   0%   { transform: scale(1.0) translate(0, 0); }
-  33%  { transform: scale(1.06) translate(-1%, 0.5%); }
-  66%  { transform: scale(1.04) translate(0.5%, -0.5%); }
+  25%  { transform: scale(1.12) translate(-2.5%, 1%); }
+  50%  { transform: scale(1.08) translate(1.5%, -1.5%); }
+  75%  { transform: scale(1.15) translate(-1%, 2%); }
   100% { transform: scale(1.0) translate(0, 0); }
 }
 .animate-ken-burns {
-  animation: kenBurns 22s ease-in-out infinite;
+  animation: kenBurns 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Light sweep — diagonal gloss shimmer across hero photo */
+@keyframes lightSweep {
+  0%   { transform: translateX(-150%) skewX(-15deg); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(200%) skewX(-15deg); opacity: 0; }
+}
+.hero-light-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255,255,255,0.06) 50%,
+    transparent 65%
+  );
+  animation: lightSweep 7s ease-in-out infinite;
+  animation-delay: 2s;
+  pointer-events: none;
+  z-index: 6;
   will-change: transform;
 }
 

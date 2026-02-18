@@ -9,6 +9,7 @@ type SearchTab = 'buy' | 'rent' | 'sell' | 'commercial';
 type HeroSettings = {
   heroImage: string;
   heroTagline: string;
+  heroVideo?: string;
 };
 
 type SearchSuggestion = {
@@ -20,6 +21,7 @@ type SearchSuggestion = {
 const DEFAULT_HERO: HeroSettings = {
   heroImage: '/images/hero.jpg',
   heroTagline: 'Find your place in New York City.',
+  heroVideo: '',  // Set via CMS — e.g. '/videos/nyc-hero.mp4'
 };
 
 const TAB_BASE = 'px-5 py-2.5 text-sm font-semibold capitalize transition-all duration-150 tracking-wide';
@@ -158,30 +160,49 @@ export default function HeroSearch() {
     <section className="relative w-full min-h-screen flex flex-col">
       {/* Background */}
       <div className="absolute inset-0 bg-gray-900">
-        <Image
-          src={heroSettings.heroImage}
-          alt="New York City real estate"
-          fill
-          className="object-cover object-center animate-ken-burns"
-          style={{
-            objectPosition: 'center 85%',
-            filter: 'saturate(1.1) contrast(1.04)',
-          }}
-          priority
-          sizes="100vw"
-          quality={100}
-          unoptimized
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-        {/* Layered overlay — darker at top (nav), dramatic at bottom */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/75" />
+        {/* Video background — when a heroVideo URL is set, it plays silently instead of photo */}
+        {heroSettings.heroVideo ? (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'saturate(1.15) contrast(1.04)' }}
+          >
+            <source src={heroSettings.heroVideo} type="video/mp4" />
+          </video>
+        ) : (
+          <Image
+            src={heroSettings.heroImage}
+            alt="New York City real estate"
+            fill
+            className="object-cover object-center animate-ken-burns"
+            style={{
+              objectPosition: 'center 85%',
+              filter: 'saturate(1.12) contrast(1.05)',
+            }}
+            priority
+            sizes="100vw"
+            quality={100}
+            unoptimized
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
+
+        {/* Light sweep shimmer — diagonal gloss over the photo */}
+        <div className="hero-light-sweep" aria-hidden />
+
+        {/* Layered overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/35 to-black/70" />
       </div>
 
       {/* Content — stripped down, Serhant/Elliman style: big photo + bold type + search */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-28 pb-16">
 
-        {/* Main headline — heavy sans-serif, NOT italic serif. Bold = assertive. */}
-        <h1 className="font-sans font-black text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] text-white text-center leading-[0.95] tracking-tight max-w-4xl mb-10 animate-fade-in-up"
+        {/* Main headline — scales properly across ALL screen sizes
+            13" (1024-1280px) = 48px  14-15" (1280px) = 54px  16"+ = 60px  */}
+        <h1 className="font-sans font-black text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-[3.5rem] 2xl:text-6xl text-white text-center leading-[1.05] tracking-tight max-w-3xl mb-8 animate-fade-in-up"
             style={{ textShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>
           {heroSettings.heroTagline}
         </h1>
