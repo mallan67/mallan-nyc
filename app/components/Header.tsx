@@ -197,10 +197,10 @@ export default function Header({ dark = false }: HeaderProps = {}) {
             className="flex flex-col leading-none hover:opacity-75 transition-opacity whitespace-nowrap"
             aria-label="Mallan Real Estate — Home"
           >
-            <span className="text-white font-black tracking-[0.12em] uppercase text-lg sm:text-xl lg:text-2xl">
+            <span className="text-white font-black tracking-[0.15em] uppercase text-2xl sm:text-3xl lg:text-[2rem]">
               MALLAN
             </span>
-            <span className="text-white/50 font-semibold tracking-[0.3em] uppercase text-[9px] sm:text-[10px] mt-0.5">
+            <span className="text-white/60 font-bold tracking-[0.35em] uppercase text-[10px] sm:text-[11px] mt-0.5">
               NEW YORK
             </span>
           </Link>
