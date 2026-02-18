@@ -5,93 +5,93 @@ import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalcu
 
 /**
  * Value Proposition Section
- *
- * Compliance notes:
- * - No guarantees or promises of results
- * - NYC-specific positioning
- * - Fair Housing compliant language
- * - No discriminatory targeting
+ * Compliance: No guarantees, NYC-specific, Fair Housing compliant
  */
 export default function ValueProposition() {
   return (
-    <section className="py-12 sm:py-16 md:py-20 px-4 bg-white">
+    <section className="bg-gray-950 py-16 sm:py-20 md:py-24 px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Main Value Statement - consistent header styling */}
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-sans font-bold tracking-tight text-gray-900">
-            Licensed NYC Brokerage
+
+        {/* Header */}
+        <div className="text-center mb-14 sm:mb-16">
+          <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-3">
+            Full-Service Brokerage
+          </p>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight max-w-3xl mx-auto">
+            Every side of a New York real estate transaction.
           </h2>
-          <p className="mt-3 text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto">
-            Expert guidance for residential, commercial, and investment properties across NYC. Connect with a licensed broker to discuss your real estate goals.
+          <p className="mt-5 text-base sm:text-lg text-white/50 max-w-xl mx-auto leading-relaxed">
+            Residential, commercial, and investment properties. Licensed broker serving all five boroughs.
           </p>
         </div>
 
-        {/* Service Paths + Tools */}
-        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-10 sm:mb-12">
-          {/* Buy + Affordability Calculator */}
-          <div className="flex flex-col gap-3">
-            <div className="flex-1 text-center p-6 rounded-lg border border-gray-100 hover:border-brand-gold/30 hover:shadow-lg transition-all">
-              <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-7 h-7 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        {/* Three service columns */}
+        <div className="grid md:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-14">
+
+          {/* Buy */}
+          <div className="flex flex-col gap-4">
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-7 hover:bg-white/8 hover:border-white/20 transition-all">
+              <div className="w-12 h-12 bg-[#C4A052]/15 rounded-xl flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-[#C4A052]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
-              <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Buy</h3>
-              <p className="text-gray-600 mb-4 text-sm">
+              <h3 className="text-2xl font-bold text-white mb-3">Buy</h3>
+              <p className="text-white/55 text-sm leading-relaxed mb-5">
                 Buyer and investor representation for co-ops, condos, condops, townhouses, and commercial properties. Board packages, financial review, and contract negotiation.
               </p>
               <Link
                 href="/buy"
                 data-analytics-cta="cta_buy"
-                className="text-brand-gold hover:underline font-medium text-sm"
+                className="inline-flex items-center gap-1.5 text-[#C4A052] font-semibold text-sm hover:gap-3 transition-all"
               >
-                Browse Sales →
+                Browse Sales <span aria-hidden>→</span>
               </Link>
             </div>
             <AffordabilityCalculator />
           </div>
 
-          {/* Rent + Rent vs Buy */}
-          <div className="flex flex-col gap-3">
-            <div className="flex-1 text-center p-6 rounded-lg border border-gray-100 hover:border-brand-gold/30 hover:shadow-lg transition-all">
-              <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-7 h-7 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {/* Rent */}
+          <div className="flex flex-col gap-4">
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-7 hover:bg-white/8 hover:border-white/20 transition-all">
+              <div className="w-12 h-12 bg-[#C4A052]/15 rounded-xl flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-[#C4A052]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Rent</h3>
-              <p className="text-gray-600 mb-4 text-sm">
-                New York City apartment rentals with support for rent negotiations, application preparation and submission, and guidance through building-specific requirements and approvals.
+              <h3 className="text-2xl font-bold text-white mb-3">Rent</h3>
+              <p className="text-white/55 text-sm leading-relaxed mb-5">
+                NYC apartment rentals with support for rent negotiations, application preparation and submission, and guidance through building-specific requirements and approvals.
               </p>
               <Link
                 href="/rent"
                 data-analytics-cta="cta_rent"
-                className="text-brand-gold hover:underline font-medium text-sm"
+                className="inline-flex items-center gap-1.5 text-[#C4A052] font-semibold text-sm hover:gap-3 transition-all"
               >
-                Browse Rentals →
+                Browse Rentals <span aria-hidden>→</span>
               </Link>
             </div>
             <RentVsBuyStandalone />
           </div>
 
-          {/* Sell + Closing Cost Calculator */}
-          <div className="flex flex-col gap-3">
-            <div className="flex-1 text-center p-6 rounded-lg border border-gray-100 hover:border-brand-gold/30 hover:shadow-lg transition-all">
-              <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-7 h-7 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          {/* Sell */}
+          <div className="flex flex-col gap-4">
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-7 hover:bg-white/8 hover:border-white/20 transition-all">
+              <div className="w-12 h-12 bg-[#C4A052]/15 rounded-xl flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-[#C4A052]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-sans font-medium text-gray-900 mb-2">Sell</h3>
-              <p className="text-gray-600 mb-4 text-sm">
+              <h3 className="text-2xl font-bold text-white mb-3">Sell</h3>
+              <p className="text-white/55 text-sm leading-relaxed mb-5">
                 Strategic property pricing, comprehensive marketing exposure, professional photography, and end-to-end transaction management from listing to closing.
               </p>
               <Link
                 href="/sell"
                 data-analytics-cta="cta_sell"
-                className="text-brand-gold hover:underline font-medium text-sm"
+                className="inline-flex items-center gap-1.5 text-[#C4A052] font-semibold text-sm hover:gap-3 transition-all"
               >
-                Sell Your Property →
+                Sell Your Property <span aria-hidden>→</span>
               </Link>
             </div>
             <SellerClosingCostCalculator />
@@ -99,18 +99,20 @@ export default function ValueProposition() {
         </div>
 
         {/* Primary CTA */}
-        <div className="text-center">
+        <div className="text-center border-t border-white/10 pt-12">
+          <p className="text-white/40 text-sm mb-5">Ready to get started?</p>
           <Link
             href="/contact"
             data-analytics-cta="cta_contact_primary"
-            className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base tracking-wide"
+            className="inline-block px-10 py-4 bg-[#C4A052] text-gray-950 font-bold rounded-xl hover:bg-[#d4b060] shadow-lg transition-all text-sm sm:text-base tracking-wide"
           >
-            Contact Us
+            Talk to a Broker
           </Link>
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-xs text-white/30">
             No obligation. Tell us what you&apos;re looking for.
           </p>
         </div>
+
       </div>
     </section>
   );
