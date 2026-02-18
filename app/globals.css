@@ -68,28 +68,7 @@
   will-change: transform;
 }
 
-/* Light sweep — diagonal gloss shimmer across hero photo */
-@keyframes lightSweep {
-  0%   { transform: translateX(-150%) skewX(-15deg); opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translateX(200%) skewX(-15deg); opacity: 0; }
-}
-.hero-light-sweep {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 35%,
-    rgba(255,255,255,0.06) 50%,
-    transparent 65%
-  );
-  animation: lightSweep 7s ease-in-out infinite;
-  animation-delay: 2s;
-  pointer-events: none;
-  z-index: 6;
-  will-change: transform;
-}
+/* Light sweep removed — was too visible on dark overlay */
 
 /* Fade in up — section entrance */
 @keyframes fadeInUp {
