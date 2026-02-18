@@ -15,6 +15,10 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
+/* Glossy dark panel style — shared across cards */
+const glossPanel = 'relative bg-gray-950 overflow-hidden';
+const glossSheen = 'pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.03]';
+
 function ListingCard({ listing }: { listing: Listing }) {
   const isRental = listing.listingType === 'rent';
   const src =
@@ -29,9 +33,9 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="group block rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-shadow duration-500"
+      className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500"
     >
-      {/* Photo — clean, no overlay */}
+      {/* Photo — clean, bright, no overlay */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         {src && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -42,8 +46,6 @@ function ListingCard({ listing }: { listing: Listing }) {
             loading="lazy"
           />
         )}
-
-        {/* Small floating badges on photo — just tiny pills, no band */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
           {listing.flags.isExclusive && (
             <span className="bg-[#C4A052] text-white text-[10px] px-2.5 py-1 font-bold tracking-widest uppercase rounded-full">
@@ -63,21 +65,24 @@ function ListingCard({ listing }: { listing: Listing }) {
         </div>
       </div>
 
-      {/* Info — clean white section below photo */}
-      <div className="p-4">
-        <p className="text-gray-950 font-black text-xl leading-tight">
-          {formatPrice(listing.price.listPrice, isRental)}
-        </p>
-        <p className="text-gray-600 text-sm font-medium mt-1">
-          {listing.propertyInfo.propertyType} &middot; {listing.address.neighborhoodDisplay}
-        </p>
-        <p className="text-gray-400 text-xs mt-1">
-          {beds} bed &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
-          {sqft > 0 && ` · ${sqft.toLocaleString()} sf`}
-        </p>
-        {listing.agent?.listOfficeName && (
-          <p className="text-gray-300 text-[10px] mt-2 tracking-wide">Courtesy of {listing.agent.listOfficeName}</p>
-        )}
+      {/* Info — glossy black panel */}
+      <div className={glossPanel}>
+        <div className={glossSheen} />
+        <div className="relative z-10 p-4">
+          <p className="text-white font-black text-xl leading-tight">
+            {formatPrice(listing.price.listPrice, isRental)}
+          </p>
+          <p className="text-white/60 text-sm font-medium mt-1">
+            {listing.propertyInfo.propertyType} &middot; {listing.address.neighborhoodDisplay}
+          </p>
+          <p className="text-white/40 text-xs mt-1">
+            {beds} bed &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} bath
+            {sqft > 0 && ` · ${sqft.toLocaleString()} sf`}
+          </p>
+          {listing.agent?.listOfficeName && (
+            <p className="text-white/20 text-[10px] mt-2 tracking-wide">Courtesy of {listing.agent.listOfficeName}</p>
+          )}
+        </div>
       </div>
     </Link>
   );
@@ -119,13 +124,13 @@ export default function FeaturedListings() {
           </Link>
         </div>
 
-        {/* Hero card — wide photo on top, info below */}
+        {/* Hero card */}
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="group block rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-shadow duration-500 mb-5 sm:mb-6"
+            className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500 mb-5 sm:mb-6"
           >
-            {/* Wide photo — 21:9 cinematic */}
+            {/* Wide cinematic photo */}
             <div className="relative aspect-[21/9] overflow-hidden bg-gray-100">
               {(() => {
                 const heroSrc =
@@ -141,8 +146,6 @@ export default function FeaturedListings() {
                   />
                 ) : null;
               })()}
-
-              {/* Tiny floating badges */}
               {hero.flags.isExclusive && (
                 <span className="absolute top-4 left-4 bg-[#C4A052] text-white text-[10px] px-3 py-1.5 font-bold tracking-widest uppercase rounded-full">
                   Exclusive
@@ -150,35 +153,38 @@ export default function FeaturedListings() {
               )}
             </div>
 
-            {/* Info bar — clean, bright */}
-            <div className="px-6 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-gray-950 font-black text-2xl sm:text-3xl leading-tight">
-                  {hero.listingType === 'rent'
-                    ? `$${hero.price.listPrice.toLocaleString()}/mo`
-                    : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
-                  }
-                </p>
-                <p className="text-gray-600 text-sm font-medium mt-1">
-                  {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
-                </p>
-                <p className="text-gray-400 text-xs mt-0.5">
-                  {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
-                  {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
-                  {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
-                </p>
+            {/* Glossy black info bar */}
+            <div className={glossPanel}>
+              <div className={glossSheen} />
+              <div className="relative z-10 px-6 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-white font-black text-2xl sm:text-3xl leading-tight">
+                    {hero.listingType === 'rent'
+                      ? `$${hero.price.listPrice.toLocaleString()}/mo`
+                      : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
+                    }
+                  </p>
+                  <p className="text-white/60 text-sm font-medium mt-1">
+                    {hero.propertyInfo.propertyType} &middot; {hero.address.neighborhoodDisplay}
+                  </p>
+                  <p className="text-white/40 text-xs mt-0.5">
+                    {hero.propertyInfo.bedroomsTotal} bed &middot; {hero.propertyInfo.bathroomsFull}
+                    {hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''} bath
+                    {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/20 px-6 py-3 rounded-full group-hover:border-[#C4A052] group-hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto">
+                  View Listing →
+                </span>
               </div>
-              <span className="inline-flex items-center gap-2 text-gray-950 font-bold text-sm border border-gray-200 px-6 py-3 rounded-full group-hover:border-[#C4A052] group-hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto">
-                View Listing →
-              </span>
+              {hero.agent?.listOfficeName && (
+                <p className="relative z-10 px-6 sm:px-8 pb-4 text-white/20 text-[10px] tracking-wide -mt-2">Courtesy of {hero.agent.listOfficeName}</p>
+              )}
             </div>
-            {hero.agent?.listOfficeName && (
-              <p className="px-6 sm:px-8 pb-4 text-gray-300 text-[10px] tracking-wide -mt-2">Courtesy of {hero.agent.listOfficeName}</p>
-            )}
           </Link>
         )}
 
-        {/* Grid — 3 columns */}
+        {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
           {rest.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />

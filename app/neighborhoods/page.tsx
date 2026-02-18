@@ -95,24 +95,27 @@ export default function NeighborhoodsIndexPage() {
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="group block rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-shadow duration-500"
+                  className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-500"
                 >
-                  {/* Photo — clean, no overlay */}
+                  {/* Photo — clean, bright */}
                   <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
                     <div
                       className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 ease-out"
                       style={{ backgroundImage: `url(${b.heroImage})` }}
                     />
                   </div>
-                  {/* Info below photo */}
-                  <div className="p-5 sm:p-6">
-                    <h2 className="font-sans font-black text-xl sm:text-2xl text-gray-950 leading-none">
-                      {b.name}
-                    </h2>
-                    <p className="text-gray-500 text-sm mt-1">{b.tagline}</p>
-                    <p className="text-[#C4A052] text-xs font-bold mt-3 tracking-wide group-hover:translate-x-1 transition-transform">
-                      {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
-                    </p>
+                  {/* Glossy black info */}
+                  <div className="relative bg-gray-950 overflow-hidden">
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.03]" />
+                    <div className="relative z-10 p-5 sm:p-6">
+                      <h2 className="font-sans font-black text-xl sm:text-2xl text-white leading-none">
+                        {b.name}
+                      </h2>
+                      <p className="text-white/50 text-sm mt-1">{b.tagline}</p>
+                      <p className="text-[#C4A052] text-xs font-bold mt-3 tracking-wide group-hover:translate-x-1 transition-transform">
+                        {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
+                      </p>
+                    </div>
                   </div>
                 </Link>
               ))}
