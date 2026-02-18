@@ -95,23 +95,21 @@ export default function NeighborhoodsIndexPage() {
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="liquid-card group block rounded-2xl overflow-hidden relative"
+                  className="liquid-card group block rounded-2xl overflow-hidden"
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                  <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
                     <div
                       className="card-img absolute inset-0 bg-cover bg-center"
                       style={{ backgroundImage: `url(${b.heroImage})` }}
                     />
-                    {/* Translucent glass info */}
-                    <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
-                      <div className="px-4 py-3 sm:px-5 sm:py-4">
-                        <h2 className="font-sans font-black text-lg sm:text-xl text-white leading-none">
-                          {b.name}
-                        </h2>
-                        <p className="text-[#C4A052] text-xs font-bold mt-1.5 tracking-wide group-hover:translate-x-1 transition-transform">
-                          {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
-                        </p>
-                      </div>
+                    {/* Gradient fade + info */}
+                    <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/25 to-transparent pt-14 pb-4 px-5">
+                      <h2 className="font-sans font-black text-lg sm:text-xl text-white leading-none drop-shadow-md">
+                        {b.name}
+                      </h2>
+                      <p className="text-[#C4A052] text-xs font-bold mt-1.5 tracking-wide group-hover:translate-x-1 transition-transform drop-shadow-sm">
+                        {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
+                      </p>
                     </div>
                   </div>
                 </Link>

@@ -31,7 +31,7 @@ export default function RecentTransactions() {
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory"
-             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollPaddingInline: '16px' }}>
           {closedListings.map((listing) => {
             const isSold = listing.status === 'sold';
             const src =
@@ -45,7 +45,7 @@ export default function RecentTransactions() {
             return (
               <div
                 key={listing.id}
-                className="liquid-card flex-shrink-0 w-[220px] sm:w-[240px] rounded-2xl overflow-hidden snap-start relative"
+                className="liquid-card flex-shrink-0 w-[220px] sm:w-[240px] rounded-2xl overflow-hidden snap-start"
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
                   {src && (
@@ -65,21 +65,21 @@ export default function RecentTransactions() {
                     {isSold ? 'Sold' : 'Rented'}
                   </span>
 
-                  {/* Glass info overlay */}
-                  <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
-                    <div className="px-3 py-2.5">
-                      <p className="text-white font-black text-base leading-tight">
-                        {formatPrice(closePrice)}
-                      </p>
-                      <p className="text-white/70 text-[11px] font-medium mt-0.5">
-                        {listing.address.neighborhoodDisplay} &middot; {beds}bd {baths}ba
-                      </p>
-                    </div>
+                  {/* Soft gradient fade */}
+                  <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/25 to-transparent pt-14 pb-3 px-3.5">
+                    <p className="text-white font-black text-base leading-tight drop-shadow-md">
+                      {formatPrice(closePrice)}
+                    </p>
+                    <p className="text-white/80 text-[11px] font-medium mt-0.5 drop-shadow-sm">
+                      {listing.address.neighborhoodDisplay} &middot; {beds}bd {baths}ba
+                    </p>
                   </div>
                 </div>
               </div>
             );
           })}
+          {/* Spacer so last card isn't clipped */}
+          <div className="flex-shrink-0 w-1" aria-hidden />
         </div>
       </div>
     </section>

@@ -29,9 +29,8 @@ function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listing/${listing.id}`}
-      className="liquid-card group block rounded-2xl overflow-hidden relative"
+      className="liquid-card group block rounded-2xl overflow-hidden"
     >
-      {/* Full-bleed photo */}
       <div className="relative aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-gray-100">
         {src && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -62,17 +61,15 @@ function ListingCard({ listing }: { listing: Listing }) {
           </span>
         </div>
 
-        {/* Translucent glass info overlay */}
-        <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
-          <div className="px-4 py-3">
-            <p className="text-white font-black text-lg leading-tight">
-              {formatPrice(listing.price.listPrice, isRental)}
-            </p>
-            <p className="text-white/70 text-xs font-medium mt-0.5">
-              {listing.address.neighborhoodDisplay} &middot; {beds}bd {baths}{halfBaths > 0 ? `.${halfBaths}` : ''}ba
-              {sqft > 0 && ` · ${sqft.toLocaleString()}sf`}
-            </p>
-          </div>
+        {/* Soft gradient fade + text */}
+        <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/30 to-transparent pt-16 pb-4 px-4">
+          <p className="text-white font-black text-lg leading-tight drop-shadow-md">
+            {formatPrice(listing.price.listPrice, isRental)}
+          </p>
+          <p className="text-white/80 text-xs font-medium mt-0.5 drop-shadow-sm">
+            {listing.address.neighborhoodDisplay} &middot; {beds}bd {baths}{halfBaths > 0 ? `.${halfBaths}` : ''}ba
+            {sqft > 0 && ` · ${sqft.toLocaleString()}sf`}
+          </p>
         </div>
       </div>
     </Link>
@@ -119,7 +116,7 @@ export default function FeaturedListings() {
         {hero && (
           <Link
             href={`/listing/${hero.id}`}
-            className="liquid-card group block rounded-2xl overflow-hidden mb-5 sm:mb-6 relative"
+            className="liquid-card group block rounded-2xl overflow-hidden mb-5 sm:mb-6"
           >
             <div className="relative aspect-[21/9] overflow-hidden bg-gray-100">
               {(() => {
@@ -142,22 +139,22 @@ export default function FeaturedListings() {
                 </span>
               )}
 
-              {/* Glass info bar */}
-              <div className="absolute inset-x-0 bottom-0 z-10 bg-black/55 backdrop-blur-md border-t border-white/10">
-                <div className="px-5 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              {/* Gradient info bar */}
+              <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/30 to-transparent pt-20 pb-5 px-5 sm:px-8">
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
                   <div>
-                    <p className="text-white font-black text-2xl sm:text-3xl leading-tight">
+                    <p className="text-white font-black text-2xl sm:text-3xl leading-tight drop-shadow-md">
                       {hero.listingType === 'rent'
                         ? `$${hero.price.listPrice.toLocaleString()}/mo`
                         : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(hero.price.listPrice)
                       }
                     </p>
-                    <p className="text-white/70 text-sm font-medium mt-0.5">
+                    <p className="text-white/80 text-sm font-medium mt-0.5 drop-shadow-sm">
                       {hero.address.neighborhoodDisplay} &middot; {hero.propertyInfo.bedroomsTotal}bd {hero.propertyInfo.bathroomsFull}{hero.propertyInfo.bathroomsHalf > 0 ? `.${hero.propertyInfo.bathroomsHalf}` : ''}ba
                       {hero.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${hero.propertyInfo.aboveGradeFinishedArea.toLocaleString()}sf`}
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/25 px-5 py-2.5 rounded-full group-hover:border-[#C4A052] group-hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto">
+                  <span className="inline-flex items-center gap-2 text-white font-bold text-sm border border-white/30 px-5 py-2.5 rounded-full group-hover:border-[#C4A052] group-hover:text-[#C4A052] transition-colors whitespace-nowrap self-start sm:self-auto backdrop-blur-sm bg-white/5">
                     View Listing →
                   </span>
                 </div>
