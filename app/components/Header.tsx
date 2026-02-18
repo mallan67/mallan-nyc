@@ -197,33 +197,33 @@ export default function Header({ dark = false }: HeaderProps = {}) {
             className="flex flex-col leading-none hover:opacity-75 transition-opacity whitespace-nowrap"
             aria-label="Mallan Real Estate — Home"
           >
-            <span className="text-white font-black tracking-[0.15em] uppercase text-2xl sm:text-3xl lg:text-[2rem]">
+            <span className="text-white font-black tracking-[0.12em] uppercase text-xl sm:text-2xl lg:text-xl xl:text-2xl 2xl:text-[2rem]">
               MALLAN
             </span>
-            <span className="text-white/60 font-bold tracking-[0.35em] uppercase text-[10px] sm:text-[11px] mt-0.5">
+            <span className="text-white/60 font-bold tracking-[0.3em] uppercase text-[9px] sm:text-[10px] mt-0.5">
               NEW YORK
             </span>
           </Link>
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center ml-auto pl-12 xl:pl-16"
+            className="hidden lg:flex items-center ml-auto pl-4 xl:pl-10 2xl:pl-16"
             aria-label="Main navigation"
           >
-            <ul className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
+            <ul className="flex items-center gap-1.5 lg:gap-2 xl:gap-4 2xl:gap-5 text-[12px] lg:text-[12px] xl:text-[13px] 2xl:text-[14px] font-bold text-white/90">
               <li><NavDropdown label="Buy" items={buyItems} /></li>
               <li><NavDropdown label="Rent" items={rentItems} /></li>
               <li><NavDropdown label="Sell" items={sellItems} /></li>
               <li><NavDropdown label="Exclusives" items={exclusivesItems} /></li>
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} /></li>
 
-              <li>
+              <li className="hidden xl:block">
                 <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
                   Open Houses
                 </Link>
               </li>
 
-              <li><NavDropdown label="Resources" items={resources} /></li>
+              <li className="hidden xl:block"><NavDropdown label="Resources" items={resources} /></li>
 
               <li>
                 <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
@@ -231,18 +231,18 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </Link>
               </li>
 
-              <li>
+              <li className="hidden xl:block">
                 <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
                   About
                 </Link>
               </li>
 
-              <li className="flex items-center gap-1.5 ml-1">
-                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap px-3 py-1.5 text-white/80 hover:text-white text-sm transition-colors">
+              <li className="flex items-center gap-1 ml-1">
+                <Link href="/sign-in" className="hidden xl:inline-flex items-center whitespace-nowrap px-2.5 py-1.5 text-white/70 hover:text-white transition-colors">
                   Sign In
                 </Link>
-                <span className="text-white/30">|</span>
-                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-4 py-1.5 bg-brand-gold text-white rounded text-sm font-medium hover:bg-brand-gold/90 transition-colors">
+                <span className="hidden xl:inline text-white/30">|</span>
+                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-3 py-1.5 bg-brand-gold text-white rounded text-xs xl:text-sm font-bold hover:bg-brand-gold/90 transition-colors">
                   Sign Up
                 </Link>
               </li>
