@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import neighborhoodsData from '@/data/neighborhoods.json';
 
@@ -57,32 +56,19 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
       }}
     >
       {/* Photo */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="card-img absolute inset-0">
-          <Image
-            src={neighborhood.thumbnail}
-            alt={neighborhood.name}
-            fill
-            className="object-cover"
-            sizes={large
-              ? '(max-width: 768px) 100vw, 50vw'
-              : '(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw'
-            }
-          />
-        </div>
-      </div>
-
-      {/* Base overlay — always visible */}
-      <div
-        className="absolute inset-0 transition-all duration-[600ms]"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)',
-          // On hover this lightens, achieved via group-hover class below
-        }}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={neighborhood.thumbnail}
+        alt={neighborhood.name}
+        className="card-img absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
       />
-      {/* Hover overlay — slightly lighter to show more photo */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-[600ms]"
-           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 70%)' }} />
+
+      {/* Base overlay — light enough to see the photo */}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.08) 45%, transparent 70%)' }}
+      />
 
       {/* Gold border glow on hover */}
       <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-[500ms]"
