@@ -3,6 +3,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import AboutContent from '@/app/components/AboutContent';
+import PageHero from '@/app/components/PageHero';
 
 export const revalidate = 3600;
 
@@ -26,7 +27,12 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
       <Header dark />
-      <main className="pt-20">
+      <main>
+        <PageHero
+          eyebrow="Our Story"
+          title="About Mallan Real Estate."
+          subtitle="A boutique NYC brokerage built on local knowledge, direct access, and honest guidance."
+        />
         <AboutContent />
       </main>
       <SocialShareBar title="About Mallan Real Estate" />

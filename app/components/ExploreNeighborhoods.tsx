@@ -43,12 +43,21 @@ function getNeighborhoodHref(id: string): string {
 }
 
 function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood; large?: boolean }) {
+  const formattedSalePrice = neighborhood.avgPrice.sale > 0
+    ? `$${(neighborhood.avgPrice.sale / 1000000).toFixed(1)}M avg`
+    : null;
+
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className={`liquid-card group block relative overflow-hidden rounded-2xl aspect-[4/3]`}
+      className="liquid-card group block relative overflow-hidden rounded-2xl aspect-[4/3] bg-gray-900"
+      style={{
+        // Gold glow on hover via CSS var override — defined inline so it composites
+        // on top of the liquid-card shadow
+      }}
     >
-      <div className="absolute inset-0 bg-gray-800 overflow-hidden">
+      {/* Photo */}
+      <div className="absolute inset-0 overflow-hidden">
         <div className="card-img absolute inset-0">
           <Image
             src={neighborhood.thumbnail}
@@ -56,25 +65,64 @@ function NeighborhoodCard({ neighborhood, large }: { neighborhood: Neighborhood;
             fill
             className="object-cover"
             sizes={large
-              ? "(max-width: 768px) 100vw, 50vw"
-              : "(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              ? '(max-width: 768px) 100vw, 50vw'
+              : '(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw'
             }
           />
         </div>
       </div>
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent transition-opacity duration-300 group-hover:from-black/70" />
-      {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 text-white">
-        <h3 className={`font-bold leading-tight ${large ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'}`}>
+
+      {/* Base overlay — always visible */}
+      <div
+        className="absolute inset-0 transition-all duration-[600ms]"
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)',
+          // On hover this lightens, achieved via group-hover class below
+        }}
+      />
+      {/* Hover overlay — slightly lighter to show more photo */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-[600ms]"
+           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 70%)' }} />
+
+      {/* Gold border glow on hover */}
+      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-[500ms]"
+           style={{ boxShadow: 'inset 0 0 0 2px rgba(196,160,82,0.7)' }} />
+
+      {/* Listing count badge — top right, fades out on hover */}
+      <div className="absolute top-3 right-3 z-20 transition-all duration-500 group-hover:opacity-0">
+        <span className="bg-black/50 backdrop-blur-sm text-white/70 text-[10px] font-semibold px-2.5 py-1 rounded tracking-widest uppercase">
+          {neighborhood.listingCount} listings
+        </span>
+      </div>
+
+      {/* Text panel — slides up on hover to reveal tagline + CTA */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 sm:p-5">
+
+        {/* Name — always visible, shifts up on hover */}
+        <h3 className={`font-sans font-black text-white leading-tight transition-transform duration-[550ms] ease-out ${large ? 'text-2xl sm:text-3xl' : 'text-lg sm:text-xl'} group-hover:-translate-y-9`}
+            style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
           {neighborhood.name}
         </h3>
-        {neighborhood.tagline && (
-          <p className="text-white/65 text-xs sm:text-sm mt-0.5 line-clamp-1">{neighborhood.tagline}</p>
-        )}
-        <p className="text-[#C4A052] text-xs font-semibold mt-1.5 tracking-wide">
-          {neighborhood.listingCount} listings
-        </p>
+
+        {/* Revealed on hover: tagline + avg price + explore CTA */}
+        <div className="overflow-hidden">
+          <div className="translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-[550ms]"
+               style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
+            <p className="text-white/65 text-xs mt-1 leading-snug line-clamp-1">
+              {neighborhood.tagline}
+            </p>
+            <div className="flex items-center justify-between mt-3">
+              {formattedSalePrice && (
+                <span className="text-[#C4A052] text-xs font-bold">{formattedSalePrice}</span>
+              )}
+              <span className="ml-auto flex items-center gap-1 text-white text-xs font-bold tracking-wide group/cta">
+                Explore
+                <span className="transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden>→</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </Link>
   );
@@ -87,10 +135,11 @@ export default function ExploreNeighborhoods() {
   return (
     <section className="py-24 sm:py-28 md:py-36 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10 sm:mb-12">
+
+        {/* Section header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12 sm:mb-16">
           <div>
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#C4A052] mb-2">
+            <p className="text-[11px] font-black tracking-[0.3em] uppercase text-[#C4A052] mb-4">
               All Five Boroughs
             </p>
             <h2 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-gray-950 leading-none tracking-tight">
@@ -99,35 +148,35 @@ export default function ExploreNeighborhoods() {
           </div>
           <Link
             href="/neighborhoods"
-            className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors underline underline-offset-4 decoration-gray-300 hover:decoration-gray-600 whitespace-nowrap"
+            className="group inline-flex items-center gap-2 text-sm font-bold text-gray-900 hover:text-[#C4A052] transition-colors whitespace-nowrap"
           >
-            View all neighborhoods →
+            View all neighborhoods
+            <span className="group-hover:translate-x-1 transition-transform" aria-hidden>→</span>
           </Link>
         </div>
 
-        {/* Featured large card + 4-grid */}
+        {/* Featured large card (2-col) + 4 standard cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-          {/* Large featured card — spans 2 cols on md+ */}
           {featured && (
-            <div className="col-span-2 md:col-span-2">
+            <div className="col-span-2">
               <NeighborhoodCard neighborhood={featured} large />
             </div>
           )}
-          {/* Remaining 4 cards */}
           {rest.slice(0, 4).map((n) => (
             <NeighborhoodCard key={n.id} neighborhood={n} />
           ))}
         </div>
 
-        {/* Bottom CTA */}
-        <div className="mt-10 sm:mt-12 text-center">
+        {/* CTA */}
+        <div className="mt-12 sm:mt-16 text-center">
           <Link
             href="/neighborhoods"
-            className="inline-block px-10 py-4 border-2 border-gray-900 text-gray-900 font-bold rounded-xl hover:bg-gray-900 hover:text-white transition-all text-sm sm:text-base tracking-wide"
+            className="inline-flex items-center gap-3 px-10 py-4 border-2 border-gray-950 text-gray-950 font-black rounded-xl hover:bg-gray-950 hover:text-white transition-all duration-300 text-sm tracking-widest uppercase"
           >
-            All Neighborhoods
+            All Neighborhoods →
           </Link>
         </div>
+
       </div>
     </section>
   );
