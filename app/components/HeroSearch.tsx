@@ -65,10 +65,11 @@ export default function HeroSearch() {
       .then((r) => r.json())
       .then((data) => {
         if (data?.heroImage) {
-          setHeroSettings({
-            heroImage: data.heroImage || DEFAULT_HERO.heroImage,
-            heroTagline: data.heroTagline || DEFAULT_HERO.heroTagline,
-          });
+          setHeroSettings((prev) => ({
+            ...prev,
+            heroImage: data.heroImage || prev.heroImage,
+            heroTagline: data.heroTagline || prev.heroTagline,
+          }));
         }
       })
       .catch(() => {});
