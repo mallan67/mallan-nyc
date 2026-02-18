@@ -4,7 +4,6 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
-import PageHero from '@/app/components/PageHero';
 
 export const revalidate = 3600;
 
@@ -83,12 +82,6 @@ export default function BuyPage() {
       />
       <Header dark />
       <main>
-        <PageHero
-          eyebrow="New York City"
-          title="Buy a Property."
-          subtitle="Condos, co-ops, townhouses, and commercial properties across all five boroughs."
-          compact
-        />
         <Suspense fallback={<SearchLoading />}>
           <PropertySearch type="buy" />
         </Suspense>
