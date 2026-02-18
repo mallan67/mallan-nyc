@@ -41,39 +41,31 @@ export default function TestimonialStrip() {
 
   return (
     <section
-      className="bg-stone-50 py-20 sm:py-24 px-4"
+      className="bg-[#f9f8f6] py-20 sm:py-24 px-4"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="max-w-4xl mx-auto text-center">
-        {/* Decorative quote mark */}
-        <div className="font-display text-8xl text-[#C4A052]/20 leading-none select-none mb-2" aria-hidden>
-          &ldquo;
-        </div>
-
+      <div className="max-w-3xl mx-auto text-center">
         {/* Testimonial carousel */}
-        <div className="relative min-h-[160px] sm:min-h-[140px]" aria-live="polite">
+        <div className="relative min-h-[180px] sm:min-h-[150px]" aria-live="polite">
           {testimonials.map((t, i) => (
             <div
               key={i}
               className={`transition-opacity duration-700 ${i === active ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
               aria-hidden={i !== active}
             >
-              <blockquote className="font-display text-2xl sm:text-3xl md:text-4xl italic text-gray-900 leading-[1.35] max-w-3xl mx-auto">
-                {t.quote}
+              <blockquote className="font-display italic text-2xl sm:text-3xl text-gray-900 leading-snug">
+                &ldquo;{t.quote}&rdquo;
               </blockquote>
-
-              <span className="gold-rule mx-auto mt-8 mb-5" />
-
-              <p className="text-sm font-semibold text-gray-500 tracking-wider uppercase">
-                {t.author} &nbsp;&middot;&nbsp; {t.location}
+              <p className="mt-6 text-sm text-gray-500">
+                {t.author} &mdash; {t.location}
               </p>
             </div>
           ))}
         </div>
 
         {/* Dot navigation */}
-        <div className="flex items-center justify-center gap-2.5 mt-8" role="tablist" aria-label="Testimonial navigation">
+        <div className="flex items-center justify-center gap-2 mt-8" role="tablist" aria-label="Testimonial navigation">
           {testimonials.map((_, i) => (
             <button
               key={i}
@@ -81,8 +73,8 @@ export default function TestimonialStrip() {
               aria-selected={i === active}
               aria-label={`Testimonial ${i + 1}`}
               onClick={() => setActive(i)}
-              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                i === active ? 'bg-[#C4A052] scale-110' : 'bg-gray-300 hover:bg-gray-400'
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                i === active ? 'bg-gray-900 scale-125' : 'bg-gray-300 hover:bg-gray-400'
               }`}
             />
           ))}

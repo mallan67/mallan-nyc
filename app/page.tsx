@@ -13,43 +13,29 @@ import ScrollReveal from './components/ScrollReveal';
 
 export const revalidate = 3600;
 
-function SectionDivider() {
-  return (
-    <div className="section-divider py-2">
-      <span className="section-divider-dot" />
-    </div>
-  );
-}
-
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white font-sans">
       <Header />
       <main id="main-content" role="main" tabIndex={-1}>
         <HeroSearch />
+        <StatsStrip />
         <ScrollReveal>
-          <StatsStrip />
-        </ScrollReveal>
-        <ScrollReveal delay={100}>
           <FeaturedListings />
         </ScrollReveal>
-        <ScrollReveal delay={50}>
+        <ScrollReveal>
           <TestimonialStrip />
         </ScrollReveal>
-        <SectionDivider />
-        <ScrollReveal delay={100}>
+        <ScrollReveal>
           <RecentTransactions />
         </ScrollReveal>
-        <ScrollReveal delay={100}>
+        <ScrollReveal>
           <ExploreNeighborhoods />
         </ScrollReveal>
-        <SectionDivider />
-        <ScrollReveal delay={100}>
+        <ScrollReveal>
           <ValueProposition />
         </ScrollReveal>
-        <ScrollReveal delay={50}>
-          <TrustMarkers />
-        </ScrollReveal>
+        <TrustMarkers />
       </main>
       <SocialShareBar title="Mallan Real Estate Inc. | Licensed NYC Real Estate Broker" />
       <Footer />
