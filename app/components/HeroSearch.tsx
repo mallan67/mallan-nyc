@@ -275,7 +275,7 @@ export default function HeroSearch() {
               onFocus={() => query.length >= 2 && setShowSuggestions(true)}
               onKeyDown={handleKeyDown}
               placeholder="Search by neighborhood, address, or building..."
-              className="flex-1 px-4 py-5 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/50 font-light tracking-wide"
+              className="flex-1 px-4 py-4 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/50 font-light tracking-wide"
               autoComplete="off"
               role="combobox"
               aria-expanded={showSuggestions && suggestions.length > 0}
@@ -287,7 +287,7 @@ export default function HeroSearch() {
             <button
               onClick={handleSearch}
               data-analytics-cta="hero_search"
-              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-8 md:px-10 py-5 md:py-6 rounded-full m-1.5 transition-colors"
+              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-6 md:px-10 py-4 md:py-6 rounded-full m-1.5 flex-shrink-0 transition-colors"
             >
               Search
             </button>
