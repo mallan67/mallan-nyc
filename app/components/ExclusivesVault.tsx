@@ -69,7 +69,6 @@ export default function ExclusivesVault() {
             </div>
             <Link
               href="/sign-in"
-              onClick={(e) => { e.preventDefault(); handleUnlock(); }}
               className="btn-gold bg-brand-gold-deep text-white font-medium text-sm px-10 py-4 rounded-full inline-flex items-center gap-2.5"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>

@@ -126,8 +126,8 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
   const exclusivesItems = [
     { title: 'Mallan Exclusives', href: '/buy?exclusive=mallan' },
-    { title: 'Private Exclusives', href: '/buy?exclusive=private' },
-    { title: 'Coming Soon', href: '/buy?coming-soon=true' },
+    { title: 'Private Exclusives', href: '/sign-in' },
+    { title: 'Coming Soon', href: '/sign-in' },
   ];
 
   const neighborhoodItems = [
