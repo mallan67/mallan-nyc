@@ -222,7 +222,7 @@ export default function HeroSearch() {
         {/* Headline */}
         <h1
           data-hero-h
-          className="font-display font-bold text-white text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl tracking-tight leading-[1.02] mb-5 max-w-5xl"
+          className="font-display font-bold text-white text-4xl sm:text-5xl md:text-6xl lg:text-[4.25rem] xl:text-7xl tracking-tight leading-[1.02] mb-5 max-w-5xl"
           style={{ textShadow: '0 4px 40px rgba(0,0,0,0.15)' }}
         >
           New York Real Estate,<br />Reimagined.

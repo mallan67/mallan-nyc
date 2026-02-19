@@ -194,7 +194,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
             className="hidden lg:flex items-center ml-auto"
             aria-label="Main navigation"
           >
-            <ul className="flex items-center gap-8 lg:gap-10 xl:gap-12 text-[13px] font-light">
+            <ul className="flex items-center gap-5 lg:gap-6 xl:gap-8 text-[13px] font-light">
               <li><NavDropdown label="Buy" items={buyItems} dark={dark} /></li>
               <li><NavDropdown label="Rent" items={rentItems} dark={dark} /></li>
               <li><NavDropdown label="Sell" items={sellItems} dark={dark} /></li>
@@ -224,7 +224,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li>
                 <Link
                   href="/sign-in"
-                  className="btn-liquid text-[13px] font-medium bg-white text-brand-dark px-6 py-2.5 rounded-full"
+                  className="btn-liquid text-[13px] font-medium border border-white/40 text-white px-5 py-2 rounded-full hover:bg-white hover:text-brand-dark transition-colors"
                 >
                   Sign In
                 </Link>
