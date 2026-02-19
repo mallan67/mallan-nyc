@@ -102,7 +102,7 @@ export default function ManhattanHubPage() {
 
           {/* Title at bottom */}
           <div className="pb-8 sm:pb-12">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white tracking-tight">
               Manhattan Real Estate Guide
             </h1>
             <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
@@ -117,7 +117,7 @@ export default function ManhattanHubPage() {
         {/* Intro */}
         <section className="py-10 sm:py-14">
           <div className="max-w-3xl mx-auto px-4">
-            <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
+            <p className="text-brand-dark/60 text-base sm:text-lg leading-relaxed">
               {config.intro}
             </p>
           </div>
@@ -127,27 +127,27 @@ export default function ManhattanHubPage() {
         <NeighborhoodHubGrid neighborhoods={neighborhoods} boroughSlug="manhattan" />
 
         {/* Hub FAQ */}
-        <section className="py-10 sm:py-14 bg-gray-50">
+        <section className="py-10 sm:py-14 bg-stone-50/50">
           <div className="max-w-3xl mx-auto px-4">
-            <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-6">
+            <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-6">
               Manhattan Real Estate FAQ
             </h2>
             <div className="space-y-2">
               {hubFaqSchema.mainEntity.map((faq, i) => (
                 <details
                   key={i}
-                  className="group bg-white rounded-lg border border-gray-200"
+                  className="group glass-card rounded-3xl"
                 >
-                  <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 py-4 text-sm sm:text-base font-medium text-gray-900 select-none">
+                  <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 py-4 text-sm sm:text-base font-medium text-brand-dark select-none">
                     {faq.name}
                     <span
                       aria-hidden="true"
-                      className="shrink-0 text-gray-400 group-open:rotate-45 transition-transform text-lg"
+                      className="shrink-0 text-brand-dark/40 group-open:rotate-45 transition-transform text-lg"
                     >
                       +
                     </span>
                   </summary>
-                  <div className="px-5 pb-4 text-sm sm:text-base text-gray-600 leading-relaxed">
+                  <div className="px-5 pb-4 text-sm sm:text-base text-brand-dark/60 leading-relaxed">
                     {faq.acceptedAnswer.text}
                   </div>
                 </details>
@@ -159,23 +159,23 @@ export default function ManhattanHubPage() {
         {/* CTA */}
         <section className="py-10 sm:py-14">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-3">
+            <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-3">
               Find Your Manhattan Home
             </h2>
-            <p className="text-gray-500 mb-8 max-w-xl mx-auto">
+            <p className="text-brand-dark/50 mb-8 max-w-xl mx-auto">
               Search all active Manhattan listings or speak with our team for
               personalized guidance.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/buy?borough=Manhattan"
-                className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base"
+                className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors text-sm sm:text-base"
               >
                 Search Manhattan Listings
               </Link>
               <Link
                 href="/contact"
-                className="inline-block px-8 py-3 border border-gray-900 text-gray-900 font-medium rounded-lg hover:bg-gray-900 hover:text-white transition-colors text-sm sm:text-base"
+                className="inline-block px-8 py-3 border border-brand-dark text-brand-dark font-medium rounded-2xl hover:bg-brand-dark hover:text-white transition-colors text-sm sm:text-base"
               >
                 Get a Free Consultation
               </Link>

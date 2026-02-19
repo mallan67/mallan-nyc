@@ -4,6 +4,7 @@ import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import Image from 'next/image';
 import Link from 'next/link';
+import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
 
 export const revalidate = 86400;
 
@@ -95,7 +96,7 @@ const sellFaqSchema = {
 
 export default function SellPage() {
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sellHowToSchema) }}
@@ -107,7 +108,7 @@ export default function SellPage() {
       <Header dark />
       <main className="pt-20">
         {/* Hero Section */}
-        <section className="relative h-[50vh] min-h-[400px] flex items-center justify-center">
+        <section className="relative h-[60vh] min-h-[500px] flex items-center justify-center">
           <div className="absolute inset-0">
             <Image
               src="/images/hero.jpg"
@@ -116,7 +117,7 @@ export default function SellPage() {
               className="object-cover"
               priority
             />
-            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute inset-0 hero-gradient" />
           </div>
           <div className="relative z-10 text-center text-white px-4 max-w-3xl">
             <div className="mb-6">
@@ -127,7 +128,7 @@ export default function SellPage() {
                 Back to Home
               </Link>
             </div>
-            <h1 className="text-xl md:text-2xl font-semibold mb-4">
+            <h1 className="font-display font-bold text-3xl md:text-5xl mb-4">
               Sell Your Property
             </h1>
             <p className="text-lg md:text-xl text-gray-200">
@@ -138,45 +139,45 @@ export default function SellPage() {
         </section>
 
         {/* Why Sell With Us */}
-        <section className="py-16 bg-white">
+        <section className="py-16">
           <div className="max-w-5xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-semibold text-center mb-12">
+            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-12">
               Why Sell With Mallan Real Estate
             </h2>
             <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center">
+              <div className="glass-card rounded-3xl p-8 text-center">
                 <div className="w-16 h-16 bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Competitive Pricing</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-display font-semibold mb-2">Competitive Pricing</h3>
+                <p className="text-brand-dark/60">
                   Data-driven pricing strategies to maximize your return while ensuring
                   a timely sale.
                 </p>
               </div>
-              <div className="text-center">
+              <div className="glass-card rounded-3xl p-8 text-center">
                 <div className="w-16 h-16 bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Professional Marketing</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-display font-semibold mb-2">Professional Marketing</h3>
+                <p className="text-brand-dark/60">
                   High-quality photography, virtual tours, and targeted advertising
                   to showcase your property.
                 </p>
               </div>
-              <div className="text-center">
+              <div className="glass-card rounded-3xl p-8 text-center">
                 <div className="w-16 h-16 bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Expert Negotiation</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-display font-semibold mb-2">Expert Negotiation</h3>
+                <p className="text-brand-dark/60">
                   Skilled negotiators who advocate for your interests and secure
                   the best possible terms.
                 </p>
@@ -186,9 +187,9 @@ export default function SellPage() {
         </section>
 
         {/* Process */}
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-stone-50/50">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-semibold text-center mb-12">
+            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-12">
               Our Selling Process
             </h2>
             <div className="space-y-8">
@@ -226,8 +227,8 @@ export default function SellPage() {
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
-                    <p className="text-gray-600">{item.description}</p>
+                    <h3 className="text-xl font-display font-semibold mb-2">{item.title}</h3>
+                    <p className="text-brand-dark/60">{item.description}</p>
                   </div>
                 </div>
               ))}
@@ -235,10 +236,17 @@ export default function SellPage() {
           </div>
         </section>
 
+        {/* Seller Closing Cost Calculator */}
+        <section className="py-12 px-4">
+          <div className="max-w-xl mx-auto">
+            <SellerClosingCostCalculator />
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="py-16 bg-brand-dark text-white">
           <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-xl md:text-2xl font-semibold mb-4">
+            <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">
               Ready to Sell?
             </h2>
             <p className="text-gray-300 mb-8">
@@ -248,19 +256,19 @@ export default function SellPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/sign-up?role=seller"
-                className="inline-block px-8 py-3 bg-brand-gold text-white font-medium rounded hover:bg-brand-gold/90 transition-colors"
+                className="inline-block px-8 py-3 bg-brand-gold text-white font-medium rounded-2xl hover:bg-brand-gold/90 transition-colors"
               >
                 Get Started — Create Account
               </Link>
               <Link
                 href="/agents"
-                className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded hover:bg-gray-100 transition-colors"
+                className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded-2xl hover:bg-white/90 transition-colors"
               >
                 Contact an Agent
               </Link>
               <a
                 href="tel:+16462584460"
-                className="inline-block px-8 py-3 border border-white text-white font-medium rounded hover:bg-white/10 transition-colors"
+                className="inline-block px-8 py-3 border border-white text-white font-medium rounded-2xl hover:bg-white/10 transition-colors"
               >
                 Call (646) 258-4460
               </a>

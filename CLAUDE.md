@@ -135,7 +135,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
 | `data/UCBA-2026-Requirements.md` | UCBA 2026 rules extracted (56 pages) — all compliance requirements |
 | `data/RLS-Syndication-Research.md` | RLS feed types, syndication portals, costs, pre-licensed providers |
-| `Desktop/1/Old/MALLAN-NYC-CRM-FINAL2.html` | Main CRM backend mockup file (5-tab layout, Tailwind v4 compiled build) |
+| `Desktop/1/Old/search-modular/MALLAN-NYC-CRM-FINAL2.html` | Main CRM backend mockup file (5-tab layout, Tailwind v4 compiled build) |
 
 ---
 

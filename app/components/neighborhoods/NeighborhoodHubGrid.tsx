@@ -21,7 +21,7 @@ export default function NeighborhoodHubGrid({
             <Link
               key={n.slug}
               href={`/${boroughSlug}/${n.slug}`}
-              className="group block relative overflow-hidden rounded-lg aspect-[3/2]"
+              className="group block relative overflow-hidden rounded-3xl aspect-[3/2]"
             >
               {/* Background */}
               <div
@@ -32,7 +32,7 @@ export default function NeighborhoodHubGrid({
 
               {/* Content */}
               <div className="absolute bottom-0 left-0 right-0 p-5">
-                <h3 className="text-xl font-semibold text-white">{n.name}</h3>
+                <h3 className="text-xl font-display font-semibold text-white">{n.name}</h3>
                 <p className="text-sm text-white/80 mt-0.5">{n.tagline}</p>
 
                 <div className="flex items-center justify-between mt-3">

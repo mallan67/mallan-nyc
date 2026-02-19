@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -126,16 +127,15 @@ export default function ContactPage() {
   return (
     <>
       <Header dark />
-      <main id="main-content" className="min-h-screen bg-white pt-20">
+      <main id="main-content" className="min-h-screen bg-[#FEFEFE] pt-20">
         {/* Hero */}
-        <section className="relative text-white py-16 md:py-20 overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: "url('/images/hero.jpg')" }}
-          />
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="relative max-w-4xl mx-auto px-4 text-center">
-            <h1 className="text-xl md:text-2xl font-sans font-medium mb-4">
+        <section className="relative text-white py-20 md:py-28 overflow-hidden">
+          <div className="absolute inset-0">
+            <Image src="/images/hero.jpg" alt="Contact Mallan Real Estate" fill className="object-cover" priority />
+            <div className="absolute inset-0 hero-gradient" />
+          </div>
+          <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
+            <h1 className="font-display font-bold text-3xl md:text-5xl mb-4">
               Contact Us
             </h1>
             <p className="text-lg text-gray-200 max-w-2xl mx-auto">
@@ -152,7 +152,7 @@ export default function ContactPage() {
               <div className="md:col-span-3">
                 {submitStatus === 'success' ? (
                   <div
-                    className="bg-green-50 border border-green-200 rounded-lg p-8 text-center"
+                    className="glass-card rounded-3xl bg-green-50/50 p-8 text-center"
                     role="status"
                     aria-live="polite"
                   >
@@ -170,28 +170,28 @@ export default function ContactPage() {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <h2 className="text-xl font-sans font-medium text-gray-900 mb-3">
+                    <h2 className="text-xl font-display font-semibold text-brand-dark mb-3">
                       Thank You
                     </h2>
-                    <p className="text-gray-600 mb-2">
+                    <p className="text-brand-dark/60 mb-2">
                       Your message has been received.
                     </p>
-                    <div className="bg-white rounded-lg p-4 my-6 text-left border border-green-100">
-                      <h3 className="text-sm font-medium text-gray-800 mb-2">What happens next:</h3>
-                      <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+                    <div className="bg-white/60 rounded-2xl p-4 my-6 text-left ring-1 ring-green-100/50">
+                      <h3 className="text-sm font-medium text-brand-dark mb-2">What happens next:</h3>
+                      <ol className="text-sm text-brand-dark/60 space-y-1 list-decimal list-inside">
                         <li>We review your inquiry within 24 hours</li>
                         <li>A licensed agent will respond via email</li>
                         <li>No automated calls or texts—just a real person</li>
                       </ol>
                     </div>
-                    <div className="border-t border-green-200 pt-6">
-                      <p className="text-sm text-gray-500 mb-4">
+                    <div className="border-t border-black/5 pt-6">
+                      <p className="text-sm text-brand-dark/50 mb-4">
                         Need to speak with someone now?
                       </p>
                       <a
                         href="tel:+16462584460"
                         data-analytics-cta="cta_phone_success"
-                        className="inline-block px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-100 transition-colors text-sm"
+                        className="inline-block px-6 py-2 ring-1 ring-black/5 text-brand-dark/70 font-medium rounded-2xl hover:bg-gray-100 transition-colors text-sm"
                       >
                         Call (646) 258-4460
                       </a>
@@ -210,7 +210,7 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="name"
-                          className="block text-sm font-medium text-gray-700 mb-1"
+                          className="block text-sm font-medium text-brand-dark/70 mb-1"
                         >
                           Name <span className="text-red-500">*</span>
                         </label>
@@ -220,8 +220,8 @@ export default function ContactPage() {
                           name="name"
                           value={formData.name}
                           onChange={handleChange}
-                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent ${
-                            errors.name ? 'border-red-500' : 'border-gray-300'
+                          className={`w-full px-4 py-3 rounded-2xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 ${
+                            errors.name ? 'ring-2 ring-red-500' : 'ring-1 ring-black/5'
                           }`}
                           aria-describedby={errors.name ? 'name-error' : undefined}
                         />
@@ -236,7 +236,7 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="email"
-                          className="block text-sm font-medium text-gray-700 mb-1"
+                          className="block text-sm font-medium text-brand-dark/70 mb-1"
                         >
                           Email <span className="text-red-500">*</span>
                         </label>
@@ -246,8 +246,8 @@ export default function ContactPage() {
                           name="email"
                           value={formData.email}
                           onChange={handleChange}
-                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent ${
-                            errors.email ? 'border-red-500' : 'border-gray-300'
+                          className={`w-full px-4 py-3 rounded-2xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 ${
+                            errors.email ? 'ring-2 ring-red-500' : 'ring-1 ring-black/5'
                           }`}
                           aria-describedby={errors.email ? 'email-error' : undefined}
                         />
@@ -262,9 +262,9 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="phone"
-                          className="block text-sm font-medium text-gray-700 mb-1"
+                          className="block text-sm font-medium text-brand-dark/70 mb-1"
                         >
-                          Phone <span className="text-gray-400">(optional)</span>
+                          Phone <span className="text-brand-dark/40">(optional)</span>
                         </label>
                         <input
                           type="tel"
@@ -272,7 +272,7 @@ export default function ContactPage() {
                           name="phone"
                           value={formData.phone}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent"
+                          className="w-full px-4 py-3 rounded-2xl bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                         />
                       </div>
 
@@ -280,7 +280,7 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="message"
-                          className="block text-sm font-medium text-gray-700 mb-1"
+                          className="block text-sm font-medium text-brand-dark/70 mb-1"
                         >
                           Message <span className="text-red-500">*</span>
                         </label>
@@ -290,8 +290,8 @@ export default function ContactPage() {
                           rows={5}
                           value={formData.message}
                           onChange={handleChange}
-                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-gold focus:border-transparent resize-none ${
-                            errors.message ? 'border-red-500' : 'border-gray-300'
+                          className={`w-full px-4 py-3 rounded-2xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 resize-none ${
+                            errors.message ? 'ring-2 ring-red-500' : 'ring-1 ring-black/5'
                           }`}
                           aria-describedby={errors.message ? 'message-error' : undefined}
                         />
@@ -303,7 +303,7 @@ export default function ContactPage() {
                       </div>
 
                       {/* Consent Checkbox - TCPA Compliance */}
-                      <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="bg-stone-50/50 p-4 rounded-2xl">
                         <div className="flex items-start">
                           <input
                             type="checkbox"
@@ -316,10 +316,10 @@ export default function ContactPage() {
                           />
                           <label
                             htmlFor="consent"
-                            className="ml-3 text-sm text-gray-600"
+                            className="ml-3 text-sm text-brand-dark/60"
                             id="consent-description"
                           >
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-brand-dark/70">
                               I consent to be contacted
                             </span>{' '}
                             by Mallan Real Estate Inc. regarding my inquiry via email.
@@ -340,7 +340,7 @@ export default function ContactPage() {
                           type="submit"
                           disabled={isSubmitting}
                           data-analytics-cta="contact_form"
-                          className="w-full px-6 py-3 bg-brand-dark text-white font-medium rounded-lg hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-6 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSubmitting ? 'Sending...' : 'Send Message'}
                         </button>
@@ -358,15 +358,15 @@ export default function ContactPage() {
 
               {/* Contact Info Sidebar */}
               <div className="md:col-span-2">
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">
+                <div className="glass-card rounded-3xl p-8">
+                  <h2 className="text-lg font-display font-semibold text-brand-dark mb-4">
                     Other Ways to Reach Us
                   </h2>
 
                   <div className="space-y-4">
                     {/* Phone */}
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">Phone</h3>
+                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Phone</h3>
                       <a
                         href="tel:+16462584460"
                         data-analytics-cta="phone_call"
@@ -378,7 +378,7 @@ export default function ContactPage() {
 
                     {/* Email */}
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">Email</h3>
+                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Email</h3>
                       <a
                         href="mailto:info@mallan.nyc"
                         data-analytics-cta="email_agent"
@@ -390,8 +390,8 @@ export default function ContactPage() {
 
                     {/* Office */}
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">Office</h3>
-                      <p className="text-gray-600 text-sm">
+                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Office</h3>
+                      <p className="text-brand-dark/60 text-sm">
                         400 East 90th Street, Suite 17C<br />
                         New York, NY 10128
                       </p>
@@ -399,8 +399,8 @@ export default function ContactPage() {
 
                     {/* Hours */}
                     <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">Hours</h3>
-                      <p className="text-gray-600 text-sm">
+                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Hours</h3>
+                      <p className="text-brand-dark/60 text-sm">
                         Mon-Fri: 9am - 6pm<br />
                         Sat-Sun: 10am - 4pm
                       </p>
@@ -410,7 +410,7 @@ export default function ContactPage() {
 
                 {/* License Info */}
                 <div className="mt-6 text-center">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-brand-dark/40">
                     Licensed Real Estate Broker<br />
                     NY License #10991205323
                   </p>

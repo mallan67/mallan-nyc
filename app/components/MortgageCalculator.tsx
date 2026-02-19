@@ -68,7 +68,7 @@ export default function MortgageCalculator({
   }, [calculations]);
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-6">
+    <div className="glass-card rounded-3xl p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center">
           <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,15 +76,15 @@ export default function MortgageCalculator({
           </svg>
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900">Mortgage Calculator</h3>
-          <p className="text-sm text-gray-500">Estimate your monthly payment</p>
+          <h3 className="font-display font-semibold text-brand-dark">Mortgage Calculator</h3>
+          <p className="text-sm text-brand-dark/50">Estimate your monthly payment</p>
         </div>
       </div>
 
       {/* Total Monthly Payment */}
-      <div className="bg-brand-gold/5 rounded-lg p-4 mb-6 text-center">
-        <p className="text-sm text-gray-600 mb-1">Estimated Monthly Payment</p>
-        <p className="text-2xl font-bold text-brand-dark">
+      <div className="bg-brand-gold/5 rounded-2xl p-4 mb-6 text-center">
+        <p className="text-sm text-brand-dark/60 mb-1">Estimated Monthly Payment</p>
+        <p className="text-2xl font-display font-bold text-brand-dark">
           ${calculations.totalMonthly.toLocaleString()}
         </p>
       </div>
@@ -116,19 +116,19 @@ export default function MortgageCalculator({
         <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-brand-gold"></span>
-            <span className="text-gray-600">P&I: ${calculations.monthlyPrincipalInterest.toLocaleString()}</span>
+            <span className="text-brand-dark/60">P&I: ${calculations.monthlyPrincipalInterest.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-            <span className="text-gray-600">Taxes: ${calculations.monthlyTaxes.toLocaleString()}</span>
+            <span className="text-brand-dark/60">Taxes: ${calculations.monthlyTaxes.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-green-500"></span>
-            <span className="text-gray-600">Maint: ${calculations.maintenanceFee.toLocaleString()}</span>
+            <span className="text-brand-dark/60">Maint: ${calculations.maintenanceFee.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-purple-500"></span>
-            <span className="text-gray-600">Ins: ${calculations.monthlyInsurance.toLocaleString()}</span>
+            <span className="text-brand-dark/60">Ins: ${calculations.monthlyInsurance.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function MortgageCalculator({
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <label className="text-gray-600">Down Payment</label>
+            <label className="text-brand-dark/60">Down Payment</label>
             <span className="font-medium">{downPaymentPercent}% (${calculations.downPayment.toLocaleString()})</span>
           </div>
           <input
@@ -149,7 +149,7 @@ export default function MortgageCalculator({
             max={50}
             step={5}
           />
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
+          <div className="flex justify-between text-xs text-brand-dark/40 mt-1">
             <span>5%</span>
             <span>50%</span>
           </div>
@@ -157,7 +157,7 @@ export default function MortgageCalculator({
 
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <label className="text-gray-600">Interest Rate</label>
+            <label className="text-brand-dark/60">Interest Rate</label>
             <span className="font-medium">{interestRate}%</span>
           </div>
           <input
@@ -169,7 +169,7 @@ export default function MortgageCalculator({
             max={10}
             step={0.125}
           />
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
+          <div className="flex justify-between text-xs text-brand-dark/40 mt-1">
             <span>3%</span>
             <span>10%</span>
           </div>
@@ -177,7 +177,7 @@ export default function MortgageCalculator({
 
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <label className="text-gray-600">Loan Term</label>
+            <label className="text-brand-dark/60">Loan Term</label>
             <span className="font-medium">{loanTerm} years</span>
           </div>
           <div className="flex gap-2">
@@ -185,10 +185,10 @@ export default function MortgageCalculator({
               <button
                 key={term}
                 onClick={() => setLoanTerm(term)}
-                className={`flex-1 py-2 text-sm rounded border transition-colors ${
+                className={`flex-1 py-2 text-sm rounded-2xl transition-colors ${
                   loanTerm === term
-                    ? 'bg-brand-gold text-white border-brand-gold'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-brand-gold'
+                    ? 'bg-brand-gold text-white'
+                    : 'bg-white/60 text-brand-dark/60 ring-1 ring-black/5 hover:bg-white/80'
                 }`}
               >
                 {term} yr
@@ -199,22 +199,22 @@ export default function MortgageCalculator({
       </div>
 
       {/* Loan Details */}
-      <div className="mt-6 pt-4 border-t space-y-2 text-sm">
+      <div className="mt-6 pt-4 border-t border-black/5 space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-500">Purchase Price</span>
+          <span className="text-brand-dark/50">Purchase Price</span>
           <span className="font-medium">${purchasePrice.toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Loan Amount</span>
+          <span className="text-brand-dark/50">Loan Amount</span>
           <span className="font-medium">${calculations.loanAmount.toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Total Interest ({loanTerm} yrs)</span>
-          <span className="text-gray-600">${calculations.totalInterest.toLocaleString()}</span>
+          <span className="text-brand-dark/50">Total Interest ({loanTerm} yrs)</span>
+          <span className="text-brand-dark/60">${calculations.totalInterest.toLocaleString()}</span>
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-gray-400">
+      <p className="mt-4 text-xs text-brand-dark/40">
         *Estimate only. Actual payments may vary. Does not include PMI if down payment is less than 20%.
       </p>
     </div>

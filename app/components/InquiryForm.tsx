@@ -60,14 +60,14 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
 
   if (isSubmitted) {
     return (
-      <div className="bg-green-50 rounded-lg p-6 border border-green-200">
+      <div className="glass-card rounded-3xl p-6 bg-green-50/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
             <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-lg font-sans text-green-800">Inquiry Sent</h3>
+          <h3 className="text-lg font-display font-semibold text-green-800">Inquiry Sent</h3>
         </div>
         <p className="text-green-700 text-sm">
           Thank you for your inquiry! An agent will contact you shortly.
@@ -78,8 +78,8 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 border">
-      <h3 className="text-lg font-sans mb-4">Request Information</h3>
+    <div className="glass-card rounded-3xl p-6">
+      <h3 className="text-lg font-display font-semibold mb-4">Request Information</h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -93,7 +93,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
             value={formData.name}
             onChange={handleChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+            className="w-full rounded-2xl px-4 py-2 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
             placeholder="John Smith"
           />
         </div>
@@ -109,7 +109,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
             value={formData.email}
             onChange={handleChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+            className="w-full rounded-2xl px-4 py-2 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
             placeholder="john@example.com"
           />
         </div>
@@ -125,7 +125,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
             value={formData.phone}
             onChange={handleChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+            className="w-full rounded-2xl px-4 py-2 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
             placeholder="(212) 555-0123"
           />
         </div>
@@ -141,7 +141,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
             value={formData.preferredDate}
             onChange={handleChange}
             min={new Date().toISOString().split('T')[0]}
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+            className="w-full rounded-2xl px-4 py-2 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
           />
         </div>
 
@@ -155,14 +155,14 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
             value={formData.message}
             onChange={handleChange}
             rows={3}
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+            className="w-full rounded-2xl px-4 py-2 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
             placeholder="I'm interested in learning more about this property..."
           />
         </div>
 
         {/* NYC-Specific Note for Co-ops */}
         {listingId && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-brand-dark/50">
             Note: Inquiries for co-op and condo listings may require board approval.
             Your agent will provide details on the application process.
           </p>
@@ -178,7 +178,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
               required
               className="mt-1"
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-brand-dark/60">
               I agree to the{' '}
               <a href="/terms" className="text-brand-gold hover:underline">
                 Terms of Service
@@ -199,7 +199,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
               onChange={handleChange}
               className="mt-1"
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-brand-dark/60">
               Send me updates about similar listings and market news
             </span>
           </label>
@@ -212,7 +212,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? 'Sending...' : 'Send Inquiry'}
         </button>

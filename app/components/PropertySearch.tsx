@@ -8,6 +8,7 @@ import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 import { isDisplayableInIDX, canDisplayAddress, getComingSoonDate, formatComingSoonBadge } from '@/lib/compliance/idx-display-gate';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
+import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -27,6 +28,7 @@ interface PropertySearchProps {
 export default function PropertySearch({ type }: PropertySearchProps) {
   const searchParams = useSearchParams();
   const isRental = type === 'rent';
+  const gridRef = useGsapReveal<HTMLDivElement>({ children: true, y: 50, scale: 0.97 });
 
   // Get all listings of the appropriate type
   // REBNY RLS: Enforce all 6 distribution gates via centralized utility
@@ -177,13 +179,13 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 99999 : priceRange[0] !== 0 || priceRange[1] !== 99999999);
 
   return (
-    <div className="min-h-screen bg-white pt-20">
+    <div className="min-h-screen bg-[#FEFEFE] pt-20">
       {/* Search Header */}
-      <section className="bg-white border-b sticky top-20 z-30">
+      <section className="bg-white/80 backdrop-blur-xl border-b border-black/5 sticky top-20 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Back to Home Link */}
           <div className="mb-4">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-brand-dark/60 hover:text-brand-dark transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
@@ -200,7 +202,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by address, neighborhood, zip, or borough..."
-                className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Search by address, neighborhood, zip, or borough"
               />
             </div>
@@ -213,7 +215,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                 id="ps-borough-filter"
                 value={boroughFilter}
                 onChange={(e) => setBoroughFilter(e.target.value)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Borough"
               >
                 <option value="">All Boroughs</option>
@@ -231,7 +233,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                   const [min, max] = e.target.value.split('-').map(Number);
                   setPriceRange([min, max]);
                 }}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Price range"
               >
                 <option value={isRental ? '0-99999' : '0-99999999'}>Any Price</option>
@@ -263,7 +265,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                 id="ps-beds-filter"
                 value={beds ?? ''}
                 onChange={(e) => setBeds(e.target.value ? Number(e.target.value) : null)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Number of bedrooms"
               >
                 <option value="">Any Beds</option>
@@ -280,7 +282,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                 id="ps-type-filter"
                 value={propertyType}
                 onChange={(e) => setPropertyType(e.target.value)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Property type"
               >
                 <option value="">Any Type</option>
@@ -298,7 +300,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                   if (e.target.value === '') setPetsAllowed(null);
                   else setPetsAllowed(e.target.value === 'yes');
                 }}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Pets policy"
               >
                 <option value="">Any Pets Policy</option>
@@ -312,7 +314,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                 id="ps-sort-filter"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Sort order"
               >
                 <option value="featured">Featured First</option>
@@ -326,7 +328,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
           {/* Active Filters */}
           {hasActiveFilters && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-gray-500">Active filters:</span>
+              <span className="text-sm text-brand-dark/50">Active filters:</span>
               {boroughFilter && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
                   {boroughFilter}
@@ -347,7 +349,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
               )}
               <button
                 onClick={clearFilters}
-                className="text-sm text-gray-500 hover:text-brand-gold underline"
+                className="text-sm text-brand-dark/50 hover:text-brand-gold underline"
               >
                 Clear all
               </button>
@@ -355,7 +357,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
           )}
 
           {/* REBNY Compliance Tooltip */}
-          <p className="mt-2 text-xs text-gray-400">
+          <p className="mt-2 text-xs text-brand-dark/40">
             Searches comply with REBNY RLS data standards for accurate, timely information.
           </p>
         </div>
@@ -366,7 +368,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
-            <p className="text-gray-600" aria-live="polite" aria-atomic="true">
+            <p className="text-brand-dark/60" aria-live="polite" aria-atomic="true">
               {sortedListings.length} {sortedListings.length === 1 ? 'property' : 'properties'} found
             </p>
             <IDXSearchDisclaimer />
@@ -374,62 +376,63 @@ export default function PropertySearch({ type }: PropertySearchProps) {
 
           {/* Listings Grid */}
           {sortedListings.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-lg">
-              <p className="text-gray-500 text-lg mb-2">No properties match your criteria</p>
-              <p className="text-gray-400 mb-4">Try adjusting your filters</p>
+            <div className="text-center py-16 glass-card rounded-3xl">
+              <p className="text-brand-dark/50 text-lg mb-2">No properties match your criteria</p>
+              <p className="text-brand-dark/40 mb-4">Try adjusting your filters</p>
               <button onClick={clearFilters} className="text-brand-gold hover:underline">
                 Clear all filters
               </button>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div ref={gridRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sortedListings.map((listing) => (
                 <Link
                   key={listing.id}
                   href={`/listing/${listing.id}`}
-                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
+                  className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group"
                 >
                   {/* IDXImage: native <img> for IDX (exclusives) + R2 (all other) photos */}
-                  <div className="relative">
+                  <div className="relative overflow-hidden">
                     <IDXImage
                       src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
                       alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
                       aspect="card"
+                      className="group-hover:scale-105 transition-transform duration-700"
                     />
                     {listing.flags.isExclusive && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded-xl">
                         Exclusive
                       </span>
                     )}
                     {getComingSoonDate(listing) && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded">
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl">
                         {formatComingSoonBadge(getComingSoonDate(listing)!)}
                       </span>
                     )}
                     {listing.openHouse?.scheduled && !getComingSoonDate(listing) && (
-                      <span className="absolute top-3 right-3 px-3 py-1 bg-white text-brand-dark text-xs rounded shadow">
+                      <span className="absolute top-3 right-3 px-3 py-1 bg-white text-brand-dark text-xs rounded-xl shadow">
                         Open House
                       </span>
                     )}
                   </div>
 
                   {/* Content */}
-                  <div className="p-4">
-                    <p className="text-xl font-semibold mb-1">
+                  <div className="p-5">
+                    <p className="text-xl font-display font-semibold mb-1">
                       {formatPrice(listing.price.listPrice, isRental)}
                     </p>
-                    <p className="text-gray-800">
+                    <p className="text-brand-dark/80">
                       {canDisplayAddress(listing) ? (
                         <>
                           {listing.address.streetNumber} {listing.address.streetName}, {listing.address.unit}
                         </>
                       ) : (
-                        <span className="italic text-gray-500">Address Undisclosed</span>
+                        <span className="italic text-brand-dark/50">Address Undisclosed</span>
                       )}
                     </p>
-                    <p className="text-gray-500 text-sm">{listing.address.neighborhoodDisplay}, {listing.address.borough}</p>
+                    <p className="text-brand-dark/50 text-sm">{listing.address.neighborhoodDisplay}, {listing.address.borough}</p>
 
-                    <div className="flex gap-4 text-sm text-gray-600 mt-3 pt-3 border-t">
+                    <div className="flex gap-4 text-sm text-brand-dark/60 mt-3 pt-3 border-t border-black/5">
                       <span>{listing.propertyInfo.bedroomsTotal} bed{listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''}</span>
                       <span>
                         {listing.propertyInfo.bathroomsFull}
@@ -438,18 +441,18 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                       {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
                         <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sqft</span>
                       )}
-                      <span className="text-gray-400">{listing.propertyInfo.propertyType}</span>
+                      <span className="text-brand-dark/40">{listing.propertyInfo.propertyType}</span>
                     </div>
 
                     {/* NYC-Specific: Maintenance/CC */}
                     {!isRental && listing.nycSpecific.maintenanceFee && (
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-brand-dark/40 mt-2">
                         {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
                       </p>
                     )}
 
                     {/* REBNY RLS Per-Card Attribution */}
-                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-[10px] text-brand-dark/40 mt-2 pt-2 border-t border-black/5">
                       Courtesy of {listing.agent.listOfficeName}
                       {listing.listing.modificationTimestamp && (
                         <> · Updated {new Date(listing.listing.modificationTimestamp).toLocaleDateString()}</>
@@ -464,17 +467,17 @@ export default function PropertySearch({ type }: PropertySearchProps) {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-16 bg-white border-t">
+      <section className="py-16 bg-stone-50/50 border-t border-black/5">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-display font-semibold mb-4">
             Don&apos;t See What You&apos;re Looking For?
           </h2>
-          <p className="text-gray-600 mb-8">
+          <p className="text-brand-dark/60 mb-8">
             Our agents have access to exclusive listings and can help you find the perfect property.
           </p>
           <Link
             href="/agents"
-            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded hover:bg-gray-800 transition-colors"
+            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
           >
             Contact an Agent
           </Link>

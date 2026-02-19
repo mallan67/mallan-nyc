@@ -33,29 +33,29 @@ export default function SignInPage() {
   if (submitted) {
     const portal = portalTypes.find(p => p.id === selectedPortal);
     return (
-      <div className="min-h-screen bg-white font-sans">
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
-            <div className="bg-white rounded-lg shadow-sm border p-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="glass-card rounded-3xl p-10">
+              <div className="w-16 h-16 bg-green-50/60 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-semibold mb-2">Signed In</h1>
-              <p className="text-gray-600 mb-4">
+              <h1 className="text-2xl font-display font-semibold mb-2">Signed In</h1>
+              <p className="text-brand-dark/60 mb-4">
                 Redirecting to your <strong>{portal?.label}</strong> portal...
               </p>
-              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-6">
+              <div className="w-full bg-black/5 rounded-full h-1.5 mb-6">
                 <div className="bg-brand-gold h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-brand-dark/40">
                 Portal access is being set up. Your agent will provide full login details.
               </p>
               <Link
                 href="/"
-                className="inline-block mt-6 px-6 py-3 bg-brand-dark text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                className="inline-block mt-6 px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors text-sm font-medium"
               >
                 Back to Home
               </Link>
@@ -68,13 +68,13 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-sm border p-8">
-            <h1 className="text-2xl font-semibold text-center mb-2">Sign In</h1>
-            <p className="text-gray-500 text-center text-sm mb-8">
+          <div className="glass-card rounded-3xl p-10">
+            <h1 className="text-2xl font-display font-semibold text-center mb-2">Sign In</h1>
+            <p className="text-brand-dark/50 text-center text-sm mb-8">
               Access your Mallan Real Estate portal
             </p>
 
@@ -90,13 +90,13 @@ export default function SignInPage() {
                       type="button"
                       key={portal.id}
                       onClick={() => setSelectedPortal(portal.id)}
-                      className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-lg border-2 transition-all text-xs font-medium ${
+                      className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl ring-2 transition-all text-xs font-medium ${
                         isActive
-                          ? `${c.activeBg} ${c.activeBorder} ${c.text}`
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                          ? `${c.activeBg} ${c.activeBorder.replace('border-', 'ring-')} ${c.text}`
+                          : 'bg-white/60 ring-black/5 text-brand-dark/60 hover:ring-black/10 hover:bg-white/80'
                       }`}
                     >
-                      <svg className={`w-5 h-5 ${isActive ? c.text : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-5 h-5 ${isActive ? c.text : 'text-brand-dark/40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={portal.icon} />
                       </svg>
                       {portal.label}
@@ -116,7 +116,7 @@ export default function SignInPage() {
                   type="email"
                   id="email"
                   required
-                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="you@example.com"
                 />
               </div>
@@ -129,23 +129,23 @@ export default function SignInPage() {
                   type="password"
                   id="password"
                   required
-                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="Your password"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-brand-dark text-white py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+                className="w-full bg-brand-dark text-white py-3 rounded-2xl hover:bg-brand-dark/90 transition-colors font-medium"
               >
                 Sign In
               </button>
             </form>
 
             {/* Portal Routing Info */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <p className="text-xs font-medium text-gray-700 mb-2">After sign in you&apos;ll see your portal:</p>
-              <div className="space-y-1.5 text-xs text-gray-600">
+            <div className="mt-6 p-4 bg-stone-50/50 rounded-2xl">
+              <p className="text-xs font-medium text-brand-dark/70 mb-2">After sign in you&apos;ll see your portal:</p>
+              <div className="space-y-1.5 text-xs text-brand-dark/60">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                   <span><strong>Buyer / Renter</strong> — Saved searches, tours, applications</span>
@@ -162,13 +162,13 @@ export default function SignInPage() {
             </div>
 
             {/* Sign Up Link */}
-            <div className="mt-6 pt-6 border-t text-center">
-              <p className="text-gray-600 text-sm mb-4">
+            <div className="mt-6 pt-6 border-t border-black/5 text-center">
+              <p className="text-brand-dark/60 text-sm mb-4">
                 Don&apos;t have an account?
               </p>
               <Link
                 href="/sign-up"
-                className="inline-block w-full px-6 py-3 border-2 border-brand-dark text-brand-dark rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                className="inline-block w-full px-6 py-3 ring-2 ring-brand-dark text-brand-dark rounded-2xl hover:bg-white/40 transition-colors text-sm font-medium"
               >
                 Create Account
               </Link>
@@ -176,12 +176,12 @@ export default function SignInPage() {
 
             {/* Contact */}
             <div className="mt-4 text-center">
-              <p className="text-gray-500 text-xs mb-2">Need help?</p>
+              <p className="text-brand-dark/50 text-xs mb-2">Need help?</p>
               <div className="flex gap-3 justify-center">
                 <Link href="/agents" className="text-xs text-brand-gold hover:underline">
                   Contact an Agent
                 </Link>
-                <span className="text-gray-300">|</span>
+                <span className="text-brand-dark/20">|</span>
                 <a href="tel:+16462584460" className="text-xs text-brand-gold hover:underline">
                   (646) 258-4460
                 </a>
@@ -189,7 +189,7 @@ export default function SignInPage() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
+          <p className="text-center text-xs text-brand-dark/40 mt-6">
             By signing in, you agree to our{' '}
             <Link href="/terms" className="hover:text-brand-gold">
               Terms of Service
