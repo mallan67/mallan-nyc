@@ -257,10 +257,10 @@ export default function HeroSearch() {
 
           {/* Search Bar — White pill */}
           <div
-            className="flex items-center bg-white/90 backdrop-blur-xl rounded-full overflow-hidden"
+            className="flex items-center bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-full"
             style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.2)' }}
           >
-            <svg className="ml-6 w-5 h-5 text-brand-dark/25 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className="ml-4 md:ml-6 w-5 h-5 text-brand-dark/25 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
             <input
@@ -275,7 +275,7 @@ export default function HeroSearch() {
               onFocus={() => query.length >= 2 && setShowSuggestions(true)}
               onKeyDown={handleKeyDown}
               placeholder="Search by neighborhood, address, or building..."
-              className="flex-1 px-4 py-4 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/50 font-light tracking-wide"
+              className="flex-1 min-w-0 px-3 md:px-4 py-3 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/50 font-light tracking-wide"
               autoComplete="off"
               role="combobox"
               aria-expanded={showSuggestions && suggestions.length > 0}
@@ -287,7 +287,7 @@ export default function HeroSearch() {
             <button
               onClick={handleSearch}
               data-analytics-cta="hero_search"
-              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-6 md:px-10 py-4 md:py-6 rounded-full m-1.5 flex-shrink-0 transition-colors"
+              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-5 md:px-10 py-3 md:py-6 rounded-xl md:rounded-full m-1 md:m-1.5 flex-shrink-0 transition-colors"
             >
               Search
             </button>
