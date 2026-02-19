@@ -414,9 +414,9 @@ export default function SellPage() {
                 </div>
               </div>
 
-              {/* Strategic Pricing — 3D stacked cards (5 cols) */}
-              <div className="lg:col-span-5 relative rounded-3xl p-8 md:p-10 flex flex-col justify-between min-h-[520px]" style={{ background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
-                <div>
+              {/* Strategic Pricing — Stacked deck cards (5 cols) */}
+              <div className="lg:col-span-5 relative rounded-3xl p-8 md:p-10 flex flex-col justify-center min-h-[520px]" style={{ background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+                <div className="mb-8">
                   <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Market Intelligence</p>
                   <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-3">Strategic Pricing</h3>
                   <p className="text-white/50 text-sm font-extralight leading-relaxed">
@@ -424,48 +424,65 @@ export default function SellPage() {
                     market conditions, and deep neighborhood expertise.
                   </p>
                 </div>
-                {/* 3D stacked analysis cards */}
-                <div className="relative mt-8 h-[240px]" style={{ perspective: '800px' }}>
-                  <div className="absolute bottom-0 left-4 right-4 h-[180px] rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.08), rgba(184,134,11,0.02))', border: '1px solid rgba(184,134,11,0.1)', transform: 'rotateX(8deg) translateZ(-40px)', transformOrigin: 'bottom center' }}>
-                    <div className="p-5 pt-6">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-white/30 text-[10px] font-medium tracking-wider uppercase">Market Analysis</span>
-                        <span className="text-brand-gold/40 text-[10px]">Q4 2025</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-2 bg-white/5 rounded-full" />
-                        <div className="h-2 bg-white/5 rounded-full w-3/4" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-4 left-2 right-2 h-[180px] rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.12), rgba(184,134,11,0.04))', border: '1px solid rgba(184,134,11,0.15)', transform: 'rotateX(5deg) translateZ(-20px)', transformOrigin: 'bottom center' }}>
-                    <div className="p-5 pt-6">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-white/40 text-[10px] font-medium tracking-wider uppercase">Comparable Sales</span>
-                        <span className="text-brand-gold/50 text-[10px]">12 Comps</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-2 bg-white/8 rounded-full" />
-                        <div className="h-2 bg-white/8 rounded-full w-4/5" />
-                        <div className="h-2 bg-white/8 rounded-full w-1/2" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-8 left-0 right-0 h-[180px] rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.2), rgba(184,134,11,0.06))', border: '1px solid rgba(184,134,11,0.25)', boxShadow: '0 8px 32px rgba(184,134,11,0.1)', transform: 'rotateX(2deg)', transformOrigin: 'bottom center' }}>
-                    <div className="p-5 pt-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-white/60 text-[10px] font-medium tracking-wider uppercase">Pricing Strategy</span>
-                        <span className="text-brand-gold text-[10px] font-medium">Final Report</span>
-                      </div>
-                      <div className="flex items-end gap-4 mb-3">
-                        <div>
-                          <p className="text-white/30 text-[9px] uppercase tracking-wider">Recommended</p>
-                          <p className="font-display font-bold text-2xl text-white">$2.45M</p>
+                {/* Stacked deck — 3 cards fanned behind each other */}
+                <div className="relative h-[220px] mx-auto w-full max-w-[340px]">
+                  {/* Card 3 (back) — Comprehensive Marketing Plan */}
+                  <div
+                    className="absolute inset-0 rounded-2xl"
+                    style={{ background: 'linear-gradient(135deg, #3d3d3d, #4a4a4a)', border: '1px solid rgba(255,255,255,0.06)', transform: 'rotate(4deg) translate(12px, 8px)', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}
+                  >
+                    <div className="p-6 pt-7">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-full bg-brand-gold/20 flex items-center justify-center">
+                          <svg className="w-3 h-3 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
                         </div>
-                        <div className="flex-1 flex items-end gap-1 h-12 pb-1">
-                          {[35, 55, 70, 85, 100, 90, 65, 45].map((h, i) => (
-                            <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, background: `rgba(184,134,11,${0.15 + i * 0.08})` }} />
-                          ))}
+                        <span className="text-white/40 text-[11px] font-medium tracking-wider uppercase">Marketing Plan</span>
+                      </div>
+                      <p className="font-display font-semibold text-lg text-white/50">Comprehensive<br />Marketing Plan</p>
+                    </div>
+                  </div>
+                  {/* Card 2 (middle) — Property Comparables */}
+                  <div
+                    className="absolute inset-0 rounded-2xl"
+                    style={{ background: 'linear-gradient(135deg, #484848, #555)', border: '1px solid rgba(255,255,255,0.08)', transform: 'rotate(2deg) translate(6px, 4px)', boxShadow: '0 10px 40px rgba(0,0,0,0.25)' }}
+                  >
+                    <div className="p-6 pt-7">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-full bg-brand-gold/20 flex items-center justify-center">
+                          <svg className="w-3 h-3 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        </div>
+                        <span className="text-white/50 text-[11px] font-medium tracking-wider uppercase">Comparables</span>
+                      </div>
+                      <p className="font-display font-semibold text-lg text-white/60">Property<br />Comparables</p>
+                    </div>
+                  </div>
+                  {/* Card 1 (front) — Pricing Plan */}
+                  <div
+                    className="absolute inset-0 rounded-2xl"
+                    style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))', border: '1px solid rgba(184,134,11,0.25)', boxShadow: '0 15px 50px rgba(0,0,0,0.3), 0 0 0 1px rgba(184,134,11,0.1)' }}
+                  >
+                    <div className="p-6 pt-7">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-7 h-7 rounded-full bg-brand-gold/25 flex items-center justify-center">
+                          <svg className="w-3.5 h-3.5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <span className="text-brand-gold text-[11px] font-medium tracking-wider uppercase">Strategy</span>
+                      </div>
+                      <p className="font-display font-bold text-xl text-white mb-4">Pricing Plan</p>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/40 text-[11px]">Recommended Price</span>
+                          <span className="font-display font-bold text-white text-sm">$2.45M</span>
+                        </div>
+                        <div className="h-px bg-white/10" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/40 text-[11px]">Market Range</span>
+                          <span className="text-white/70 text-[11px]">$2.2M &ndash; $2.7M</span>
+                        </div>
+                        <div className="h-px bg-white/10" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/40 text-[11px]">Comparables</span>
+                          <span className="text-white/70 text-[11px]">12 recent sales</span>
                         </div>
                       </div>
                     </div>
