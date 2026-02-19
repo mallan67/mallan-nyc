@@ -215,7 +215,7 @@ export default function SellPage() {
             1. HERO — Cinematic full-viewport
             ═══════════════════════════════════════════════ */}
         <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 liquid-img">
             <Image
               src="https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1600&q=80&auto=format&fit=crop"
               alt="Manhattan skyline at golden hour from luxury high-rise"
@@ -239,12 +239,11 @@ export default function SellPage() {
             </p>
             <a
               href="#valuation"
-              className="btn-liquid inline-block px-12 py-4 bg-brand-gold hover:bg-brand-gold-deep text-white font-medium rounded-full text-sm tracking-wide transition-colors"
+              className="btn-liquid inline-block px-12 py-4 bg-brand-gold hover:bg-brand-gold-deep text-white font-medium rounded-full text-sm tracking-wide"
             >
               Get Your Free Valuation
             </a>
           </div>
-          {/* Scroll indicator */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
             <div className="w-6 h-10 border border-white/20 rounded-full flex justify-center pt-2.5">
               <div className="w-1 h-2 bg-white/50 rounded-full animate-bounce" />
@@ -253,16 +252,16 @@ export default function SellPage() {
         </section>
 
         {/* ═══════════════════════════════════════════════
-            2. REACH — Local / National / Global
+            2. REACH — Local / National / Global (transparent)
             ═══════════════════════════════════════════════ */}
-        <section className="bg-brand-dark text-white px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
           <div className="max-w-[1440px] mx-auto">
             <div className="text-center mb-16 md:mb-24">
-              <p className="text-brand-gold text-[13px] font-medium tracking-[0.2em] uppercase mb-3">Where Your Listing Goes</p>
-              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-6xl tracking-tight text-white leading-tight">
+              <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">Where Your Listing Goes</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-6xl tracking-tight text-brand-dark leading-tight">
                 Listed Locally.<br className="hidden md:block" /> Seen Nationally.<br className="hidden md:block" /> Reached Globally.
               </h2>
-              <p className="mt-6 text-white/40 text-[15px] font-extralight max-w-2xl mx-auto leading-relaxed">
+              <p className="mt-6 text-brand-dark/40 text-[15px] font-extralight max-w-2xl mx-auto leading-relaxed">
                 The moment your listing goes live, it appears on every major platform &mdash;
                 from NYC&apos;s broker network to the largest real estate sites in the world.
               </p>
@@ -271,104 +270,104 @@ export default function SellPage() {
             {/* Three reach tiers */}
             <div className="grid md:grid-cols-3 gap-6 md:gap-8">
               {/* LOCAL */}
-              <div className="relative bg-white/[0.04] rounded-3xl p-8 md:p-10 border border-white/[0.06] group">
+              <div className="btn-liquid relative rounded-3xl p-8 md:p-10 border border-black/[0.04]" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.03), rgba(255,255,255,0.8))', boxShadow: '0 8px 40px rgba(0,0,0,0.04)' }}>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))' }}>
+                    <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase">New York City</p>
+                  <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase">New York City</p>
                 </div>
-                <p className="font-display font-bold text-5xl md:text-6xl text-white mb-2">570+</p>
-                <p className="text-white/60 text-sm font-light mb-6">Brokerage firms see your listing the moment it goes live</p>
-                <div className="space-y-3 border-t border-white/[0.06] pt-6">
+                <p className="font-display font-bold text-5xl md:text-6xl text-brand-dark mb-2">30K+</p>
+                <p className="text-brand-dark/50 text-sm font-light mb-6">Licensed agents across NYC see your listing instantly</p>
+                <div className="space-y-3 border-t border-black/[0.05] pt-6">
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">30,000+ licensed agents across NYC</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">570+ participating brokerage firms</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">30 partner brokerage websites</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">30 partner brokerage websites</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">StreetEasy &mdash; NYC&apos;s #1 property search</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">StreetEasy &mdash; NYC&apos;s #1 property search</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">mallan.nyc &mdash; featured with professional photography</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">mallan.nyc &mdash; featured with professional photography</p>
                   </div>
                 </div>
               </div>
 
               {/* NATIONAL */}
-              <div className="relative bg-white/[0.04] rounded-3xl p-8 md:p-10 border border-white/[0.06] group">
+              <div className="btn-liquid relative rounded-3xl p-8 md:p-10 border border-black/[0.04]" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.03), rgba(255,255,255,0.8))', boxShadow: '0 8px 40px rgba(0,0,0,0.04)' }}>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))' }}>
+                    <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 21V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" />
                     </svg>
                   </div>
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase">Nationwide</p>
+                  <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase">Nationwide</p>
                 </div>
-                <p className="font-display font-bold text-5xl md:text-6xl text-white mb-2">Millions</p>
-                <p className="text-white/60 text-sm font-light mb-6">of buyers on America&apos;s largest real estate platforms</p>
-                <div className="space-y-3 border-t border-white/[0.06] pt-6">
+                <p className="font-display font-bold text-5xl md:text-6xl text-brand-dark mb-2">Millions</p>
+                <p className="text-brand-dark/50 text-sm font-light mb-6">of buyers on America&apos;s largest real estate platforms</p>
+                <div className="space-y-3 border-t border-black/[0.05] pt-6">
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Zillow + Trulia &mdash; most-visited in the US</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">Zillow + Trulia &mdash; most-visited in the US</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Realtor.com &mdash; official site of the NAR</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">Realtor.com &mdash; official site of the NAR</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Redfin &mdash; tech-forward search nationwide</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">Redfin &mdash; tech-forward search nationwide</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Homes.com &mdash; CoStar&apos;s flagship consumer portal</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">Homes.com &mdash; CoStar&apos;s flagship consumer portal</p>
                   </div>
                 </div>
               </div>
 
               {/* GLOBAL */}
-              <div className="relative bg-white/[0.04] rounded-3xl p-8 md:p-10 border border-white/[0.06] group">
+              <div className="btn-liquid relative rounded-3xl p-8 md:p-10 border border-black/[0.04]" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.03), rgba(255,255,255,0.8))', boxShadow: '0 8px 40px rgba(0,0,0,0.04)' }}>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))' }}>
+                    <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase">Global</p>
+                  <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase">Global</p>
                 </div>
-                <p className="font-display font-bold text-5xl md:text-6xl text-white mb-2">Worldwide</p>
-                <p className="text-white/60 text-sm font-light mb-6">digital reach to international buyers searching for NYC property</p>
-                <div className="space-y-3 border-t border-white/[0.06] pt-6">
+                <p className="font-display font-bold text-5xl md:text-6xl text-brand-dark mb-2">Worldwide</p>
+                <p className="text-brand-dark/50 text-sm font-light mb-6">Your listing reaches international buyers searching for NYC property</p>
+                <div className="space-y-3 border-t border-black/[0.05] pt-6">
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Zillow &mdash; visited by buyers in 190+ countries</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">ListHub &mdash; syndicates to 100+ international portals</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Realtor.com International &mdash; 60+ countries</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">ListGlobally &mdash; 100+ countries, 700M+ monthly visitors</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">Targeted social campaigns &mdash; global buyer audience</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">International MLS &mdash; cross-border buyer network</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-white/50 text-[13px] font-extralight">mallan.nyc &mdash; accessible to buyers anywhere</p>
+                    <p className="text-brand-dark/40 text-[13px] font-extralight">Samaki &mdash; global real estate marketplace</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <p className="text-white/20 text-[11px] text-center mt-14 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-brand-dark/20 text-[11px] text-center mt-14 max-w-3xl mx-auto leading-relaxed">
               Your listing is syndicated automatically across all platforms the moment it goes live.
               StreetEasy listings are uploaded directly &mdash; sales are free. No additional fees for syndication.
             </p>
@@ -376,9 +375,9 @@ export default function SellPage() {
         </section>
 
         {/* ═══════════════════════════════════════════════
-            3. WHAT WE DO — Cinematic marketing cards
+            3. NOT JUST LISTED — Asymmetric cinematic cards
             ═══════════════════════════════════════════════ */}
-        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40 bg-[#F8F7F4]">
           <div className="max-w-[1440px] mx-auto">
             <div className="text-center mb-16 md:mb-20">
               <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">The Advantage</p>
@@ -391,21 +390,23 @@ export default function SellPage() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-              {/* Card 1: Photography */}
-              <div className="relative rounded-3xl overflow-hidden aspect-[4/3] group">
+            {/* Asymmetric grid — row 1: large photo + 3D pricing cards */}
+            <div className="grid lg:grid-cols-12 gap-6 md:gap-8">
+
+              {/* Professional Imagery — LARGE (7 cols) */}
+              <div className="lg:col-span-7 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[520px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
                 <Image
-                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80&auto=format&fit=crop"
+                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=85&auto=format&fit=crop"
                   alt="Luxury property photographed with professional lighting"
                   fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 58vw"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-2">Photography & Media</p>
-                  <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-2">Professional Imagery</h3>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Photography & Media</p>
+                  <h3 className="font-display font-bold text-2xl md:text-4xl text-white mb-3">Professional Imagery</h3>
                   <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
                     High-resolution photography, virtual tours, and floor plans that
                     make buyers stop scrolling and start calling.
@@ -413,62 +414,99 @@ export default function SellPage() {
                 </div>
               </div>
 
-              {/* Card 2: Pricing */}
-              <div className="relative rounded-3xl overflow-hidden aspect-[4/3] group">
-                <Image
-                  src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80&auto=format&fit=crop"
-                  alt="Modern luxury interior with city views"
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-2">Market Intelligence</p>
-                  <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-2">Strategic Pricing</h3>
-                  <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
-                    Data-driven pricing backed by comparable sales analysis, real-time
+              {/* Strategic Pricing — 3D stacked cards (5 cols) */}
+              <div className="lg:col-span-5 relative rounded-3xl p-8 md:p-10 flex flex-col justify-between min-h-[520px]" style={{ background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+                <div>
+                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Market Intelligence</p>
+                  <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-3">Strategic Pricing</h3>
+                  <p className="text-white/50 text-sm font-extralight leading-relaxed">
+                    Data-driven pricing backed by comparable sales, real-time
                     market conditions, and deep neighborhood expertise.
                   </p>
                 </div>
+                {/* 3D stacked analysis cards */}
+                <div className="relative mt-8 h-[240px]" style={{ perspective: '800px' }}>
+                  <div className="absolute bottom-0 left-4 right-4 h-[180px] rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.08), rgba(184,134,11,0.02))', border: '1px solid rgba(184,134,11,0.1)', transform: 'rotateX(8deg) translateZ(-40px)', transformOrigin: 'bottom center' }}>
+                    <div className="p-5 pt-6">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-white/30 text-[10px] font-medium tracking-wider uppercase">Market Analysis</span>
+                        <span className="text-brand-gold/40 text-[10px]">Q4 2025</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-2 bg-white/5 rounded-full" />
+                        <div className="h-2 bg-white/5 rounded-full w-3/4" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-4 left-2 right-2 h-[180px] rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.12), rgba(184,134,11,0.04))', border: '1px solid rgba(184,134,11,0.15)', transform: 'rotateX(5deg) translateZ(-20px)', transformOrigin: 'bottom center' }}>
+                    <div className="p-5 pt-6">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-white/40 text-[10px] font-medium tracking-wider uppercase">Comparable Sales</span>
+                        <span className="text-brand-gold/50 text-[10px]">12 Comps</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-2 bg-white/8 rounded-full" />
+                        <div className="h-2 bg-white/8 rounded-full w-4/5" />
+                        <div className="h-2 bg-white/8 rounded-full w-1/2" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-8 left-0 right-0 h-[180px] rounded-2xl" style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.2), rgba(184,134,11,0.06))', border: '1px solid rgba(184,134,11,0.25)', boxShadow: '0 8px 32px rgba(184,134,11,0.1)', transform: 'rotateX(2deg)', transformOrigin: 'bottom center' }}>
+                    <div className="p-5 pt-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-white/60 text-[10px] font-medium tracking-wider uppercase">Pricing Strategy</span>
+                        <span className="text-brand-gold text-[10px] font-medium">Final Report</span>
+                      </div>
+                      <div className="flex items-end gap-4 mb-3">
+                        <div>
+                          <p className="text-white/30 text-[9px] uppercase tracking-wider">Recommended</p>
+                          <p className="font-display font-bold text-2xl text-white">$2.45M</p>
+                        </div>
+                        <div className="flex-1 flex items-end gap-1 h-12 pb-1">
+                          {[35, 55, 70, 85, 100, 90, 65, 45].map((h, i) => (
+                            <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, background: `rgba(184,134,11,${0.15 + i * 0.08})` }} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Card 3: Negotiation */}
-              <div className="relative rounded-3xl overflow-hidden aspect-[4/3] group">
+              {/* Expert Negotiation — SMALLER (5 cols) */}
+              <div className="lg:col-span-5 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[400px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
                 <Image
                   src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80&auto=format&fit=crop"
                   alt="Elegant living room in a staged New York property"
                   fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 42vw"
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
                   <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-2">Representation</p>
-                  <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-2">Expert Negotiation</h3>
-                  <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
-                    We advocate fiercely for your interests. Every offer is evaluated,
-                    every term is negotiated, every dollar is fought for.
+                  <h3 className="font-display font-bold text-xl md:text-2xl text-white mb-2">Expert Negotiation</h3>
+                  <p className="text-white/60 text-[13px] font-extralight leading-relaxed max-w-sm">
+                    Every offer evaluated, every term negotiated, every dollar fought for.
                   </p>
                 </div>
               </div>
 
-              {/* Card 4: Personal attention */}
-              <div className="relative rounded-3xl overflow-hidden aspect-[4/3] group">
+              {/* Personal Attention — LARGER (7 cols) */}
+              <div className="lg:col-span-7 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[400px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
                 <Image
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80&auto=format&fit=crop"
-                  alt="Luxury property exterior with manicured landscaping"
+                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=85&auto=format&fit=crop"
+                  alt="Luxury property exterior with elegant architecture"
                   fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 58vw"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-2">White-Glove Service</p>
-                  <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-2">Personal Attention</h3>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">White-Glove Service</p>
+                  <h3 className="font-display font-bold text-2xl md:text-4xl text-white mb-3">Personal Attention</h3>
                   <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
                     You work directly with your broker from day one through closing.
                     No hand-offs, no assistants, no runaround.
@@ -482,9 +520,8 @@ export default function SellPage() {
         {/* ═══════════════════════════════════════════════
             4. VALUATION FORM — Editorial 2-column
             ═══════════════════════════════════════════════ */}
-        <section id="valuation" className="px-6 md:px-12 lg:px-20 py-20 md:py-32 bg-[#F8F7F4]">
+        <section id="valuation" className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
           <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 md:gap-28 items-center">
-            {/* Left column */}
             <div>
               <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">Free Valuation</p>
               <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight mb-6 leading-snug text-brand-dark">
@@ -495,7 +532,6 @@ export default function SellPage() {
                 We&apos;ll evaluate your property, your neighborhood, and current market
                 conditions to give you an accurate price range &mdash; no obligation, no pressure.
               </p>
-              {/* Agent card */}
               <div className="glass-card rounded-2xl p-6 flex items-center gap-5">
                 <div
                   className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
@@ -509,7 +545,6 @@ export default function SellPage() {
                 </div>
               </div>
             </div>
-            {/* Right column — form */}
             <div>
               <CMARequestForm />
             </div>
@@ -519,7 +554,7 @@ export default function SellPage() {
         {/* ═══════════════════════════════════════════════
             5. SELLING PROCESS — Horizontal timeline
             ═══════════════════════════════════════════════ */}
-        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40 bg-[#F8F7F4]">
           <div className="max-w-[1440px] mx-auto">
             <div className="text-center mb-16 md:mb-20">
               <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">The Process</p>
@@ -528,7 +563,6 @@ export default function SellPage() {
               </h2>
             </div>
 
-            {/* Desktop: horizontal timeline */}
             <div className="hidden lg:block">
               <div className="relative">
                 <div className="absolute top-6 left-[10%] right-[10%] h-px bg-brand-gold/20" />
@@ -546,10 +580,9 @@ export default function SellPage() {
               </div>
             </div>
 
-            {/* Mobile/Tablet: vertical stack */}
             <div className="lg:hidden space-y-4">
               {SELLING_STEPS.map((item) => (
-                <div key={item.step} className="glass-card rounded-2xl p-6 flex gap-5">
+                <div key={item.step} className="btn-liquid glass-card rounded-2xl p-6 flex gap-5">
                   <div className="flex-shrink-0">
                     <span className="w-12 h-12 rounded-full bg-brand-gold text-white flex items-center justify-center font-semibold text-sm shadow-lg shadow-brand-gold/20">
                       {item.step}
@@ -664,7 +697,7 @@ export default function SellPage() {
             </div>
             <div className="grid md:grid-cols-3 gap-7 md:gap-8">
               {SELLER_REVIEWS.map((review) => (
-                <div key={review.author} className="rev-card bg-white rounded-3xl p-8 md:p-9">
+                <div key={review.author} className="btn-liquid rev-card bg-white rounded-3xl p-8 md:p-9">
                   <div className="flex items-center gap-2 mb-6">
                     <span className="text-brand-gold text-sm font-bold">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
                     <span className="text-[9px] font-semibold bg-brand-dark text-white px-2 py-0.5 rounded-full">Verified</span>
@@ -703,10 +736,10 @@ export default function SellPage() {
         </section>
 
         {/* ═══════════════════════════════════════════════
-            10. CTA — Final push
+            10. CTA — Cinematic final push
             ═══════════════════════════════════════════════ */}
         <section className="relative py-24 md:py-36 overflow-hidden">
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 liquid-img">
             <Image
               src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1600&q=80&auto=format&fit=crop"
               alt="Luxury New York City apartment interior"
@@ -729,13 +762,13 @@ export default function SellPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="#valuation"
-                className="btn-liquid inline-block px-10 py-4 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep transition-colors text-sm tracking-wide"
+                className="btn-liquid inline-block px-10 py-4 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep text-sm tracking-wide"
               >
                 Get Your Free Valuation
               </a>
               <a
                 href="tel:+16462584460"
-                className="inline-block px-10 py-4 border border-white/20 text-white font-medium rounded-full hover:bg-white/10 transition-colors text-sm tracking-wide"
+                className="btn-liquid inline-block px-10 py-4 border border-white/20 text-white font-medium rounded-full hover:bg-white/10 text-sm tracking-wide"
               >
                 Call (646) 258-4460
               </a>
