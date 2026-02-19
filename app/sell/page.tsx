@@ -414,75 +414,73 @@ export default function SellPage() {
                 </div>
               </div>
 
-              {/* Strategic Pricing — Stacked deck cards (5 cols) */}
-              <div className="lg:col-span-5 relative rounded-3xl p-8 md:p-10 flex flex-col justify-center min-h-[520px]" style={{ background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)', boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
-                <div className="mb-8">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Market Intelligence</p>
-                  <h3 className="font-display font-bold text-2xl md:text-3xl text-white mb-3">Strategic Pricing</h3>
-                  <p className="text-white/50 text-sm font-extralight leading-relaxed">
+              {/* Strategic Pricing — Blue stacked cards (5 cols) */}
+              <div className="lg:col-span-5 relative flex flex-col justify-center min-h-[520px]">
+                <div className="mb-10">
+                  <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase mb-3 gold-glow-text">Market Intelligence</p>
+                  <h3 className="font-display font-bold text-2xl md:text-3xl text-brand-dark mb-3">Strategic Pricing</h3>
+                  <p className="text-brand-dark/40 text-sm font-extralight leading-relaxed">
                     Data-driven pricing backed by comparable sales, real-time
                     market conditions, and deep neighborhood expertise.
                   </p>
                 </div>
-                {/* Stacked deck — 3 cards fanned behind each other */}
-                <div className="relative h-[220px] mx-auto w-full max-w-[340px]">
+                {/* Stacked deck — 3 cards in transitional blue-slate */}
+                <div className="relative h-[280px] mx-auto w-full max-w-[380px]">
                   {/* Card 3 (back) — Comprehensive Marketing Plan */}
                   <div
-                    className="absolute inset-0 rounded-2xl"
-                    style={{ background: 'linear-gradient(135deg, #3d3d3d, #4a4a4a)', border: '1px solid rgba(255,255,255,0.06)', transform: 'rotate(4deg) translate(12px, 8px)', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}
+                    className="absolute inset-0 rounded-[20px]"
+                    style={{ background: 'linear-gradient(145deg, #2d3a4a, #364658)', boxShadow: '0 20px 50px rgba(45,58,74,0.3)', transform: 'rotate(5deg) translate(16px, 10px)' }}
                   >
-                    <div className="p-6 pt-7">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-full bg-brand-gold/20 flex items-center justify-center">
-                          <svg className="w-3 h-3 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
+                    <div className="p-7 pt-8">
+                      <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                          <svg className="w-3.5 h-3.5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
                         </div>
-                        <span className="text-white/40 text-[11px] font-medium tracking-wider uppercase">Marketing Plan</span>
                       </div>
-                      <p className="font-display font-semibold text-lg text-white/50">Comprehensive<br />Marketing Plan</p>
+                      <p className="font-display font-semibold text-xl text-white/40">Comprehensive<br />Marketing Plan</p>
                     </div>
                   </div>
                   {/* Card 2 (middle) — Property Comparables */}
                   <div
-                    className="absolute inset-0 rounded-2xl"
-                    style={{ background: 'linear-gradient(135deg, #484848, #555)', border: '1px solid rgba(255,255,255,0.08)', transform: 'rotate(2deg) translate(6px, 4px)', boxShadow: '0 10px 40px rgba(0,0,0,0.25)' }}
+                    className="absolute inset-0 rounded-[20px]"
+                    style={{ background: 'linear-gradient(145deg, #3d4f65, #4a6078)', boxShadow: '0 20px 50px rgba(61,79,101,0.35)', transform: 'rotate(2.5deg) translate(8px, 5px)' }}
                   >
-                    <div className="p-6 pt-7">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-full bg-brand-gold/20 flex items-center justify-center">
-                          <svg className="w-3 h-3 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                    <div className="p-7 pt-8">
+                      <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                          <svg className="w-3.5 h-3.5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                         </div>
-                        <span className="text-white/50 text-[11px] font-medium tracking-wider uppercase">Comparables</span>
                       </div>
-                      <p className="font-display font-semibold text-lg text-white/60">Property<br />Comparables</p>
+                      <p className="font-display font-semibold text-xl text-white/50">Property<br />Comparables</p>
                     </div>
                   </div>
                   {/* Card 1 (front) — Pricing Plan */}
                   <div
-                    className="absolute inset-0 rounded-2xl"
-                    style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))', border: '1px solid rgba(184,134,11,0.25)', boxShadow: '0 15px 50px rgba(0,0,0,0.3), 0 0 0 1px rgba(184,134,11,0.1)' }}
+                    className="absolute inset-0 rounded-[20px]"
+                    style={{ background: 'linear-gradient(145deg, #4e6a8a, #5a7a9a)', boxShadow: '0 25px 60px rgba(78,106,138,0.4), 0 0 0 1px rgba(255,255,255,0.08)' }}
                   >
-                    <div className="p-6 pt-7">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-7 h-7 rounded-full bg-brand-gold/25 flex items-center justify-center">
-                          <svg className="w-3.5 h-3.5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <div className="p-7 pt-8 h-full flex flex-col">
+                      <div className="flex items-center gap-2.5 mb-5">
+                        <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </div>
-                        <span className="text-brand-gold text-[11px] font-medium tracking-wider uppercase">Strategy</span>
+                        <span className="text-white/80 text-[11px] font-medium tracking-[0.12em] uppercase">Pricing Strategy</span>
                       </div>
-                      <p className="font-display font-bold text-xl text-white mb-4">Pricing Plan</p>
-                      <div className="space-y-3">
+                      <p className="font-display font-bold text-2xl text-white mb-6">Pricing Plan</p>
+                      <div className="space-y-4 mt-auto">
                         <div className="flex justify-between items-center">
-                          <span className="text-white/40 text-[11px]">Recommended Price</span>
-                          <span className="font-display font-bold text-white text-sm">$2.45M</span>
+                          <span className="text-white/50 text-[12px] font-light">Recommended Price</span>
+                          <span className="font-display font-bold text-white text-base">$2.45M</span>
                         </div>
                         <div className="h-px bg-white/10" />
                         <div className="flex justify-between items-center">
-                          <span className="text-white/40 text-[11px]">Market Range</span>
-                          <span className="text-white/70 text-[11px]">$2.2M &ndash; $2.7M</span>
+                          <span className="text-white/50 text-[12px] font-light">Market Range</span>
+                          <span className="text-white/80 text-[12px] font-light">$2.2M &ndash; $2.7M</span>
                         </div>
                         <div className="h-px bg-white/10" />
                         <div className="flex justify-between items-center">
-                          <span className="text-white/40 text-[11px]">Comparables</span>
-                          <span className="text-white/70 text-[11px]">12 recent sales</span>
+                          <span className="text-white/50 text-[12px] font-light">Comparables</span>
+                          <span className="text-white/80 text-[12px] font-light">12 recent sales</span>
                         </div>
                       </div>
                     </div>
