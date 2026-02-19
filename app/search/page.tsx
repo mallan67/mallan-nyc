@@ -172,20 +172,20 @@ function SearchClient() {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 99999 : priceRange[0] !== 0 || priceRange[1] !== 99999999);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#FEFEFE]">
       {/* Search Header - Fixed below nav header */}
-      <section className="fixed top-20 left-0 right-0 bg-white/95 backdrop-blur-md border-b z-40">
+      <section className="fixed top-20 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-black/5 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Tabs */}
-          <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+          <div className="flex gap-1 mb-4 bg-stone-100/60 rounded-2xl p-1 w-fit">
             {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`px-4 py-2 text-sm font-medium rounded-md capitalize transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${
                   activeTab === tab
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-brand-dark shadow-sm rounded-xl'
+                    : 'text-brand-dark/60 hover:text-brand-dark'
                 }`}
               >
                 {tab}
@@ -204,7 +204,7 @@ function SearchClient() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by address, neighborhood, zip, or borough..."
-                className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20"
+                className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Search by address, neighborhood, zip, or borough"
               />
             </div>
@@ -220,7 +220,7 @@ function SearchClient() {
                   const [min, max] = e.target.value.split('-').map(Number);
                   setPriceRange([min, max]);
                 }}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Price range"
               >
                 <option value={isRental ? '0-99999' : '0-99999999'}>Any Price</option>
@@ -252,7 +252,7 @@ function SearchClient() {
                 id="beds-filter"
                 value={beds ?? ''}
                 onChange={(e) => setBeds(e.target.value ? Number(e.target.value) : null)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Number of bedrooms"
               >
                 <option value="">Any Beds</option>
@@ -269,7 +269,7 @@ function SearchClient() {
                 id="type-filter"
                 value={propertyType}
                 onChange={(e) => setPropertyType(e.target.value)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Property type"
               >
                 <option value="">Any Type</option>
@@ -284,7 +284,7 @@ function SearchClient() {
                 id="sort-filter"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="border rounded-lg px-4 py-3 bg-white text-sm"
+                className="rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Sort order"
               >
                 <option value="featured">Featured First</option>
@@ -298,25 +298,25 @@ function SearchClient() {
           {/* Active Filters */}
           {hasActiveFilters && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-gray-500">Active filters:</span>
+              <span className="text-sm text-brand-dark/50">Active filters:</span>
               {neighborhoodParam && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
                   {neighborhoodParam}
                 </span>
               )}
               {zipParam && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
                   ZIP: {zipParam}
                 </span>
               )}
               {amenitiesParam && amenitiesParam.split(',').map((a) => (
-                <span key={a} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full capitalize">
+                <span key={a} className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full capitalize">
                   {a.replace('-', ' ')}
                 </span>
               ))}
               <button
                 onClick={clearFilters}
-                className="text-sm text-gray-500 hover:text-gray-900 underline"
+                className="text-sm text-brand-dark/50 hover:text-brand-dark underline"
               >
                 Clear all
               </button>
@@ -330,7 +330,7 @@ function SearchClient() {
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
-            <p className="text-gray-600" aria-live="polite" aria-atomic="true">
+            <p className="text-brand-dark/60" aria-live="polite" aria-atomic="true">
               {sortedListings.length} {sortedListings.length === 1 ? 'property' : 'properties'} found
             </p>
             <IDXSearchDisclaimer />
@@ -338,10 +338,10 @@ function SearchClient() {
 
           {/* Listings Grid */}
           {sortedListings.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-lg">
-              <p className="text-gray-500 text-lg mb-2">No properties match your criteria</p>
-              <p className="text-gray-400 mb-4">Try adjusting your filters</p>
-              <button onClick={clearFilters} className="text-gray-900 hover:underline">
+            <div className="text-center py-16 glass-card rounded-3xl">
+              <p className="text-brand-dark/50 text-lg mb-2">No properties match your criteria</p>
+              <p className="text-brand-dark/40 mb-4">Try adjusting your filters</p>
+              <button onClick={clearFilters} className="text-brand-dark hover:underline">
                 Clear all filters
               </button>
             </div>
@@ -351,7 +351,7 @@ function SearchClient() {
                 <Link
                   key={listing.id}
                   href={`/listing/${listing.id}`}
-                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
+                  className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group"
                 >
                   {/* Image */}
                   <div className="relative aspect-[4/3] bg-gray-100">
@@ -359,40 +359,40 @@ function SearchClient() {
                       src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
                       alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
                       fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="object-cover group-hover:scale-105 transition-transform duration-700"
                     />
                     {listing.flags.isExclusive && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-black text-white text-xs rounded">
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-black/80 backdrop-blur-sm text-white text-xs rounded-xl">
                         Exclusive
                       </span>
                     )}
                     {getComingSoonDate(listing) && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded">
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl">
                         {formatComingSoonBadge(getComingSoonDate(listing)!)}
                       </span>
                     )}
                   </div>
 
                   {/* Content */}
-                  <div className="p-4">
-                    <p className="text-xl font-semibold mb-1">
+                  <div className="p-5">
+                    <p className="text-xl font-display font-semibold mb-1">
                       {formatPrice(listing.price.listPrice, isRental)}
                     </p>
-                    <p className="text-gray-800">
+                    <p className="text-brand-dark">
                       {canDisplayAddress(listing) ? (
                         <>
                           {listing.address.streetNumber} {listing.address.streetName}
                           {listing.address.unit && `, ${listing.address.unit}`}
                         </>
                       ) : (
-                        <span className="italic text-gray-500">Address Undisclosed</span>
+                        <span className="italic text-brand-dark/50">Address Undisclosed</span>
                       )}
                     </p>
-                    <p className="text-gray-500 text-sm">
+                    <p className="text-brand-dark/50 text-sm">
                       {listing.address.neighborhoodDisplay}, {listing.address.borough}
                     </p>
 
-                    <div className="flex gap-4 text-sm text-gray-600 mt-3 pt-3 border-t">
+                    <div className="flex gap-4 text-sm text-brand-dark/60 mt-3 pt-3 border-t border-black/5">
                       <span>{listing.propertyInfo.bedroomsTotal} bed{listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''}</span>
                       <span>
                         {listing.propertyInfo.bathroomsFull}
@@ -405,13 +405,13 @@ function SearchClient() {
 
                     {/* NYC-Specific: Maintenance/CC */}
                     {!isRental && listing.nycSpecific.maintenanceFee && (
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-brand-dark/40 mt-2">
                         {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
                       </p>
                     )}
 
                     {/* REBNY RLS Per-Card Attribution */}
-                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-[10px] text-brand-dark/40 mt-2 pt-2 border-t border-black/5">
                       Courtesy of {listing.agent.listOfficeName}
                       {listing.listing.modificationTimestamp && (
                         <> · Updated {new Date(listing.listing.modificationTimestamp).toLocaleDateString()}</>
@@ -426,17 +426,17 @@ function SearchClient() {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-16 bg-white border-t">
+      <section className="py-16 bg-stone-50/50 border-t border-black/5">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-xl sm:text-2xl font-light tracking-tight mb-4">
+          <h2 className="text-xl sm:text-2xl font-display font-semibold mb-4">
             Need Help Finding Your Perfect Property?
           </h2>
-          <p className="text-gray-500 mb-8">
+          <p className="text-brand-dark/50 mb-8">
             Our agents have access to exclusive listings and can help you find exactly what you&apos;re looking for.
           </p>
           <Link
             href="/agents"
-            className="inline-block px-8 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
           >
             Contact an Agent
           </Link>
@@ -448,10 +448,10 @@ function SearchClient() {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-white pt-20 flex items-center justify-center">
+    <div className="min-h-screen bg-[#FEFEFE] pt-20 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500">Loading properties...</p>
+        <div className="w-8 h-8 border-4 border-brand-dark border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-brand-dark/50">Loading properties...</p>
       </div>
     </div>
   );
@@ -459,7 +459,7 @@ function SearchLoading() {
 
 export default function SearchPage() {
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
       <main>
         <Suspense fallback={<SearchLoading />}>

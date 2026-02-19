@@ -33,7 +33,7 @@ export default function NeighborhoodHero({
 
         {/* Title at bottom */}
         <div className="pb-8 sm:pb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white tracking-tight">
             {name}
           </h1>
           <p className="mt-2 text-lg sm:text-xl text-white/80 font-light">

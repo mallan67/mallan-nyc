@@ -107,15 +107,15 @@ export default async function ListingPage({ params }: Props) {
   // IDX opt-out guard: if the listing owner has opted out of IDX display, block it
   if (listing.compliance?.idxOptOut) {
     return (
-      <div className="min-h-screen bg-white font-sans">
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header dark />
         <div className="flex items-center justify-center min-h-[60vh] pt-20">
           <div className="text-center max-w-md">
-            <h1 className="text-2xl font-semibold mb-4">Listing Not Available</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-display font-semibold mb-4">Listing Not Available</h1>
+            <p className="text-brand-dark/60 mb-6">
               This listing is not available for online display. Please contact Mallan Real Estate for more information.
             </p>
-            <Link href="/agents" className="inline-block px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors">
+            <Link href="/agents" className="inline-block px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors">
               Contact an Agent
             </Link>
           </div>
@@ -155,13 +155,13 @@ export default async function ListingPage({ params }: Props) {
   if (listing.features.outdoor.roofRights) unitFeatures.push('Roof Rights');
 
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
 
       {/* Breadcrumb */}
-      <div className="bg-white border-b pt-20">
+      <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-20">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <nav className="flex items-center gap-2 text-sm text-gray-500">
+          <nav className="flex items-center gap-2 text-sm text-brand-dark/50">
             <Link href="/" className="hover:text-brand-gold">Home</Link>
             <span>/</span>
             <Link href={isRental ? '/rent' : '/buy'} className="hover:text-brand-gold">
@@ -172,7 +172,7 @@ export default async function ListingPage({ params }: Props) {
               {listing.address.neighborhoodDisplay}
             </Link>
             <span>/</span>
-            <span className="text-gray-800">{listing.address.streetNumber} {listing.address.streetName}</span>
+            <span className="text-brand-dark">{listing.address.streetNumber} {listing.address.streetName}</span>
           </nav>
         </div>
       </div>
@@ -216,13 +216,13 @@ export default async function ListingPage({ params }: Props) {
                       monthlyTaxes={listing.nycSpecific?.realEstateTaxes || 0}
                       propertyType={listing.propertyInfo.propertyType}
                     />
-                    <p className="text-xl text-gray-700 mt-2">{fullAddress}</p>
-                    <p className="text-gray-500">
+                    <p className="text-xl text-brand-dark/70 mt-2">{fullAddress}</p>
+                    <p className="text-brand-dark/50">
                       {listing.address.neighborhoodDisplay}, {listing.address.borough}, NY {listing.address.zip}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded">
+                    <span className="inline-block px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-sm rounded-full">
                       {listing.propertyInfo.propertyType}
                     </span>
                     <ShareButton title={`${fullAddress} | ${formatPrice(listing.price.listPrice, isRental)}`} />
@@ -230,70 +230,70 @@ export default async function ListingPage({ params }: Props) {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="flex flex-wrap gap-6 py-4 border-y">
+                <div className="flex flex-wrap gap-6 py-4 border-y border-black/5">
                   <div>
-                    <span className="text-xl font-semibold">{listing.propertyInfo.bedroomsTotal}</span>
-                    <span className="text-gray-500 ml-1">Beds</span>
+                    <span className="text-xl font-display font-semibold">{listing.propertyInfo.bedroomsTotal}</span>
+                    <span className="text-brand-dark/50 ml-1">Beds</span>
                   </div>
                   <div>
-                    <span className="text-xl font-semibold">
+                    <span className="text-xl font-display font-semibold">
                       {listing.propertyInfo.bathroomsFull}
                       {listing.propertyInfo.bathroomsHalf > 0 && `.${listing.propertyInfo.bathroomsHalf}`}
                     </span>
-                    <span className="text-gray-500 ml-1">Baths</span>
+                    <span className="text-brand-dark/50 ml-1">Baths</span>
                   </div>
                   <div>
-                    <span className="text-xl font-semibold">{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()}</span>
-                    <span className="text-gray-500 ml-1">Sq Ft</span>
+                    <span className="text-xl font-display font-semibold">{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()}</span>
+                    <span className="text-brand-dark/50 ml-1">Sq Ft</span>
                   </div>
                   {listing.price.pricePerSqft && (
                     <div>
-                      <span className="text-xl font-semibold">${listing.price.pricePerSqft.toLocaleString()}</span>
-                      <span className="text-gray-500 ml-1">/Sq Ft</span>
+                      <span className="text-xl font-display font-semibold">${listing.price.pricePerSqft.toLocaleString()}</span>
+                      <span className="text-brand-dark/50 ml-1">/Sq Ft</span>
                     </div>
                   )}
                   <div>
-                    <span className="text-xl font-semibold">{listing.propertyInfo.totalRooms}</span>
-                    <span className="text-gray-500 ml-1">Rooms</span>
+                    <span className="text-xl font-display font-semibold">{listing.propertyInfo.totalRooms}</span>
+                    <span className="text-brand-dark/50 ml-1">Rooms</span>
                   </div>
                 </div>
               </div>
 
               {/* Description */}
               <section>
-                <h2 className="text-xl font-sans mb-4">About This Property</h2>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                <h2 className="text-xl font-display font-semibold mb-4">About This Property</h2>
+                <p className="text-brand-dark/70 leading-relaxed whitespace-pre-line">
                   {listing.description}
                 </p>
               </section>
 
               {/* NYC-Specific Info (Co-op/Condo) */}
               {!isRental && (isCoop || isCondo) && (
-                <section className="bg-white rounded-lg p-6 border">
-                  <h2 className="text-xl font-sans mb-4">
+                <section className="glass-card rounded-3xl p-6">
+                  <h2 className="text-xl font-display font-semibold mb-4">
                     {isCoop ? 'Co-op Information' : 'Condo Information'}
                   </h2>
                   <div className="grid sm:grid-cols-2 gap-4">
                     {listing.nycSpecific.maintenanceFee && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
                         <span className="font-medium">${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo</span>
                       </div>
                     )}
                     {listing.nycSpecific.realEstateTaxes ? (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Real Estate Taxes</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Real Estate Taxes</span>
                         <span className="font-medium">${listing.nycSpecific.realEstateTaxes.toLocaleString()}/mo</span>
                       </div>
                     ) : listing.nycSpecific.taxesAnnual ? (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Real Estate Taxes</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Real Estate Taxes</span>
                         <span className="font-medium">${Math.round(listing.nycSpecific.taxesAnnual / 12).toLocaleString()}/mo</span>
                       </div>
                     ) : null}
                     {listing.nycSpecific.flipTax !== null && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Flip Tax</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Flip Tax</span>
                         <span className="font-medium">
                           {listing.nycSpecific.flipTax
                             ? `${listing.nycSpecific.flipTaxPercent}% of sale price`
@@ -302,14 +302,14 @@ export default async function ListingPage({ params }: Props) {
                       </div>
                     )}
                     {listing.nycSpecific.maxFinancing !== null && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Max Financing</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Max Financing</span>
                         <span className="font-medium">{listing.nycSpecific.maxFinancing}%</span>
                       </div>
                     )}
                     {listing.nycSpecific.sublettingAllowed !== null && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Subletting</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Subletting</span>
                         <span className="font-medium">
                           {listing.nycSpecific.sublettingAllowed
                             ? listing.nycSpecific.sublettingRestrictions || 'Allowed'
@@ -318,32 +318,32 @@ export default async function ListingPage({ params }: Props) {
                       </div>
                     )}
                     {listing.nycSpecific.piedATerre !== null && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Pied-a-Terre</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Pied-a-Terre</span>
                         <span className="font-medium">{listing.nycSpecific.piedATerre ? 'Allowed' : 'Not Allowed'}</span>
                       </div>
                     )}
                     {listing.nycSpecific.guarantorsAllowed !== null && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Guarantors</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Guarantors</span>
                         <span className="font-medium">{listing.nycSpecific.guarantorsAllowed ? 'Allowed' : 'Not Allowed'}</span>
                       </div>
                     )}
                     {listing.nycSpecific.boardApprovalRequired !== null && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-500">Board Approval</span>
+                      <div className="flex justify-between py-2 border-b border-black/5">
+                        <span className="text-brand-dark/50">Board Approval</span>
                         <span className="font-medium">{listing.nycSpecific.boardApprovalRequired ? 'Required' : 'Not Required'}</span>
                       </div>
                     )}
                   </div>
                   {listing.association.associationFeeIncludes && listing.association.associationFeeIncludes.length > 0 && (
-                    <div className="mt-4 pt-4 border-t">
-                      <p className="text-sm text-gray-500 mb-2">
+                    <div className="mt-4 pt-4 border-t border-black/5">
+                      <p className="text-sm text-brand-dark/50 mb-2">
                         {isCoop ? 'Maintenance' : 'Common Charges'} includes:
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {listing.association.associationFeeIncludes.map((item) => (
-                          <span key={item} className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                          <span key={item} className="px-3 py-1 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
                             {item}
                           </span>
                         ))}
@@ -355,38 +355,38 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Property Details */}
               <section>
-                <h2 className="text-xl font-sans mb-4">Property Details</h2>
+                <h2 className="text-xl font-display font-semibold mb-4">Property Details</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Property Type</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Property Type</span>
                     <span className="font-medium">{listing.propertyInfo.propertyType}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Building Type</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Building Type</span>
                     <span className="font-medium">{listing.propertyInfo.buildingType}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Year Built</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Year Built</span>
                     <span className="font-medium">{listing.propertyInfo.yearBuilt}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Floor</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Floor</span>
                     <span className="font-medium">{listing.propertyInfo.unitFloor} of {listing.propertyInfo.floorsInBuilding}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Exposure</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Exposure</span>
                     <span className="font-medium">{listing.features.exposure.join(', ')}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Views</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Views</span>
                     <span className="font-medium">{listing.features.views.join(', ')}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Days on Market</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Days on Market</span>
                     <span className="font-medium">{listing.listing.daysOnMarket}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">MLS #</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">MLS #</span>
                     <span className="font-medium">{listing.mlsId}</span>
                   </div>
                 </div>
@@ -394,31 +394,31 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Interior Features */}
               <section>
-                <h2 className="text-xl font-sans mb-4">Interior Features</h2>
+                <h2 className="text-xl font-display font-semibold mb-4">Interior Features</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Flooring</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Flooring</span>
                     <span className="font-medium">{listing.features.interior.flooring.join(', ')}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Laundry</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Laundry</span>
                     <span className="font-medium">{listing.features.interior.laundry}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Heating</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Heating</span>
                     <span className="font-medium">{listing.features.interior.heating.join(', ')}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-500">Cooling</span>
+                  <div className="flex justify-between py-2 border-b border-black/5">
+                    <span className="text-brand-dark/50">Cooling</span>
                     <span className="font-medium">{listing.features.interior.cooling.join(', ')}</span>
                   </div>
                 </div>
                 {listing.features.interior.appliances.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-sm text-gray-500 mb-2">Appliances:</p>
+                    <p className="text-sm text-brand-dark/50 mb-2">Appliances:</p>
                     <div className="flex flex-wrap gap-2">
                       {listing.features.interior.appliances.map((appliance) => (
-                        <span key={appliance} className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                        <span key={appliance} className="px-3 py-1 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
                           {appliance}
                         </span>
                       ))}
@@ -430,10 +430,10 @@ export default async function ListingPage({ params }: Props) {
               {/* Building Amenities */}
               {(buildingAmenities.length > 0 || listing.features.pets) && (
                 <section>
-                  <h2 className="text-xl font-sans mb-4">Building Amenities</h2>
+                  <h2 className="text-xl font-display font-semibold mb-4">Building Amenities</h2>
                   <div className="flex flex-wrap gap-3">
                     {buildingAmenities.map((amenity) => (
-                      <span key={amenity} className="px-4 py-2 bg-gray-100 rounded-full text-sm">
+                      <span key={amenity} className="px-4 py-2 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
                         {amenity}
                       </span>
                     ))}
@@ -458,7 +458,7 @@ export default async function ListingPage({ params }: Props) {
                     </span>
                   </div>
                   {listing.features.pets.comments && (
-                    <p className="text-sm text-gray-500 mt-2">{listing.features.pets.comments}</p>
+                    <p className="text-sm text-brand-dark/50 mt-2">{listing.features.pets.comments}</p>
                   )}
                 </section>
               )}
@@ -472,14 +472,14 @@ export default async function ListingPage({ params }: Props) {
 
               {/* Open House */}
               {listing.openHouse?.scheduled && (
-                <section className="bg-brand-gold/10 rounded-lg p-6">
-                  <h2 className="text-xl font-sans mb-2">Open House</h2>
+                <section className="bg-brand-gold/10 rounded-2xl p-6">
+                  <h2 className="text-xl font-display font-semibold mb-2">Open House</h2>
                   <p className="text-lg">{formatDate(listing.openHouse.date)}</p>
-                  <p className="text-gray-600">
+                  <p className="text-brand-dark/60">
                     {formatTime(listing.openHouse.startTime)} - {formatTime(listing.openHouse.endTime)}
                   </p>
                   {listing.openHouse.remarks && (
-                    <p className="text-sm text-gray-500 mt-2">{listing.openHouse.remarks}</p>
+                    <p className="text-sm text-brand-dark/50 mt-2">{listing.openHouse.remarks}</p>
                   )}
                 </section>
               )}
@@ -496,9 +496,9 @@ export default async function ListingPage({ params }: Props) {
               )}
 
               {/* Neighborhood Link */}
-              <section className="bg-white rounded-lg p-6 border">
-                <h2 className="text-xl font-sans mb-2">About {listing.address.neighborhoodDisplay}</h2>
-                <p className="text-gray-600 mb-4">
+              <section className="glass-card rounded-3xl p-6">
+                <h2 className="text-xl font-display font-semibold mb-2">About {listing.address.neighborhoodDisplay}</h2>
+                <p className="text-brand-dark/60 mb-4">
                   Learn more about the neighborhood, local attractions, schools, and dining options.
                 </p>
                 <Link
@@ -514,39 +514,39 @@ export default async function ListingPage({ params }: Props) {
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-6">
                 {/* Contact Card */}
-                <div className="bg-white rounded-lg p-6 border shadow-sm">
-                  <h3 className="text-lg font-sans mb-4">Interested in this property?</h3>
+                <div className="glass-card rounded-3xl p-6">
+                  <h3 className="text-lg font-display font-semibold mb-4">Interested in this property?</h3>
 
                   <div className="mb-6">
-                    <p className="text-sm text-gray-500 mb-1">Listed by</p>
+                    <p className="text-sm text-brand-dark/50 mb-1">Listed by</p>
                     {listing.compliance?.vowOptOut ? (
                       <>
-                        <p className="font-medium text-lg">{listing.agent.listOfficeName}</p>
-                        <p className="text-sm text-gray-500 mt-2">
+                        <p className="font-display font-semibold text-lg">{listing.agent.listOfficeName}</p>
+                        <p className="text-sm text-brand-dark/50 mt-2">
                           Contact Mallan Real Estate for inquiries about this listing.
                         </p>
                       </>
                     ) : (
                       <>
-                        <p className="font-medium text-lg">{listing.agent.listAgentName}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-display font-semibold text-lg">{listing.agent.listAgentName}</p>
+                        <p className="text-sm text-brand-dark/50">
                           {agentsData.agents.find(a => a.name === listing.agent.listAgentName)?.title || 'Licensed Real Estate Salesperson'}
                         </p>
-                        <p className="text-gray-600">{listing.agent.listOfficeName}</p>
-                        <div className="mt-3 pt-3 border-t space-y-2">
+                        <p className="text-brand-dark/60">{listing.agent.listOfficeName}</p>
+                        <div className="mt-3 pt-3 border-t border-black/5 space-y-2">
                           <div className="flex items-center gap-2 text-sm">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-brand-dark/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                             </svg>
-                            <a href={`tel:${listing.agent.listAgentPhone}`} className="text-gray-700 hover:text-brand-gold">
+                            <a href={`tel:${listing.agent.listAgentPhone}`} className="text-brand-dark/70 hover:text-brand-gold">
                               {listing.agent.listAgentPhone}
                             </a>
                           </div>
                           <div className="flex items-center gap-2 text-sm">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-brand-dark/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
-                            <a href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`} className="text-gray-700 hover:text-brand-gold break-all">
+                            <a href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`} className="text-brand-dark/70 hover:text-brand-gold break-all">
                               {listing.agent.listAgentEmail}
                             </a>
                           </div>
@@ -561,7 +561,7 @@ export default async function ListingPage({ params }: Props) {
                     {listing.compliance?.vowOptOut ? (
                       <a
                         href="tel:646-258-4460"
-                        className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors"
+                        className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors"
                       >
                         Contact Mallan Real Estate
                       </a>
@@ -569,13 +569,13 @@ export default async function ListingPage({ params }: Props) {
                       <>
                         <a
                           href={`tel:${listing.agent.listAgentPhone}`}
-                          className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800 transition-colors"
+                          className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors"
                         >
                           Call Agent
                         </a>
                         <a
                           href={`mailto:${listing.agent.listAgentEmail}?subject=Inquiry about ${fullAddress}`}
-                          className="block w-full text-center px-6 py-3 border border-brand-dark text-brand-dark rounded hover:bg-gray-50 transition-colors"
+                          className="block w-full text-center px-6 py-3 ring-1 ring-brand-dark text-brand-dark rounded-2xl hover:bg-white/40 transition-colors"
                         >
                           Email Agent
                         </a>
@@ -621,8 +621,8 @@ export default async function ListingPage({ params }: Props) {
                 )}
 
                 {/* Similar Listings */}
-                <div className="bg-white rounded-lg p-6 border">
-                  <h3 className="text-lg font-sans mb-4">Similar Properties</h3>
+                <div className="glass-card rounded-3xl p-6">
+                  <h3 className="text-lg font-display font-semibold mb-4">Similar Properties</h3>
                   <div className="space-y-4">
                     {(listingsData.listings as unknown as Listing[])
                       .filter(
@@ -636,15 +636,15 @@ export default async function ListingPage({ params }: Props) {
                         <Link
                           key={similarListing.id}
                           href={`/listing/${similarListing.id}`}
-                          className="block hover:bg-gray-50 rounded p-2 -mx-2 transition-colors"
+                          className="block hover:bg-white/40 rounded-2xl p-2 -mx-2 transition-colors"
                         >
-                          <p className="font-medium text-gray-800">
+                          <p className="font-display font-medium text-brand-dark">
                             {formatPrice(similarListing.price.listPrice, isRental)}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-brand-dark/60">
                             {similarListing.address.streetNumber} {similarListing.address.streetName}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-brand-dark/40">
                             {similarListing.propertyInfo.bedroomsTotal} bed, {similarListing.propertyInfo.bathroomsFull} bath
                           </p>
                         </Link>
@@ -652,7 +652,7 @@ export default async function ListingPage({ params }: Props) {
                   </div>
                   <Link
                     href={isRental ? '/rent' : '/buy'}
-                    className="inline-block mt-4 text-sm text-gray-500 hover:text-brand-gold"
+                    className="inline-block mt-4 text-sm text-brand-dark/50 hover:text-brand-gold"
                   >
                     View all {isRental ? 'rentals' : 'sales'}
                   </Link>
@@ -664,7 +664,7 @@ export default async function ListingPage({ params }: Props) {
       </main>
 
       {/* REBNY RLS Disclaimer */}
-      <section className="bg-white border-t py-6 px-4">
+      <section className="bg-stone-50/50 border-t border-black/5 py-6 px-4">
         <div className="max-w-7xl mx-auto">
           <IDXDisclaimer
             variant="full"

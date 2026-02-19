@@ -52,13 +52,13 @@ export default function LiveListingsWidget({
   return (
     <section aria-label={`${name} Listings`} className="py-10 sm:py-14">
       <div className="max-w-7xl mx-auto px-4">
-        <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-6">
+        <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-6">
           {name} Listings
         </h2>
 
         {/* Tabs */}
         <div
-          className="flex gap-1 mb-6 overflow-x-auto border-b border-gray-200"
+          className="flex gap-1 mb-6 overflow-x-auto border-b border-black/5"
           role="tablist"
           aria-label="Filter by property type"
         >
@@ -70,8 +70,8 @@ export default function LiveListingsWidget({
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 activeTab === tab.key
-                  ? 'border-gray-900 text-gray-900'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-brand-gold-deep text-brand-dark'
+                  : 'border-transparent text-brand-dark/50 hover:text-brand-dark/70'
               }`}
             >
               {tab.label}
@@ -81,7 +81,7 @@ export default function LiveListingsWidget({
 
         {/* Results */}
         {filtered.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-brand-dark/50">
             <p className="mb-4">No active listings match this filter.</p>
             <Link
               href={`/buy?neighborhood=${neighborhoodSlug}`}
@@ -102,7 +102,7 @@ export default function LiveListingsWidget({
           <div className="mt-6 text-center">
             <Link
               href={`/buy?neighborhood=${neighborhoodSlug}`}
-              className="inline-block px-6 py-2.5 border border-gray-900 text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-900 hover:text-white transition-colors"
+              className="inline-block px-6 py-2.5 border border-brand-dark text-brand-dark text-sm font-medium rounded-2xl hover:bg-brand-dark hover:text-white transition-colors"
             >
               View All {filtered.length} Listings
             </Link>
@@ -129,9 +129,9 @@ function ListingCard({ listing }: { listing: Listing }) {
   const isComingSoon = listing.mlsStatus === 'Active' && listing.flags?.isPreMarket;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+    <div className="glass-card rounded-3xl overflow-hidden hover:shadow-md transition-shadow">
       {/* Image placeholder */}
-      <div className="aspect-[4/3] bg-gray-100 relative">
+      <div className="aspect-[4/3] bg-brand-gold/10 relative">
         {listing.media?.images?.[0]?.url ? (
           /* eslint-disable-next-line @next/next/no-img-element -- IDX listing images bypass next/image per image strategy */
           <img
@@ -141,7 +141,7 @@ function ListingCard({ listing }: { listing: Listing }) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+          <div className="w-full h-full flex items-center justify-center text-brand-dark/40 text-sm">
             No Photo
           </div>
         )}
@@ -164,16 +164,16 @@ function ListingCard({ listing }: { listing: Listing }) {
       </div>
 
       <div className="p-4">
-        <p className="text-lg font-semibold text-gray-900">{price}</p>
+        <p className="text-lg font-display font-semibold text-brand-dark">{price}</p>
 
         {showAddress && (
-          <p className="text-sm text-gray-700 mt-0.5">
+          <p className="text-sm text-brand-dark/70 mt-0.5">
             {listing.address.streetNumber} {listing.address.streetName}
             {listing.address.unit ? `, ${listing.address.unit}` : ''}
           </p>
         )}
 
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-brand-dark/50 mt-1">
           {listing.propertyInfo.bedroomsTotal} bed
           {listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''} &middot;{' '}
           {listing.propertyInfo.bathroomsFull} bath
@@ -184,7 +184,7 @@ function ListingCard({ listing }: { listing: Listing }) {
         </p>
 
         {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" - REQUIRED */}
-        <p className="text-[11px] text-gray-400 mt-2">
+        <p className="text-[11px] text-brand-dark/40 mt-2">
           Listing Courtesy of {listing.agent?.listOfficeName || 'REBNY RLS'}
         </p>
 

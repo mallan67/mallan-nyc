@@ -106,18 +106,18 @@ export default function SignUpPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-white font-sans">
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
-            <div className="bg-white rounded-lg shadow-sm border p-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="glass-card rounded-3xl p-10">
+              <div className="w-16 h-16 bg-green-50/60 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-semibold mb-2">Welcome, {firstName || 'there'}!</h1>
-              <p className="text-gray-600 mb-2">Your account has been created successfully.</p>
+              <h1 className="text-2xl font-display font-semibold mb-2">Welcome, {firstName || 'there'}!</h1>
+              <p className="text-brand-dark/60 mb-2">Your account has been created successfully.</p>
               <div className="flex flex-wrap gap-2 justify-center mb-6">
                 {selectedRoles.map(r => {
                   const role = roles.find(x => x.id === r);
@@ -128,20 +128,20 @@ export default function SignUpPage() {
                   ) : null;
                 })}
               </div>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-sm text-brand-dark/50 mb-6">
                 Your agent will reach out shortly to set up your personalized portal.
                 You&apos;ll receive an email with login details.
               </p>
               <div className="flex flex-col gap-3">
                 <Link
                   href="/"
-                  className="px-6 py-3 bg-brand-dark text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                  className="px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors text-sm font-medium"
                 >
                   Browse Properties
                 </Link>
                 <Link
                   href="/agents"
-                  className="px-6 py-3 border border-brand-dark text-brand-dark rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  className="px-6 py-3 ring-1 ring-brand-dark text-brand-dark rounded-2xl hover:bg-white/40 transition-colors text-sm"
                 >
                   Contact an Agent
                 </Link>
@@ -155,13 +155,13 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-lg mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-sm border p-8">
-            <h1 className="text-2xl font-semibold text-center mb-2">Create Your Account</h1>
-            <p className="text-gray-500 text-center text-sm mb-8">
+          <div className="glass-card rounded-3xl p-10">
+            <h1 className="text-2xl font-display font-semibold text-center mb-2">Create Your Account</h1>
+            <p className="text-brand-dark/50 text-center text-sm mb-8">
               Join Mallan Real Estate to access your personalized portal
             </p>
 
@@ -178,7 +178,7 @@ export default function SignUpPage() {
                     required
                     value={firstName}
                     onChange={e => setFirstName(e.target.value)}
-                    className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                    className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     placeholder="First name"
                   />
                 </div>
@@ -192,7 +192,7 @@ export default function SignUpPage() {
                     required
                     value={lastName}
                     onChange={e => setLastName(e.target.value)}
-                    className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                    className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     placeholder="Last name"
                   />
                 </div>
@@ -209,7 +209,7 @@ export default function SignUpPage() {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="you@example.com"
                 />
               </div>
@@ -225,7 +225,7 @@ export default function SignUpPage() {
                   required
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
-                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="(212) 555-0100"
                 />
               </div>
@@ -240,7 +240,7 @@ export default function SignUpPage() {
                   id="password"
                   required
                   minLength={8}
-                  className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-gold/50"
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="Create a password (min 8 characters)"
                 />
               </div>
@@ -255,7 +255,7 @@ export default function SignUpPage() {
               <div>
                 <label className="block text-sm font-medium mb-3">
                   I&apos;m interested in... <span className="text-red-500">*</span>
-                  <span className="text-gray-400 font-normal ml-1">(select all that apply)</span>
+                  <span className="text-brand-dark/40 font-normal ml-1">(select all that apply)</span>
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {roles.map((role) => {
@@ -266,13 +266,13 @@ export default function SignUpPage() {
                         type="button"
                         key={role.id}
                         onClick={() => toggleRole(role.id)}
-                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border-2 transition-all text-xs font-medium ${
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl ring-2 transition-all text-xs font-medium ${
                           isActive
-                            ? `${c.activeBg} ${c.activeBorder} ${c.text}`
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                            ? `${c.activeBg} ${c.activeBorder.replace('border-', 'ring-')} ${c.text}`
+                            : 'bg-white/60 ring-black/5 text-brand-dark/60 hover:ring-black/10 hover:bg-white/80'
                         }`}
                       >
-                        <svg className={`w-5 h-5 ${isActive ? c.text : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`w-5 h-5 ${isActive ? c.text : 'text-brand-dark/40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={role.icon} />
                         </svg>
                         {role.label}
@@ -281,12 +281,12 @@ export default function SignUpPage() {
                   })}
                 </div>
                 {selectedRoles.length === 0 && (
-                  <p className="text-xs text-gray-400 mt-2">Please select at least one</p>
+                  <p className="text-xs text-brand-dark/40 mt-2">Please select at least one</p>
                 )}
               </div>
 
               {/* Agent Login Note */}
-              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 p-3 bg-amber-50/60 ring-1 ring-amber-200 rounded-2xl">
                 <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -297,7 +297,7 @@ export default function SignUpPage() {
 
               {/* Error */}
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <div className="p-3 bg-red-50/60 ring-1 ring-red-200 rounded-2xl text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -306,10 +306,10 @@ export default function SignUpPage() {
               <button
                 type="submit"
                 disabled={selectedRoles.length === 0 || submitting}
-                className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                className={`w-full py-3 rounded-2xl font-medium transition-colors ${
                   selectedRoles.length > 0 && !submitting
-                    ? 'bg-brand-dark text-white hover:bg-gray-800 cursor-pointer'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-brand-dark text-white hover:bg-brand-dark/90 cursor-pointer'
+                    : 'bg-black/5 text-brand-dark/40 cursor-not-allowed'
                 }`}
               >
                 {submitting ? 'Creating Account...' : 'Create Account'}
@@ -317,8 +317,8 @@ export default function SignUpPage() {
             </form>
 
             {/* Sign In Link */}
-            <div className="mt-6 pt-6 border-t text-center">
-              <p className="text-gray-600 text-sm">
+            <div className="mt-6 pt-6 border-t border-black/5 text-center">
+              <p className="text-brand-dark/60 text-sm">
                 Already have an account?{' '}
                 <Link href="/sign-in" className="text-brand-gold font-semibold hover:underline">
                   Sign In
@@ -327,7 +327,7 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
+          <p className="text-center text-xs text-brand-dark/40 mt-6">
             By creating an account, you agree to our{' '}
             <Link href="/terms" className="hover:text-brand-gold">
               Terms of Service

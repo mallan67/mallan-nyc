@@ -69,7 +69,7 @@ function ClosedListingCard({ listing, isRental }: { listing: Listing; isRental: 
   const price = listing.price.closePrice || listing.price.listPrice;
 
   return (
-    <div className="group bg-white border border-gray-100 rounded overflow-hidden hover:border-brand-gold/30 hover:shadow-md transition-all">
+    <div className="group glass-card rounded-2xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all">
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <Image
           src={
@@ -86,17 +86,17 @@ function ClosedListingCard({ listing, isRental }: { listing: Listing; isRental: 
         <p className="font-semibold text-sm text-brand-dark">
           {formatPrice(price, isRental)}
         </p>
-        <p className="text-xs text-gray-600 truncate mt-0.5">
+        <p className="text-xs text-brand-dark/60 truncate mt-0.5">
           {listing.address.streetNumber} {listing.address.streetName}
           {listing.address.unit && ` #${listing.address.unit}`}
         </p>
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-1">
+        <div className="flex items-center gap-1.5 text-[11px] text-brand-dark/50 mt-1">
           <span>{listing.propertyInfo.propertyType}</span>
-          <span className="text-gray-300">|</span>
+          <span className="text-brand-dark/20">|</span>
           <span>{listing.propertyInfo.bedroomsTotal}BR/{listing.propertyInfo.bathroomsFull}BA</span>
           {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
             <>
-              <span className="text-gray-300">|</span>
+              <span className="text-brand-dark/20">|</span>
               <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf</span>
             </>
           )}
@@ -127,14 +127,14 @@ function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: 
           </span>
         )}
       </div>
-      <p className="font-semibold text-base text-brand-dark">
+      <p className="font-display font-semibold text-base text-brand-dark">
         {formatPrice(listing.price.listPrice, isRental)}
       </p>
-      <p className="text-sm text-gray-600 truncate">
+      <p className="text-sm text-brand-dark/60 truncate">
         {listing.address.streetNumber} {listing.address.streetName}
         {listing.address.unit && ` #${listing.address.unit}`}
       </p>
-      <p className="text-xs text-gray-500 mt-0.5">
+      <p className="text-xs text-brand-dark/50 mt-0.5">
         {listing.propertyInfo.propertyType} · {listing.propertyInfo.bedroomsTotal} bed · {listing.propertyInfo.bathroomsFull} bath
         {listing.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
       </p>
@@ -170,15 +170,15 @@ export default async function AgentPage({ params }: Props) {
   ].filter((item) => item.count > 0);
 
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
       <main className="pt-20">
         {/* Agent Profile Header */}
-        <section className="border-b">
+        <section className="border-b border-black/5">
           <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
             <Link
               href="/agents"
-              className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-gray-500 hover:text-brand-gold transition-colors mb-6"
+              className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-brand-dark/50 hover:text-brand-gold transition-colors mb-6"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -189,7 +189,7 @@ export default async function AgentPage({ params }: Props) {
             <div className="flex flex-col md:flex-row gap-6 lg:gap-10">
               {/* Agent Photo */}
               <div className="flex-shrink-0 mx-auto md:mx-0">
-                <div className="relative w-48 h-48 sm:w-56 sm:h-56 overflow-hidden rounded-full bg-gray-100 ring-4 ring-gray-50">
+                <div className="relative w-48 h-48 sm:w-56 sm:h-56 overflow-hidden rounded-full bg-gray-100 ring-4 ring-white/60">
                   <Image
                     src={agent.photo || '/images/agent-placeholder.svg'}
                     alt={agent.name}
@@ -204,8 +204,8 @@ export default async function AgentPage({ params }: Props) {
               <div className="flex-1 text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
                   <h1 className="text-xl sm:text-2xl font-light tracking-wide text-brand-dark">
-                    {agent.name}<span className="text-gray-400">,</span>{' '}
-                    <span className="text-base sm:text-lg text-gray-500">{agent.title}</span>
+                    {agent.name}<span className="text-brand-dark/40">,</span>{' '}
+                    <span className="text-base sm:text-lg text-brand-dark/50">{agent.title}</span>
                   </h1>
                   {agent.featured && (
                     <span className="px-2 py-0.5 bg-brand-gold/10 text-brand-gold text-[10px] uppercase tracking-wider rounded">
@@ -225,7 +225,7 @@ export default async function AgentPage({ params }: Props) {
                     </svg>
                     {agent.phone}
                   </a>
-                  <span className="text-gray-300 hidden sm:inline">|</span>
+                  <span className="text-brand-dark/20 hidden sm:inline">|</span>
                   <a
                     href={`mailto:${agent.email}`}
                     className="inline-flex items-center gap-2 text-sm text-brand-dark hover:text-brand-gold transition-colors"
@@ -238,7 +238,7 @@ export default async function AgentPage({ params }: Props) {
                 </div>
 
                 {/* Bio */}
-                <p className="text-sm text-gray-600 leading-relaxed max-w-2xl mb-4">
+                <p className="text-sm text-brand-dark/60 leading-relaxed max-w-2xl mb-4">
                   {agent.bio}
                 </p>
 
@@ -247,13 +247,13 @@ export default async function AgentPage({ params }: Props) {
                   {agent.specialties.map((specialty, idx) => (
                     <span
                       key={idx}
-                      className="px-2.5 py-1 border border-gray-200 text-xs text-gray-600 rounded"
+                      className="px-2.5 py-1 ring-1 ring-black/5 text-xs text-brand-dark/60 rounded-full"
                     >
                       {specialty}
                     </span>
                   ))}
                   {agent.languages.length > 1 && (
-                    <span className="px-2.5 py-1 border border-gray-200 text-xs text-gray-600 rounded">
+                    <span className="px-2.5 py-1 ring-1 ring-black/5 text-xs text-brand-dark/60 rounded-full">
                       {agent.languages.join(' · ')}
                     </span>
                   )}
@@ -265,17 +265,17 @@ export default async function AgentPage({ params }: Props) {
 
         {/* Section Navigation */}
         {navItems.length > 0 && (
-          <nav className="sticky top-16 z-40 bg-white border-b">
+          <nav className="sticky top-16 z-40 bg-white/80 backdrop-blur-xl border-b border-black/5">
             <div className="max-w-6xl mx-auto px-4">
               <div className="flex items-center gap-1 overflow-x-auto py-3 scrollbar-hide">
                 {navItems.map((item) => (
                   <a
                     key={item.id}
                     href={`#${item.id}`}
-                    className="flex-shrink-0 px-4 py-2 text-xs uppercase tracking-wide text-gray-600 hover:text-brand-gold hover:bg-gray-50 rounded transition-colors"
+                    className="flex-shrink-0 px-4 py-2 text-xs uppercase tracking-wide text-brand-dark/60 hover:text-brand-gold hover:bg-white/40 rounded transition-colors"
                   >
                     {item.label}
-                    <span className="ml-1.5 text-gray-400">({item.count})</span>
+                    <span className="ml-1.5 text-brand-dark/40">({item.count})</span>
                   </a>
                 ))}
               </div>
@@ -287,9 +287,9 @@ export default async function AgentPage({ params }: Props) {
         {activeListings.length > 0 && (
           <section id="active-sales" className="py-10 scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b">
+              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
                 Active Sales
-                <span className="ml-2 text-sm text-gray-400">({activeListings.length})</span>
+                <span className="ml-2 text-sm text-brand-dark/40">({activeListings.length})</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeListings.map((listing) => (
@@ -302,11 +302,11 @@ export default async function AgentPage({ params }: Props) {
 
         {/* Active Rentals */}
         {activeRentals.length > 0 && (
-          <section id="active-rentals" className="py-10 bg-white scroll-mt-32">
+          <section id="active-rentals" className="py-10 scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b border-gray-200">
+              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
                 Active Rentals
-                <span className="ml-2 text-sm text-gray-400">({activeRentals.length})</span>
+                <span className="ml-2 text-sm text-brand-dark/40">({activeRentals.length})</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeRentals.map((listing) => (
@@ -321,9 +321,9 @@ export default async function AgentPage({ params }: Props) {
         {pastSales.length > 0 && (
           <section id="closed-sales" className="py-10 scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b">
+              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
                 Closed Sales
-                <span className="ml-2 text-sm text-gray-400">({pastSales.length})</span>
+                <span className="ml-2 text-sm text-brand-dark/40">({pastSales.length})</span>
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {pastSales.map((listing) => (
@@ -336,11 +336,11 @@ export default async function AgentPage({ params }: Props) {
 
         {/* Closed Rentals */}
         {pastRentals.length > 0 && (
-          <section id="closed-rentals" className="py-10 bg-white scroll-mt-32">
+          <section id="closed-rentals" className="py-10 scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-light tracking-wide text-brand-dark mb-6 pb-2 border-b border-gray-200">
+              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
                 Closed Rentals
-                <span className="ml-2 text-sm text-gray-400">({pastRentals.length})</span>
+                <span className="ml-2 text-sm text-brand-dark/40">({pastRentals.length})</span>
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {pastRentals.map((listing) => (
@@ -355,7 +355,7 @@ export default async function AgentPage({ params }: Props) {
         {activeListings.length === 0 && activeRentals.length === 0 && pastSales.length === 0 && pastRentals.length === 0 && (
           <section className="py-16">
             <div className="max-w-6xl mx-auto px-4 text-center">
-              <p className="text-gray-500">
+              <p className="text-brand-dark/50">
                 Contact {agent.name.split(' ')[0]} directly to discuss available properties.
               </p>
             </div>
@@ -365,16 +365,16 @@ export default async function AgentPage({ params }: Props) {
         {/* Contact CTA */}
         <section className="py-12 bg-brand-dark">
           <div className="max-w-2xl mx-auto px-4 text-center">
-            <h2 className="text-xl sm:text-2xl font-light tracking-wide text-white mb-3">
+            <h2 className="text-xl sm:text-2xl font-display font-semibold text-white mb-3">
               Work with {agent.name}
             </h2>
-            <p className="text-gray-400 text-sm mb-6">
+            <p className="text-gray-300 text-sm mb-6">
               Ready to buy, sell, or rent? Get in touch today.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href={`tel:${agent.phone.replace(/[^0-9]/g, '')}`}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-brand-dark text-sm font-medium rounded hover:bg-gray-100 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-brand-dark text-sm font-medium rounded-2xl hover:bg-white/90 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -383,7 +383,7 @@ export default async function AgentPage({ params }: Props) {
               </a>
               <a
                 href={`mailto:${agent.email}`}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-white/30 text-white text-sm font-medium rounded hover:bg-white/10 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-white/30 text-white text-sm font-medium rounded-2xl hover:bg-white/10 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

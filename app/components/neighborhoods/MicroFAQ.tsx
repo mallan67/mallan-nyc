@@ -24,10 +24,10 @@ export default function MicroFAQ({ name, faqs }: MicroFAQProps) {
   return (
     <section
       aria-label={`Frequently Asked Questions about ${name}`}
-      className="py-10 sm:py-14 bg-gray-50"
+      className="py-10 sm:py-14 bg-stone-50/50"
     >
       <div className="max-w-3xl mx-auto px-4">
-        <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-6">
+        <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-6">
           {name} FAQ
         </h2>
 
@@ -35,18 +35,18 @@ export default function MicroFAQ({ name, faqs }: MicroFAQProps) {
           {faqs.map((faq, i) => (
             <details
               key={i}
-              className="group bg-white rounded-lg border border-gray-200"
+              className="group glass-card rounded-3xl"
             >
-              <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 py-4 text-sm sm:text-base font-medium text-gray-900 select-none">
+              <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 py-4 text-sm sm:text-base font-medium text-brand-dark select-none">
                 {faq.question}
                 <span
                   aria-hidden="true"
-                  className="shrink-0 text-gray-400 group-open:rotate-45 transition-transform text-lg"
+                  className="shrink-0 text-brand-dark/40 group-open:rotate-45 transition-transform text-lg"
                 >
                   +
                 </span>
               </summary>
-              <div className="px-5 pb-4 text-sm sm:text-base text-gray-600 leading-relaxed">
+              <div className="px-5 pb-4 text-sm sm:text-base text-brand-dark/60 leading-relaxed">
                 {faq.answer}
               </div>
             </details>

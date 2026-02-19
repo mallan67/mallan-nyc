@@ -4,6 +4,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
+import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
 
 export const revalidate = 3600;
 
@@ -64,10 +65,10 @@ const buyFaqSchema = {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-4 border-brand-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500">Loading properties...</p>
+        <p className="text-brand-dark/50">Loading properties...</p>
       </div>
     </div>
   );
@@ -75,7 +76,7 @@ function SearchLoading() {
 
 export default function BuyPage() {
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buyFaqSchema) }}
@@ -86,6 +87,11 @@ export default function BuyPage() {
           <PropertySearch type="buy" />
         </Suspense>
       </main>
+      <section className="py-8 px-4 bg-stone-50/50 border-t border-black/5">
+        <div className="max-w-xl mx-auto">
+          <AffordabilityCalculator />
+        </div>
+      </section>
       <SocialShareBar title="Buy Property in NYC | Mallan Real Estate" />
       <Footer />
     </div>

@@ -70,14 +70,14 @@ export default function ResourceContent({ slug }: { slug: string }) {
       <div className="py-16">
         <div className="max-w-3xl mx-auto px-4">
           <div className="animate-pulse">
-            <div className="h-10 bg-gray-200 rounded w-2/3 mb-4"></div>
-            <div className="h-6 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="h-10 bg-black/5 rounded w-2/3 mb-4"></div>
+            <div className="h-6 bg-black/5 rounded w-1/2 mb-8"></div>
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="space-y-2">
-                  <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-                  <div className="h-4 bg-gray-200 rounded"></div>
-                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                  <div className="h-6 bg-black/5 rounded w-1/3"></div>
+                  <div className="h-4 bg-black/5 rounded"></div>
+                  <div className="h-4 bg-black/5 rounded w-5/6"></div>
                 </div>
               ))}
             </div>
@@ -91,13 +91,13 @@ export default function ResourceContent({ slug }: { slug: string }) {
     return (
       <div className="py-16 text-center">
         <div className="max-w-xl mx-auto px-4">
-          <h1 className="text-2xl font-semibold mb-4">Resource Not Found</h1>
-          <p className="text-gray-600 mb-8">
+          <h1 className="text-2xl font-display font-semibold mb-4">Resource Not Found</h1>
+          <p className="text-brand-dark/60 mb-8">
             The resource you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link
             href="/"
-            className="inline-block px-6 py-3 bg-brand-dark text-white rounded hover:bg-gray-800"
+            className="inline-block px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90"
           >
             Return Home
           </Link>
@@ -118,18 +118,18 @@ export default function ResourceContent({ slug }: { slug: string }) {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 hero-gradient" />
         </div>
         <div className="relative z-10 text-center text-white px-4 max-w-3xl">
-          <h1 className="text-2xl md:text-3xl font-semibold mb-4">{data.title}</h1>
+          <h1 className="font-display font-bold text-3xl md:text-5xl mb-4">{data.title}</h1>
           <p className="text-lg md:text-xl text-gray-200">{data.subtitle}</p>
         </div>
       </section>
 
       {/* Table of Contents */}
-      <section className="py-8 bg-white border-b">
+      <section className="py-8 bg-stone-50/50 border-b border-black/5">
         <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+          <h2 className="text-sm font-medium text-brand-dark/50 uppercase tracking-wide mb-3">
             In This Guide
           </h2>
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
@@ -151,11 +151,11 @@ export default function ResourceContent({ slug }: { slug: string }) {
         <div className="max-w-3xl mx-auto px-4">
           {data.sections.map((section, index) => (
             <div key={index} id={`section-${index}`} className="mb-12 scroll-mt-24">
-              <h2 className="text-xl font-semibold mb-4 pb-2 border-b">
+              <h2 className="text-xl font-display font-semibold mb-4 pb-2 border-b border-black/5">
                 {section.title}
               </h2>
               <div
-                className="text-gray-700 leading-relaxed"
+                className="text-brand-dark/70 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}
               />
             </div>
@@ -167,7 +167,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
       {data.cta && (
         <section className="py-16 bg-brand-dark text-white">
           <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-xl md:text-2xl font-semibold mb-4">
+            <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">
               {data.cta.title}
             </h2>
             <p className="text-gray-300 mb-8">
@@ -175,7 +175,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
             </p>
             <Link
               href={data.cta.buttonLink}
-              className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded hover:bg-gray-100 transition-colors"
+              className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded-2xl hover:bg-white/90 transition-colors"
             >
               {data.cta.buttonText}
             </Link>

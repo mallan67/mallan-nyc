@@ -14,10 +14,10 @@ export default function FeaturedBuildingsModule({
   return (
     <section
       aria-label={`Featured Buildings in ${name}`}
-      className="py-10 sm:py-14 bg-gray-50"
+      className="py-10 sm:py-14 bg-stone-50/50"
     >
       <div className="max-w-7xl mx-auto px-4">
-        <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-6">
+        <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-6">
           Featured Buildings in {name}
         </h2>
 
@@ -25,36 +25,36 @@ export default function FeaturedBuildingsModule({
           {buildings.map((bldg) => (
             <div
               key={bldg.slug}
-              className="bg-white border border-gray-200 rounded-lg p-5 min-w-[280px]"
+              className="glass-card rounded-3xl p-5 min-w-[280px]"
             >
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-display font-semibold text-brand-dark">
                 {bldg.name}
               </h3>
               {bldg.nickname && (
-                <p className="text-sm text-gray-500 italic">{bldg.nickname}</p>
+                <p className="text-sm text-brand-dark/50 italic">{bldg.nickname}</p>
               )}
 
-              <dl className="mt-3 space-y-1.5 text-sm text-gray-600">
+              <dl className="mt-3 space-y-1.5 text-sm text-brand-dark/60">
                 {bldg.architect && (
                   <div className="flex justify-between">
-                    <dt className="text-gray-500">Architect</dt>
+                    <dt className="text-brand-dark/50">Architect</dt>
                     <dd className="font-medium text-right">{bldg.architect}</dd>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Built</dt>
+                  <dt className="text-brand-dark/50">Built</dt>
                   <dd className="font-medium">{bldg.yearBuilt}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Type</dt>
+                  <dt className="text-brand-dark/50">Type</dt>
                   <dd className="font-medium">{bldg.type}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Units</dt>
+                  <dt className="text-brand-dark/50">Units</dt>
                   <dd className="font-medium">{bldg.units}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Price Range</dt>
+                  <dt className="text-brand-dark/50">Price Range</dt>
                   <dd className="font-medium">{bldg.priceRange}</dd>
                 </div>
               </dl>

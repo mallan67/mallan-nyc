@@ -38,24 +38,24 @@ export default function MovingCostEstimator() {
   }, [monthlyRent, aptSize, hasBrokerFee]);
 
   return (
-    <div className="bg-white rounded-lg border overflow-hidden">
+    <div className="glass-card rounded-3xl overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/40 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-            <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center">
+            <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
             </svg>
           </div>
           <div className="text-left">
-            <h3 className="font-semibold text-gray-900">NYC Moving Cost Estimator</h3>
-            <p className="text-sm text-gray-500">Total move-in costs at a glance</p>
+            <h3 className="font-display font-semibold text-brand-dark">NYC Moving Cost Estimator</h3>
+            <p className="text-sm text-brand-dark/50">Total move-in costs at a glance</p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-brand-dark/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -63,11 +63,11 @@ export default function MovingCostEstimator() {
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t">
+        <div className="px-6 pb-6 border-t border-black/5">
           {/* Total */}
-          <div className="mt-4 bg-amber-50 rounded-lg p-4 text-center">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Estimated Total Move-In Cost</p>
-            <p className="text-3xl font-bold text-gray-900">
+          <div className="mt-4 bg-amber-50/60 rounded-2xl p-4 text-center">
+            <p className="text-xs text-brand-dark/50 uppercase tracking-wide mb-1">Estimated Total Move-In Cost</p>
+            <p className="text-3xl font-display font-bold text-brand-dark">
               ${calculations.total.toLocaleString()}
             </p>
           </div>
@@ -75,30 +75,30 @@ export default function MovingCostEstimator() {
           {/* Line items */}
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between py-1">
-              <span className="text-gray-600">First month&apos;s rent</span>
+              <span className="text-brand-dark/60">First month&apos;s rent</span>
               <span className="font-medium">${calculations.firstMonth.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-gray-600">Security deposit</span>
+              <span className="text-brand-dark/60">Security deposit</span>
               <span className="font-medium">${calculations.securityDeposit.toLocaleString()}</span>
             </div>
             {hasBrokerFee && (
               <div className="flex justify-between py-1">
-                <span className="text-gray-600">Broker fee (1 month)</span>
+                <span className="text-brand-dark/60">Broker fee (1 month)</span>
                 <span className="font-medium">${calculations.brokerFee.toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between py-1">
-              <span className="text-gray-600">Moving company</span>
+              <span className="text-brand-dark/60">Moving company</span>
               <span className="font-medium">${calculations.movingCompany.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-gray-600">Utilities setup</span>
+              <span className="text-brand-dark/60">Utilities setup</span>
               <span className="font-medium">${calculations.utilitiesSetup.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between pt-2 border-t font-medium">
-              <span className="text-gray-700">Total</span>
-              <span className="text-gray-900">${calculations.total.toLocaleString()}</span>
+            <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
+              <span className="text-brand-dark/70">Total</span>
+              <span className="text-brand-dark">${calculations.total.toLocaleString()}</span>
             </div>
           </div>
 
@@ -106,7 +106,7 @@ export default function MovingCostEstimator() {
           <div className="mt-6 space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-gray-600">Monthly Rent</label>
+                <label className="text-brand-dark/60">Monthly Rent</label>
                 <span className="font-medium">${monthlyRent.toLocaleString()}</span>
               </div>
               <input
@@ -121,16 +121,16 @@ export default function MovingCostEstimator() {
             </div>
 
             <div>
-              <label className="block text-sm text-gray-600 mb-2">Apartment Size</label>
+              <label className="block text-sm text-brand-dark/60 mb-2">Apartment Size</label>
               <div className="grid grid-cols-4 gap-2">
                 {APT_SIZES.map((size) => (
                   <button
                     key={size.value}
                     onClick={() => setAptSize(size.value)}
-                    className={`py-2 text-xs font-medium rounded-lg border transition-colors ${
+                    className={`py-2 text-xs font-medium rounded-2xl transition-colors ${
                       aptSize === size.value
-                        ? 'bg-brand-gold text-white border-brand-gold'
-                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                        ? 'bg-brand-gold text-white'
+                        : 'bg-white/60 text-brand-dark/60 ring-1 ring-black/5 hover:bg-white/80'
                     }`}
                   >
                     {size.label}
@@ -140,7 +140,7 @@ export default function MovingCostEstimator() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Broker fee (1 month)</span>
+              <span className="text-sm text-brand-dark/60">Broker fee (1 month)</span>
               <button
                 onClick={() => setHasBrokerFee(!hasBrokerFee)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -156,7 +156,7 @@ export default function MovingCostEstimator() {
             </div>
           </div>
 
-          <p className="mt-4 text-xs text-gray-400">
+          <p className="mt-4 text-xs text-brand-dark/40">
             *Estimates based on typical NYC move-in costs. Actual costs vary by building,
             location, and moving company. Some buildings may require additional deposits
             or fees.

@@ -108,15 +108,15 @@ export default function MortgageModal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
         <Dialog.Content className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto outline-none pointer-events-auto">
+          <div className="relative glass-card rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto outline-none pointer-events-auto">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <Dialog.Title className="text-xl font-semibold text-gray-900">Monthly Payment Calculator</Dialog.Title>
+            <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-black/5 px-6 py-4 flex items-center justify-between rounded-t-3xl">
+              <Dialog.Title className="text-xl font-display font-semibold text-brand-dark">Monthly Payment Calculator</Dialog.Title>
               <Dialog.Close
                 aria-label="Close calculator"
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-2 hover:bg-white/40 rounded-full transition-colors"
               >
-                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-brand-dark/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </Dialog.Close>
@@ -124,19 +124,19 @@ export default function MortgageModal({
 
             <div className="p-6 space-y-6">
               {/* Total Monthly Payment */}
-              <div className="bg-gradient-to-br from-brand-gold/10 to-brand-gold/5 rounded-xl p-6 text-center">
-                <p className="text-sm text-gray-600 mb-1">Estimated Monthly Payment</p>
-                <p className="text-2xl font-bold text-brand-dark">
+              <div className="bg-gradient-to-br from-brand-gold/10 to-brand-gold/5 rounded-2xl p-6 text-center">
+                <p className="text-sm text-brand-dark/60 mb-1">Estimated Monthly Payment</p>
+                <p className="text-2xl font-display font-bold text-brand-dark">
                   ${calculations.totalMonthly.toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-brand-dark/50 mt-2">
                   Purchase Price: ${purchasePrice.toLocaleString()}
                 </p>
               </div>
 
               {/* Payment Breakdown Visual */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Monthly Breakdown</h3>
+                <h3 className="text-sm font-display font-medium text-brand-dark/70 mb-3">Monthly Breakdown</h3>
                 <div className="h-4 rounded-full overflow-hidden flex shadow-inner">
                   <div className="bg-brand-gold" style={{ width: `${pieData.pi}%` }} title="Principal & Interest" />
                   <div className="bg-blue-500" style={{ width: `${pieData.taxes}%` }} title="Property Taxes" />
@@ -148,28 +148,28 @@ export default function MortgageModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-brand-gold"></span>
-                      <span className="text-gray-600">Principal & Interest</span>
+                      <span className="text-brand-dark/60">Principal & Interest</span>
                     </div>
                     <span className="font-medium">${calculations.monthlyPrincipalInterest.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                      <span className="text-gray-600">Property Taxes</span>
+                      <span className="text-brand-dark/60">Property Taxes</span>
                     </div>
                     <span className="font-medium">${calculations.monthlyTaxes.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                      <span className="text-gray-600">{propertyType === 'Co-op' ? 'Maintenance' : 'Common Charges'}</span>
+                      <span className="text-brand-dark/60">{propertyType === 'Co-op' ? 'Maintenance' : 'Common Charges'}</span>
                     </div>
                     <span className="font-medium">${calculations.maintenanceFee.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-purple-500"></span>
-                      <span className="text-gray-600">Insurance</span>
+                      <span className="text-brand-dark/60">Insurance</span>
                     </div>
                     <span className="font-medium">${calculations.monthlyInsurance.toLocaleString()}</span>
                   </div>
@@ -177,7 +177,7 @@ export default function MortgageModal({
                     <div className="flex items-center justify-between col-span-2">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-                        <span className="text-gray-600">PMI (until 20% equity)</span>
+                        <span className="text-brand-dark/60">PMI (until 20% equity)</span>
                       </div>
                       <span className="font-medium">${calculations.monthlyPMI.toLocaleString()}</span>
                     </div>
@@ -186,12 +186,12 @@ export default function MortgageModal({
               </div>
 
               {/* Adjustable Inputs */}
-              <div className="space-y-5 pt-4 border-t">
-                <h3 className="text-sm font-medium text-gray-700">Adjust Your Loan</h3>
+              <div className="space-y-5 pt-4 border-t border-black/5">
+                <h3 className="text-sm font-display font-medium text-brand-dark/70">Adjust Your Loan</h3>
 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <label className="text-gray-600">Down Payment</label>
+                    <label className="text-brand-dark/60">Down Payment</label>
                     <span className="font-semibold">{downPaymentPercent}% (${calculations.downPayment.toLocaleString()})</span>
                   </div>
                   <input
@@ -203,7 +203,7 @@ export default function MortgageModal({
                     max={50}
                     step={5}
                   />
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <div className="flex justify-between text-xs text-brand-dark/40 mt-1">
                     <span>5%</span>
                     <span>25%</span>
                     <span>50%</span>
@@ -212,7 +212,7 @@ export default function MortgageModal({
 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <label className="text-gray-600">Interest Rate</label>
+                    <label className="text-brand-dark/60">Interest Rate</label>
                     <span className="font-semibold">{interestRate}%</span>
                   </div>
                   <input
@@ -224,7 +224,7 @@ export default function MortgageModal({
                     max={9}
                     step={0.125}
                   />
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <div className="flex justify-between text-xs text-brand-dark/40 mt-1">
                     <span>4%</span>
                     <span>6.5%</span>
                     <span>9%</span>
@@ -233,17 +233,17 @@ export default function MortgageModal({
 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <label className="text-gray-600">Loan Term</label>
+                    <label className="text-brand-dark/60">Loan Term</label>
                   </div>
                   <div className="flex gap-2">
                     {[15, 20, 30].map((term) => (
                       <button
                         key={term}
                         onClick={() => setLoanTerm(term)}
-                        className={`flex-1 py-2.5 text-sm rounded-lg border-2 transition-all ${
+                        className={`flex-1 py-2.5 text-sm rounded-2xl transition-all ${
                           loanTerm === term
-                            ? 'bg-brand-gold text-white border-brand-gold font-semibold'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-brand-gold/50'
+                            ? 'bg-brand-gold text-white font-semibold'
+                            : 'bg-white/60 text-brand-dark/60 ring-1 ring-black/5 hover:bg-white/80'
                         }`}
                       >
                         {term} years
@@ -254,48 +254,48 @@ export default function MortgageModal({
               </div>
 
               {/* Closing Costs */}
-              <div className="pt-4 border-t">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Estimated Closing Costs (NYC)</h3>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+              <div className="pt-4 border-t border-black/5">
+                <h3 className="text-sm font-display font-medium text-brand-dark/70 mb-3">Estimated Closing Costs (NYC)</h3>
+                <div className="bg-stone-50/50 rounded-2xl p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Attorney Fees</span>
+                    <span className="text-brand-dark/60">Attorney Fees</span>
                     <span>${(calculations.closingCosts.buyerAttorneyFee + calculations.closingCosts.bankAttorneyFee).toLocaleString()}</span>
                   </div>
                   {calculations.closingCosts.titleInsurance > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Title Insurance</span>
+                      <span className="text-brand-dark/60">Title Insurance</span>
                       <span>${calculations.closingCosts.titleInsurance.toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Title Search</span>
+                    <span className="text-brand-dark/60">Title Search</span>
                     <span>${calculations.closingCosts.titleSearch.toLocaleString()}</span>
                   </div>
                   {calculations.closingCosts.mortgageRecordingTax > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Mortgage Recording Tax</span>
+                      <span className="text-brand-dark/60">Mortgage Recording Tax</span>
                       <span>${calculations.closingCosts.mortgageRecordingTax.toLocaleString()}</span>
                     </div>
                   )}
                   {calculations.closingCosts.mansionTax > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Mansion Tax (1%)</span>
+                      <span className="text-brand-dark/60">Mansion Tax (1%)</span>
                       <span>${calculations.closingCosts.mansionTax.toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Bank/Lender Fees</span>
+                    <span className="text-brand-dark/60">Bank/Lender Fees</span>
                     <span>${calculations.closingCosts.bankFee.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Appraisal & Credit</span>
+                    <span className="text-brand-dark/60">Appraisal & Credit</span>
                     <span>${(calculations.closingCosts.appraisal + calculations.closingCosts.creditReport).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Misc. Fees</span>
+                    <span className="text-brand-dark/60">Misc. Fees</span>
                     <span>${calculations.closingCosts.miscFees.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between pt-2 border-t font-semibold">
+                  <div className="flex justify-between pt-2 border-t border-black/5 font-semibold">
                     <span>Total Closing Costs</span>
                     <span>${calculations.totalClosingCosts.toLocaleString()}</span>
                   </div>
@@ -303,11 +303,11 @@ export default function MortgageModal({
               </div>
 
               {/* Total Cash Needed */}
-              <div className="bg-brand-dark text-white rounded-xl p-5">
+              <div className="bg-brand-dark text-white rounded-2xl p-5">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-300">Total Cash Needed at Closing</p>
-                    <p className="text-2xl font-bold">${calculations.totalCashNeeded.toLocaleString()}</p>
+                    <p className="text-2xl font-display font-bold">${calculations.totalCashNeeded.toLocaleString()}</p>
                   </div>
                   <div className="text-right text-sm">
                     <p className="text-gray-300">Down Payment</p>
@@ -317,7 +317,7 @@ export default function MortgageModal({
               </div>
 
               {/* Loan Summary */}
-              <div className="text-sm text-gray-500 space-y-1">
+              <div className="text-sm text-brand-dark/50 space-y-1">
                 <div className="flex justify-between">
                   <span>Loan Amount</span>
                   <span>${calculations.loanAmount.toLocaleString()}</span>
@@ -328,7 +328,7 @@ export default function MortgageModal({
                 </div>
               </div>
 
-              <p className="text-xs text-gray-400 pt-2">
+              <p className="text-xs text-brand-dark/40 pt-2">
                 *Estimates only. Actual costs may vary. Consult with a mortgage professional and attorney for accurate figures.
                 NYC taxes include mortgage recording tax (2.25% for loans over $500k) and mansion tax (1% for purchases over $1M).
               </p>

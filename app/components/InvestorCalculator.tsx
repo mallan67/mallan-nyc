@@ -165,24 +165,24 @@ export default function InvestorCalculator({
   const isPositiveCashFlow = calculations.monthlyCashFlow > 0;
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+    <div className="glass-card rounded-3xl overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/40 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center">
+            <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
           <div className="text-left">
-            <h3 className="font-semibold text-gray-900">Investment Analysis</h3>
-            <p className="text-sm text-gray-500">ROI, Cash on Cash, Cap Rate</p>
+            <h3 className="font-display font-semibold text-brand-dark">Investment Analysis</h3>
+            <p className="text-sm text-brand-dark/50">ROI, Cash on Cash, Cap Rate</p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-brand-dark/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -190,35 +190,35 @@ export default function InvestorCalculator({
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t">
+        <div className="px-6 pb-6 border-t border-black/5">
           {/* Key Metrics Summary */}
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Cap Rate</p>
-              <p className="text-xl font-bold text-gray-900">{calculations.capRate}%</p>
+            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+              <p className="text-xs text-brand-dark/50 mb-1">Cap Rate</p>
+              <p className="text-xl font-display font-bold text-brand-dark">{calculations.capRate}%</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Cash on Cash</p>
-              <p className={`text-xl font-bold ${Number(calculations.cashOnCash) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+              <p className="text-xs text-brand-dark/50 mb-1">Cash on Cash</p>
+              <p className={`text-xl font-display font-bold ${Number(calculations.cashOnCash) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculations.cashOnCash}%
               </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Monthly Cash Flow</p>
-              <p className={`text-xl font-bold ${isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+              <p className="text-xs text-brand-dark/50 mb-1">Monthly Cash Flow</p>
+              <p className={`text-xl font-display font-bold ${isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}`}>
                 ${calculations.monthlyCashFlow.toLocaleString()}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Total ROI (Yr 1)</p>
-              <p className={`text-xl font-bold ${Number(calculations.totalROI) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+              <p className="text-xs text-brand-dark/50 mb-1">Total ROI (Yr 1)</p>
+              <p className={`text-xl font-display font-bold ${Number(calculations.totalROI) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculations.totalROI}%
               </p>
             </div>
           </div>
 
           {/* Cash Flow Status */}
-          <div className={`mt-4 p-3 rounded-lg ${isPositiveCashFlow ? 'bg-green-50' : 'bg-amber-50'}`}>
+          <div className={`mt-4 p-3 rounded-2xl ${isPositiveCashFlow ? 'bg-green-50/60' : 'bg-amber-50/60'}`}>
             <div className="flex items-center gap-2">
               {isPositiveCashFlow ? (
                 <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -239,114 +239,114 @@ export default function InvestorCalculator({
 
           {/* Inputs */}
           <div className="mt-6 space-y-4">
-            <h4 className="font-medium text-gray-900 text-sm">Investment Parameters</h4>
+            <h4 className="font-display font-medium text-brand-dark text-sm">Investment Parameters</h4>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Est. Monthly Rent</label>
+                <label className="block text-xs text-brand-dark/50 mb-1">Est. Monthly Rent</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/40">$</span>
                   <input
                     type="number"
                     value={estimatedRent}
                     onChange={(e) => setEstimatedRent(Number(e.target.value))}
-                    className="w-full pl-7 pr-3 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-7 pr-3 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Down Payment</label>
+                <label className="block text-xs text-brand-dark/50 mb-1">Down Payment</label>
                 <div className="relative">
                   <input
                     type="number"
                     value={downPaymentPercent}
                     onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     min={10}
                     max={100}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Interest Rate</label>
+                <label className="block text-xs text-brand-dark/50 mb-1">Interest Rate</label>
                 <div className="relative">
                   <input
                     type="number"
                     value={interestRate}
                     onChange={(e) => setInterestRate(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     step={0.125}
                     min={3}
                     max={12}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Vacancy Rate</label>
+                <label className="block text-xs text-brand-dark/50 mb-1">Vacancy Rate</label>
                 <div className="relative">
                   <input
                     type="number"
                     value={vacancyRate}
                     onChange={(e) => setVacancyRate(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     min={0}
                     max={20}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Annual Appreciation</label>
+                <label className="block text-xs text-brand-dark/50 mb-1">Annual Appreciation</label>
                 <div className="relative">
                   <input
                     type="number"
                     value={annualAppreciation}
                     onChange={(e) => setAnnualAppreciation(Number(e.target.value))}
-                    className="w-full pl-3 pr-7 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     step={0.5}
                     min={-5}
                     max={10}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Holding Period</label>
+                <label className="block text-xs text-brand-dark/50 mb-1">Holding Period</label>
                 <div className="relative">
                   <input
                     type="number"
                     value={holdingPeriod}
                     onChange={(e) => setHoldingPeriod(Number(e.target.value))}
-                    className="w-full pl-3 pr-8 py-2 border rounded text-sm focus:ring-1 focus:ring-brand-gold focus:border-brand-gold"
+                    className="w-full pl-3 pr-8 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     min={1}
                     max={30}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">yrs</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40 text-xs">yrs</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Financial Breakdown */}
-          <div className="mt-6 pt-4 border-t">
-            <h4 className="font-medium text-gray-900 text-sm mb-3">Monthly Breakdown</h4>
+          <div className="mt-6 pt-4 border-t border-black/5">
+            <h4 className="font-display font-medium text-brand-dark text-sm mb-3">Monthly Breakdown</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Effective Rent (after vacancy)</span>
+                <span className="text-brand-dark/50">Effective Rent (after vacancy)</span>
                 <span className="text-green-600">+${calculations.effectiveMonthlyRent.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Mortgage (P&I)</span>
+                <span className="text-brand-dark/50">Mortgage (P&I)</span>
                 <span className="text-red-600">-${calculations.monthlyMortgage.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Taxes + Maint + Insurance</span>
+                <span className="text-brand-dark/50">Taxes + Maint + Insurance</span>
                 <span className="text-red-600">-${calculations.monthlyExpenses.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t font-medium">
-                <span className="text-gray-700">Monthly Cash Flow</span>
+              <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
+                <span className="text-brand-dark/70">Monthly Cash Flow</span>
                 <span className={isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}>
                   ${calculations.monthlyCashFlow.toLocaleString()}
                 </span>
@@ -355,39 +355,39 @@ export default function InvestorCalculator({
           </div>
 
           {/* Projection */}
-          <div className="mt-6 pt-4 border-t">
-            <h4 className="font-medium text-gray-900 text-sm mb-3">{holdingPeriod}-Year Projection</h4>
+          <div className="mt-6 pt-4 border-t border-black/5">
+            <h4 className="font-display font-medium text-brand-dark text-sm mb-3">{holdingPeriod}-Year Projection</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Total Cash Invested</span>
+                <span className="text-brand-dark/50">Total Cash Invested</span>
                 <span className="font-medium">${calculations.totalCashInvested.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Cumulative Cash Flow</span>
+                <span className="text-brand-dark/50">Cumulative Cash Flow</span>
                 <span className={calculations.cumulativeCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
                   ${calculations.cumulativeCashFlow.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Equity Built (principal paydown)</span>
+                <span className="text-brand-dark/50">Equity Built (principal paydown)</span>
                 <span className="text-green-600">${calculations.totalEquityBuilt.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Appreciation Gain</span>
+                <span className="text-brand-dark/50">Appreciation Gain</span>
                 <span className="text-green-600">${calculations.totalAppreciation.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Future Property Value</span>
+                <span className="text-brand-dark/50">Future Property Value</span>
                 <span className="font-medium">${calculations.futureValue.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t font-medium">
-                <span className="text-gray-700">Total Profit (after sale)</span>
+              <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
+                <span className="text-brand-dark/70">Total Profit (after sale)</span>
                 <span className={calculations.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
                   ${calculations.totalProfit.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between font-medium">
-                <span className="text-gray-700">Annualized Return</span>
+                <span className="text-brand-dark/70">Annualized Return</span>
                 <span className={Number(calculations.annualizedReturn) >= 0 ? 'text-green-600' : 'text-red-600'}>
                   {calculations.annualizedReturn}%
                 </span>
@@ -396,21 +396,21 @@ export default function InvestorCalculator({
           </div>
 
           {/* Additional Metrics */}
-          <div className="mt-6 pt-4 border-t">
-            <h4 className="font-medium text-gray-900 text-sm mb-3">Additional Metrics</h4>
+          <div className="mt-6 pt-4 border-t border-black/5">
+            <h4 className="font-display font-medium text-brand-dark text-sm mb-3">Additional Metrics</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">NOI (Annual)</span>
+                <span className="text-brand-dark/50">NOI (Annual)</span>
                 <span className="font-medium">${calculations.noi.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">GRM</span>
+                <span className="text-brand-dark/50">GRM</span>
                 <span className="font-medium">{calculations.grm}x</span>
               </div>
             </div>
           </div>
 
-          <p className="mt-4 text-xs text-gray-400">
+          <p className="mt-4 text-xs text-brand-dark/40">
             *Estimates only. Assumes 4% closing costs, 6% selling costs, 3% annual rent growth, 2% expense growth.
             Consult a financial advisor and tax professional for investment decisions.
           </p>

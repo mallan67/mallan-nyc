@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 
 interface OpenHouse {
   id: string;
@@ -49,6 +50,7 @@ function isUpcoming(dateStr: string): boolean {
 export default function OpenHousesList() {
   const [openHouses, setOpenHouses] = useState<OpenHouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const gridRef = useGsapReveal<HTMLDivElement>({ children: true, y: 50, scale: 0.97 });
 
   useEffect(() => {
     fetch('/api/open-houses')
@@ -68,7 +70,7 @@ export default function OpenHousesList() {
             <div className="h-10 bg-gray-200 rounded w-1/3 mx-auto mb-8"></div>
             <div className="grid md:grid-cols-2 gap-8">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="border rounded-lg overflow-hidden">
+                <div key={i} className="glass-card rounded-3xl overflow-hidden">
                   <div className="aspect-video bg-gray-200"></div>
                   <div className="p-4 space-y-3">
                     <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -107,10 +109,10 @@ export default function OpenHousesList() {
   return (
     <>
       {/* Hero Section */}
-      <section className="bg-white py-16">
+      <section className="py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-2xl md:text-3xl font-semibold mb-4">Open Houses</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <h1 className="text-2xl md:text-3xl font-display font-semibold mb-4">Open Houses</h1>
+          <p className="text-lg text-brand-dark/60 max-w-2xl mx-auto">
             Visit our upcoming open houses to explore available properties in person.
             No appointment needed—just stop by during the scheduled times.
           </p>
@@ -122,8 +124,8 @@ export default function OpenHousesList() {
         <div className="max-w-6xl mx-auto px-4">
           {upcomingOpenHouses.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg mb-4">No upcoming open houses scheduled.</p>
-              <p className="text-gray-400">
+              <p className="text-brand-dark/50 text-lg mb-4">No upcoming open houses scheduled.</p>
+              <p className="text-brand-dark/40">
                 Check back soon or contact us for private showings.
               </p>
             </div>
@@ -131,17 +133,17 @@ export default function OpenHousesList() {
             <div className="space-y-12">
               {dates.map(date => (
                 <div key={date}>
-                  <h2 className="text-xl font-semibold mb-6 pb-2 border-b">
+                  <h2 className="text-xl font-display font-semibold mb-6 pb-2 border-b border-black/5">
                     {formatDate(date)}
                   </h2>
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div ref={gridRef} className="grid md:grid-cols-2 gap-6">
                     {groupedByDate[date].map(oh => (
                       <div
                         key={oh.id}
-                        className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                        className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300"
                       >
                         {/* Image */}
-                        <div className="relative aspect-video bg-gray-100">
+                        <div className="relative aspect-video bg-gray-100 overflow-hidden">
                           <Image
                             src={oh.image || '/images/listing-placeholder.svg'}
                             alt={oh.address}
@@ -153,43 +155,43 @@ export default function OpenHousesList() {
                             }}
                           />
                           {oh.featured && (
-                            <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded">
+                            <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded-xl">
                               Featured
                             </span>
                           )}
-                          <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/80 text-white text-sm rounded">
+                          <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-sm text-white text-sm rounded-xl">
                             {oh.startTime} - {oh.endTime}
                           </div>
                         </div>
 
                         {/* Content */}
-                        <div className="p-4">
+                        <div className="p-5">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <h3 className="text-xl font-semibold">{formatPrice(oh.price)}</h3>
-                              <p className="text-gray-600">{oh.address}</p>
-                              <p className="text-gray-500 text-sm">{oh.neighborhood}</p>
+                              <h3 className="text-xl font-display font-semibold">{formatPrice(oh.price)}</h3>
+                              <p className="text-brand-dark/60">{oh.address}</p>
+                              <p className="text-brand-dark/50 text-sm">{oh.neighborhood}</p>
                             </div>
-                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                            <span className="px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-xs rounded-full">
                               {oh.type}
                             </span>
                           </div>
 
                           {/* Details */}
-                          <div className="flex gap-4 text-sm text-gray-600 my-3">
+                          <div className="flex gap-4 text-sm text-brand-dark/60 my-3">
                             <span>{oh.beds} bed{oh.beds !== 1 ? 's' : ''}</span>
                             <span>{oh.baths} bath{oh.baths !== 1 ? 's' : ''}</span>
                             {oh.sqft > 0 && <span>{oh.sqft.toLocaleString()} sqft</span>}
                           </div>
 
                           {oh.description && (
-                            <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                            <p className="text-brand-dark/60 text-sm line-clamp-2 mb-3">
                               {oh.description}
                             </p>
                           )}
 
                           {/* Agent Contact */}
-                          <div className="pt-3 border-t flex justify-between items-center">
+                          <div className="pt-3 border-t border-black/5 flex justify-between items-center">
                             <div className="text-sm">
                               <p className="font-medium">{oh.agentName}</p>
                               <a
@@ -212,17 +214,17 @@ export default function OpenHousesList() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-stone-50/50 border-t border-black/5">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-xl md:text-2xl font-semibold mb-4">
+          <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">
             Can&apos;t Make It to an Open House?
           </h2>
-          <p className="text-gray-600 mb-8">
+          <p className="text-brand-dark/60 mb-8">
             Contact us to schedule a private showing at your convenience.
           </p>
           <a
             href="tel:+16462584460"
-            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded hover:bg-gray-800 transition-colors"
+            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
           >
             Schedule a Showing
           </a>
