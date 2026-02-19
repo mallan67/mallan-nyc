@@ -1,15 +1,11 @@
 import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
-import StatsStrip from './components/StatsStrip';
 import FeaturedListings from './components/FeaturedListings';
-import TestimonialStrip from './components/TestimonialStrip';
 import ExploreNeighborhoods from './components/ExploreNeighborhoods';
 import ValueProposition from './components/ValueProposition';
 import TrustMarkers from './components/TrustMarkers';
-import RecentTransactions from './components/RecentTransactions';
 import Footer from './components/Footer';
 import SocialShareBar from './components/SocialShareBar';
-import ScrollReveal from './components/ScrollReveal';
 
 export const revalidate = 3600;
 
@@ -19,22 +15,9 @@ export default function HomePage() {
       <Header />
       <main id="main-content" role="main" tabIndex={-1}>
         <HeroSearch />
-        <StatsStrip />
-        <ScrollReveal>
-          <FeaturedListings />
-        </ScrollReveal>
-        <ScrollReveal>
-          <TestimonialStrip />
-        </ScrollReveal>
-        <ScrollReveal>
-          <RecentTransactions />
-        </ScrollReveal>
-        <ScrollReveal>
-          <ExploreNeighborhoods />
-        </ScrollReveal>
-        <ScrollReveal>
-          <ValueProposition />
-        </ScrollReveal>
+        <FeaturedListings />
+        <ValueProposition />
+        <ExploreNeighborhoods />
         <TrustMarkers />
       </main>
       <SocialShareBar title="Mallan Real Estate Inc. | Licensed NYC Real Estate Broker" />

@@ -93,7 +93,7 @@ export default function ManhattanHubPage() {
             backgroundImage: `url(${config.heroImage})`,
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
         <div className="relative h-full flex flex-col justify-between max-w-7xl mx-auto px-4">
           {/* Breadcrumb at top */}
           <div className="pt-20 sm:pt-24">
