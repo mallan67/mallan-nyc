@@ -149,45 +149,30 @@ const FAQS = [
 const SYNDICATION_GROUPS = [
   {
     heading: 'REBNY RLS Network',
-    description: 'Your listing enters NYC\u2019s official broker listing database \u2014 visible to 570+ participating firms and 30,000+ agents.',
+    description: 'NYC\u2019s official broker listing database \u2014 visible to 570+ participating firms and 30,000+ agents.',
     platforms: [
-      { name: 'REBNY RLS', detail: '570+ firms, 30,000+ agents \u2014 NYC\u2019s official broker listing database' },
-      { name: '30 IDX Partner Brokerages', detail: 'Your listing appears on all participating brokerage websites \u2014 we opt in to full IDX display' },
+      { name: 'REBNY RLS', detail: '570+ firms, 30,000+ agents' },
+      { name: '30 IDX Partner Brokerages', detail: 'Full IDX display on all participating brokerage websites' },
     ],
   },
   {
-    heading: 'Direct Data Licensees',
-    description: 'These portals hold their own data license from REBNY \u2014 your listing appears automatically from the RLS feed.',
+    heading: 'Consumer Portals',
+    description: 'Direct data licensees and syndication partners \u2014 your listing appears automatically.',
     platforms: [
-      { name: 'Realtor.com', detail: 'Direct REBNY data license \u2014 automatic from RLS' },
-      { name: 'Redfin', detail: 'Direct REBNY data license \u2014 automatic from RLS' },
-      { name: 'Homes.com', detail: 'Direct REBNY data license \u2014 built Citysnap with REBNY' },
-      { name: 'RentHop', detail: 'Direct REBNY data license \u2014 automatic for rentals' },
-    ],
-  },
-  {
-    heading: 'StreetEasy + Zillow',
-    description: 'StreetEasy listings are uploaded directly (not via RLS). Sales on StreetEasy auto-sync to Zillow and Trulia within 24 hours.',
-    platforms: [
-      { name: 'StreetEasy', detail: 'NYC\u2019s #1 property search \u2014 direct upload, sales are free' },
-      { name: 'Zillow + Trulia', detail: 'Auto-syncs from StreetEasy \u2014 national reach, millions of monthly visitors' },
-    ],
-  },
-  {
-    heading: 'Trestle Opt-In Portals',
-    description: 'Additional portals available through our Trestle IDX Plus dashboard \u2014 we\u2019re opted in to all three.',
-    platforms: [
-      { name: 'openigloo', detail: 'IDX Plus opt-in \u2014 opted IN' },
-      { name: 'Samaki.com', detail: 'IDX Plus opt-in \u2014 opted IN' },
-      { name: 'TBI Listings', detail: 'IDX Plus opt-in \u2014 opted IN' },
+      { name: 'StreetEasy', detail: 'NYC\u2019s #1 property search \u2014 direct upload, sales free' },
+      { name: 'Zillow + Trulia', detail: 'Auto-syncs from StreetEasy within 24 hours' },
+      { name: 'Realtor.com', detail: 'Direct REBNY data license \u2014 automatic' },
+      { name: 'Redfin', detail: 'Direct REBNY data license \u2014 automatic' },
+      { name: 'Homes.com', detail: 'Direct REBNY data license \u2014 automatic' },
     ],
   },
   {
     heading: 'Direct Marketing',
-    description: 'Beyond syndication, we market your property directly to qualified buyers.',
+    description: 'Beyond syndication, targeted campaigns to qualified buyers.',
     platforms: [
-      { name: 'mallan.nyc', detail: 'Our website \u2014 featured with professional photography' },
-      { name: 'Social + Email', detail: 'Targeted campaigns to our qualified buyer database' },
+      { name: 'mallan.nyc', detail: 'Featured with professional photography' },
+      { name: 'Social + Email', detail: 'Targeted campaigns to our buyer database' },
+      { name: 'openigloo, Samaki, TBI', detail: 'Trestle IDX Plus opt-in portals \u2014 all opted IN' },
     ],
   },
 ];
@@ -211,6 +196,34 @@ const SELLER_REVIEWS = [
   },
 ];
 
+const SELLING_STEPS = [
+  {
+    step: '01',
+    title: 'Consultation',
+    description: 'We meet to discuss your goals, timeline, and assess your property. You\u2019ll receive a comprehensive market analysis.',
+  },
+  {
+    step: '02',
+    title: 'Preparation',
+    description: 'We recommend staging, repairs, and improvements to maximize your property\u2019s appeal. Professional photography and materials are prepared.',
+  },
+  {
+    step: '03',
+    title: 'Marketing',
+    description: 'Your property is listed across all major platforms and marketed to our network of buyers and brokers.',
+  },
+  {
+    step: '04',
+    title: 'Showings & Offers',
+    description: 'We manage all showings and present offers for your review. Our team guides you through negotiations.',
+  },
+  {
+    step: '05',
+    title: 'Closing',
+    description: 'We coordinate with attorneys, buyers, and all parties to ensure a smooth closing process.',
+  },
+];
+
 const ZILLOW_URL = 'https://www.zillow.com/profile/Maya%20Allan';
 
 function getInitials(name: string): string {
@@ -229,9 +242,11 @@ export default function SellPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sellFaqSchema) }}
       />
       <Header dark />
-      <main className="pt-20">
-        {/* Hero Section */}
-        <section className="relative h-[60vh] min-h-[500px] flex items-center justify-center">
+      <main>
+        {/* ═══════════════════════════════════════════════
+            1. HERO — Full-viewport with editorial presence
+            ═══════════════════════════════════════════════ */}
+        <section className="relative h-screen min-h-[600px] flex items-center justify-center">
           <div className="absolute inset-0">
             <Image
               src="https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1600&q=80&auto=format&fit=crop"
@@ -242,105 +257,137 @@ export default function SellPage() {
             />
             <div className="absolute inset-0 hero-gradient" />
           </div>
-          <div className="relative z-10 text-center text-white px-4 max-w-3xl">
-            <div className="mb-6">
-              <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/90 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Home
-              </Link>
-            </div>
-            <h1 className="font-display font-bold text-3xl md:text-5xl mb-4">
+          <div className="relative z-10 text-center text-white px-6 pt-20 max-w-4xl">
+            <h1 className="font-display font-bold text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.05] mb-6">
               Sell Your Property
             </h1>
-            <p className="text-lg md:text-xl text-gray-200">
+            <p className="text-white/70 text-sm md:text-base font-light max-w-lg mx-auto mb-10 tracking-wide">
               Whether you&apos;re selling a co-op, condo, or townhouse &mdash; we deliver
               results across all five boroughs.
             </p>
-          </div>
-        </section>
-
-        {/* CMA Request Section */}
-        <section className="py-16 md:py-20">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="glass-card rounded-3xl p-8 md:p-10">
-              <div className="grid md:grid-cols-2 gap-10">
-                {/* Left column — copy + stats */}
-                <div className="flex flex-col justify-center">
-                  <h2 className="font-display font-bold text-2xl md:text-3xl text-brand-dark mb-3">
-                    What&apos;s Your Property Worth?
-                  </h2>
-                  <p className="text-brand-dark/60 mb-8">
-                    Get a free property valuation from a licensed NYC broker.
-                    We&apos;ll evaluate your property and neighborhood to give you an
-                    accurate price range.
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="glass-card rounded-2xl p-4 text-center">
-                      <p className="font-display font-bold text-lg text-brand-dark">13</p>
-                      <p className="text-xs text-brand-dark/50">5-Star Reviews</p>
-                    </div>
-                    <div className="glass-card rounded-2xl p-4 text-center">
-                      <p className="font-display font-bold text-lg text-brand-dark">5</p>
-                      <p className="text-xs text-brand-dark/50">Boroughs Served</p>
-                    </div>
-                    <div className="glass-card rounded-2xl p-4 text-center">
-                      <p className="font-display font-bold text-lg text-brand-dark">Full</p>
-                      <p className="text-xs text-brand-dark/50">Service Brokerage</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right column — form */}
-                <div>
-                  <CMARequestForm />
-                </div>
+            <a
+              href="#valuation"
+              className="btn-liquid inline-block px-10 py-4 bg-brand-gold hover:bg-brand-gold-deep text-white font-medium rounded-full text-sm tracking-wide transition-colors"
+            >
+              Get Your Free Valuation
+            </a>
+            {/* Stat row */}
+            <div className="flex items-center justify-center gap-8 md:gap-12 mt-14">
+              <div className="text-center">
+                <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>5</p>
+                <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Boroughs</p>
               </div>
+              <div className="w-px h-8 bg-white/10" />
+              <div className="text-center">
+                <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>5.0</p>
+                <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Zillow Rating</p>
+              </div>
+              <div className="w-px h-8 bg-white/10" />
+              <div className="text-center">
+                <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>RLS</p>
+                <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">REBNY Member</p>
+              </div>
+            </div>
+          </div>
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+            <div className="w-6 h-10 border border-white/20 rounded-full flex justify-center pt-2.5">
+              <div className="w-1 h-2 bg-white/50 rounded-full animate-bounce" />
             </div>
           </div>
         </section>
 
-        {/* Why Sell With Us */}
-        <section className="py-16">
-          <div className="max-w-5xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-12">
-              Why Sell With Mallan Real Estate
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
+        {/* ═══════════════════════════════════════════════
+            2. VALUATION FORM — Editorial 2-column
+            ═══════════════════════════════════════════════ */}
+        <section id="valuation" className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
+          <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 md:gap-28 items-center">
+            {/* Left column */}
+            <div>
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-3 gold-glow-text">Free Valuation</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight mb-6 leading-snug text-brand-dark">
+                What&apos;s Your Property Worth?
+              </h2>
+              <p className="text-brand-dark/40 text-[15px] font-extralight leading-[2] mb-10">
+                Get a free property valuation from a licensed NYC broker.
+                We&apos;ll evaluate your property and neighborhood to give you an
+                accurate price range based on current market data and comparable sales.
+              </p>
+              {/* Agent card */}
+              <div className="glass-card rounded-2xl p-6 flex items-center gap-5">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))', boxShadow: 'var(--gold-glow)' }}
+                >
+                  <span className="font-display font-bold text-brand-gold-deep text-lg">MA</span>
+                </div>
+                <div>
+                  <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
+                  <p className="text-brand-dark/30 text-[12px] font-extralight">Founder &middot; Licensed NYC Broker</p>
+                </div>
+              </div>
+            </div>
+            {/* Right column — form */}
+            <div>
+              <CMARequestForm />
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════
+            3. WHY SELL WITH US — 3-column with gold label
+            ═══════════════════════════════════════════════ */}
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Our Approach</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
+                Why Sell With Us
+              </h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-7 md:gap-8">
               <div className="glass-card rounded-3xl p-8 text-center">
-                <div className="w-16 h-16 bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
+                  style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.1), rgba(184,134,11,0.03))' }}
+                >
+                  <svg className="w-7 h-7 text-brand-gold-deep" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-display font-semibold mb-2">Competitive Pricing</h3>
-                <p className="text-brand-dark/60">
+                <h3 className="font-display font-semibold text-xl text-brand-dark mb-3">Competitive Pricing</h3>
+                <p className="text-brand-dark/40 text-[14px] font-extralight leading-relaxed">
                   Data-driven pricing strategies to maximize your return while ensuring
                   a timely sale.
                 </p>
               </div>
               <div className="glass-card rounded-3xl p-8 text-center">
-                <div className="w-16 h-16 bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
+                  style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.1), rgba(184,134,11,0.03))' }}
+                >
+                  <svg className="w-7 h-7 text-brand-gold-deep" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-display font-semibold mb-2">Professional Marketing</h3>
-                <p className="text-brand-dark/60">
+                <h3 className="font-display font-semibold text-xl text-brand-dark mb-3">Professional Marketing</h3>
+                <p className="text-brand-dark/40 text-[14px] font-extralight leading-relaxed">
                   High-quality photography, virtual tours, and targeted advertising
                   to showcase your property.
                 </p>
               </div>
               <div className="glass-card rounded-3xl p-8 text-center">
-                <div className="w-16 h-16 bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
+                  style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.1), rgba(184,134,11,0.03))' }}
+                >
+                  <svg className="w-7 h-7 text-brand-gold-deep" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-display font-semibold mb-2">Expert Negotiation</h3>
-                <p className="text-brand-dark/60">
+                <h3 className="font-display font-semibold text-xl text-brand-dark mb-3">Expert Negotiation</h3>
+                <p className="text-brand-dark/40 text-[14px] font-extralight leading-relaxed">
                   Skilled negotiators who advocate for your interests and secure
                   the best possible terms.
                 </p>
@@ -349,82 +396,103 @@ export default function SellPage() {
           </div>
         </section>
 
-        {/* Marketing Showcase — Where Your Listing Goes */}
-        <section className="py-16 bg-gray-50/50">
-          <div className="max-w-5xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-3">
-              Where Your Listing Goes
-            </h2>
-            <p className="text-brand-dark/60 text-center mb-12 max-w-2xl mx-auto">
-              Maximum exposure across every major platform &mdash; all included with your listing.
-            </p>
-            <div className="space-y-8">
+        {/* ═══════════════════════════════════════════════
+            4. DARK SECTION — Maximum Exposure (syndication)
+            ═══════════════════════════════════════════════ */}
+        <section className="bg-brand-dark text-white px-6 md:px-12 lg:px-20 py-20 md:py-32">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <p className="text-brand-gold text-[13px] font-medium mb-2">Distribution</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-white">
+                Your Listing, Maximum Exposure
+              </h2>
+              <p className="mt-4 text-white/40 text-[15px] font-extralight max-w-2xl mx-auto leading-relaxed">
+                Every listing is distributed across NYC&apos;s entire brokerage ecosystem and all major consumer portals &mdash; all included.
+              </p>
+            </div>
+
+            {/* Stat cards */}
+            <div className="grid grid-cols-3 gap-4 md:gap-6 mb-16 max-w-3xl mx-auto">
+              <div className="bg-white/5 rounded-2xl p-6 text-center">
+                <p className="font-display font-bold text-2xl md:text-3xl text-white">570+</p>
+                <p className="text-white/50 text-[11px] font-light tracking-wider mt-1">Firms</p>
+              </div>
+              <div className="bg-white/5 rounded-2xl p-6 text-center">
+                <p className="font-display font-bold text-2xl md:text-3xl text-white">30</p>
+                <p className="text-white/50 text-[11px] font-light tracking-wider mt-1">IDX Brokerages</p>
+              </div>
+              <div className="bg-white/5 rounded-2xl p-6 text-center">
+                <p className="font-display font-bold text-2xl md:text-3xl text-white">10+</p>
+                <p className="text-white/50 text-[11px] font-light tracking-wider mt-1">Consumer Portals</p>
+              </div>
+            </div>
+
+            {/* Platform groups */}
+            <div className="grid md:grid-cols-3 gap-10 md:gap-12">
               {SYNDICATION_GROUPS.map((group) => (
                 <div key={group.heading}>
-                  <h3 className="font-display font-semibold text-sm text-brand-dark mb-1">{group.heading}</h3>
-                  <p className="text-xs text-brand-dark/50 mb-3">{group.description}</p>
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <h3 className="font-display font-semibold text-sm text-white mb-1">{group.heading}</h3>
+                  <p className="text-white/40 text-[12px] font-extralight mb-4 leading-relaxed">{group.description}</p>
+                  <ul className="space-y-2.5">
                     {group.platforms.map((platform) => (
-                      <div key={platform.name} className="glass-card rounded-2xl p-4 flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center shrink-0">
-                          <svg className="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                          </svg>
-                        </div>
+                      <li key={platform.name} className="flex items-start gap-3">
+                        <svg className="w-4 h-4 text-brand-gold shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
                         <div>
-                          <p className="font-display font-semibold text-sm text-brand-dark">{platform.name}</p>
-                          <p className="text-[11px] text-brand-dark/50 mt-0.5">{platform.detail}</p>
+                          <p className="text-white text-sm font-light">{platform.name}</p>
+                          <p className="text-white/30 text-[11px] font-extralight">{platform.detail}</p>
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-brand-dark/40 text-center mt-10 max-w-3xl mx-auto">
+
+            <p className="text-white/20 text-[11px] text-center mt-14 max-w-3xl mx-auto leading-relaxed">
               REBNY RLS syndication is automatic when IDX display is enabled (our default).
               StreetEasy listings are uploaded directly &mdash; sales are free, rentals start at $7/day.
-              Direct Data Licensees (Realtor.com, Redfin, Homes.com, RentHop) receive listings
-              automatically from REBNY via their own data license agreements.
+              Direct Data Licensees receive listings automatically via their own REBNY data license agreements.
             </p>
           </div>
         </section>
 
-        {/* Selling Process */}
-        <section className="py-16">
-          <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-12">
-              Our Selling Process
-            </h2>
-            <div className="space-y-5">
-              {[
-                {
-                  step: '01',
-                  title: 'Consultation',
-                  description: 'We meet to discuss your goals, timeline, and assess your property. You\'ll receive a comprehensive market analysis.',
-                },
-                {
-                  step: '02',
-                  title: 'Preparation',
-                  description: 'We recommend staging, repairs, and improvements to maximize your property\'s appeal. Professional photography and materials are prepared.',
-                },
-                {
-                  step: '03',
-                  title: 'Marketing',
-                  description: 'Your property is listed across all major platforms and marketed to our network of buyers and brokers.',
-                },
-                {
-                  step: '04',
-                  title: 'Showings & Offers',
-                  description: 'We manage all showings and present offers for your review. Our team guides you through negotiations.',
-                },
-                {
-                  step: '05',
-                  title: 'Closing',
-                  description: 'We coordinate with attorneys, buyers, and all parties to ensure a smooth closing process.',
-                },
-              ].map((item, index) => (
-                <div key={index} className="glass-card rounded-2xl p-6 flex gap-5">
+        {/* ═══════════════════════════════════════════════
+            5. SELLING PROCESS — Horizontal timeline
+            ═══════════════════════════════════════════════ */}
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">The Process</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
+                How It Works
+              </h2>
+            </div>
+
+            {/* Desktop: horizontal timeline */}
+            <div className="hidden lg:block">
+              {/* Connecting line */}
+              <div className="relative">
+                <div className="absolute top-6 left-[10%] right-[10%] h-px bg-brand-gold/20" />
+                <div className="grid grid-cols-5 gap-6">
+                  {SELLING_STEPS.map((item) => (
+                    <div key={item.step} className="flex flex-col items-center text-center">
+                      <div className="relative z-10 w-12 h-12 rounded-full bg-brand-gold text-white flex items-center justify-center font-semibold text-sm mb-5">
+                        {item.step}
+                      </div>
+                      <h3 className="font-display font-semibold text-base text-brand-dark mb-2">{item.title}</h3>
+                      <p className="text-brand-dark/40 text-[13px] font-extralight leading-relaxed">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile/Tablet: vertical stack */}
+            <div className="lg:hidden space-y-4">
+              {SELLING_STEPS.map((item) => (
+                <div key={item.step} className="glass-card rounded-2xl p-6 flex gap-5">
                   <div className="flex-shrink-0">
                     <span className="w-12 h-12 rounded-full bg-brand-gold text-white flex items-center justify-center font-semibold text-sm">
                       {item.step}
@@ -432,7 +500,7 @@ export default function SellPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-display font-semibold mb-1">{item.title}</h3>
-                    <p className="text-brand-dark/60 text-sm">{item.description}</p>
+                    <p className="text-brand-dark/40 text-sm font-extralight">{item.description}</p>
                   </div>
                 </div>
               ))}
@@ -440,26 +508,32 @@ export default function SellPage() {
           </div>
         </section>
 
-
-        {/* Seller Closing Cost Calculator */}
+        {/* ═══════════════════════════════════════════════
+            6. CLOSING COST CALCULATOR — Keep as-is
+            ═══════════════════════════════════════════════ */}
         <section className="py-12 px-4">
           <div className="max-w-xl mx-auto">
             <SellerClosingCostCalculator />
           </div>
         </section>
 
-        {/* Commission Transparency */}
-        <section className="py-16 bg-gray-50/50">
-          <div className="max-w-3xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-10">
-              Commission Transparency
-            </h2>
-            <div className="glass-card rounded-3xl p-8 md:p-10">
-              <p className="text-brand-dark/70 mb-6">
+        {/* ═══════════════════════════════════════════════
+            7. COMMISSION TRANSPARENCY — Wider with gold label
+            ═══════════════════════════════════════════════ */}
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Transparency</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
+                Commission Transparency
+              </h2>
+            </div>
+            <div className="glass-card rounded-3xl p-8 md:p-10 max-w-3xl mx-auto">
+              <p className="text-brand-dark/40 text-[15px] font-extralight leading-[2] mb-8">
                 At Mallan Real Estate, we believe in full transparency about costs.
                 You should never be surprised by fees when selling your property.
               </p>
-              <ul className="space-y-4 mb-6">
+              <ul className="space-y-4 mb-8">
                 {[
                   'Commission rates are not set by law and are fully negotiable',
                   'We discuss all fees upfront before you sign anything',
@@ -470,11 +544,11 @@ export default function SellPage() {
                     <svg className="w-5 h-5 text-brand-gold shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-sm text-brand-dark/70">{point}</span>
+                    <span className="text-brand-dark/40 text-[14px] font-extralight">{point}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-brand-dark/40 border-t border-black/5 pt-4">
+              <p className="text-brand-dark/25 text-[12px] font-extralight border-t border-black/5 pt-4">
                 Per the National Association of Realtors settlement (August 2024),
                 commission rates are fully negotiable between brokers and their clients.
                 Compensation is not fixed by any industry standard.
@@ -483,13 +557,18 @@ export default function SellPage() {
           </div>
         </section>
 
-        {/* Seller FAQ */}
-        <section className="py-16" aria-label="Frequently Asked Questions about selling">
-          <div className="max-w-3xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-10">
-              Frequently Asked Questions
-            </h2>
-            <div className="space-y-2">
+        {/* ═══════════════════════════════════════════════
+            8. FAQ ACCORDION — Gold label
+            ═══════════════════════════════════════════════ */}
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32" aria-label="Frequently Asked Questions about selling">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Common Questions</p>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
+                Frequently Asked Questions
+              </h2>
+            </div>
+            <div className="space-y-2 max-w-3xl mx-auto">
               {FAQS.map((faq, i) => (
                 <details key={i} className="group glass-card rounded-3xl">
                   <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 py-4 text-sm sm:text-base font-medium text-brand-dark select-none">
@@ -510,30 +589,23 @@ export default function SellPage() {
           </div>
         </section>
 
-        {/* Seller Testimonials */}
-        <section className="py-16 bg-gray-50/50">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-12">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-brand-gold font-bold text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-                  <span className="text-[12px] font-light text-brand-dark/60">5.0 &middot; 13 reviews on</span>
-                  <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
-                </div>
-                <h2 className="text-xl md:text-2xl font-display font-semibold text-brand-dark">
-                  What Sellers Say
-                </h2>
+        {/* ═══════════════════════════════════════════════
+            9. TESTIMONIALS — Gold label
+            ═══════════════════════════════════════════════ */}
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="text-center mb-12 md:mb-16">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Client Reviews</p>
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <span className="text-brand-gold font-bold text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+                <span className="text-[12px] font-light text-brand-dark/60">5.0 &middot; 13 reviews on</span>
+                <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
               </div>
-              <a
-                href={ZILLOW_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[13px] font-medium text-brand-dark/50 hover:text-brand-gold transition-colors"
-              >
-                Read all 13 reviews &rarr;
-              </a>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
+                What Sellers Say
+              </h2>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-7 md:gap-8">
               {SELLER_REVIEWS.map((review) => (
                 <div key={review.author} className="rev-card bg-white rounded-3xl p-7">
                   <div className="flex items-center gap-2 mb-5">
@@ -560,35 +632,47 @@ export default function SellPage() {
                 </div>
               ))}
             </div>
+            <div className="text-center mt-10">
+              <a
+                href={ZILLOW_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[13px] font-medium text-brand-dark/50 hover:text-brand-gold transition-colors"
+              >
+                Read all 13 reviews &rarr;
+              </a>
+            </div>
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="py-16 bg-brand-dark text-white">
-          <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">
+        {/* ═══════════════════════════════════════════════
+            10. CTA — Keep as-is
+            ═══════════════════════════════════════════════ */}
+        <section className="py-20 md:py-32 bg-brand-dark text-white">
+          <div className="max-w-3xl mx-auto px-6 text-center">
+            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight mb-6">
               Ready to Sell?
             </h2>
-            <p className="text-gray-300 mb-8">
+            <p className="text-white/40 text-[15px] font-extralight max-w-lg mx-auto mb-10">
               Get a free, no-obligation market analysis and learn what your property
               could sell for in today&apos;s market.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/sign-up?role=seller"
-                className="inline-block px-8 py-3 bg-brand-gold text-white font-medium rounded-2xl hover:bg-brand-gold/90 transition-colors"
+                className="btn-liquid inline-block px-8 py-3.5 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep transition-colors text-sm"
               >
-                Get Started — Create Account
+                Get Started
               </Link>
               <Link
                 href="/agents"
-                className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded-2xl hover:bg-white/90 transition-colors"
+                className="inline-block px-8 py-3.5 bg-white text-brand-dark font-medium rounded-full hover:bg-white/90 transition-colors text-sm"
               >
                 Contact an Agent
               </Link>
               <a
                 href="tel:+16462584460"
-                className="inline-block px-8 py-3 border border-white text-white font-medium rounded-2xl hover:bg-white/10 transition-colors"
+                className="inline-block px-8 py-3.5 border border-white/20 text-white font-medium rounded-full hover:bg-white/10 transition-colors text-sm"
               >
                 Call (646) 258-4460
               </a>

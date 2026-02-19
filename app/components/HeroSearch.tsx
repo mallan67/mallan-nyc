@@ -218,7 +218,7 @@ export default function HeroSearch() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 text-center">
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 pt-20 text-center">
         {/* Headline */}
         <h1
           data-hero-h
