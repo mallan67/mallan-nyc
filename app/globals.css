@@ -129,6 +129,32 @@
   box-shadow: var(--gold-glow);
 }
 
+/* ═══ LIQUID MOTION — Ken Burns on all listing/neighborhood photos ═══ */
+
+@keyframes liquidMotion {
+  0%   { transform: scale(1) translate(0, 0); }
+  50%  { transform: scale(1.04) translate(-0.3%, -0.5%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+@keyframes liquidMotionDeep {
+  0%   { transform: scale(1.03) translate(-0.2%, -0.3%); }
+  50%  { transform: scale(1.07) translate(0.2%, -0.8%); }
+  100% { transform: scale(1.03) translate(-0.2%, -0.3%); }
+}
+
+/* Utility: apply to any image wrapper for liquid motion */
+.liquid-img img {
+  animation: liquidMotion 12s ease-in-out infinite;
+  transform-origin: 50% 60%;
+}
+
+/* About section image */
+.float-shadow img {
+  animation: liquidMotion 16s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
 /* ═══ PROPERTY CARD — Liquid hover ═══ */
 
 .prop-card {
@@ -141,18 +167,25 @@
   box-shadow: var(--float-shadow-hover);
 }
 .prop-card img {
-  transition: transform 1.4s var(--liquid), filter 1.4s var(--liquid);
   transform-origin: 50% 60%;
+  animation: liquidMotion 10s ease-in-out infinite;
 }
-.prop-card:hover img {
-  transform: scale(1.06) translateY(-1%);
-  filter: brightness(1.02);
-}
+.prop-card:nth-child(2n) img { animation-duration: 13s; animation-delay: -4s; }
+.prop-card:nth-child(3n) img { animation-duration: 11s; animation-delay: -7s; }
 .prop-card .card-overlay {
   opacity: 0;
   transition: opacity 0.6s var(--liquid);
 }
 .prop-card:hover .card-overlay { opacity: 1; }
+
+/* On hover, switch to deeper zoom animation */
+@media (hover: hover) {
+  .prop-card:hover img {
+    animation-name: liquidMotionDeep;
+    animation-duration: 4s;
+    filter: brightness(1.02);
+  }
+}
 
 /* ═══ NEIGHBORHOOD CARD ═══ */
 
@@ -165,10 +198,16 @@
   box-shadow: var(--float-shadow-hover);
 }
 .hood-card img {
-  transition: transform 1.2s var(--liquid);
+  animation: liquidMotion 14s ease-in-out infinite;
 }
-.hood-card:hover img {
-  transform: scale(1.08);
+.hood-card:nth-child(2n) img { animation-duration: 12s; animation-delay: -3s; }
+.hood-card:nth-child(3n) img { animation-duration: 16s; animation-delay: -6s; }
+
+@media (hover: hover) {
+  .hood-card:hover img {
+    animation-name: liquidMotionDeep;
+    animation-duration: 4s;
+  }
 }
 
 /* ═══ REVIEW CARD ═══ */
@@ -247,10 +286,8 @@
 
 @media (hover: none) {
   .prop-card:hover { transform: none; }
-  .prop-card:hover img { transform: none; filter: none; }
   .prop-card .card-overlay { opacity: 1; }
   .hood-card:hover { transform: none; }
-  .hood-card:hover img { transform: none; }
   .rev-card:hover { transform: none; }
   .btn-liquid:hover { transform: none; }
   .btn-gold:hover { transform: none; }
