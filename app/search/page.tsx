@@ -172,7 +172,7 @@ function SearchClient() {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 99999 : priceRange[0] !== 0 || priceRange[1] !== 99999999);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-[#FEFEFE]">
       {/* Search Header - Fixed below nav header */}
       <section className="fixed top-20 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-black/5 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -448,7 +448,7 @@ function SearchClient() {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pt-20 flex items-center justify-center">
+    <div className="min-h-screen bg-[#FEFEFE] pt-20 flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-4 border-brand-dark border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-brand-dark/50">Loading properties...</p>
@@ -459,7 +459,7 @@ function SearchLoading() {
 
 export default function SearchPage() {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
       <main>
         <Suspense fallback={<SearchLoading />}>
