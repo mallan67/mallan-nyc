@@ -7,11 +7,6 @@ const TOTAL_REVIEWS = 13;
 
 const REVIEWS = [
   {
-    quote: 'Very knowledgeable in the New York City market. Knowledgeable in different neighborhoods and in specific buildings. Also responsive and patient. Very helpful in looking at the right apartment, and especially saved time and money by redirecting to not look at the wrong apartment.',
-    author: 'R.',
-    detail: 'Bought a Condo \u00B7 Upper West Side',
-  },
-  {
     quote: 'I had a great experience with Maya getting the best apartment in Manhattan. She is very knowledgeable about the NY market and will work with you to get you what you need.',
     author: 'A.',
     detail: 'Bought & Sold \u00B7 Manhattan',
