@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
+import Image from 'next/image';
 import Link from 'next/link';
-import PhotoPageHero from '@/app/components/PhotoPageHero';
 
 export const revalidate = 86400;
 
@@ -105,19 +105,43 @@ export default function SellPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sellFaqSchema) }}
       />
       <Header dark />
-      <main>
-        <PhotoPageHero
-          eyebrow="Seller Representation"
-          title="Sell Your Property."
-          subtitle="Strategic pricing, professional marketing, and expert negotiation — from listing to closing."
-          focus="center 40%"
-        />
+      <main className="pt-20">
+        {/* Hero Section */}
+        <section className="relative h-[50vh] min-h-[400px] flex items-center justify-center">
+          <div className="absolute inset-0">
+            <Image
+              src="/images/hero.jpg"
+              alt="Sell your property"
+              fill
+              className="object-cover"
+              priority
+            />
+            <div className="absolute inset-0 bg-black/50" />
+          </div>
+          <div className="relative z-10 text-center text-white px-4 max-w-3xl">
+            <div className="mb-6">
+              <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/90 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Home
+              </Link>
+            </div>
+            <h1 className="text-xl md:text-2xl font-semibold mb-4">
+              Sell Your Property
+            </h1>
+            <p className="text-lg md:text-xl text-gray-200">
+              Get the maximum value for your NYC property with our expert guidance
+              and proven marketing strategies.
+            </p>
+          </div>
+        </section>
 
         {/* Why Sell With Us */}
         <section className="py-16 bg-white">
           <div className="max-w-5xl mx-auto px-4">
-            <h2 className="font-sans font-black text-3xl sm:text-4xl md:text-5xl text-gray-950 text-center mb-12 tracking-tight leading-none">
-              Why Sell With Us.
+            <h2 className="text-xl md:text-2xl font-semibold text-center mb-12">
+              Why Sell With Mallan Real Estate
             </h2>
             <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
@@ -164,8 +188,8 @@ export default function SellPage() {
         {/* Process */}
         <section className="py-16 bg-white">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="font-sans font-black text-3xl sm:text-4xl md:text-5xl text-gray-950 text-center mb-12 tracking-tight leading-none">
-              The Process.
+            <h2 className="text-xl md:text-2xl font-semibold text-center mb-12">
+              Our Selling Process
             </h2>
             <div className="space-y-8">
               {[
@@ -214,7 +238,7 @@ export default function SellPage() {
         {/* CTA */}
         <section className="py-16 bg-brand-dark text-white">
           <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="font-sans font-black text-3xl sm:text-4xl md:text-5xl text-white mb-4 tracking-tight leading-none">
+            <h2 className="text-xl md:text-2xl font-semibold mb-4">
               Ready to Sell?
             </h2>
             <p className="text-gray-300 mb-8">

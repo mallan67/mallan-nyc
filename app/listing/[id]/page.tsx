@@ -11,7 +11,7 @@ import listingsData from '@/data/listings.json';
 import agentsData from '@/data/agents.json';
 import type { Listing } from '@/lib/types/listing';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
-import ListingMediaGallery from '@/app/components/ListingMediaGallery';
+import ListingHeroImage from '@/app/components/ListingHeroImage';
 import ShareButton from '@/app/components/ShareButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
@@ -177,30 +177,27 @@ export default async function ListingPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Media Gallery — Photos, Floor Plans, 3D Tour, Video */}
-      <ListingMediaGallery
-        images={listing.media.images}
-        floorPlanUrl={listing.media.floorPlanUrl}
-        virtualTourUrl={listing.media.virtualTourUrl ?? listing.listing.virtualTourUrl}
-        videoUrl={listing.media.videoUrl ?? listing.listing.videoTourUrl}
+      {/* Image Gallery */}
+      <ListingHeroImage
+        src={listing.media.images[0]?.url || '/images/listing-placeholder.svg'}
         alt={fullAddress}
       >
         {listing.flags.isExclusive && (
-          <div className="absolute top-4 left-4 z-10 px-4 py-2 bg-brand-gold text-white text-sm uppercase tracking-wide rounded">
+          <div className="absolute top-4 left-4 px-4 py-2 bg-brand-gold text-white text-sm uppercase tracking-wide rounded">
             Mallan Exclusive
           </div>
         )}
         {listing.flags.isPriceReduced && (
-          <div className="absolute top-4 left-4 z-10 mt-12 px-4 py-2 bg-green-600 text-white text-sm rounded">
+          <div className="absolute top-4 left-4 mt-12 px-4 py-2 bg-green-600 text-white text-sm rounded">
             Price Reduced
           </div>
         )}
         {listing.openHouse?.scheduled && (
-          <div className="absolute top-4 right-4 z-10 px-4 py-2 bg-white text-brand-dark text-sm rounded shadow">
+          <div className="absolute top-4 right-4 px-4 py-2 bg-white text-brand-dark text-sm rounded shadow">
             Open House: {formatDate(listing.openHouse.date).split(',')[0]}
           </div>
         )}
-      </ListingMediaGallery>
+      </ListingHeroImage>
 
       <main className="py-8 md:py-12 px-4">
         <div className="max-w-7xl mx-auto">

@@ -56,7 +56,7 @@ export default function NeighborhoodsIndexPage() {
               'url(https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1600&q=80)',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
         <div className="relative h-full flex flex-col justify-between max-w-7xl mx-auto px-4">
           {/* Breadcrumb at top */}
           <div className="pt-20 sm:pt-24">
@@ -77,11 +77,12 @@ export default function NeighborhoodsIndexPage() {
 
           {/* Title at bottom */}
           <div className="pb-8 sm:pb-12">
-            <h1 className="font-sans font-black text-4xl sm:text-5xl md:text-6xl text-white tracking-tight leading-none">
-              NYC Neighborhood Guides.
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-sans font-semibold text-white tracking-tight">
+              NYC Neighborhood Guides
             </h1>
-            <p className="mt-4 text-lg text-white/65 max-w-2xl">
-              Explore real estate across all five boroughs with market data, building intelligence, and broker insights.
+            <p className="mt-2 text-lg text-white/80 font-light max-w-2xl">
+              Explore real estate across all five boroughs with market data, building intelligence,
+              and broker insights.
             </p>
           </div>
         </div>
@@ -90,27 +91,24 @@ export default function NeighborhoodsIndexPage() {
       <main>
         <section className="py-12 sm:py-16">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {boroughs.map((b) => (
                 <Link
                   key={b.slug}
                   href={`/${b.slug}`}
-                  className="liquid-card group block rounded-2xl overflow-hidden"
+                  className="group block relative overflow-hidden rounded-lg aspect-[3/2]"
                 >
-                  <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
-                    <div
-                      className="card-img absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${b.heroImage})` }}
-                    />
-                    {/* Gradient fade + info */}
-                    <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/25 to-transparent pt-14 pb-4 px-5">
-                      <h2 className="font-sans font-black text-lg sm:text-xl text-white leading-none drop-shadow-md">
-                        {b.name}
-                      </h2>
-                      <p className="text-[#C4A052] text-xs font-bold mt-1.5 tracking-wide group-hover:translate-x-1 transition-transform drop-shadow-sm">
-                        {b.count} neighborhood{b.count !== 1 ? 's' : ''} →
-                      </p>
-                    </div>
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${b.heroImage})` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h2 className="text-2xl font-semibold text-white">{b.name}</h2>
+                    <p className="text-sm text-white/80 mt-1">{b.tagline}</p>
+                    <p className="text-xs text-white/60 mt-2">
+                      {b.count} neighborhood{b.count !== 1 ? 's' : ''}
+                    </p>
                   </div>
                 </Link>
               ))}
@@ -121,8 +119,8 @@ export default function NeighborhoodsIndexPage() {
         {/* CTA */}
         <section className="py-10 sm:py-14 bg-gray-50">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h2 className="font-sans font-black text-3xl sm:text-4xl text-gray-950 mb-3 tracking-tight leading-none">
-              Find Your NYC Home.
+            <h2 className="text-2xl sm:text-3xl font-sans font-semibold text-gray-900 mb-3">
+              Find Your NYC Home
             </h2>
             <p className="text-gray-500 mb-8 max-w-xl mx-auto">
               Search active listings across all five boroughs or speak with our team for

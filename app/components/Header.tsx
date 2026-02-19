@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 type ResourceItem = { title: string; href: string };
@@ -157,7 +158,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   // When not dark (homepage), use absolute so it overlays the hero
   const positionClass = dark ? 'fixed' : 'absolute';
   // Glass effect background for dark mode / mobile menu
-  const bgClass = mobileOpen ? 'bg-gray-950/95 backdrop-blur-xl' : dark ? 'bg-black/60 backdrop-blur-md' : '';
+  const bgClass = mobileOpen || dark ? 'bg-black/80 backdrop-blur-md' : '';
 
   const mobileDropdownItem = (item: { title: string; href: string }) => (
     <div
@@ -189,41 +190,42 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[90rem] mx-auto pl-2 pr-4 lg:pl-4 lg:pr-6">
         <div className="flex items-center justify-between h-20">
-          {/* Brand — clean single-line logotype */}
+          {/* Brand */}
           <Link
             href="/"
-            className="flex items-baseline gap-1.5 hover:opacity-75 transition-opacity whitespace-nowrap"
-            aria-label="Mallan Real Estate — Home"
+            className="flex items-center gap-2 text-white text-xl sm:text-2xl lg:text-[1.75rem] font-semibold tracking-tight hover:text-white/80 transition-colors whitespace-nowrap"
           >
-            <span className="text-white font-black tracking-[0.08em] uppercase text-xl sm:text-2xl lg:text-xl xl:text-2xl">
-              MALLAN
-            </span>
-            <span className="text-[#C4A052] font-black text-[10px] sm:text-[11px] tracking-[0.15em] uppercase">
-              NYC
-            </span>
+            <Image
+              src="/images/mallan-logo.png"
+              alt="Mallan Real Estate logo"
+              width={40}
+              height={40}
+              className="h-8 w-8 sm:h-10 sm:w-10"
+            />
+            Mallan Real Estate Inc.
           </Link>
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center ml-auto pl-4 xl:pl-10 2xl:pl-16"
+            className="hidden lg:flex items-center ml-auto pl-12 xl:pl-16"
             aria-label="Main navigation"
           >
-            <ul className="flex items-center gap-1.5 lg:gap-2 xl:gap-4 2xl:gap-5 text-[12px] lg:text-[12px] xl:text-[13px] 2xl:text-[14px] font-bold text-white/90">
+            <ul className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
               <li><NavDropdown label="Buy" items={buyItems} /></li>
               <li><NavDropdown label="Rent" items={rentItems} /></li>
               <li><NavDropdown label="Sell" items={sellItems} /></li>
               <li><NavDropdown label="Exclusives" items={exclusivesItems} /></li>
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} /></li>
 
-              <li className="hidden xl:block">
+              <li>
                 <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
                   Open Houses
                 </Link>
               </li>
 
-              <li className="hidden xl:block"><NavDropdown label="Resources" items={resources} /></li>
+              <li><NavDropdown label="Resources" items={resources} /></li>
 
               <li>
                 <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
@@ -231,18 +233,18 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </Link>
               </li>
 
-              <li className="hidden xl:block">
+              <li>
                 <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
                   About
                 </Link>
               </li>
 
-              <li className="flex items-center gap-1 ml-1">
-                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap px-2 py-1.5 text-white/70 hover:text-white text-[11px] xl:text-sm transition-colors">
+              <li className="flex items-center gap-1.5 ml-1">
+                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap px-3 py-1.5 text-white/80 hover:text-white text-sm transition-colors">
                   Sign In
                 </Link>
-                <span className="text-white/25 text-xs">|</span>
-                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-2.5 py-1.5 bg-brand-gold text-white rounded text-[11px] xl:text-sm font-bold hover:bg-brand-gold/90 transition-colors">
+                <span className="text-white/30">|</span>
+                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-4 py-1.5 bg-brand-gold text-white rounded text-sm font-medium hover:bg-brand-gold/90 transition-colors">
                   Sign Up
                 </Link>
               </li>
