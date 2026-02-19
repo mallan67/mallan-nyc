@@ -142,7 +142,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   // Homepage: absolute (overlays hero). Inner pages: fixed.
   const positionClass = dark ? 'fixed' : 'absolute';
   const bgClass = mobileOpen
-    ? 'bg-[rgba(15,23,42,0.92)] backdrop-blur-2xl'
+    ? 'bg-[rgba(20,27,45,0.95)] backdrop-blur-2xl'
     : 'nav-glass';
 
   const mobileDropdownItem = (item: { title: string; href: string }) => (
