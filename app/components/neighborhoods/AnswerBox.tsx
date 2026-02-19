@@ -32,7 +32,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
         </p>
 
         <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
-          <div className="bg-stone-50/50 rounded-2xl p-4">
+          <div className="bg-gray-50/50 rounded-2xl p-4">
             <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
               Avg. Price/Sq Ft
             </dt>
@@ -40,7 +40,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
               ${avgPricePerSqft.toLocaleString()}
             </dd>
           </div>
-          <div className="bg-stone-50/50 rounded-2xl p-4">
+          <div className="bg-gray-50/50 rounded-2xl p-4">
             <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
               Dominant Type
             </dt>
@@ -48,7 +48,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
               {dominantPropertyType}
             </dd>
           </div>
-          <div className="bg-stone-50/50 rounded-2xl p-4">
+          <div className="bg-gray-50/50 rounded-2xl p-4">
             <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
               Walk Score
             </dt>
@@ -56,7 +56,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
               {walkScore}
             </dd>
           </div>
-          <div className="bg-stone-50/50 rounded-2xl p-4">
+          <div className="bg-gray-50/50 rounded-2xl p-4">
             <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
               Transit Score
             </dt>
@@ -64,7 +64,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
               {transitScore}
             </dd>
           </div>
-          <div className="bg-stone-50/50 rounded-2xl p-4">
+          <div className="bg-gray-50/50 rounded-2xl p-4">
             <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
               Top School
             </dt>
@@ -72,7 +72,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
               {topSchool}
             </dd>
           </div>
-          <div className="bg-stone-50/50 rounded-2xl p-4">
+          <div className="bg-gray-50/50 rounded-2xl p-4">
             <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
               Median Sale
             </dt>

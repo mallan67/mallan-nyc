@@ -127,7 +127,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
       </section>
 
       {/* Table of Contents */}
-      <section className="py-8 bg-stone-50/50 border-b border-black/5">
+      <section className="py-8 bg-gray-50/50 border-b border-black/5">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-sm font-medium text-brand-dark/50 uppercase tracking-wide mb-3">
             In This Guide

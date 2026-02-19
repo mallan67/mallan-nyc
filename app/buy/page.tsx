@@ -65,7 +65,7 @@ const buyFaqSchema = {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center">
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-4 border-brand-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-brand-dark/50">Loading properties...</p>
@@ -76,7 +76,7 @@ function SearchLoading() {
 
 export default function BuyPage() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buyFaqSchema) }}
@@ -87,7 +87,7 @@ export default function BuyPage() {
           <PropertySearch type="buy" />
         </Suspense>
       </main>
-      <section className="py-8 px-4 bg-stone-50/50 border-t border-black/5">
+      <section className="py-8 px-4 bg-gray-50/50 border-t border-black/5">
         <div className="max-w-xl mx-auto">
           <AffordabilityCalculator />
         </div>

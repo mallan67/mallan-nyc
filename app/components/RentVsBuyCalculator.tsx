@@ -107,7 +107,7 @@ export default function RentVsBuyCalculator({
   return (
     <div className="glass-card rounded-3xl overflow-hidden">
       {/* Subtle Header */}
-      <div className="bg-stone-50/50 border-b border-black/5 px-6 py-4">
+      <div className="bg-gray-50/50 border-b border-black/5 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center">
             <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -123,7 +123,7 @@ export default function RentVsBuyCalculator({
 
       <div className="p-6">
         {/* Result Summary - Always Visible */}
-        <div className={`p-4 rounded-2xl ${calculations.buyIsBetter ? 'bg-green-50/60' : 'bg-stone-50/50'}`}>
+        <div className={`p-4 rounded-2xl ${calculations.buyIsBetter ? 'bg-green-50/60' : 'bg-gray-50/50'}`}>
           <div className="flex items-center gap-2 mb-2">
             {calculations.buyIsBetter ? (
               <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

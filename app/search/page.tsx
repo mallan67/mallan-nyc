@@ -172,12 +172,12 @@ function SearchClient() {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 99999 : priceRange[0] !== 0 || priceRange[1] !== 99999999);
 
   return (
-    <div className="min-h-screen bg-[#FEFEFE]">
+    <div className="min-h-screen bg-[#FAFAFA]">
       {/* Search Header - Fixed below nav header */}
       <section className="fixed top-20 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-black/5 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Tabs */}
-          <div className="flex gap-1 mb-4 bg-stone-100/60 rounded-2xl p-1 w-fit">
+          <div className="flex gap-1 mb-4 bg-gray-100/60 rounded-2xl p-1 w-fit">
             {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
               <button
                 key={tab}
@@ -426,7 +426,7 @@ function SearchClient() {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-16 bg-stone-50/50 border-t border-black/5">
+      <section className="py-16 bg-gray-50/50 border-t border-black/5">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-xl sm:text-2xl font-display font-semibold mb-4">
             Need Help Finding Your Perfect Property?
@@ -448,7 +448,7 @@ function SearchClient() {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] pt-20 flex items-center justify-center">
+    <div className="min-h-screen bg-[#FAFAFA] pt-20 flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-4 border-brand-dark border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-brand-dark/50">Loading properties...</p>
@@ -459,7 +459,7 @@ function SearchLoading() {
 
 export default function SearchPage() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <Header dark />
       <main>
         <Suspense fallback={<SearchLoading />}>

@@ -106,7 +106,7 @@ export default function SignUpPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-[#FEFEFE] font-sans">
+      <div className="min-h-screen bg-[#FAFAFA] font-sans">
         <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
@@ -155,7 +155,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-lg mx-auto px-4">

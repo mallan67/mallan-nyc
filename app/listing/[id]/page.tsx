@@ -107,7 +107,7 @@ export default async function ListingPage({ params }: Props) {
   // IDX opt-out guard: if the listing owner has opted out of IDX display, block it
   if (listing.compliance?.idxOptOut) {
     return (
-      <div className="min-h-screen bg-[#FEFEFE] font-sans">
+      <div className="min-h-screen bg-[#FAFAFA] font-sans">
         <Header dark />
         <div className="flex items-center justify-center min-h-[60vh] pt-20">
           <div className="text-center max-w-md">
@@ -155,7 +155,7 @@ export default async function ListingPage({ params }: Props) {
   if (listing.features.outdoor.roofRights) unitFeatures.push('Roof Rights');
 
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <Header dark />
 
       {/* Breadcrumb */}
@@ -664,7 +664,7 @@ export default async function ListingPage({ params }: Props) {
       </main>
 
       {/* REBNY RLS Disclaimer */}
-      <section className="bg-stone-50/50 border-t border-black/5 py-6 px-4">
+      <section className="bg-gray-50/50 border-t border-black/5 py-6 px-4">
         <div className="max-w-7xl mx-auto">
           <IDXDisclaimer
             variant="full"
