@@ -7,6 +7,11 @@ const TOTAL_REVIEWS = 13;
 
 const REVIEWS = [
   {
+    quote: 'My husband and I have worked with Maya on both buying and selling, as well as looking at other possible properties. She does an excellent job. She has an excellent understanding of the current market and your needs. She always keeps your interests at the forefront; she offers great advice but never pushes people into anything.',
+    author: 'J.',
+    detail: 'Bought & Sold \u00B7 NYC',
+  },
+  {
     quote: 'I had a great experience with Maya getting the best apartment in Manhattan. She is very knowledgeable about the NY market and will work with you to get you what you need.',
     author: 'A.',
     detail: 'Bought & Sold \u00B7 Manhattan',
