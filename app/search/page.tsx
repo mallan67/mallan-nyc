@@ -35,8 +35,8 @@ function SearchClient() {
   const neighborhoodParam = searchParams?.get('neighborhood') || '';
   const zipParam = searchParams?.get('zip') || '';
 
-  const [activeTab, setActiveTab] = useState<'buy' | 'rent' | 'sell' | 'commercial'>(
-    typeParam as 'buy' | 'rent' | 'sell' | 'commercial'
+  const [activeTab, setActiveTab] = useState<'buy' | 'rent' | 'commercial'>(
+    (typeParam === 'sell' ? 'buy' : typeParam) as 'buy' | 'rent' | 'commercial'
   );
   const [searchQuery, setSearchQuery] = useState(queryParam);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 99999999]);
@@ -178,7 +178,7 @@ function SearchClient() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Tabs */}
           <div className="flex gap-1 mb-4 bg-gray-100/60 rounded-2xl p-1 w-fit">
-            {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
+            {(['buy', 'rent', 'commercial'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
