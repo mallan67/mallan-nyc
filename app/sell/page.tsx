@@ -146,15 +146,50 @@ const FAQS = [
   },
 ];
 
-const PLATFORMS = [
-  { name: 'REBNY RLS', description: 'New York\u2019s official broker listing database \u2014 30,000+ agents see your property' },
-  { name: 'StreetEasy', description: 'NYC\u2019s #1 property search \u2014 where serious buyers look first' },
-  { name: 'Zillow + Trulia', description: 'National reach \u2014 millions of monthly visitors' },
-  { name: 'Realtor.com', description: 'Direct data license from REBNY \u2014 instant syndication' },
-  { name: 'Redfin', description: 'Tech-savvy buyers search here \u2014 your listing appears automatically' },
-  { name: 'Homes.com', description: 'Growing platform with millions of monthly visitors' },
-  { name: 'mallan.nyc', description: 'Our own website \u2014 featured with professional photography' },
-  { name: 'Social + Email', description: 'Targeted campaigns to qualified buyer database' },
+const SYNDICATION_GROUPS = [
+  {
+    heading: 'REBNY RLS Network',
+    description: 'Your listing enters NYC\u2019s official broker listing database \u2014 visible to 570+ participating firms and 30,000+ agents.',
+    platforms: [
+      { name: 'REBNY RLS', detail: '570+ firms, 30,000+ agents \u2014 NYC\u2019s official broker listing database' },
+      { name: '30 IDX Partner Brokerages', detail: 'Your listing appears on all participating brokerage websites \u2014 we opt in to full IDX display' },
+    ],
+  },
+  {
+    heading: 'Direct Data Licensees',
+    description: 'These portals hold their own data license from REBNY \u2014 your listing appears automatically from the RLS feed.',
+    platforms: [
+      { name: 'Realtor.com', detail: 'Direct REBNY data license \u2014 automatic from RLS' },
+      { name: 'Redfin', detail: 'Direct REBNY data license \u2014 automatic from RLS' },
+      { name: 'Homes.com', detail: 'Direct REBNY data license \u2014 built Citysnap with REBNY' },
+      { name: 'RentHop', detail: 'Direct REBNY data license \u2014 automatic for rentals' },
+    ],
+  },
+  {
+    heading: 'StreetEasy + Zillow',
+    description: 'StreetEasy listings are uploaded directly (not via RLS). Sales on StreetEasy auto-sync to Zillow and Trulia within 24 hours.',
+    platforms: [
+      { name: 'StreetEasy', detail: 'NYC\u2019s #1 property search \u2014 direct upload, sales are free' },
+      { name: 'Zillow + Trulia', detail: 'Auto-syncs from StreetEasy \u2014 national reach, millions of monthly visitors' },
+    ],
+  },
+  {
+    heading: 'Trestle Opt-In Portals',
+    description: 'Additional portals available through our Trestle IDX Plus dashboard \u2014 we\u2019re opted in to all three.',
+    platforms: [
+      { name: 'openigloo', detail: 'IDX Plus opt-in \u2014 opted IN' },
+      { name: 'Samaki.com', detail: 'IDX Plus opt-in \u2014 opted IN' },
+      { name: 'TBI Listings', detail: 'IDX Plus opt-in \u2014 opted IN' },
+    ],
+  },
+  {
+    heading: 'Direct Marketing',
+    description: 'Beyond syndication, we market your property directly to qualified buyers.',
+    platforms: [
+      { name: 'mallan.nyc', detail: 'Our website \u2014 featured with professional photography' },
+      { name: 'Social + Email', detail: 'Targeted campaigns to our qualified buyer database' },
+    ],
+  },
 ];
 
 const MARKET_STATS = [
@@ -207,8 +242,8 @@ export default function SellPage() {
         <section className="relative h-[60vh] min-h-[500px] flex items-center justify-center">
           <div className="absolute inset-0">
             <Image
-              src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80&auto=format&fit=crop"
-              alt="Luxury NYC building exterior"
+              src="https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1600&q=80&auto=format&fit=crop"
+              alt="Manhattan skyline view from luxury high-rise"
               fill
               className="object-cover"
               priority
@@ -242,10 +277,10 @@ export default function SellPage() {
                 {/* Left column — copy + stats */}
                 <div className="flex flex-col justify-center">
                   <h2 className="font-display font-bold text-2xl md:text-3xl text-brand-dark mb-3">
-                    What&apos;s Your Home Worth?
+                    What&apos;s Your Property Worth?
                   </h2>
                   <p className="text-brand-dark/60 mb-8">
-                    Get a free Comparative Market Analysis from a licensed NYC broker.
+                    Get a free property valuation from a licensed NYC broker.
                     We&apos;ll evaluate your property and neighborhood to give you an
                     accurate price range.
                   </p>
@@ -329,26 +364,36 @@ export default function SellPage() {
               Where Your Listing Goes
             </h2>
             <p className="text-brand-dark/60 text-center mb-12 max-w-2xl mx-auto">
-              Maximum exposure across every major platform &mdash; included with your listing.
+              Maximum exposure across every major platform &mdash; all included with your listing.
             </p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {PLATFORMS.map((platform) => (
-                <div key={platform.name} className="glass-card rounded-2xl p-5 flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center shrink-0">
-                    <svg className="w-5 h-5 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-display font-semibold text-sm text-brand-dark">{platform.name}</p>
-                    <p className="text-xs text-brand-dark/60 mt-0.5">{platform.description}</p>
+            <div className="space-y-8">
+              {SYNDICATION_GROUPS.map((group) => (
+                <div key={group.heading}>
+                  <h3 className="font-display font-semibold text-sm text-brand-dark mb-1">{group.heading}</h3>
+                  <p className="text-xs text-brand-dark/50 mb-3">{group.description}</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {group.platforms.map((platform) => (
+                      <div key={platform.name} className="glass-card rounded-2xl p-4 flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center shrink-0">
+                          <svg className="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-display font-semibold text-sm text-brand-dark">{platform.name}</p>
+                          <p className="text-[11px] text-brand-dark/50 mt-0.5">{platform.detail}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-brand-dark/40 text-center mt-8 max-w-2xl mx-auto">
-              Listing syndication is automatic through REBNY RLS. StreetEasy listings
-              are uploaded directly &mdash; sales are free, rentals are $7/day.
+            <p className="text-xs text-brand-dark/40 text-center mt-10 max-w-3xl mx-auto">
+              REBNY RLS syndication is automatic when IDX display is enabled (our default).
+              StreetEasy listings are uploaded directly &mdash; sales are free, rentals start at $7/day.
+              Direct Data Licensees (Realtor.com, Redfin, Homes.com, RentHop) receive listings
+              automatically from REBNY via their own data license agreements.
             </p>
           </div>
         </section>

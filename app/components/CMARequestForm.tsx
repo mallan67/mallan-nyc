@@ -48,7 +48,7 @@ export default function CMARequestForm() {
         </div>
         <h3 className="text-xl font-display font-semibold text-green-800 mb-2">Request Received</h3>
         <p className="text-green-700 text-sm max-w-md mx-auto">
-          Thank you! We&apos;ll prepare your Comparative Market Analysis and send it within 24 hours.
+          Thank you! We&apos;ll prepare your property valuation and send it within 24 hours.
           A licensed broker will follow up to discuss your property.
         </p>
       </div>
@@ -201,7 +201,7 @@ export default function CMARequestForm() {
         disabled={isSubmitting}
         className="w-full px-6 py-3 btn-gold rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isSubmitting ? 'Submitting...' : 'Get My Free CMA'}
+        {isSubmitting ? 'Submitting...' : 'Get My Free Valuation'}
       </button>
 
       <p className="text-xs text-brand-dark/40 text-center">
