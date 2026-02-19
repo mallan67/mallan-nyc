@@ -33,7 +33,7 @@ export default function SignInPage() {
   if (submitted) {
     const portal = portalTypes.find(p => p.id === selectedPortal);
     return (
-      <div className="min-h-screen bg-[#FAFAFA] font-sans">
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
@@ -68,7 +68,7 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">

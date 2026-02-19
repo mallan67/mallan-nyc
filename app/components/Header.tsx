@@ -45,7 +45,7 @@ function NavDropdown({ label, items, dark }: { label: string; items: { title: st
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const linkColor = 'text-brand-dark/45 hover:text-brand-dark';
+  const linkColor = 'text-white/80 hover:text-white';
 
   return (
     <div ref={ref} className="relative" onMouseEnter={enter} onMouseLeave={leave}>
@@ -142,7 +142,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   // Homepage: absolute (overlays hero). Inner pages: fixed.
   const positionClass = dark ? 'fixed' : 'absolute';
   const bgClass = mobileOpen
-    ? 'bg-[rgba(248,249,250,0.95)] backdrop-blur-2xl'
+    ? 'bg-[rgba(28,25,23,0.95)] backdrop-blur-2xl'
     : 'nav-glass';
 
   const mobileDropdownItem = (item: { title: string; href: string }) => (
@@ -161,7 +161,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
       }}
       role="button"
       tabIndex={0}
-      className="block py-3 min-h-[44px] text-base cursor-pointer select-none text-brand-dark/40 active:text-brand-dark"
+      className="block py-3 min-h-[44px] text-base cursor-pointer select-none text-white/60 active:text-white"
       style={{
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -173,9 +173,9 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     </div>
   );
 
-  // All modes use dark text on light glass
-  const textColor = 'text-brand-dark';
-  const mobileTextColor = 'text-brand-dark/70 hover:text-brand-dark';
+  // White text on dark charcoal glass
+  const textColor = 'text-white';
+  const mobileTextColor = 'text-white/80 hover:text-white';
 
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
@@ -202,7 +202,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
 
               <li>
-                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-brand-dark/45 hover:text-brand-dark">
+                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
                   Open Houses
                 </Link>
               </li>
@@ -210,7 +210,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li><NavDropdown label="Resources" items={resources} dark={dark} /></li>
 
               <li>
-                <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-brand-dark/45 hover:text-brand-dark">
+                <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
                   About
                 </Link>
               </li>
@@ -218,7 +218,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li>
                 <Link
                   href="/sign-in"
-                  className="btn-liquid text-[13px] font-medium bg-brand-dark text-white px-6 py-2.5 rounded-full"
+                  className="btn-liquid text-[13px] font-medium bg-white text-brand-dark px-6 py-2.5 rounded-full"
                 >
                   Sign In
                 </Link>
@@ -367,15 +367,15 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 About
               </Link>
 
-              <div className="mt-6 pt-6 border-t border-black/5">
+              <div className="mt-6 pt-6 border-t border-white/10">
                 <Link
                   href="/sign-in"
                   onClick={() => setMobileOpen(false)}
-                  className="block w-full btn-liquid bg-brand-dark text-white font-medium py-4 rounded-full text-sm text-center"
+                  className="block w-full btn-liquid bg-white text-brand-dark font-medium py-4 rounded-full text-sm text-center"
                 >
                   Sign In
                 </Link>
-                <p className="text-center text-sm font-extralight text-brand-dark/25 mt-5">(646) 258-4460</p>
+                <p className="text-center text-sm font-extralight text-white/30 mt-5">(646) 258-4460</p>
               </div>
             </div>
           </nav>

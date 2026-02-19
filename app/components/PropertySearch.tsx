@@ -179,7 +179,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     (isRental ? priceRange[0] !== 0 || priceRange[1] !== 99999 : priceRange[0] !== 0 || priceRange[1] !== 99999999);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pt-20">
+    <div className="min-h-screen bg-[#FEFEFE] pt-20">
       {/* Search Header */}
       <section className="bg-white/80 backdrop-blur-xl border-b border-black/5 sticky top-20 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4">

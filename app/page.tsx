@@ -18,7 +18,7 @@ export const revalidate = 3600;
 export default function HomePage() {
   return (
     <SidePanelProvider>
-      <div className="min-h-screen bg-[#FAFAFA] font-sans">
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header />
         <main id="main-content" role="main" tabIndex={-1}>
           <HeroSearch />

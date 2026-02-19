@@ -96,7 +96,7 @@ const sellFaqSchema = {
 
 export default function SellPage() {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans">
+    <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sellHowToSchema) }}
