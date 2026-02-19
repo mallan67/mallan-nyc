@@ -333,18 +333,18 @@ export default function HeroSearch() {
         {/* Stats — floating */}
         <div data-hero-stats className="flex items-center gap-8 md:gap-12 mt-14">
           <div className="text-center">
-            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>245+</p>
-            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Active Listings</p>
-          </div>
-          <div className="w-px h-8 bg-white/10" />
-          <div className="text-center">
-            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>$1.9M</p>
-            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Avg. Sale Price</p>
+            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>5</p>
+            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Boroughs</p>
           </div>
           <div className="w-px h-8 bg-white/10" />
           <div className="text-center">
             <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>59</p>
             <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Neighborhoods</p>
+          </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="text-center">
+            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>5.0</p>
+            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Zillow Rating</p>
           </div>
         </div>
       </div>
