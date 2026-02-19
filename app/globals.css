@@ -179,9 +179,10 @@
 .side-panel {
   transform: translateX(100%);
   transition: transform 0.75s var(--liquid);
-  background: var(--glass-bg);
+  background: rgba(255,255,255,0.97);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.08);
 }
 .side-panel.open { transform: translateX(0); }
 

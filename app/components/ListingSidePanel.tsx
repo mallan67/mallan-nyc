@@ -75,7 +75,7 @@ export default function ListingSidePanel() {
         >
           <button
             onClick={closeListing}
-            className="text-[13px] font-light text-brand-dark/35 hover:text-brand-dark transition-all duration-500 flex items-center gap-2"
+            className="text-[13px] font-medium text-brand-dark/60 hover:text-brand-dark transition-all duration-500 flex items-center gap-2"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -136,13 +136,13 @@ export default function ListingSidePanel() {
           </div>
 
           {/* Listing info */}
-          <p className="text-brand-dark/30 text-[13px] font-extralight mb-2">
+          <p className="text-brand-dark/60 text-[13px] font-light mb-2">
             {listing.address.neighborhoodDisplay} &middot; {listing.propertyInfo.propertyType}
           </p>
           <h2 className="font-display font-bold text-3xl md:text-4xl tracking-tight leading-tight text-brand-dark mb-1">
             {listing.address.neighborhoodDisplay}
           </h2>
-          <p className="text-brand-dark/30 text-sm font-extralight mb-8">
+          <p className="text-brand-dark/60 text-sm font-light mb-8">
             {listing.address.streetNumber} {listing.address.streetName}{listing.address.unit ? `, ${listing.address.unit}` : ''}
           </p>
 
@@ -150,14 +150,14 @@ export default function ListingSidePanel() {
           <p className="font-display font-bold text-2xl md:text-3xl text-brand-dark mb-1">
             {formatPrice(listing.price.listPrice, isRental)}
           </p>
-          <p className="text-brand-dark/25 text-[13px] font-extralight mb-10">
+          <p className="text-brand-dark/50 text-[13px] font-light mb-10">
             {listing.price.pricePerSqft ? `$${listing.price.pricePerSqft}/sf \u00B7 ` : ''}
             {listing.listing.daysOnMarket} days on market
           </p>
 
           {/* Description */}
           {listing.description && (
-            <p className="text-[15px] text-brand-dark/40 font-extralight leading-[1.9] mb-10">
+            <p className="text-[15px] text-brand-dark/70 font-light leading-[1.9] mb-10">
               {listing.description}
             </p>
           )}
@@ -165,19 +165,19 @@ export default function ListingSidePanel() {
           {/* Specs — glass grid */}
           <div className="grid grid-cols-2 gap-3 mb-10">
             <div className="glass-card rounded-2xl p-4">
-              <p className="text-brand-dark/20 text-[11px] font-extralight mb-1">Beds</p>
+              <p className="text-brand-dark/50 text-[11px] font-medium mb-1">Beds</p>
               <p className="font-display font-bold text-lg text-brand-dark">{beds}</p>
             </div>
             <div className="glass-card rounded-2xl p-4">
-              <p className="text-brand-dark/20 text-[11px] font-extralight mb-1">Baths</p>
+              <p className="text-brand-dark/50 text-[11px] font-medium mb-1">Baths</p>
               <p className="font-display font-bold text-lg text-brand-dark">{baths}{halfBaths > 0 ? `.${halfBaths}` : ''}</p>
             </div>
             <div className="glass-card rounded-2xl p-4">
-              <p className="text-brand-dark/20 text-[11px] font-extralight mb-1">Size</p>
+              <p className="text-brand-dark/50 text-[11px] font-medium mb-1">Size</p>
               <p className="font-display font-bold text-lg text-brand-dark">{sqft > 0 ? `${sqft.toLocaleString()} sf` : 'N/A'}</p>
             </div>
             <div className="glass-card rounded-2xl p-4">
-              <p className="text-brand-dark/20 text-[11px] font-extralight mb-1">
+              <p className="text-brand-dark/50 text-[11px] font-medium mb-1">
                 {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint.' : isRental ? 'Rent' : 'CC'}
               </p>
               <p className="font-display font-bold text-lg text-brand-dark">
@@ -204,10 +204,10 @@ export default function ListingSidePanel() {
             if (amenities.length === 0) return null;
             return (
               <>
-                <p className="text-[11px] font-medium text-brand-dark/15 uppercase tracking-widest mb-4">Amenities</p>
+                <p className="text-[11px] font-semibold text-brand-dark/40 uppercase tracking-widest mb-4">Amenities</p>
                 <div className="flex flex-wrap gap-2 mb-12">
                   {amenities.map((a) => (
-                    <span key={a} className="text-[12px] font-extralight text-brand-dark/50 glass-card rounded-full px-4 py-2">
+                    <span key={a} className="text-[12px] font-medium text-brand-dark/70 glass-card rounded-full px-4 py-2">
                       {a}
                     </span>
                   ))}
@@ -234,13 +234,13 @@ export default function ListingSidePanel() {
             </div>
             <div>
               <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
-              <p className="text-brand-dark/25 text-[12px] font-extralight">(646) 258-4460 &middot; License #10311201806</p>
+              <p className="text-brand-dark/50 text-[12px] font-light">(646) 258-4460 &middot; License #10311201806</p>
             </div>
           </div>
 
           {/* REBNY attribution */}
           {listing.agent?.listOfficeName && (
-            <p className="text-[10px] text-brand-dark/15 mt-6 font-extralight text-center">
+            <p className="text-[10px] text-brand-dark/40 mt-6 font-light text-center">
               Listing Courtesy of {listing.agent.listOfficeName}
             </p>
           )}
