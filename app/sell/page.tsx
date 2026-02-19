@@ -89,7 +89,7 @@ const sellFaqSchema = {
       name: 'Do I need to stage my NYC property before selling?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'While not required, professional staging can significantly impact sale price and time on market. Staged properties in NYC typically sell 5-15% faster and often achieve higher prices. At minimum, decluttering and professional photography are recommended for all listings.',
+        text: 'While not required, professional staging can significantly impact sale price and time on market. Well-presented properties tend to attract more interest and stronger offers. At minimum, decluttering and professional photography are recommended for all listings.',
       },
     },
     {
@@ -130,7 +130,7 @@ const FAQS = [
   },
   {
     question: 'Do I need to stage my NYC property before selling?',
-    answer: 'While not required, professional staging can significantly impact sale price and time on market. Staged properties in NYC typically sell 5-15% faster and often achieve higher prices. At minimum, decluttering and professional photography are recommended for all listings.',
+    answer: 'While not required, professional staging can significantly impact sale price and time on market. Well-presented properties tend to attract more interest and stronger offers. At minimum, decluttering and professional photography are recommended for all listings.',
   },
   {
     question: 'How do you determine the right listing price?',
@@ -192,14 +192,6 @@ const SYNDICATION_GROUPS = [
   },
 ];
 
-const MARKET_STATS = [
-  { label: 'Median Sale Price (Manhattan)', value: '$1.15M', trend: 'up' as const },
-  { label: 'Average Days on Market', value: '82 days', trend: null },
-  { label: 'Inventory (NYC)', value: 'Low', trend: 'down' as const },
-  { label: '% Sold Above Ask', value: '28%', trend: 'up' as const },
-  { label: 'Co-op vs Condo Split', value: '55% / 45%', trend: null },
-  { label: 'Avg Price/Sq Ft (Manhattan)', value: '$1,450', trend: 'up' as const },
-];
 
 const SELLER_REVIEWS = [
   {
@@ -448,42 +440,6 @@ export default function SellPage() {
           </div>
         </section>
 
-        {/* NYC Market Snapshot */}
-        <section className="py-16 bg-gray-50/50">
-          <div className="max-w-5xl mx-auto px-4">
-            <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-3">
-              NYC Market Snapshot
-            </h2>
-            <p className="text-brand-dark/60 text-center mb-12 max-w-2xl mx-auto">
-              Understanding the market helps you price right and sell fast.
-            </p>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {MARKET_STATS.map((stat) => (
-                <div key={stat.label} className="glass-card rounded-2xl p-5 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-brand-dark/50 mb-2">{stat.label}</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <p className="font-display font-bold text-2xl text-brand-dark">{stat.value}</p>
-                    {stat.trend === 'up' && (
-                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    )}
-                    {stat.trend === 'down' && (
-                      <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-brand-dark/40 text-center mt-8 max-w-3xl mx-auto">
-              Market data is approximate and for informational purposes only. Based on
-              publicly available NYC real estate data. Contact us for a detailed analysis
-              of your specific property and neighborhood.
-            </p>
-          </div>
-        </section>
 
         {/* Seller Closing Cost Calculator */}
         <section className="py-12 px-4">
