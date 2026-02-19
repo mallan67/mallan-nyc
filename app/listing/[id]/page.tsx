@@ -187,23 +187,18 @@ export default async function ListingPage({ params }: Props) {
         videoUrl={listing.media.videoUrl}
         virtualTourUrl={listing.media.virtualTourUrl}
         alt={fullAddress}
-      >
-        {listing.flags.isExclusive && (
-          <div className="absolute top-4 left-4 px-4 py-2 bg-brand-gold text-white text-sm uppercase tracking-wide rounded-xl z-10">
-            Mallan Exclusive
-          </div>
-        )}
-        {listing.flags.isPriceReduced && (
-          <div className="absolute top-4 left-4 mt-12 px-4 py-2 bg-green-600 text-white text-sm rounded-xl z-10">
-            Price Reduced
-          </div>
-        )}
-        {listing.openHouse?.scheduled && (
-          <div className="absolute bottom-16 right-4 px-4 py-2 bg-white/90 backdrop-blur-sm text-brand-dark text-sm rounded-xl shadow z-10">
-            Open House: {formatDate(listing.openHouse.date).split(',')[0]}
-          </div>
-        )}
-      </ListingMediaGallery>
+        badges={
+          listing.flags.isExclusive ? (
+            <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-brand-dark text-[11px] font-medium px-3 py-1.5 rounded-full z-10">
+              Exclusive
+            </span>
+          ) : listing.flags.isNewListing ? (
+            <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-brand-dark text-[11px] font-medium px-3 py-1.5 rounded-full z-10">
+              New
+            </span>
+          ) : null
+        }
+      />
 
       <main className="py-8 md:py-12 px-4">
         <div className="max-w-7xl mx-auto">
@@ -227,10 +222,20 @@ export default async function ListingPage({ params }: Props) {
                       {listing.address.neighborhoodDisplay}, {listing.address.borough}, NY {listing.address.zip}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-block px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-sm rounded-full">
                       {listing.propertyInfo.propertyType}
                     </span>
+                    {listing.flags.isPriceReduced && (
+                      <span className="inline-block px-3 py-1 bg-green-50 text-green-700 text-sm font-medium rounded-full">
+                        Price Reduced
+                      </span>
+                    )}
+                    {listing.flags.isExclusive && (
+                      <span className="inline-block px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-sm font-medium rounded-full">
+                        Exclusive
+                      </span>
+                    )}
                     <ShareButton title={`${fullAddress} | ${formatPrice(listing.price.listPrice, isRental)}`} />
                   </div>
                 </div>
