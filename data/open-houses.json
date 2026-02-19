@@ -4,7 +4,7 @@
       "id": "1",
       "address": "400 East 90th Street, Apt 12B",
       "neighborhood": "Upper East Side",
-      "date": "2024-02-15",
+      "date": "2026-03-08",
       "startTime": "11:00 AM",
       "endTime": "1:00 PM",
       "price": 1250000,
@@ -15,14 +15,14 @@
       "agentName": "Sarah Chen",
       "agentPhone": "(646) 555-0101",
       "description": "Stunning corner unit with abundant natural light and city views. Recently renovated kitchen and bathrooms. Full-service building with doorman, gym, and roof deck.",
-      "image": "/images/listing-placeholder.svg",
+      "image": "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1200&q=90&auto=format&fit=crop",
       "featured": true
     },
     {
       "id": "2",
       "address": "225 East 86th Street, Apt 8F",
       "neighborhood": "Upper East Side",
-      "date": "2024-02-15",
+      "date": "2026-03-08",
       "startTime": "2:00 PM",
       "endTime": "4:00 PM",
       "price": 875000,
@@ -33,14 +33,14 @@
       "agentName": "Jennifer Park",
       "agentPhone": "(646) 555-0103",
       "description": "Charming pre-war one bedroom with original details including hardwood floors and high ceilings. Well-maintained building with live-in super. Steps from subway and shopping.",
-      "image": "/images/listing-placeholder.svg",
+      "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=90&auto=format&fit=crop",
       "featured": false
     },
     {
       "id": "3",
       "address": "180 Montague Street, Apt 5A",
       "neighborhood": "Brooklyn Heights",
-      "date": "2024-02-16",
+      "date": "2026-03-09",
       "startTime": "12:00 PM",
       "endTime": "2:00 PM",
       "price": 1450000,
@@ -51,14 +51,14 @@
       "agentName": "David Thompson",
       "agentPhone": "(646) 555-0104",
       "description": "Spacious three bedroom in the heart of Brooklyn Heights. Open layout, chef's kitchen, and private outdoor space. Pet-friendly building with parking available.",
-      "image": "/images/listing-placeholder.svg",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=90&auto=format&fit=crop",
       "featured": true
     },
     {
       "id": "4",
       "address": "350 West 42nd Street, Apt 22C",
       "neighborhood": "Midtown West",
-      "date": "2024-02-17",
+      "date": "2026-03-15",
       "startTime": "1:00 PM",
       "endTime": "3:00 PM",
       "price": 2100000,
@@ -69,7 +69,7 @@
       "agentName": "Michael Rodriguez",
       "agentPhone": "(646) 555-0102",
       "description": "Luxury high-rise living with stunning Hudson River views. Floor-to-ceiling windows, premium finishes, and resort-style amenities including pool, spa, and 24-hour concierge.",
-      "image": "/images/listing-placeholder.svg",
+      "image": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&q=90&auto=format&fit=crop",
       "featured": true
     }
   ]

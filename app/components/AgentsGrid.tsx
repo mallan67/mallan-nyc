@@ -21,7 +21,9 @@ interface Agent {
 export default function AgentsGrid() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
-  const gridRef = useGsapReveal<HTMLDivElement>({ children: true, y: 50, scale: 0.97 });
+  const heroRef = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
+  const featuredRef = useGsapReveal<HTMLDivElement>({ y: 50, duration: 1 });
+  const teamRef = useGsapReveal<HTMLDivElement>({ children: true, y: 40, scale: 0.98, stagger: 0.12 });
 
   useEffect(() => {
     fetch('/api/agents/public')
@@ -35,18 +37,17 @@ export default function AgentsGrid() {
 
   if (loading) {
     return (
-      <div className="py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="animate-pulse">
-            <div className="h-10 bg-gray-200 rounded w-1/4 mx-auto mb-8"></div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="space-y-4">
-                  <div className="aspect-[3/4] bg-gray-200 rounded-2xl"></div>
-                  <div className="h-6 bg-gray-200 rounded w-2/3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ))}
+      <div className="py-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="animate-pulse space-y-16">
+            <div className="h-12 bg-black/5 rounded-2xl w-1/3 mx-auto" />
+            <div className="grid lg:grid-cols-2 gap-12">
+              <div className="aspect-[3/4] bg-black/5 rounded-3xl" />
+              <div className="space-y-6">
+                <div className="h-8 bg-black/5 rounded w-1/2" />
+                <div className="h-4 bg-black/5 rounded w-1/3" />
+                <div className="h-32 bg-black/5 rounded-2xl" />
+              </div>
             </div>
           </div>
         </div>
@@ -54,130 +55,212 @@ export default function AgentsGrid() {
     );
   }
 
-  // Sort: featured agents first
-  const sortedAgents = [...agents].sort((a, b) => {
-    if (a.featured && !b.featured) return -1;
-    if (!a.featured && b.featured) return 1;
-    return 0;
-  });
+  const featured = agents.find(a => a.featured && a.id === 'maya-allan') || agents.find(a => a.featured);
+  const team = agents.filter(a => a.id !== featured?.id);
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-2xl md:text-3xl font-display font-semibold mb-4">Our Team</h1>
-          <p className="text-lg text-brand-dark/60 max-w-2xl mx-auto">
-            Our experienced agents bring deep market knowledge and a client-first approach
-            to every transaction. Meet the professionals ready to help you achieve your
-            real estate goals.
+      {/* Cinematic Hero */}
+      <section className="relative h-[50vh] min-h-[400px] flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1600&q=80&auto=format&fit=crop"
+            alt="Manhattan skyline"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 hero-gradient" />
+        </div>
+        <div ref={heroRef} className="relative z-10 text-center text-white px-6">
+          <p className="text-brand-gold text-[13px] font-medium mb-3 gold-glow-text tracking-widest uppercase">Mallan Real Estate</p>
+          <h1 className="font-display font-bold text-3xl md:text-5xl lg:text-6xl tracking-tight mb-4">
+            Our Agents
+          </h1>
+          <p className="text-white/60 text-sm md:text-base font-light max-w-lg mx-auto">
+            Licensed professionals with deep market expertise across all five boroughs.
           </p>
         </div>
       </section>
 
-      {/* Agents Grid */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          {agents.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-brand-dark/50">No agents to display.</p>
+      {/* Featured Agent — Editorial Split */}
+      {featured && (
+        <section className="py-20 md:py-28 lg:py-36">
+          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+            <div ref={featuredRef} className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+              {/* Portrait */}
+              <div className="relative">
+                <div className="relative aspect-[3/4] rounded-[32px] overflow-hidden float-shadow">
+                  <Image
+                    src={featured.photo}
+                    alt={featured.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    priority
+                  />
+                </div>
+                {/* Gold accent bar */}
+                <div
+                  className="absolute -bottom-3 left-8 right-8 h-1 rounded-full"
+                  style={{ background: 'linear-gradient(90deg, transparent, rgba(184,134,11,0.3), transparent)' }}
+                />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <p className="text-brand-gold-deep text-[13px] font-medium mb-3 gold-glow-text tracking-wide">Principal Broker</p>
+                <h2 className="font-display font-bold text-3xl md:text-4xl tracking-tight text-brand-dark mb-2">
+                  {featured.name}
+                </h2>
+                <p className="text-brand-dark/40 text-sm font-light mb-8">{featured.title}</p>
+
+                <p className="text-brand-dark/60 text-[15px] font-light leading-[1.9] mb-8">
+                  {featured.bio}
+                </p>
+
+                {/* Specialties */}
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {featured.specialties.map((s, i) => (
+                    <span key={i} className="px-4 py-1.5 bg-brand-gold/8 text-brand-gold-deep text-[12px] font-medium rounded-full">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Languages */}
+                {featured.languages.length > 0 && (
+                  <p className="text-brand-dark/40 text-[12px] font-light mb-8">
+                    Languages: {featured.languages.join(', ')}
+                  </p>
+                )}
+
+                {/* Contact */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href={`tel:${featured.phone.replace(/[^0-9+]/g, '')}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-dark text-white text-sm font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    {featured.phone}
+                  </a>
+                  <a
+                    href={`mailto:${featured.email}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 ring-1 ring-black/10 text-brand-dark text-sm font-medium rounded-2xl hover:bg-black/[0.02] transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    {featured.email}
+                  </a>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div ref={gridRef} className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sortedAgents.map(agent => (
-                <Link key={agent.id} href={`/agents/${agent.name.toLowerCase().replace(/\s+/g, '-')}`} className="group glass-card rounded-3xl p-4 overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300">
-                  {/* Photo */}
-                  <div className="relative aspect-square mb-4 overflow-hidden rounded-2xl bg-gray-100">
-                    <Image
-                      src={agent.photo || '/images/agent-placeholder.svg'}
-                      alt={agent.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    {agent.featured && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded-xl">
-                        Featured
-                      </span>
-                    )}
+          </div>
+        </section>
+      )}
+
+      {/* Divider */}
+      <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+        <div className="border-t border-black/5" />
+      </div>
+
+      {/* Team Members — Horizontal Cards */}
+      {team.length > 0 && (
+        <section className="py-20 md:py-28">
+          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+            <div className="mb-14">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Meet</p>
+              <h2 className="font-display font-bold text-2xl md:text-3xl tracking-tight text-brand-dark">The Team</h2>
+            </div>
+
+            <div ref={teamRef} className="space-y-10">
+              {team.map((agent, idx) => (
+                <Link
+                  key={agent.id}
+                  href={`/agents/${agent.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  className={`group flex flex-col ${idx % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} gap-8 md:gap-12 items-center glass-card rounded-[32px] p-6 md:p-8 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-500`}
+                >
+                  {/* Portrait */}
+                  <div className="w-full md:w-72 flex-shrink-0">
+                    <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-50">
+                      <Image
+                        src={agent.photo}
+                        alt={agent.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-700"
+                        sizes="(max-width: 768px) 100vw, 288px"
+                      />
+                    </div>
                   </div>
 
                   {/* Info */}
-                  <div className="space-y-2">
-                    <h3 className="font-display font-semibold">
-                      <span className="text-xl">{agent.name}</span>
-                      <span className="block text-sm text-brand-dark/60 font-medium mt-0.5">{agent.title}</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-display font-bold text-xl md:text-2xl text-brand-dark mb-1">
+                      {agent.name}
                     </h3>
+                    <p className="text-brand-dark/40 text-sm font-light mb-4">{agent.title}</p>
 
-                    {/* Contact */}
-                    <div className="flex flex-col gap-1 text-sm">
-                      <a
-                        href={`tel:${agent.phone.replace(/[^0-9]/g, '')}`}
-                        className="text-brand-dark/60 hover:text-brand-gold transition-colors"
-                      >
-                        {agent.phone}
-                      </a>
-                      <a
-                        href={`mailto:${agent.email}`}
-                        className="text-brand-dark/60 hover:text-brand-gold transition-colors"
-                      >
-                        {agent.email}
-                      </a>
-                    </div>
+                    <p className="text-brand-dark/60 text-[14px] font-light leading-[1.8] mb-5 line-clamp-3">
+                      {agent.bio}
+                    </p>
 
                     {/* Specialties */}
-                    {agent.specialties && agent.specialties.length > 0 && (
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {agent.specialties.slice(0, 3).map((specialty, idx) => (
-                          <span
-                            key={idx}
-                            className="px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-xs rounded-full"
-                          >
-                            {specialty}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {agent.specialties.slice(0, 4).map((s, i) => (
+                        <span key={i} className="px-3 py-1 bg-brand-gold/8 text-brand-gold-deep text-[11px] font-medium rounded-full">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
 
-                    {/* Languages */}
-                    {agent.languages && agent.languages.length > 0 && (
-                      <p className="text-xs text-brand-dark/50 pt-1">
+                    {/* Contact row */}
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-brand-dark/50 font-light">{agent.phone}</span>
+                      <span className="text-brand-dark/20">|</span>
+                      <span className="text-brand-dark/50 font-light">{agent.email}</span>
+                    </div>
+
+                    {agent.languages.length > 0 && (
+                      <p className="text-brand-dark/30 text-[11px] font-light mt-2">
                         Languages: {agent.languages.join(', ')}
                       </p>
                     )}
 
-                    {/* View Profile Link */}
-                    <div className="pt-3">
-                      <span className="text-sm text-brand-gold group-hover:underline">
-                        View Profile →
+                    <div className="mt-5">
+                      <span className="text-[13px] text-brand-gold-deep font-medium group-hover:underline">
+                        View Full Profile &rarr;
                       </span>
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      {/* Contact CTA */}
-      <section className="py-16 bg-gray-50/50 border-t border-black/5">
-        <div className="max-w-3xl mx-auto px-4 text-center">
+      {/* CTA */}
+      <section className="py-20 bg-brand-dark text-white">
+        <div className="max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">
             Ready to Get Started?
           </h2>
-          <p className="text-brand-dark/60 mb-8">
-            Contact any of our agents directly or reach out to our office for assistance.
+          <p className="text-gray-400 font-light mb-8">
+            Contact any of our agents directly or reach out to our office.
           </p>
-          <a
-            href="tel:+16462584460"
-            className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
-          >
-            Call (646) 258-4460
-          </a>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="tel:+16462584460"
+              className="inline-block px-8 py-3 bg-white text-brand-dark font-medium rounded-full hover:bg-white/90 transition-colors"
+            >
+              Call (646) 258-4460
+            </a>
+            <Link
+              href="/contact"
+              className="inline-block px-8 py-3 border border-white/20 text-white font-medium rounded-full hover:bg-white/10 transition-colors"
+            >
+              Send a Message
+            </Link>
+          </div>
         </div>
       </section>
     </>

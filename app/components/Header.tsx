@@ -210,6 +210,12 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li><NavDropdown label="Resources" items={resources} dark={dark} /></li>
 
               <li>
+                <Link href="/agents" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
+                  Agents
+                </Link>
+              </li>
+
+              <li>
                 <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
                   About
                 </Link>
@@ -358,6 +364,14 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                   </div>
                 )}
               </div>
+
+              <Link
+                href="/agents"
+                onClick={() => setMobileOpen(false)}
+                className={`py-3 min-h-[44px] ${mobileTextColor}`}
+              >
+                Agents
+              </Link>
 
               <Link
                 href="/about"
