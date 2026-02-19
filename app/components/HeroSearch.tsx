@@ -231,7 +231,7 @@ export default function HeroSearch() {
         {/* Subtitle */}
         <p
           data-hero-p
-          className="text-white/50 text-sm md:text-base font-extralight max-w-lg mb-12 tracking-wide"
+          className="text-white/70 text-sm md:text-base font-light max-w-lg mb-12 tracking-wide"
         >
           Full-service brokerage for buyers, sellers, and renters across all five boroughs.
         </p>
@@ -275,8 +275,14 @@ export default function HeroSearch() {
               onFocus={() => query.length >= 2 && setShowSuggestions(true)}
               onKeyDown={handleKeyDown}
               placeholder="Search by neighborhood, address, or building..."
-              className="flex-1 px-4 py-5 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/25 font-light tracking-wide"
+              className="flex-1 px-4 py-5 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/50 font-light tracking-wide"
               autoComplete="off"
+              role="combobox"
+              aria-expanded={showSuggestions && suggestions.length > 0}
+              aria-controls="hero-search-listbox"
+              aria-activedescendant={selectedIndex >= 0 ? `hero-suggestion-${selectedIndex}` : undefined}
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
             />
             <button
               onClick={handleSearch}
@@ -291,11 +297,17 @@ export default function HeroSearch() {
           {showSuggestions && suggestions.length > 0 && (
             <div
               ref={suggestionsRef}
+              id="hero-search-listbox"
+              role="listbox"
+              aria-label="Search suggestions"
               className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden z-50"
             >
               {suggestions.map((suggestion, index) => (
                 <button
                   key={`${suggestion.type}-${suggestion.value}`}
+                  id={`hero-suggestion-${index}`}
+                  role="option"
+                  aria-selected={index === selectedIndex}
                   onClick={() => handleSuggestionClick(suggestion)}
                   className={`w-full px-5 py-3.5 flex items-center gap-3 text-left transition-colors ${
                     index === selectedIndex
@@ -303,13 +315,13 @@ export default function HeroSearch() {
                       : 'hover:bg-black/[0.02]'
                   }`}
                 >
-                  <span className="text-brand-dark/30">
+                  <span className="text-brand-dark/50">
                     {getTypeIcon(suggestion.type)}
                   </span>
-                  <span className="flex-1 text-brand-dark/80 font-light text-sm">
+                  <span className="flex-1 text-brand-dark font-light text-sm">
                     {suggestion.label}
                   </span>
-                  <span className="text-[11px] text-brand-dark/25 capitalize font-extralight">
+                  <span className="text-[11px] text-brand-dark/50 capitalize font-light">
                     {suggestion.type}
                   </span>
                 </button>
@@ -322,17 +334,17 @@ export default function HeroSearch() {
         <div data-hero-stats className="flex items-center gap-8 md:gap-12 mt-14">
           <div className="text-center">
             <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>245+</p>
-            <p className="text-white/35 text-[11px] font-extralight tracking-wider mt-1">Active Listings</p>
+            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Active Listings</p>
           </div>
           <div className="w-px h-8 bg-white/10" />
           <div className="text-center">
             <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>$1.9M</p>
-            <p className="text-white/35 text-[11px] font-extralight tracking-wider mt-1">Avg. Sale Price</p>
+            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Avg. Sale Price</p>
           </div>
           <div className="w-px h-8 bg-white/10" />
           <div className="text-center">
             <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>59</p>
-            <p className="text-white/35 text-[11px] font-extralight tracking-wider mt-1">Neighborhoods</p>
+            <p className="text-white/60 text-[11px] font-light tracking-wider mt-1">Neighborhoods</p>
           </div>
         </div>
       </div>

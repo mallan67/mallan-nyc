@@ -26,7 +26,7 @@ export default function ZillowTestimonials() {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-brand-gold-deep font-bold text-sm gold-glow-text">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-              <span className="text-[12px] font-extralight text-brand-dark/30">5.0 on</span>
+              <span className="text-[12px] font-light text-brand-dark/60">5.0 on</span>
               <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
             </div>
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Client Voices</h2>
@@ -41,7 +41,7 @@ export default function ZillowTestimonials() {
                 <span className="text-brand-gold-deep text-sm font-bold gold-glow-text">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
                 <span className="text-[9px] font-semibold bg-brand-dark text-white px-2 py-0.5 rounded-full">Verified</span>
               </div>
-              <p className="text-[15px] text-brand-dark/50 font-extralight leading-[1.8] mb-6">
+              <p className="text-[15px] text-brand-dark/70 font-light leading-[1.8] mb-6">
                 &ldquo;{review.quote}&rdquo;
               </p>
               <div className="flex items-center gap-3">
@@ -55,7 +55,7 @@ export default function ZillowTestimonials() {
                 </div>
                 <div>
                   <p className="text-[13px] font-medium text-brand-dark">{review.author}</p>
-                  <p className="text-brand-dark/20 text-[12px] font-extralight">{review.detail}</p>
+                  <p className="text-brand-dark/50 text-[12px] font-light">{review.detail}</p>
                 </div>
               </div>
             </div>

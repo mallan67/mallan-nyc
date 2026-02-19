@@ -54,6 +54,7 @@ export default function IDXDisclaimer({
           Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
           {lastUpdated && ` Data last updated: ${timestamp}.`}
         </p>
+        <p className="mt-1">Commission rates are not set by law and are fully negotiable.</p>
         <p className="mt-1">
           <span className="inline-flex items-center gap-1">
             <EqualHousingIcon className="w-3 h-3" />
