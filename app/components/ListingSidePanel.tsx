@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSidePanel } from '@/lib/contexts/ListingSidePanelContext';
+import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -18,6 +19,39 @@ export default function ListingSidePanel() {
   useEffect(() => {
     if (activeListing) setActiveImageIndex(0);
   }, [activeListing]);
+
+  // Focus trap: move focus into panel on open, restore on close
+  useEffect(() => {
+    if (!isOpen || !panelRef.current) return;
+    const panel = panelRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement;
+
+    // Move focus into panel
+    const firstFocusable = panel.querySelector<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    firstFocusable?.focus();
+
+    // Trap tab inside panel
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusables = panel.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleTab);
+
+    return () => {
+      document.removeEventListener('keydown', handleTab);
+      previouslyFocused?.focus?.();
+    };
+  }, [isOpen]);
 
   // GSAP stagger entrance for panel contents
   useEffect(() => {
@@ -217,10 +251,10 @@ export default function ListingSidePanel() {
           })()}
 
           {/* CTA buttons */}
-          <button className="w-full btn-liquid bg-brand-dark text-white font-medium py-4 rounded-full text-sm mb-3">
+          <button data-analytics-cta="panel_showing" className="w-full btn-liquid bg-brand-dark text-white font-medium py-4 rounded-full text-sm mb-3">
             {isRental ? 'Schedule a Viewing' : 'Request a Showing'}
           </button>
-          <button className="w-full btn-liquid glass-card text-brand-dark font-light py-4 rounded-full text-sm mb-12">
+          <button data-analytics-cta="panel_question" className="w-full btn-liquid glass-card text-brand-dark font-light py-4 rounded-full text-sm mb-12">
             Ask a Question
           </button>
 
@@ -244,6 +278,9 @@ export default function ListingSidePanel() {
               Listing Courtesy of {listing.agent.listOfficeName}
             </p>
           )}
+
+          {/* IDX Disclaimer — REBNY compliance */}
+          <IDXDisclaimer variant="compact" lastUpdated={new Date()} className="mt-8 text-center" />
         </div>
       </div>
     </>

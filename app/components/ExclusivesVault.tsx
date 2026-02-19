@@ -50,21 +50,21 @@ export default function ExclusivesVault() {
               </svg>
             </div>
             <h2 className="font-display font-bold text-white text-2xl md:text-3xl lg:text-4xl mb-4">Private Collection</h2>
-            <p className="text-white/35 text-sm font-extralight leading-relaxed mb-10 max-w-sm mx-auto">
+            <p className="text-white/60 text-sm font-light leading-relaxed mb-10 max-w-sm mx-auto">
               Pre-launch opportunities and pocket listings for registered clients only.
             </p>
             <div className="flex justify-center gap-10 md:gap-14 mb-10">
               <div>
                 <p className="font-display font-bold text-white text-2xl">12</p>
-                <p className="text-white/25 text-[11px] font-extralight mt-1">Listings</p>
+                <p className="text-white/50 text-[11px] font-light mt-1">Listings</p>
               </div>
               <div>
                 <p className="font-display font-bold text-white text-2xl">$2.1M</p>
-                <p className="text-white/25 text-[11px] font-extralight mt-1">Average</p>
+                <p className="text-white/50 text-[11px] font-light mt-1">Average</p>
               </div>
               <div>
                 <p className="font-display font-bold text-white text-2xl">48hr</p>
-                <p className="text-white/25 text-[11px] font-extralight mt-1">To Offer</p>
+                <p className="text-white/50 text-[11px] font-light mt-1">To Offer</p>
               </div>
             </div>
             <Link
@@ -105,16 +105,19 @@ export default function ExclusivesVault() {
                   </span>
                 </div>
                 <div className="p-5">
-                  <p className="text-white/25 text-[12px] font-extralight mb-1">{exc.hood} &middot; {exc.type}</p>
+                  <p className="text-white/50 text-[12px] font-light mb-1">{exc.hood} &middot; {exc.type}</p>
                   <h3 className="font-display font-semibold text-white text-base">{exc.title}</h3>
                   <p className="font-display font-bold text-white text-lg mt-1">{exc.price}</p>
-                  <p className="text-white/20 text-[12px] font-extralight mt-1.5">{exc.spec}</p>
+                  <p className="text-white/50 text-[12px] font-light mt-1.5">{exc.spec}</p>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-center text-white/15 text-sm font-extralight mt-12">
+          <p className="text-center text-white/50 text-sm font-light mt-12">
             Showing 3 of 12 &middot; <Link href="/buy?exclusive=true" className="text-brand-gold-deep hover:underline">View All</Link>
+          </p>
+          <p className="text-center text-white/30 text-[10px] font-light mt-4">
+            Listing Courtesy of Mallan Real Estate Inc. &middot; Commission rates are not set by law and are fully negotiable.
           </p>
         </div>
       )}

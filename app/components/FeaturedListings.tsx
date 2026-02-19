@@ -69,7 +69,7 @@ function ListingCard({ listing }: { listing: Listing }) {
             <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">
               {listing.address.neighborhoodDisplay}
             </h3>
-            <p className="text-brand-dark/30 text-[13px] font-extralight">
+            <p className="text-brand-dark/60 text-[13px] font-light">
               {listing.propertyInfo.propertyType}
             </p>
           </div>
@@ -77,18 +77,18 @@ function ListingCard({ listing }: { listing: Listing }) {
             {formatPrice(listing.price.listPrice, isRental)}
           </p>
         </div>
-        <p className="text-brand-dark/30 text-[13px] font-extralight">
+        <p className="text-brand-dark/60 text-[13px] font-light">
           {beds} bd &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} ba
           {sqft > 0 && ` \u00B7 ${sqft.toLocaleString()} sf`}
         </p>
         {!isRental && listing.nycSpecific.maintenanceFee && (
-          <p className="text-brand-dark/20 text-[12px] font-extralight mt-1">
+          <p className="text-brand-dark/50 text-[12px] font-light mt-1">
             {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
           </p>
         )}
         {/* REBNY H1/F6: Listing Courtesy attribution required */}
         {listing.agent?.listOfficeName && (
-          <p className="text-[10px] text-brand-dark/20 mt-1.5 font-extralight">
+          <p className="text-[10px] text-brand-dark/50 mt-1.5 font-light">
             Listing Courtesy of {listing.agent.listOfficeName}
           </p>
         )}
@@ -122,7 +122,7 @@ export default function FeaturedListings() {
             <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Featured</p>
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Properties</h2>
           </div>
-          <Link href="/buy" className="text-[13px] font-light text-brand-dark/30 hover:text-brand-dark transition-all duration-500 hidden sm:block">
+          <Link href="/buy" className="text-[13px] font-light text-brand-dark/50 hover:text-brand-dark transition-all duration-500 hidden sm:block">
             View All &rarr;
           </Link>
         </div>
@@ -137,14 +137,14 @@ export default function FeaturedListings() {
         <div className="mt-10 sm:mt-12 text-center sm:hidden">
           <Link
             href="/buy"
-            className="text-[13px] font-light text-brand-dark/30 hover:text-brand-dark transition-all duration-500"
+            className="text-[13px] font-light text-brand-dark/50 hover:text-brand-dark transition-all duration-500"
           >
             View All &rarr;
           </Link>
         </div>
 
         {/* REBNY RLS: IDX disclaimer required on any page displaying listing data */}
-        <IDXDisclaimer variant="compact" />
+        <IDXDisclaimer variant="compact" lastUpdated={new Date()} />
       </div>
     </section>
   );
