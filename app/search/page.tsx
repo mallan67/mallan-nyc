@@ -173,11 +173,11 @@ function SearchClient() {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
-      {/* Search Header - Fixed below nav header */}
-      <section className="fixed top-20 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-black/5 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* Search Header - Scrolls on mobile, fixed on desktop */}
+      <section className="pt-20 lg:pt-0 lg:fixed lg:top-20 lg:left-0 lg:right-0 bg-white/80 backdrop-blur-xl border-b border-black/5 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3 lg:py-4">
           {/* Tabs */}
-          <div className="flex gap-1 mb-4 bg-gray-100/60 rounded-2xl p-1 w-fit">
+          <div className="flex gap-1 mb-3 lg:mb-4 bg-gray-100/60 rounded-2xl p-1 w-fit">
             {(['buy', 'rent', 'commercial'] as const).map((tab) => (
               <button
                 key={tab}
@@ -325,8 +325,8 @@ function SearchClient() {
         </div>
       </section>
 
-      {/* Results - pt accounts for fixed header (80px) + fixed search bar (~180px) */}
-      <section className="pt-[280px] pb-8">
+      {/* Results - pt accounts for fixed header on desktop only */}
+      <section className="pt-4 lg:pt-[280px] pb-8">
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
