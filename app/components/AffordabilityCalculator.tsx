@@ -95,15 +95,15 @@ export default function AffordabilityCalculator() {
 
           {/* Monthly breakdown */}
           <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">Monthly Housing</p>
               <p className="text-lg font-display font-bold text-brand-dark">${calculations.maxMonthlyHousing.toLocaleString()}</p>
             </div>
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">Est. Mortgage</p>
               <p className="text-lg font-display font-bold text-brand-dark">${calculations.estMortgage.toLocaleString()}</p>
             </div>
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">DTI Ratio</p>
               <p className="text-lg font-display font-bold text-brand-dark">{calculations.dtiPercent}%</p>
               <p className="text-xs text-brand-dark/40">of {calculations.dtiLimit}% max</p>

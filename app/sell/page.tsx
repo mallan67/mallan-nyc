@@ -96,7 +96,7 @@ const sellFaqSchema = {
 
 export default function SellPage() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sellHowToSchema) }}
@@ -187,7 +187,7 @@ export default function SellPage() {
         </section>
 
         {/* Process */}
-        <section className="py-16 bg-stone-50/50">
+        <section className="py-16 bg-gray-50/50">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-xl md:text-2xl font-display font-semibold text-center mb-12">
               Our Selling Process

@@ -33,7 +33,7 @@ export default function SignInPage() {
   if (submitted) {
     const portal = portalTypes.find(p => p.id === selectedPortal);
     return (
-      <div className="min-h-screen bg-[#FEFEFE] font-sans">
+      <div className="min-h-screen bg-[#FAFAFA] font-sans">
         <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
@@ -68,7 +68,7 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
@@ -143,7 +143,7 @@ export default function SignInPage() {
             </form>
 
             {/* Portal Routing Info */}
-            <div className="mt-6 p-4 bg-stone-50/50 rounded-2xl">
+            <div className="mt-6 p-4 bg-gray-50/50 rounded-2xl">
               <p className="text-xs font-medium text-brand-dark/70 mb-2">After sign in you&apos;ll see your portal:</p>
               <div className="space-y-1.5 text-xs text-brand-dark/60">
                 <div className="flex items-center gap-2">

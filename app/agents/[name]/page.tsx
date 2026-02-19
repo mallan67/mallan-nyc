@@ -170,7 +170,7 @@ export default async function AgentPage({ params }: Props) {
   ].filter((item) => item.count > 0);
 
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans">
       <Header dark />
       <main className="pt-20">
         {/* Agent Profile Header */}

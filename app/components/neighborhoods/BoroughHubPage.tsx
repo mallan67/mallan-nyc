@@ -77,7 +77,7 @@ export default function BoroughHubPage({
         <NeighborhoodHubGrid neighborhoods={neighborhoods} boroughSlug={boroughSlug} />
 
         {/* Hub FAQ */}
-        <section className="py-10 sm:py-14 bg-stone-50/50">
+        <section className="py-10 sm:py-14 bg-gray-50/50">
           <div className="max-w-3xl mx-auto px-4">
             <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-6">
               {borough} Real Estate FAQ

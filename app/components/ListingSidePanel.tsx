@@ -136,7 +136,7 @@ export default function ListingSidePanel() {
         <div data-panel-body className="px-6 md:px-10 pb-20">
           {/* Main image + thumbnails */}
           <div className="mt-4 mb-8">
-            <div className="overflow-hidden rounded-2xl aspect-[4/3] bg-stone-50 mb-3 relative">
+            <div className="overflow-hidden rounded-2xl aspect-[4/3] bg-gray-50 mb-3 relative">
               <Image
                 src={currentImage}
                 alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}

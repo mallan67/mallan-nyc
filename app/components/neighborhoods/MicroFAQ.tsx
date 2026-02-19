@@ -24,7 +24,7 @@ export default function MicroFAQ({ name, faqs }: MicroFAQProps) {
   return (
     <section
       aria-label={`Frequently Asked Questions about ${name}`}
-      className="py-10 sm:py-14 bg-stone-50/50"
+      className="py-10 sm:py-14 bg-gray-50/50"
     >
       <div className="max-w-3xl mx-auto px-4">
         <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-6">

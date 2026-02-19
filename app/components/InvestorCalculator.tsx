@@ -193,23 +193,23 @@ export default function InvestorCalculator({
         <div className="px-6 pb-6 border-t border-black/5">
           {/* Key Metrics Summary */}
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">Cap Rate</p>
               <p className="text-xl font-display font-bold text-brand-dark">{calculations.capRate}%</p>
             </div>
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">Cash on Cash</p>
               <p className={`text-xl font-display font-bold ${Number(calculations.cashOnCash) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculations.cashOnCash}%
               </p>
             </div>
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">Monthly Cash Flow</p>
               <p className={`text-xl font-display font-bold ${isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}`}>
                 ${calculations.monthlyCashFlow.toLocaleString()}
               </p>
             </div>
-            <div className="bg-stone-50/50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/50 mb-1">Total ROI (Yr 1)</p>
               <p className={`text-xl font-display font-bold ${Number(calculations.totalROI) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculations.totalROI}%

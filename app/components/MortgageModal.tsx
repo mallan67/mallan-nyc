@@ -256,7 +256,7 @@ export default function MortgageModal({
               {/* Closing Costs */}
               <div className="pt-4 border-t border-black/5">
                 <h3 className="text-sm font-display font-medium text-brand-dark/70 mb-3">Estimated Closing Costs (NYC)</h3>
-                <div className="bg-stone-50/50 rounded-2xl p-4 space-y-2 text-sm">
+                <div className="bg-gray-50/50 rounded-2xl p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-brand-dark/60">Attorney Fees</span>
                     <span>${(calculations.closingCosts.buyerAttorneyFee + calculations.closingCosts.bankAttorneyFee).toLocaleString()}</span>

@@ -39,7 +39,7 @@ function ListingCard({ listing }: { listing: Listing }) {
       aria-label={`View details for ${listing.address.neighborhoodDisplay} listing at ${formatPrice(listing.price.listPrice, isRental)}`}
     >
       {/* Image with liquid hover zoom */}
-      <div className="relative overflow-hidden aspect-[4/3] bg-stone-50">
+      <div className="relative overflow-hidden aspect-[4/3] bg-gray-50">
         <IDXImage
           src={primaryImage}
           alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}

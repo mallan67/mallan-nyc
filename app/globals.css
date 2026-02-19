@@ -23,7 +23,7 @@
     --ink: #0A0A0A;
     --muted: #64748b;
     --line: #e2e8f0;
-    --bg: #FEFEFE;
+    --bg: #FAFAFA;
     --bg-soft: #ffffff;
 
     /* Liquid motion curve */
@@ -61,10 +61,10 @@
 /* ═══ GLASSMORPHISM UTILITIES ═══ */
 
 .nav-glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid var(--glass-border);
+  background: rgba(248, 249, 250, 0.82);
+  backdrop-filter: blur(40px) saturate(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(1.1);
+  border-bottom: 1px solid rgba(28, 25, 23, 0.06);
 }
 
 .glass-card {

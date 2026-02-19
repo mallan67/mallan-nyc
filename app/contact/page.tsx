@@ -127,7 +127,7 @@ export default function ContactPage() {
   return (
     <>
       <Header dark />
-      <main id="main-content" className="min-h-screen bg-[#FEFEFE] pt-20">
+      <main id="main-content" className="min-h-screen bg-[#FAFAFA] pt-20">
         {/* Hero */}
         <section className="relative text-white py-20 md:py-28 overflow-hidden">
           <div className="absolute inset-0">
@@ -303,7 +303,7 @@ export default function ContactPage() {
                       </div>
 
                       {/* Consent Checkbox - TCPA Compliance */}
-                      <div className="bg-stone-50/50 p-4 rounded-2xl">
+                      <div className="bg-gray-50/50 p-4 rounded-2xl">
                         <div className="flex items-start">
                           <input
                             type="checkbox"

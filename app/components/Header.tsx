@@ -45,9 +45,7 @@ function NavDropdown({ label, items, dark }: { label: string; items: { title: st
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const linkColor = dark
-    ? 'text-white/90 hover:text-white'
-    : 'text-brand-dark/45 hover:text-brand-dark';
+  const linkColor = 'text-brand-dark/45 hover:text-brand-dark';
 
   return (
     <div ref={ref} className="relative" onMouseEnter={enter} onMouseLeave={leave}>
@@ -141,13 +139,11 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'View All', href: '/neighborhoods' },
   ];
 
-  // Homepage: glass nav that overlays hero. Inner pages: fixed dark header.
+  // Homepage: absolute (overlays hero). Inner pages: fixed.
   const positionClass = dark ? 'fixed' : 'absolute';
-  const bgClass = dark
-    ? 'bg-black/80 backdrop-blur-md'
-    : mobileOpen
-      ? 'bg-white/80 backdrop-blur-2xl'
-      : 'nav-glass';
+  const bgClass = mobileOpen
+    ? 'bg-[rgba(248,249,250,0.95)] backdrop-blur-2xl'
+    : 'nav-glass';
 
   const mobileDropdownItem = (item: { title: string; href: string }) => (
     <div
@@ -165,9 +161,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
       }}
       role="button"
       tabIndex={0}
-      className={`block py-3 min-h-[44px] text-base cursor-pointer select-none ${
-        dark ? 'text-white/70 active:text-white' : 'text-brand-dark/40 active:text-brand-dark'
-      }`}
+      className="block py-3 min-h-[44px] text-base cursor-pointer select-none text-brand-dark/40 active:text-brand-dark"
       style={{
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -179,9 +173,9 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     </div>
   );
 
-  // Text colors: homepage = dark text on glass, inner pages = white text on dark bg
-  const textColor = dark ? 'text-white' : 'text-brand-dark';
-  const mobileTextColor = dark ? 'text-white/90 hover:text-white' : 'text-brand-dark/70 hover:text-brand-dark';
+  // All modes use dark text on light glass
+  const textColor = 'text-brand-dark';
+  const mobileTextColor = 'text-brand-dark/70 hover:text-brand-dark';
 
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
@@ -208,7 +202,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
 
               <li>
-                <Link href="/open-houses" className={`inline-flex items-center whitespace-nowrap transition-all duration-500 ${dark ? 'text-white/90 hover:text-white' : 'text-brand-dark/45 hover:text-brand-dark'}`}>
+                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-brand-dark/45 hover:text-brand-dark">
                   Open Houses
                 </Link>
               </li>
@@ -216,7 +210,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li><NavDropdown label="Resources" items={resources} dark={dark} /></li>
 
               <li>
-                <Link href="/about" className={`inline-flex items-center whitespace-nowrap transition-all duration-500 ${dark ? 'text-white/90 hover:text-white' : 'text-brand-dark/45 hover:text-brand-dark'}`}>
+                <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-brand-dark/45 hover:text-brand-dark">
                   About
                 </Link>
               </li>
