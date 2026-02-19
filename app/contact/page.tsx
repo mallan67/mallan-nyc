@@ -131,7 +131,7 @@ export default function ContactPage() {
         {/* Hero */}
         <section className="relative text-white py-20 md:py-28 overflow-hidden">
           <div className="absolute inset-0">
-            <Image src="/images/hero.jpg" alt="Contact Mallan Real Estate" fill className="object-cover" priority />
+            <Image src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1600&q=80&auto=format&fit=crop" alt="Manhattan skyline" fill className="object-cover" priority />
             <div className="absolute inset-0 hero-gradient" />
           </div>
           <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">

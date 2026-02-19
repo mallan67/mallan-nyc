@@ -2,7 +2,7 @@
   "slug": "buyers-guide",
   "title": "Buyer's Guide to NYC Real Estate",
   "subtitle": "Your comprehensive guide to purchasing property in New York City",
-  "heroImage": "/images/hero.jpg",
+  "heroImage": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1600&q=80&auto=format&fit=crop",
   "sections": [
     {
       "title": "Getting Started",

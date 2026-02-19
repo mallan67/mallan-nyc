@@ -111,8 +111,8 @@ export default function SellPage() {
         <section className="relative h-[60vh] min-h-[500px] flex items-center justify-center">
           <div className="absolute inset-0">
             <Image
-              src="/images/hero.jpg"
-              alt="Sell your property"
+              src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80&auto=format&fit=crop"
+              alt="Luxury NYC building exterior"
               fill
               className="object-cover"
               priority

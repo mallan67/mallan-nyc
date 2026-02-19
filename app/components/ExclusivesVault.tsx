@@ -26,7 +26,7 @@ export default function ExclusivesVault() {
       {/* Background image — blurred */}
       <div className="absolute inset-0 opacity-15">
         <Image
-          src="/images/hero.jpg"
+          src="https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1600&q=80&auto=format&fit=crop"
           alt=""
           fill
           className="object-cover blur-lg"
