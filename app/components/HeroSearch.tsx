@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-type SearchTab = 'buy' | 'rent' | 'sell';
+type SearchTab = 'buy' | 'rent';
 
 type HeroSettings = {
   heroImage: string;
@@ -240,7 +240,7 @@ export default function HeroSearch() {
         <div data-hero-search className="w-full max-w-2xl relative">
           {/* Tabs */}
           <div className="flex items-center justify-center gap-2 mb-5">
-            {(['buy', 'rent', 'sell'] as const).map((tab) => (
+            {(['buy', 'rent'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}

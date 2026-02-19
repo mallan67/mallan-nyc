@@ -12,6 +12,7 @@ import agentsData from '@/data/agents.json';
 import type { Listing } from '@/lib/types/listing';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
+import BackButton from '@/app/components/BackButton';
 import ShareButton from '@/app/components/ShareButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
@@ -158,21 +159,23 @@ export default async function ListingPage({ params }: Props) {
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <Header dark />
 
-      {/* Breadcrumb */}
+      {/* Breadcrumb + Back */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-20">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <nav className="flex items-center gap-2 text-sm text-brand-dark/50">
-            <Link href="/" className="hover:text-brand-gold">Home</Link>
-            <span>/</span>
-            <Link href={isRental ? '/rent' : '/buy'} className="hover:text-brand-gold">
+            <BackButton fallbackHref={isRental ? '/rent' : '/buy'} />
+            <Link href="/" className="hover:text-brand-gold hidden md:inline">Home</Link>
+            <span className="hidden md:inline">/</span>
+            <Link href={isRental ? '/rent' : '/buy'} className="hover:text-brand-gold hidden md:inline">
               {isRental ? 'Rentals' : 'Sales'}
             </Link>
-            <span>/</span>
-            <Link href={`/neighborhoods/${listing.address.neighborhood}`} className="hover:text-brand-gold">
+            <span className="hidden md:inline">/</span>
+            <Link href={`/neighborhoods/${listing.address.neighborhood}`} className="hover:text-brand-gold hidden md:inline">
               {listing.address.neighborhoodDisplay}
             </Link>
-            <span>/</span>
-            <span className="text-brand-dark">{listing.address.streetNumber} {listing.address.streetName}</span>
+            <span className="hidden md:inline">/</span>
+            <span className="text-brand-dark hidden md:inline">{listing.address.streetNumber} {listing.address.streetName}</span>
+            <span className="text-brand-dark md:hidden">{listing.address.neighborhoodDisplay}</span>
           </nav>
         </div>
       </div>

@@ -31,7 +31,7 @@ export default function ValueProposition() {
         <div className="grid md:grid-cols-3 gap-7 md:gap-8 mb-10 sm:mb-12">
           {/* Buy + Affordability Calculator */}
           <div className="flex flex-col gap-4">
-            <div className="flex-1 text-center glass-card rounded-3xl p-8 hover:shadow-lg transition-all duration-500">
+            <div className="flex-1 text-center bg-white rounded-3xl p-8 transition-all duration-500">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
                 style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.1), rgba(184,134,11,0.03))' }}
@@ -41,7 +41,7 @@ export default function ValueProposition() {
                 </svg>
               </div>
               <h3 className="font-display font-semibold text-xl text-brand-dark mb-3">Buy</h3>
-              <p className="text-brand-dark/40 text-[14px] font-extralight leading-relaxed mb-5">
+              <p className="text-brand-dark/60 text-[14px] font-light leading-relaxed mb-5">
                 Buyer and investor representation for co-ops, condos, condops, townhouses, and commercial properties.
               </p>
               <Link
@@ -57,7 +57,7 @@ export default function ValueProposition() {
 
           {/* Rent + Rent vs Buy */}
           <div className="flex flex-col gap-4">
-            <div className="flex-1 text-center glass-card rounded-3xl p-8 hover:shadow-lg transition-all duration-500">
+            <div className="flex-1 text-center bg-white rounded-3xl p-8 transition-all duration-500">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
                 style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.1), rgba(184,134,11,0.03))' }}
@@ -67,7 +67,7 @@ export default function ValueProposition() {
                 </svg>
               </div>
               <h3 className="font-display font-semibold text-xl text-brand-dark mb-3">Rent</h3>
-              <p className="text-brand-dark/40 text-[14px] font-extralight leading-relaxed mb-5">
+              <p className="text-brand-dark/60 text-[14px] font-light leading-relaxed mb-5">
                 NYC apartment rentals with support for rent negotiations, application preparation, and building requirements.
               </p>
               <Link
@@ -83,7 +83,7 @@ export default function ValueProposition() {
 
           {/* Sell + Closing Cost Calculator */}
           <div className="flex flex-col gap-4">
-            <div className="flex-1 text-center glass-card rounded-3xl p-8 hover:shadow-lg transition-all duration-500">
+            <div className="flex-1 text-center bg-white rounded-3xl p-8 transition-all duration-500">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
                 style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.1), rgba(184,134,11,0.03))' }}
@@ -93,7 +93,7 @@ export default function ValueProposition() {
                 </svg>
               </div>
               <h3 className="font-display font-semibold text-xl text-brand-dark mb-3">Sell</h3>
-              <p className="text-brand-dark/40 text-[14px] font-extralight leading-relaxed mb-5">
+              <p className="text-brand-dark/60 text-[14px] font-light leading-relaxed mb-5">
                 Strategic pricing, comprehensive marketing exposure, professional photography, and end-to-end transaction management.
               </p>
               <Link
