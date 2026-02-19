@@ -2,26 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 type ResourceItem = { title: string; href: string };
-
-function MenuIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-    </svg>
-  );
-}
 
 function ChevronIcon({ open }: { open?: boolean }) {
   return (
@@ -37,7 +20,7 @@ function ChevronIcon({ open }: { open?: boolean }) {
   );
 }
 
-function NavDropdown({ label, items }: { label: string; items: { title: string; href: string }[] }) {
+function NavDropdown({ label, items, dark }: { label: string; items: { title: string; href: string }[]; dark?: boolean }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const ref = useRef<HTMLDivElement>(null);
@@ -62,6 +45,10 @@ function NavDropdown({ label, items }: { label: string; items: { title: string; 
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  const linkColor = dark
+    ? 'text-white/90 hover:text-white'
+    : 'text-brand-dark/45 hover:text-brand-dark';
+
   return (
     <div ref={ref} className="relative" onMouseEnter={enter} onMouseLeave={leave}>
       <button
@@ -69,19 +56,19 @@ function NavDropdown({ label, items }: { label: string; items: { title: string; 
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="inline-flex items-center gap-1 whitespace-nowrap text-white/90 hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors"
+        className={`inline-flex items-center gap-1 whitespace-nowrap transition-all duration-500 ${linkColor}`}
       >
         {label}
         <ChevronIcon open={open} />
       </button>
       {open && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg ring-1 ring-black/5 z-50 overflow-hidden whitespace-nowrap">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/90 backdrop-blur-xl rounded-xl shadow-lg ring-1 ring-black/5 z-50 overflow-hidden whitespace-nowrap">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="block px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors font-normal"
+              className="block px-4 py-2.5 text-sm text-brand-dark/60 hover:bg-black/[0.03] hover:text-brand-dark transition-colors font-light"
             >
               {item.title}
             </Link>
@@ -154,11 +141,13 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'View All', href: '/neighborhoods' },
   ];
 
-  // When dark mode (inner pages), use fixed positioning so header stays at top while scrolling
-  // When not dark (homepage), use absolute so it overlays the hero
+  // Homepage: glass nav that overlays hero. Inner pages: fixed dark header.
   const positionClass = dark ? 'fixed' : 'absolute';
-  // Glass effect background for dark mode / mobile menu
-  const bgClass = mobileOpen || dark ? 'bg-black/80 backdrop-blur-md' : '';
+  const bgClass = dark
+    ? 'bg-black/80 backdrop-blur-md'
+    : mobileOpen
+      ? 'bg-white/80 backdrop-blur-2xl'
+      : 'nav-glass';
 
   const mobileDropdownItem = (item: { title: string; href: string }) => (
     <div
@@ -176,7 +165,9 @@ export default function Header({ dark = false }: HeaderProps = {}) {
       }}
       role="button"
       tabIndex={0}
-      className="block py-3 min-h-[44px] text-base text-white/70 active:text-white cursor-pointer select-none"
+      className={`block py-3 min-h-[44px] text-base cursor-pointer select-none ${
+        dark ? 'text-white/70 active:text-white' : 'text-brand-dark/40 active:text-brand-dark'
+      }`}
       style={{
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -188,64 +179,54 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     </div>
   );
 
+  // Text colors: homepage = dark text on glass, inner pages = white text on dark bg
+  const textColor = dark ? 'text-white' : 'text-brand-dark';
+  const mobileTextColor = dark ? 'text-white/90 hover:text-white' : 'text-brand-dark/70 hover:text-brand-dark';
+
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
-      <div className="max-w-[90rem] mx-auto pl-2 pr-4 lg:pl-4 lg:pr-6">
-        <div className="flex items-center justify-between h-20">
-          {/* Brand */}
+      <div className="max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20">
+        <div className="flex items-center justify-between h-16 md:h-[72px]">
+          {/* Brand — MALLANNYC */}
           <Link
             href="/"
-            className="flex items-center gap-2 text-white text-xl sm:text-2xl lg:text-[1.75rem] font-semibold tracking-tight hover:text-white/80 transition-colors whitespace-nowrap"
+            className={`font-display font-bold text-lg md:text-xl tracking-tight ${textColor} hover:opacity-80 transition-opacity`}
           >
-            <Image
-              src="/images/mallan-logo.png"
-              alt="Mallan Real Estate logo"
-              width={40}
-              height={40}
-              className="h-8 w-8 sm:h-10 sm:w-10"
-            />
-            Mallan Real Estate Inc.
+            MALLAN<span className="font-light text-brand-gold-deep gold-glow-text">NYC</span>
           </Link>
 
           {/* Desktop Nav */}
           <nav
-            className="hidden lg:flex items-center ml-auto pl-12 xl:pl-16"
+            className="hidden lg:flex items-center ml-auto"
             aria-label="Main navigation"
           >
-            <ul className="flex items-center gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 text-[13px] lg:text-[14px] xl:text-[15px] 2xl:text-base font-bold text-white/90">
-              <li><NavDropdown label="Buy" items={buyItems} /></li>
-              <li><NavDropdown label="Rent" items={rentItems} /></li>
-              <li><NavDropdown label="Sell" items={sellItems} /></li>
-              <li><NavDropdown label="Exclusives" items={exclusivesItems} /></li>
-              <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} /></li>
+            <ul className="flex items-center gap-8 lg:gap-10 xl:gap-12 text-[13px] font-light">
+              <li><NavDropdown label="Buy" items={buyItems} dark={dark} /></li>
+              <li><NavDropdown label="Rent" items={rentItems} dark={dark} /></li>
+              <li><NavDropdown label="Sell" items={sellItems} dark={dark} /></li>
+              <li><NavDropdown label="Exclusives" items={exclusivesItems} dark={dark} /></li>
+              <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
 
               <li>
-                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                <Link href="/open-houses" className={`inline-flex items-center whitespace-nowrap transition-all duration-500 ${dark ? 'text-white/90 hover:text-white' : 'text-brand-dark/45 hover:text-brand-dark'}`}>
                   Open Houses
                 </Link>
               </li>
 
-              <li><NavDropdown label="Resources" items={resources} /></li>
+              <li><NavDropdown label="Resources" items={resources} dark={dark} /></li>
 
               <li>
-                <Link href="/agents" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
-                  Agents
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/about" className="inline-flex items-center whitespace-nowrap hover:text-white hover:underline decoration-white/40 underline-offset-8 transition-colors">
+                <Link href="/about" className={`inline-flex items-center whitespace-nowrap transition-all duration-500 ${dark ? 'text-white/90 hover:text-white' : 'text-brand-dark/45 hover:text-brand-dark'}`}>
                   About
                 </Link>
               </li>
 
-              <li className="flex items-center gap-1.5 ml-1">
-                <Link href="/sign-in" className="inline-flex items-center whitespace-nowrap px-3 py-1.5 text-white/80 hover:text-white text-sm transition-colors">
+              <li>
+                <Link
+                  href="/sign-in"
+                  className="btn-liquid text-[13px] font-medium bg-brand-dark text-white px-6 py-2.5 rounded-full"
+                >
                   Sign In
-                </Link>
-                <span className="text-white/30">|</span>
-                <Link href="/sign-up" className="inline-flex items-center whitespace-nowrap px-4 py-1.5 bg-brand-gold text-white rounded text-sm font-medium hover:bg-brand-gold/90 transition-colors">
-                  Sign Up
                 </Link>
               </li>
             </ul>
@@ -253,26 +234,34 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
           {/* Mobile menu button */}
           <button
-            className="lg:hidden p-2 text-white"
+            className={`lg:hidden p-2 ${textColor} z-50`}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
             aria-controls="mobile-nav"
           >
-            {mobileOpen ? <CloseIcon /> : <MenuIcon />}
+            {mobileOpen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            )}
           </button>
         </div>
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <nav id="mobile-nav" className="lg:hidden py-6 text-white text-lg font-bold max-h-[calc(100vh-5rem)] overflow-y-auto" aria-label="Mobile navigation">
+          <nav id="mobile-nav" className={`lg:hidden py-6 text-lg font-display font-light max-h-[calc(100vh-5rem)] overflow-y-auto`} aria-label="Mobile navigation">
             <div className="flex flex-col gap-1">
               {/* Buy */}
               <div>
                 <button
                   type="button"
                   onClick={() => setBuyOpen(!buyOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
                   Buy
                   <ChevronIcon open={buyOpen} />
@@ -289,7 +278,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 <button
                   type="button"
                   onClick={() => setRentOpen(!rentOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
                   Rent
                   <ChevronIcon open={rentOpen} />
@@ -306,7 +295,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 <button
                   type="button"
                   onClick={() => setSellOpen(!sellOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
                   Sell
                   <ChevronIcon open={sellOpen} />
@@ -323,7 +312,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 <button
                   type="button"
                   onClick={() => setExclusivesOpen(!exclusivesOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
                   Exclusives
                   <ChevronIcon open={exclusivesOpen} />
@@ -340,7 +329,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 <button
                   type="button"
                   onClick={() => setNeighborhoodsOpen(!neighborhoodsOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
                   Neighborhoods
                   <ChevronIcon open={neighborhoodsOpen} />
@@ -355,7 +344,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <Link
                 href="/open-houses"
                 onClick={() => setMobileOpen(false)}
-                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+                className={`py-3 min-h-[44px] ${mobileTextColor}`}
               >
                 Open Houses
               </Link>
@@ -364,7 +353,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 <button
                   type="button"
                   onClick={() => setResourcesOpen(!resourcesOpen)}
-                  className="flex items-center gap-2 text-white/90 hover:text-white w-full py-3 min-h-[44px]"
+                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
                   Resources
                   <ChevronIcon open={resourcesOpen} />
@@ -377,35 +366,23 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               </div>
 
               <Link
-                href="/agents"
-                onClick={() => setMobileOpen(false)}
-                className="py-3 min-h-[44px] text-white/90 hover:text-white"
-              >
-                Agents
-              </Link>
-
-              <Link
                 href="/about"
                 onClick={() => setMobileOpen(false)}
-                className="py-3 min-h-[44px] text-white/90 hover:text-white"
+                className={`py-3 min-h-[44px] ${mobileTextColor}`}
               >
                 About
               </Link>
 
-              <Link
-                href="/sign-up"
-                onClick={() => setMobileOpen(false)}
-                className="py-3 min-h-[44px] text-brand-gold font-medium"
-              >
-                Sign Up
-              </Link>
-              <Link
-                href="/sign-in"
-                onClick={() => setMobileOpen(false)}
-                className="py-3 min-h-[44px] text-white/90 hover:text-white"
-              >
-                Sign In
-              </Link>
+              <div className="mt-6 pt-6 border-t border-black/5">
+                <Link
+                  href="/sign-in"
+                  onClick={() => setMobileOpen(false)}
+                  className="block w-full btn-liquid bg-brand-dark text-white font-medium py-4 rounded-full text-sm text-center"
+                >
+                  Sign In
+                </Link>
+                <p className="text-center text-sm font-extralight text-brand-dark/25 mt-5">(646) 258-4460</p>
+              </div>
             </div>
           </nav>
         )}

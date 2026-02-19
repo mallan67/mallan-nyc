@@ -1,15 +1,23 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Manrope } from 'next/font/google';
+import { Urbanist, Inter } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
 import ErrorBoundary from './components/ErrorBoundary';
 
-// Modern premium sans-serif for luxury feel
-const manrope = Manrope({
+// Bright & Liquid design system fonts
+const urbanist = Urbanist({
   subsets: ['latin'],
+  weight: ['200', '300', '400', '500', '600', '700', '800'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['200', '300', '400', '500', '600'],
   variable: '--font-sans',
   display: 'swap',
 });
@@ -143,7 +151,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={manrope.variable}>
+    <html lang="en" className={`${urbanist.variable} ${inter.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
