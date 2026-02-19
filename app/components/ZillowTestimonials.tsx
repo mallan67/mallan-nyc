@@ -2,13 +2,40 @@
 
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 
+const ZILLOW_URL = 'https://www.zillow.com/profile/Maya%20Allan';
+const TOTAL_REVIEWS = 13;
+
 const REVIEWS = [
-  { quote: 'Maya made our Upper West Side co-op acquisition seamless. Her knowledge of board packages gave us the edge. She negotiated $40K below ask.', author: 'J. Robertson', detail: 'Bought a Co-op \u00B7 UWS' },
-  { quote: 'She sold our Tribeca condo above asking in under two weeks. Staging, photography, marketing \u2014 flawless. Three competing offers.', author: 'K. Nakamura', detail: 'Sold a Condo \u00B7 Tribeca' },
-  { quote: 'Relocating from London to Brooklyn Heights felt overwhelming until Maya. She found us a brownstone rental in 72 hours. Every detail handled remotely.', author: 'S. Whitfield', detail: 'Rented \u00B7 Brooklyn Heights' },
-  { quote: 'As a first-time buyer, I was nervous. Maya walked me through every step with patience and care. Found me a pre-war gem I never would have found.', author: 'A. Chen', detail: 'Bought a Co-op \u00B7 UES' },
-  { quote: 'Her pricing strategy was spot-on and her network brought a buyer before we listed publicly. Exceptional professionalism.', author: 'M. & D. Patel', detail: 'Sold a Condo \u00B7 Hudson Yards' },
-  { quote: 'Maya is in a different league. Treats every client like her only client. Found us a place that wasn\'t on the market yet.', author: 'R. Blackwood', detail: 'Bought a Condo \u00B7 West Village' },
+  {
+    quote: 'Very knowledgeable in the New York City market. Knowledgeable in different neighborhoods and in specific buildings. Also responsive and patient. Very helpful in looking at the right apartment, and especially saved time and money by redirecting to not look at the wrong apartment.',
+    author: 'R.',
+    detail: 'Bought a Condo \u00B7 Upper West Side',
+  },
+  {
+    quote: 'I had a great experience with Maya getting the best apartment in Manhattan. She is very knowledgeable about the NY market and will work with you to get you what you need.',
+    author: 'A.',
+    detail: 'Bought & Sold \u00B7 Manhattan',
+  },
+  {
+    quote: 'I was a first time home buyer \u2014 Maya was extremely professional and knowledgeable. She took the time to understand my situation and found apartments that suited my desires.',
+    author: 'S.L.',
+    detail: 'Bought a Condo \u00B7 Upper West Side',
+  },
+  {
+    quote: 'Maya is determined, knowledgeable and charismatic \u2014 all assets that serve her well in her urban environment. I specifically chose Maya to be my selling and buying agent.',
+    author: 'L.',
+    detail: 'Bought & Sold \u00B7 Upper East Side',
+  },
+  {
+    quote: 'Maya puts her clients first \u2014 even to the extent of dissuading them from a transaction if she feels it is not in their best interests. She helped us manage a tricky seller.',
+    author: 'C.K.',
+    detail: 'Bought a Condo \u00B7 Battery Park',
+  },
+  {
+    quote: 'In the huge crowd of brokers in New York City, Maya stands out. I felt all the time that she has your best interests at heart.',
+    author: 'M.',
+    detail: 'Found a Tenant \u00B7 Manhattan',
+  },
 ];
 
 function getInitials(name: string): string {
@@ -26,11 +53,19 @@ export default function ZillowTestimonials() {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-brand-gold-deep font-bold text-sm gold-glow-text">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-              <span className="text-[12px] font-light text-brand-dark/60">5.0 on</span>
+              <span className="text-[12px] font-light text-brand-dark/60">5.0 &middot; {TOTAL_REVIEWS} reviews on</span>
               <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
             </div>
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Client Voices</h2>
           </div>
+          <a
+            href={ZILLOW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[13px] font-medium text-brand-dark/50 hover:text-brand-gold-deep transition-colors"
+          >
+            Read all {TOTAL_REVIEWS} reviews &rarr;
+          </a>
         </div>
 
         {/* Review cards */}

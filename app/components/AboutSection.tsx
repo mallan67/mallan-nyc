@@ -12,8 +12,8 @@ export default function AboutSection() {
         {/* Image */}
         <div className="relative rounded-[32px] overflow-hidden aspect-[4/5] float-shadow">
           <Image
-            src="https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1400&q=90&auto=format&fit=crop"
-            alt="New York City skyline at golden hour"
+            src="https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=1400&q=90&auto=format&fit=crop"
+            alt="Luxury brownstone townhouse on a tree-lined New York City street"
             fill
             className="object-cover"
             sizes="(max-width: 1024px) 100vw, 50vw"
