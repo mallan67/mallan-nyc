@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-type SearchTab = 'buy' | 'rent' | 'sell' | 'commercial';
+type SearchTab = 'buy' | 'rent' | 'sell';
 
 type HeroSettings = {
   heroImage: string;
@@ -19,25 +19,8 @@ type SearchSuggestion = {
 
 const DEFAULT_HERO: HeroSettings = {
   heroImage: '/images/hero.jpg',
-  heroTagline: 'One Search. Every Space. Homes. Businesses. Investments.',
+  heroTagline: 'New York Real Estate, Reimagined.',
 };
-
-
-/*
-  =============================================================================
-  GLASS DESIGN SYSTEM - "Quiet Luxury" Style
-  =============================================================================
-
-  IMPORTANT: Do NOT use `opacity-*` on containers - it fades ALL children.
-  Instead use `bg-black/xx` or `bg-white/xx` + `backdrop-blur-*`
-
-  =============================================================================
-*/
-
-// D) TAB CLASSES - premium segmented controls
-const TAB_BASE = 'px-4 py-2 text-sm sm:text-base font-medium capitalize transition-all duration-150';
-const TAB_INACTIVE = 'text-white/85 hover:text-white hover:bg-white/10';
-const TAB_ACTIVE = 'bg-white/20 text-white';
 
 // Static suggestions — will be replaced with /api/search/suggest once backend search is complete
 const MOCK_SUGGESTIONS: SearchSuggestion[] = [
@@ -63,7 +46,7 @@ const MOCK_SUGGESTIONS: SearchSuggestion[] = [
 
 export default function HeroSearch() {
   const router = useRouter();
-  const activeTab: SearchTab = 'buy';
+  const [activeTab, setActiveTab] = useState<SearchTab>('buy');
   const [query, setQuery] = useState('');
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(DEFAULT_HERO);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -71,6 +54,7 @@ export default function HeroSearch() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/settings/company')
@@ -83,30 +67,40 @@ export default function HeroSearch() {
           });
         }
       })
-      .catch(() => {
-        // Keep defaults on error
-      });
+      .catch(() => {});
   }, []);
 
-  // Filter static suggestions client-side (swap for /api/search/suggest when backend is ready)
+  // GSAP entrance animation
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    (async () => {
+      const { gsap } = await import('gsap');
+      gsap.from('[data-hero-h]', { y: 60, opacity: 0, duration: 1.2, delay: 0.1, ease: 'back.out(1.2)' });
+      gsap.from('[data-hero-p]', { y: 40, opacity: 0, duration: 1.2, delay: 0.25, ease: 'back.out(1.2)' });
+      gsap.from('[data-hero-search]', { y: 50, opacity: 0, duration: 1.2, delay: 0.4, ease: 'back.out(1.2)' });
+      gsap.from('[data-hero-stats]', { y: 30, opacity: 0, duration: 1.0, delay: 0.6, ease: 'back.out(1.2)' });
+    })();
+  }, []);
+
+  // Filter suggestions client-side
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
       setSuggestions([]);
       return;
     }
-
     const filtered = MOCK_SUGGESTIONS.filter(s =>
       s.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.value.toLowerCase().includes(searchQuery.toLowerCase())
     ).slice(0, 8);
-
     setSuggestions(filtered);
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchSuggestions(query);
-    }, 150); // Debounce
+    }, 150);
     return () => clearTimeout(timer);
   }, [query, fetchSuggestions]);
 
@@ -136,7 +130,6 @@ export default function HeroSearch() {
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     setQuery(suggestion.label);
     setShowSuggestions(false);
-    // Navigate based on suggestion type
     const params = new URLSearchParams();
     params.set('type', activeTab);
     params.set(suggestion.type, suggestion.value);
@@ -204,8 +197,8 @@ export default function HeroSearch() {
   };
 
   return (
-    <section className="relative w-full h-[60vh] sm:h-[70vh] md:h-[80vh] min-h-[500px] md:min-h-[600px]">
-      {/* Hero Background - uses uploaded image or gradient fallback */}
+    <section ref={heroRef} className="relative w-full h-screen min-h-[640px] overflow-hidden">
+      {/* Hero Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500">
         <Image
           src={heroSettings.heroImage}
@@ -218,106 +211,136 @@ export default function HeroSearch() {
           quality={100}
           unoptimized
           onError={(e) => {
-            // Hide broken image, show gradient fallback
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
-        {/* A) HERO OVERLAY - ensures text always reads over any image */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-black/50" />
+        <div className="hero-gradient absolute inset-0" />
       </div>
 
-      {/* Search Module */}
-      <div className="relative z-10 h-full flex items-center justify-center px-4">
-        <div className="w-full max-w-2xl">
-          {/* B) TAGLINE - Both lines SAME size, tighter spacing, centered */}
-          <div className="text-center mx-auto max-w-3xl space-y-0.5 mb-6 sm:mb-7">
-            <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-bold tracking-wide leading-tight text-white/95 drop-shadow-md">
-              One Search. Every Space.
-            </div>
-            <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-sans font-bold tracking-wide leading-tight text-white/90 drop-shadow-md">
-              Homes. Businesses. Investments.
-            </div>
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 text-center">
+        {/* Headline */}
+        <h1
+          data-hero-h
+          className="font-display font-bold text-white text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl tracking-tight leading-[1.02] mb-5 max-w-5xl"
+          style={{ textShadow: '0 4px 40px rgba(0,0,0,0.15)' }}
+        >
+          New York Real Estate,<br />Reimagined.
+        </h1>
+
+        {/* Subtitle */}
+        <p
+          data-hero-p
+          className="text-white/50 text-sm md:text-base font-extralight max-w-lg mb-12 tracking-wide"
+        >
+          Full-service brokerage for buyers, sellers, and renters across all five boroughs.
+        </p>
+
+        {/* Search — Glass pill */}
+        <div data-hero-search className="w-full max-w-2xl relative">
+          {/* Tabs */}
+          <div className="flex items-center justify-center gap-2 mb-5">
+            {(['buy', 'rent', 'sell'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`search-tab text-sm font-medium px-6 py-2.5 rounded-full capitalize ${
+                  activeTab === tab
+                    ? 'active'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
 
-          {/* SEARCH MODULE - Tabs sit on top of search bar */}
-          <div className="relative">
-            {/* Tabs - connected to search bar below */}
-            <div className="inline-flex rounded-t-xl bg-black/40 backdrop-blur-md border border-white/15 border-b-0 overflow-hidden">
-              {(['buy', 'rent', 'sell', 'commercial'] as const).map((tab) => (
+          {/* Search Bar — White pill */}
+          <div
+            className="flex items-center bg-white/90 backdrop-blur-xl rounded-full overflow-hidden"
+            style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.2)' }}
+          >
+            <svg className="ml-6 w-5 h-5 text-brand-dark/25 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setShowSuggestions(true);
+                setSelectedIndex(-1);
+              }}
+              onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search by neighborhood, address, or building..."
+              className="flex-1 px-4 py-5 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/25 font-light tracking-wide"
+              autoComplete="off"
+            />
+            <button
+              onClick={handleSearch}
+              data-analytics-cta="hero_search"
+              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-8 md:px-10 py-5 md:py-6 rounded-full m-1.5 transition-colors"
+            >
+              Search
+            </button>
+          </div>
+
+          {/* Typeahead Suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden z-50"
+            >
+              {suggestions.map((suggestion, index) => (
                 <button
-                  key={tab}
-                  onClick={() => {
-                    if (tab === 'commercial') {
-                      router.push('/search?type=commercial');
-                    } else {
-                      router.push(`/${tab}`);
-                    }
-                  }}
-                  className={`${TAB_BASE} ${activeTab === tab ? TAB_ACTIVE : TAB_INACTIVE}`}
+                  key={`${suggestion.type}-${suggestion.value}`}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className={`w-full px-5 py-3.5 flex items-center gap-3 text-left transition-colors ${
+                    index === selectedIndex
+                      ? 'bg-black/[0.04]'
+                      : 'hover:bg-black/[0.02]'
+                  }`}
                 >
-                  {tab}
+                  <span className="text-brand-dark/30">
+                    {getTypeIcon(suggestion.type)}
+                  </span>
+                  <span className="flex-1 text-brand-dark/80 font-light text-sm">
+                    {suggestion.label}
+                  </span>
+                  <span className="text-[11px] text-brand-dark/25 capitalize font-extralight">
+                    {suggestion.type}
+                  </span>
                 </button>
               ))}
             </div>
+          )}
+        </div>
 
-            {/* Search Bar - connected to tabs above */}
-            <div className="bg-black/40 backdrop-blur-md border border-white/15 shadow-xl rounded-b-xl rounded-tr-xl p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setShowSuggestions(true);
-                    setSelectedIndex(-1);
-                  }}
-                  onFocus={() => query.length >= 2 && setShowSuggestions(true)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Address, Zip, Neighborhood, Agent..."
-                  className="flex-1 px-5 py-3.5 text-base sm:text-lg text-white bg-white/25 rounded-lg border border-white/25 outline-none placeholder:text-white/70 focus:border-white/40 focus:bg-white/30 transition-colors"
-                  autoComplete="off"
-                />
-                <button
-                  onClick={handleSearch}
-                  data-analytics-cta="hero_search"
-                  className="px-7 py-3.5 bg-white text-gray-900 font-semibold rounded-lg hover:bg-white/90 shadow-lg hover:shadow-xl transition-all text-sm sm:text-base"
-                >
-                  Search
-                </button>
-              </div>
-            </div>
-
-            {/* Typeahead Suggestions Dropdown - premium white panel */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl ring-1 ring-black/5 overflow-hidden z-50"
-              >
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    key={`${suggestion.type}-${suggestion.value}`}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
-                      index === selectedIndex
-                        ? 'bg-gray-100'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="text-gray-400">
-                      {getTypeIcon(suggestion.type)}
-                    </span>
-                    <span className="flex-1 text-gray-800">
-                      {suggestion.label}
-                    </span>
-                    <span className="text-xs text-gray-400 capitalize">
-                      {suggestion.type}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Stats — floating */}
+        <div data-hero-stats className="flex items-center gap-8 md:gap-12 mt-14">
+          <div className="text-center">
+            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>245+</p>
+            <p className="text-white/35 text-[11px] font-extralight tracking-wider mt-1">Active Listings</p>
           </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="text-center">
+            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>$1.9M</p>
+            <p className="text-white/35 text-[11px] font-extralight tracking-wider mt-1">Avg. Sale Price</p>
+          </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="text-center">
+            <p className="font-display font-bold text-white text-2xl md:text-3xl" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.1)' }}>59</p>
+            <p className="text-white/35 text-[11px] font-extralight tracking-wider mt-1">Neighborhoods</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Scroll indicator */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+        <div className="w-6 h-10 border border-white/20 rounded-full flex justify-center pt-2.5">
+          <div className="w-1 h-2 bg-white/50 rounded-full animate-bounce" />
         </div>
       </div>
     </section>
