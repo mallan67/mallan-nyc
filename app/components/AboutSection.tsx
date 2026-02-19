@@ -10,7 +10,7 @@ export default function AboutSection() {
     <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
       <div ref={sectionRef} className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 md:gap-28 items-center">
         {/* Image */}
-        <div className="relative rounded-[32px] overflow-hidden aspect-[4/5] float-shadow">
+        <div className="relative rounded-[32px] overflow-hidden aspect-[3/2] lg:aspect-[4/3] float-shadow">
           <Image
             src="/images/about-penthouse.png"
             alt="Luxury NYC penthouse living room with panoramic Central Park and skyline views"
