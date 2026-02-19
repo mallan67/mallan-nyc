@@ -13,7 +13,7 @@ export default function AboutSection() {
         <div className="relative rounded-[32px] overflow-hidden aspect-[4/5] float-shadow">
           <Image
             src="/images/about-penthouse.png"
-            alt="Luxury NYC penthouse living room with floor-to-ceiling windows and Empire State Building views"
+            alt="Luxury NYC penthouse living room with panoramic Central Park and skyline views"
             fill
             className="object-cover"
             sizes="(max-width: 1024px) 100vw, 50vw"
