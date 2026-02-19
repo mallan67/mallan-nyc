@@ -61,6 +61,10 @@ function NeighborhoodCard({ neighborhood }: { neighborhood: Neighborhood }) {
           className="object-cover"
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 16vw"
           loading="lazy"
+          style={{
+            animation: 'liquidMotion 14s ease-in-out infinite',
+            transformOrigin: '50% 50%',
+          }}
         />
       </div>
       {/* Gradient overlay */}

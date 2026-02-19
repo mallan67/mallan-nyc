@@ -75,6 +75,10 @@ export default function IDXImage({
         decoding={priority ? 'sync' : 'async'}
         onError={() => setFailed(true)}
         className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          animation: 'liquidMotion 10s ease-in-out infinite',
+          transformOrigin: '50% 60%',
+        }}
       />
     </div>
   );
