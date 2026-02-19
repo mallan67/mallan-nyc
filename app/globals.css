@@ -132,15 +132,15 @@
 /* ═══ LIQUID MOTION — Ken Burns on all listing/neighborhood photos ═══ */
 
 @keyframes liquidMotion {
-  0%   { transform: scale(1) translate(0, 0); }
-  50%  { transform: scale(1.04) translate(-0.3%, -0.5%); }
-  100% { transform: scale(1) translate(0, 0); }
+  0%   { transform: scale(1.02) translate(0, 0); }
+  50%  { transform: scale(1.08) translate(-1%, -0.8%); }
+  100% { transform: scale(1.02) translate(0, 0); }
 }
 
 @keyframes liquidMotionDeep {
-  0%   { transform: scale(1.03) translate(-0.2%, -0.3%); }
-  50%  { transform: scale(1.07) translate(0.2%, -0.8%); }
-  100% { transform: scale(1.03) translate(-0.2%, -0.3%); }
+  0%   { transform: scale(1.05) translate(-0.5%, -0.5%); }
+  50%  { transform: scale(1.12) translate(0.5%, -1.2%); }
+  100% { transform: scale(1.05) translate(-0.5%, -0.5%); }
 }
 
 /* Utility: apply to any image wrapper for liquid motion */
@@ -168,10 +168,10 @@
 }
 .prop-card img {
   transform-origin: 50% 60%;
-  animation: liquidMotion 10s ease-in-out infinite;
+  animation: liquidMotion 8s ease-in-out infinite;
 }
-.prop-card:nth-child(2n) img { animation-duration: 13s; animation-delay: -4s; }
-.prop-card:nth-child(3n) img { animation-duration: 11s; animation-delay: -7s; }
+.prop-card:nth-child(2n) img { animation-duration: 11s; animation-delay: -3s; }
+.prop-card:nth-child(3n) img { animation-duration: 9s; animation-delay: -5s; }
 .prop-card .card-overlay {
   opacity: 0;
   transition: opacity 0.6s var(--liquid);
