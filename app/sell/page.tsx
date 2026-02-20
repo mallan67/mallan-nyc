@@ -393,98 +393,45 @@ export default function SellPage() {
             {/* Asymmetric grid — row 1: large photo + 3D pricing cards */}
             <div className="grid lg:grid-cols-12 gap-6 md:gap-8">
 
-              {/* Professional Imagery — LARGE (7 cols) */}
-              <div className="lg:col-span-7 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[520px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
+              {/* Professional Imagery — SMALLER (5 cols) */}
+              <div className="lg:col-span-5 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[520px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
                 <Image
                   src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=85&auto=format&fit=crop"
                   alt="Luxury property photographed with professional lighting"
                   fill
                   className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 58vw"
+                  sizes="(max-width: 1024px) 100vw, 42vw"
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
                   <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Photography & Media</p>
-                  <h3 className="font-display font-bold text-2xl md:text-4xl text-white mb-3">Professional Imagery</h3>
-                  <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
+                  <h3 className="font-display font-bold text-xl md:text-2xl text-white mb-2">Professional Imagery</h3>
+                  <p className="text-white/60 text-[13px] font-extralight leading-relaxed max-w-sm">
                     High-resolution photography, virtual tours, and floor plans that
                     make buyers stop scrolling and start calling.
                   </p>
                 </div>
               </div>
 
-              {/* Strategic Pricing — Blue stacked cards (5 cols) */}
-              <div className="lg:col-span-5 relative flex flex-col justify-center min-h-[520px]">
-                <div className="mb-10">
-                  <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase mb-3 gold-glow-text">Market Intelligence</p>
-                  <h3 className="font-display font-bold text-2xl md:text-3xl text-brand-dark mb-3">Strategic Pricing</h3>
-                  <p className="text-brand-dark/40 text-sm font-extralight leading-relaxed">
+              {/* Strategic Pricing — Collage image (7 cols, LARGER) */}
+              <div className="lg:col-span-7 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[520px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
+                <Image
+                  src="/images/sell-marketing-collage.jpg"
+                  alt="Full-service marketing: market analytics, professional photography, drone footage, video production, global distribution, and closing coordination"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 58vw"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Market Intelligence</p>
+                  <h3 className="font-display font-bold text-2xl md:text-4xl text-white mb-3">Strategic Pricing</h3>
+                  <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
                     Data-driven pricing backed by comparable sales, real-time
                     market conditions, and deep neighborhood expertise.
                   </p>
-                </div>
-                {/* Stacked deck — 3 cards in transitional blue-slate */}
-                <div className="relative h-[280px] mx-auto w-full max-w-[380px]">
-                  {/* Card 3 (back) — Comprehensive Marketing Plan */}
-                  <div
-                    className="absolute inset-0 rounded-[20px]"
-                    style={{ background: 'linear-gradient(145deg, #2d3a4a, #364658)', boxShadow: '0 20px 50px rgba(45,58,74,0.3)', transform: 'rotate(5deg) translate(16px, 10px)' }}
-                  >
-                    <div className="p-7 pt-8">
-                      <div className="flex items-center gap-2.5 mb-4">
-                        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
-                          <svg className="w-3.5 h-3.5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
-                        </div>
-                      </div>
-                      <p className="font-display font-semibold text-xl text-white/40">Comprehensive<br />Marketing Plan</p>
-                    </div>
-                  </div>
-                  {/* Card 2 (middle) — Property Comparables */}
-                  <div
-                    className="absolute inset-0 rounded-[20px]"
-                    style={{ background: 'linear-gradient(145deg, #3d4f65, #4a6078)', boxShadow: '0 20px 50px rgba(61,79,101,0.35)', transform: 'rotate(2.5deg) translate(8px, 5px)' }}
-                  >
-                    <div className="p-7 pt-8">
-                      <div className="flex items-center gap-2.5 mb-4">
-                        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
-                          <svg className="w-3.5 h-3.5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                        </div>
-                      </div>
-                      <p className="font-display font-semibold text-xl text-white/50">Property<br />Comparables</p>
-                    </div>
-                  </div>
-                  {/* Card 1 (front) — Pricing Plan */}
-                  <div
-                    className="absolute inset-0 rounded-[20px]"
-                    style={{ background: 'linear-gradient(145deg, #4e6a8a, #5a7a9a)', boxShadow: '0 25px 60px rgba(78,106,138,0.4), 0 0 0 1px rgba(255,255,255,0.08)' }}
-                  >
-                    <div className="p-7 pt-8 h-full flex flex-col">
-                      <div className="flex items-center gap-2.5 mb-5">
-                        <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        </div>
-                        <span className="text-white/80 text-[11px] font-medium tracking-[0.12em] uppercase">Pricing Strategy</span>
-                      </div>
-                      <p className="font-display font-bold text-2xl text-white mb-6">Pricing Plan</p>
-                      <div className="space-y-4 mt-auto">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/50 text-[12px] font-light">Recommended Price</span>
-                          <span className="font-display font-bold text-white text-base">$2.45M</span>
-                        </div>
-                        <div className="h-px bg-white/10" />
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/50 text-[12px] font-light">Market Range</span>
-                          <span className="text-white/80 text-[12px] font-light">$2.2M &ndash; $2.7M</span>
-                        </div>
-                        <div className="h-px bg-white/10" />
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/50 text-[12px] font-light">Comparables</span>
-                          <span className="text-white/80 text-[12px] font-light">12 recent sales</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
