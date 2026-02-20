@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
@@ -22,9 +22,20 @@ export default function AgentsGrid() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [bioOverflows, setBioOverflows] = useState(false);
+  const photoRef = useRef<HTMLDivElement>(null);
+  const bioRef = useRef<HTMLDivElement>(null);
   const heroRef = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
   const featuredRef = useGsapReveal<HTMLDivElement>({ y: 50, duration: 1 });
   const teamRef = useGsapReveal<HTMLDivElement>({ children: true, y: 40, scale: 0.98, stagger: 0.12 });
+
+  useEffect(() => {
+    if (photoRef.current && bioRef.current) {
+      const photoH = photoRef.current.offsetHeight;
+      const bioH = bioRef.current.scrollHeight;
+      setBioOverflows(bioH > photoH);
+    }
+  });
 
   useEffect(() => {
     fetch('/api/agents/public')
@@ -90,7 +101,7 @@ export default function AgentsGrid() {
           <div className="max-w-[1200px] mx-auto px-6 md:px-12">
             <div ref={featuredRef} className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
               {/* Portrait */}
-              <div className="relative">
+              <div ref={photoRef} className="relative">
                 <div className="relative aspect-[3/4] rounded-[32px] overflow-hidden float-shadow">
                   <Image
                     src={featured.photo}
@@ -109,7 +120,7 @@ export default function AgentsGrid() {
               </div>
 
               {/* Bio */}
-              <div>
+              <div ref={bioRef}>
                 <p className="text-brand-gold-deep text-[13px] font-medium mb-3 gold-glow-text tracking-wide">Principal Broker</p>
                 <h2 className="font-display font-bold text-3xl md:text-4xl tracking-tight text-brand-dark mb-2">
                   {featured.name}
@@ -117,10 +128,13 @@ export default function AgentsGrid() {
                 <p className="text-brand-dark/40 text-sm font-light mb-8">{featured.title}</p>
 
                 <div className="mb-8">
-                  <p className={`text-brand-dark/60 text-[15px] font-light leading-[1.9] whitespace-pre-line ${!bioExpanded ? 'line-clamp-4' : ''}`}>
+                  <div className={`text-brand-dark/60 text-[15px] font-light leading-[1.9] whitespace-pre-line overflow-hidden transition-all duration-500 ${!bioExpanded && bioOverflows ? 'max-h-[280px]' : 'max-h-[2000px]'}`}>
                     {featured.bio}
-                  </p>
-                  {featured.bio.length > 300 && (
+                  </div>
+                  {!bioExpanded && bioOverflows && (
+                    <div className="relative -mt-12 pt-12 bg-gradient-to-t from-[#FEFEFE] to-transparent" />
+                  )}
+                  {bioOverflows && (
                     <button
                       onClick={() => setBioExpanded(!bioExpanded)}
                       className="mt-2 text-brand-gold-deep text-[13px] font-medium hover:underline"
