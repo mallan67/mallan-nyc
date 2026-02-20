@@ -85,7 +85,7 @@ export default function AgentsGrid() {
           <div className="absolute inset-0 hero-gradient" />
         </div>
         <div ref={heroRef} className="relative z-10 text-center text-white px-6">
-          <p className="text-brand-gold text-[13px] font-medium mb-3 gold-glow-text tracking-widest uppercase">Mallan Real Estate</p>
+          <p className="text-[13px] font-semibold mb-3 tracking-widest uppercase" style={{ color: '#D4AF37', textShadow: '0 0 20px rgba(212,175,55,0.5), 0 0 40px rgba(212,175,55,0.25)' }}>Mallan Real Estate</p>
           <h1 className="font-display font-bold text-3xl md:text-5xl lg:text-6xl tracking-tight mb-4">
             Our Agents
           </h1>
