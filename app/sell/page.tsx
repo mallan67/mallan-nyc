@@ -233,7 +233,7 @@ export default function SellPage() {
             <h1 className="font-display font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-[1.02] mb-6" style={{ textShadow: '0 4px 40px rgba(0,0,0,0.2)' }}>
               Your Home Deserves<br />the World&apos;s Attention
             </h1>
-            <p className="text-white/60 text-base md:text-lg font-extralight max-w-xl mx-auto mb-12 leading-relaxed">
+            <p className="text-white/80 text-base md:text-lg font-extralight max-w-xl mx-auto mb-12 leading-relaxed">
               We don&apos;t just list your property. We launch it &mdash; across New York,
               across the country, and around the world.
             </p>
@@ -261,7 +261,7 @@ export default function SellPage() {
               <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-6xl tracking-tight text-brand-dark leading-tight">
                 Listed Locally.<br className="hidden md:block" /> Seen Nationally.<br className="hidden md:block" /> Reached Globally.
               </h2>
-              <p className="mt-6 text-brand-dark/40 text-[15px] font-extralight max-w-2xl mx-auto leading-relaxed">
+              <p className="mt-6 text-brand-dark/60 text-[15px] font-extralight max-w-2xl mx-auto leading-relaxed">
                 The moment your listing goes live, it appears on every major platform &mdash;
                 from NYC&apos;s broker network to the largest real estate sites in the world.
               </p>
@@ -281,23 +281,23 @@ export default function SellPage() {
                   <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase">New York City</p>
                 </div>
                 <p className="font-display font-bold text-5xl md:text-6xl text-brand-dark mb-2">30K+</p>
-                <p className="text-brand-dark/50 text-sm font-light mb-6">Licensed agents across NYC see your listing instantly</p>
+                <p className="text-brand-dark/70 text-sm font-light mb-6">Licensed agents across NYC see your listing instantly</p>
                 <div className="space-y-3 border-t border-black/[0.05] pt-6">
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">570+ participating brokerage firms</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">570+ participating brokerage firms</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">30 partner brokerage websites</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">30 partner brokerage websites</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">StreetEasy &mdash; NYC&apos;s #1 property search</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">StreetEasy &mdash; NYC&apos;s #1 property search</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">mallan.nyc &mdash; featured with professional photography</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">mallan.nyc &mdash; featured with professional photography</p>
                   </div>
                 </div>
               </div>
@@ -313,23 +313,23 @@ export default function SellPage() {
                   <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase">Nationwide</p>
                 </div>
                 <p className="font-display font-bold text-5xl md:text-6xl text-brand-dark mb-2">Millions</p>
-                <p className="text-brand-dark/50 text-sm font-light mb-6">of buyers on America&apos;s largest real estate platforms</p>
+                <p className="text-brand-dark/70 text-sm font-light mb-6">of buyers on America&apos;s largest real estate platforms</p>
                 <div className="space-y-3 border-t border-black/[0.05] pt-6">
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">Zillow + Trulia &mdash; most-visited in the US</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">Zillow + Trulia &mdash; most-visited in the US</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">Realtor.com &mdash; official site of the NAR</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">Realtor.com &mdash; official site of the NAR</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">Redfin &mdash; tech-forward search nationwide</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">Redfin &mdash; tech-forward search nationwide</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">Homes.com &mdash; CoStar&apos;s flagship consumer portal</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">Homes.com &mdash; CoStar&apos;s flagship consumer portal</p>
                   </div>
                 </div>
               </div>
@@ -345,29 +345,29 @@ export default function SellPage() {
                   <p className="text-brand-gold-deep text-[11px] font-medium tracking-[0.15em] uppercase">Global</p>
                 </div>
                 <p className="font-display font-bold text-5xl md:text-6xl text-brand-dark mb-2">Worldwide</p>
-                <p className="text-brand-dark/50 text-sm font-light mb-6">Your listing reaches international buyers searching for NYC property</p>
+                <p className="text-brand-dark/70 text-sm font-light mb-6">Your listing reaches international buyers searching for NYC property</p>
                 <div className="space-y-3 border-t border-black/[0.05] pt-6">
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">ListHub &mdash; syndicates to 100+ international portals</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">ListHub &mdash; syndicates to 100+ international portals</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">ListGlobally &mdash; 100+ countries, 700M+ monthly visitors</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">ListGlobally &mdash; 100+ countries, 700M+ monthly visitors</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">International MLS &mdash; cross-border buyer network</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">International MLS &mdash; cross-border buyer network</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/40 text-[13px] font-extralight">Samaki &mdash; global real estate marketplace</p>
+                    <p className="text-brand-dark/60 text-[13px] font-extralight">Samaki &mdash; global real estate marketplace</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <p className="text-brand-dark/20 text-[11px] text-center mt-14 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-brand-dark/60 text-[11px] text-center mt-14 max-w-3xl mx-auto leading-relaxed">
               Your listing is syndicated automatically across all platforms the moment it goes live.
               StreetEasy listings are uploaded directly &mdash; sales are free. No additional fees for syndication.
             </p>
@@ -394,7 +394,7 @@ export default function SellPage() {
               <h2 className="font-display font-bold text-4xl md:text-5xl lg:text-6xl tracking-tight text-white leading-[1.05] mb-6" style={{ fontVariantLigatures: 'discretionary-ligatures' }}>
                 Not Just Listed.<br />Launched.
               </h2>
-              <p className="text-white/60 text-[15px] font-extralight leading-relaxed max-w-md">
+              <p className="text-white/80 text-[15px] font-extralight leading-relaxed max-w-md">
                 Every property we represent receives the full weight of our marketing,
                 our network, and our relentless attention to detail.
               </p>
@@ -440,7 +440,7 @@ export default function SellPage() {
               <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight mb-6 leading-snug text-brand-dark">
                 What&apos;s Your Property Worth?
               </h2>
-              <p className="text-brand-dark/40 text-[15px] font-extralight leading-[2] mb-10">
+              <p className="text-brand-dark/60 text-[15px] font-extralight leading-[2] mb-10">
                 Get a complimentary property valuation from a licensed NYC broker.
                 We&apos;ll evaluate your property, your neighborhood, and current market
                 conditions to give you an accurate price range &mdash; no obligation, no pressure.
@@ -454,7 +454,7 @@ export default function SellPage() {
                 </div>
                 <div>
                   <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
-                  <p className="text-brand-dark/30 text-[12px] font-extralight">Founder &middot; Licensed NYC Broker</p>
+                  <p className="text-brand-dark/70 text-[12px] font-extralight">Founder &middot; Licensed NYC Broker</p>
                 </div>
               </div>
             </div>
@@ -486,7 +486,7 @@ export default function SellPage() {
                         {item.step}
                       </div>
                       <h3 className="font-display font-semibold text-base text-brand-dark mb-2">{item.title}</h3>
-                      <p className="text-brand-dark/40 text-[13px] font-extralight leading-relaxed">{item.description}</p>
+                      <p className="text-brand-dark/60 text-[13px] font-extralight leading-relaxed">{item.description}</p>
                     </div>
                   ))}
                 </div>
@@ -503,7 +503,7 @@ export default function SellPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-display font-semibold mb-1">{item.title}</h3>
-                    <p className="text-brand-dark/40 text-sm font-extralight">{item.description}</p>
+                    <p className="text-brand-dark/60 text-sm font-extralight">{item.description}</p>
                   </div>
                 </div>
               ))}
@@ -532,7 +532,7 @@ export default function SellPage() {
               </h2>
             </div>
             <div className="glass-card rounded-3xl p-8 md:p-12 max-w-3xl mx-auto">
-              <p className="text-brand-dark/40 text-[15px] font-extralight leading-[2] mb-8">
+              <p className="text-brand-dark/60 text-[15px] font-extralight leading-[2] mb-8">
                 You&apos;ll know exactly what you&apos;re paying before you sign anything.
                 We believe the best client relationships start with complete honesty about costs.
               </p>
@@ -547,11 +547,11 @@ export default function SellPage() {
                     <svg className="w-5 h-5 text-brand-gold shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-brand-dark/50 text-[14px] font-light">{point}</span>
+                    <span className="text-brand-dark/70 text-[14px] font-light">{point}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-brand-dark/25 text-[12px] font-extralight border-t border-black/5 pt-5">
+              <p className="text-brand-dark/45 text-[12px] font-extralight border-t border-black/5 pt-5">
                 Per the National Association of Realtors settlement (August 2024),
                 commission rates are fully negotiable between brokers and their clients.
                 Compensation is not fixed by any industry standard.
@@ -578,7 +578,7 @@ export default function SellPage() {
                     {faq.question}
                     <span
                       aria-hidden="true"
-                      className="shrink-0 text-brand-dark/40 group-open:rotate-45 transition-transform text-lg"
+                      className="shrink-0 text-brand-dark/60 group-open:rotate-45 transition-transform text-lg"
                     >
                       +
                     </span>
@@ -601,7 +601,7 @@ export default function SellPage() {
               <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">Client Reviews</p>
               <div className="flex items-center justify-center gap-3 mb-4">
                 <span className="text-brand-gold font-bold text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-                <span className="text-[12px] font-light text-brand-dark/50">5.0 &middot; 13 reviews on</span>
+                <span className="text-[12px] font-light text-brand-dark/70">5.0 &middot; 13 reviews on</span>
                 <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
               </div>
               <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
@@ -615,7 +615,7 @@ export default function SellPage() {
                     <span className="text-brand-gold text-sm font-bold">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
                     <span className="text-[9px] font-semibold bg-brand-dark text-white px-2 py-0.5 rounded-full">Verified</span>
                   </div>
-                  <p className="text-[15px] text-brand-dark/70 font-light leading-[1.8] mb-8">
+                  <p className="text-[15px] text-brand-dark/80 font-light leading-[1.8] mb-8">
                     &ldquo;{review.quote}&rdquo;
                   </p>
                   <div className="flex items-center gap-3">
@@ -629,7 +629,7 @@ export default function SellPage() {
                     </div>
                     <div>
                       <p className="text-[13px] font-medium text-brand-dark">{review.author}</p>
-                      <p className="text-brand-dark/40 text-[12px] font-extralight">{review.detail}</p>
+                      <p className="text-brand-dark/60 text-[12px] font-extralight">{review.detail}</p>
                     </div>
                   </div>
                 </div>
@@ -640,7 +640,7 @@ export default function SellPage() {
                 href={ZILLOW_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[13px] font-medium text-brand-dark/40 hover:text-brand-gold transition-colors"
+                className="text-[13px] font-medium text-brand-dark/60 hover:text-brand-gold transition-colors"
               >
                 Read all 13 reviews &rarr;
               </a>
@@ -668,7 +668,7 @@ export default function SellPage() {
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-white mb-6">
               Ready to Sell?
             </h2>
-            <p className="text-white/50 text-[15px] font-extralight max-w-lg mx-auto mb-10 leading-relaxed">
+            <p className="text-white/70 text-[15px] font-extralight max-w-lg mx-auto mb-10 leading-relaxed">
               Get a free, no-obligation market analysis and learn what your property
               could sell for in today&apos;s market.
             </p>
