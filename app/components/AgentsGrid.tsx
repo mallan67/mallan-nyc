@@ -21,6 +21,7 @@ interface Agent {
 export default function AgentsGrid() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bioExpanded, setBioExpanded] = useState(false);
   const heroRef = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
   const featuredRef = useGsapReveal<HTMLDivElement>({ y: 50, duration: 1 });
   const teamRef = useGsapReveal<HTMLDivElement>({ children: true, y: 40, scale: 0.98, stagger: 0.12 });
@@ -115,9 +116,19 @@ export default function AgentsGrid() {
                 </h2>
                 <p className="text-brand-dark/40 text-sm font-light mb-8">{featured.title}</p>
 
-                <p className="text-brand-dark/60 text-[15px] font-light leading-[1.9] mb-8">
-                  {featured.bio}
-                </p>
+                <div className="mb-8">
+                  <p className={`text-brand-dark/60 text-[15px] font-light leading-[1.9] whitespace-pre-line ${!bioExpanded ? 'line-clamp-4' : ''}`}>
+                    {featured.bio}
+                  </p>
+                  {featured.bio.length > 300 && (
+                    <button
+                      onClick={() => setBioExpanded(!bioExpanded)}
+                      className="mt-2 text-brand-gold-deep text-[13px] font-medium hover:underline"
+                    >
+                      {bioExpanded ? 'Read less' : 'Read more'}
+                    </button>
+                  )}
+                </div>
 
                 {/* Specialties */}
                 <div className="flex flex-wrap gap-2 mb-8">
