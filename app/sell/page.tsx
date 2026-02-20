@@ -379,8 +379,8 @@ export default function SellPage() {
             ═══════════════════════════════════════════════ */}
         <section className="relative min-h-[600px] lg:min-h-[700px] overflow-hidden">
           <Image
-            src="/images/sell-launched-bg.jpg"
-            alt="Luxury NYC penthouse living room with Empire State Building views"
+            src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1600&q=80&auto=format&fit=crop"
+            alt="Luxury NYC penthouse living room with panoramic skyline views"
             fill
             className="object-cover"
             sizes="100vw"
