@@ -375,105 +375,56 @@ export default function SellPage() {
         </section>
 
         {/* ═══════════════════════════════════════════════
-            3. NOT JUST LISTED — Asymmetric cinematic cards
+            3. NOT JUST LISTED. LAUNCHED. — Full-width hero with glass cards
             ═══════════════════════════════════════════════ */}
-        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40 bg-[#F8F7F4]">
-          <div className="max-w-[1440px] mx-auto">
-            <div className="text-center mb-16 md:mb-20">
-              <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">The Advantage</p>
-              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-6xl tracking-tight text-brand-dark leading-tight">
+        <section className="relative min-h-[600px] lg:min-h-[700px] overflow-hidden">
+          <Image
+            src="/images/sell-launched-bg.jpg"
+            alt="Luxury NYC penthouse living room with Empire State Building views"
+            fill
+            className="object-cover"
+            sizes="100vw"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-black/10" />
+
+          <div className="relative z-10 max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20 py-20 md:py-28 lg:py-36 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-12 lg:gap-16 h-full min-h-[600px] lg:min-h-[700px]">
+            {/* Left — Heading + subtitle */}
+            <div className="lg:max-w-lg mt-auto">
+              <h2 className="font-display font-bold text-4xl md:text-5xl lg:text-6xl tracking-tight text-white leading-[1.05] mb-6" style={{ fontVariantLigatures: 'discretionary-ligatures' }}>
                 Not Just Listed.<br />Launched.
               </h2>
-              <p className="mt-6 text-brand-dark/40 text-[15px] font-extralight max-w-xl mx-auto leading-relaxed">
+              <p className="text-white/60 text-[15px] font-extralight leading-relaxed max-w-md">
                 Every property we represent receives the full weight of our marketing,
                 our network, and our relentless attention to detail.
               </p>
             </div>
 
-            {/* Asymmetric grid — row 1: large photo + 3D pricing cards */}
-            <div className="grid lg:grid-cols-12 gap-6 md:gap-8">
-
-              {/* Professional Imagery — SMALLER (5 cols) */}
-              <div className="lg:col-span-5 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[520px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
-                <Image
-                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=85&auto=format&fit=crop"
-                  alt="Luxury property photographed with professional lighting"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 42vw"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Photography & Media</p>
-                  <h3 className="font-display font-bold text-xl md:text-2xl text-white mb-2">Professional Imagery</h3>
-                  <p className="text-white/60 text-[13px] font-extralight leading-relaxed max-w-sm">
-                    High-resolution photography, virtual tours, and floor plans that
-                    make buyers stop scrolling and start calling.
-                  </p>
-                </div>
+            {/* Right — 2x2 frosted glass cards */}
+            <div className="grid grid-cols-2 gap-3 md:gap-4 lg:max-w-[520px] w-full">
+              <div className="rounded-2xl p-5 md:p-6" style={{ background: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h3 className="font-display font-semibold text-[15px] text-brand-gold mb-2.5">Professional Imagery.</h3>
+                <p className="text-white/70 text-[13px] font-extralight leading-relaxed">
+                  High-resolution photography, virtual tours, and floor plans that make buyers stop scrolling and start calling.
+                </p>
               </div>
-
-              {/* Strategic Pricing — Collage image (7 cols, LARGER) */}
-              <div className="lg:col-span-7 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[520px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
-                <Image
-                  src="/images/sell-marketing-collage.jpg"
-                  alt="Full-service marketing: market analytics, professional photography, drone footage, video production, global distribution, and closing coordination"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 58vw"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">Market Intelligence</p>
-                  <h3 className="font-display font-bold text-2xl md:text-4xl text-white mb-3">Strategic Pricing</h3>
-                  <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
-                    Data-driven pricing backed by comparable sales, real-time
-                    market conditions, and deep neighborhood expertise.
-                  </p>
-                </div>
+              <div className="rounded-2xl p-5 md:p-6" style={{ background: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h3 className="font-display font-semibold text-[15px] text-brand-gold mb-2.5">Strategic Pricing.</h3>
+                <p className="text-white/70 text-[13px] font-extralight leading-relaxed">
+                  Data-driven pricing backed by comparable sales, real-time market conditions, and deep neighborhood expertise.
+                </p>
               </div>
-
-              {/* Expert Negotiation — SMALLER (5 cols) */}
-              <div className="lg:col-span-5 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[400px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
-                <Image
-                  src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80&auto=format&fit=crop"
-                  alt="Elegant living room in a staged New York property"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 42vw"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-2">Representation</p>
-                  <h3 className="font-display font-bold text-xl md:text-2xl text-white mb-2">Expert Negotiation</h3>
-                  <p className="text-white/60 text-[13px] font-extralight leading-relaxed max-w-sm">
-                    Every offer evaluated, every term negotiated, every dollar fought for.
-                  </p>
-                </div>
+              <div className="rounded-2xl p-5 md:p-6" style={{ background: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h3 className="font-display font-semibold text-[15px] text-brand-gold mb-2.5">Expert Negotiation.</h3>
+                <p className="text-white/70 text-[13px] font-extralight leading-relaxed">
+                  Every offer evaluated, every term negotiated, every dollar fought for.
+                </p>
               </div>
-
-              {/* Personal Attention — LARGER (7 cols) */}
-              <div className="lg:col-span-7 relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:min-h-[400px] group liquid-img" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.08)' }}>
-                <Image
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=85&auto=format&fit=crop"
-                  alt="Luxury property exterior with elegant architecture"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 58vw"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
-                  <p className="text-brand-gold text-[11px] font-medium tracking-[0.15em] uppercase mb-3">White-Glove Service</p>
-                  <h3 className="font-display font-bold text-2xl md:text-4xl text-white mb-3">Personal Attention</h3>
-                  <p className="text-white/60 text-sm font-extralight leading-relaxed max-w-md">
-                    You work directly with your broker from day one through closing.
-                    No hand-offs, no assistants, no runaround.
-                  </p>
-                </div>
+              <div className="rounded-2xl p-5 md:p-6" style={{ background: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h3 className="font-display font-semibold text-[15px] text-brand-gold mb-2.5">Personal Attention.</h3>
+                <p className="text-white/70 text-[13px] font-extralight leading-relaxed">
+                  You work directly with your broker from day one through closing. No hand-offs, no assistants, no runaround.
+                </p>
               </div>
             </div>
           </div>
