@@ -26,11 +26,5 @@
       "title": "Innovation",
       "description": "We leverage technology and data to provide insights that give our clients a competitive edge."
     }
-  ],
-  "stats": [
-    { "value": "500+", "label": "Properties Sold" },
-    { "value": "$1B+", "label": "Transaction Volume" },
-    { "value": "15+", "label": "Years of Experience" },
-    { "value": "98%", "label": "Client Satisfaction" }
   ]
 }

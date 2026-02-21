@@ -20,10 +20,6 @@ interface AboutData {
     title: string;
     description: string;
   }>;
-  stats: Array<{
-    value: string;
-    label: string;
-  }>;
 }
 
 export default function AboutContent() {
@@ -90,24 +86,6 @@ export default function AboutContent() {
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-xl md:text-2xl font-display font-semibold mb-6">{data.mission.title}</h2>
           <p className="text-lg text-brand-dark/70 leading-relaxed">{data.mission.content}</p>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-12">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {data.stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <p className="font-display font-bold text-3xl text-brand-gold-deep mb-2">
-                  {stat.value}
-                </p>
-                <p className="text-[11px] font-medium text-brand-dark/40 uppercase tracking-widest">
-                  {stat.label}
-                </p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
