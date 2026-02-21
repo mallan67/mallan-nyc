@@ -601,7 +601,7 @@ export default function SellPage() {
               <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">Client Reviews</p>
               <div className="flex items-center justify-center gap-3 mb-4">
                 <span className="text-brand-gold font-bold text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-                <span className="text-[12px] font-light text-brand-dark/70">5.0 &middot; 13 reviews on</span>
+                <span className="text-[12px] font-light text-brand-dark/70">5.0 stars on</span>
                 <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
               </div>
               <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">
@@ -642,7 +642,7 @@ export default function SellPage() {
                 rel="noopener noreferrer"
                 className="text-[13px] font-medium text-brand-dark/70 hover:text-brand-gold transition-colors"
               >
-                Read all 13 reviews &rarr;
+                Read all reviews on Zillow &rarr;
               </a>
             </div>
           </div>

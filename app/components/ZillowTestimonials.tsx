@@ -3,7 +3,7 @@
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 
 const ZILLOW_URL = 'https://www.zillow.com/profile/Maya%20Allan';
-const TOTAL_REVIEWS = 13;
+
 
 const REVIEWS = [
   {
@@ -53,7 +53,7 @@ export default function ZillowTestimonials() {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-brand-gold-deep font-bold text-sm gold-glow-text">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-              <span className="text-[12px] font-light text-brand-dark/60">5.0 &middot; {TOTAL_REVIEWS} reviews on</span>
+              <span className="text-[12px] font-light text-brand-dark/60">5.0 stars on</span>
               <span className="text-[11px] font-semibold bg-brand-dark text-white px-2.5 py-0.5 rounded-full">Zillow</span>
             </div>
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Client Voices</h2>
@@ -64,7 +64,7 @@ export default function ZillowTestimonials() {
             rel="noopener noreferrer"
             className="text-[13px] font-medium text-brand-dark/50 hover:text-brand-gold-deep transition-colors"
           >
-            Read all {TOTAL_REVIEWS} reviews &rarr;
+            Read all reviews on Zillow &rarr;
           </a>
         </div>
 
