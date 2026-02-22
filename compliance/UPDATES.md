@@ -1,0 +1,138 @@
+# Compliance Updates Log
+
+> **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus
+
+---
+
+> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **UCBA** governs everything. 2. **REBNY RLS rules + RLS fields** — **RLS TRUMPS ALL.**
+> 3. **RLS overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+
+---
+
+## How to Use This File
+
+This is a running changelog of compliance-affecting updates from REBNY, RESO, Cotality, NYC/NYS law, and NAR. Check this file before any production deployment or form update.
+
+**Monitor these sources:**
+- https://www.rebny.com/rls-updates/ — REBNY RLS bulletins
+- https://www.rebny.com/compliance/ — REBNY compliance updates
+- https://www.reso.org/data-dictionary/ — RESO Data Dictionary releases
+- https://www.cotality.com — Trestle/Cotality platform updates
+- NYC Council legislation tracker — Local laws affecting real estate
+
+---
+
+## 2026
+
+### February 2026
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2026-02-21 | Internal | Compliance library created (14 docs + 2 JSON) | All development | Complete |
+| 2026-02-21 | REBNY | No post-January 2026 UCBA amendments found | No action needed | Verified |
+| 2026-02-19 | Internal | Field Authority Order added to all memory files | Documentation | Complete |
+| 2026-02-19 | Internal | 23 RESO→RLS name renames documented | Field mapping | Complete |
+| 2026-02-18 | Internal | Address suppression — 8 display leaks fixed in search | Frontend | Complete |
+| 2026-02-18 | Internal | Fair Chance Housing Act pattern added to search scanner | Frontend | Complete |
+
+### January 2026
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2026-01-01 | REBNY | **UCBA 2026 effective** — January 2026 redline revision | All systems | Active |
+| 2026-01-01 | REBNY | DOM reset: 90 days → 30 days for Withdrawn/Cancelled | DOM calculation | Documented |
+| 2026-01-01 | REBNY | Protected period: 6 names / 90 days (revised) | CRM workflow | Documented |
+| 2026-01-01 | REBNY | Owner Opt-Out: must submit through LMP only (email eliminated) | Process | Documented |
+| 2026-01-01 | REBNY | Multiple bids disclosure updated | Offer management | Documented |
+
+---
+
+## 2025
+
+### August 2025
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2025-08-01 | REBNY | **Compensation fields removed from RLS** (NAR Settlement) | All systems | Applied — fields clean |
+| 2025-08-01 | REBNY | Fields removed: BuyerAgencyCompensation, BuyerAgencyCompensationType, SubAgencyCompensation, SubAgencyCompensationType, all offer-of-compensation fields | Forms, search, display | Verified clean |
+| 2025-08-01 | REBNY | RLS updated with two rental categories: Standard Active + Non-Syndicated (FARE Act) | Rental distribution | Documented |
+
+### June 2025
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2025-06-11 | NYC | **FARE Act effective** (LL 119/2024) | Rental listings | Active |
+| 2025-06-11 | NYC | InternetEntireListingDisplayYN=False when landlord doesn't pay broker fee | IDX filtering | Documented |
+| 2025-06-11 | NYC | DCWP penalties: §20-699.21 ($750/$1,800), §20-699.22 ($375/$900) | Compliance | Documented |
+
+### April 2025
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2025-04-15 | RESO | **RESO DD 2.0 certification deadline** — all DD 1.7 downgraded to Legacy | Field mappings | Monitoring |
+| 2025-04-15 | Cotality | Trestle achieved RESO DD 2.0 vendor certification | Feed | Confirmed |
+
+### March 2025
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2025-03-01 | Cotality | CoreLogic rebranded to **Cotality** | URLs, documentation | Documented |
+
+### February 2025
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2025-02 | REBNY | Off-market photos: only primary photo remains in IDX/VOW | Photo display | Documented |
+| 2025-02 | REBNY | Private Outdoor Space became required field | Forms | Documented |
+| 2025-02 | REBNY | Listing Data Compliance Policy updated (Exhibit C) | Violations | Documented |
+
+### January 2025
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2025-01 | REBNY | New listing ID format: "RLS" + digits (e.g., RLS1234567) | System IDs | Documented |
+| 2025-01-01 | NYC | **Fair Chance Housing Act effective** (LL 24/2023) | Fair Housing scanner | Applied |
+| 2025 | REBNY | "Participant Only Network" listing type added | Distribution gates | Documented |
+| 2025 | REBNY | Buyer Representation Agreement required before showing | Showing workflow | Documented |
+| 2025 | REBNY | Commission negotiability disclosure required | Forms, agreements | Documented |
+| 2025 | REBNY | Mandatory ethics training as access condition | Agent onboarding | Documented |
+
+---
+
+## 2024
+
+### August 2024
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2024-08 | NAR | **NAR Settlement effective** — buyer agreements required, compensation decoupled | All systems | Applied |
+| 2024-08 | NAR | Touring Agreement required before property tours | Document center | Applied |
+
+---
+
+## Pending / Watch Items
+
+| Item | Source | Expected | Impact |
+|------|--------|----------|--------|
+| FARE Act fee fields | REBNY | TBD ("will take some time") | Rental forms — currently using PublicRemarks + MoveInCosts |
+| FARE Act Second Circuit ruling | Courts | TBD | Could modify or uphold FARE Act requirements |
+| RESO Building Resource | RESO | TBD | New building-level fields in feeds |
+| Official neighborhood picklist | REBNY/RealPlus | TBD | SubdivisionName validation |
+| RESO DD 2.1 | RESO | TBD | Association Management + Offer Management |
+| RESO DD 2.2 | RESO | TBD | webp MediaType, High-Speed Internet fields |
+| RESO DD 3.0 | RESO | TBD | WaterBodyRestrictions fields |
+
+---
+
+## How to Add Updates
+
+When a new compliance change is identified:
+
+1. Add entry to the appropriate year/month section above
+2. Include: Date, Source, Change description, Impact, Status
+3. Update the relevant compliance document (e.g., UCBA-2026.md, NYC-NYS-REQUIREMENTS.md)
+4. If field changes: update `fields.json` and/or `lookups.json`
+5. If rule changes: update the affected compliance doc
+6. Commit with message: `compliance: [source] — [brief description]`
