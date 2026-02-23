@@ -26,15 +26,19 @@
 | Protocol | RESO Web API (OData) |
 | Authentication | OAuth 2.0 (client credentials) |
 
-### API Migration (Completed 2025)
+### API Migration (Deadline: March 31, 2026)
 
-- Old URL: `api-trestle.corelogic.com` / `api-prod.corelogic.com`
-- New URL: `api.cotality.com/trestle/`
-- Migration deadline was end of 2025
+- Old URL (DEPRECATED): `api-trestle.corelogic.com` / `api-prod.corelogic.com`
+- New URL (REQUIRED): `api.cotality.com/trestle/`
+- **Hard deadline: March 31, 2026** — old URLs will cease functioning after this date
+- Media/photo URLs: Old URLs work through 2026 warranty period, but new development must use `api.cotality.com/trestle/media/...`
+- **Extra quota boost** available on new endpoint — contact Cotality to enable
+- Authentication: Same OAuth2 flow — no credential changes required
+- Store API base URL as environment variable (`TRESTLE_API_URL=https://api.cotality.com/trestle`) — never hardcode
 
 ### Data Dictionary
 
-- **RESO DD 2.0** certified (April 15, 2025)
+- **RESO DD 2.0** certified (April 15, 2025) — **NOW LIVE** on Trestle
 - Cotality achieved RESO DD 2.0 vendor certification
 - DD 1.7 certifications downgraded to "Certified Legacy"
 
