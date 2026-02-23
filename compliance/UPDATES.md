@@ -30,6 +30,8 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 
 | Date | Source | Change | Impact | Status |
 |------|--------|--------|--------|--------|
+| 2026-02-23 | Cotality | **Trestle API URL migration deadline: March 31, 2026** — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated → new URL `api.cotality.com/trestle`. Media URLs work through 2026 warranty. Extra quota boost available on new endpoint. RESO DD 2.0 now live. | All API integration, backend | **ACTION REQUIRED** |
+| 2026-02-23 | Internal | Master Audit Report v3.2 — 224 findings, 38 passes, Trestle migration compliance added (Finding O-04b BLOCKER) | Documentation | Complete |
 | 2026-02-21 | Internal | Compliance library created (14 docs + 2 JSON) | All development | Complete |
 | 2026-02-21 | REBNY | No post-January 2026 UCBA amendments found | No action needed | Verified |
 | 2026-02-19 | Internal | Field Authority Order added to all memory files | Documentation | Complete |
