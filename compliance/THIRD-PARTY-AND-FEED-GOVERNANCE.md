@@ -35,6 +35,7 @@
 - **Extra quota boost** available on new endpoint — contact Cotality to enable
 - Authentication: Same OAuth2 flow — no credential changes required
 - Store API base URL as environment variable (`TRESTLE_API_URL=https://api.cotality.com/trestle`) — never hardcode
+- **v3.3 enforcement:** CI deployment fails if `api-trestle.corelogic.com` or `api-prod.corelogic.com` detected in codebase. Go-Live gate #21 requires 0 deprecated URLs + successful live API call. See Master Audit Report Section AR.
 
 ### Data Dictionary
 
