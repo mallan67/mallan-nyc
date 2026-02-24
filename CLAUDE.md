@@ -18,16 +18,34 @@
 
 ### Portal Access Levels
 
-The backend CRM supports multiple login types, each with different access levels:
+The backend CRM supports 6 portal types, each with different access levels:
 
 | Portal | User Type | Access Level |
 |--------|-----------|-------------|
-| **Broker** | Brokerage owner/principal broker (Maya Allan) | Full admin access - all features, agent management, compliance, approvals |
-| **Agent** | Licensed agents under the brokerage | Listings, clients, searches, pipeline - no admin/compliance |
-| **Buyer** | Buyer clients | View listings, saved searches, feedback, documents |
-| **Seller** | Seller clients | View their listing performance, offers, showing feedback |
-| **Renter** | Renter clients | View rental listings, saved searches, applications |
-| **Landlord** | Landlord/property owner clients | View rental performance, tenant info, financials |
+| **Broker Admin** | Maya Allan (principal broker) | FULL admin access — all sections, all agents, all clients, compliance, approvals |
+| **Broker/Agent Admin** | Each licensed agent (Maya also has this) | OWN private dashboard, OWN search, OWN clients, listings, documents, marketing. NOT shared with other agents. |
+| **Buyer Portal** | Buyer clients | Sees ONLY what agent provides. CANNOT see listing agent name. Can: Like, Dislike, Let's Discuss, Schedule, Open House, Offer, "view this" → pending. |
+| **Seller Portal** | Seller clients | Invited by listing agent. Follows: showings, price, comparables, comments, marketing, offers. |
+| **Tenant Portal** | Renter clients | Same as Buyer Portal but for rentals. CANNOT see listing agent name. |
+| **Landlord Portal** | Landlord/property owner clients | Same as Seller Portal but for rentals. |
+
+### File Roles (ENFORCED — do not deviate)
+
+> **Full detail in `MASTER-PROJECT-TREE-v3.3.md` Section 0**
+
+| File | Role |
+|------|------|
+| `MALLAN-NYC-CRM-FINAL2.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals |
+| `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search of REBNY RLS. Not shared. |
+| `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing → RLS |
+| `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + buyers view exclusive sale listings (buyers see masked listing agent info) |
+| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental → RLS |
+| `RENTAL-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + renters view exclusive rental listings (renters see masked listing agent info) |
+| `BUYER-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — buyer's agent → broker. Agent can check status + edit errors. Not client-facing. |
+| `TENANT-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — renter's agent → broker. Agent can check status + edit errors. Not client-facing. |
+
+**REDESIGN = SUBMISSION. WITH-TOOLS = VIEW ONLY. DEAL FORMS = INTERNAL COMMISSION REQUEST.**
+**Search is PER AGENT (private). No global/brokerage-wide search exists.**
 
 ---
 
@@ -57,7 +75,7 @@ The backend CRM supports multiple login types, each with different access levels
 
 ## 🚨 CRITICAL: MLS/IDX DATA COMPLIANCE
 
-This project handles **licensed MLS/IDX data from REBNY RLS via Trestle/CoreLogic**.
+This project handles **licensed MLS/IDX data from REBNY RLS via Trestle/Cotality** (formerly CoreLogic).
 
 ### ❌ PROHIBITED (Violations = $40,000 damages + suspension)
 - Client-side calls to MLS/IDX APIs
@@ -129,19 +147,21 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 | File | Purpose |
 |------|---------|
-| `MALLAN-NYC-CRM-PROJECT.md` | Master project document (single source of truth) |
+| `MASTER-PROJECT-TREE-v3.3.md` | **Master Project Tree** — file roles, portals, progress, phases 0-6, 24 Go-Live gates, enforcement, System Doctrine |
+| `MALLAN-NYC-CRM-PROJECT.md` | Master project document |
 | `CRM-ENHANCEMENT-SPEC.md` | Detailed enhancement specifications |
+| `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) |
 | `data/rebny-rls-property-fields.csv` | All 448 REBNY RLS property fields |
 | `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
 | `data/UCBA-2026-Requirements.md` | UCBA 2026 rules extracted (56 pages) — all compliance requirements |
 | `data/RLS-Syndication-Research.md` | RLS feed types, syndication portals, costs, pre-licensed providers |
-| `Desktop/1/Old/search-modular/MALLAN-NYC-CRM-FINAL2.html` | Main CRM backend mockup file (5-tab layout, Tailwind v4 compiled build) |
 
 ---
 
 ## Data Source & RLS Feed
 
-- **Primary Feed:** REBNY RLS via Trestle (CoreLogic) — migrated Feb 2025 from Perchwell
+- **Primary Feed:** REBNY RLS via Trestle (Cotality, formerly CoreLogic) — migrated Feb 2025 from Perchwell
+- **Trestle API:** `api.cotality.com/trestle` — hard deadline March 31, 2026 (old URLs deprecated)
 - **LMP:** RealPlus
 - **Total Fields:** 448 Property fields
 - **Picklist Values:** 2,066 lookup values
