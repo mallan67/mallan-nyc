@@ -324,7 +324,13 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 ### Depends on: Phase 0 complete
 
-- [ ] **BLK D-01:** Canonical data model — listings, agents, leads/clients, transactions, commissions
+- [ ] **BLK D-01:** Canonical data model — 5 schemas + 1 financial ledger:
+  1. **Listing** — all 448 RLS fields, status state machine, distribution gates
+  2. **Agent** — license, team, brokerage association, portal access
+  3. **Client** (Lead) — dedupe, consent, source tracking, agent ownership
+  4. **Deal** (Transaction) — listing link, parties, timeline, status
+  5. **Commission** — split calculations, broker approval, ledger entries
+  6. **Financial Ledger** (separate) — immutable transaction log, audit trail
   - [ ] D-01a: Lead/Client entity with deduplication policy (phone + email match, merge rules)
   - [ ] D-01b: Consent timestamp on every client record (`consent_captured_at`) — required before storing/displaying PII
   - [ ] D-01c: `agent_id` foreign key on all client records (ownership enforcement)
@@ -387,6 +393,9 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 | 4 | Syndication | `SyndicateYN = False` | Excluded from 3 Trestle opt-in portals |
 | 5 | Coming Soon | `ComingSoonDate` in future | Badge required, no showings/open house until date |
 | 6 | Closed Status | Terminal status (Sold/Leased/Withdrawn/Expired/Canceled) | Suppressed within 24 hours of status change |
+
+> **Single source of truth:** enforcement logic lives in backend compliance engine only. Frontend reads gate state — never computes it.
+
 - [ ] **HI I-05:** RLS submission API (listing agent submits via REDESIGN forms → LMP → RLS)
 - [ ] **HI I-06:** IDX/VOW feed consumption (search results for agents)
 - [ ] **HI I-07:** Commission request API (agent → broker internal workflow) — submission, broker decision, status updates
