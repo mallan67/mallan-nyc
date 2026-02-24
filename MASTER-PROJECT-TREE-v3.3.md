@@ -279,6 +279,8 @@ Role: INTERNAL — agent submits commission payment request to broker. Agent can
 
 ### Priority 1 — Architectural Fixes (Viewer Conversion)
 
+> **#1 EXECUTION RISK:** Until viewer conversion completes, masking is theoretical, data loading is theoretical, gate enforcement is theoretical, and RBAC is theoretical. This is the single destabilizing variable. **Finish Phase 0 before touching Phase 1.**
+
 Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 **Acceptance Criteria (must ALL pass before viewer is considered converted):**
@@ -461,8 +463,8 @@ This is an **existential system dependency**.
 - [ ] **BLK F-01:** Connect CRM mockup to live APIs (replace mock data)
 - [ ] **BLK F-02:** Connect submission forms (REDESIGN) to RLS submission API
 - [ ] **BLK F-03:** Connect viewer forms (WITH-TOOLS) to listing data API
-- [ ] **BLK F-04:** Connect search (index-built) to IDX feed API
-- [ ] **BLK F-05:** Connect commission request forms to commission API
+- [ ] **BLK F-04:** Connect search (index-built) to IDX feed API — **WARNING: search currently enforces only 4/6 distribution gates (Gates 4+5 missing). Must implement Gates 4 (Syndication) and 5 (Coming Soon) BEFORE connecting to live feed.**
+- [ ] **BLK F-05:** Connect commission request forms to commission API — **WARNING: commission forms currently have minimal validation (only address + name). Must add full validation (all required fields, edge cases, error handling) BEFORE API wiring or governance breaks.**
 - [ ] **HI F-06:** Portal-scoped data loading (each user sees only their data)
 - [ ] **HI F-07:** Listing agent name masking in WITH-TOOLS viewers for buyer/renter
 - [ ] **MED F-08:** Real-time status updates (commission approval, listing status)
