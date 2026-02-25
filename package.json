@@ -19,7 +19,11 @@
         "postinstall": "prisma generate",
         "generate:registry": "node scripts/generate-master-registry.js",
         "validate:standalone": "node scripts/validate-standalone.js validate all",
-        "backup:standalone": "node scripts/validate-standalone.js backup all"
+        "backup:standalone": "node scripts/validate-standalone.js backup all",
+        "rls:validate": "node scripts/validate-rls-compliance.js",
+        "rls:generate": "node scripts/generate-rls-bindings.js",
+        "rls:inject": "node scripts/inject-rls-attributes.js",
+        "test:rls": "node scripts/test-rls-bindings.js"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",
@@ -51,6 +55,7 @@
         "@typescript-eslint/parser": "^8.46.4",
         "eslint": "^8.57.0",
         "eslint-config-next": "14.2.33",
+        "node-html-parser": "^7.0.2",
         "postcss": "^8.4.35",
         "tailwindcss": "^4.1.18",
         "typescript": "^5.4.0",
