@@ -37,6 +37,7 @@
 | [`AUDIT-LOGGING-AND-EVIDENCE.md`](AUDIT-LOGGING-AND-EVIDENCE.md) | NY SHIELD Act, data access logging, evidence retention, breach response | Backend, Security |
 | [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
 | [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
+| [`RLS-VALIDATOR-V2.md`](RLS-VALIDATOR-V2.md) | Deterministic RLS compliance validator — 4-layer pipeline, 10 sections, 42 tests, mockup file validation (IN PROGRESS) | Backend, QA |
 | [`MASTER-AUDIT-REPORT-v3.md`](MASTER-AUDIT-REPORT-v3.md) | Full system audit — 225 findings, 39 passes, 6 schemas, enterprise controls, production roadmap, Trestle migration enforcement | All |
 
 ## Machine-Readable Enforcement
