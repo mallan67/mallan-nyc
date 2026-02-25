@@ -1,0 +1,138 @@
+{
+  "_meta": {
+    "description": "11 content restriction rules + 4 scanner definitions. Enforced on all text fields before RLS submission.",
+    "source": "UCBA 2026 Art. I, III, VIII + Exhibit C",
+    "version": "1.0.0",
+    "updated": "2026-02-25"
+  },
+  "restrictions": [
+    {
+      "id": "R1",
+      "name": "No agent info in descriptions",
+      "ucbaRef": "Art. I, Sec. 5(C)",
+      "appliesTo": ["PublicRemarks", "PrivateRemarks", "ShowingInstructions", "all text fields", "photos", "floorplans"],
+      "action": "BLOCK submission",
+      "override": false,
+      "scanner": "agentInfoScanner"
+    },
+    {
+      "id": "R2",
+      "name": "No Off-Market language",
+      "ucbaRef": "Art. I, Sec. 5(D)",
+      "appliesTo": ["all text fields"],
+      "action": "BLOCK submission",
+      "override": false,
+      "scanner": "offMarketScanner"
+    },
+    {
+      "id": "R3",
+      "name": "No compensation in descriptions",
+      "ucbaRef": "Art. I, Sec. 5(E)",
+      "appliesTo": ["PublicRemarks", "PrivateRemarks", "all description fields"],
+      "action": "BLOCK submission for public fields",
+      "override": false,
+      "scanner": "compensationScanner"
+    },
+    {
+      "id": "R4",
+      "name": "No free services claims",
+      "ucbaRef": "Art. III, Sec. 5",
+      "appliesTo": ["all text fields"],
+      "action": "BLOCK unless zero compensation from any source",
+      "override": false
+    },
+    {
+      "id": "R5",
+      "name": "Fair Housing compliance",
+      "ucbaRef": "Exhibit C",
+      "appliesTo": ["PublicRemarks", "PrivateRemarks", "ShowingInstructions", "all text fields"],
+      "action": "BLOCK submission",
+      "override": "Broker override with acknowledgment logging",
+      "scanner": "fairHousingScanner"
+    },
+    {
+      "id": "R6",
+      "name": "No seller/buyer identity until closed",
+      "ucbaRef": "Art. III, Sec. 2",
+      "appliesTo": ["all fields"],
+      "action": "Hidden until MlsStatus = Closed",
+      "override": false
+    },
+    {
+      "id": "R7",
+      "name": "Data accuracy required",
+      "ucbaRef": "Art. III, Sec. 4",
+      "appliesTo": ["all fields"],
+      "action": "Validation engine enforcement",
+      "penalty": "$0/$250/$250/termination (escalating)"
+    },
+    {
+      "id": "R8",
+      "name": "24-hour update SLA",
+      "ucbaRef": "Art. I, Sec. 6",
+      "appliesTo": ["MlsStatus", "ListPrice"],
+      "action": "Alert if >24hrs since authorized change"
+    },
+    {
+      "id": "R9",
+      "name": "Commission negotiability disclosure",
+      "ucbaRef": "Art. I, Sec. 17",
+      "appliesTo": ["listing agreement", "buyer agreement", "pre-closing docs"],
+      "action": "Required disclosure checkbox",
+      "text": "Broker commissions are not set by law and are fully negotiable"
+    },
+    {
+      "id": "R10",
+      "name": "Statistical data disclaimer",
+      "ucbaRef": "Art. VIII, Sec. 4",
+      "appliesTo": ["any page showing market stats, averages, or trends from RLS data"],
+      "action": "REBNY attribution required",
+      "text": "Based on information from the REBNY Listing Service for the period [date] through [date]. The REBNY Listing Service makes no representations or warranties with respect to the accuracy or completeness of such information..."
+    },
+    {
+      "id": "R11",
+      "name": "No reproduction of RLS data",
+      "ucbaRef": "Art. VIII, Sec. 4",
+      "appliesTo": ["all RLS data"],
+      "action": "No bulk copy, database entry, mailing lists, AI training"
+    }
+  ],
+  "scanners": {
+    "fairHousingScanner": {
+      "runOn": ["PublicRemarks", "PrivateRemarks", "ShowingInstructions"],
+      "caseInsensitive": true,
+      "categories": {
+        "race_color": ["racial slurs", "white neighborhood", "diverse area"],
+        "religion": ["Christian community", "near mosque", "near church", "near synagogue"],
+        "national_origin": ["English-speaking", "American only", "ethnic slurs"],
+        "familial_status": ["no children", "adults only", "perfect for couples"],
+        "disability": ["no wheelchairs", "must climb stairs", "handicapped"],
+        "source_of_income": ["no vouchers", "no Section 8", "employed only", "no programs"],
+        "criminal_history": ["background check required", "no felons", "criminal record", "arrest", "conviction", "ex-con"]
+      },
+      "action": "BLOCK — broker override with acknowledgment logging"
+    },
+    "agentInfoScanner": {
+      "runOn": ["PublicRemarks", "PrivateRemarks", "all description fields"],
+      "patterns": [
+        "10-digit phone number patterns",
+        "email addresses (contains @)",
+        "URLs (http/https/www)",
+        "known agent names from agent roster"
+      ],
+      "action": "BLOCK — no override (hard rule)"
+    },
+    "offMarketScanner": {
+      "runOn": ["all text fields"],
+      "patterns": ["off-market", "off market", "pocket listing", "pocket deal"],
+      "caseInsensitive": true,
+      "action": "BLOCK — no override (hard rule)"
+    },
+    "compensationScanner": {
+      "runOn": ["PublicRemarks", "PrivateRemarks", "all description fields"],
+      "patterns": ["commission", "broker fee", "buyer pays", "no fee", "seller concession", "closing cost credit"],
+      "caseInsensitive": true,
+      "action": "BLOCK — no override for public fields"
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "_meta": {
+    "description": "Feed/export allowlist rules. Controls what fields flow to each distribution channel. Enforced at API layer before any response.",
+    "source": "UCBA 2026 + REBNY RLS Rules + memory/REBNY-MASTER.md Part 3-4",
+    "version": "1.0.0",
+    "updated": "2026-02-25"
+  },
+  "distributionProfiles": {
+    "PUB":   { "meaning": "Public marketing data",                      "RLS": true,  "IDX": true,  "VOW": true,  "SYN": true },
+    "PUB-A": { "meaning": "Public, respects InternetAddressDisplayYN",  "RLS": true,  "IDX": "ifAddressTrue", "VOW": "ifAddressTrue", "SYN": "ifAddressTrue" },
+    "AGT":   { "meaning": "Agent/Participant view ONLY",                "RLS": true,  "IDX": false, "VOW": false, "SYN": false },
+    "HID":   { "meaning": "Confidential, sent to RLS but restricted",   "RLS": true,  "IDX": false, "VOW": false, "SYN": false },
+    "CTL":   { "meaning": "Control flag, controls other fields",        "RLS": true,  "IDX": "N/A", "VOW": "N/A", "SYN": "N/A" },
+    "SYS":   { "meaning": "System-generated, read-only",                "RLS": "auto","IDX": "N/A", "VOW": "N/A", "SYN": "N/A" },
+    "CLOSE": { "meaning": "Closing-only, after MlsStatus=Closed",       "RLS": true,  "IDX": "afterClose", "VOW": "afterClose", "SYN": "afterClose" },
+    "INT":   { "meaning": "Internal CRM only, NOT sent to RLS",         "RLS": false, "IDX": false, "VOW": false, "SYN": false }
+  },
+  "gates": {
+    "gate1_ownerOptOut": {
+      "trigger": "Permissions = Owner Opt-Out",
+      "effect": "ALL fields blocked from ALL channels",
+      "exception": "1:1 personal phone calls and emails to Participants",
+      "violation": "Incurable — $250 first, $500 subsequent",
+      "ucbaRef": "Art. I, Sec. 5(A)"
+    },
+    "gate2_participantOnly": {
+      "trigger": "Permissions = Participant Only",
+      "effect": "All fields to RLS only. No IDX, VOW, Syndication, websites, social media.",
+      "constraint": "Cannot combine with Owner Opt-Out",
+      "violation": "Incurable if displayed publicly",
+      "ucbaRef": "Definition (W)"
+    },
+    "gate3_idxDisplay": {
+      "trigger": "IDXEntireListingDisplayYN",
+      "trueEffect": "All PUB-eligible fields flow to IDX broker websites. Attribution required.",
+      "falseEffect": "Excluded from all IDX. Remains on RLS.",
+      "default": true,
+      "ucbaRef": "Art. III, Sec. 2(C)"
+    },
+    "gate4_syndication": {
+      "trigger": "SyndicateYN",
+      "trueEffect": "All PUB-eligible fields flow to opted-in third-party portals.",
+      "falseEffect": "Excluded from all syndication portals. Remains on RLS.",
+      "default": true,
+      "ucbaRef": "UCBA General"
+    },
+    "gate5_comingSoon": {
+      "trigger": "MlsStatus = ComingSoon",
+      "effect": "Fields flow to RLS + display channels with restrictions: no showings, no open houses, no negotiations. Badge required. Sales only. Max 14 days.",
+      "badge": "Coming Soon. No Showings or Open House until [Start Showing Date]",
+      "ucbaRef": "Art. I, Sec. 16"
+    },
+    "gate6_closed": {
+      "trigger": "MlsStatus = Closed",
+      "effect": "ClosePrice + CloseDate REQUIRED within 24hrs. BuyerAgent now populated. Must remove/mark closed on website within 24hrs.",
+      "ucbaRef": "Art. I, Sec. 6-7"
+    }
+  },
+  "displayCascade": {
+    "trigger": "InternetEntireListingDisplayYN = false",
+    "autoSet": {
+      "IDXEntireListingDisplayYN": false,
+      "InternetAddressDisplayYN": false,
+      "InternetAutomatedValuationDisplayYN": false,
+      "InternetConsumerCommentYN": false
+    },
+    "additionalEffect": "Listing alerts/auto-sharing disabled for non-exclusive agents"
+  },
+  "neverExportToPublic": [
+    "ExpirationDate",
+    "ListingAgreement",
+    "ListingContractDate",
+    "ShowingInstructions",
+    "BuildingTaxLot",
+    "TaxBlock",
+    "PropertyCondition",
+    "PrivateRemarks",
+    "CoBrokeAgreement",
+    "Permissions",
+    "DuplicateListingIDs",
+    "ManagingAgencyListingYN",
+    "CableTVExpense", "ElectricExpense", "FuelExpense", "GardenerExpense",
+    "InsuranceExpense", "LicensesExpense", "MaintenanceExpense", "ManagerExpense",
+    "NewTaxesExpense", "PestControlExpense", "PoolExpense", "ProfessionalManagementExpense",
+    "SuperExpense", "SuppliesExpense", "TrashExpense", "WaterSewerExpense",
+    "WorkmansCompensationExpense", "OtherExpense", "OtherExpenseRemarks",
+    "CapRate", "NetOperatingIncome", "OperatingExpense",
+    "CapitalReservesYN", "CapitalReservesTotal",
+    "LandAssessedValue",
+    "BuildingRules",
+    "LaborInformation",
+    "CertificateOfOccupancyYN",
+    "NumberOfUnitsVacant",
+    "ListAgentStateLicense",
+    "ListAgentHasOwnershipInterestYN",
+    "CoOwnershipInterest", "CoOwnershipRemarks",
+    "ParcelNumber",
+    "BathroomCondition", "KitchenCondition",
+    "SpecialAssessmentExpirationDateTime"
+  ],
+  "closeOnlyFields": [
+    "CloseDate", "ClosePrice",
+    "BuyerAgentMlsId", "BuyerAgentFullName", "BuyerAgentDirectPhone",
+    "BuyerAgentEmail", "BuyerAgentStateLicense", "BuyerAgentURL",
+    "BuyerAgentKeyNumeric", "BuyerAgentRLSParticipantYN",
+    "BuyerOfficeMlsId", "BuyerOfficeName", "BuyerOfficePhone",
+    "BuyerOfficeEmail", "BuyerOfficeURL", "BuyerOfficeKeyNumeric",
+    "BuyerTeamMlsId", "BuyerTeamName", "BuyerTeamKeyNumeric",
+    "BuyerFinancing",
+    "CoBuyerAgentMlsId", "CoBuyerAgentFullName", "CoBuyerAgentDirectPhone",
+    "CoBuyerAgentEmail", "CoBuyerAgentStateLicense", "CoBuyerAgentURL",
+    "CoBuyerAgentKeyNumeric", "CoBuyerAgentRLSParticipantYN",
+    "CoBuyerOfficeMlsId", "CoBuyerOfficeName", "CoBuyerOfficePhone",
+    "CoBuyerOfficeEmail", "CoBuyerOfficeURL", "CoBuyerOfficeKeyNumeric"
+  ],
+  "syndicationPortals": {
+    "trestleOptIn": [
+      { "name": "openigloo", "status": "ON", "cost": "FREE" },
+      { "name": "Samaki.com", "status": "ON", "cost": "FREE" },
+      { "name": "TBI Listings", "status": "ON", "cost": "FREE" }
+    ],
+    "directUpload": [
+      { "name": "StreetEasy", "cost": "Sales FREE / Rentals $7+/day", "method": "Direct upload (NOT via RLS)" },
+      { "name": "Zillow/Trulia", "cost": "FREE", "method": "Auto from StreetEasy" }
+    ],
+    "directDataLicense": [
+      { "name": "Realtor.com", "cost": "FREE", "method": "Automatic from REBNY" },
+      { "name": "Redfin", "cost": "FREE", "method": "Automatic from REBNY" },
+      { "name": "Homes.com", "cost": "FREE", "method": "Automatic from REBNY" },
+      { "name": "RentHop", "cost": "FREE", "method": "Automatic from REBNY" }
+    ]
+  }
+}
