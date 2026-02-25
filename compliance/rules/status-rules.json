@@ -1,0 +1,97 @@
+{
+  "_meta": {
+    "description": "Listing status definitions, valid transitions, DOM rules, and timing enforcement. Machine-readable status state machine.",
+    "source": "UCBA 2026 Art. I + memory/REBNY-MASTER.md Sections A, J",
+    "version": "1.0.0",
+    "updated": "2026-02-25"
+  },
+  "statuses": {
+    "ComingSoon": {
+      "domAccrues": false,
+      "publicDisplay": true,
+      "displayBadge": "Coming Soon. No Showings or Open House until [Start Showing Date]",
+      "restrictions": ["No showings", "No open houses", "No negotiations", "Sales only", "Max 14 calendar days", "One-time use per address/owner unless off-market 60+ days"],
+      "allowedTransitions": ["Active", "TemporarilyOffMarket", "Withdrawn"],
+      "blockedTransitions": ["Pending", "Closed"]
+    },
+    "Active": {
+      "domAccrues": true,
+      "publicDisplay": true,
+      "displayCondition": "If IDXEntireListingDisplayYN = true",
+      "restrictions": [],
+      "allowedTransitions": ["Pending", "TemporarilyOffMarket", "Withdrawn", "Cancelled", "Closed"]
+    },
+    "Pending": {
+      "domAccrues": true,
+      "publicDisplay": true,
+      "restrictions": [],
+      "requiredFields": ["PurchaseContractDate"],
+      "allowedTransitions": ["Active", "Closed", "Withdrawn", "Cancelled"]
+    },
+    "TemporarilyOffMarket": {
+      "domAccrues": false,
+      "publicDisplay": false,
+      "restrictions": [],
+      "allowedTransitions": ["Active", "Withdrawn", "Cancelled"]
+    },
+    "Withdrawn": {
+      "domAccrues": false,
+      "domResetAfterDays": 30,
+      "publicDisplay": false,
+      "requiredFields": ["WithdrawnDate"],
+      "rules": ["WithdrawnDate must equal OffMarketDate"],
+      "allowedTransitions": ["Active"]
+    },
+    "Cancelled": {
+      "domAccrues": false,
+      "domResetAfterDays": 30,
+      "publicDisplay": false,
+      "requiredFields": ["CancellationDate"],
+      "allowedTransitions": ["Active"]
+    },
+    "Closed": {
+      "domAccrues": false,
+      "domResetsToZero": true,
+      "publicDisplay": "Mark as Sold/Rented",
+      "requiredFields": ["CloseDate", "ClosePrice", "BuyerAgentRLSParticipantYN"],
+      "sla": "Must update within 24 hours of closing",
+      "websiteRule": "Must remove or mark closed on broker website within 24 hours",
+      "allowedTransitions": [],
+      "terminal": true
+    },
+    "OwnerOptOut": {
+      "domAccrues": false,
+      "publicDisplay": false,
+      "restrictions": ["ALL fields blocked from ALL channels", "No RLS, no IDX, no VOW, no Syndication, no public"],
+      "exception": "1:1 personal phone calls and emails to Participants",
+      "rules": ["Must be set at creation — cannot transition into this state", "Cannot combine with Participant Only"],
+      "requiredForm": "Owner Opt-Out Form (Exhibit B) within 48 hours"
+    },
+    "ParticipantOnly": {
+      "domAccrues": false,
+      "publicDisplay": false,
+      "restrictions": ["All fields to RLS only", "No IDX, VOW, Syndication, websites, social media"],
+      "rules": ["Cannot combine with Owner Opt-Out"]
+    }
+  },
+  "invalidTransitions": [
+    { "from": "Closed", "to": "*", "reason": "Closed is terminal — no transitions allowed" },
+    { "from": "*", "to": "OwnerOptOut", "reason": "Must be set at creation, not transitioned into" },
+    { "from": "ComingSoon", "to": "Pending", "reason": "Must go Active first" },
+    { "from": "ComingSoon", "to": "Closed", "reason": "Must go Active first" }
+  ],
+  "domRules": {
+    "startsAt": "RLS submission timestamp (not listing contract date)",
+    "resetTrigger": "30 consecutive days in Withdrawn or Cancelled",
+    "resetsOnClose": true,
+    "noAccrual": ["ComingSoon", "ParticipantOnly", "TemporarilyOffMarket"],
+    "circumventionBlocked": "Cannot circumvent DOM by re-naming or re-listing same address/unit within 30 days"
+  },
+  "timingEnforcement": [
+    { "rule": "Status changes", "sla": "Within 24hrs of authorized change", "alert": "If >24hrs since last public change" },
+    { "rule": "Closing price", "sla": "Within 24hrs of closing", "alert": "If CloseDate set but no ClosePrice" },
+    { "rule": "Closed on website", "sla": "Within 24hrs", "action": "Auto-sync status to frontend" },
+    { "rule": "Owner Opt-Out form", "sla": "Within 48hrs of opt-out selection", "alert": "Alert at 24hrs, escalate at 48hrs" },
+    { "rule": "Coming Soon expiration", "sla": "14 calendar days max", "alert": "Alert at day 12, force status change at day 14" }
+  ]
+}

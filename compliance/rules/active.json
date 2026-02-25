@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "description": "Single pointer to all enforced compliance rule files. Every script reads this file first — no guessing, no snapshots.",
+    "version": "1.0.0",
+    "updated": "2026-02-25",
+    "brokerage": "Mallan Real Estate Inc.",
+    "license": "#10991205323",
+    "feed": "REBNY RLS via Trestle (Cotality)",
+    "lmp": "RealPlus",
+    "fieldAuthorityOrder": [
+      "1. UCBA governs everything",
+      "2. REBNY RLS rules + RLS fields",
+      "3. RLS overrides RESO/IDX",
+      "4. RESO/IDX fills gaps",
+      "5. INTERNAL-ONLY otherwise",
+      "6. Fail closed = NON-DISPLAY"
+    ]
+  },
+  "enforcedRules": {
+    "rlsRequired": "compliance/rules/rls-required.json",
+    "exportPolicy": "compliance/rules/export-policy.json",
+    "resoRlsRenames": "compliance/rules/reso-rls-renames.json",
+    "statusRules": "compliance/rules/status-rules.json",
+    "contentRestrictions": "compliance/rules/content-restrictions.json"
+  },
+  "fieldData": {
+    "allFields": "compliance/fields.json",
+    "lookups": "compliance/lookups.json",
+    "formBindings": "data/rls-form-bindings.json",
+    "fieldAliases": "data/rls-field-aliases.json",
+    "internalOnly": "data/rls-internal-only.json"
+  },
+  "validator": {
+    "script": "scripts/validate-rls-compliance.js",
+    "bindings": "scripts/generate-rls-bindings.js",
+    "injector": "scripts/inject-rls-attributes.js",
+    "tests": "scripts/test-rls-bindings.js",
+    "run": "npm run rls:validate",
+    "testRun": "npm run test:rls"
+  }
+}
