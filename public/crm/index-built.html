@@ -1881,6 +1881,23 @@ header {
     @page { margin: 1.5cm; }
 }
 
+/* ═══ View Transition System ═══ */
+.view-fade { opacity: 0; transition: opacity 200ms ease; }
+.view-fade.view-entering { opacity: 1; }
+.view-slide-up { opacity: 0; transform: translateY(8px); transition: opacity 200ms ease, transform 200ms ease; }
+.view-slide-up.view-entering { opacity: 1; transform: translateY(0); }
+.view-leaving { opacity: 0; transition: opacity 150ms ease; }
+#searchLoadingOverlay {
+    display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.85);
+    z-index: 10; justify-content: center; align-items: center; flex-direction: column; gap: 12px; border-radius: 12px;
+}
+#searchLoadingOverlay.active { display: flex; }
+#searchLoadingOverlay .spinner {
+    width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%;
+    animation: _spin 0.6s linear infinite;
+}
+@keyframes _spin { to { transform: rotate(360deg); } }
+
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -1893,6 +1910,12 @@ function toggleSection(header) {
     if (content) content.classList.toggle('collapsed');
     if (icon) { icon.classList.toggle('fa-minus'); icon.classList.toggle('fa-plus'); }
 }
+function toggleMobileMenu() {
+    var sb = document.getElementById('luxury-sidebar');
+    var ov = document.getElementById('sidebar-overlay');
+    if (sb) sb.classList.toggle('open');
+    if (ov) ov.classList.toggle('open');
+}
 </script>
 
 <!-- ═══ HTML Sections ═══ -->
@@ -1901,6 +1924,7 @@ function toggleSection(header) {
 <header class="bg-[#1a1a1a] text-white sticky top-0 z-50">
     <!-- General Search Mode Nav -->
     <div id="generalNavBar" class="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+        <button class="mobile-menu-btn items-center justify-center w-8 h-8 rounded-lg text-gray-300 hover:text-white hover:bg-white/10" onclick="toggleMobileMenu()" aria-label="Open menu"><i class="fas fa-bars text-sm"></i></button>
         <div class="text-lg sm:text-xl font-bold tracking-wider flex-shrink-0" style="color: #C4A052;">MALLAN</div>
         <nav class="flex gap-1.5 sm:gap-2 mx-3">
             <button onclick="showSearchSection('main')" id="searchNav-main" class="px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg bg-white/15 text-white flex-shrink-0 flex items-center gap-1.5">
@@ -1922,6 +1946,18 @@ function toggleSection(header) {
     </div>
 
 </header>
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+<aside id="luxury-sidebar" class="luxury-sidebar" style="padding:16px 12px;">
+    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
+        <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 text-xs font-bold" id="mobileBadgeInitials">--</div>
+        <div class="text-sm"><span id="mobileBadgeName" class="font-semibold text-gray-900">--</span><br><span id="mobileBadgeRole" class="text-xs text-amber-600">Agent</span></div>
+    </div>
+    <button onclick="showSearchSection('main');toggleMobileMenu();" class="sidebar-link w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm"><i class="fas fa-search w-5 text-center text-gray-400"></i> Search</button>
+    <button onclick="showSearchSection('manage');toggleMobileMenu();" class="sidebar-link w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm"><i class="fas fa-building w-5 text-center text-gray-400"></i> Manage Listings</button>
+    <button onclick="showSearchSection('last');toggleMobileMenu();" class="sidebar-link w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm"><i class="fas fa-history w-5 text-center text-gray-400"></i> Last Search</button>
+    <div class="sidebar-divider"></div>
+    <button onclick="openEmailSettings();toggleMobileMenu();" class="sidebar-link w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm"><i class="fas fa-cog w-5 text-center text-gray-400"></i> Settings</button>
+</aside>
 
 <!-- ═══ html/search-form-and-results.html ═══ -->
 <!-- SECTION: NEW SEARCH (MAIN) -->
@@ -8633,7 +8669,8 @@ function toggleSection(header) {
                 <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                 <!-- SEARCH RESULTS SECTION - REBNY-Style Client Delivery System -->
                 <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
-                <div id="searchResultsSection" class="mt-6" style="display: none;">
+                <div id="searchResultsSection" class="mt-6" style="display:none;position:relative;">
+                    <div id="searchLoadingOverlay"><div class="spinner"></div><span class="text-sm font-medium text-gray-500">Searching...</span></div>
                     <!-- Sticky Search Navigation Bar -->
                     <div id="stickySearchNav" class="sticky top-0 z-40 bg-white border border-blue-200 rounded-lg shadow-md mb-3 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
                         <div class="flex items-center gap-2 text-sm">
@@ -9891,7 +9928,7 @@ function toggleSection(header) {
                             <p class="font-semibold text-blue-900">Last Search: Manhattan Condos $3-8M</p>
                             <p class="text-sm text-blue-700">Run 2 hours ago • 47 results</p>
                         </div>
-                        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">View Results</button>
+                        <button onclick="recallLastSearch()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">View Results</button>
                     </div>
                 </div>
             </div>
@@ -12806,7 +12843,11 @@ function showSearchSection(section) {
         var el = document.getElementById('section-' + s);
         if (el) el.style.display = 'none';
     });
-    document.getElementById('section-' + section).style.display = 'block';
+    var _t = document.getElementById('section-' + section);
+    _t.style.display = 'block';
+    _t.classList.add('view-fade');
+    requestAnimationFrame(function(){ _t.classList.add('view-entering'); });
+    setTimeout(function(){ _t.classList.remove('view-fade','view-entering'); }, 220);
     // Ensure general nav is shown when switching general tabs
     document.getElementById('generalNavBar').style.display = '';
     // Update active state on the nav buttons
@@ -14520,19 +14561,23 @@ function manageShowToast(msg) {
                 var searchFormContainer = document.getElementById('searchFormContainer');
                 if (searchFormContainer) searchFormContainer.style.display = 'none';
 
-                // Show search results section
+                // Show results with loading overlay, then render
                 var searchResultsSection = document.getElementById('searchResultsSection');
+                var _lo = document.getElementById('searchLoadingOverlay');
                 if (searchResultsSection) {
                     searchResultsSection.style.display = 'block';
                     searchResultsSection.classList.remove('hidden');
-                    initializeSearchResults();
+                    if (_lo) _lo.classList.add('active');
+                    setTimeout(function(){
+                        initializeSearchResults();
+                        updateResultsCount();
+                        updateStickyNavActive();
+                        if (_lo) _lo.classList.remove('active');
+                        searchResultsSection.classList.add('view-fade');
+                        requestAnimationFrame(function(){ searchResultsSection.classList.add('view-entering'); });
+                        setTimeout(function(){ searchResultsSection.classList.remove('view-fade','view-entering'); }, 220);
+                    }, 200);
                 }
-
-                // Update results count
-                updateResultsCount();
-
-                // Highlight active search type on sticky nav
-                updateStickyNavActive();
 
                 // Close refine panel if open (fresh search resets it)
                 var refinePanel = document.getElementById('refinePanel');
@@ -14541,9 +14586,9 @@ function manageShowToast(msg) {
                 // Save search state for refresh persistence
                 _saveSearchState();
 
-                // Update hash to reflect results view
+                // Update hash (pushState so Back returns to search form)
                 if (!window._suppressHashUpdate) {
-                    history.replaceState(null, '', '#results');
+                    history.pushState(null, '', '#results');
                 }
 
                 // Scroll to top of results
@@ -14615,9 +14660,9 @@ function manageShowToast(msg) {
             // Save search state for refresh persistence
             _saveSearchState();
 
-            // Update hash to reflect results view
+            // Update hash (pushState so Back returns to search form)
             if (!window._suppressHashUpdate) {
-                history.replaceState(null, '', '#results');
+                history.pushState(null, '', '#results');
             }
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -15215,9 +15260,14 @@ function manageShowToast(msg) {
             var refinePanel = document.getElementById('refinePanel');
             if (refinePanel) { refinePanel.style.display = 'none'; _refinePanelOpen = false; }
 
-            // Show the search form container
+            // Show the search form container with fade
             var searchFormContainer = document.getElementById('searchFormContainer');
-            if (searchFormContainer) searchFormContainer.style.display = 'block';
+            if (searchFormContainer) {
+                searchFormContainer.style.display = 'block';
+                searchFormContainer.classList.add('view-fade');
+                requestAnimationFrame(function(){ searchFormContainer.classList.add('view-entering'); });
+                setTimeout(function(){ searchFormContainer.classList.remove('view-fade','view-entering'); }, 220);
+            }
 
             // Restore the proper search mode display
             var btnBasic = document.getElementById('btnSearchBasic');
@@ -15538,16 +15588,18 @@ function manageShowToast(msg) {
             var searchResultsSection = document.getElementById('searchResultsSection');
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Show search form container
+            // Show search form container with fade
             var searchFormContainer = document.getElementById('searchFormContainer');
-            if (searchFormContainer) searchFormContainer.style.display = 'block';
+            if (searchFormContainer) {
+                searchFormContainer.style.display = 'block';
+                searchFormContainer.classList.add('view-fade');
+                requestAnimationFrame(function(){ searchFormContainer.classList.add('view-entering'); });
+                setTimeout(function(){ searchFormContainer.classList.remove('view-fade','view-entering'); }, 220);
+            }
 
-            // Switch to the correct tab (sale, rent, building) — uses existing function
             toggleSearchTab(tab);
-
-            // Switch to the correct mode (basic or advanced) — uses existing function
             toggleSearchMode(mode);
-
+            history.pushState(null, '', '#main');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -15802,6 +15854,14 @@ function manageShowToast(msg) {
                 // Show mortgage calculator for building search
                 if (mortgageCalculator) mortgageCalculator.style.display = 'block';
             }
+
+            // Reset price/financial filters on tab switch (price ranges differ across sale/rent)
+            ['salePriceFields','rentPriceFields','monthlyExpensesFields','netMonthlyRentFields'].forEach(function(id){
+                var c = document.getElementById(id);
+                if (!c) return;
+                c.querySelectorAll('select').forEach(function(s){ s.selectedIndex = 0; });
+                c.querySelectorAll('input[type="text"],input[type="number"]').forEach(function(i){ i.value = ''; });
+            });
         }
 
         // Legacy function - now calls toggleSearchTab
@@ -15833,14 +15893,12 @@ function manageShowToast(msg) {
                 if (basicModeBuilding) basicModeBuilding.style.display = 'none';
                 if (advancedMode) advancedMode.style.display = 'none';
 
-                // Show the appropriate basic layout based on current tab
-                if (currentSearchTab === 'sale' && basicModeSales) {
-                    basicModeSales.style.display = 'block';
-                } else if (currentSearchTab === 'rent' && basicModeRental) {
-                    basicModeRental.style.display = 'block';
-                } else if (currentSearchTab === 'building' && basicModeBuilding) {
-                    basicModeBuilding.style.display = 'block';
-                }
+                // Show the appropriate basic layout with fade
+                var _show = null;
+                if (currentSearchTab === 'sale' && basicModeSales) { basicModeSales.style.display = 'block'; _show = basicModeSales; }
+                else if (currentSearchTab === 'rent' && basicModeRental) { basicModeRental.style.display = 'block'; _show = basicModeRental; }
+                else if (currentSearchTab === 'building' && basicModeBuilding) { basicModeBuilding.style.display = 'block'; _show = basicModeBuilding; }
+                if (_show) { _show.classList.add('view-fade'); requestAnimationFrame(function(){ _show.classList.add('view-entering'); }); setTimeout(function(){ _show.classList.remove('view-fade','view-entering'); }, 220); }
             } else {
                 btnAdvanced.classList.remove('text-gray-500');
                 btnAdvanced.classList.add('bg-gray-900', 'text-white');
@@ -15848,7 +15906,10 @@ function manageShowToast(msg) {
                 btnBasic.classList.add('text-gray-500');
                 if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
 
-                if (advancedMode) advancedMode.style.display = 'block';
+                if (advancedMode) {
+                    advancedMode.style.display = 'block';
+                    advancedMode.classList.add('view-fade'); requestAnimationFrame(function(){ advancedMode.classList.add('view-entering'); }); setTimeout(function(){ advancedMode.classList.remove('view-fade','view-entering'); }, 220);
+                }
                 if (basicModeSales) basicModeSales.style.display = 'none';
                 if (basicModeRental) basicModeRental.style.display = 'none';
                 if (basicModeBuilding) basicModeBuilding.style.display = 'none';
@@ -25913,8 +25974,13 @@ function emailCurrentCalc() {
             var nbEl = document.getElementById('detailSimilarNearby');
             if (nbEl) nbEl.innerHTML = nearbyListings.length > 0 ? nearbyListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No nearby listings</div>';
 
-            document.getElementById('listingDetailPage').classList.remove('hidden');
-            document.getElementById('listingDetailPage').scrollTop = 0;
+            _savedScrollY = window.scrollY || window.pageYOffset;
+            var _dp = document.getElementById('listingDetailPage');
+            _dp.classList.remove('hidden');
+            _dp.scrollTop = 0;
+            _dp.classList.add('view-slide-up');
+            requestAnimationFrame(function(){ _dp.classList.add('view-entering'); });
+            setTimeout(function(){ _dp.classList.remove('view-slide-up','view-entering'); }, 220);
 
             // Update hash to reflect detail view
             if (!window._suppressHashUpdate) {
@@ -25923,12 +25989,21 @@ function emailCurrentCalc() {
             } catch(e) { console.error('showListingDetail error:', e); }
         }
 
+        var _savedScrollY = null;
+
         function closeListingDetail() {
-            document.getElementById('listingDetailPage').classList.add('hidden');
+            var _dp = document.getElementById('listingDetailPage');
+            _dp.classList.add('view-leaving');
+            setTimeout(function(){ _dp.classList.add('hidden'); _dp.classList.remove('view-leaving','view-slide-up','view-entering'); }, 150);
             _detailCurrentId = null;
 
-            // Go back to results
-            history.pushState(null, '', '#results');
+            // Restore scroll position
+            if (_savedScrollY !== null) {
+                setTimeout(function(){ window.scrollTo(0, _savedScrollY); _savedScrollY = null; }, 160);
+            }
+
+            // Go back in history (the #results entry already exists)
+            history.back();
         }
 
         // ── Build mailto body with listing thumbnail for agent inquiry ──
@@ -27966,10 +28041,12 @@ function emailCurrentCalc() {
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
             } else {
-                // No saved state — fall back to a fresh search (shows all listings)
-                if (typeof performSearch === 'function') {
-                    performSearch();
-                }
+                // No saved state — redirect to search form (don't show stale results)
+                var searchFormContainer = document.getElementById('searchFormContainer');
+                var searchResultsSection = document.getElementById('searchResultsSection');
+                if (searchFormContainer) searchFormContainer.style.display = 'block';
+                if (searchResultsSection) searchResultsSection.style.display = 'none';
+                history.replaceState(null, '', '#main');
             }
         }
 
@@ -27998,19 +28075,30 @@ function emailCurrentCalc() {
                 var searchFormContainer = document.getElementById('searchFormContainer');
                 var searchResultsSection = document.getElementById('searchResultsSection');
                 var detailPage = document.getElementById('listingDetailPage');
-                if (searchFormContainer) searchFormContainer.style.display = 'block';
+                if (detailPage) { detailPage.classList.add('hidden'); detailPage.classList.remove('view-slide-up','view-entering','view-leaving'); }
                 if (searchResultsSection) searchResultsSection.style.display = 'none';
-                if (detailPage) detailPage.classList.add('hidden');
+                if (searchFormContainer) {
+                    searchFormContainer.style.display = 'block';
+                    searchFormContainer.classList.add('view-fade');
+                    requestAnimationFrame(function(){ searchFormContainer.classList.add('view-entering'); });
+                    setTimeout(function(){ searchFormContainer.classList.remove('view-fade','view-entering'); }, 220);
+                }
             } else if (newRoute === 'results') {
                 var searchFormContainer = document.getElementById('searchFormContainer');
                 var searchResultsSection = document.getElementById('searchResultsSection');
                 var detailPage = document.getElementById('listingDetailPage');
                 if (searchFormContainer) searchFormContainer.style.display = 'none';
+                if (detailPage) { detailPage.classList.add('hidden'); detailPage.classList.remove('view-slide-up','view-entering','view-leaving'); }
                 if (searchResultsSection) {
                     searchResultsSection.style.display = 'block';
                     searchResultsSection.classList.remove('hidden');
+                    searchResultsSection.classList.add('view-fade');
+                    requestAnimationFrame(function(){ searchResultsSection.classList.add('view-entering'); });
+                    setTimeout(function(){ searchResultsSection.classList.remove('view-fade','view-entering'); }, 220);
                 }
-                if (detailPage) detailPage.classList.add('hidden');
+                if (typeof _savedScrollY !== 'undefined' && _savedScrollY !== null) {
+                    setTimeout(function(){ window.scrollTo(0, _savedScrollY); _savedScrollY = null; }, 50);
+                }
             } else if (newRoute === 'detail' && newParam) {
                 var detailId = parseInt(newParam, 10);
                 if (!isNaN(detailId) && typeof showListingDetail === 'function') {
@@ -31576,6 +31664,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('agentBadgeInitials').textContent = initials;
         document.getElementById('agentBadgeName').textContent = LOGGED_IN_AGENT.name;
         document.getElementById('agentBadgeRole').textContent = LOGGED_IN_AGENT.role === 'broker' ? 'Broker' : 'Agent';
+        // Mirror to mobile sidebar
+        var mi = document.getElementById('mobileBadgeInitials'); if (mi) mi.textContent = initials;
+        var mn = document.getElementById('mobileBadgeName'); if (mn) mn.textContent = LOGGED_IN_AGENT.name;
+        var mr = document.getElementById('mobileBadgeRole'); if (mr) mr.textContent = LOGGED_IN_AGENT.role === 'broker' ? 'Broker' : 'Agent';
     }
     // Run REBNY Test Suite on page load (verbose first run)
     REBNYTestSuite({ verbose: true, context: 'pageload' });
