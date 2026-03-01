@@ -4,69 +4,293 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mallan Real Estate - Login</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
-    <style type="text/tailwindcss">
-        @import "tailwindcss";
-        @theme {
-            --color-gold: #B8860B;
-            --color-gold-light: #D4A843;
-            --color-gold-dark: #8B6508;
-            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <meta name="robots" content="noindex, nofollow">
-</head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center font-sans">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <div class="w-full max-w-md px-6">
-        <!-- Logo / Brand -->
-        <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-xl mb-4">
-                <span class="text-gold font-bold text-2xl">M</span>
-            </div>
-            <h1 class="text-2xl font-bold text-gray-900">Mallan Real Estate</h1>
-            <p class="text-sm text-gray-500 mt-1">CRM Login</p>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(184, 134, 11, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(184, 134, 11, 0.03) 0%, transparent 50%);
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 0 24px;
+        }
+
+        /* Brand */
+        .brand { text-align: center; margin-bottom: 32px; }
+
+        .brand-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            background: #111;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .brand-icon span {
+            color: #B8860B;
+            font-weight: 700;
+            font-size: 24px;
+            letter-spacing: -0.5px;
+        }
+
+        .brand h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111;
+            letter-spacing: -0.3px;
+        }
+
+        .brand p {
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Card */
+        .login-card {
+            background: #fff;
+            border-radius: 16px;
+            border: 1px solid #e5e7eb;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+        }
+
+        /* Form */
+        .form-group { margin-bottom: 20px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            letter-spacing: 0.02em;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #111;
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+
+        .form-group input::placeholder { color: #9ca3af; }
+
+        .form-group input:focus {
+            border-color: #B8860B;
+            box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.12);
+        }
+
+        /* Error */
+        .error-msg {
+            display: none;
+            font-size: 13px;
+            color: #dc2626;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .error-msg.visible { display: block; }
+
+        /* Button */
+        .submit-btn {
+            width: 100%;
+            padding: 11px 16px;
+            background: #111;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+            letter-spacing: 0.01em;
+        }
+
+        .submit-btn:hover {
+            background: #222;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .submit-btn:active { transform: scale(0.99); }
+
+        .submit-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .submit-btn.loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .submit-btn.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 18px;
+            height: 18px;
+            margin: -9px 0 0 -9px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0 20px;
+            gap: 12px;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e5e7eb;
+        }
+
+        .divider span {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Portal select */
+        .portal-select-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .portal-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 7px 8px;
+            font-size: 11px;
+            font-weight: 500;
+            font-family: inherit;
+            color: #6b7280;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .portal-btn:hover { border-color: #B8860B; color: #B8860B; }
+
+        .portal-btn.active {
+            background: #fffbf0;
+            border-color: #B8860B;
+            color: #8B6508;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+            .login-card { padding: 24px 20px; }
+            .brand-icon { width: 48px; height: 48px; }
+            .brand-icon span { font-size: 20px; }
+            .brand h1 { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- Brand -->
+        <div class="brand">
+            <div class="brand-icon"><span>M</span></div>
+            <h1>Mallan Real Estate</h1>
+            <p>Agent &amp; Client Portal</p>
         </div>
 
         <!-- Login Card -->
-        <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-            <form id="loginForm" class="space-y-5" autocomplete="on">
+        <div class="login-card">
+            <form id="loginForm" autocomplete="on">
                 <!-- Email -->
-                <div>
-                    <label for="email" class="block text-xs font-semibold text-gray-700 mb-1.5">Email Address</label>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" required autocomplete="email"
-                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition"
                         placeholder="you@mallan.nyc">
                 </div>
 
                 <!-- Password -->
-                <div>
-                    <label for="password" class="block text-xs font-semibold text-gray-700 mb-1.5">Password</label>
+                <div class="form-group">
+                    <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="current-password"
-                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition"
                         placeholder="Enter password">
                 </div>
 
-                <!-- Portal Type (hidden by default, for client portals) -->
-                <input type="hidden" id="portalType" value="agent">
-
-                <!-- Error Message -->
-                <div id="errorMsg" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"></div>
+                <!-- Error -->
+                <div id="errorMsg" class="error-msg"></div>
 
                 <!-- Submit -->
-                <button type="submit" id="submitBtn"
-                    class="w-full py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gold/50 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    Sign In
-                </button>
+                <button type="submit" id="submitBtn" class="submit-btn">Sign In</button>
             </form>
+
+            <!-- Portal selector -->
+            <div class="divider"><span>Portal</span></div>
+            <div class="portal-select-row">
+                <button class="portal-btn active" data-portal="agent">Agent</button>
+                <button class="portal-btn" data-portal="buyer">Buyer</button>
+                <button class="portal-btn" data-portal="tenant">Tenant</button>
+                <button class="portal-btn" data-portal="seller">Seller</button>
+            </div>
+            <input type="hidden" id="portalType" value="agent">
         </div>
 
         <!-- Footer -->
-        <p class="text-center text-xs text-gray-400 mt-6">
-            Mallan Real Estate Inc. &mdash; Licensed Broker #10991205323
-        </p>
+        <div class="footer">
+            Mallan Real Estate Inc. &mdash; Licensed Broker #10991205323<br>
+            400 East 90th Street, Suite 17C, New York, NY 10128
+        </div>
     </div>
 
     <!-- API Client -->
@@ -77,7 +301,6 @@
         'use strict';
 
         // ── Configure API base URL ──
-        // If served from GitHub Pages or a non-mallan.nyc origin, point to the API
         var currentOrigin = window.location.origin;
         if (currentOrigin.indexOf('mallan.nyc') === -1) {
             MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
@@ -89,10 +312,10 @@
                 if (data.authenticated) {
                     redirectAfterLogin();
                 }
-            });
+            }).catch(function () { /* not logged in */ });
         }
 
-        // ── Determine redirect target ──
+        // ── Redirect target ──
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
             return params.get('redirect') || 'MALLAN-NYC-CRM-FINAL2.html';
@@ -106,7 +329,22 @@
         var params = new URLSearchParams(window.location.search);
         var portalParam = params.get('portal');
         if (portalParam) {
-            document.getElementById('portalType').value = portalParam;
+            setPortal(portalParam);
+        }
+
+        // ── Portal buttons ──
+        var portalBtns = document.querySelectorAll('.portal-btn');
+        portalBtns.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                setPortal(this.getAttribute('data-portal'));
+            });
+        });
+
+        function setPortal(type) {
+            document.getElementById('portalType').value = type;
+            portalBtns.forEach(function (b) {
+                b.classList.toggle('active', b.getAttribute('data-portal') === type);
+            });
         }
 
         // ── Form submission ──
@@ -116,41 +354,49 @@
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            errorMsg.classList.add('hidden');
+            hideError();
 
             var email = document.getElementById('email').value.trim();
             var password = document.getElementById('password').value;
             var portalType = document.getElementById('portalType').value;
 
             if (!email || !password) {
-                showError('Please enter email and password.');
+                showError('Please enter your email and password.');
                 return;
             }
 
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Signing in...';
+            submitBtn.classList.add('loading');
 
             MallanAPI.auth.login(email, password, portalType).then(function (data) {
                 if (data.success) {
                     redirectAfterLogin();
                 } else {
-                    showError(data.error || 'Login failed.');
+                    showError(data.error || 'Login failed. Please try again.');
                     resetButton();
                 }
             }).catch(function (err) {
-                showError(err.message === 'Unauthorized' ? 'Invalid email or password.' : 'Connection error. Please try again.');
+                if (err.message === 'Unauthorized') {
+                    showError('Invalid email or password.');
+                } else {
+                    showError('Unable to connect. Please check your internet connection and try again.');
+                }
                 resetButton();
             });
         });
 
         function showError(msg) {
             errorMsg.textContent = msg;
-            errorMsg.classList.remove('hidden');
+            errorMsg.classList.add('visible');
+        }
+
+        function hideError() {
+            errorMsg.classList.remove('visible');
         }
 
         function resetButton() {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign In';
+            submitBtn.classList.remove('loading');
         }
     })();
     </script>
