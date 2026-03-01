@@ -489,5 +489,9 @@
   "Date",
   "StartTime",
   "EndTime",
-  "landLease"
+  "landLease",
+  "settingsBrokerName",
+  "settingsBrokerLicense",
+  "settingsBrokerPhone",
+  "settingsBrokerEmail"
 ]
