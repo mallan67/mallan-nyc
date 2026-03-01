@@ -213,11 +213,11 @@ function _drawModalPolygon(name) {
     if (!coords) return;
 
     var polygon = L.polygon(coords, {
-        color: '#3b82f6',
-        weight: 2,
-        opacity: 0.8,
-        fillColor: '#3b82f6',
-        fillOpacity: 0.18
+        color: '#4B5563',
+        weight: 1.5,
+        opacity: 0.7,
+        fillColor: '#374151',
+        fillOpacity: 0.35
     }).addTo(_modalMap);
 
     polygon.on('click', function() {
