@@ -1,0 +1,1475 @@
+{
+  "search_mode": "SALE",
+  "filters": [
+    {
+      "ui_label": "RLS ID / Web ID / Internal Listing #",
+      "ui_section": "Quick ID Search",
+      "ui_control_type": "text",
+      "internal_filter_key": "listing_id_search",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ListingKey",
+        "data_type": "Edm.String",
+        "odata_filter_snippet": "ListingKey eq '{value}'"
+      },
+      "internal_only": false,
+      "notes": "Smart ID detection - can match RLS ID, Web ID, or internal listing number"
+    },
+    {
+      "ui_label": "Address or Building Name",
+      "ui_section": "Location",
+      "ui_control_type": "text",
+      "internal_filter_key": "address_or_building",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "UnparsedAddress,BuildingName",
+        "data_type": "Edm.String",
+        "odata_filter_snippet": "contains(UnparsedAddress, '{value}') or contains(BuildingName, '{value}')"
+      },
+      "internal_only": false,
+      "notes": "Searches both unparsed address and building name fields"
+    },
+    {
+      "ui_label": "Unit #",
+      "ui_section": "Location",
+      "ui_control_type": "text",
+      "internal_filter_key": "unit_number",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "UnitNumber",
+        "data_type": "Edm.String",
+        "odata_filter_snippet": "UnitNumber eq '{value}'"
+      },
+      "internal_only": false,
+      "notes": ""
+    },
+    {
+      "ui_label": "Zip Code",
+      "ui_section": "Location",
+      "ui_control_type": "text",
+      "internal_filter_key": "postal_code",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PostalCode",
+        "data_type": "Edm.String",
+        "odata_filter_snippet": "PostalCode eq '{value}'"
+      },
+      "internal_only": false,
+      "notes": ""
+    },
+    {
+      "ui_label": "Manhattan Grid (N/W/E/S)",
+      "ui_section": "Location",
+      "ui_control_type": "select",
+      "internal_filter_key": "manhattan_grid",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN RESO METADATA - Custom NYC-specific field for Manhattan street grid navigation. Needs custom implementation or mapping to StreetName/StreetNumber"
+    },
+    {
+      "ui_label": "Nearby Transit Lines",
+      "ui_section": "Location",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "transit_lines",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN RESO METADATA - NYC subway lines proximity. Would require custom field or geocoding with proximity search"
+    },
+    {
+      "ui_label": "Area / Neighborhood",
+      "ui_section": "Location",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "neighborhoods",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "CityRegion",
+        "data_type": "Edm.String",
+        "odata_filter_snippet": "CityRegion eq '{value}'"
+      },
+      "internal_only": false,
+      "notes": "RESO field CityRegion can store neighborhood data, but REBNY may use a different field for standardized neighborhoods"
+    },
+    {
+      "ui_label": "School Name",
+      "ui_section": "Location",
+      "ui_control_type": "text",
+      "internal_filter_key": "school_name",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN RESO METADATA - Would require custom school district mapping or proximity search"
+    },
+    {
+      "ui_label": "Keyword Search",
+      "ui_section": "Essentials",
+      "ui_control_type": "text",
+      "internal_filter_key": "keyword_search",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PublicRemarks,PrivateRemarks",
+        "data_type": "Edm.String",
+        "odata_filter_snippet": "contains(PublicRemarks, '{value}') or contains(PrivateRemarks, '{value}')"
+      },
+      "internal_only": false,
+      "notes": "Full-text search across listing descriptions"
+    },
+    {
+      "ui_label": "Price Range",
+      "ui_section": "Essentials",
+      "ui_control_type": "range",
+      "internal_filter_key": "price_range",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ListPrice",
+        "data_type": "Edm.Decimal",
+        "odata_filter_snippet": "ListPrice ge {min_value} and ListPrice le {max_value}"
+      },
+      "internal_only": false,
+      "notes": ""
+    },
+    {
+      "ui_label": "Monthly Expenses",
+      "ui_section": "Essentials",
+      "ui_control_type": "range",
+      "internal_filter_key": "monthly_expenses",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "AssociationFee",
+        "data_type": "Edm.Decimal",
+        "odata_filter_snippet": "AssociationFee ge {min_value} and AssociationFee le {max_value}"
+      },
+      "internal_only": false,
+      "notes": "Filters by HOA/condo/co-op monthly fees. May need to combine AssociationFee + AssociationFee2 + AssociationFee3"
+    },
+    {
+      "ui_label": "Down Payment %",
+      "ui_section": "Essentials",
+      "ui_control_type": "range",
+      "internal_filter_key": "down_payment_calc",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "CLIENT-SIDE ONLY - Mortgage calculator input, not an IDX filter"
+    },
+    {
+      "ui_label": "Interest Rate",
+      "ui_section": "Essentials",
+      "ui_control_type": "text",
+      "internal_filter_key": "interest_rate_calc",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "CLIENT-SIDE ONLY - Mortgage calculator input, not an IDX filter"
+    },
+    {
+      "ui_label": "Mortgage Term",
+      "ui_section": "Essentials",
+      "ui_control_type": "select",
+      "internal_filter_key": "mortgage_term_calc",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "CLIENT-SIDE ONLY - Mortgage calculator input, not an IDX filter"
+    },
+    {
+      "ui_label": "Include Mortgage Payment",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "include_mortgage_in_calc",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "CLIENT-SIDE ONLY - Mortgage calculator option, not an IDX filter"
+    },
+    {
+      "ui_label": "Status: All Active",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "status_active",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StandardStatus",
+        "data_type": "Enum",
+        "odata_filter_snippet": "StandardStatus eq Active"
+      },
+      "internal_only": false,
+      "notes": "RESO StandardStatus enum value"
+    },
+    {
+      "ui_label": "Status: Coming Soon",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "status_coming_soon",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StandardStatus",
+        "data_type": "Enum",
+        "odata_filter_snippet": "StandardStatus eq ComingSoon"
+      },
+      "internal_only": false,
+      "notes": "RESO StandardStatus enum value"
+    },
+    {
+      "ui_label": "Status: Contract Signed",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "status_pending",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StandardStatus",
+        "data_type": "Enum",
+        "odata_filter_snippet": "StandardStatus eq Pending"
+      },
+      "internal_only": false,
+      "notes": "RESO StandardStatus = Pending typically means 'under contract'"
+    },
+    {
+      "ui_label": "Status: All Sold",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "status_closed",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StandardStatus",
+        "data_type": "Enum",
+        "odata_filter_snippet": "StandardStatus eq Closed"
+      },
+      "internal_only": false,
+      "notes": "RESO StandardStatus enum value"
+    },
+    {
+      "ui_label": "Status: Withdrawn / Cancelled",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "status_withdrawn",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StandardStatus",
+        "data_type": "Enum",
+        "odata_filter_snippet": "StandardStatus eq Withdrawn or StandardStatus eq Canceled"
+      },
+      "internal_only": false,
+      "notes": "May map to Withdrawn, Canceled, or Hold status"
+    },
+    {
+      "ui_label": "Status: Expired",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "status_expired",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StandardStatus",
+        "data_type": "Enum",
+        "odata_filter_snippet": "StandardStatus eq Expired"
+      },
+      "internal_only": false,
+      "notes": "RESO StandardStatus enum value"
+    },
+    {
+      "ui_label": "Include Also for Rent",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "also_for_rent",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "LeaseConsideredYN",
+        "data_type": "Edm.Boolean",
+        "odata_filter_snippet": "LeaseConsideredYN eq true"
+      },
+      "internal_only": false,
+      "notes": "Properties available for both sale and lease"
+    },
+    {
+      "ui_label": "Listing Activity",
+      "ui_section": "Essentials",
+      "ui_control_type": "select",
+      "internal_filter_key": "listing_activity",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "OnMarketDate,ModificationTimestamp",
+        "data_type": "Edm.Date,Edm.DateTimeOffset",
+        "odata_filter_snippet": "OnMarketDate ge {date} or ModificationTimestamp ge {datetime}"
+      },
+      "internal_only": false,
+      "notes": "Can filter by OnMarketDate for 'listed in last X days' or ModificationTimestamp for 'updated in last X days'"
+    },
+    {
+      "ui_label": "Contract Signed Date Range",
+      "ui_section": "Essentials",
+      "ui_control_type": "date_range",
+      "internal_filter_key": "contract_signed_date_range",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "StatusChangeTimestamp",
+        "data_type": "Edm.DateTimeOffset",
+        "odata_filter_snippet": "StatusChangeTimestamp ge {start_date} and StatusChangeTimestamp le {end_date} and StandardStatus eq Pending"
+      },
+      "internal_only": false,
+      "notes": "Assumes StatusChangeTimestamp when status changed to Pending"
+    },
+    {
+      "ui_label": "Sold Date Range",
+      "ui_section": "Essentials",
+      "ui_control_type": "date_range",
+      "internal_filter_key": "sold_date_range",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "CloseDate",
+        "data_type": "Edm.Date",
+        "odata_filter_snippet": "CloseDate ge {start_date} and CloseDate le {end_date}"
+      },
+      "internal_only": false,
+      "notes": "RESO field for actual closing/sold date"
+    },
+    {
+      "ui_label": "Price Decrease",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "price_decrease",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ListPrice,OriginalListPrice",
+        "data_type": "Edm.Decimal",
+        "odata_filter_snippet": "ListPrice lt OriginalListPrice"
+      },
+      "internal_only": false,
+      "notes": "Compares current ListPrice to OriginalListPrice"
+    },
+    {
+      "ui_label": "Price Increase",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "price_increase",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ListPrice,OriginalListPrice",
+        "data_type": "Edm.Decimal",
+        "odata_filter_snippet": "ListPrice gt OriginalListPrice"
+      },
+      "internal_only": false,
+      "notes": "Compares current ListPrice to OriginalListPrice"
+    },
+    {
+      "ui_label": "Price Change % Range",
+      "ui_section": "Essentials",
+      "ui_control_type": "range",
+      "internal_filter_key": "price_change_percent",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "CLIENT-SIDE CALCULATION - Requires calculating (ListPrice - OriginalListPrice) / OriginalListPrice * 100. Cannot be done in OData filter directly without computed fields"
+    },
+    {
+      "ui_label": "Price Change Within Date",
+      "ui_section": "Essentials",
+      "ui_control_type": "date",
+      "internal_filter_key": "price_change_date",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PriceChangeTimestamp",
+        "data_type": "Edm.DateTimeOffset",
+        "odata_filter_snippet": "PriceChangeTimestamp ge {date}"
+      },
+      "internal_only": false,
+      "notes": "Filters by when price was last changed"
+    },
+    {
+      "ui_label": "Photos Available",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_photos",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE - Would need to check Media resource or PhotosCount field if available"
+    },
+    {
+      "ui_label": "Floorplans Available",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_floorplans",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE - Would need custom field or Media resource check"
+    },
+    {
+      "ui_label": "Videos Available",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_videos",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE - Would need custom field or Media resource check"
+    },
+    {
+      "ui_label": "Virtual Tours Available",
+      "ui_section": "Essentials",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_virtual_tour",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE - Would need VirtualTourURLUnbranded field or custom implementation"
+    },
+    {
+      "ui_label": "Bedrooms",
+      "ui_section": "Rooms & Square Footage",
+      "ui_control_type": "range",
+      "internal_filter_key": "bedrooms",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "BedroomsTotal",
+        "data_type": "Edm.Int32",
+        "odata_filter_snippet": "BedroomsTotal ge {min} and BedroomsTotal le {max}"
+      },
+      "internal_only": false,
+      "notes": "Studio would be BedroomsTotal eq 0"
+    },
+    {
+      "ui_label": "Bathrooms",
+      "ui_section": "Rooms & Square Footage",
+      "ui_control_type": "range",
+      "internal_filter_key": "bathrooms",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "BathroomsTotalInteger",
+        "data_type": "Edm.Int32",
+        "odata_filter_snippet": "BathroomsTotalInteger ge {min} and BathroomsTotalInteger le {max}"
+      },
+      "internal_only": false,
+      "notes": "For fractional baths, may need to use BathroomsFull + BathroomsHalf"
+    },
+    {
+      "ui_label": "Total Rooms",
+      "ui_section": "Rooms & Square Footage",
+      "ui_control_type": "range",
+      "internal_filter_key": "total_rooms",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN RESO METADATA - RESO uses RoomsTotal but this field is not in the metadata. May need custom field"
+    },
+    {
+      "ui_label": "Square Footage",
+      "ui_section": "Rooms & Square Footage",
+      "ui_control_type": "range",
+      "internal_filter_key": "square_footage",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "LivingArea",
+        "data_type": "Edm.Decimal",
+        "odata_filter_snippet": "LivingArea ge {min} and LivingArea le {max}"
+      },
+      "internal_only": false,
+      "notes": "RESO standard field for interior square footage"
+    },
+    {
+      "ui_label": "Price per SqFt",
+      "ui_section": "Rooms & Square Footage",
+      "ui_control_type": "range",
+      "internal_filter_key": "price_per_sqft",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "CLIENT-SIDE CALCULATION - Requires calculating ListPrice / LivingArea. Cannot be filtered directly in OData without computed fields"
+    },
+    {
+      "ui_label": "Include Listings With No Square Footage Data",
+      "ui_section": "Rooms & Square Footage",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "include_null_sqft",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "LivingArea",
+        "data_type": "Edm.Decimal",
+        "odata_filter_snippet": "LivingArea eq null"
+      },
+      "internal_only": false,
+      "notes": "Include properties where LivingArea is null or 0"
+    },
+    {
+      "ui_label": "Balcony",
+      "ui_section": "Private Outdoor Space",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_balcony",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PatioAndPorchFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PatioAndPorchFeatures/any(f: f eq 'Balcony')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Terrace",
+      "ui_section": "Private Outdoor Space",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_terrace",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PatioAndPorchFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PatioAndPorchFeatures/any(f: f eq 'Deck')"
+      },
+      "internal_only": false,
+      "notes": "RESO uses 'Deck' - may need to check if Trestle has custom 'Terrace' value"
+    },
+    {
+      "ui_label": "Patio",
+      "ui_section": "Private Outdoor Space",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_patio",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PatioAndPorchFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PatioAndPorchFeatures/any(f: f eq 'Patio')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Private Roof Deck",
+      "ui_section": "Private Outdoor Space",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_private_roof_deck",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PatioAndPorchFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PatioAndPorchFeatures/any(f: f eq 'RoofDeck')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - need to verify exact enum value"
+    },
+    {
+      "ui_label": "Garden",
+      "ui_section": "Private Outdoor Space",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_garden",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PatioAndPorchFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PatioAndPorchFeatures/any(f: f eq 'Garden')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - need to verify exact enum value"
+    },
+    {
+      "ui_label": "Private Yard",
+      "ui_section": "Private Outdoor Space",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_private_yard",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PatioAndPorchFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PatioAndPorchFeatures/any(f: f eq 'Yard')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - need to verify exact enum value"
+    },
+    {
+      "ui_label": "Doorman",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_doorman",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "BuildingFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "BuildingFeatures/any(f: f eq 'Doorman')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Concierge",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_concierge",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "BuildingFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "BuildingFeatures/any(f: f eq 'Concierge')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Live-in Super",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_super",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "BuildingFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "BuildingFeatures/any(f: f eq 'OnSiteManagement')"
+      },
+      "internal_only": false,
+      "notes": "RESO may use 'OnSiteManagement' - need to verify exact enum value"
+    },
+    {
+      "ui_label": "Virtual Doorman",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_virtual_doorman",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific amenity, may need custom field"
+    },
+    {
+      "ui_label": "Gym/Fitness",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_gym",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "AssociationAmenities",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "AssociationAmenities/any(f: f eq 'FitnessCenter')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Pool",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_pool",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "AssociationAmenities",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "AssociationAmenities/any(f: f eq 'Pool')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Roof Deck",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_common_roof_deck",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "AssociationAmenities",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "AssociationAmenities/any(f: f eq 'RoofDeck')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - common/shared roof deck"
+    },
+    {
+      "ui_label": "Common Garden",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_common_garden",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "CommunityFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "CommunityFeatures/any(f: f eq 'Garden')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Storage",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_storage",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "AssociationAmenities",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "AssociationAmenities/any(f: f eq 'Storage')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Bike Room",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_bike_room",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific amenity, may need custom field or use generic 'Storage'"
+    },
+    {
+      "ui_label": "Children's Playroom",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_playroom",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "AssociationAmenities",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "AssociationAmenities/any(f: f eq 'Clubhouse')"
+      },
+      "internal_only": false,
+      "notes": "May map to Clubhouse or need custom field"
+    },
+    {
+      "ui_label": "Laundry",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_laundry",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "LaundryFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "LaundryFeatures/any(f: f eq 'CommonArea' or f eq 'InUnit')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - can be common area or in-unit"
+    },
+    {
+      "ui_label": "Parking Garage",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_parking",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ParkingFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "ParkingFeatures/any(f: f eq 'GarageAttached' or f eq 'GarageDetached')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Elevator",
+      "ui_section": "Building Amenities",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_elevator",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ElevatorYN",
+        "data_type": "Edm.Boolean",
+        "odata_filter_snippet": "ElevatorYN eq true"
+      },
+      "internal_only": false,
+      "notes": "RESO field - need to verify it exists in metadata"
+    },
+    {
+      "ui_label": "Washer/Dryer in Unit",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_washer_dryer",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "LaundryFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "LaundryFeatures/any(f: f eq 'InUnit')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Dishwasher",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_dishwasher",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Appliances",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "Appliances/any(f: f eq 'Dishwasher')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Fireplace",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_fireplace",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "FireplacesTotal",
+        "data_type": "Edm.Int32",
+        "odata_filter_snippet": "FireplacesTotal ge 1"
+      },
+      "internal_only": false,
+      "notes": "Filter for properties with at least 1 fireplace"
+    },
+    {
+      "ui_label": "High Ceilings",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_high_ceilings",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "InteriorFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "InteriorFeatures/any(f: f eq 'HighCeilings')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - need to verify exact enum value"
+    },
+    {
+      "ui_label": "Hardwood Floors",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_hardwood_floors",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "InteriorFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "InteriorFeatures/any(f: f eq 'HardwoodFloors')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - may also be in Flooring field"
+    },
+    {
+      "ui_label": "Central AC",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_central_ac",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Cooling",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "Cooling/any(f: f eq 'CentralAir')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Loft",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "is_loft",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "ArchitecturalStyle",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "ArchitecturalStyle/any(f: f eq 'Loft')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Walk-in Closet",
+      "ui_section": "Interior Features",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_walk_in_closet",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "InteriorFeatures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "InteriorFeatures/any(f: f eq 'WalkInCloset')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - need to verify exact enum value"
+    },
+    {
+      "ui_label": "City View",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "view_city",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "View",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "View/any(f: f eq 'City')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Water View",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "view_water",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "View",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "View/any(f: f eq 'Water')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Park View",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "view_park",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "View",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "View/any(f: f eq 'Park')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "River View",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "view_river",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "View",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "View/any(f: f eq 'River')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Garden View",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "view_garden",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "View",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "View/any(f: f eq 'Garden')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Exposure: North",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "exposure_north",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Exposures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "Exposures/any(f: f eq 'North')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field (note: field name is plural 'Exposures')"
+    },
+    {
+      "ui_label": "Exposure: South",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "exposure_south",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Exposures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "Exposures/any(f: f eq 'South')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Exposure: East",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "exposure_east",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Exposures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "Exposures/any(f: f eq 'East')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Exposure: West",
+      "ui_section": "Views & Exposure",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "exposure_west",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Exposures",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "Exposures/any(f: f eq 'West')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Cats OK",
+      "ui_section": "Pets",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "pets_cats_ok",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PetsAllowed",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PetsAllowed/any(f: f eq 'Cats')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Dogs OK",
+      "ui_section": "Pets",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "pets_dogs_ok",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PetsAllowed",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PetsAllowed/any(f: f eq 'Dogs')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field"
+    },
+    {
+      "ui_label": "Pets: Case by Case",
+      "ui_section": "Pets",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "pets_case_by_case",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PetsAllowed",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PetsAllowed/any(f: f eq 'CaseByCase')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - need to verify exact enum value"
+    },
+    {
+      "ui_label": "No Pets",
+      "ui_section": "Pets",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "pets_not_allowed",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PetsAllowed",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PetsAllowed/any(f: f eq 'None')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - or use PetsAllowedYN eq false"
+    },
+    {
+      "ui_label": "Property Type: Condo",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "type_condo",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertyType",
+        "data_type": "Enum",
+        "odata_filter_snippet": "PropertyType eq Residential and PropertySubType eq Condominium"
+      },
+      "internal_only": false,
+      "notes": "RESO uses PropertyType + PropertySubType"
+    },
+    {
+      "ui_label": "Property Type: Co-op",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "type_coop",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertyType",
+        "data_type": "Enum",
+        "odata_filter_snippet": "PropertyType eq Residential and PropertySubType eq StockCooperative"
+      },
+      "internal_only": false,
+      "notes": "RESO uses 'StockCooperative' for co-ops"
+    },
+    {
+      "ui_label": "Property Type: Condop",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "type_condop",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertySubType",
+        "data_type": "Enum",
+        "odata_filter_snippet": "PropertySubType eq Condop"
+      },
+      "internal_only": false,
+      "notes": "NYC-specific - need to verify if this exists in Trestle enum values"
+    },
+    {
+      "ui_label": "Property Type: Townhouse",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "type_townhouse",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertySubType",
+        "data_type": "Enum",
+        "odata_filter_snippet": "PropertySubType eq Townhouse"
+      },
+      "internal_only": false,
+      "notes": "RESO standard PropertySubType value"
+    },
+    {
+      "ui_label": "Property Type: Single Family",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "type_single_family",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertySubType",
+        "data_type": "Enum",
+        "odata_filter_snippet": "PropertySubType eq SingleFamilyResidence"
+      },
+      "internal_only": false,
+      "notes": "RESO standard PropertySubType value"
+    },
+    {
+      "ui_label": "Property Type: Multi-Family",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "type_multi_family",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertyType",
+        "data_type": "Enum",
+        "odata_filter_snippet": "PropertyType eq Residential and (PropertySubType eq TwoToFourUnits or PropertySubType eq MultiFamilyResidence)"
+      },
+      "internal_only": false,
+      "notes": "May include 2-4 units or larger multi-family"
+    },
+    {
+      "ui_label": "Building Status: Resale",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "building_resale",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "NewConstructionYN",
+        "data_type": "Edm.Boolean",
+        "odata_filter_snippet": "NewConstructionYN eq false"
+      },
+      "internal_only": false,
+      "notes": "Resale means NOT new construction"
+    },
+    {
+      "ui_label": "Building Status: New Development",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "building_new_development",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "NewConstructionYN",
+        "data_type": "Edm.Boolean",
+        "odata_filter_snippet": "NewConstructionYN eq true"
+      },
+      "internal_only": false,
+      "notes": "New construction flag"
+    },
+    {
+      "ui_label": "Building Status: Sponsor Unit",
+      "ui_section": "Property Type & Ownership",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "building_sponsor_unit",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific term for developer-owned units. May need custom field"
+    },
+    {
+      "ui_label": "Floor Range",
+      "ui_section": "Floor Preferences",
+      "ui_control_type": "range",
+      "internal_filter_key": "floor_range",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - Would need UnitFloor or custom field for unit's floor number"
+    },
+    {
+      "ui_label": "Ground Floor",
+      "ui_section": "Floor Preferences",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "floor_ground",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - Would need custom field or UnitFloor eq 0/1"
+    },
+    {
+      "ui_label": "Top Floor",
+      "ui_section": "Floor Preferences",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "floor_top",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - Would need to compare UnitFloor to StoriesTotal"
+    },
+    {
+      "ui_label": "Penthouse",
+      "ui_section": "Floor Preferences",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "floor_penthouse",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific designation, may need custom field or check if in PropertySubTypeAdditional"
+    },
+    {
+      "ui_label": "Duplex",
+      "ui_section": "Floor Preferences",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "floor_duplex",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "PropertySubTypeAdditional",
+        "data_type": "Multi-Enum",
+        "odata_filter_snippet": "PropertySubTypeAdditional/any(f: f eq 'Duplex')"
+      },
+      "internal_only": false,
+      "notes": "Multi-value enum field - may be in PropertySubTypeAdditional"
+    },
+    {
+      "ui_label": "Open House Only",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_open_house",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE - Would need to query OpenHouse resource and join"
+    },
+    {
+      "ui_label": "Board Approval Required",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "board_approval_required",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC co-op specific, may need custom field"
+    },
+    {
+      "ui_label": "No Board Approval",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "no_board_approval",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC co-op specific, may need custom field"
+    },
+    {
+      "ui_label": "Pied-a-Terre Allowed",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "pied_a_terre_allowed",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific co-op policy, may need custom field"
+    },
+    {
+      "ui_label": "Parents Buying Allowed",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "parents_buying_allowed",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific co-op policy, may need custom field"
+    },
+    {
+      "ui_label": "Co-Purchasing Allowed",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "co_purchasing_allowed",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific co-op policy, may need custom field"
+    },
+    {
+      "ui_label": "Guarantors Allowed (Sale)",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "guarantors_allowed_sale",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific co-op policy, may need custom field"
+    },
+    {
+      "ui_label": "Subletting Allowed",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "subletting_allowed",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT IN STANDARD RESO - NYC-specific co-op policy, may need custom field"
+    },
+    {
+      "ui_label": "Furnished (Sale)",
+      "ui_section": "Additional Filters",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "furnished_sale",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": "Furnished",
+        "data_type": "Enum",
+        "odata_filter_snippet": "Furnished eq Furnished or Furnished eq PartiallyFurnished"
+      },
+      "internal_only": false,
+      "notes": "RESO Furnished enum field"
+    },
+    {
+      "ui_label": "Open House Date Range",
+      "ui_section": "Open Houses",
+      "ui_control_type": "date_range",
+      "internal_filter_key": "open_house_date_range",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE ON PROPERTY - Would need to query OpenHouse resource with date filter and join to properties"
+    },
+    {
+      "ui_label": "Show only listings with open houses",
+      "ui_section": "Open Houses",
+      "ui_control_type": "checkbox",
+      "internal_filter_key": "has_upcoming_open_house",
+      "idx_mapping": {
+        "resource": "Property",
+        "field_name": null,
+        "data_type": null,
+        "odata_filter_snippet": null
+      },
+      "internal_only": true,
+      "notes": "NOT DIRECTLY FILTERABLE ON PROPERTY - Would need to query OpenHouse resource and join"
+    }
+  ]
+}

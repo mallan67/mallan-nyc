@@ -1,0 +1,63 @@
+// POST /api/crm/listings/[id]/validate
+// Dry-run compliance validation — does not persist any changes.
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import { validateListing } from "@/lib/compliance/rebny-validator";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+
+  const { id } = await params;
+
+  // Resolve listing
+  const numericId = parseInt(id);
+  let listing;
+  if (!isNaN(numericId)) {
+    listing = await prisma.listing.findUnique({
+      where: { id: BigInt(numericId) },
+    });
+  }
+  if (!listing) {
+    listing = await prisma.listing.findUnique({
+      where: { listing_id: id },
+    });
+  }
+
+  if (!listing) {
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Merge stored raw_data with any additional fields from request body
+  const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
+  let merged = existingRaw;
+
+  try {
+    const body = await req.json();
+    if (body && typeof body === "object") {
+      merged = { ...existingRaw, ...body };
+    }
+  } catch {
+    // No body provided — validate existing data only
+  }
+
+  const validation = validateListing(merged);
+
+  return NextResponse.json({
+    listing_id: listing.listing_id,
+    valid: validation.valid,
+    errors: validation.errors,
+    warnings: validation.warnings,
+    suggestions: validation.suggestions,
+    compliance: validation.compliance,
+    fieldResults: validation.fieldResults,
+  });
+}

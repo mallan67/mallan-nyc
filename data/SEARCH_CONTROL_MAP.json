@@ -1,0 +1,339 @@
+{
+  "_meta": {
+    "description": "Maps every search DOM input to canonical field, operator, and Trestle target. Source-of-truth for both SEARCH-STANDALONE.html and CRM embedded search.",
+    "version": "1.0.0",
+    "created": "2026-02-13",
+    "source_file": "SEARCH-STANDALONE.html (canonical — CRM embedded inherits)"
+  },
+  "range_filters": {
+    "_doc": "Select dropdowns with min/max pairs. Collected by collectSearchCriteria() using getElementById.",
+    "sale": [
+      {
+        "dom_id_min": "saleMinPrice",
+        "dom_id_max": "saleMaxPrice",
+        "canonical_key_min": "priceMin",
+        "canonical_key_max": "priceMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "ListPrice",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "sale",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "Sale price in dollars. 'custom' value triggers custom input."
+      },
+      {
+        "dom_id_min": "saleMinBeds",
+        "dom_id_max": "saleMaxBeds",
+        "canonical_key_min": "bedsMin",
+        "canonical_key_max": "bedsMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "BedroomsTotal",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "sale",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "0 = Studio. Must use explicit null/undefined check (not truthy)."
+      },
+      {
+        "dom_id_min": "saleMinBaths",
+        "dom_id_max": "saleMaxBaths",
+        "canonical_key_min": "bathsMin",
+        "canonical_key_max": "bathsMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "BathroomsTotalInteger",
+        "datatype": "float",
+        "parse_fn": "parseFloat",
+        "tab": "sale",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "Half baths = .5 (e.g., 1.5, 2.5). MUST use parseFloat not parseInt."
+      },
+      {
+        "dom_id_min": "saleMinRooms",
+        "dom_id_max": "saleMaxRooms",
+        "canonical_key_min": "roomsMin",
+        "canonical_key_max": "roomsMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "RoomsTotal",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "sale",
+        "form": "basic",
+        "input_type": "select",
+        "notes": null
+      },
+      {
+        "dom_id_min": "saleMinSqft",
+        "dom_id_max": "saleMaxSqft",
+        "canonical_key_min": "sqftMin",
+        "canonical_key_max": "sqftMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "LivingArea",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "sale",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "Skip listings where intSqft is null (don't exclude them unless filter is set)."
+      }
+    ],
+    "rental": [
+      {
+        "dom_id_min": "rentalMinRent",
+        "dom_id_max": "rentalMaxRent",
+        "canonical_key_min": "priceMin",
+        "canonical_key_max": "priceMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "ListPrice",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "rent",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "Monthly rent in dollars."
+      },
+      {
+        "dom_id_min": "rentalMinBeds",
+        "dom_id_max": "rentalMaxBeds",
+        "canonical_key_min": "bedsMin",
+        "canonical_key_max": "bedsMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "BedroomsTotal",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "rent",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "0 = Studio. Must use explicit null/undefined check."
+      },
+      {
+        "dom_id_min": "rentalMinBaths",
+        "dom_id_max": "rentalMaxBaths",
+        "canonical_key_min": "bathsMin",
+        "canonical_key_max": "bathsMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "BathroomsTotalInteger",
+        "datatype": "float",
+        "parse_fn": "parseFloat",
+        "tab": "rent",
+        "form": "basic",
+        "input_type": "select",
+        "notes": "MUST use parseFloat."
+      },
+      {
+        "dom_id_min": "rentalMinRooms",
+        "dom_id_max": "rentalMaxRooms",
+        "canonical_key_min": "roomsMin",
+        "canonical_key_max": "roomsMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "RoomsTotal",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "rent",
+        "form": "basic",
+        "input_type": "select",
+        "notes": null
+      },
+      {
+        "dom_id_min": "rentalMinSqft",
+        "dom_id_max": "rentalMaxSqft",
+        "canonical_key_min": "sqftMin",
+        "canonical_key_max": "sqftMax",
+        "operator_min": "gte",
+        "operator_max": "lte",
+        "target_field": "LivingArea",
+        "datatype": "integer",
+        "parse_fn": "parseInt",
+        "tab": "rent",
+        "form": "basic",
+        "input_type": "select",
+        "notes": null
+      }
+    ]
+  },
+  "status_checkboxes": {
+    "_doc": "Status checkboxes use data-field='MlsStatus' and data-value. Sub-statuses use data-sub-status. Collected by querySelectorAll('[data-field=\"MlsStatus\"]:checked').",
+    "sale": [
+      { "data_value": "Active", "data_sub_status": null, "maps_to_status": "ACTIVE", "checked_default": true, "label": "All Active" },
+      { "data_value": "BackOnMarket", "data_sub_status": null, "maps_to_status": "ACTIVE", "checked_default": false, "label": "Back on Market" },
+      { "data_value": "ComingSoon", "data_sub_status": null, "maps_to_status": "COMING_SOON", "checked_default": false, "label": "Coming Soon" },
+      { "data_value": "Future", "data_sub_status": null, "maps_to_status": "FUTURE", "checked_default": false, "label": "Future" },
+      { "data_value": "Pending", "data_sub_status": null, "maps_to_status": "PENDING", "checked_default": false, "label": "Offer (parent)" },
+      { "data_value": "Pending", "data_sub_status": "OfferAccepted", "maps_to_status": "PENDING", "checked_default": false, "label": "Offer Accepted" },
+      { "data_value": "Pending", "data_sub_status": "OfferInNegotiation", "maps_to_status": "PENDING", "checked_default": false, "label": "Offer In Negotiation" },
+      { "data_value": "Pending", "data_sub_status": "OfferContingent", "maps_to_status": "PENDING", "checked_default": false, "label": "Offer Contingent" },
+      { "data_value": "Pending", "data_sub_status": "OfferWithKickOut", "maps_to_status": "PENDING", "checked_default": false, "label": "Offer w/ Kick-Out" },
+      { "data_value": "Pending", "data_sub_status": "ContractOut", "maps_to_status": "PENDING", "checked_default": false, "label": "Contract Out" },
+      { "data_value": "Pending", "data_sub_status": "ContractSigned", "maps_to_status": "PENDING", "checked_default": false, "label": "Contract Signed" },
+      { "data_value": "Pending", "data_sub_status": "AttorneyReview", "maps_to_status": "PENDING", "checked_default": false, "label": "Attorney Review" },
+      { "data_value": "Pending", "data_sub_status": "BoardPackageSubmitted", "maps_to_status": "PENDING", "checked_default": false, "label": "Board Package Submitted" },
+      { "data_value": "Pending", "data_sub_status": "BoardApproved", "maps_to_status": "PENDING", "checked_default": false, "label": "Board Approved" },
+      { "data_value": "Closed", "data_sub_status": null, "maps_to_status": "CLOSED", "checked_default": false, "label": "Sold (parent)" },
+      { "data_value": "Closed", "data_sub_status": "Sold", "maps_to_status": "CLOSED", "checked_default": false, "label": "Sold" },
+      { "data_value": "Closed", "data_sub_status": "SoldSubjectToContingencies", "maps_to_status": "CLOSED", "checked_default": false, "label": "Sold Subject to Contingencies" },
+      { "data_value": "Closed", "data_sub_status": "TransferredToNewConstruction", "maps_to_status": "CLOSED", "checked_default": false, "label": "Transferred" },
+      { "data_value": "Withdrawn,Canceled,Expired,Hold", "data_sub_status": null, "maps_to_status": ["WITHDRAWN", "CANCELED", "EXPIRED", "HOLD"], "checked_default": false, "label": "Off Market (parent)" },
+      { "data_value": "Withdrawn", "data_sub_status": null, "maps_to_status": "WITHDRAWN", "checked_default": false, "label": "Withdrawn" },
+      { "data_value": "Canceled", "data_sub_status": null, "maps_to_status": "CANCELED", "checked_default": false, "label": "Canceled" },
+      { "data_value": "Expired", "data_sub_status": null, "maps_to_status": "EXPIRED", "checked_default": false, "label": "Expired" },
+      { "data_value": "Hold", "data_sub_status": null, "maps_to_status": "HOLD", "checked_default": false, "label": "Hold / Temp Off Market" },
+      { "data_value": "Incomplete", "data_sub_status": null, "maps_to_status": "INCOMPLETE", "checked_default": false, "label": "Incomplete" }
+    ],
+    "rental": [
+      { "data_value": "Active", "data_sub_status": null, "maps_to_status": "ACTIVE", "checked_default": true, "label": "All Active" },
+      { "data_value": "BackOnMarket", "data_sub_status": null, "maps_to_status": "ACTIVE", "checked_default": false, "label": "Back on Market" },
+      { "data_value": "Future", "data_sub_status": null, "maps_to_status": "FUTURE", "checked_default": false, "label": "Future" },
+      { "data_value": "Pending", "data_sub_status": null, "maps_to_status": "PENDING", "checked_default": false, "label": "Application (parent)" },
+      { "data_value": "Pending", "data_sub_status": "ApplicationIn", "maps_to_status": "PENDING", "checked_default": false, "label": "Application In" },
+      { "data_value": "Pending", "data_sub_status": "ApplicationApproved", "maps_to_status": "PENDING", "checked_default": false, "label": "Application Approved" },
+      { "data_value": "Pending", "data_sub_status": "LeaseOut", "maps_to_status": "PENDING", "checked_default": false, "label": "Lease Out" },
+      { "data_value": "Pending", "data_sub_status": "LeaseSigned", "maps_to_status": "PENDING", "checked_default": false, "label": "Lease Signed" },
+      { "data_value": "Pending", "data_sub_status": "BoardPackageSubmitted", "maps_to_status": "PENDING", "checked_default": false, "label": "Board Package Submitted" },
+      { "data_value": "Pending", "data_sub_status": "BoardApproved", "maps_to_status": "PENDING", "checked_default": false, "label": "Board Approved" },
+      { "data_value": "Closed", "data_sub_status": null, "maps_to_status": "CLOSED", "checked_default": false, "label": "Rented (parent)" },
+      { "data_value": "Closed", "data_sub_status": "Rented", "maps_to_status": "CLOSED", "checked_default": false, "label": "Rented" },
+      { "data_value": "Closed", "data_sub_status": "LeaseRenewal", "maps_to_status": "CLOSED", "checked_default": false, "label": "Lease Renewal" },
+      { "data_value": "Withdrawn,Canceled,Expired,Hold", "data_sub_status": null, "maps_to_status": ["WITHDRAWN", "CANCELED", "EXPIRED", "HOLD"], "checked_default": false, "label": "Off Market (parent)" },
+      { "data_value": "Withdrawn", "data_sub_status": null, "maps_to_status": "WITHDRAWN", "checked_default": false, "label": "Withdrawn" },
+      { "data_value": "Canceled", "data_sub_status": null, "maps_to_status": "CANCELED", "checked_default": false, "label": "Canceled" },
+      { "data_value": "Expired", "data_sub_status": null, "maps_to_status": "EXPIRED", "checked_default": false, "label": "Expired" },
+      { "data_value": "Hold", "data_sub_status": null, "maps_to_status": "HOLD", "checked_default": false, "label": "Hold / Temp Off Market" },
+      { "data_value": "Incomplete", "data_sub_status": null, "maps_to_status": "INCOMPLETE", "checked_default": false, "label": "Incomplete" }
+    ]
+  },
+  "ownership_checkboxes": {
+    "_doc": "Property type/ownership checkboxes use data-field='CommonInterest'. Collected by querySelectorAll('[data-field=\"CommonInterest\"]:checked').",
+    "sale": [
+      { "data_value": "Condo", "target_field": "CommonInterest", "reso_value": "Condominium", "label": "Condo" },
+      { "data_value": "Co-op", "target_field": "CommonInterest", "reso_value": "StockCooperative", "label": "Co-op" },
+      { "data_value": "Condop", "target_field": "CommonInterest", "reso_value": "Condop", "label": "Condop" },
+      { "data_value": "Townhouse", "target_field": "PropertySubType", "reso_value": "Townhouse", "label": "Townhouse" },
+      { "data_value": "Multi-Family", "target_field": "PropertySubType", "reso_value": "Multi Family", "label": "Multi-Family" },
+      { "data_value": "Single Family", "target_field": "PropertySubType", "reso_value": "Single Family Residence", "label": "Single Family" },
+      { "data_value": "Land", "target_field": "PropertyType", "reso_value": "Land", "label": "Land / Dev Site" },
+      { "data_value": "Commercial", "target_field": "PropertyType", "reso_value": "Commercial", "label": "Commercial" }
+    ],
+    "rental": [
+      { "data_value": "Rental Building", "target_field": "CommonInterest", "reso_value": "None", "label": "Rental Building" },
+      { "data_value": "Condo", "target_field": "CommonInterest", "reso_value": "Condominium", "label": "Condo" },
+      { "data_value": "Co-op", "target_field": "CommonInterest", "reso_value": "StockCooperative", "label": "Co-op" },
+      { "data_value": "Condop", "target_field": "CommonInterest", "reso_value": "Condop", "label": "Condop" },
+      { "data_value": "Townhouse", "target_field": "PropertySubType", "reso_value": "Townhouse", "label": "Townhouse" },
+      { "data_value": "Single Family", "target_field": "PropertySubType", "reso_value": "Single Family Residence", "label": "Single Family" }
+    ]
+  },
+  "building_period_checkboxes": {
+    "_doc": "Pre-War/Post-War checkboxes. Should use data-field='YearBuilt' with range operators.",
+    "sale": [
+      { "data_field": "YearBuilt", "data_value": "lte:1946", "label": "Pre-War", "notes": "YearBuilt <= 1946" },
+      { "data_field": "YearBuilt", "data_value": "gte:1947", "label": "Post-War", "notes": "YearBuilt >= 1947" }
+    ],
+    "rental": [
+      { "data_field": "YearBuilt", "data_value": "lte:1946", "label": "Pre-War", "notes": "YearBuilt <= 1946" },
+      { "data_field": "YearBuilt", "data_value": "gte:1947", "label": "Post-War", "notes": "YearBuilt >= 1947" }
+    ]
+  },
+  "resale_newdev_checkboxes": {
+    "_doc": "Resale/New Development checkboxes.",
+    "sale": [
+      { "data_field": "NewConstruction", "data_value": "false", "label": "Resale Building" },
+      { "data_field": "NewConstruction", "data_value": "true", "label": "New Development" },
+      { "data_field": "PropertySubType", "data_value": "Conversion", "label": "Conversion" },
+      { "data_field": "NewConstruction", "data_value": "true", "label": "New Construction" }
+    ],
+    "rental": [
+      { "data_field": "NewConstruction", "data_value": "false", "label": "Resale Building" },
+      { "data_field": "NewConstruction", "data_value": "true", "label": "New Development" },
+      { "data_field": "PropertySubType", "data_value": "Conversion", "label": "Conversion" },
+      { "data_field": "NewConstruction", "data_value": "true", "label": "New Construction" }
+    ]
+  },
+  "concession_checkboxes": {
+    "_doc": "Rental-only: Owner Pays / Free Rent / Concessions checkboxes.",
+    "rental": [
+      { "data_field": "Concessions", "data_value": "OwnerPays", "label": "Owner Pays" },
+      { "data_field": "Concessions", "data_value": "FreeRent", "label": "Free Rent" },
+      { "data_field": "Concessions", "data_value": "OwnerPaysAndFreeRent", "label": "Owner Pays AND Free Rent" }
+    ]
+  },
+  "quick_search": {
+    "_doc": "Quick Search text inputs. 3 forms (sale, rental, building) x 3 inputs each = 9 total. Matched by ID.",
+    "sale": [
+      { "dom_id": "saleQuickRls", "canonical_key": "rlsId", "target_fields": ["ListingId", "ListingKey"], "operator": "exact_match_csv", "label": "RLS ID, Web ID, Listing #", "notes": "Comma-separated. Checks lid, wid, and id." },
+      { "dom_id": "saleQuickZip", "canonical_key": "zip", "target_fields": ["PostalCode"], "operator": "exact_match", "label": "Zip", "notes": "5-digit exact match." },
+      { "dom_id": "saleQuickAddress", "canonical_key": "address", "target_fields": ["UnparsedAddress", "BuildingName"], "operator": "partial_match", "label": "Address, Building Name", "notes": "Partial (indexOf), also matches buildingName." },
+      { "dom_id": "saleQuickUnit", "canonical_key": "unit", "target_fields": ["UnitNumber"], "operator": "exact_match", "label": "Unit #", "notes": "Optional. Exact match." }
+    ],
+    "rental": [
+      { "dom_id": "rentalQuickRls", "canonical_key": "rlsId", "target_fields": ["ListingId", "ListingKey"], "operator": "exact_match_csv", "label": "RLS ID, Web ID, Listing #", "notes": "Same logic as sale." },
+      { "dom_id": "rentalQuickZip", "canonical_key": "zip", "target_fields": ["PostalCode"], "operator": "exact_match", "label": "Zip", "notes": null },
+      { "dom_id": "rentalQuickAddress", "canonical_key": "address", "target_fields": ["UnparsedAddress", "BuildingName"], "operator": "partial_match", "label": "Address, Building Name", "notes": null },
+      { "dom_id": "rentalQuickUnit", "canonical_key": "unit", "target_fields": ["UnitNumber"], "operator": "exact_match", "label": "Unit #", "notes": null }
+    ],
+    "building": [
+      { "dom_id": "buildingQuickRls", "canonical_key": "rlsId", "target_fields": ["ListingId", "ListingKey"], "operator": "exact_match_csv", "label": "RLS ID, Web ID, Listing #", "notes": null },
+      { "dom_id": "buildingQuickZip", "canonical_key": "zip", "target_fields": ["PostalCode"], "operator": "exact_match", "label": "Zip", "notes": null },
+      { "dom_id": "buildingQuickAddress", "canonical_key": "address", "target_fields": ["UnparsedAddress", "BuildingName"], "operator": "partial_match", "label": "Address, Building Name", "notes": null },
+      { "dom_id": "buildingQuickUnit", "canonical_key": "unit", "target_fields": ["UnitNumber"], "operator": "exact_match", "label": "Unit #", "notes": null }
+    ]
+  },
+  "neighborhood_tree": {
+    "_doc": "Neighborhood tree filter. Present in Building search and Advanced search only. Uses parent-child cascade (check borough → auto-check all children). Collected by label text content.",
+    "scope": ["building", "advanced"],
+    "canonical_key": "neighborhoods",
+    "target_field": "MLSAreaMinor",
+    "operator": "in_list",
+    "cascade_rule": "Checking a borough checkbox auto-checks all child neighborhood checkboxes. Unchecking a borough unchecks all children.",
+    "collection": "querySelectorAll('.neighborhood-tree label input[type=\"checkbox\"]:checked') → extract label text"
+  },
+  "cross_listing_checkboxes": {
+    "_doc": "Cross-listing checkboxes (e.g., 'Include Listed for Rent' on sale tab).",
+    "sale": [
+      { "data_field": "CrossListing", "data_value": "ListedForRent", "label": "Include Listed for Rent", "notes": "Shows sale listings that are also listed for rent." }
+    ],
+    "rental": [
+      { "data_field": "CrossListing", "data_value": "AlsoForSale", "label": "Include Also for Sale", "notes": "Shows rental listings that are also for sale." }
+    ]
+  },
+  "tab_switching": {
+    "_doc": "Search tab state management.",
+    "state_variable": "currentSearchTab",
+    "values": ["sale", "rent", "building"],
+    "default": "sale",
+    "behavior": "Switching tabs shows/hides the appropriate basic form. Filters are tab-specific — sale uses saleMin*/saleMax*, rental uses rentalMin*/rentalMax*. collectSearchCriteria() reads the correct IDs based on currentSearchTab."
+  },
+  "clear_form": {
+    "_doc": "clearSearchForm() resets all inputs and re-checks default status checkboxes.",
+    "actions": [
+      "Reset all select elements in sale, rental, and building basic forms to first option",
+      "Uncheck all checkboxes",
+      "Re-check 'All Active' (sale) and 'All Active' (rental) default checkboxes",
+      "Clear all text inputs",
+      "Reset currentSearchTab to current tab (don't switch)"
+    ]
+  },
+  "diff_checklist": {
+    "_doc": "After every search edit, verify BOTH SEARCH-STANDALONE.html and CRM embedded search have the same:",
+    "checks": [
+      "All status checkboxes have data-field='MlsStatus' and correct data-value/data-sub-status attributes",
+      "All ownership checkboxes have data-field='CommonInterest' and correct data-value",
+      "collectSearchCriteria() reads the same IDs with the same parse functions",
+      "filterListings()/filterSearchListings() uses the same filter conditions with explicit null/undefined checks",
+      "Mock data array has the same shape (all keys present) and same field types",
+      "Quick Search inputs have IDs matching this map",
+      "clearSearchForm() resets the same defaults",
+      "Pagination functions reference total count correctly"
+    ]
+  }
+}

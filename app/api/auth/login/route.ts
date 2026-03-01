@@ -1,4 +1,143 @@
-import { NextResponse } from "next/server";
-export async function POST() {
-  return NextResponse.json("fake-jwt-token");
+// POST /api/auth/login
+// Authenticates agent or client. Sets session_token httpOnly cookie.
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
+
+/**
+ * Login request body:
+ *   { email: string, password: string, portalType?: "broker"|"agent"|"buyer"|"tenant"|"seller"|"landlord" }
+ *
+ * portalType defaults to "agent" if not provided.
+ * "broker" and "agent" look up the Agent table.
+ * "buyer", "tenant", "seller", "landlord" look up the Lead table.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { email, password, portalType } = body;
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const type = portalType || "agent";
+    const clientPortals = ["buyer", "tenant", "seller", "landlord"];
+    const isClientPortal = clientPortals.includes(type);
+
+    const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? undefined;
+    const ua = req.headers.get("user-agent") ?? undefined;
+
+    if (isClientPortal) {
+      // Client login via Lead table
+      const lead = await prisma.lead.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (!lead || !lead.password_hash) {
+        return NextResponse.json(
+          { error: "Invalid email or password" },
+          { status: 401 }
+        );
+      }
+      const valid = await verifyPassword(password, lead.password_hash);
+      if (!valid) {
+        return NextResponse.json(
+          { error: "Invalid email or password" },
+          { status: 401 }
+        );
+      }
+
+      // Use the portal_role stored on the lead, or the requested type
+      const role = lead.portal_role || type;
+      const token = await createSession("lead", lead.id, role, ip, ua);
+
+      const res = NextResponse.json({
+        success: true,
+        token,
+        user: {
+          id: lead.id.toString(),
+          name: `${lead.first_name} ${lead.last_name}`,
+          email: lead.email,
+          role,
+          userType: "lead",
+        },
+      });
+
+      res.cookies.set(SESSION_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 24 * 60 * 60, // 24 hours
+      });
+
+      return res;
+    } else {
+      // Agent/Broker login via Agent table
+      const agent = await prisma.agent.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (!agent) {
+        return NextResponse.json(
+          { error: "Invalid email or password" },
+          { status: 401 }
+        );
+      }
+      if (agent.status !== "active") {
+        return NextResponse.json(
+          { error: "Account is inactive or suspended" },
+          { status: 403 }
+        );
+      }
+      const valid = await verifyPassword(password, agent.password_hash);
+      if (!valid) {
+        return NextResponse.json(
+          { error: "Invalid email or password" },
+          { status: 401 }
+        );
+      }
+
+      const token = await createSession("agent", agent.id, agent.role, ip, ua);
+
+      // Update last_login
+      await prisma.agent.update({
+        where: { id: agent.id },
+        data: { last_login: new Date() },
+      });
+
+      const res = NextResponse.json({
+        success: true,
+        token,
+        user: {
+          id: agent.id.toString(),
+          name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
+          email: agent.email,
+          role: agent.role,
+          userType: "agent",
+          licenseNo: agent.license_no,
+          phone: agent.phone,
+        },
+      });
+
+      res.cookies.set(SESSION_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 24 * 60 * 60,
+      });
+
+      return res;
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 /**
  * Middleware runs on ALL matched routes at the edge.
- * Handles: bot blocking, rate limiting, admin auth, security headers.
+ * Handles: CORS, bot blocking, rate limiting, admin auth, CRM/portal auth, security headers.
  */
 export const config = {
   matcher: [
@@ -18,6 +18,31 @@ export const config = {
     "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|images/|fonts/).*)",
   ],
 };
+
+/**
+ * Allowed CORS origins for cross-origin API access.
+ * GitHub Pages (mockups) + localhost (dev).
+ */
+const ALLOWED_ORIGINS = [
+  "https://mallan67.github.io",
+  "http://localhost:3000",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
+];
+
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
+function setCorsHeaders(response: NextResponse, origin: string): NextResponse {
+  response.headers.set("Access-Control-Allow-Origin", origin);
+  response.headers.set("Access-Control-Allow-Credentials", "true");
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.headers.set("Access-Control-Max-Age", "86400");
+  return response;
+}
 
 /**
  * Known scraper/AI-crawler bots that consume function invocations
@@ -62,13 +87,28 @@ function checkRateLimit(key: string, limit: number): boolean {
   return true;
 }
 
+/**
+ * SESSION_COOKIE name — must match lib/auth/middleware.ts
+ * Note: Edge middleware cannot import from lib/auth (Node.js runtime only),
+ * so we duplicate the constant here. Session validation happens in the
+ * API route handlers via requireAuth()/requireRole().
+ */
+const SESSION_COOKIE = "session_token";
+
 export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ua = req.headers.get("user-agent") ?? "";
+  const origin = req.headers.get("origin");
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "unknown";
+
+  // ── 0. CORS preflight (OPTIONS) ──
+  if (req.method === "OPTIONS" && pathname.startsWith("/api") && isAllowedOrigin(origin)) {
+    const preflightResponse = new NextResponse(null, { status: 204 });
+    return setCorsHeaders(preflightResponse, origin!);
+  }
 
   // ── 1. Block empty user agents (likely bots/scrapers) ──
   // Allow health checks and internal Vercel requests through
@@ -93,10 +133,61 @@ export default function middleware(req: NextRequest) {
     });
   }
 
-  // ── 4. Admin route protection ──
+  // ── 4. IDX sync rate limit (1 per 5 min per IP) ──
+  if (pathname === "/api/idx/sync" && req.method === "POST") {
+    const syncKey = `${ip}:idx-sync`;
+    const now = Date.now();
+    const syncEntry = rateLimitMap.get(syncKey);
+    const SYNC_WINDOW_MS = 300_000; // 5 minutes
+    if (syncEntry && now <= syncEntry.resetAt && syncEntry.count >= 1) {
+      return new NextResponse(
+        JSON.stringify({ error: "IDX sync rate limited. Max 1 call per 5 minutes." }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": "300" },
+        }
+      );
+    }
+    rateLimitMap.set(syncKey, { count: 1, resetAt: now + SYNC_WINDOW_MS });
+  }
+
+  // ── 5. CRM route protection ──
+  // /api/crm/* requires a session_token cookie OR Bearer token (validated in route handler).
+  // Edge middleware does a fast presence check; full DB validation
+  // happens in requireAuth()/requireRole() inside each route handler.
+  if (pathname.startsWith("/api/crm")) {
+    const hasSession = req.cookies.has(SESSION_COOKIE);
+    const hasBearer = (req.headers.get("authorization") ?? "").startsWith("Bearer ");
+    if (!hasSession && !hasBearer) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+  }
+
+  // ── 6. Portal route protection ──
+  // /api/portal/* requires a session_token cookie OR Bearer token (same pattern).
+  if (pathname.startsWith("/api/portal")) {
+    const hasSession = req.cookies.has(SESSION_COOKIE);
+    const hasBearer = (req.headers.get("authorization") ?? "").startsWith("Bearer ");
+    if (!hasSession && !hasBearer) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+  }
+
+  // ── 7. Admin route protection ──
+  // Compatibility window: accept either session_token OR pc_auth cookie.
+  // Once all admin flows use session_token, remove pc_auth check.
   if (pathname.startsWith("/admin")) {
-    const auth = req.cookies.get("pc_auth")?.value;
-    if (auth !== process.env.PRIVATE_COLLECTION_PASS) {
+    const hasSession = req.cookies.has(SESSION_COOKIE);
+    const pcAuth = req.cookies.get("pc_auth")?.value;
+    const pcValid = pcAuth === process.env.PRIVATE_COLLECTION_PASS;
+
+    if (!hasSession && !pcValid) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/sign-in";
       loginUrl.searchParams.set("from", pathname);
@@ -104,11 +195,21 @@ export default function middleware(req: NextRequest) {
     }
   }
 
-  // ── 5. Security headers on response ──
+  // ── 8. Security headers on response ──
   const response = NextResponse.next();
 
-  // Prevent admin pages from being indexed
-  if (pathname.startsWith("/admin") || pathname.startsWith("/leads")) {
+  // CORS headers for allowed origins
+  if (pathname.startsWith("/api") && isAllowedOrigin(origin)) {
+    setCorsHeaders(response, origin!);
+  }
+
+  // Prevent admin/CRM pages from being indexed
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/leads") ||
+    pathname.startsWith("/api/crm") ||
+    pathname.startsWith("/api/portal")
+  ) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
 

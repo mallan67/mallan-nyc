@@ -26,6 +26,13 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 
 ## 2026
 
+### March 2026
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2026-03-01 | Internal | **Sprint 9: Wire Mockups to Live Backend** — CORS + dual auth (Bearer token + httpOnly cookie), login page, auth gates on all files, mock data removed from production paths, `api-client.js` rewritten with Bearer auth + fail-fast, 42 API endpoints live. See `compliance/AUTH-AND-API-SECURITY.md` for full architecture. | Backend, Security, All mockup files | **Complete** |
+| 2026-03-01 | Internal | RLS Validator v2 post-Sprint 9 verification: **0 UNKNOWN**, 10/10 sections PASS, 2 pre-existing ERRORS (cosmetic RESO→RLS renames), 2 pre-existing WARNINGS (ComingSoon rental — by design). No new issues from Sprint 9 changes. | Compliance | Verified |
+
 ### February 2026
 
 | Date | Source | Change | Impact | Status |

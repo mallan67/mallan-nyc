@@ -281,6 +281,12 @@ function resolveElement(el, rlsFieldMap, picklistFieldByLower) {
     return { internal: true, layer: 2 };
   }
 
+  // Layer 2+: require field maps — if not provided, stop resolution here
+  if (!rlsFieldMap || !picklistFieldByLower) {
+    classification.byLayer[4]++;
+    return { unknown: true, identifier, layer: 4 };
+  }
+
   // Layer 2: Alias lookup
   let remainder = identifier;
   const lower = identifier.toLowerCase();

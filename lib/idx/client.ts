@@ -12,11 +12,17 @@
  * - Exposing MLS data via public JSON endpoints
  * - AI/ML training with MLS data
  *
+ * IMPLEMENTATION NOTE:
+ * fetchListings() and fetchListingById() query the LOCAL Prisma DB,
+ * NOT Trestle directly. Data enters local DB via sync pipeline (lib/idx/sync.ts).
+ *
  * @module lib/idx/client
  */
 
 import type { IDXListing, IDXFetchResult, IDXConfig } from './types';
 import { logFetchAttempt, createAuditEntry, logIDXAccess } from './logger';
+import { generateAttributionText } from './mapping';
+import prisma from '@/lib/prisma';
 
 // Ensure server-side only
 if (typeof window !== 'undefined') {
@@ -32,14 +38,14 @@ if (typeof window !== 'undefined') {
 function getIDXConfig(): IDXConfig {
   const enabled = process.env.IDX_ENABLED === 'true';
   const credentialsPresent = Boolean(
-    process.env.IDX_API_KEY &&
-    process.env.IDX_API_SECRET
+    process.env.IDX_CLIENT_ID &&
+    process.env.IDX_CLIENT_SECRET
   );
 
   return {
     enabled,
     credentialsPresent,
-    endpoint: process.env.IDX_ENDPOINT,
+    endpoint: process.env.IDX_BASE_URL,
     refreshIntervalMs: parseInt(process.env.IDX_REFRESH_INTERVAL_MS || '300000', 10),
   };
 }
@@ -96,22 +102,99 @@ function validateIDXReady(): void {
 
   if (!config.credentialsPresent) {
     throw new IDXError(
-      'IDX credentials not configured. Set IDX_API_KEY and IDX_API_SECRET.',
+      'IDX credentials not configured. Set IDX_CLIENT_ID and IDX_CLIENT_SECRET.',
       'NO_CREDENTIALS'
     );
   }
 }
 
 /**
- * Fetch listings from IDX
- *
- * STUB: This function is a placeholder. Actual implementation
- * will be added when Trestle/REBNY credentials are received.
- *
- * @param params - Query parameters
- * @returns Fetch result with listings or error
+ * Map a Prisma listing record to the IDXListing canonical type.
  */
-export async function fetchListings(_params?: {
+function prismaToIDXListing(record: {
+  listing_id: string;
+  mls_id: string | null;
+  status: string;
+  listing_type: string;
+  property_type: string | null;
+  property_sub_type: string | null;
+  list_price: unknown;
+  bedrooms_total: number | null;
+  bathrooms_full: number | null;
+  bathrooms_half: number | null;
+  living_area: unknown;
+  borough: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  postal_code: string | null;
+  address: unknown;
+  features: unknown;
+  media: unknown;
+  compliance: unknown;
+  agent_info: unknown;
+  modification_timestamp: Date;
+  listing_contract_date: Date | null;
+}): IDXListing {
+  const addr = (record.address || {}) as Record<string, unknown>;
+  const agentInfo = (record.agent_info || {}) as Record<string, unknown>;
+  const comp = (record.compliance || {}) as Record<string, unknown>;
+
+  return {
+    listingId: record.listing_id,
+    mlsId: record.mls_id || record.listing_id,
+    standardStatus: record.status as IDXListing['standardStatus'],
+    listingType: record.listing_type as 'sale' | 'rent',
+    address: {
+      streetNumber: String(addr.StreetNumber || ''),
+      streetName: String(addr.StreetName || ''),
+      unitNumber: addr.UnitNumber ? String(addr.UnitNumber) : null,
+      city: record.city || String(addr.City || ''),
+      stateOrProvince: String(addr.StateOrProvince || 'NY'),
+      postalCode: record.postal_code || String(addr.PostalCode || ''),
+      county: String(addr.CountyOrParish || ''),
+      latitude: addr.Latitude != null ? Number(addr.Latitude) : undefined,
+      longitude: addr.Longitude != null ? Number(addr.Longitude) : undefined,
+    },
+    listPrice: Number(record.list_price) || 0,
+    originalListPrice: Number(comp.OriginalListPrice || record.list_price) || 0,
+    closePrice: comp.ClosePrice != null ? Number(comp.ClosePrice) : null,
+    propertyType: record.property_type || '',
+    propertySubType: record.property_sub_type,
+    bedroomsTotal: record.bedrooms_total || 0,
+    bathroomsFull: record.bathrooms_full || 0,
+    bathroomsHalf: record.bathrooms_half || 0,
+    livingArea: record.living_area != null ? Number(record.living_area) : null,
+    lotSizeArea: null,
+    yearBuilt: null,
+    listingContractDate: record.listing_contract_date?.toISOString() || '',
+    modificationTimestamp: record.modification_timestamp.toISOString(),
+    listAgentMlsId: String(agentInfo.ListAgentMlsId || agentInfo.ListAgentKey || ''),
+    listAgentFullName: String(agentInfo.ListAgentFullName || ''),
+    listOfficeMlsId: String(agentInfo.ListOfficeMlsId || agentInfo.ListOfficeKey || ''),
+    listOfficeName: String(agentInfo.ListOfficeName || ''),
+    media: Array.isArray(record.media) ? record.media.map((m: unknown, i: number) => {
+      const item = m as Record<string, unknown>;
+      return {
+        url: String(item.MediaURL || item.url || ''),
+        mediaType: (String(item.MediaType || item.mediaType || 'Photo')) as 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan',
+        order: Number(item.Order || item.order || i),
+      };
+    }) : [],
+    _source: 'idx',
+    _lastFetched: new Date().toISOString(),
+    _displayCompliance: {
+      requiresAttribution: true,
+      attributionText: generateAttributionText(),
+      disclaimerRequired: true,
+    },
+  };
+}
+
+/**
+ * Fetch listings from local Prisma DB (synced from Trestle).
+ * Does NOT call Trestle directly — data comes via sync pipeline.
+ */
+export async function fetchListings(params?: {
   type?: 'sale' | 'rent';
   neighborhood?: string;
   borough?: string;
@@ -126,23 +209,51 @@ export async function fetchListings(_params?: {
   try {
     validateIDXReady();
 
-    // STUB: Actual implementation pending credentials
-    // Log the attempt with NOT_IMPLEMENTED status
-    logger.complete('error', 'IDX fetch not yet implemented - awaiting credentials');
+    // Build Prisma where clause
+    const where: Record<string, unknown> = {
+      idx_display_yn: true,
+      owner_opt_out: false,
+      status: { in: ['Active', 'Coming Soon', 'Active Under Contract'] },
+    };
 
-    throw new IDXError(
-      'IDX fetch not yet implemented. Awaiting Trestle/REBNY credentials and endpoint approval.',
-      'NOT_IMPLEMENTED'
-    );
+    if (params?.type) where.listing_type = params.type === 'sale' ? 'sale' : 'rent';
+    if (params?.borough) where.borough = params.borough;
+    if (params?.neighborhood) where.neighborhood = params.neighborhood;
+    if (params?.beds) where.bedrooms_total = { gte: params.beds };
+    if (params?.minPrice || params?.maxPrice) {
+      const priceFilter: Record<string, number> = {};
+      if (params?.minPrice) priceFilter.gte = params.minPrice;
+      if (params?.maxPrice) priceFilter.lte = params.maxPrice;
+      where.list_price = priceFilter;
+    }
+
+    const records = await prisma.listing.findMany({
+      where,
+      take: params?.limit || 50,
+      orderBy: { modification_timestamp: 'desc' },
+    });
+
+    const listings = records.map(prismaToIDXListing);
+
+    logger.complete('success');
+
+    return {
+      success: true,
+      data: listings,
+      _meta: {
+        source: 'idx',
+        fetchedAt: new Date().toISOString(),
+        idxEnabled: config.enabled,
+        credentialsPresent: config.credentialsPresent,
+      },
+    };
   } catch (error) {
     const isIDXError = error instanceof IDXError;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const status = isIDXError && error.code === 'DISABLED' ? 'disabled' :
                    isIDXError && error.code === 'NO_CREDENTIALS' ? 'no_credentials' : 'error';
 
-    if (!isIDXError || error.code !== 'NOT_IMPLEMENTED') {
-      logger.complete(status, errorMessage);
-    }
+    logger.complete(status, errorMessage);
 
     return {
       success: false,
@@ -159,13 +270,7 @@ export async function fetchListings(_params?: {
 }
 
 /**
- * Fetch a single listing by ID from IDX
- *
- * STUB: This function is a placeholder. Actual implementation
- * will be added when Trestle/REBNY credentials are received.
- *
- * @param listingId - The listing ID to fetch
- * @returns Fetch result with listing or error
+ * Fetch a single listing by ID from local Prisma DB.
  */
 export async function fetchListingById(
   listingId: string
@@ -176,22 +281,45 @@ export async function fetchListingById(
   try {
     validateIDXReady();
 
-    // STUB: Actual implementation pending credentials
-    logger.complete('error', 'IDX fetch not yet implemented - awaiting credentials');
+    const record = await prisma.listing.findUnique({
+      where: { listing_id: listingId },
+    });
 
-    throw new IDXError(
-      'IDX fetch not yet implemented. Awaiting Trestle/REBNY credentials and endpoint approval.',
-      'NOT_IMPLEMENTED'
-    );
+    if (!record) {
+      logger.complete('error', 'Listing not found');
+      return {
+        success: false,
+        data: null,
+        error: 'Listing not found',
+        _meta: {
+          source: 'idx',
+          fetchedAt: new Date().toISOString(),
+          idxEnabled: config.enabled,
+          credentialsPresent: config.credentialsPresent,
+        },
+      };
+    }
+
+    const listing = prismaToIDXListing(record);
+    logger.complete('success');
+
+    return {
+      success: true,
+      data: listing,
+      _meta: {
+        source: 'idx',
+        fetchedAt: new Date().toISOString(),
+        idxEnabled: config.enabled,
+        credentialsPresent: config.credentialsPresent,
+      },
+    };
   } catch (error) {
     const isIDXError = error instanceof IDXError;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const status = isIDXError && error.code === 'DISABLED' ? 'disabled' :
                    isIDXError && error.code === 'NO_CREDENTIALS' ? 'no_credentials' : 'error';
 
-    if (!isIDXError || error.code !== 'NOT_IMPLEMENTED') {
-      logger.complete(status, errorMessage);
-    }
+    logger.complete(status, errorMessage);
 
     return {
       success: false,
@@ -209,7 +337,6 @@ export async function fetchListingById(
 
 /**
  * Log an IDX access denial for audit purposes
- * Call this when IDX data is requested but cannot be served
  */
 export function logAccessDenied(reason: string, endpoint: string, listingId?: string): void {
   const entry = createAuditEntry('fetch', endpoint, 'disabled', {

@@ -168,3 +168,4 @@ build.log
 archive/
 .vercel
 .aider*
+.env*.local
