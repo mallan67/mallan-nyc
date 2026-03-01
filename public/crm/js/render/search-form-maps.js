@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════
 // MAP SELECTION MODAL — Full-screen map popup
-// One shared Google Map instance, opens from any search mode
-// Dependencies: Google Maps JS API, neighborhood-polygons.js
+// One shared Leaflet map instance, opens from any search mode
+// Dependencies: Leaflet JS, neighborhood-polygons.js
 // ═══════════════════════════════════════════════════════
 
-var _modalMap = null;         // google.maps.Map instance
-var _modalPolygons = {};      // name -> google.maps.Polygon
-var _modalInfoWindow = null;  // shared InfoWindow
+var _modalMap = null;         // L.map instance
+var _modalPolygons = {};      // name -> L.polygon
+var _modalPopup = null;       // shared L.popup
 
 // ═══════════════════════════════════════════════════════
 // Open / Close
@@ -20,10 +20,10 @@ function openMapModal() {
 
     // Init map on first open
     if (!_modalMap) {
-        if (typeof google !== 'undefined' && google.maps) {
+        if (typeof L !== 'undefined') {
             _initModalMap();
         } else {
-            // Wait for API
+            // Wait for Leaflet
             var el = document.getElementById('mapModalMap');
             if (el) {
                 el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
@@ -31,7 +31,7 @@ function openMapModal() {
             var retries = 0;
             var iv = setInterval(function() {
                 retries++;
-                if (typeof google !== 'undefined' && google.maps) {
+                if (typeof L !== 'undefined') {
                     clearInterval(iv);
                     if (el) el.innerHTML = '';
                     _initModalMap();
@@ -40,9 +40,7 @@ function openMapModal() {
                     if (el) {
                         el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#9ca3af;text-align:center;padding:40px;">' +
                             '<i class="fas fa-exclamation-triangle text-3xl"></i>' +
-                            '<p style="font-size:14px;font-weight:500;">Google Maps could not load</p>' +
-                            (window.location.protocol === 'file:' ?
-                                '<p style="font-size:12px;">Serve via HTTP: <code style="background:#f3f4f6;padding:3px 8px;border-radius:4px;">npx serve .</code></p>' : '') +
+                            '<p style="font-size:14px;font-weight:500;">Map could not load</p>' +
                         '</div>';
                     }
                 }
@@ -50,7 +48,7 @@ function openMapModal() {
         }
     } else {
         // Map exists — trigger resize for proper rendering
-        google.maps.event.trigger(_modalMap, 'resize');
+        _modalMap.invalidateSize();
     }
 
     // Sync checkboxes in modal with what's already selected on the search form
@@ -121,31 +119,25 @@ function applyMapSelection() {
 }
 
 // ═══════════════════════════════════════════════════════
-// Initialize the modal's Google Map
+// Initialize the modal's Leaflet map
 // ═══════════════════════════════════════════════════════
 
 function _initModalMap() {
     var el = document.getElementById('mapModalMap');
     if (!el || _modalMap) return;
 
-    _modalMap = new google.maps.Map(el, {
-        center: { lat: 40.7580, lng: -73.9855 },
-        zoom: 12,
-        mapTypeControl: true,
-        mapTypeControlOptions: {
-            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-            position: google.maps.ControlPosition.TOP_RIGHT
-        },
-        streetViewControl: false,
-        fullscreenControl: true,
+    _modalMap = L.map(el, {
         zoomControl: true,
-        styles: [
-            { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-            { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
-        ]
-    });
+        attributionControl: true
+    }).setView([40.7580, -73.9855], 12);
 
-    _modalInfoWindow = new google.maps.InfoWindow();
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(_modalMap);
+
+    _modalPopup = L.popup();
 
     // Wire modal neighborhood tree checkboxes
     var tree = document.getElementById('mapModalNeighborhoodTree');
@@ -179,8 +171,7 @@ function _initModalMap() {
                 // Center map on checked neighborhood
                 if (cb.checked && typeof NEIGHBORHOOD_CENTERS !== 'undefined' && NEIGHBORHOOD_CENTERS[nbName]) {
                     var coords = NEIGHBORHOOD_CENTERS[nbName];
-                    _modalMap.panTo({ lat: coords[0], lng: coords[1] });
-                    _modalMap.setZoom(14);
+                    _modalMap.setView([coords[0], coords[1]], 14);
                 }
             }
 
@@ -214,57 +205,53 @@ function _toggleModalPolygon(name, show) {
 }
 
 function _drawModalPolygon(name) {
-    if (!_modalMap || typeof google === 'undefined') return;
+    if (!_modalMap || typeof L === 'undefined') return;
     if (_modalPolygons[name]) return;
     if (typeof NEIGHBORHOOD_POLYGONS === 'undefined') return;
 
     var coords = NEIGHBORHOOD_POLYGONS[name];
     if (!coords) return;
 
-    var path = coords.map(function(c) { return { lat: c[0], lng: c[1] }; });
-
-    var polygon = new google.maps.Polygon({
-        paths: path,
-        strokeColor: '#3b82f6',
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
+    var polygon = L.polygon(coords, {
+        color: '#3b82f6',
+        weight: 2,
+        opacity: 0.8,
         fillColor: '#3b82f6',
-        fillOpacity: 0.18,
-        map: _modalMap
-    });
+        fillOpacity: 0.18
+    }).addTo(_modalMap);
 
-    polygon.addListener('click', function() {
-        var bounds = new google.maps.LatLngBounds();
-        path.forEach(function(p) { bounds.extend(p); });
-        _modalInfoWindow.setContent('<div style="font-weight:600;font-size:14px;padding:2px 6px;">' + name + '</div>');
-        _modalInfoWindow.setPosition(bounds.getCenter());
-        _modalInfoWindow.open(_modalMap);
+    polygon.on('click', function() {
+        var center = polygon.getBounds().getCenter();
+        L.popup()
+            .setLatLng(center)
+            .setContent('<div style="font-weight:600;font-size:14px;padding:2px 6px;">' + name + '</div>')
+            .openOn(_modalMap);
     });
 
     _modalPolygons[name] = polygon;
 
     // Fit bounds to show all polygons
-    var allBounds = new google.maps.LatLngBounds();
-    Object.keys(_modalPolygons).forEach(function(n) {
-        if (_modalPolygons[n] && _modalPolygons[n].getPath) {
-            _modalPolygons[n].getPath().forEach(function(pt) { allBounds.extend(pt); });
-        }
-    });
     if (Object.keys(_modalPolygons).length > 1) {
-        _modalMap.fitBounds(allBounds, { top: 40, right: 40, bottom: 40, left: 40 });
+        var allBounds = L.latLngBounds([]);
+        Object.keys(_modalPolygons).forEach(function(n) {
+            if (_modalPolygons[n]) {
+                allBounds.extend(_modalPolygons[n].getBounds());
+            }
+        });
+        _modalMap.fitBounds(allBounds, { padding: [40, 40] });
     }
 }
 
 function _removeModalPolygon(name) {
     if (_modalPolygons[name]) {
-        _modalPolygons[name].setMap(null);
+        _modalMap.removeLayer(_modalPolygons[name]);
         delete _modalPolygons[name];
     }
 }
 
 function clearMapModalPolygons() {
     Object.keys(_modalPolygons).forEach(function(name) {
-        if (_modalPolygons[name]) _modalPolygons[name].setMap(null);
+        if (_modalPolygons[name] && _modalMap) _modalMap.removeLayer(_modalPolygons[name]);
     });
     _modalPolygons = {};
 
@@ -280,8 +267,7 @@ function clearMapModalPolygons() {
 
     // Reset map view
     if (_modalMap) {
-        _modalMap.setCenter({ lat: 40.7580, lng: -73.9855 });
-        _modalMap.setZoom(12);
+        _modalMap.setView([40.7580, -73.9855], 12);
     }
 }
 
@@ -329,7 +315,7 @@ function _syncModalCheckboxesFromSearchForm() {
 
     // Clear modal state
     Object.keys(_modalPolygons).forEach(function(n) {
-        if (_modalPolygons[n]) _modalPolygons[n].setMap(null);
+        if (_modalPolygons[n] && _modalMap) _modalMap.removeLayer(_modalPolygons[n]);
     });
     _modalPolygons = {};
 

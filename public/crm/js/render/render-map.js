@@ -1,14 +1,15 @@
 // ═══════════════════════════════════════════════════════
-// RENDER MAP — Google Maps split-view with price pins
-// Dependencies: Google Maps JS API (loaded async in <head>)
+// RENDER MAP — Leaflet + CartoDB Voyager split-view with price pins
+// Dependencies: Leaflet JS (loaded via CDN in <head>)
 // ═══════════════════════════════════════════════════════
 
 // ── State ──
-var _gmap = null;           // google.maps.Map instance
-var _gmapMarkers = [];      // array of { overlay, listing, infoWindow }
-var _gmapInfoWindow = null;  // shared InfoWindow
-var _gmapReady = false;      // true once google.maps is available
+var _gmap = null;           // L.map instance
+var _gmapMarkers = [];      // array of { marker, listing }
+var _gmapInfoWindow = null;  // (unused — popups are on markers)
+var _gmapReady = false;      // true once Leaflet map is initialized
 var _gmapSelectedId = null;  // currently selected listing ID
+var _mapMarkersLayer = null; // L.layerGroup for price pin markers
 
 // ── Neighborhood center coordinates ──
 var NEIGHBORHOOD_CENTERS = {
@@ -110,92 +111,38 @@ function buildPopupHTML(listing) {
 }
 
 // ═══════════════════════════════════════════════════════
-// Google Maps OverlayView for price label pins
-// ═══════════════════════════════════════════════════════
-
-var PricePinOverlay = null; // Will be set once google.maps loads
-
-function _initPricePinClass() {
-    if (PricePinOverlay) return;
-    if (typeof google === 'undefined' || !google.maps) return;
-
-    PricePinOverlay = function(position, html, map) {
-        this.position = position;
-        this.html = html;
-        this.div = null;
-        this.setMap(map);
-    };
-    PricePinOverlay.prototype = Object.create(google.maps.OverlayView.prototype);
-    PricePinOverlay.prototype.constructor = PricePinOverlay;
-
-    PricePinOverlay.prototype.onAdd = function() {
-        this.div = document.createElement('div');
-        this.div.innerHTML = this.html;
-        this.div.style.position = 'absolute';
-        this.div.style.zIndex = '100';
-        this.getPanes().overlayMouseTarget.appendChild(this.div);
-    };
-
-    PricePinOverlay.prototype.draw = function() {
-        if (!this.div) return;
-        var proj = this.getProjection();
-        if (!proj) return;
-        var pos = proj.fromLatLngToDivPixel(this.position);
-        if (pos) {
-            this.div.style.left = pos.x + 'px';
-            this.div.style.top = pos.y + 'px';
-        }
-    };
-
-    PricePinOverlay.prototype.onRemove = function() {
-        if (this.div && this.div.parentNode) {
-            this.div.parentNode.removeChild(this.div);
-            this.div = null;
-        }
-    };
-
-    PricePinOverlay.prototype.getDiv = function() {
-        return this.div;
-    };
-}
-
-// ═══════════════════════════════════════════════════════
-// Core map functions
+// Core map functions — Leaflet
 // ═══════════════════════════════════════════════════════
 
 function initGoogleMap() {
     if (_gmap) return _gmap;
-    if (typeof google === 'undefined' || !google.maps) {
-        console.warn('Google Maps API not loaded yet');
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet not loaded yet');
         return null;
     }
 
-    _initPricePinClass();
+    var el = document.getElementById('googleMap');
+    if (!el) return null;
 
-    _gmap = new google.maps.Map(document.getElementById('googleMap'), {
-        center: { lat: 40.7580, lng: -73.9855 },
-        zoom: 13,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
+    _gmap = L.map(el, {
         zoomControl: true,
-        styles: [
-            { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-            { featureType: 'transit', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
-        ]
-    });
+        attributionControl: true
+    }).setView([40.7580, -73.9855], 13);
 
-    _gmapInfoWindow = new google.maps.InfoWindow({ maxWidth: 300 });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(_gmap);
+
+    _mapMarkersLayer = L.layerGroup().addTo(_gmap);
     _gmapReady = true;
     return _gmap;
 }
 
 function clearMapMarkers() {
-    _gmapMarkers.forEach(function(m) {
-        if (m.overlay) m.overlay.setMap(null);
-    });
+    if (_mapMarkersLayer) _mapMarkersLayer.clearLayers();
     _gmapMarkers = [];
-    if (_gmapInfoWindow) _gmapInfoWindow.close();
 }
 
 function renderMapPins() {
@@ -205,7 +152,7 @@ function renderMapPins() {
     var listings = getFilteredListings();
     if (!listings || listings.length === 0) return;
 
-    var bounds = new google.maps.LatLngBounds();
+    var bounds = [];
     var hasValidCoords = false;
 
     listings.forEach(function(listing) {
@@ -214,62 +161,62 @@ function renderMapPins() {
         if (!lat || !lng) return;
 
         hasValidCoords = true;
-        var position = new google.maps.LatLng(lat, lng);
-        bounds.extend(position);
+        bounds.push([lat, lng]);
 
         var color = getMarkerColor(listing);
         var priceLabel = formatMapPrice(listing.price);
         var pinHTML = '<div class="map-pin-price ' + color.cls + '" data-listing-id="' + listing.id + '">' + priceLabel + '</div>';
 
-        var overlay = new PricePinOverlay(position, pinHTML, _gmap);
+        var marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'leaflet-price-pin',
+                html: pinHTML,
+                iconSize: null,
+                iconAnchor: [30, 15]
+            })
+        });
 
-        var markerObj = { overlay: overlay, listing: listing };
-        _gmapMarkers.push(markerObj);
+        marker.bindPopup(buildPopupHTML(listing), { maxWidth: 300 });
 
-        // Wait for overlay to render, then attach events
-        setTimeout(function() {
-            var div = overlay.getDiv();
-            if (!div) return;
-            var pin = div.querySelector('.map-pin-price');
-            if (!pin) return;
+        marker.on('click', function() {
+            _gmapSelectedId = listing.id;
 
-            pin.addEventListener('click', function(e) {
-                e.stopPropagation();
-                _gmapSelectedId = listing.id;
-                _gmapInfoWindow.setContent(buildPopupHTML(listing));
-                _gmapInfoWindow.setPosition(position);
-                _gmapInfoWindow.open(_gmap);
-
-                // Highlight in list
-                document.querySelectorAll('.map-list-item').forEach(function(el) {
-                    el.classList.remove('map-selected');
-                });
-                var listItem = document.querySelector('.map-list-item[data-listing-id="' + listing.id + '"]');
-                if (listItem) {
-                    listItem.classList.add('map-selected');
-                    listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-
-                // Highlight pin
-                document.querySelectorAll('.map-pin-price').forEach(function(p) { p.classList.remove('active'); });
-                pin.classList.add('active');
+            // Highlight in list
+            document.querySelectorAll('.map-list-item').forEach(function(el) {
+                el.classList.remove('map-selected');
             });
+            var listItem = document.querySelector('.map-list-item[data-listing-id="' + listing.id + '"]');
+            if (listItem) {
+                listItem.classList.add('map-selected');
+                listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
 
-            pin.addEventListener('mouseenter', function() {
-                var listItem = document.querySelector('.map-list-item[data-listing-id="' + listing.id + '"]');
-                if (listItem) listItem.classList.add('map-hover');
-            });
-            pin.addEventListener('mouseleave', function() {
-                var listItem = document.querySelector('.map-list-item[data-listing-id="' + listing.id + '"]');
-                if (listItem) listItem.classList.remove('map-hover');
-            });
-        }, 100);
+            // Highlight pin
+            document.querySelectorAll('.map-pin-price').forEach(function(p) { p.classList.remove('active'); });
+            var pinEl = marker.getElement();
+            if (pinEl) {
+                var pin = pinEl.querySelector('.map-pin-price');
+                if (pin) pin.classList.add('active');
+            }
+        });
+
+        marker.on('mouseover', function() {
+            var listItem = document.querySelector('.map-list-item[data-listing-id="' + listing.id + '"]');
+            if (listItem) listItem.classList.add('map-hover');
+        });
+        marker.on('mouseout', function() {
+            var listItem = document.querySelector('.map-list-item[data-listing-id="' + listing.id + '"]');
+            if (listItem) listItem.classList.remove('map-hover');
+        });
+
+        _mapMarkersLayer.addLayer(marker);
+        _gmapMarkers.push({ marker: marker, listing: listing });
     });
 
     if (hasValidCoords) {
-        _gmap.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+        _gmap.fitBounds(bounds, { padding: [50, 50] });
         // Don't zoom in too far for single listing
-        google.maps.event.addListenerOnce(_gmap, 'idle', function() {
+        _gmap.once('moveend', function() {
             if (_gmap.getZoom() > 16) _gmap.setZoom(16);
         });
     }
@@ -280,8 +227,7 @@ function mapCenterOnNeighborhood(name) {
     var coords = NEIGHBORHOOD_CENTERS[name];
     if (!coords) return;
 
-    _gmap.panTo({ lat: coords[0], lng: coords[1] });
-    _gmap.setZoom(15);
+    _gmap.setView([coords[0], coords[1]], 15);
 
     // Show neighborhood label
     var labelEl = document.getElementById('mapNeighborhoodLabel');
@@ -298,9 +244,9 @@ function mapCenterOnNeighborhood(name) {
 
 function mapHighlightPin(listingId, highlight) {
     _gmapMarkers.forEach(function(m) {
-        var div = m.overlay.getDiv();
-        if (!div) return;
-        var pin = div.querySelector('.map-pin-price');
+        var el = m.marker.getElement();
+        if (!el) return;
+        var pin = el.querySelector('.map-pin-price');
         if (!pin) return;
         if (m.listing.id == listingId) {
             if (highlight) {
@@ -365,22 +311,19 @@ function renderMapView() {
             item.classList.add('map-selected');
 
             // Center map on this listing and open popup
-            var marker = _gmapMarkers.find(function(m) { return String(m.listing.id) === String(lid); });
-            if (marker && _gmap) {
-                var lat = marker.listing.latitude || (marker.listing.location && marker.listing.location.lat);
-                var lng = marker.listing.longitude || (marker.listing.location && marker.listing.location.lng);
+            var markerObj = _gmapMarkers.find(function(m) { return String(m.listing.id) === String(lid); });
+            if (markerObj && _gmap) {
+                var lat = markerObj.listing.latitude || (markerObj.listing.location && markerObj.listing.location.lat);
+                var lng = markerObj.listing.longitude || (markerObj.listing.location && markerObj.listing.location.lng);
                 if (lat && lng) {
-                    var pos = new google.maps.LatLng(lat, lng);
-                    _gmap.panTo(pos);
-                    _gmapInfoWindow.setContent(buildPopupHTML(marker.listing));
-                    _gmapInfoWindow.setPosition(pos);
-                    _gmapInfoWindow.open(_gmap);
+                    _gmap.setView([lat, lng], _gmap.getZoom());
+                    markerObj.marker.openPopup();
                 }
                 // Highlight pin
                 document.querySelectorAll('.map-pin-price').forEach(function(p) { p.classList.remove('active'); });
-                var div = marker.overlay.getDiv();
-                if (div) {
-                    var pin = div.querySelector('.map-pin-price');
+                var el = markerObj.marker.getElement();
+                if (el) {
+                    var pin = el.querySelector('.map-pin-price');
                     if (pin) pin.classList.add('active');
                 }
             }
@@ -392,46 +335,37 @@ function renderMapView() {
 
     // Initialize or update map
     if (!_gmap) {
-        if (typeof google !== 'undefined' && google.maps) {
+        if (typeof L !== 'undefined') {
             initGoogleMap();
             renderMapPins();
         } else {
-            // Google Maps not loaded yet — show loading state
+            // Leaflet not loaded yet — show loading state
             var mapEl = document.getElementById('googleMap');
             if (mapEl) {
                 mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#9ca3af;">' +
                     '<i class="fas fa-spinner fa-spin text-3xl"></i>' +
-                    '<p style="font-size:13px;font-weight:500;">Loading Google Maps...</p>' +
+                    '<p style="font-size:13px;font-weight:500;">Loading map...</p>' +
                 '</div>';
             }
-            // Retry when API loads, with timeout
+            // Retry when Leaflet loads
             var _mapRetryCount = 0;
             var checkInterval = setInterval(function() {
                 _mapRetryCount++;
-                if (typeof google !== 'undefined' && google.maps) {
+                if (typeof L !== 'undefined') {
                     clearInterval(checkInterval);
                     var mapEl2 = document.getElementById('googleMap');
                     if (mapEl2) mapEl2.innerHTML = '';
                     initGoogleMap();
                     renderMapPins();
                 } else if (_mapRetryCount > 16) {
-                    // After ~8 seconds, show helpful error
                     clearInterval(checkInterval);
                     var mapEl3 = document.getElementById('googleMap');
                     if (mapEl3) {
-                        var isFileProtocol = window.location.protocol === 'file:';
                         mapEl3.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:16px;padding:40px;text-align:center;">' +
                             '<i class="fas fa-map-marked-alt text-5xl text-gray-300"></i>' +
                             '<div>' +
-                                '<p style="font-size:15px;font-weight:600;color:#374151;margin-bottom:6px;">Google Maps could not load</p>' +
-                                (isFileProtocol ?
-                                    '<p style="font-size:12px;color:#6b7280;line-height:1.6;">Google Maps requires HTTP/HTTPS. You\'re opening this file directly.<br>' +
-                                    '<strong>To fix:</strong> Serve this folder with a local server:</p>' +
-                                    '<code style="display:inline-block;margin-top:8px;padding:6px 14px;background:#f3f4f6;border-radius:6px;font-size:12px;color:#1a1a1a;">npx serve .</code>' +
-                                    '<p style="font-size:11px;color:#9ca3af;margin-top:8px;">Then open <strong>http://localhost:3000/index-built.html</strong></p>'
-                                :
-                                    '<p style="font-size:12px;color:#6b7280;line-height:1.6;">Check that the API key is valid and the domain<br>is allowed in Google Cloud Console.</p>'
-                                ) +
+                                '<p style="font-size:15px;font-weight:600;color:#374151;margin-bottom:6px;">Map could not load</p>' +
+                                '<p style="font-size:12px;color:#6b7280;line-height:1.6;">Leaflet library failed to load. Check your network connection.</p>' +
                             '</div>' +
                         '</div>';
                     }
@@ -441,6 +375,6 @@ function renderMapView() {
     } else {
         renderMapPins();
         // Trigger resize in case container was hidden
-        google.maps.event.trigger(_gmap, 'resize');
+        _gmap.invalidateSize();
     }
 }
