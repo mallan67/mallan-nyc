@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════
 // MAP SELECTION MODAL — Full-screen map popup
-// One shared Leaflet map instance, opens from any search mode
-// Dependencies: Leaflet JS, neighborhood-polygons.js
+// One shared MapLibre map instance, opens from any search mode
+// Dependencies: maplibre-gl.js, neighborhood-polygons.js
 // ═══════════════════════════════════════════════════════
 
-var _modalMap = null;         // L.map instance
-var _modalPolygons = {};      // name -> L.polygon
-var _modalPopup = null;       // shared L.popup
+var _modalMap = null;         // maplibregl.Map instance
+var _modalPolygons = {};      // name -> { sourceId, fillId, lineId }
+var _modalMapReady = false;   // true once style loaded
 
 // ═══════════════════════════════════════════════════════
 // Open / Close
@@ -16,14 +16,12 @@ function openMapModal() {
     var modal = document.getElementById('mapSelectionModal');
     if (!modal) return;
     modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden'; // prevent background scroll
+    document.body.style.overflow = 'hidden';
 
-    // Init map on first open
     if (!_modalMap) {
-        if (typeof L !== 'undefined') {
+        if (typeof maplibregl !== 'undefined') {
             _initModalMap();
         } else {
-            // Wait for Leaflet
             var el = document.getElementById('mapModalMap');
             if (el) {
                 el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
@@ -31,7 +29,7 @@ function openMapModal() {
             var retries = 0;
             var iv = setInterval(function() {
                 retries++;
-                if (typeof L !== 'undefined') {
+                if (typeof maplibregl !== 'undefined') {
                     clearInterval(iv);
                     if (el) el.innerHTML = '';
                     _initModalMap();
@@ -47,14 +45,10 @@ function openMapModal() {
             }, 500);
         }
     } else {
-        // Map exists — trigger resize for proper rendering
-        _modalMap.invalidateSize();
+        _modalMap.resize();
     }
 
-    // Sync checkboxes in modal with what's already selected on the search form
     _syncModalCheckboxesFromSearchForm();
-
-    // ESC key handler
     document.addEventListener('keydown', _mapModalEscHandler);
 }
 
@@ -70,7 +64,6 @@ function _mapModalEscHandler(e) {
 }
 
 function applyMapSelection() {
-    // Get selected neighborhoods from modal checkboxes
     var selected = [];
     var tree = document.getElementById('mapModalNeighborhoodTree');
     if (tree) {
@@ -80,9 +73,7 @@ function applyMapSelection() {
         });
     }
 
-    // Sync selected neighborhoods to ALL search form neighborhood trees
     document.querySelectorAll('.neighborhood-tree').forEach(function(formTree) {
-        // Skip the modal's own tree
         if (formTree.id === 'mapModalNeighborhoodTree') return;
 
         formTree.querySelectorAll('label').forEach(function(label) {
@@ -93,7 +84,6 @@ function applyMapSelection() {
             }
         });
 
-        // Update parent checkboxes state
         formTree.querySelectorAll('details').forEach(function(det) {
             var parentCb = det.querySelector(':scope > summary > input[type="checkbox"]');
             if (parentCb) {
@@ -105,7 +95,6 @@ function applyMapSelection() {
         });
     });
 
-    // Also update the results map polygons
     if (typeof clearAllNeighborhoodPolygons === 'function') {
         clearAllNeighborhoodPolygons();
     }
@@ -119,25 +108,32 @@ function applyMapSelection() {
 }
 
 // ═══════════════════════════════════════════════════════
-// Initialize the modal's Leaflet map
+// Initialize the modal's MapLibre map
 // ═══════════════════════════════════════════════════════
 
 function _initModalMap() {
     var el = document.getElementById('mapModalMap');
     if (!el || _modalMap) return;
 
-    _modalMap = L.map(el, {
-        zoomControl: true,
+    _modalMap = new maplibregl.Map({
+        container: el,
+        style: 'https://tiles.openfreemap.org/styles/positron',
+        center: [-73.9855, 40.7580],
+        zoom: 12,
         attributionControl: true
-    }).setView([40.7580, -73.9855], 12);
+    });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20
-    }).addTo(_modalMap);
+    _modalMap.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    _modalPopup = L.popup();
+    _modalMap.on('load', function() {
+        _modalMapReady = true;
+        // Re-draw any polygons that were queued before style loaded
+        var pending = Object.keys(_modalPolygons);
+        _modalPolygons = {};
+        pending.forEach(function(name) {
+            _drawModalPolygon(name);
+        });
+    });
 
     // Wire modal neighborhood tree checkboxes
     var tree = document.getElementById('mapModalNeighborhoodTree');
@@ -146,7 +142,6 @@ function _initModalMap() {
             var cb = e.target;
             if (cb.type !== 'checkbox') return;
 
-            // Parent checkbox cascade
             var summary = cb.closest('summary');
             if (summary) {
                 var details = summary.parentElement;
@@ -154,7 +149,6 @@ function _initModalMap() {
                     details.querySelectorAll('input[type="checkbox"]').forEach(function(child) {
                         if (child !== cb) child.checked = cb.checked;
                     });
-                    // Toggle polygons for all children
                     details.querySelectorAll('label').forEach(function(lbl) {
                         var name = lbl.textContent.trim();
                         _toggleModalPolygon(name, cb.checked);
@@ -162,20 +156,18 @@ function _initModalMap() {
                 }
             }
 
-            // Individual checkbox
             var label = cb.closest('label');
             if (label) {
                 var nbName = label.textContent.trim();
                 _toggleModalPolygon(nbName, cb.checked);
 
-                // Center map on checked neighborhood
                 if (cb.checked && typeof NEIGHBORHOOD_CENTERS !== 'undefined' && NEIGHBORHOOD_CENTERS[nbName]) {
                     var coords = NEIGHBORHOOD_CENTERS[nbName];
-                    _modalMap.setView([coords[0], coords[1]], 14);
+                    // NEIGHBORHOOD_CENTERS stores [lat, lng], MapLibre needs [lng, lat]
+                    _modalMap.flyTo({ center: [coords[1], coords[0]], zoom: 14 });
                 }
             }
 
-            // Update parent checkbox state
             var parentDetails = cb.closest('details');
             if (parentDetails) {
                 var parentCb = parentDetails.querySelector(':scope > summary > input[type="checkbox"]');
@@ -193,7 +185,7 @@ function _initModalMap() {
 }
 
 // ═══════════════════════════════════════════════════════
-// Modal polygon management
+// Modal polygon management — MapLibre GL JS
 // ═══════════════════════════════════════════════════════
 
 function _toggleModalPolygon(name, show) {
@@ -205,57 +197,90 @@ function _toggleModalPolygon(name, show) {
 }
 
 function _drawModalPolygon(name) {
-    if (!_modalMap || typeof L === 'undefined') return;
+    if (!_modalMap) return;
     if (_modalPolygons[name]) return;
     if (typeof NEIGHBORHOOD_POLYGONS === 'undefined') return;
 
-    var coords = NEIGHBORHOOD_POLYGONS[name];
-    if (!coords) return;
+    var resolved = (typeof resolveNeighborhoodName === 'function') ? resolveNeighborhoodName(name) : name;
+    var geom = NEIGHBORHOOD_POLYGONS[resolved];
+    if (!geom) return;
 
-    var polygon = L.polygon(coords, {
-        color: '#4B5563',
-        weight: 1.5,
-        opacity: 0.7,
-        fillColor: '#374151',
-        fillOpacity: 0.35
-    }).addTo(_modalMap);
+    // If style not loaded yet, queue it
+    if (!_modalMapReady) {
+        _modalPolygons[name] = { pending: true };
+        return;
+    }
 
-    polygon.on('click', function() {
-        var center = polygon.getBounds().getCenter();
-        L.popup()
-            .setLatLng(center)
-            .setContent('<div style="font-weight:600;font-size:14px;padding:2px 6px;">' + name + '</div>')
-            .openOn(_modalMap);
-    });
+    var slug = resolved.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    var sourceId = 'modal-nb-src-' + slug;
+    var fillId = 'modal-nb-fill-' + slug;
+    var lineId = 'modal-nb-line-' + slug;
 
-    _modalPolygons[name] = polygon;
-
-    // Fit bounds to show all polygons
-    if (Object.keys(_modalPolygons).length > 1) {
-        var allBounds = L.latLngBounds([]);
-        Object.keys(_modalPolygons).forEach(function(n) {
-            if (_modalPolygons[n]) {
-                allBounds.extend(_modalPolygons[n].getBounds());
-            }
+    try {
+        _modalMap.addSource(sourceId, {
+            type: 'geojson',
+            data: { type: 'Feature', geometry: geom, properties: { name: resolved } }
         });
-        _modalMap.fitBounds(allBounds, { padding: [40, 40] });
+        _modalMap.addLayer({
+            id: fillId, type: 'fill', source: sourceId,
+            paint: { 'fill-color': 'rgba(196, 160, 82, 0.25)', 'fill-opacity': 0.6 }
+        });
+        _modalMap.addLayer({
+            id: lineId, type: 'line', source: sourceId,
+            paint: { 'line-color': '#B8860B', 'line-width': 2, 'line-opacity': 0.85 }
+        });
+
+        _modalMap.on('click', fillId, function(e) {
+            new maplibregl.Popup({ closeButton: false, closeOnClick: true })
+                .setLngLat(e.lngLat)
+                .setHTML('<div style="font-weight:600;font-size:14px;padding:2px 6px;">' + resolved + '</div>')
+                .addTo(_modalMap);
+        });
+
+        _modalPolygons[name] = { sourceId: sourceId, fillId: fillId, lineId: lineId };
+
+        // Fit bounds to show all polygons
+        if (Object.keys(_modalPolygons).length > 1) {
+            var allBounds = new maplibregl.LngLatBounds();
+            Object.keys(_modalPolygons).forEach(function(n) {
+                var entry = _modalPolygons[n];
+                if (entry && !entry.pending) {
+                    var g = NEIGHBORHOOD_POLYGONS[(typeof resolveNeighborhoodName === 'function') ? resolveNeighborhoodName(n) : n];
+                    if (g && g.coordinates && g.coordinates[0]) {
+                        g.coordinates[0].forEach(function(coord) {
+                            allBounds.extend(coord);
+                        });
+                    }
+                }
+            });
+            if (!allBounds.isEmpty()) {
+                _modalMap.fitBounds(allBounds, { padding: 40 });
+            }
+        }
+    } catch(e) {
+        console.warn('[ModalPolygon]', name, e.message);
     }
 }
 
 function _removeModalPolygon(name) {
-    if (_modalPolygons[name]) {
-        _modalMap.removeLayer(_modalPolygons[name]);
-        delete _modalPolygons[name];
+    var entry = _modalPolygons[name];
+    if (!entry) return;
+    if (_modalMap && !entry.pending) {
+        try {
+            if (_modalMap.getLayer(entry.fillId)) _modalMap.removeLayer(entry.fillId);
+            if (_modalMap.getLayer(entry.lineId)) _modalMap.removeLayer(entry.lineId);
+            if (_modalMap.getSource(entry.sourceId)) _modalMap.removeSource(entry.sourceId);
+        } catch(e) {}
     }
+    delete _modalPolygons[name];
 }
 
 function clearMapModalPolygons() {
     Object.keys(_modalPolygons).forEach(function(name) {
-        if (_modalPolygons[name] && _modalMap) _modalMap.removeLayer(_modalPolygons[name]);
+        _removeModalPolygon(name);
     });
     _modalPolygons = {};
 
-    // Uncheck all modal checkboxes
     var tree = document.getElementById('mapModalNeighborhoodTree');
     if (tree) {
         tree.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
@@ -265,9 +290,8 @@ function clearMapModalPolygons() {
 
     _updateModalPolygonCount();
 
-    // Reset map view
     if (_modalMap) {
-        _modalMap.setView([40.7580, -73.9855], 12);
+        _modalMap.flyTo({ center: [-73.9855, 40.7580], zoom: 12 });
     }
 }
 
@@ -289,7 +313,6 @@ function _updateModalPolygonCount() {
 // ═══════════════════════════════════════════════════════
 
 function _syncModalCheckboxesFromSearchForm() {
-    // Find the currently visible search form's neighborhood tree
     var activeTrees = [];
     var containers = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding', 'searchAdvancedMode', 'generalCriteriaPage'];
 
@@ -302,7 +325,6 @@ function _syncModalCheckboxesFromSearchForm() {
         }
     });
 
-    // Collect checked neighborhoods from active search forms
     var checkedNames = {};
     activeTrees.forEach(function(tree) {
         tree.querySelectorAll('label').forEach(function(label) {
@@ -313,9 +335,9 @@ function _syncModalCheckboxesFromSearchForm() {
         });
     });
 
-    // Clear modal state
+    // Clear existing modal polygons
     Object.keys(_modalPolygons).forEach(function(n) {
-        if (_modalPolygons[n] && _modalMap) _modalMap.removeLayer(_modalPolygons[n]);
+        _removeModalPolygon(n);
     });
     _modalPolygons = {};
 
@@ -333,7 +355,6 @@ function _syncModalCheckboxesFromSearchForm() {
             }
         });
 
-        // Update parent checkboxes
         tree.querySelectorAll('details').forEach(function(det) {
             var parentCb = det.querySelector(':scope > summary > input[type="checkbox"]');
             if (parentCb) {
