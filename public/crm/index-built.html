@@ -30289,17 +30289,27 @@ function REBNYBehaviorTest(options) {
     })();
 
     // ── B4: Authorization & Role Test ──────────────────────────────────
+    // Role loads async via MallanAPI.init() — defer check until auth resolves
     (function() {
-        if (typeof LOGGED_IN_AGENT === 'undefined') { addResult('B4', 'Authorization & Role', 'FAIL', 'LOGGED_IN_AGENT missing'); return; }
-        var role = LOGGED_IN_AGENT.role, issues = [];
-        if (role === 'agent') {
-            ['agentManagement','brokerCommissionSplits','allListingsSection'].forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el && el.offsetParent !== null && el.style.display !== 'none') issues.push('Agent sees #' + id);
-            });
+        function checkRole() {
+            if (typeof LOGGED_IN_AGENT === 'undefined') { addResult('B4', 'Authorization & Role', 'FAIL', 'LOGGED_IN_AGENT missing'); return; }
+            var role = LOGGED_IN_AGENT.role, issues = [];
+            if (role === 'agent') {
+                ['agentManagement','brokerCommissionSplits','allListingsSection'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el && el.offsetParent !== null && el.style.display !== 'none') issues.push('Agent sees #' + id);
+                });
+            }
+            if (!role || (role !== 'broker' && role !== 'agent')) issues.push('Invalid role: "' + role + '"');
+            addResult('B4', 'Authorization & Role', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? 'Role "' + role + '" verified' : issues.join('; '));
         }
-        if (!role || (role !== 'broker' && role !== 'agent')) issues.push('Invalid role: "' + role + '"');
-        addResult('B4', 'Authorization & Role', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? 'Role "' + role + '" verified' : issues.join('; '));
+        if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+            MallanAPI.onReady(checkRole);
+        } else if (LOGGED_IN_AGENT.role) {
+            checkRole();
+        } else {
+            setTimeout(checkRole, 2000);
+        }
     })();
 
     // ── B5: Layout Breakpoint Test ─────────────────────────────────────
