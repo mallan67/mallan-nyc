@@ -46,8 +46,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <!-- Google Maps JavaScript API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBsr8fknMzv-1CniR7640s3wAzE6RXD3wQ&libraries=marker&v=weekly" async defer></script>
+    <!-- Google Maps JavaScript API — key loaded from backend to avoid source exposure -->
+    <script>
+    (function(){fetch('/api/config/maps-key').then(function(r){return r.json()}).then(function(d){
+      if(d.key){var s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?key='+d.key+'&libraries=marker&v=weekly';s.async=true;s.defer=true;document.head.appendChild(s);}
+    }).catch(function(){console.warn('[Maps] Could not load API key');});})();
+    </script>
 
     <!-- ═══ CSS Modules ═══ -->
     <style>
