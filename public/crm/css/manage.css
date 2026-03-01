@@ -1,0 +1,25 @@
+/* ═══════════════════════════════════════════════════════
+   MANAGE — Manage listings styles
+   Source: SEARCH-STANDALONE.html
+   Note: Most manage-listings styling uses Tailwind utility classes.
+   This file reserved for custom manage-specific overrides.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Cinematic Minimalism — Manage card photo banners ── */
+.manage-photo-wrap {
+    overflow: hidden;
+    position: relative;
+    background: #f1f5f9;
+}
+.manage-photo {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    filter: contrast(1.05) brightness(1.03);
+    transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                filter 0.5s ease;
+}
+.manage-photo-wrap:hover .manage-photo {
+    transform: scale(1.04);
+    filter: contrast(1.08) brightness(1.06);
+}

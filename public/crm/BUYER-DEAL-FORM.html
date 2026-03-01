@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyer Deal Form - Mallan Real Estate CRM</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { gold: '#B8860B', dark: '#1a1a1a', slate: '#3d4556' },
+      },
+      fontFamily: { sans: ['Manrope', 'sans-serif'] },
+    }
+  }
+}
+</script>
+<style>
+body { font-family: Manrope, sans-serif; }
+.sidebar-tab { transition: all 0.2s ease; border-left: 3px solid transparent; }
+.sidebar-tab:hover { background: #f8fafc; border-left-color: #d1d5db; }
+.sidebar-tab.active { background: #eff6ff; border-left-color: #2563eb; color: #1e40af; }
+.sidebar-tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
+.sidebar-tab.active .tab-dot { background: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+.sidebar-tab.completed .tab-dot { background: #16a34a; }
+.sub-tab-pill { transition: all 0.15s ease; padding: 6px 16px; border-radius: 9999px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.sub-tab-pill:hover { background: #bfdbfe; }
+.sub-tab-pill.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.form-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.form-card-header { font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 10px; border-bottom: 1px solid #f3f4f6; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.form-card-header i { color: #B8860B; font-size: 14px; }
+.section-collapse { cursor: pointer; user-select: none; }
+.section-collapse .chevron { transition: transform 0.2s ease; }
+.section-collapse.collapsed .chevron { transform: rotate(-90deg); }
+.section-collapse.collapsed + .section-body { display: none; }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 4px; }
+.field-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.field-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.field-input[readonly] { background: #f9fafb; }
+.toast-notification { position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #16a34a; color: #fff; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); font-size: 14px; font-weight: 600; animation: slideInRight .3s ease, fadeOut .3s ease 2.7s forwards; }
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+@keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+.radio-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; transition: all 0.15s; cursor: pointer; }
+.radio-card:hover { border-color: #93c5fd; background: #f0f9ff; }
+.radio-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+.warning-banner { border-radius: 8px; padding: 12px 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; }
+@media (max-width: 767px) {
+  .sidebar-nav { display: none; }
+  .mobile-tabs { display: flex !important; }
+}
+@media (min-width: 768px) {
+  .mobile-tabs { display: none !important; }
+}
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+/* Photo grid */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.photo-card { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #fff; }
+.photo-card img { width: 100%; height: 140px; object-fit: cover; }
+.photo-card .caption { padding: 8px 10px; font-size: 11px; color: #6b7280; }
+</style>
+<!-- API Client — identity from session cookie, no PII in URLs -->
+<script src="js/core/api-client.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- HEADER BAR -->
+<header class="bg-white border-b shadow-sm px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center gap-4">
+        <span class="text-xl font-bold text-gray-900">mallan<span class="text-brand-gold">.nyc</span></span>
+        <span class="text-gray-300">|</span>
+        <span class="text-sm font-semibold text-gray-700">Buyer Deal Form</span>
+        <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">BUYER SIDE</span>
+    </div>
+    <div class="flex items-center gap-3 text-sm text-gray-600">
+        <span><i class="fas fa-user-circle mr-1"></i> <span id="headerAgentName">--</span></span>
+        <span class="text-gray-300">|</span>
+        <span id="headerCompanyName">--</span>
+    </div>
+</header>
+
+<!-- Hidden fields for logged-in agent (populated by initLoggedInAgent() from session) -->
+<input type="hidden" id="buyerUpdatingAgent" value="">
+<input type="hidden" id="buyerUpdatingAgentName" value="">
+<input type="hidden" id="buyerUpdatingAgentPhone" value="">
+<input type="hidden" id="buyerUpdatingAgentEmail" value="">
+<input type="hidden" id="buyerUpdatingAgentLicense" value="">
+<input type="hidden" id="buyerUpdatingAgentCompanyKey" value="">
+<input type="hidden" id="buyerUpdatingAgentCompanyName" value="">
+
+<!-- STICKY DEAL INFO BAR -->
+<div class="bg-white border-b px-6 py-2.5 sticky top-[53px] z-40 shadow-sm">
+    <div class="max-w-screen-2xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+            <span><strong>Address:</strong> <span id="buyerAddressDisplay">[Search Listing]</span></span>
+            <span><strong>Unit:</strong> <span id="buyerUnitDisplay">[Unit]</span></span>
+            <span><strong>RLS ID:</strong> <span id="buyerRlsIdDisplay">--</span></span>
+            <span><strong>Updated:</strong> <span id="buyerLastUpdated">--</span></span>
+            <span id="buyerDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="manualSaveDraft('buyer')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition">
+                <i class="fas fa-save mr-1"></i> Save Draft
+            </button>
+            <button onclick="submitBuyerDeal()" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
+                Submit
+            </button>
+            <button onclick="cancelBuyerForm()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs hover:bg-gray-50 transition">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MOBILE TAB BAR -->
+<div class="mobile-tabs overflow-x-auto bg-white border-b px-2 py-1.5 gap-1" style="display:none;">
+    <button onclick="showBuyerMainTab(1)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white whitespace-nowrap">Listing Search</button>
+    <button onclick="showBuyerMainTab(2)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Property Details</button>
+    <button onclick="showBuyerMainTab(3)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Buyer Client</button>
+    <button onclick="showBuyerMainTab(4)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Photos</button>
+    <button onclick="showBuyerMainTab(5)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Preview</button>
+    <button onclick="showBuyerMainTab(6)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">History</button>
+    <button onclick="showBuyerMainTab(7)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400 whitespace-nowrap pointer-events-none" id="mobileTab7" disabled>Commission</button>
+</div>
+
+<!-- MAIN LAYOUT: SIDEBAR + CONTENT -->
+<div class="max-w-screen-2xl mx-auto flex">
+
+    <!-- LEFT SIDEBAR NAV -->
+    <aside class="sidebar-nav w-56 min-h-[calc(100vh-106px)] bg-white border-r flex-shrink-0 sticky top-[106px] self-start overflow-y-auto" style="max-height: calc(100vh - 106px);">
+        <div class="py-3">
+            <p class="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Form Sections</p>
+            <button id="sidebarTab1" onclick="showBuyerMainTab(1)" class="sidebar-tab active w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span>
+                <i class="fas fa-search text-xs w-4 text-center"></i>
+                <span>Listing Search <span class="text-red-400 text-xs">*</span></span>
+            </button>
+            <button id="sidebarTab2" onclick="showBuyerMainTab(2)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span>
+                <i class="fas fa-door-open text-xs w-4 text-center"></i>
+                <span>Property Details</span>
+            </button>
+            <button id="sidebarTab3" onclick="showBuyerMainTab(3)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span>
+                <i class="fas fa-user-friends text-xs w-4 text-center"></i>
+                <span>Buyer Client <span class="text-red-400 text-xs">*</span></span>
+            </button>
+            <button id="sidebarTab4" onclick="showBuyerMainTab(4)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span>
+                <i class="fas fa-images text-xs w-4 text-center"></i>
+                <span>Photos</span>
+            </button>
+            <button id="sidebarTab5" onclick="showBuyerMainTab(5)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span>
+                <i class="fas fa-eye text-xs w-4 text-center"></i>
+                <span>Preview</span>
+            </button>
+            <button id="sidebarTab6" onclick="showBuyerMainTab(6)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span>
+                <i class="fas fa-history text-xs w-4 text-center"></i>
+                <span>History</span>
+            </button>
+            <button id="sidebarTab7" onclick="showBuyerMainTab(7)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-400 opacity-50 pointer-events-none" disabled title="Available when deal status is Sold">
+                <span class="tab-dot"></span>
+                <i class="fas fa-dollar-sign text-xs w-4 text-center"></i>
+                <span>Commission Request</span>
+                <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="buyerCommTabLock"></i>
+            </button>
+        </div>
+        <!-- Validation summary -->
+        <div class="border-t px-4 py-3">
+            <div id="buyerValidationSummary" class="text-xs">
+                <p class="text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 p-4 md:p-6 min-w-0">
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 1: LISTING SEARCH                                    ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab1" class="buyer-main-tab">
+    <!-- Sub-tab pills -->
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button id="buyerSubTab1_1" onclick="showBuyerSubTab(1,1)" class="sub-tab-pill active">Listing Search</button>
+        <button id="buyerSubTab1_2" onclick="showBuyerSubTab(1,2)" class="sub-tab-pill">Deal Status</button>
+        <button id="buyerSubTab1_3" onclick="showBuyerSubTab(1,3)" class="sub-tab-pill">Agreements</button>
+        <button id="buyerSubTab1_4" onclick="showBuyerSubTab(1,4)" class="sub-tab-pill">Notes</button>
+    </div>
+
+    <!-- ════════════ SUB-TAB 1.1: LISTING SEARCH ════════════ -->
+    <div id="buyerSubTabContent1_1" class="buyer-sub-tab">
+
+        <!-- How It Works -->
+        <div class="warning-banner bg-blue-50 border border-blue-200 text-blue-800 mb-4">
+            <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+            <div class="text-xs">
+                <p class="font-semibold">How This Form Works</p>
+                <p class="mt-1">Search for the listing by address, RLS ID, or Web ID. If found in IDX/RLS, the property data and photos will auto-populate. For off-RLS deals, enter the property details manually.</p>
+            </div>
+        </div>
+
+        <!-- IDX / RLS Listing Search -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-search-location"></i> Find Listing — IDX / RLS Lookup</div>
+            <p class="text-xs text-gray-500 mb-3">Search by address, RLS ID, or Web ID to auto-populate property data from the listing.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <div class="sm:col-span-2 relative">
+                    <input type="text" id="buyerListingSearch"
+                           placeholder="Start typing address (e.g., 200 East 66th Street, 15A)..."
+                           oninput="searchListingForBuyerDeal(this.value)"
+                           class="field-input pl-10">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <div>
+                    <input type="text" id="buyerRlsIdSearch" placeholder="RLS ID or Web ID" class="field-input" oninput="searchByRlsId(this.value, 'buyer')">
+                </div>
+            </div>
+            <div id="buyerListingSearchResults" class="hidden mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50 relative"></div>
+            <!-- IDX Match Indicator -->
+            <div id="buyerIdxMatchBanner" class="hidden mt-3 warning-banner bg-green-50 border border-green-200 text-green-800">
+                <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
+                <div class="text-xs">
+                    <p class="font-semibold">Listing Found — Data Auto-Populated</p>
+                    <p>Source: <strong id="buyerIdxSource">IDX/RLS</strong> | Listing Brokerage: <strong id="buyerListingBrokerage">--</strong></p>
+                    <p class="mt-0.5 text-green-600">Property details, building info, and photos have been loaded. Review the data below.</p>
+                </div>
+            </div>
+            <!-- No Match / Manual Entry -->
+            <div id="buyerManualEntryBanner" class="hidden mt-3 warning-banner bg-amber-50 border border-amber-200 text-amber-800">
+                <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+                <div class="text-xs">
+                    <p class="font-semibold">Listing Not Found in IDX/RLS</p>
+                    <p>This may be an off-RLS deal (Owner Opt-Out, non-REBNY, or private). Enter the property details manually below.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Property Address (auto-populated or manual) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-map-marker-alt"></i> Property Address</div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div class="sm:col-span-2">
+                    <label class="field-label">Street Address <span class="text-red-500">*</span></label>
+                    <input type="text" id="buyerStreetAddress" placeholder="e.g., 200 East 66th Street" oninput="updateBuyerHeaderBar()" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Unit / Apt</label>
+                    <input type="text" id="buyerUnitNumber" placeholder="e.g., 15A" oninput="updateBuyerHeaderBar()" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Borough <span class="text-red-500">*</span></label>
+                    <select id="buyerBorough" class="field-input">
+                        <option value="">-- Borough --</option>
+                        <option value="Manhattan">Manhattan</option>
+                        <option value="Brooklyn">Brooklyn</option>
+                        <option value="Queens">Queens</option>
+                        <option value="Bronx">Bronx</option>
+                        <option value="StatenIsland">Staten Island</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
+                <div>
+                    <label class="field-label">Zip Code</label>
+                    <input type="text" id="buyerZipCode" placeholder="e.g., 10065" maxlength="5" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Neighborhood</label>
+                    <input type="text" id="buyerNeighborhood" placeholder="Auto-populated" class="field-input" readonly>
+                </div>
+                <div>
+                    <label class="field-label">RLS Listing ID</label>
+                    <input type="text" id="buyerRlsId" placeholder="From IDX" class="field-input" readonly>
+                </div>
+                <div>
+                    <label class="field-label">Web ID</label>
+                    <input type="text" id="buyerWebId" placeholder="From IDX" class="field-input" readonly>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Agent Info (from the other side) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-tie"></i> Listing Side Information <span class="text-[10px] font-normal text-gray-400 ml-2">Auto-populated from IDX or enter manually</span></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="field-label">Listing Agent Name</label>
+                    <input type="text" id="buyerListingAgentName" placeholder="Listing agent" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Listing Brokerage</label>
+                    <input type="text" id="buyerListingBrokerageName" placeholder="Brokerage firm" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Listing Agent Phone</label>
+                    <input type="tel" id="buyerListingAgentPhone" placeholder="(000) 000-0000" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Listing Agent Email</label>
+                    <input type="email" id="buyerListingAgentEmail" placeholder="agent@brokerage.com" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Listing Agent MLS ID</label>
+                    <input type="text" id="buyerListingAgentMlsId" placeholder="MLS ID" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent & Dates (our side) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-shield"></i> Buyer's Agent (Our Side)</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="field-label">Buyer's Agent</label>
+                    <input type="text" id="buyerAgentDisplay" value="" class="field-input" readonly>
+                    <p class="text-[10px] text-gray-400 mt-1">Auto-assigned to logged-in agent</p>
+                </div>
+                <div>
+                    <label class="field-label">Co-Buyer's Agent</label>
+                    <input type="text" id="buyerCoAgent" placeholder="If applicable" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Create Date</label>
+                    <input type="date" id="buyerCreateDate" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Information (RLS/RESO/IDX: BuyerTeamName, BuyerTeamMlsId) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-people-group"></i> Team Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <!-- RLS/RESO/IDX: BuyerTeamName (Optional — CLOSE distribution) -->
+                    <label class="field-label">Buyer Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamName)</span></label>
+                    <input type="text" id="buyerTeamName" placeholder="e.g., The Allan Team" class="field-input">
+                </div>
+                <div>
+                    <!-- RLS/RESO/IDX: BuyerTeamMlsId (Optional — CLOSE distribution) -->
+                    <label class="field-label">Buyer Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamMlsId)</span></label>
+                    <input type="text" id="buyerTeamMlsId" placeholder="Team MLS ID" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Internal Comments -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-lock"></i> Internal Use Only</div>
+            <label class="field-label">Administrative Comments</label>
+            <textarea id="buyerAdminComments" rows="2" placeholder="Internal notes (not visible to public)..." class="field-input"></textarea>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 1.2: DEAL STATUS ════════════ -->
+    <div id="buyerSubTabContent1_2" class="buyer-sub-tab" style="display:none;">
+
+        <!-- Deal Status -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-signal"></i> Deal Status & Pricing</div>
+            <div class="mb-5">
+                <label class="field-label mb-1">Deal Status <span class="text-red-500">*</span></label>
+                <select id="buyerDealStatus" class="field-input max-w-md" required onchange="updateBuyerStatusFields()">
+                    <option value="Draft" selected>Draft</option>
+                    <option value="Searching">Searching</option>
+                    <option value="Showing">Showing</option>
+                    <option disabled>── Offer ──</option>
+                    <option value="OfferOut">Offer Out</option>
+                    <option value="OfferAccepted">Offer Accepted</option>
+                    <option value="OfferRejected">Offer Rejected</option>
+                    <option value="OfferCountered">Counter Offer</option>
+                    <option disabled>── Contract ──</option>
+                    <option value="ContractOut">Contract Out</option>
+                    <option value="ContractSigned">Contract Signed</option>
+                    <option value="BoardApproved">Board Approved</option>
+                    <option disabled>── Closed ──</option>
+                    <option value="Sold">Sold</option>
+                    <option value="SoldThruUs">Sold Thru Us</option>
+                    <option disabled>── Off Market ──</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="DealFellThrough">Deal Fell Through</option>
+                </select>
+                <!-- RESO Status Display -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Days in Pipeline</p>
+                        <p class="text-sm font-bold text-gray-800" id="buyerDaysInPipeline">0</p>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Status Changed</p>
+                        <p class="text-xs font-medium text-gray-700" id="buyerStatusChangeTimestamp">--</p>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="buyerResoMlsStatus">--</p>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Deal Source</p>
+                        <p class="text-xs font-medium text-gray-700" id="buyerDealSourceDisplay">IDX/RLS</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing -->
+            <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3 border-b pb-2">Pricing</h5>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="field-label">List Price</label>
+                    <input type="number" id="buyerListPrice" placeholder="$0" class="field-input" readonly>
+                    <p class="text-[10px] text-gray-400 mt-1">From listing</p>
+                </div>
+                <div>
+                    <label class="field-label">Offer Price</label>
+                    <input type="number" id="buyerOfferPrice" placeholder="$0" class="field-input">
+                </div>
+                <div id="buyerSoldPriceField" style="display:none;">
+                    <label class="field-label">Sale Price <span class="text-red-500">*</span></label>
+                    <input type="number" id="buyerSoldPrice" placeholder="$0" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Maint/CC</label>
+                    <input type="number" id="buyerMaintCC" placeholder="$0" class="field-input" readonly>
+                    <p class="text-[10px] text-gray-400 mt-1">From listing</p>
+                </div>
+            </div>
+
+            <!-- Key Dates -->
+            <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3 border-b pb-2">Key Dates</h5>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="field-label">First Showing Date</label>
+                    <input type="date" id="buyerFirstShowingDate" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Offer Date</label>
+                    <input type="date" id="buyerOfferDate" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Contract Date</label>
+                    <input type="date" id="buyerContractDate" class="field-input">
+                </div>
+                <div id="buyerCloseDateField" style="display:none;">
+                    <label class="field-label">Close Date <span class="text-red-500">*</span></label>
+                    <input type="date" id="buyerCloseDate" class="field-input">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 1.3: AGREEMENTS ════════════ -->
+    <div id="buyerSubTabContent1_3" class="buyer-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-handshake"></i> Buyer Representation Agreement</div>
+            <!-- Buyer Rep Agreement -->
+            <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="buyerRepAgreementSigned" class="w-4 h-4 mt-0.5">
+                    <label class="text-sm text-gray-700">
+                        <strong>Buyer Representation Agreement:</strong> I confirm a written buyer representation agreement has been executed with this client prior to showing. <span class="text-xs text-gray-500">(Required per UCBA 2026.)</span>
+                    </label>
+                </div>
+            </div>
+            <!-- Commission Negotiability -->
+            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="buyerCommNegotiabilityAck" class="w-4 h-4 mt-0.5">
+                    <label class="text-sm text-gray-700">
+                        <span class="text-red-500">*</span> <strong>Commission Negotiability Disclosure:</strong> I confirm that the buyer representation agreement includes a disclosure that commissions and fees are negotiable and not set by law. <span class="text-xs text-gray-500">(Required per REBNY UCBA 2026 and NAR settlement.)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Agreement Start Date</label>
+                    <input type="date" id="buyerRepStartDate" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Agreement End Date</label>
+                    <input type="date" id="buyerRepEndDate" class="field-input">
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="field-label">Upload Signed Agreement</label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-center">
+                    <i class="fas fa-file-upload text-gray-400 text-xl mb-2"></i>
+                    <p class="text-sm text-gray-600">Upload signed buyer representation agreement</p>
+                    <input type="file" id="buyerRepAgreementFile" accept=".pdf,.jpg,.png" class="mt-2 text-sm">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 1.4: NOTES ════════════ -->
+    <div id="buyerSubTabContent1_4" class="buyer-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-sticky-note"></i> Deal Notes</div>
+            <label class="field-label">Agent Notes</label>
+            <textarea id="buyerDealNotes" rows="6" placeholder="Notes about the deal, showing feedback, negotiation details..." class="field-input"></textarea>
+        </div>
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-exclamation-circle"></i> Deal Issues / Concerns</div>
+            <label class="field-label">Issues</label>
+            <textarea id="buyerDealIssues" rows="3" placeholder="Any deal issues, contingencies, red flags..." class="field-input"></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 2: PROPERTY DETAILS                                  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab2" class="buyer-main-tab" style="display:none;">
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button id="buyerSubTab2_1" onclick="showBuyerSubTab(2,1)" class="sub-tab-pill active">Unit Details</button>
+        <button id="buyerSubTab2_2" onclick="showBuyerSubTab(2,2)" class="sub-tab-pill">Features</button>
+        <button id="buyerSubTab2_3" onclick="showBuyerSubTab(2,3)" class="sub-tab-pill">Building</button>
+    </div>
+
+    <!-- ════════════ SUB-TAB 2.1: UNIT DETAILS ════════════ -->
+    <div id="buyerSubTabContent2_1" class="buyer-sub-tab">
+        <!-- IDX Source Banner -->
+        <div id="buyerPropertyIdxBanner" class="hidden warning-banner bg-green-50 border border-green-200 text-green-800 mb-4">
+            <i class="fas fa-database text-green-500 mt-0.5"></i>
+            <div class="text-xs">
+                <p class="font-semibold">Data Source: IDX/RLS</p>
+                <p>The property details below were auto-populated from the listing. Fields are editable if you need to make corrections.</p>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-home"></i> Property Type & Unit</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="field-label">Property Type</label>
+                    <select id="buyerPropertyType" class="field-input">
+                        <option value="">-- Select --</option>
+                        <option value="Condo">Condo</option>
+                        <option value="Coop">Co-op</option>
+                        <option value="Condop">Condop</option>
+                        <option value="SingleFamilyTownhouse">Single Family TH</option>
+                        <option value="MultiFamilyTownhouse">Multi-Family TH</option>
+                        <option value="SingleFamily">Single Family</option>
+                        <option value="MultiFamily">Multi-Family</option>
+                        <option value="MixedUse">Mixed Use</option>
+                        <option value="Loft">Loft</option>
+                        <option value="Duplex">Duplex</option>
+                        <option value="Triplex">Triplex</option>
+                        <option value="Quadruplex">Quadruplex</option>
+                        <option value="Office">Office</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Land">Land</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Bedrooms</label>
+                    <input type="number" id="buyerBedrooms" placeholder="0" min="0" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Full Bathrooms</label>
+                    <input type="number" id="buyerFullBaths" placeholder="0" min="0" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Half Bathrooms</label>
+                    <input type="number" id="buyerHalfBaths" placeholder="0" min="0" class="field-input">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+                <div>
+                    <label class="field-label">Approx. Sq Ft</label>
+                    <input type="number" id="buyerLivingArea" placeholder="0" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Total Rooms</label>
+                    <input type="number" id="buyerTotalRooms" placeholder="0" min="0" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Floor</label>
+                    <input type="text" id="buyerFloor" placeholder="e.g., 15" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Exposure</label>
+                    <input type="text" id="buyerExposure" placeholder="e.g., South, East" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-file-alt"></i> Description</div>
+            <label class="field-label">Listing Description</label>
+            <textarea id="buyerDescription" rows="5" placeholder="From listing..." class="field-input"></textarea>
+            <p class="text-[10px] text-gray-400 mt-1">Auto-populated from IDX listing. For agent portfolio display.</p>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 2.2: FEATURES ════════════ -->
+    <div id="buyerSubTabContent2_2" class="buyer-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-star"></i> Unit Features & Amenities</div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatDoorman" class="w-4 h-4"> Doorman</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatElevator" class="w-4 h-4"> Elevator</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatGym" class="w-4 h-4"> Gym</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatPool" class="w-4 h-4"> Pool</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatLaundry" class="w-4 h-4"> In-Unit Laundry</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatDishwasher" class="w-4 h-4"> Dishwasher</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatBalcony" class="w-4 h-4"> Balcony/Terrace</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatParking" class="w-4 h-4"> Parking</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatStorage" class="w-4 h-4"> Storage</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatConcierge" class="w-4 h-4"> Concierge</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatRoofDeck" class="w-4 h-4"> Roof Deck</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="buyerFeatPetsAllowed" class="w-4 h-4"> Pets Allowed</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 2.3: BUILDING ════════════ -->
+    <div id="buyerSubTabContent2_3" class="buyer-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-building"></i> Building Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="field-label">Building Name</label>
+                    <input type="text" id="buyerBuildingName" placeholder="From IDX" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Year Built</label>
+                    <input type="number" id="buyerYearBuilt" placeholder="e.g., 2005" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Total Floors</label>
+                    <input type="number" id="buyerTotalFloors" placeholder="0" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Total Units</label>
+                    <input type="number" id="buyerTotalUnits" placeholder="0" class="field-input">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 3: BUYER CLIENT INFO                                 ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab3" class="buyer-main-tab" style="display:none;">
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button id="buyerSubTab3_1" onclick="showBuyerSubTab(3,1)" class="sub-tab-pill active">Client Details</button>
+        <button id="buyerSubTab3_2" onclick="showBuyerSubTab(3,2)" class="sub-tab-pill">Financing</button>
+        <button id="buyerSubTab3_3" onclick="showBuyerSubTab(3,3)" class="sub-tab-pill">Attorney</button>
+    </div>
+
+    <!-- ════════════ SUB-TAB 3.1: CLIENT DETAILS ════════════ -->
+    <div id="buyerSubTabContent3_1" class="buyer-sub-tab">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user"></i> Buyer Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Buyer Full Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="buyerClientName" placeholder="Full legal name" class="field-input" required>
+                </div>
+                <div>
+                    <label class="field-label">Buyer Email <span class="text-red-500">*</span></label>
+                    <input type="email" id="buyerClientEmail" placeholder="buyer@email.com" class="field-input" required>
+                </div>
+                <div>
+                    <label class="field-label">Buyer Phone <span class="text-red-500">*</span></label>
+                    <input type="tel" id="buyerClientPhone" placeholder="(000) 000-0000" class="field-input" required>
+                </div>
+                <div>
+                    <label class="field-label">Secondary Phone</label>
+                    <input type="tel" id="buyerClientPhone2" placeholder="(000) 000-0000" class="field-input">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="field-label">Co-Buyer Name</label>
+                    <input type="text" id="buyerCoBuyerName" placeholder="If applicable" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Co-Buyer Email</label>
+                    <input type="email" id="buyerCoBuyerEmail" placeholder="co-buyer@email.com" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-map-marker-alt"></i> Buyer Current Address</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                    <label class="field-label">Street Address</label>
+                    <input type="text" id="buyerClientCurrentAddress" placeholder="Current address" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">City</label>
+                    <input type="text" id="buyerClientCurrentCity" placeholder="City" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">State / Zip</label>
+                    <input type="text" id="buyerClientCurrentStateZip" placeholder="NY 10001" class="field-input">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 3.2: FINANCING ════════════ -->
+    <div id="buyerSubTabContent3_2" class="buyer-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-university"></i> Financing Details</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="field-label">Purchase Type</label>
+                    <select id="buyerPurchaseType" class="field-input">
+                        <option value="">-- Select --</option>
+                        <option value="AllCash">All Cash</option>
+                        <option value="Conventional">Conventional Mortgage</option>
+                        <option value="FHA">FHA</option>
+                        <option value="VA">VA</option>
+                        <option value="Jumbo">Jumbo</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Pre-Approval Amount</label>
+                    <input type="number" id="buyerPreApproval" placeholder="$0" class="field-input">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Lender / Bank</label>
+                    <input type="text" id="buyerLender" placeholder="Bank name" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Mortgage Broker</label>
+                    <input type="text" id="buyerMortgageBroker" placeholder="Broker name" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Down Payment %</label>
+                    <input type="number" id="buyerDownPaymentPct" placeholder="e.g., 20" step="1" min="0" max="100" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Down Payment Amount</label>
+                    <input type="number" id="buyerDownPaymentAmt" placeholder="$0" class="field-input" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════ SUB-TAB 3.3: ATTORNEY ════════════ -->
+    <div id="buyerSubTabContent3_3" class="buyer-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-gavel"></i> Buyer's Attorney</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Attorney Name</label>
+                    <input type="text" id="buyerAttorneyName" placeholder="Full name" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Firm Name</label>
+                    <input type="text" id="buyerAttorneyFirm" placeholder="Law firm" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Attorney Phone</label>
+                    <input type="tel" id="buyerAttorneyPhone" placeholder="(000) 000-0000" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Attorney Email</label>
+                    <input type="email" id="buyerAttorneyEmail" placeholder="attorney@firm.com" class="field-input">
+                </div>
+            </div>
+        </div>
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-gavel"></i> Seller's Attorney</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Attorney Name</label>
+                    <input type="text" id="buyerSellerAttorneyName" placeholder="Full name" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Firm Name</label>
+                    <input type="text" id="buyerSellerAttorneyFirm" placeholder="Law firm" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Attorney Phone</label>
+                    <input type="tel" id="buyerSellerAttorneyPhone" placeholder="(000) 000-0000" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Attorney Email</label>
+                    <input type="email" id="buyerSellerAttorneyEmail" placeholder="attorney@firm.com" class="field-input">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 4: PHOTOS                                            ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab4" class="buyer-main-tab" style="display:none;">
+    <!-- Courtesy Attribution -->
+    <div class="warning-banner bg-blue-50 border border-blue-200 text-blue-800 mb-4">
+        <i class="fas fa-camera text-blue-500 mt-0.5"></i>
+        <div class="text-xs">
+            <p class="font-semibold">Photo Attribution</p>
+            <p>All photos are pulled from the listing via IDX/RLS. Photos are displayed with "Courtesy of <span id="buyerPhotoCourtesy" class="font-bold">[Listing Brokerage]</span>" attribution per REBNY rules.</p>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-images"></i> Listing Photos <span class="text-[10px] font-normal text-gray-400 ml-2">From IDX/RLS</span></div>
+        <div id="buyerPhotoGrid" class="photo-grid">
+            <!-- Photos will be populated from IDX -->
+            <div class="text-center py-8 col-span-full text-gray-400">
+                <i class="fas fa-search text-4xl mb-3"></i>
+                <p class="text-sm font-medium">No photos loaded yet</p>
+                <p class="text-xs mt-1">Search for a listing in Tab 1 to load photos from IDX/RLS</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Photo Upload for Off-RLS Deals -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-upload"></i> Manual Photo Upload <span class="text-[10px] font-normal text-gray-400 ml-2">For off-RLS deals only</span></div>
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50 text-center">
+            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
+            <p class="text-sm text-gray-600 font-medium">Upload photos for off-RLS deals</p>
+            <p class="text-xs text-gray-400 mt-1">Only needed if listing is not in IDX/RLS</p>
+            <input type="file" id="buyerManualPhotos" accept="image/*" multiple class="mt-3 text-sm">
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 5: PREVIEW                                           ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab5" class="buyer-main-tab" style="display:none;">
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-eye"></i> Deal Summary Preview</div>
+        <div id="buyerPreviewContent" class="text-sm space-y-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-xs font-bold text-gray-500 uppercase mb-2">Property</p>
+                <p class="font-semibold text-gray-900" id="prevBuyerAddress">--</p>
+                <p class="text-gray-600" id="prevBuyerPropertyType">--</p>
+                <p class="text-gray-600" id="prevBuyerBedBath">--</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">Buyer Client</p>
+                    <p class="font-semibold text-gray-900" id="prevBuyerClient">--</p>
+                    <p class="text-gray-600" id="prevBuyerClientEmail">--</p>
+                    <p class="text-gray-600" id="prevBuyerClientPhone">--</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">Listing Side</p>
+                    <p class="font-semibold text-gray-900" id="prevBuyerListingAgent">--</p>
+                    <p class="text-gray-600" id="prevBuyerListingBrokerage">--</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-blue-600 uppercase mb-1">List Price</p>
+                    <p class="text-lg font-bold text-blue-800" id="prevBuyerListPrice">--</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-green-600 uppercase mb-1">Offer Price</p>
+                    <p class="text-lg font-bold text-green-800" id="prevBuyerOfferPrice">--</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-purple-600 uppercase mb-1">Sale Price</p>
+                    <p class="text-lg font-bold text-purple-800" id="prevBuyerSalePrice">--</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-gray-600 uppercase mb-1">Status</p>
+                    <p class="text-lg font-bold text-gray-800" id="prevBuyerStatus">Draft</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 6: HISTORY                                           ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab6" class="buyer-main-tab" style="display:none;">
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-history"></i> Deal History & Timeline</div>
+        <div id="buyerHistoryTimeline" class="space-y-3">
+            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-plus text-blue-600 text-xs"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">Deal Created</p>
+                    <p class="text-xs text-gray-500" id="buyerHistoryCreateDate">--</p>
+                    <p class="text-xs text-gray-600">Created by <span id="buyerHistoryAgent">--</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 7: COMMISSION REQUEST                                ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="buyerMainTab7" class="buyer-main-tab" style="display:none;">
+
+    <!-- Internal Only Banner -->
+    <div class="bg-red-50 border border-red-300 rounded-xl p-3 mb-3 flex items-center gap-3">
+        <i class="fas fa-lock text-red-500 text-lg flex-shrink-0"></i>
+        <div>
+            <p class="text-xs font-bold text-red-800">INTERNAL ONLY — NOT DISTRIBUTED TO RLS / IDX / SYNDICATION</p>
+            <p class="text-[10px] text-red-600">This tab contains confidential commission data. It is never submitted to REBNY RLS, IDX feeds, or any third-party portal. Company use only.</p>
+        </div>
+    </div>
+
+    <!-- Status Banner -->
+    <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-check-circle text-green-600 text-lg"></i>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-green-800">Deal Closed — Submit Commission Request</p>
+            <p class="text-xs text-green-700">This deal has been marked as <strong>Sold</strong>. You represented the <strong>buyer</strong>. Complete the commission details below and submit to the broker for review and payment processing.</p>
+        </div>
+    </div>
+
+    <!-- Section 1: Property Information (Auto-Populated) -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-building"></i> Property Information <span class="text-[10px] font-normal text-gray-400 ml-2">Auto-populated from deal</span></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label class="field-label">RLS / Listing ID</label>
+                <input type="text" id="commBuyerRlsId" class="field-input bg-gray-50" readonly>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="field-label">Full Property Address</label>
+                <input type="text" id="commBuyerAddress" class="field-input bg-gray-50" readonly>
+            </div>
+            <div>
+                <label class="field-label">Borough</label>
+                <input type="text" id="commBuyerBorough" class="field-input bg-gray-50" readonly>
+            </div>
+            <div>
+                <label class="field-label">Listing Price</label>
+                <input type="text" id="commBuyerListPrice" class="field-input bg-gray-50" readonly>
+            </div>
+            <div>
+                <label class="field-label">Sale Price <span class="text-red-500">*</span></label>
+                <input type="number" id="commBuyerFinalPrice" placeholder="Final sale price" class="field-input" oninput="calculateBuyerCommission()">
+                <p class="text-[10px] text-gray-400 mt-1">Edit if different from deal price</p>
+            </div>
+            <div>
+                <label class="field-label">Bedrooms / Bathrooms</label>
+                <input type="text" id="commBuyerBedBath" class="field-input bg-gray-50" readonly>
+            </div>
+            <div>
+                <label class="field-label">Approx. Sq Ft</label>
+                <input type="text" id="commBuyerSqFt" class="field-input bg-gray-50" readonly>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Deal Parties -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-users"></i> Deal Parties</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="field-label">Buyer Name <span class="text-red-500">*</span></label>
+                <input type="text" id="commBuyerName" placeholder="Full legal name" class="field-input">
+            </div>
+            <div>
+                <label class="field-label">Buyer Email <span class="text-red-500">*</span></label>
+                <input type="email" id="commBuyerEmail" placeholder="buyer@email.com" class="field-input">
+            </div>
+            <div>
+                <label class="field-label">Buyer Phone <span class="text-red-500">*</span></label>
+                <input type="tel" id="commBuyerPhone" placeholder="(000) 000-0000" class="field-input">
+            </div>
+            <div>
+                <label class="field-label">Buyer Attorney</label>
+                <input type="text" id="commBuyerAttorney" placeholder="Attorney name" class="field-input">
+            </div>
+            <div>
+                <label class="field-label">Seller Name</label>
+                <input type="text" id="commBuyerSellerName" placeholder="Full legal name" class="field-input">
+            </div>
+            <div>
+                <label class="field-label">Seller Attorney</label>
+                <input type="text" id="commBuyerSellerAttorney" placeholder="Attorney name" class="field-input">
+            </div>
+        </div>
+        <div class="border-t mt-4 pt-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Agent Information</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Buyer's Agent (Our Side)</label>
+                    <input type="text" id="commBuyerOurAgent" class="field-input bg-gray-50" readonly>
+                </div>
+                <div>
+                    <label class="field-label">Co-Buyer's Agent</label>
+                    <input type="text" id="commBuyerCoAgent" placeholder="If applicable" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Listing Agent (Other Side)</label>
+                    <input type="text" id="commBuyerListingAgentComm" placeholder="Listing agent name" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Listing Brokerage</label>
+                    <input type="text" id="commBuyerListingBrokerageComm" placeholder="Listing brokerage" class="field-input">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Commission Calculation -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-calculator"></i> Commission Calculation</div>
+
+        <!-- Total Commission -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="field-label">Total Commission % <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="commBuyerTotalPct" placeholder="e.g., 6" step="0.1" min="0" max="20" class="field-input" oninput="calculateBuyerCommission()">
+                    <span class="text-sm font-semibold text-gray-500">%</span>
+                </div>
+            </div>
+            <div>
+                <label class="field-label">Sale Price</label>
+                <p class="text-lg font-bold text-gray-900 mt-1" id="commBuyerPriceDisplay">$0</p>
+            </div>
+            <div>
+                <label class="field-label">Gross Commission</label>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                    <p class="text-xl font-bold text-green-700" id="commBuyerGrossAmount">$0.00</p>
+                    <p class="text-[10px] text-green-600">Total Commission Amount</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cooperating Side (Our Side) vs. Listing Side -->
+        <div class="border-t pt-4 mb-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Commission Split — Buyer Side (Ours) vs. Listing Side</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-xs font-bold text-blue-800 mb-2"><i class="fas fa-building mr-1"></i> Buyer Side (Mallan RE — Our Side)</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="number" id="commBuyerOurSidePct" placeholder="50" step="0.5" min="0" max="100" class="field-input w-20" oninput="calculateBuyerCommission()">
+                        <span class="text-sm font-semibold text-gray-500">%</span>
+                    </div>
+                    <p class="text-lg font-bold text-blue-700" id="commBuyerOurSideAmt">$0.00</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p class="text-xs font-bold text-gray-700 mb-2"><i class="fas fa-handshake mr-1"></i> Listing Side</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="number" id="commBuyerListingSidePct" placeholder="50" step="0.5" min="0" max="100" class="field-input w-20 bg-gray-100" readonly>
+                        <span class="text-sm font-semibold text-gray-500">%</span>
+                    </div>
+                    <p class="text-lg font-bold text-gray-600" id="commBuyerListingSideAmt">$0.00</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent / Company Split -->
+        <div class="border-t pt-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Agent / Company Split (Buyer Side — Our Side)</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="field-label">Agent Split %</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="commBuyerAgentSplitPct" placeholder="e.g., 70" step="1" min="0" max="100" class="field-input" oninput="calculateBuyerCommission()">
+                        <span class="text-sm font-semibold text-gray-500">%</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Per ICA agreement</p>
+                </div>
+                <div>
+                    <label class="field-label">Agent Payout</label>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-green-700" id="commBuyerAgentPayout">$0.00</p>
+                        <p class="text-[10px] text-green-600">Agent receives</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="field-label">Company Share</label>
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-purple-700" id="commBuyerCompanyShare">$0.00</p>
+                        <p class="text-[10px] text-purple-600">Mallan RE retains</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Payment -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-credit-card"></i> Payment Information</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="field-label">Payment Method <span class="text-red-500">*</span></label>
+                <div class="flex gap-3">
+                    <label class="radio-card flex items-center gap-2 flex-1 justify-center">
+                        <input type="radio" name="commBuyerPayMethod" value="check" class="w-4 h-4">
+                        <i class="fas fa-money-check-alt text-gray-500"></i>
+                        <span class="text-sm font-semibold">Check</span>
+                    </label>
+                    <label class="radio-card flex items-center gap-2 flex-1 justify-center">
+                        <input type="radio" name="commBuyerPayMethod" value="wire" class="w-4 h-4">
+                        <i class="fas fa-university text-gray-500"></i>
+                        <span class="text-sm font-semibold">Wire Transfer</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="field-label">Closing Date <span class="text-red-500">*</span></label>
+                <input type="date" id="commBuyerClosingDate" class="field-input">
+            </div>
+        </div>
+        <div>
+            <label class="field-label">Notes / Special Instructions</label>
+            <textarea id="commBuyerNotes" rows="3" placeholder="Any additional notes for the broker (referral fees, adjustments, etc.)" class="field-input"></textarea>
+        </div>
+
+        <!-- Status Tracker -->
+        <div class="mt-4 bg-gray-50 rounded-lg p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Request Status</p>
+            <div class="flex items-center gap-0 overflow-x-auto">
+                <div class="flex flex-col items-center min-w-[90px]" id="commBuyerStep1">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+                    <p class="text-[10px] font-semibold text-blue-700 mt-1 text-center">Draft</p>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commBuyerStep2">
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">2</div>
+                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Submitted</p>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commBuyerStep3">
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">3</div>
+                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Under Review</p>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commBuyerStep4">
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">4</div>
+                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Approved</p>
+                </div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commBuyerStep5">
+                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">5</div>
+                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Paid</p>
+                </div>
+            </div>
+
+            <!-- Status Details (shown after submission) -->
+            <div id="commBuyerStatusDetails" class="hidden mt-4 border-t pt-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Submitted</p>
+                        <p class="text-xs font-medium text-gray-700" id="commBuyerSubmitDate">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Reviewed By</p>
+                        <p class="text-xs font-medium text-gray-700" id="commBuyerReviewer">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Review Date</p>
+                        <p class="text-xs font-medium text-gray-700" id="commBuyerReviewDate">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Payment Date</p>
+                        <p class="text-xs font-medium text-gray-700" id="commBuyerPaymentDate">--</p>
+                    </div>
+                </div>
+                <div id="commBuyerRejectionNote" class="hidden mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p class="text-xs font-semibold text-red-800"><i class="fas fa-exclamation-triangle mr-1"></i> Rejection Note</p>
+                    <p class="text-xs text-red-700 mt-1" id="commBuyerRejectionReason"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-3 mt-4">
+        <button id="commBuyerEditBtn" onclick="enableBuyerCommEdit()" class="hidden px-5 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition">
+            <i class="fas fa-edit mr-2"></i> Edit Request
+        </button>
+        <button id="commBuyerResubmitBtn" onclick="resubmitBuyerCommission()" class="hidden px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+            <i class="fas fa-redo mr-2"></i> Resubmit
+        </button>
+        <button id="commBuyerSubmitBtn" onclick="submitBuyerCommissionRequest()" class="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+            <i class="fas fa-paper-plane mr-2"></i> Submit Commission Request
+        </button>
+    </div>
+</div>
+
+    </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+// ══════════════════════════════════════════════════════
+// LOGGED-IN AGENT — Read from URL params or use defaults
+// ══════════════════════════════════════════════════════
+// LOGGED-IN AGENT — Identity from /api/auth/me via MallanAPI (session cookie)
+// NO URL PARAMETERS. NO PII IN URLS.
+function initLoggedInAgent() {
+    function populate(u) {
+        var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
+        setVal('buyerUpdatingAgent', u.id);
+        setVal('buyerUpdatingAgentName', u.name);
+        setVal('buyerUpdatingAgentPhone', u.phone);
+        setVal('buyerUpdatingAgentEmail', u.email);
+        setVal('buyerUpdatingAgentLicense', u.license);
+        setVal('buyerUpdatingAgentCompanyKey', u.companyKey);
+        setVal('buyerUpdatingAgentCompanyName', u.companyName);
+        var headerName = document.getElementById('headerAgentName');
+        var headerCompany = document.getElementById('headerCompanyName');
+        if (headerName && u.name) headerName.textContent = u.name;
+        if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
+        var agentDisplay = document.getElementById('buyerAgentDisplay');
+        if (agentDisplay && u.id && u.name) agentDisplay.value = u.id + ' | ' + u.name;
+    }
+
+    if (typeof MallanAPI !== 'undefined') {
+        MallanAPI.init().then(function(data) {
+            if (data.authenticated && data.user) {
+                populate(data.user);
+            } else {
+                console.warn('[BuyerDealForm] Not authenticated — agent fields left blank');
+            }
+        });
+    } else {
+        console.warn('[BuyerDealForm] MallanAPI not loaded — agent fields left blank');
+    }
+}
+
+function cancelBuyerForm() {
+    if (confirm('Are you sure you want to close this form? Unsaved changes will be lost.')) {
+        if (window.opener) window.close();
+        else window.location.reload();
+    }
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION — Tabs & Sub-tabs
+// ══════════════════════════════════════════════════════
+function showBuyerMainTab(tabNum) {
+    if (tabNum === 7) {
+        var st = (document.getElementById('buyerDealStatus') || {}).value || '';
+        if (st !== 'Sold' && st !== 'SoldThruUs') return;
+        populateBuyerCommissionFields();
+    }
+    document.querySelectorAll('.buyer-main-tab').forEach(function(t) { t.style.display = 'none'; });
+    var tab = document.getElementById('buyerMainTab' + tabNum);
+    if (tab) tab.style.display = '';
+    document.querySelectorAll('.sidebar-tab').forEach(function(b) { b.classList.remove('active'); });
+    var sb = document.getElementById('sidebarTab' + tabNum);
+    if (sb) sb.classList.add('active');
+    document.querySelectorAll('.mobile-tab').forEach(function(b, i) {
+        if (i + 1 === 7 && b.disabled) return;
+        b.className = 'mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap ' +
+            (i + 1 === tabNum ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600');
+    });
+    if (tabNum === 1) showBuyerSubTab(1, 1);
+    if (tabNum === 2) showBuyerSubTab(2, 1);
+    if (tabNum === 3) showBuyerSubTab(3, 1);
+    if (tabNum === 5) setTimeout(updateBuyerPreview, 100);
+}
+
+function showBuyerSubTab(mainTab, subTab) {
+    var parent = document.getElementById('buyerMainTab' + mainTab);
+    if (!parent) return;
+    parent.querySelectorAll('.buyer-sub-tab').forEach(function(s) { s.style.display = 'none'; });
+    var target = document.getElementById('buyerSubTabContent' + mainTab + '_' + subTab);
+    if (target) target.style.display = '';
+    parent.querySelectorAll('.sub-tab-pill').forEach(function(p) { p.classList.remove('active'); });
+    var pill = document.getElementById('buyerSubTab' + mainTab + '_' + subTab);
+    if (pill) pill.classList.add('active');
+}
+
+function toggleFormSection(el) {
+    el.classList.toggle('collapsed');
+    var body = el.nextElementSibling || el.parentElement.querySelector('.section-body');
+    if (body && body.classList.contains('section-body')) {
+        body.style.display = body.style.display === 'none' ? '' : 'none';
+    }
+}
+
+// ══════════════════════════════════════════════════════
+// IDX LISTING SEARCH — Mock Database
+// ══════════════════════════════════════════════════════
+var listingDatabase = [
+    { rlsId: 'RLS-10001', webId: 'WEB-5001', address: '200 East 66th Street', unit: '15A', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Coop', buildingName: 'Manhattan House', price: 1250000, maintCC: 2850, bed: 2, fullBath: 2, halfBath: 0, sqft: 1200, yearBuilt: 1950, floors: 17, units: 583, listingAgent: 'Sarah Johnson', listingBrokerage: 'Compass', listingAgentMlsId: 'MLS-8821', listingAgentPhone: '212-555-0101', listingAgentEmail: 'sjohnson@compass.com', description: 'Stunning corner 2BR/2BA in the iconic Manhattan House. Sun-drenched with open city views.', photos: 6, features: ['Doorman','Elevator','Gym','Laundry','Parking'] },
+    { rlsId: 'RLS-10002', webId: 'WEB-5002', address: '15 Central Park West', unit: '32B', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', type: 'Condo', buildingName: '15 Central Park West', price: 8500000, maintCC: 5200, bed: 3, fullBath: 3, halfBath: 1, sqft: 2800, yearBuilt: 2008, floors: 43, units: 201, listingAgent: 'Michael Chen', listingBrokerage: 'Douglas Elliman', listingAgentMlsId: 'MLS-4492', listingAgentPhone: '212-555-0202', listingAgentEmail: 'mchen@elliman.com', description: 'Extraordinary 3BR residence with Central Park views from every room.', photos: 12, features: ['Doorman','Elevator','Gym','Pool','Concierge','Parking'] },
+    { rlsId: 'RLS-10003', webId: 'WEB-5003', address: '432 Park Avenue', unit: '78A', borough: 'Manhattan', zip: '10022', neighborhood: 'Midtown East', type: 'Condo', buildingName: '432 Park Avenue', price: 25000000, maintCC: 8500, bed: 4, fullBath: 4, halfBath: 1, sqft: 4000, yearBuilt: 2015, floors: 96, units: 104, listingAgent: 'Lisa Park', listingBrokerage: 'Sothebys', listingAgentMlsId: 'MLS-7731', listingAgentPhone: '212-555-0303', listingAgentEmail: 'lpark@sothebys.com', description: 'Full-floor 4BR residence with 360-degree views from the tallest residential tower.', photos: 18, features: ['Doorman','Elevator','Gym','Pool','Spa','Concierge'] },
+    { rlsId: 'RLS-10004', webId: 'WEB-5004', address: '56 Leonard Street', unit: '45C', borough: 'Manhattan', zip: '10013', neighborhood: 'Tribeca', type: 'Condo', buildingName: '56 Leonard', price: 5750000, maintCC: 3800, bed: 3, fullBath: 2, halfBath: 1, sqft: 2200, yearBuilt: 2016, floors: 60, units: 145, listingAgent: 'David Kim', listingBrokerage: 'Brown Harris Stevens', listingAgentMlsId: 'MLS-5568', listingAgentPhone: '212-555-0404', listingAgentEmail: 'dkim@bhsusa.com', description: 'Impeccable 3BR in Herzog & de Meurons Tribeca masterpiece with private terrace.', photos: 10, features: ['Doorman','Elevator','Gym','Pool'] },
+    { rlsId: 'RLS-10005', webId: 'WEB-5005', address: '740 Park Avenue', unit: '6/7B', borough: 'Manhattan', zip: '10021', neighborhood: 'Upper East Side', type: 'Coop', buildingName: '740 Park Avenue', price: 32000000, maintCC: 12000, bed: 5, fullBath: 5, halfBath: 2, sqft: 6500, yearBuilt: 1930, floors: 18, units: 31, listingAgent: 'Jennifer Walsh', listingBrokerage: 'Corcoran', listingAgentMlsId: 'MLS-3345', listingAgentPhone: '212-555-0505', listingAgentEmail: 'jwalsh@corcoran.com', description: 'Legendary duplex in NYCs most prestigious cooperative. Formal entertaining rooms with park views.', photos: 15, features: ['Doorman','Elevator'] },
+    { rlsId: 'RLS-10006', webId: 'WEB-5006', address: '110 Livingston Street', unit: '8D', borough: 'Brooklyn', zip: '11201', neighborhood: 'Downtown Brooklyn', type: 'Condop', buildingName: '110 Livingston', price: 895000, maintCC: 1650, bed: 2, fullBath: 1, halfBath: 0, sqft: 950, yearBuilt: 1928, floors: 15, units: 220, listingAgent: 'Robert Lee', listingBrokerage: 'Halstead', listingAgentMlsId: 'MLS-9912', listingAgentPhone: '718-555-0606', listingAgentEmail: 'rlee@halstead.com', description: 'Bright 2BR condop in converted Downtown Brooklyn building. Steps to transit.', photos: 8, features: ['Doorman','Elevator','Gym'] },
+];
+
+function searchListingForBuyerDeal(query) {
+    var results = document.getElementById('buyerListingSearchResults');
+    if (!results) return;
+    if (query.length < 3) { results.classList.add('hidden'); return; }
+    var q = query.toLowerCase();
+    var matches = listingDatabase.filter(function(l) {
+        return l.address.toLowerCase().includes(q) ||
+               l.buildingName.toLowerCase().includes(q) ||
+               (l.unit && l.unit.toLowerCase().includes(q)) ||
+               (l.address + ' ' + l.unit).toLowerCase().includes(q);
+    });
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-500"><i class="fas fa-exclamation-circle mr-1 text-amber-500"></i> No IDX/RLS matches. This may be an off-RLS deal — enter details manually.</div>';
+        results.classList.remove('hidden');
+        document.getElementById('buyerManualEntryBanner').classList.remove('hidden');
+        document.getElementById('buyerIdxMatchBanner').classList.add('hidden');
+        return;
+    }
+    results.innerHTML = matches.map(function(l) {
+        return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectListingForBuyerDeal(\'' + l.rlsId + '\')">' +
+            '<div class="flex justify-between items-center">' +
+            '<div><p class="font-semibold text-sm text-gray-800">' + l.address + (l.unit ? ', ' + l.unit : '') + '</p>' +
+            '<p class="text-xs text-gray-500">' + l.buildingName + ' | ' + l.neighborhood + ', ' + l.borough + ' | $' + l.price.toLocaleString() + '</p></div>' +
+            '<div class="text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">' + l.type + '</span>' +
+            '<p class="text-[10px] text-gray-400 mt-1">' + l.rlsId + '</p></div></div></div>';
+    }).join('');
+    results.classList.remove('hidden');
+}
+
+function searchByRlsId(query, prefix) {
+    if (query.length < 3) return;
+    var q = query.toUpperCase();
+    var match = listingDatabase.find(function(l) {
+        return l.rlsId.toUpperCase() === q || l.webId.toUpperCase() === q;
+    });
+    if (match) selectListingForBuyerDeal(match.rlsId);
+}
+
+function selectListingForBuyerDeal(rlsId) {
+    var listing = listingDatabase.find(function(l) { return l.rlsId === rlsId; });
+    if (!listing) return;
+
+    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+
+    // Address fields
+    setVal('buyerStreetAddress', listing.address);
+    setVal('buyerUnitNumber', listing.unit);
+    setVal('buyerBorough', listing.borough);
+    setVal('buyerZipCode', listing.zip);
+    setVal('buyerNeighborhood', listing.neighborhood);
+    setVal('buyerRlsId', listing.rlsId);
+    setVal('buyerWebId', listing.webId);
+
+    // Listing side info
+    setVal('buyerListingAgentName', listing.listingAgent);
+    setVal('buyerListingBrokerageName', listing.listingBrokerage);
+    setVal('buyerListingAgentPhone', listing.listingAgentPhone);
+    setVal('buyerListingAgentEmail', listing.listingAgentEmail);
+    setVal('buyerListingAgentMlsId', listing.listingAgentMlsId);
+
+    // Pricing
+    setVal('buyerListPrice', listing.price);
+    setVal('buyerMaintCC', listing.maintCC);
+
+    // Property details (Tab 2)
+    var typeSel = document.getElementById('buyerPropertyType');
+    if (typeSel) { for (var i = 0; i < typeSel.options.length; i++) { if (typeSel.options[i].value === listing.type) { typeSel.selectedIndex = i; break; } } }
+    setVal('buyerBedrooms', listing.bed);
+    setVal('buyerFullBaths', listing.fullBath);
+    setVal('buyerHalfBaths', listing.halfBath);
+    setVal('buyerLivingArea', listing.sqft);
+    setVal('buyerBuildingName', listing.buildingName);
+    setVal('buyerYearBuilt', listing.yearBuilt);
+    setVal('buyerTotalFloors', listing.floors);
+    setVal('buyerTotalUnits', listing.units);
+    setVal('buyerDescription', listing.description);
+
+    // Features checkboxes
+    var featureMap = { 'Doorman':'buyerFeatDoorman','Elevator':'buyerFeatElevator','Gym':'buyerFeatGym','Pool':'buyerFeatPool','Laundry':'buyerFeatLaundry','Parking':'buyerFeatParking','Concierge':'buyerFeatConcierge','Spa':'buyerFeatPool' };
+    if (listing.features) {
+        listing.features.forEach(function(f) { var el = document.getElementById(featureMap[f]); if (el) el.checked = true; });
+    }
+
+    // Show IDX match banner
+    document.getElementById('buyerIdxMatchBanner').classList.remove('hidden');
+    document.getElementById('buyerManualEntryBanner').classList.add('hidden');
+    document.getElementById('buyerIdxSource').textContent = 'REBNY RLS via Trestle';
+    document.getElementById('buyerListingBrokerage').textContent = listing.listingBrokerage;
+    document.getElementById('buyerPropertyIdxBanner').classList.remove('hidden');
+
+    // Photo courtesy
+    document.getElementById('buyerPhotoCourtesy').textContent = listing.listingBrokerage;
+
+    // Load mock photos
+    loadBuyerPhotos(listing);
+
+    // Hide search results
+    document.getElementById('buyerListingSearchResults').classList.add('hidden');
+    document.getElementById('buyerListingSearch').value = listing.address + (listing.unit ? ', ' + listing.unit : '');
+
+    // Update header bar
+    updateBuyerHeaderBar();
+
+    showToast('Listing data loaded from IDX/RLS');
+}
+
+function loadBuyerPhotos(listing) {
+    var grid = document.getElementById('buyerPhotoGrid');
+    if (!grid) return;
+    var count = listing.photos || 6;
+    var html = '';
+    for (var i = 1; i <= count; i++) {
+        html += '<div class="photo-card">' +
+            '<div class="bg-gray-200 flex items-center justify-center" style="height:140px;">' +
+            '<div class="text-center"><i class="fas fa-image text-gray-400 text-2xl"></i><p class="text-[10px] text-gray-400 mt-1">Photo ' + i + '</p></div></div>' +
+            '<div class="caption"><p class="font-medium text-gray-700">' + listing.address + (listing.unit ? ' #' + listing.unit : '') + '</p>' +
+            '<p class="text-[10px] text-gray-500 mt-0.5">Courtesy of <strong>' + listing.listingBrokerage + '</strong></p></div></div>';
+    }
+    grid.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+// HEADER BAR UPDATE
+// ══════════════════════════════════════════════════════
+function updateBuyerHeaderBar() {
+    var addr = (document.getElementById('buyerStreetAddress') || {}).value || '';
+    var unit = (document.getElementById('buyerUnitNumber') || {}).value || '';
+    var rlsId = (document.getElementById('buyerRlsId') || {}).value || '';
+    document.getElementById('buyerAddressDisplay').textContent = addr || '[Search Listing]';
+    document.getElementById('buyerUnitDisplay').textContent = unit || '[Unit]';
+    document.getElementById('buyerRlsIdDisplay').textContent = rlsId || '--';
+}
+
+// ══════════════════════════════════════════════════════
+// STATUS LOGIC
+// ══════════════════════════════════════════════════════
+var BUYER_CRM_TO_RESO = {
+    'Draft': 'Incomplete', 'Searching': 'Active', 'Showing': 'Active',
+    'OfferOut': 'Pending', 'OfferAccepted': 'Pending', 'OfferRejected': 'Active', 'OfferCountered': 'Pending',
+    'ContractOut': 'Pending', 'ContractSigned': 'Pending', 'BoardApproved': 'Pending',
+    'Sold': 'Closed', 'SoldThruUs': 'Closed',
+    'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled', 'DealFellThrough': 'Canceled'
+};
+
+function updateBuyerStatusFields() {
+    var status = (document.getElementById('buyerDealStatus') || {}).value || 'Draft';
+    var now = new Date().toLocaleString();
+    document.getElementById('buyerStatusChangeTimestamp').textContent = now;
+    document.getElementById('buyerResoMlsStatus').textContent = BUYER_CRM_TO_RESO[status] || '--';
+
+    // Show/hide sold price and close date fields
+    var isClosed = (status === 'Sold' || status === 'SoldThruUs');
+    document.getElementById('buyerSoldPriceField').style.display = isClosed ? '' : 'none';
+    document.getElementById('buyerCloseDateField').style.display = isClosed ? '' : 'none';
+
+    // Enable/disable Commission Request tab (Tab 7)
+    var tab7 = document.getElementById('sidebarTab7');
+    var mobile7 = document.getElementById('mobileTab7');
+    var lock = document.getElementById('buyerCommTabLock');
+    if (isClosed) {
+        if (tab7) { tab7.disabled = false; tab7.classList.remove('opacity-50','pointer-events-none','text-gray-400'); tab7.classList.add('text-gray-700'); }
+        if (mobile7) { mobile7.disabled = false; mobile7.className = 'mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap bg-green-100 text-green-700'; }
+        if (lock) { lock.classList.remove('fa-lock','text-gray-300'); lock.classList.add('fa-lock-open','text-green-500'); }
+    } else {
+        if (tab7) { tab7.disabled = true; tab7.classList.add('opacity-50','pointer-events-none','text-gray-400'); tab7.classList.remove('text-gray-700'); }
+        if (mobile7) { mobile7.disabled = true; mobile7.className = 'mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap bg-gray-200 text-gray-400 pointer-events-none'; }
+        if (lock) { lock.classList.add('fa-lock','text-gray-300'); lock.classList.remove('fa-lock-open','text-green-500'); }
+    }
+
+    // Update badge
+    var badge = document.getElementById('buyerDraftBadge');
+    if (badge) {
+        var badgeMap = {
+            'Draft': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', icon: 'fa-file-alt', label: 'DRAFT' },
+            'Searching': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon: 'fa-search', label: 'SEARCHING' },
+            'Showing': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon: 'fa-eye', label: 'SHOWING' },
+            'OfferOut': { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', icon: 'fa-paper-plane', label: 'OFFER OUT' },
+            'OfferAccepted': { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', icon: 'fa-check', label: 'OFFER ACCEPTED' },
+            'ContractSigned': { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', icon: 'fa-file-signature', label: 'CONTRACT' },
+            'Sold': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', icon: 'fa-check-circle', label: 'SOLD' },
+            'SoldThruUs': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', icon: 'fa-check-circle', label: 'SOLD THRU US' },
+        };
+        var b = badgeMap[status] || badgeMap['Draft'];
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ' + b.bg + ' ' + b.text + ' border ' + b.border;
+        badge.innerHTML = '<i class="fas ' + b.icon + '"></i> ' + b.label;
+    }
+}
+
+// ══════════════════════════════════════════════════════
+// PREVIEW
+// ══════════════════════════════════════════════════════
+function updateBuyerPreview() {
+    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var fmt = function(n) { return n ? '$' + parseFloat(n).toLocaleString() : '--'; };
+    document.getElementById('prevBuyerAddress').textContent = (val('buyerStreetAddress') || '--') + (val('buyerUnitNumber') ? ', ' + val('buyerUnitNumber') : '');
+    document.getElementById('prevBuyerPropertyType').textContent = val('buyerPropertyType') || '--';
+    var bed = val('buyerBedrooms'), bath = val('buyerFullBaths'), sqft = val('buyerLivingArea');
+    document.getElementById('prevBuyerBedBath').textContent = (bed || '--') + ' BD / ' + (bath || '--') + ' BA | ' + (sqft ? sqft + ' sq ft' : '--');
+    document.getElementById('prevBuyerClient').textContent = val('buyerClientName') || '--';
+    document.getElementById('prevBuyerClientEmail').textContent = val('buyerClientEmail') || '--';
+    document.getElementById('prevBuyerClientPhone').textContent = val('buyerClientPhone') || '--';
+    document.getElementById('prevBuyerListingAgent').textContent = val('buyerListingAgentName') || '--';
+    document.getElementById('prevBuyerListingBrokerage').textContent = val('buyerListingBrokerageName') || '--';
+    document.getElementById('prevBuyerListPrice').textContent = fmt(val('buyerListPrice'));
+    document.getElementById('prevBuyerOfferPrice').textContent = fmt(val('buyerOfferPrice'));
+    document.getElementById('prevBuyerSalePrice').textContent = fmt(val('buyerSoldPrice'));
+    document.getElementById('prevBuyerStatus').textContent = val('buyerDealStatus') || 'Draft';
+}
+
+// ══════════════════════════════════════════════════════
+// COMMISSION — Auto-populate & Calculate
+// ══════════════════════════════════════════════════════
+function populateBuyerCommissionFields() {
+    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+
+    var rlsId = val('buyerRlsId');
+    set('commBuyerRlsId', rlsId || '--');
+
+    var addr = val('buyerStreetAddress'), unit = val('buyerUnitNumber'), zip = val('buyerZipCode');
+    var borough = document.getElementById('buyerBorough');
+    var boroughText = borough && borough.options[borough.selectedIndex] ? borough.options[borough.selectedIndex].text : '';
+    if (boroughText === '-- Borough --') boroughText = '';
+    var parts = []; if (addr) parts.push(addr); if (unit) parts.push(unit); if (boroughText) parts.push(boroughText); if (zip) parts.push(zip);
+    set('commBuyerAddress', parts.length ? parts.join(', ') : '--');
+    set('commBuyerBorough', boroughText || '--');
+
+    var soldPrice = parseFloat(val('buyerSoldPrice')) || 0;
+    var listPrice = parseFloat(val('buyerListPrice')) || 0;
+    var price = soldPrice || listPrice;
+    set('commBuyerListPrice', listPrice ? '$' + listPrice.toLocaleString() : '--');
+    set('commBuyerFinalPrice', price || '');
+
+    var bed = val('buyerBedrooms'), bath = val('buyerFullBaths'), half = val('buyerHalfBaths');
+    if (bed || bath) {
+        var bathStr = (bath || '0') + (half && parseInt(half) > 0 ? '.' + half : '');
+        set('commBuyerBedBath', (bed || '--') + ' BD / ' + bathStr + ' BA');
+    } else set('commBuyerBedBath', '--');
+
+    var sqft = val('buyerLivingArea');
+    set('commBuyerSqFt', sqft ? sqft + ' sq ft' : '--');
+
+    // Deal parties
+    set('commBuyerName', val('buyerClientName'));
+    set('commBuyerEmail', val('buyerClientEmail'));
+    set('commBuyerPhone', val('buyerClientPhone'));
+    set('commBuyerAttorney', val('buyerAttorneyName'));
+    set('commBuyerSellerAttorney', val('buyerSellerAttorneyName'));
+    set('commBuyerOurAgent', val('headerAgentName'));
+    set('commBuyerListingAgentComm', val('buyerListingAgentName'));
+    set('commBuyerListingBrokerageComm', val('buyerListingBrokerageName'));
+
+    var closeDate = val('buyerCloseDate');
+    set('commBuyerClosingDate', closeDate);
+
+    calculateBuyerCommission();
+}
+
+function calculateBuyerCommission() {
+    var price = parseFloat((document.getElementById('commBuyerFinalPrice') || {}).value) || 0;
+    var totalPct = parseFloat((document.getElementById('commBuyerTotalPct') || {}).value) || 0;
+    var ourSidePct = parseFloat((document.getElementById('commBuyerOurSidePct') || {}).value) || 0;
+    var agentSplitPct = parseFloat((document.getElementById('commBuyerAgentSplitPct') || {}).value) || 0;
+
+    var listingSidePct = Math.max(0, 100 - ourSidePct);
+    var el = document.getElementById('commBuyerListingSidePct');
+    if (el) el.value = listingSidePct;
+
+    var gross = price * (totalPct / 100);
+    var ourSideAmt = gross * (ourSidePct / 100);
+    var listingSideAmt = gross * (listingSidePct / 100);
+    var agentPayout = ourSideAmt * (agentSplitPct / 100);
+    var companyShare = ourSideAmt - agentPayout;
+
+    var fmt = function(n) { return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+
+    setText('commBuyerPriceDisplay', fmt(price));
+    setText('commBuyerGrossAmount', fmt(gross));
+    setText('commBuyerOurSideAmt', fmt(ourSideAmt));
+    setText('commBuyerListingSideAmt', fmt(listingSideAmt));
+    setText('commBuyerAgentPayout', fmt(agentPayout));
+    setText('commBuyerCompanyShare', fmt(companyShare));
+}
+
+function submitBuyerCommissionRequest() {
+    var price = (document.getElementById('commBuyerFinalPrice') || {}).value;
+    var totalPct = (document.getElementById('commBuyerTotalPct') || {}).value;
+    var buyerName = (document.getElementById('commBuyerName') || {}).value;
+    var payMethod = document.querySelector('input[name="commBuyerPayMethod"]:checked');
+    var closingDate = (document.getElementById('commBuyerClosingDate') || {}).value;
+
+    if (!price || !totalPct || !buyerName || !payMethod || !closingDate) {
+        alert('Please fill in all required fields:\n- Sale Price\n- Total Commission %\n- Buyer Name\n- Payment Method\n- Closing Date');
+        return;
+    }
+
+    var agentPayout = (document.getElementById('commBuyerAgentPayout') || {}).textContent || '$0';
+    var companyShare = (document.getElementById('commBuyerCompanyShare') || {}).textContent || '$0';
+
+    // Store submission in sessionStorage for persistence
+    var requestData = {
+        requestId: 'CR-' + Date.now().toString(36).toUpperCase(),
+        status: 'Submitted',
+        submittedDate: new Date().toLocaleString(),
+        rlsId: (document.getElementById('commBuyerRlsId') || {}).value || '',
+        price: price,
+        agentPayout: agentPayout,
+        companyShare: companyShare,
+        payMethod: payMethod.value,
+        closingDate: closingDate
+    };
+    sessionStorage.setItem('buyerCommRequest', JSON.stringify(requestData));
+
+    // Update stepper to step 2
+    updateBuyerCommStepper(2);
+
+    // Show status details
+    document.getElementById('commBuyerSubmitDate').textContent = requestData.submittedDate;
+    document.getElementById('commBuyerStatusDetails').classList.remove('hidden');
+
+    // Disable submit, show edit button
+    document.getElementById('commBuyerSubmitBtn').classList.add('hidden');
+    document.getElementById('commBuyerEditBtn').classList.remove('hidden');
+
+    // Lock commission fields
+    setBuyerCommFieldsReadonly(true);
+
+    showToast('Commission request submitted — awaiting broker review');
+
+    // Add to history timeline
+    addBuyerHistoryEntry('Commission Request Submitted', 'Request ' + requestData.requestId + ' submitted for broker review. Agent payout: ' + agentPayout, 'fa-paper-plane', 'green');
+}
+
+function updateBuyerCommStepper(currentStep) {
+    for (var i = 1; i <= 5; i++) {
+        var stepEl = document.getElementById('commBuyerStep' + i);
+        if (!stepEl) continue;
+        var circle = stepEl.querySelector('div');
+        var label = stepEl.querySelector('p');
+        if (i < currentStep) {
+            // Completed steps — green
+            circle.className = 'w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold';
+            label.className = 'text-[10px] font-semibold text-green-700 mt-1 text-center';
+        } else if (i === currentStep) {
+            // Current step — blue
+            circle.className = 'w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold';
+            label.className = 'text-[10px] font-semibold text-blue-700 mt-1 text-center';
+        } else {
+            // Future steps — gray
+            circle.className = 'w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold';
+            label.className = 'text-[10px] font-semibold text-gray-400 mt-1 text-center';
+        }
+    }
+    // Update connector lines
+    var lines = document.querySelectorAll('#buyerMainTab7 .flex-1.h-0\\.5');
+    lines.forEach(function(line, idx) {
+        line.className = 'flex-1 h-0.5 min-w-[30px] ' + (idx < currentStep - 1 ? 'bg-green-400' : 'bg-gray-300');
+    });
+}
+
+function setBuyerCommFieldsReadonly(locked) {
+    var ids = ['commBuyerFinalPrice','commBuyerTotalPct','commBuyerOurSidePct','commBuyerAgentSplitPct','commBuyerName','commBuyerEmail','commBuyerPhone','commBuyerAttorney','commBuyerSellerName','commBuyerSellerAttorney','commBuyerCoAgent','commBuyerListingAgentComm','commBuyerListingBrokerageComm','commBuyerClosingDate','commBuyerNotes'];
+    ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.readOnly = locked; if (locked) el.classList.add('bg-gray-50'); else el.classList.remove('bg-gray-50'); }
+    });
+    // Disable radio buttons
+    document.querySelectorAll('input[name="commBuyerPayMethod"]').forEach(function(r) { r.disabled = locked; });
+}
+
+function enableBuyerCommEdit() {
+    // Unlock fields for editing
+    setBuyerCommFieldsReadonly(false);
+    // Show resubmit, hide edit
+    document.getElementById('commBuyerEditBtn').classList.add('hidden');
+    document.getElementById('commBuyerResubmitBtn').classList.remove('hidden');
+    showToast('Fields unlocked — make corrections and resubmit');
+}
+
+function resubmitBuyerCommission() {
+    // Re-validate
+    var price = (document.getElementById('commBuyerFinalPrice') || {}).value;
+    var totalPct = (document.getElementById('commBuyerTotalPct') || {}).value;
+    if (!price || !totalPct) { alert('Sale Price and Commission % are required.'); return; }
+
+    // Update stored request
+    var stored = JSON.parse(sessionStorage.getItem('buyerCommRequest') || '{}');
+    stored.status = 'Submitted';
+    stored.resubmittedDate = new Date().toLocaleString();
+    sessionStorage.setItem('buyerCommRequest', JSON.stringify(stored));
+
+    // Reset stepper to step 2
+    updateBuyerCommStepper(2);
+    document.getElementById('commBuyerSubmitDate').textContent = stored.resubmittedDate + ' (resubmitted)';
+
+    // Lock fields again
+    setBuyerCommFieldsReadonly(true);
+    document.getElementById('commBuyerResubmitBtn').classList.add('hidden');
+    document.getElementById('commBuyerEditBtn').classList.remove('hidden');
+
+    // Hide rejection note if visible
+    document.getElementById('commBuyerRejectionNote').classList.add('hidden');
+
+    showToast('Commission request resubmitted');
+    addBuyerHistoryEntry('Commission Request Resubmitted', 'Corrections made and resubmitted for broker review.', 'fa-redo', 'blue');
+}
+
+function checkBuyerCommStatus() {
+    // Production: no URL-param-driven state
+    var stored = JSON.parse(sessionStorage.getItem('buyerCommRequest') || '{}');
+    var commStatus = stored.status || null;
+    if (!commStatus) return;
+
+    // If deal isn't Sold yet, force it so commission tab opens
+    var dealStatus = (document.getElementById('buyerDealStatus') || {}).value;
+    if (dealStatus !== 'Sold' && dealStatus !== 'SoldThruUs') {
+        var sel = document.getElementById('buyerDealStatus');
+        if (sel) sel.value = 'Sold';
+        updateBuyerStatusFields();
+    }
+
+    // Map status to stepper step
+    var stepMap = { 'Draft': 1, 'Submitted': 2, 'UnderReview': 3, 'Approved': 4, 'Paid': 5, 'Rejected': 3 };
+    var step = stepMap[commStatus] || 1;
+
+    // Navigate to commission tab
+    setTimeout(function() {
+        showBuyerMainTab(7);
+
+        updateBuyerCommStepper(step);
+        document.getElementById('commBuyerStatusDetails').classList.remove('hidden');
+
+        // Populate status details from URL params or stored data
+        var stored = JSON.parse(sessionStorage.getItem('buyerCommRequest') || '{}');
+        if (stored.submittedDate) document.getElementById('commBuyerSubmitDate').textContent = stored.submittedDate;
+
+        var reviewer = (step >= 3 ? 'Broker' : '--');
+        document.getElementById('commBuyerReviewer').textContent = reviewer;
+
+        if (step >= 3) document.getElementById('commBuyerReviewDate').textContent = stored.reviewDate || new Date().toLocaleDateString();
+        if (step >= 5) document.getElementById('commBuyerPaymentDate').textContent = stored.paymentDate || new Date().toLocaleDateString();
+
+        // Handle rejection
+        if (commStatus === 'Rejected') {
+            document.getElementById('commBuyerRejectionNote').classList.remove('hidden');
+            document.getElementById('commBuyerRejectionReason').textContent = stored.reason || 'Commission percentage exceeds agreement terms. Please verify and resubmit.';
+            // Show edit button for correction
+            document.getElementById('commBuyerSubmitBtn').classList.add('hidden');
+            document.getElementById('commBuyerEditBtn').classList.remove('hidden');
+            // Mark step 3 as red for rejection
+            var step3 = document.getElementById('commBuyerStep3');
+            if (step3) {
+                step3.querySelector('div').className = 'w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold';
+                step3.querySelector('p').className = 'text-[10px] font-semibold text-red-700 mt-1 text-center';
+                step3.querySelector('p').textContent = 'Rejected';
+            }
+        } else if (step >= 2) {
+            // Lock fields and swap buttons
+            setBuyerCommFieldsReadonly(true);
+            document.getElementById('commBuyerSubmitBtn').classList.add('hidden');
+            if (step < 5) document.getElementById('commBuyerEditBtn').classList.remove('hidden');
+        }
+
+        if (step === 5) {
+            // Fully paid — no edit
+            document.getElementById('commBuyerEditBtn').classList.add('hidden');
+            document.getElementById('commBuyerResubmitBtn').classList.add('hidden');
+        }
+    }, 200);
+}
+
+function addBuyerHistoryEntry(title, detail, icon, color) {
+    var timeline = document.getElementById('buyerHistoryTimeline');
+    if (!timeline) return;
+    var entry = document.createElement('div');
+    entry.className = 'flex items-start gap-3 p-3 bg-gray-50 rounded-lg';
+    entry.innerHTML = '<div class="w-8 h-8 bg-' + color + '-100 rounded-full flex items-center justify-center flex-shrink-0">' +
+        '<i class="fas ' + icon + ' text-' + color + '-600 text-xs"></i></div>' +
+        '<div><p class="text-sm font-semibold text-gray-800">' + title + '</p>' +
+        '<p class="text-xs text-gray-500">' + new Date().toLocaleString() + '</p>' +
+        '<p class="text-xs text-gray-600">' + detail + '</p></div>';
+    timeline.insertBefore(entry, timeline.firstChild);
+}
+
+// ══════════════════════════════════════════════════════
+// UTILITY
+// ══════════════════════════════════════════════════════
+function showToast(msg) {
+    var toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.innerHTML = '<i class="fas fa-check-circle mr-2"></i>' + msg;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3000);
+}
+window.alert = function(msg) { showToast(String(msg)); };
+
+function manualSaveDraft(type) {
+    showToast('Draft saved successfully');
+}
+
+function submitBuyerDeal() {
+    var status = (document.getElementById('buyerDealStatus') || {}).value;
+    var addr = (document.getElementById('buyerStreetAddress') || {}).value;
+    var client = (document.getElementById('buyerClientName') || {}).value;
+    if (!addr) { alert('Please search for a listing or enter a property address.'); return; }
+    if (!client) { alert('Please enter the buyer client name.'); showBuyerMainTab(3); return; }
+    showToast('Buyer deal submitted successfully');
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+    initLoggedInAgent();
+    var today = new Date().toISOString().split('T')[0];
+    var createDate = document.getElementById('buyerCreateDate');
+    if (createDate) createDate.value = today;
+    document.getElementById('buyerHistoryCreateDate').textContent = new Date().toLocaleString();
+    document.getElementById('buyerLastUpdated').textContent = today;
+    // Check if agent is returning to view commission status
+    checkBuyerCommStatus();
+    console.log('Buyer Deal Form initialized.');
+});
+</script>
+
+</body>
+</html>

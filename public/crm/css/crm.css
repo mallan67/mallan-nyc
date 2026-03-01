@@ -1,0 +1,210 @@
+/* ═══════════════════════════════════════════════════════
+   CRM — DESIGN SYSTEM
+   Mallan Real Estate Inc.
+   ═══════════════════════════════════════════════════════ */
+
+/* Internal Commission Section — Locked Down */
+.internal-commission-section { position: relative; }
+.internal-commission-section::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border: 2px solid #DC2626; border-radius: 12px;
+    pointer-events: none; z-index: 1;
+}
+.internal-commission-section[data-internal-only="true"]::after {
+    content: 'EXCLUDED FROM ALL DATA FEEDS';
+    position: absolute; top: -1px; right: 12px;
+    background: #DC2626; color: white;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 0 0 4px 4px; z-index: 2;
+}
+
+/* ═══════════════════════════════════════════════════════
+   VARIABLES
+   ═══════════════════════════════════════════════════════ */
+:root {
+    --crm-accent: #3B82F6;
+    --crm-accent-bg: rgba(59, 130, 246, 0.08);
+}
+
+/* ═══════════════════════════════════════════════════════
+   CLIENT DATA TABLE
+   ═══════════════════════════════════════════════════════ */
+#clientTable thead { position: sticky; top: 0; z-index: 5; }
+#clientTable tbody tr { transition: background-color 0.15s ease; }
+#clientTable tbody tr:hover { background-color: #fafafa !important; }
+#clientTable tbody tr:nth-child(even) { background-color: #fcfcfc; }
+
+/* ═══════════════════════════════════════════════════════
+   FILTER BAR
+   ═══════════════════════════════════════════════════════ */
+#clientFilterBar select:focus,
+#clientFilterBar input:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-bg);
+    outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CLIENT TABS
+   ═══════════════════════════════════════════════════════ */
+#clientTabBar { gap: 0; }
+#clientTabBar .client-status-tab {
+    position: relative;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   WORKSPACE CARDS
+   ═══════════════════════════════════════════════════════ */
+#clientWorkspace .bg-white.border {
+    transition: box-shadow 0.2s ease;
+}
+#clientWorkspace .bg-white.border:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+#clientWorkspace h4 {
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+/* Blue left accent on card headers */
+#clientWorkspace .bg-white.border > h4:first-child,
+#clientWorkspace .bg-white.border > div:first-child > h4:first-child {
+    position: relative;
+    padding-left: 14px;
+}
+#clientWorkspace .bg-white.border > h4:first-child::before,
+#clientWorkspace .bg-white.border > div:first-child > h4:first-child::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 2px; bottom: 2px;
+    width: 3px;
+    background: var(--crm-accent);
+    border-radius: 2px;
+}
+
+/* Workspace tabs */
+#wsTabPills { gap: 0; }
+#wsTabPills .ws-content-tab {
+    position: relative;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+/* Portfolio hover actions */
+.group\/listing:hover .opacity-0 { opacity: 1 !important; }
+
+/* Workspace fade-in */
+#clientWorkspace {
+    animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Deal Health blue top */
+#wsDealHealthCard { border-top: 3px solid var(--crm-accent) !important; }
+
+/* ═══════════════════════════════════════════════════════
+   WORKSPACE FORM INPUTS
+   ═══════════════════════════════════════════════════════ */
+#clientWorkspace input[type="text"],
+#clientWorkspace input[type="email"],
+#clientWorkspace input[type="tel"],
+#clientWorkspace input[type="date"],
+#clientWorkspace input[type="number"],
+#clientWorkspace select,
+#clientWorkspace textarea {
+    border: 1px solid #e5e7eb;
+    font-size: 13px;
+    transition: all 0.2s;
+    border-radius: 8px;
+}
+#clientWorkspace input:focus,
+#clientWorkspace select:focus,
+#clientWorkspace textarea:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-bg);
+    outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CUSTOMER INFO SECTIONS
+   ═══════════════════════════════════════════════════════ */
+#custSection-summary,
+#custSection-matches,
+#custSection-portfolio,
+#custSection-openhouses,
+#custSection-savedsearches,
+#custSection-share,
+#custSection-emaillog {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PIPELINE / KANBAN
+   ═══════════════════════════════════════════════════════ */
+#dealPipelineContainer,
+#clientPipelineView {
+    animation: fadeIn 0.25s ease;
+}
+#pipelineKanbanBoard > div {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SEARCH RESULTS CARDS
+   ═══════════════════════════════════════════════════════ */
+.listing-card,
+[data-listing-id] {
+    transition: all 0.2s ease;
+}
+[data-listing-id]:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* ═══════════════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════════════ */
+.btn-luxury-primary {
+    background: var(--crm-accent);
+    color: white; font-weight: 600;
+    padding: 10px 20px; border: none;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.btn-luxury-primary:hover {
+    background: #2563EB;
+    transform: translateY(-1px);
+}
+.btn-luxury-outline {
+    background: transparent;
+    color: #374151; font-weight: 500;
+    padding: 10px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.btn-luxury-outline:hover {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+}
+
+/* ═══════════════════════════════════════════════════════
+   VIEW AS CLIENT OVERLAY
+   ═══════════════════════════════════════════════════════ */
+#viewAsClientOverlay > div:first-child {
+    background: #111827 !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   THIN SCROLLBAR
+   ═══════════════════════════════════════════════════════ */
+#section-client ::-webkit-scrollbar { width: 4px; height: 4px; }
+#section-client ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+#section-client ::-webkit-scrollbar-track { background: transparent; }

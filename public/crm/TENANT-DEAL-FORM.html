@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tenant Deal Form - Mallan Real Estate CRM</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { gold: '#B8860B', dark: '#1a1a1a', slate: '#3d4556' },
+      },
+      fontFamily: { sans: ['Manrope', 'sans-serif'] },
+    }
+  }
+}
+</script>
+<style>
+body { font-family: Manrope, sans-serif; }
+.sidebar-tab { transition: all 0.2s ease; border-left: 3px solid transparent; }
+.sidebar-tab:hover { background: #f8fafc; border-left-color: #d1d5db; }
+.sidebar-tab.active { background: #eff6ff; border-left-color: #2563eb; color: #1e40af; }
+.sidebar-tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
+.sidebar-tab.active .tab-dot { background: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+.sidebar-tab.completed .tab-dot { background: #16a34a; }
+.sub-tab-pill { transition: all 0.15s ease; padding: 6px 16px; border-radius: 9999px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.sub-tab-pill:hover { background: #bfdbfe; }
+.sub-tab-pill.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.form-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.form-card-header { font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 10px; border-bottom: 1px solid #f3f4f6; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.form-card-header i { color: #B8860B; font-size: 14px; }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 4px; }
+.field-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.field-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.field-input[readonly] { background: #f9fafb; }
+.toast-notification { position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #16a34a; color: #fff; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); font-size: 14px; font-weight: 600; animation: slideInRight .3s ease, fadeOut .3s ease 2.7s forwards; }
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+@keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+.radio-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; transition: all 0.15s; cursor: pointer; }
+.radio-card:hover { border-color: #93c5fd; background: #f0f9ff; }
+.radio-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+.warning-banner { border-radius: 8px; padding: 12px 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; }
+@media (max-width: 767px) { .sidebar-nav { display: none; } .mobile-tabs { display: flex !important; } }
+@media (min-width: 768px) { .mobile-tabs { display: none !important; } }
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.photo-card { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #fff; }
+.photo-card img { width: 100%; height: 140px; object-fit: cover; }
+.photo-card .caption { padding: 8px 10px; font-size: 11px; color: #6b7280; }
+</style>
+<!-- API Client — identity from session cookie, no PII in URLs -->
+<script src="js/core/api-client.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- HEADER BAR -->
+<header class="bg-white border-b shadow-sm px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center gap-4">
+        <span class="text-xl font-bold text-gray-900">mallan<span class="text-brand-gold">.nyc</span></span>
+        <span class="text-gray-300">|</span>
+        <span class="text-sm font-semibold text-gray-700">Tenant Deal Form</span>
+        <span class="px-2 py-0.5 bg-teal-50 text-teal-700 text-xs font-bold rounded-full border border-teal-200">TENANT SIDE</span>
+    </div>
+    <div class="flex items-center gap-3 text-sm text-gray-600">
+        <span><i class="fas fa-user-circle mr-1"></i> <span id="headerAgentName">--</span></span>
+        <span class="text-gray-300">|</span>
+        <span id="headerCompanyName">--</span>
+    </div>
+</header>
+
+<!-- Hidden fields for logged-in agent (populated by initLoggedInAgent() from session) -->
+<input type="hidden" id="tenantUpdatingAgent" value="">
+<input type="hidden" id="tenantUpdatingAgentName" value="">
+<input type="hidden" id="tenantUpdatingAgentPhone" value="">
+<input type="hidden" id="tenantUpdatingAgentEmail" value="">
+<input type="hidden" id="tenantUpdatingAgentLicense" value="">
+<input type="hidden" id="tenantUpdatingAgentCompanyKey" value="">
+<input type="hidden" id="tenantUpdatingAgentCompanyName" value="">
+
+<!-- STICKY DEAL INFO BAR -->
+<div class="bg-white border-b px-6 py-2.5 sticky top-[53px] z-40 shadow-sm">
+    <div class="max-w-screen-2xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+            <span><strong>Address:</strong> <span id="tenantAddressDisplay">[Search Listing]</span></span>
+            <span><strong>Unit:</strong> <span id="tenantUnitDisplay">[Unit]</span></span>
+            <span><strong>RLS ID:</strong> <span id="tenantRlsIdDisplay">--</span></span>
+            <span><strong>Updated:</strong> <span id="tenantLastUpdated">--</span></span>
+            <span id="tenantDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="manualSaveDraft('tenant')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition">
+                <i class="fas fa-save mr-1"></i> Save Draft
+            </button>
+            <button onclick="submitTenantDeal()" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
+                Submit
+            </button>
+            <button onclick="cancelTenantForm()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs hover:bg-gray-50 transition">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MOBILE TAB BAR -->
+<div class="mobile-tabs overflow-x-auto bg-white border-b px-2 py-1.5 gap-1" style="display:none;">
+    <button onclick="showTenantMainTab(1)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white whitespace-nowrap">Listing Search</button>
+    <button onclick="showTenantMainTab(2)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Property Details</button>
+    <button onclick="showTenantMainTab(3)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Tenant Client</button>
+    <button onclick="showTenantMainTab(4)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Photos</button>
+    <button onclick="showTenantMainTab(5)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">Preview</button>
+    <button onclick="showTenantMainTab(6)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">History</button>
+    <button onclick="showTenantMainTab(7)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400 whitespace-nowrap pointer-events-none" id="mobileTab7" disabled>Commission</button>
+</div>
+
+<!-- MAIN LAYOUT: SIDEBAR + CONTENT -->
+<div class="max-w-screen-2xl mx-auto flex">
+
+    <!-- LEFT SIDEBAR NAV -->
+    <aside class="sidebar-nav w-56 min-h-[calc(100vh-106px)] bg-white border-r flex-shrink-0 sticky top-[106px] self-start overflow-y-auto" style="max-height: calc(100vh - 106px);">
+        <div class="py-3">
+            <p class="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Form Sections</p>
+            <button id="sidebarTab1" onclick="showTenantMainTab(1)" class="sidebar-tab active w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span><i class="fas fa-search text-xs w-4 text-center"></i>
+                <span>Listing Search <span class="text-red-400 text-xs">*</span></span>
+            </button>
+            <button id="sidebarTab2" onclick="showTenantMainTab(2)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span><i class="fas fa-door-open text-xs w-4 text-center"></i>
+                <span>Property Details</span>
+            </button>
+            <button id="sidebarTab3" onclick="showTenantMainTab(3)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span><i class="fas fa-user-friends text-xs w-4 text-center"></i>
+                <span>Tenant Client <span class="text-red-400 text-xs">*</span></span>
+            </button>
+            <button id="sidebarTab4" onclick="showTenantMainTab(4)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span><i class="fas fa-images text-xs w-4 text-center"></i>
+                <span>Photos</span>
+            </button>
+            <button id="sidebarTab5" onclick="showTenantMainTab(5)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span><i class="fas fa-eye text-xs w-4 text-center"></i>
+                <span>Preview</span>
+            </button>
+            <button id="sidebarTab6" onclick="showTenantMainTab(6)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <span class="tab-dot"></span><i class="fas fa-history text-xs w-4 text-center"></i>
+                <span>History</span>
+            </button>
+            <button id="sidebarTab7" onclick="showTenantMainTab(7)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-400 opacity-50 pointer-events-none" disabled title="Available when deal status is Rented">
+                <span class="tab-dot"></span><i class="fas fa-dollar-sign text-xs w-4 text-center"></i>
+                <span>Commission Request</span>
+                <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="tenantCommTabLock"></i>
+            </button>
+        </div>
+        <div class="border-t px-4 py-3">
+            <div id="tenantValidationSummary" class="text-xs">
+                <p class="text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 p-4 md:p-6 min-w-0">
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 1: LISTING SEARCH                                    ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab1" class="tenant-main-tab">
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button id="tenantSubTab1_1" onclick="showTenantSubTab(1,1)" class="sub-tab-pill active">Listing Search</button>
+        <button id="tenantSubTab1_2" onclick="showTenantSubTab(1,2)" class="sub-tab-pill">Deal Status</button>
+        <button id="tenantSubTab1_3" onclick="showTenantSubTab(1,3)" class="sub-tab-pill">Agreements</button>
+        <button id="tenantSubTab1_4" onclick="showTenantSubTab(1,4)" class="sub-tab-pill">Notes</button>
+    </div>
+
+    <!-- SUB-TAB 1.1: LISTING SEARCH -->
+    <div id="tenantSubTabContent1_1" class="tenant-sub-tab">
+        <div class="warning-banner bg-blue-50 border border-blue-200 text-blue-800 mb-4">
+            <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+            <div class="text-xs">
+                <p class="font-semibold">How This Form Works</p>
+                <p class="mt-1">Search for the rental listing by address, RLS ID, or Web ID. If found in IDX/RLS, the property data and photos will auto-populate. For off-RLS deals, enter details manually.</p>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-search-location"></i> Find Listing — IDX / RLS Lookup</div>
+            <p class="text-xs text-gray-500 mb-3">Search by address, RLS ID, or Web ID to auto-populate property data from the listing.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <div class="sm:col-span-2 relative">
+                    <input type="text" id="tenantListingSearch" placeholder="Start typing address (e.g., 200 East 66th Street, 15A)..." oninput="searchListingForTenantDeal(this.value)" class="field-input pl-10">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <div>
+                    <input type="text" id="tenantRlsIdSearch" placeholder="RLS ID or Web ID" class="field-input" oninput="searchByRlsIdTenant(this.value)">
+                </div>
+            </div>
+            <div id="tenantListingSearchResults" class="hidden mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50 relative"></div>
+            <div id="tenantIdxMatchBanner" class="hidden mt-3 warning-banner bg-green-50 border border-green-200 text-green-800">
+                <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
+                <div class="text-xs">
+                    <p class="font-semibold">Listing Found — Data Auto-Populated</p>
+                    <p>Source: <strong id="tenantIdxSource">IDX/RLS</strong> | Listing Brokerage: <strong id="tenantListingBrokerage">--</strong></p>
+                    <p class="mt-0.5 text-green-600">Property details, building info, and photos have been loaded.</p>
+                </div>
+            </div>
+            <div id="tenantManualEntryBanner" class="hidden mt-3 warning-banner bg-amber-50 border border-amber-200 text-amber-800">
+                <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+                <div class="text-xs">
+                    <p class="font-semibold">Listing Not Found in IDX/RLS</p>
+                    <p>This may be an off-RLS deal. Enter the property details manually below.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-map-marker-alt"></i> Property Address</div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div class="sm:col-span-2">
+                    <label class="field-label">Street Address <span class="text-red-500">*</span></label>
+                    <input type="text" id="tenantStreetAddress" placeholder="e.g., 200 East 66th Street" oninput="updateTenantHeaderBar()" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Unit / Apt</label>
+                    <input type="text" id="tenantUnitNumber" placeholder="e.g., 15A" oninput="updateTenantHeaderBar()" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">Borough <span class="text-red-500">*</span></label>
+                    <select id="tenantBorough" class="field-input">
+                        <option value="">-- Borough --</option>
+                        <option value="Manhattan">Manhattan</option>
+                        <option value="Brooklyn">Brooklyn</option>
+                        <option value="Queens">Queens</option>
+                        <option value="Bronx">Bronx</option>
+                        <option value="StatenIsland">Staten Island</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
+                <div><label class="field-label">Zip Code</label><input type="text" id="tenantZipCode" placeholder="e.g., 10065" maxlength="5" class="field-input"></div>
+                <div><label class="field-label">Neighborhood</label><input type="text" id="tenantNeighborhood" placeholder="Auto-populated" class="field-input" readonly></div>
+                <div><label class="field-label">RLS Listing ID</label><input type="text" id="tenantRlsId" placeholder="From IDX" class="field-input" readonly></div>
+                <div><label class="field-label">Web ID</label><input type="text" id="tenantWebId" placeholder="From IDX" class="field-input" readonly></div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-tie"></i> Listing Side Information <span class="text-[10px] font-normal text-gray-400 ml-2">Auto-populated from IDX or enter manually</span></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div><label class="field-label">Listing Agent Name</label><input type="text" id="tenantListingAgentName" placeholder="Listing agent" class="field-input"></div>
+                <div><label class="field-label">Listing Brokerage</label><input type="text" id="tenantListingBrokerageName" placeholder="Brokerage firm" class="field-input"></div>
+                <div><label class="field-label">Listing Agent Phone</label><input type="tel" id="tenantListingAgentPhone" placeholder="(000) 000-0000" class="field-input"></div>
+                <div><label class="field-label">Listing Agent Email</label><input type="email" id="tenantListingAgentEmail" placeholder="agent@brokerage.com" class="field-input"></div>
+                <div><label class="field-label">Listing Agent MLS ID</label><input type="text" id="tenantListingAgentMlsId" placeholder="MLS ID" class="field-input"></div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-shield"></i> Tenant's Agent (Our Side)</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label class="field-label">Tenant's Agent</label><input type="text" id="tenantAgentDisplay" value="" class="field-input" readonly><p class="text-[10px] text-gray-400 mt-1">Auto-assigned to logged-in agent</p></div>
+                <div><label class="field-label">Co-Agent</label><input type="text" id="tenantCoAgent" placeholder="If applicable" class="field-input"></div>
+                <div><label class="field-label">Create Date</label><input type="date" id="tenantCreateDate" class="field-input"></div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-people-group"></i> Team Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <!-- RLS/RESO/IDX: BuyerTeamName (Optional — CLOSE distribution) -->
+                    <label class="field-label">Tenant's Agent Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamName)</span></label>
+                    <input type="text" id="tenantTeamName" placeholder="e.g., The Allan Team" class="field-input">
+                </div>
+                <div>
+                    <!-- RLS/RESO/IDX: BuyerTeamMlsId (Optional — CLOSE distribution) -->
+                    <label class="field-label">Tenant's Agent Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamMlsId)</span></label>
+                    <input type="text" id="tenantTeamMlsId" placeholder="Team MLS ID" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-lock"></i> Internal Use Only</div>
+            <label class="field-label">Administrative Comments</label>
+            <textarea id="tenantAdminComments" rows="2" placeholder="Internal notes (not visible to public)..." class="field-input"></textarea>
+        </div>
+    </div>
+
+    <!-- SUB-TAB 1.2: DEAL STATUS -->
+    <div id="tenantSubTabContent1_2" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-signal"></i> Deal Status & Pricing</div>
+            <div class="mb-5">
+                <label class="field-label mb-1">Deal Status <span class="text-red-500">*</span></label>
+                <select id="tenantDealStatus" class="field-input max-w-md" required onchange="updateTenantStatusFields()">
+                    <option value="Draft" selected>Draft</option>
+                    <option value="Searching">Searching</option>
+                    <option value="Showing">Showing</option>
+                    <option disabled>── Application ──</option>
+                    <option value="AppOut">Application Out</option>
+                    <option value="AppAccepted">Application Accepted</option>
+                    <option value="AppRejected">Application Rejected</option>
+                    <option disabled>── Lease ──</option>
+                    <option value="LeaseOut">Lease Out</option>
+                    <option value="LeaseSigned">Lease Signed</option>
+                    <option value="BoardApproved">Board Approved</option>
+                    <option disabled>── Closed ──</option>
+                    <option value="Rented">Rented</option>
+                    <option value="RentedThruUs">Rented Thru Us</option>
+                    <option disabled>── Off Market ──</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="DealFellThrough">Deal Fell Through</option>
+                </select>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Days in Pipeline</p>
+                        <p class="text-sm font-bold text-gray-800" id="tenantDaysInPipeline">0</p>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Status Changed</p>
+                        <p class="text-xs font-medium text-gray-700" id="tenantStatusChangeTimestamp">--</p>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="tenantResoMlsStatus">--</p>
+                    </div>
+                    <div class="bg-gray-50 border rounded-lg p-2 text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Deal Source</p>
+                        <p class="text-xs font-medium text-gray-700">IDX/RLS</p>
+                    </div>
+                </div>
+            </div>
+            <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3 border-b pb-2">Pricing</h5>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div><label class="field-label">Listed Rent</label><input type="number" id="tenantListRent" placeholder="$0/mo" class="field-input" readonly><p class="text-[10px] text-gray-400 mt-1">From listing</p></div>
+                <div><label class="field-label">Offered Rent</label><input type="number" id="tenantOfferRent" placeholder="$0/mo" class="field-input"></div>
+                <div id="tenantFinalRentField" style="display:none;"><label class="field-label">Final Monthly Rent <span class="text-red-500">*</span></label><input type="number" id="tenantFinalRent" placeholder="$0/mo" class="field-input"></div>
+                <div><label class="field-label">Lease Term (Months)</label><input type="number" id="tenantLeaseTerm" placeholder="12" min="1" class="field-input"></div>
+            </div>
+            <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3 border-b pb-2">Key Dates</h5>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div><label class="field-label">First Showing Date</label><input type="date" id="tenantFirstShowingDate" class="field-input"></div>
+                <div><label class="field-label">Application Date</label><input type="date" id="tenantAppDate" class="field-input"></div>
+                <div id="tenantLeaseStartField" style="display:none;"><label class="field-label">Lease Start Date <span class="text-red-500">*</span></label><input type="date" id="tenantLeaseStartDate" class="field-input"></div>
+                <div id="tenantLeaseEndField" style="display:none;"><label class="field-label">Lease End Date</label><input type="date" id="tenantLeaseEndDate" class="field-input"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUB-TAB 1.3: AGREEMENTS -->
+    <div id="tenantSubTabContent1_3" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-handshake"></i> Tenant Representation Agreement</div>
+            <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="tenantRepAgreementSigned" class="w-4 h-4 mt-0.5">
+                    <label class="text-sm text-gray-700">
+                        <strong>Tenant Representation Agreement:</strong> I confirm a written tenant representation agreement has been executed with this client. <span class="text-xs text-gray-500">(Recommended per UCBA 2026.)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="tenantCommNegotiabilityAck" class="w-4 h-4 mt-0.5">
+                    <label class="text-sm text-gray-700">
+                        <span class="text-red-500">*</span> <strong>Commission Negotiability Disclosure:</strong> I confirm that commissions and fees are negotiable and not set by law.
+                    </label>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="field-label">Agreement Start Date</label><input type="date" id="tenantRepStartDate" class="field-input"></div>
+                <div><label class="field-label">Agreement End Date</label><input type="date" id="tenantRepEndDate" class="field-input"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUB-TAB 1.4: NOTES -->
+    <div id="tenantSubTabContent1_4" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-sticky-note"></i> Deal Notes</div>
+            <label class="field-label">Agent Notes</label>
+            <textarea id="tenantDealNotes" rows="6" placeholder="Notes about the deal, showing feedback, negotiation details..." class="field-input"></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 2: PROPERTY DETAILS                                  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab2" class="tenant-main-tab" style="display:none;">
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button id="tenantSubTab2_1" onclick="showTenantSubTab(2,1)" class="sub-tab-pill active">Unit Details</button>
+        <button id="tenantSubTab2_2" onclick="showTenantSubTab(2,2)" class="sub-tab-pill">Features</button>
+        <button id="tenantSubTab2_3" onclick="showTenantSubTab(2,3)" class="sub-tab-pill">Building</button>
+    </div>
+
+    <div id="tenantSubTabContent2_1" class="tenant-sub-tab">
+        <div id="tenantPropertyIdxBanner" class="hidden warning-banner bg-green-50 border border-green-200 text-green-800 mb-4">
+            <i class="fas fa-database text-green-500 mt-0.5"></i>
+            <div class="text-xs"><p class="font-semibold">Data Source: IDX/RLS</p><p>Property details auto-populated from the listing.</p></div>
+        </div>
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-home"></i> Property Type & Unit</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div><label class="field-label">Property Type</label>
+                    <select id="tenantPropertyType" class="field-input">
+                        <option value="">-- Select --</option>
+                        <option value="Condo">Condo</option>
+                        <option value="Coop">Co-op</option>
+                        <option value="Condop">Condop</option>
+                        <option value="RentalBuilding">Rental Building</option>
+                        <option value="SingleFamilyTownhouse">Single Family TH</option>
+                        <option value="MultiFamilyTownhouse">Multi-Family TH</option>
+                        <option value="SingleFamily">Single Family</option>
+                        <option value="MultiFamily">Multi-Family</option>
+                        <option value="MixedUse">Mixed Use</option>
+                        <option value="Loft">Loft</option>
+                    </select>
+                </div>
+                <div><label class="field-label">Bedrooms</label><input type="number" id="tenantBedrooms" placeholder="0" min="0" class="field-input"></div>
+                <div><label class="field-label">Full Bathrooms</label><input type="number" id="tenantFullBaths" placeholder="0" min="0" class="field-input"></div>
+                <div><label class="field-label">Half Bathrooms</label><input type="number" id="tenantHalfBaths" placeholder="0" min="0" class="field-input"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+                <div><label class="field-label">Approx. Sq Ft</label><input type="number" id="tenantLivingArea" placeholder="0" class="field-input"></div>
+                <div><label class="field-label">Total Rooms</label><input type="number" id="tenantTotalRooms" placeholder="0" min="0" class="field-input"></div>
+                <div><label class="field-label">Floor</label><input type="text" id="tenantFloor" placeholder="e.g., 15" class="field-input"></div>
+                <div><label class="field-label">Exposure</label><input type="text" id="tenantExposure" placeholder="e.g., South" class="field-input"></div>
+            </div>
+        </div>
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-file-alt"></i> Description</div>
+            <label class="field-label">Listing Description</label>
+            <textarea id="tenantDescription" rows="5" placeholder="From listing..." class="field-input"></textarea>
+            <p class="text-[10px] text-gray-400 mt-1">Auto-populated from IDX listing. For agent portfolio display.</p>
+        </div>
+    </div>
+
+    <div id="tenantSubTabContent2_2" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-star"></i> Unit Features & Amenities</div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatDoorman" class="w-4 h-4"> Doorman</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatElevator" class="w-4 h-4"> Elevator</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatGym" class="w-4 h-4"> Gym</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatPool" class="w-4 h-4"> Pool</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatLaundry" class="w-4 h-4"> In-Unit Laundry</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatDishwasher" class="w-4 h-4"> Dishwasher</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatBalcony" class="w-4 h-4"> Balcony/Terrace</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatParking" class="w-4 h-4"> Parking</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatStorage" class="w-4 h-4"> Storage</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatConcierge" class="w-4 h-4"> Concierge</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatRoofDeck" class="w-4 h-4"> Roof Deck</label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantFeatPetsAllowed" class="w-4 h-4"> Pets Allowed</label>
+            </div>
+        </div>
+    </div>
+
+    <div id="tenantSubTabContent2_3" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-building"></i> Building Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div><label class="field-label">Building Name</label><input type="text" id="tenantBuildingName" placeholder="From IDX" class="field-input"></div>
+                <div><label class="field-label">Year Built</label><input type="number" id="tenantYearBuilt" placeholder="e.g., 2005" class="field-input"></div>
+                <div><label class="field-label">Total Floors</label><input type="number" id="tenantTotalFloors" placeholder="0" class="field-input"></div>
+                <div><label class="field-label">Total Units</label><input type="number" id="tenantTotalUnits" placeholder="0" class="field-input"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 3: TENANT CLIENT INFO                                ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab3" class="tenant-main-tab" style="display:none;">
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <button id="tenantSubTab3_1" onclick="showTenantSubTab(3,1)" class="sub-tab-pill active">Client Details</button>
+        <button id="tenantSubTab3_2" onclick="showTenantSubTab(3,2)" class="sub-tab-pill">Employment</button>
+        <button id="tenantSubTab3_3" onclick="showTenantSubTab(3,3)" class="sub-tab-pill">Guarantor</button>
+    </div>
+
+    <div id="tenantSubTabContent3_1" class="tenant-sub-tab">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user"></i> Tenant Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="field-label">Tenant Full Name <span class="text-red-500">*</span></label><input type="text" id="tenantClientName" placeholder="Full legal name" class="field-input" required></div>
+                <div><label class="field-label">Tenant Email <span class="text-red-500">*</span></label><input type="email" id="tenantClientEmail" placeholder="tenant@email.com" class="field-input" required></div>
+                <div><label class="field-label">Tenant Phone <span class="text-red-500">*</span></label><input type="tel" id="tenantClientPhone" placeholder="(000) 000-0000" class="field-input" required></div>
+                <div><label class="field-label">Secondary Phone</label><input type="tel" id="tenantClientPhone2" placeholder="(000) 000-0000" class="field-input"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <div><label class="field-label">Co-Tenant Name</label><input type="text" id="tenantCoTenantName" placeholder="If applicable" class="field-input"></div>
+                <div><label class="field-label">Co-Tenant Email</label><input type="email" id="tenantCoTenantEmail" placeholder="co-tenant@email.com" class="field-input"></div>
+            </div>
+        </div>
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-map-marker-alt"></i> Tenant Current Address</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2"><label class="field-label">Street Address</label><input type="text" id="tenantCurrentAddress" placeholder="Current address" class="field-input"></div>
+                <div><label class="field-label">City</label><input type="text" id="tenantCurrentCity" placeholder="City" class="field-input"></div>
+                <div><label class="field-label">State / Zip</label><input type="text" id="tenantCurrentStateZip" placeholder="NY 10001" class="field-input"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tenantSubTabContent3_2" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-briefcase"></i> Employment Information</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="field-label">Employer</label><input type="text" id="tenantEmployer" placeholder="Company name" class="field-input"></div>
+                <div><label class="field-label">Job Title</label><input type="text" id="tenantJobTitle" placeholder="Position" class="field-input"></div>
+                <div><label class="field-label">Annual Income</label><input type="number" id="tenantAnnualIncome" placeholder="$0" class="field-input"></div>
+                <div><label class="field-label">Employment Duration</label><input type="text" id="tenantEmploymentDuration" placeholder="e.g., 3 years" class="field-input"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tenantSubTabContent3_3" class="tenant-sub-tab" style="display:none;">
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-shield-alt"></i> Guarantor Information</div>
+            <div class="mb-3">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="tenantHasGuarantor" class="w-4 h-4" onchange="document.getElementById('tenantGuarantorFields').style.display = this.checked ? '' : 'none'"> Guarantor Required</label>
+            </div>
+            <div id="tenantGuarantorFields" style="display:none;">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div><label class="field-label">Guarantor Name</label><input type="text" id="tenantGuarantorName" placeholder="Full legal name" class="field-input"></div>
+                    <div><label class="field-label">Guarantor Phone</label><input type="tel" id="tenantGuarantorPhone" placeholder="(000) 000-0000" class="field-input"></div>
+                    <div><label class="field-label">Guarantor Email</label><input type="email" id="tenantGuarantorEmail" placeholder="guarantor@email.com" class="field-input"></div>
+                    <div><label class="field-label">Relationship</label><input type="text" id="tenantGuarantorRelationship" placeholder="e.g., Parent" class="field-input"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 4: PHOTOS                                            ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab4" class="tenant-main-tab" style="display:none;">
+    <div class="warning-banner bg-blue-50 border border-blue-200 text-blue-800 mb-4">
+        <i class="fas fa-camera text-blue-500 mt-0.5"></i>
+        <div class="text-xs">
+            <p class="font-semibold">Photo Attribution</p>
+            <p>Photos pulled from IDX/RLS. Displayed with "Courtesy of <span id="tenantPhotoCourtesy" class="font-bold">[Listing Brokerage]</span>" attribution per REBNY rules.</p>
+        </div>
+    </div>
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-images"></i> Listing Photos <span class="text-[10px] font-normal text-gray-400 ml-2">From IDX/RLS</span></div>
+        <div id="tenantPhotoGrid" class="photo-grid">
+            <div class="text-center py-8 col-span-full text-gray-400">
+                <i class="fas fa-search text-4xl mb-3"></i>
+                <p class="text-sm font-medium">No photos loaded yet</p>
+                <p class="text-xs mt-1">Search for a listing in Tab 1 to load photos from IDX/RLS</p>
+            </div>
+        </div>
+    </div>
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-upload"></i> Manual Photo Upload <span class="text-[10px] font-normal text-gray-400 ml-2">For off-RLS deals only</span></div>
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50 text-center">
+            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
+            <p class="text-sm text-gray-600 font-medium">Upload photos for off-RLS deals</p>
+            <input type="file" id="tenantManualPhotos" accept="image/*" multiple class="mt-3 text-sm">
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 5: PREVIEW                                           ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab5" class="tenant-main-tab" style="display:none;">
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-eye"></i> Deal Summary Preview</div>
+        <div class="text-sm space-y-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-xs font-bold text-gray-500 uppercase mb-2">Property</p>
+                <p class="font-semibold text-gray-900" id="prevTenantAddress">--</p>
+                <p class="text-gray-600" id="prevTenantPropertyType">--</p>
+                <p class="text-gray-600" id="prevTenantBedBath">--</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">Tenant Client</p>
+                    <p class="font-semibold text-gray-900" id="prevTenantClient">--</p>
+                    <p class="text-gray-600" id="prevTenantClientEmail">--</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">Listing Side</p>
+                    <p class="font-semibold text-gray-900" id="prevTenantListingAgent">--</p>
+                    <p class="text-gray-600" id="prevTenantListingBrokerage">--</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-blue-600 uppercase mb-1">Listed Rent</p>
+                    <p class="text-lg font-bold text-blue-800" id="prevTenantListRent">--</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-green-600 uppercase mb-1">Final Rent</p>
+                    <p class="text-lg font-bold text-green-800" id="prevTenantFinalRent">--</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-purple-600 uppercase mb-1">Lease Term</p>
+                    <p class="text-lg font-bold text-purple-800" id="prevTenantLeaseTerm">--</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <p class="text-xs font-bold text-gray-600 uppercase mb-1">Status</p>
+                    <p class="text-lg font-bold text-gray-800" id="prevTenantStatus">Draft</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 6: HISTORY                                           ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab6" class="tenant-main-tab" style="display:none;">
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-history"></i> Deal History & Timeline</div>
+        <div id="tenantHistoryTimeline" class="space-y-3">
+            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><i class="fas fa-plus text-blue-600 text-xs"></i></div>
+                <div><p class="text-sm font-semibold text-gray-800">Deal Created</p><p class="text-xs text-gray-500" id="tenantHistoryCreateDate">--</p><p class="text-xs text-gray-600">Created by <span id="tenantHistoryAgent">--</span></p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║ TAB 7: COMMISSION REQUEST                                ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="tenantMainTab7" class="tenant-main-tab" style="display:none;">
+    <div class="bg-red-50 border border-red-300 rounded-xl p-3 mb-3 flex items-center gap-3">
+        <i class="fas fa-lock text-red-500 text-lg flex-shrink-0"></i>
+        <div>
+            <p class="text-xs font-bold text-red-800">INTERNAL ONLY — NOT DISTRIBUTED TO RLS / IDX / SYNDICATION</p>
+            <p class="text-[10px] text-red-600">Confidential commission data. Company use only.</p>
+        </div>
+    </div>
+
+    <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0"><i class="fas fa-check-circle text-green-600 text-lg"></i></div>
+        <div>
+            <p class="text-sm font-bold text-green-800">Lease Signed — Submit Commission Request</p>
+            <p class="text-xs text-green-700">This deal has been marked as <strong>Rented</strong>. You represented the <strong>tenant</strong>. Complete the commission details below.</p>
+        </div>
+    </div>
+
+    <!-- Property Info -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-building"></i> Property Information <span class="text-[10px] font-normal text-gray-400 ml-2">Auto-populated</span></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div><label class="field-label">RLS / Listing ID</label><input type="text" id="commTenantRlsId" class="field-input bg-gray-50" readonly></div>
+            <div class="sm:col-span-2"><label class="field-label">Full Property Address</label><input type="text" id="commTenantAddress" class="field-input bg-gray-50" readonly></div>
+            <div><label class="field-label">Borough</label><input type="text" id="commTenantBorough" class="field-input bg-gray-50" readonly></div>
+            <div><label class="field-label">Listed Rent</label><input type="text" id="commTenantListRent" class="field-input bg-gray-50" readonly></div>
+            <div><label class="field-label">Final Monthly Rent <span class="text-red-500">*</span></label><input type="number" id="commTenantFinalRent" placeholder="Final monthly rent" class="field-input" oninput="calculateTenantCommission()"><p class="text-[10px] text-gray-400 mt-1">Edit if different</p></div>
+            <div><label class="field-label">Bedrooms / Bathrooms</label><input type="text" id="commTenantBedBath" class="field-input bg-gray-50" readonly></div>
+            <div><label class="field-label">Approx. Sq Ft</label><input type="text" id="commTenantSqFt" class="field-input bg-gray-50" readonly></div>
+        </div>
+    </div>
+
+    <!-- Deal Parties -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-users"></i> Deal Parties</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="field-label">Tenant Name <span class="text-red-500">*</span></label><input type="text" id="commTenantName" placeholder="Full legal name" class="field-input"></div>
+            <div><label class="field-label">Tenant Email <span class="text-red-500">*</span></label><input type="email" id="commTenantEmail" placeholder="tenant@email.com" class="field-input"></div>
+            <div><label class="field-label">Tenant Phone <span class="text-red-500">*</span></label><input type="tel" id="commTenantPhone" placeholder="(000) 000-0000" class="field-input"></div>
+            <div><label class="field-label">Landlord Name</label><input type="text" id="commTenantLandlordName" placeholder="Full legal name" class="field-input"></div>
+            <div><label class="field-label">Landlord / Mgmt Co.</label><input type="text" id="commTenantLandlordMgmt" placeholder="Management company" class="field-input"></div>
+        </div>
+        <div class="border-t mt-4 pt-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Agent Information</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="field-label">Tenant's Agent (Our Side)</label><input type="text" id="commTenantOurAgent" class="field-input bg-gray-50" readonly></div>
+                <div><label class="field-label">Co-Agent</label><input type="text" id="commTenantCoAgent" placeholder="If applicable" class="field-input"></div>
+                <div><label class="field-label">Listing Agent (Other Side)</label><input type="text" id="commTenantListingAgentComm" placeholder="Listing agent name" class="field-input"></div>
+                <div><label class="field-label">Listing Brokerage</label><input type="text" id="commTenantListingBrokerageComm" placeholder="Listing brokerage" class="field-input"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commission Calculation -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-calculator"></i> Commission Calculation</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div><label class="field-label">Commission Basis <span class="text-red-500">*</span></label>
+                <select id="commTenantBasis" class="field-input" onchange="updateTenantCommUnit(); calculateTenantCommission();">
+                    <option value="months">Months of Rent</option>
+                    <option value="percent">% of Annual Rent</option>
+                    <option value="flat">Flat Fee</option>
+                </select>
+            </div>
+            <div><label class="field-label">Commission Amount <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="commTenantCommValue" placeholder="e.g., 1" step="0.1" min="0" class="field-input" oninput="calculateTenantCommission()">
+                    <span class="text-sm font-semibold text-gray-500" id="commTenantCommUnit">month(s)</span>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1">Standard: 1 month rent or 15% annual</p>
+            </div>
+            <div><label class="field-label">Gross Commission</label>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                    <p class="text-xl font-bold text-green-700" id="commTenantGrossAmount">$0.00</p>
+                    <p class="text-[10px] text-green-600">Total Commission Amount</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t pt-4 mb-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Commission Split — Tenant Side (Ours) vs. Listing Side</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-xs font-bold text-blue-800 mb-2"><i class="fas fa-building mr-1"></i> Tenant Side (Mallan RE — Our Side)</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="number" id="commTenantOurSidePct" placeholder="50" step="0.5" min="0" max="100" class="field-input w-20" oninput="calculateTenantCommission()">
+                        <span class="text-sm font-semibold text-gray-500">%</span>
+                    </div>
+                    <p class="text-lg font-bold text-blue-700" id="commTenantOurSideAmt">$0.00</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p class="text-xs font-bold text-gray-700 mb-2"><i class="fas fa-handshake mr-1"></i> Listing Side</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="number" id="commTenantListingSidePct" placeholder="50" step="0.5" min="0" max="100" class="field-input w-20 bg-gray-100" readonly>
+                        <span class="text-sm font-semibold text-gray-500">%</span>
+                    </div>
+                    <p class="text-lg font-bold text-gray-600" id="commTenantListingSideAmt">$0.00</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t pt-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Agent / Company Split (Tenant Side — Our Side)</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div><label class="field-label">Agent Split %</label>
+                    <div class="flex items-center gap-2"><input type="number" id="commTenantAgentSplitPct" placeholder="e.g., 70" step="1" min="0" max="100" class="field-input" oninput="calculateTenantCommission()"><span class="text-sm font-semibold text-gray-500">%</span></div>
+                    <p class="text-[10px] text-gray-400 mt-1">Per ICA agreement</p>
+                </div>
+                <div><label class="field-label">Agent Payout</label>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center"><p class="text-xl font-bold text-green-700" id="commTenantAgentPayout">$0.00</p><p class="text-[10px] text-green-600">Agent receives</p></div>
+                </div>
+                <div><label class="field-label">Company Share</label>
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center"><p class="text-xl font-bold text-purple-700" id="commTenantCompanyShare">$0.00</p><p class="text-[10px] text-purple-600">Mallan RE retains</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment -->
+    <div class="form-card">
+        <div class="form-card-header"><i class="fas fa-credit-card"></i> Payment Information</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div><label class="field-label">Payment Method <span class="text-red-500">*</span></label>
+                <div class="flex gap-3">
+                    <label class="radio-card flex items-center gap-2 flex-1 justify-center"><input type="radio" name="commTenantPayMethod" value="check" class="w-4 h-4"><i class="fas fa-money-check-alt text-gray-500"></i><span class="text-sm font-semibold">Check</span></label>
+                    <label class="radio-card flex items-center gap-2 flex-1 justify-center"><input type="radio" name="commTenantPayMethod" value="wire" class="w-4 h-4"><i class="fas fa-university text-gray-500"></i><span class="text-sm font-semibold">Wire Transfer</span></label>
+                </div>
+            </div>
+            <div><label class="field-label">Lease Start Date <span class="text-red-500">*</span></label><input type="date" id="commTenantLeaseStart" class="field-input"></div>
+        </div>
+        <div><label class="field-label">Notes / Special Instructions</label><textarea id="commTenantNotes" rows="3" placeholder="Any additional notes for the broker (referral fees, adjustments, etc.)" class="field-input"></textarea></div>
+
+        <div class="mt-4 bg-gray-50 rounded-lg p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Request Status</p>
+            <div class="flex items-center gap-0 overflow-x-auto">
+                <div class="flex flex-col items-center min-w-[90px]" id="commTenantStep1"><div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div><p class="text-[10px] font-semibold text-blue-700 mt-1 text-center">Draft</p></div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commTenantStep2"><div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">2</div><p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Submitted</p></div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commTenantStep3"><div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">3</div><p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Under Review</p></div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commTenantStep4"><div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">4</div><p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Approved</p></div>
+                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
+                <div class="flex flex-col items-center min-w-[90px]" id="commTenantStep5"><div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">5</div><p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Paid</p></div>
+            </div>
+
+            <!-- Status Details (shown after submission) -->
+            <div id="commTenantStatusDetails" class="hidden mt-4 border-t pt-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Submitted</p>
+                        <p class="text-xs font-medium text-gray-700" id="commTenantSubmitDate">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Reviewed By</p>
+                        <p class="text-xs font-medium text-gray-700" id="commTenantReviewer">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Review Date</p>
+                        <p class="text-xs font-medium text-gray-700" id="commTenantReviewDate">--</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold">Payment Date</p>
+                        <p class="text-xs font-medium text-gray-700" id="commTenantPaymentDate">--</p>
+                    </div>
+                </div>
+                <div id="commTenantRejectionNote" class="hidden mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p class="text-xs font-semibold text-red-800"><i class="fas fa-exclamation-triangle mr-1"></i> Rejection Note</p>
+                    <p class="text-xs text-red-700 mt-1" id="commTenantRejectionReason"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-3 mt-4">
+        <button id="commTenantEditBtn" onclick="enableTenantCommEdit()" class="hidden px-5 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition">
+            <i class="fas fa-edit mr-2"></i> Edit Request
+        </button>
+        <button id="commTenantResubmitBtn" onclick="resubmitTenantCommission()" class="hidden px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+            <i class="fas fa-redo mr-2"></i> Resubmit
+        </button>
+        <button id="commTenantSubmitBtn" onclick="submitTenantCommissionRequest()" class="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+            <i class="fas fa-paper-plane mr-2"></i> Submit Commission Request
+        </button>
+    </div>
+</div>
+
+    </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+// LOGGED-IN AGENT — Identity from /api/auth/me via MallanAPI (session cookie)
+// NO URL PARAMETERS. NO PII IN URLS.
+function initLoggedInAgent() {
+    function populate(u) {
+        var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
+        setVal('tenantUpdatingAgent', u.id);
+        setVal('tenantUpdatingAgentName', u.name);
+        setVal('tenantUpdatingAgentPhone', u.phone);
+        setVal('tenantUpdatingAgentEmail', u.email);
+        setVal('tenantUpdatingAgentLicense', u.license);
+        setVal('tenantUpdatingAgentCompanyKey', u.companyKey);
+        setVal('tenantUpdatingAgentCompanyName', u.companyName);
+        var headerName = document.getElementById('headerAgentName');
+        if (headerName && u.name) headerName.textContent = u.name;
+        var agentDisplay = document.getElementById('tenantAgentDisplay');
+        if (agentDisplay && u.id && u.name) agentDisplay.value = u.id + ' | ' + u.name;
+    }
+
+    if (typeof MallanAPI !== 'undefined') {
+        MallanAPI.init().then(function(data) {
+            if (data.authenticated && data.user) {
+                populate(data.user);
+            } else {
+                console.warn('[TenantDealForm] Not authenticated — agent fields left blank');
+            }
+        });
+    } else {
+        console.warn('[TenantDealForm] MallanAPI not loaded — agent fields left blank');
+    }
+}
+
+function cancelTenantForm() {
+    if (confirm('Close this form? Unsaved changes will be lost.')) {
+        if (window.opener) window.close(); else window.location.reload();
+    }
+}
+
+// ═══════ NAVIGATION ═══════
+function showTenantMainTab(tabNum) {
+    if (tabNum === 7) {
+        var st = (document.getElementById('tenantDealStatus') || {}).value || '';
+        if (st !== 'Rented' && st !== 'RentedThruUs') return;
+        populateTenantCommissionFields();
+    }
+    document.querySelectorAll('.tenant-main-tab').forEach(function(t) { t.style.display = 'none'; });
+    var tab = document.getElementById('tenantMainTab' + tabNum);
+    if (tab) tab.style.display = '';
+    document.querySelectorAll('.sidebar-tab').forEach(function(b) { b.classList.remove('active'); });
+    var sb = document.getElementById('sidebarTab' + tabNum);
+    if (sb) sb.classList.add('active');
+    document.querySelectorAll('.mobile-tab').forEach(function(b, i) {
+        if (i + 1 === 7 && b.disabled) return;
+        b.className = 'mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap ' + (i + 1 === tabNum ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600');
+    });
+    if (tabNum === 1) showTenantSubTab(1, 1);
+    if (tabNum === 2) showTenantSubTab(2, 1);
+    if (tabNum === 3) showTenantSubTab(3, 1);
+    if (tabNum === 5) setTimeout(updateTenantPreview, 100);
+}
+
+function showTenantSubTab(mainTab, subTab) {
+    var parent = document.getElementById('tenantMainTab' + mainTab);
+    if (!parent) return;
+    parent.querySelectorAll('.tenant-sub-tab').forEach(function(s) { s.style.display = 'none'; });
+    var target = document.getElementById('tenantSubTabContent' + mainTab + '_' + subTab);
+    if (target) target.style.display = '';
+    parent.querySelectorAll('.sub-tab-pill').forEach(function(p) { p.classList.remove('active'); });
+    var pill = document.getElementById('tenantSubTab' + mainTab + '_' + subTab);
+    if (pill) pill.classList.add('active');
+}
+
+// ═══════ IDX LISTING SEARCH ═══════
+var rentalListingDatabase = [
+    { rlsId: 'RLS-20001', webId: 'WEB-6001', address: '200 East 66th Street', unit: '8B', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Coop', buildingName: 'Manhattan House', rent: 5500, bed: 1, fullBath: 1, halfBath: 0, sqft: 850, yearBuilt: 1950, floors: 17, units: 583, listingAgent: 'Sarah Johnson', listingBrokerage: 'Compass', listingAgentMlsId: 'MLS-8821', listingAgentPhone: '212-555-0101', listingAgentEmail: 'sjohnson@compass.com', description: 'Bright 1BR in the iconic Manhattan House with open city views. Steps to transit.', photos: 6, features: ['Doorman','Elevator','Gym','Laundry','Parking'] },
+    { rlsId: 'RLS-20002', webId: 'WEB-6002', address: '56 Leonard Street', unit: '12A', borough: 'Manhattan', zip: '10013', neighborhood: 'Tribeca', type: 'Condo', buildingName: '56 Leonard', rent: 12500, bed: 2, fullBath: 2, halfBath: 0, sqft: 1400, yearBuilt: 2016, floors: 60, units: 145, listingAgent: 'David Kim', listingBrokerage: 'Brown Harris Stevens', listingAgentMlsId: 'MLS-5568', listingAgentPhone: '212-555-0404', listingAgentEmail: 'dkim@bhsusa.com', description: 'Stunning 2BR rental in Tribeca with private terrace and park views.', photos: 10, features: ['Doorman','Elevator','Gym','Pool'] },
+    { rlsId: 'RLS-20003', webId: 'WEB-6003', address: '325 Lexington Avenue', unit: '7C', borough: 'Manhattan', zip: '10016', neighborhood: 'Murray Hill', type: 'Condo', buildingName: 'The Townsend', rent: 4200, bed: 1, fullBath: 1, halfBath: 0, sqft: 720, yearBuilt: 2005, floors: 12, units: 45, listingAgent: 'Amy Chen', listingBrokerage: 'Nest Seekers', listingAgentMlsId: 'MLS-3312', listingAgentPhone: '212-555-0707', listingAgentEmail: 'achen@nestseekers.com', description: 'Modern 1BR in Murray Hill doorman building. W/D in unit.', photos: 5, features: ['Doorman','Elevator','Laundry'] },
+    { rlsId: 'RLS-20004', webId: 'WEB-6004', address: '110 Livingston Street', unit: '3F', borough: 'Brooklyn', zip: '11201', neighborhood: 'Downtown Brooklyn', type: 'Condop', buildingName: '110 Livingston', rent: 3800, bed: 2, fullBath: 1, halfBath: 0, sqft: 900, yearBuilt: 1928, floors: 15, units: 220, listingAgent: 'Robert Lee', listingBrokerage: 'Halstead', listingAgentMlsId: 'MLS-9912', listingAgentPhone: '718-555-0606', listingAgentEmail: 'rlee@halstead.com', description: 'Spacious 2BR in converted Downtown Brooklyn building. Near all transit.', photos: 7, features: ['Doorman','Elevator','Gym'] },
+    { rlsId: 'RLS-20005', webId: 'WEB-6005', address: '15 Central Park West', unit: '10D', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', type: 'Condo', buildingName: '15 Central Park West', rent: 18000, bed: 2, fullBath: 2, halfBath: 1, sqft: 1800, yearBuilt: 2008, floors: 43, units: 201, listingAgent: 'Michael Chen', listingBrokerage: 'Douglas Elliman', listingAgentMlsId: 'MLS-4492', listingAgentPhone: '212-555-0202', listingAgentEmail: 'mchen@elliman.com', description: 'Luxury 2BR rental with Central Park views and full-service amenities.', photos: 12, features: ['Doorman','Elevator','Gym','Pool','Concierge','Parking'] },
+];
+
+function searchListingForTenantDeal(query) {
+    var results = document.getElementById('tenantListingSearchResults');
+    if (!results) return;
+    if (query.length < 3) { results.classList.add('hidden'); return; }
+    var q = query.toLowerCase();
+    var matches = rentalListingDatabase.filter(function(l) {
+        return l.address.toLowerCase().includes(q) || l.buildingName.toLowerCase().includes(q) || (l.unit && l.unit.toLowerCase().includes(q)) || (l.address + ' ' + l.unit).toLowerCase().includes(q);
+    });
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-500"><i class="fas fa-exclamation-circle mr-1 text-amber-500"></i> No IDX/RLS matches. Enter details manually.</div>';
+        results.classList.remove('hidden');
+        document.getElementById('tenantManualEntryBanner').classList.remove('hidden');
+        document.getElementById('tenantIdxMatchBanner').classList.add('hidden');
+        return;
+    }
+    results.innerHTML = matches.map(function(l) {
+        return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectListingForTenantDeal(\'' + l.rlsId + '\')">' +
+            '<div class="flex justify-between items-center"><div><p class="font-semibold text-sm text-gray-800">' + l.address + (l.unit ? ', ' + l.unit : '') + '</p>' +
+            '<p class="text-xs text-gray-500">' + l.buildingName + ' | ' + l.neighborhood + ' | $' + l.rent.toLocaleString() + '/mo</p></div>' +
+            '<div class="text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-100 text-teal-700">' + l.type + '</span>' +
+            '<p class="text-[10px] text-gray-400 mt-1">' + l.rlsId + '</p></div></div></div>';
+    }).join('');
+    results.classList.remove('hidden');
+}
+
+function searchByRlsIdTenant(query) {
+    if (query.length < 3) return;
+    var q = query.toUpperCase();
+    var match = rentalListingDatabase.find(function(l) { return l.rlsId.toUpperCase() === q || l.webId.toUpperCase() === q; });
+    if (match) selectListingForTenantDeal(match.rlsId);
+}
+
+function selectListingForTenantDeal(rlsId) {
+    var listing = rentalListingDatabase.find(function(l) { return l.rlsId === rlsId; });
+    if (!listing) return;
+    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+
+    setVal('tenantStreetAddress', listing.address); setVal('tenantUnitNumber', listing.unit);
+    setVal('tenantBorough', listing.borough); setVal('tenantZipCode', listing.zip);
+    setVal('tenantNeighborhood', listing.neighborhood); setVal('tenantRlsId', listing.rlsId); setVal('tenantWebId', listing.webId);
+    setVal('tenantListingAgentName', listing.listingAgent); setVal('tenantListingBrokerageName', listing.listingBrokerage);
+    setVal('tenantListingAgentPhone', listing.listingAgentPhone); setVal('tenantListingAgentEmail', listing.listingAgentEmail);
+    setVal('tenantListingAgentMlsId', listing.listingAgentMlsId);
+    setVal('tenantListRent', listing.rent);
+
+    var typeSel = document.getElementById('tenantPropertyType');
+    if (typeSel) { for (var i = 0; i < typeSel.options.length; i++) { if (typeSel.options[i].value === listing.type) { typeSel.selectedIndex = i; break; } } }
+    setVal('tenantBedrooms', listing.bed); setVal('tenantFullBaths', listing.fullBath); setVal('tenantHalfBaths', listing.halfBath);
+    setVal('tenantLivingArea', listing.sqft); setVal('tenantBuildingName', listing.buildingName);
+    setVal('tenantYearBuilt', listing.yearBuilt); setVal('tenantTotalFloors', listing.floors); setVal('tenantTotalUnits', listing.units);
+    setVal('tenantDescription', listing.description);
+
+    var featureMap = { 'Doorman':'tenantFeatDoorman','Elevator':'tenantFeatElevator','Gym':'tenantFeatGym','Pool':'tenantFeatPool','Laundry':'tenantFeatLaundry','Parking':'tenantFeatParking','Concierge':'tenantFeatConcierge' };
+    if (listing.features) listing.features.forEach(function(f) { var el = document.getElementById(featureMap[f]); if (el) el.checked = true; });
+
+    document.getElementById('tenantIdxMatchBanner').classList.remove('hidden');
+    document.getElementById('tenantManualEntryBanner').classList.add('hidden');
+    document.getElementById('tenantIdxSource').textContent = 'REBNY RLS via Trestle';
+    document.getElementById('tenantListingBrokerage').textContent = listing.listingBrokerage;
+    document.getElementById('tenantPropertyIdxBanner').classList.remove('hidden');
+    document.getElementById('tenantPhotoCourtesy').textContent = listing.listingBrokerage;
+
+    // Load photos
+    var grid = document.getElementById('tenantPhotoGrid');
+    if (grid) {
+        var html = '';
+        for (var i = 1; i <= (listing.photos || 6); i++) {
+            html += '<div class="photo-card"><div class="bg-gray-200 flex items-center justify-center" style="height:140px;"><div class="text-center"><i class="fas fa-image text-gray-400 text-2xl"></i><p class="text-[10px] text-gray-400 mt-1">Photo ' + i + '</p></div></div>' +
+                '<div class="caption"><p class="font-medium text-gray-700">' + listing.address + (listing.unit ? ' #' + listing.unit : '') + '</p><p class="text-[10px] text-gray-500 mt-0.5">Courtesy of <strong>' + listing.listingBrokerage + '</strong></p></div></div>';
+        }
+        grid.innerHTML = html;
+    }
+
+    document.getElementById('tenantListingSearchResults').classList.add('hidden');
+    document.getElementById('tenantListingSearch').value = listing.address + (listing.unit ? ', ' + listing.unit : '');
+    updateTenantHeaderBar();
+    showToast('Listing data loaded from IDX/RLS');
+}
+
+function updateTenantHeaderBar() {
+    var addr = (document.getElementById('tenantStreetAddress') || {}).value || '';
+    var unit = (document.getElementById('tenantUnitNumber') || {}).value || '';
+    var rlsId = (document.getElementById('tenantRlsId') || {}).value || '';
+    document.getElementById('tenantAddressDisplay').textContent = addr || '[Search Listing]';
+    document.getElementById('tenantUnitDisplay').textContent = unit || '[Unit]';
+    document.getElementById('tenantRlsIdDisplay').textContent = rlsId || '--';
+}
+
+// ═══════ STATUS ═══════
+var TENANT_CRM_TO_RESO = {
+    'Draft': 'Incomplete', 'Searching': 'Active', 'Showing': 'Active',
+    'AppOut': 'Pending', 'AppAccepted': 'Pending', 'AppRejected': 'Active',
+    'LeaseOut': 'Pending', 'LeaseSigned': 'Pending', 'BoardApproved': 'Pending',
+    'Rented': 'Closed', 'RentedThruUs': 'Closed',
+    'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled', 'DealFellThrough': 'Canceled'
+};
+
+function updateTenantStatusFields() {
+    var status = (document.getElementById('tenantDealStatus') || {}).value || 'Draft';
+    document.getElementById('tenantStatusChangeTimestamp').textContent = new Date().toLocaleString();
+    document.getElementById('tenantResoMlsStatus').textContent = TENANT_CRM_TO_RESO[status] || '--';
+
+    var isClosed = (status === 'Rented' || status === 'RentedThruUs');
+    document.getElementById('tenantFinalRentField').style.display = isClosed ? '' : 'none';
+    document.getElementById('tenantLeaseStartField').style.display = isClosed || status === 'LeaseSigned' ? '' : 'none';
+    document.getElementById('tenantLeaseEndField').style.display = isClosed || status === 'LeaseSigned' ? '' : 'none';
+
+    var tab7 = document.getElementById('sidebarTab7');
+    var mobile7 = document.getElementById('mobileTab7');
+    var lock = document.getElementById('tenantCommTabLock');
+    if (isClosed) {
+        if (tab7) { tab7.disabled = false; tab7.classList.remove('opacity-50','pointer-events-none','text-gray-400'); tab7.classList.add('text-gray-700'); }
+        if (mobile7) { mobile7.disabled = false; mobile7.className = 'mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap bg-green-100 text-green-700'; }
+        if (lock) { lock.classList.remove('fa-lock','text-gray-300'); lock.classList.add('fa-lock-open','text-green-500'); }
+    } else {
+        if (tab7) { tab7.disabled = true; tab7.classList.add('opacity-50','pointer-events-none','text-gray-400'); tab7.classList.remove('text-gray-700'); }
+        if (mobile7) { mobile7.disabled = true; mobile7.className = 'mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap bg-gray-200 text-gray-400 pointer-events-none'; }
+        if (lock) { lock.classList.add('fa-lock','text-gray-300'); lock.classList.remove('fa-lock-open','text-green-500'); }
+    }
+
+    var badge = document.getElementById('tenantDraftBadge');
+    if (badge) {
+        var badgeMap = {
+            'Draft': { bg:'bg-yellow-100', text:'text-yellow-800', border:'border-yellow-300', icon:'fa-file-alt', label:'DRAFT' },
+            'Searching': { bg:'bg-blue-100', text:'text-blue-800', border:'border-blue-300', icon:'fa-search', label:'SEARCHING' },
+            'AppOut': { bg:'bg-orange-100', text:'text-orange-800', border:'border-orange-300', icon:'fa-paper-plane', label:'APP OUT' },
+            'AppAccepted': { bg:'bg-orange-100', text:'text-orange-800', border:'border-orange-300', icon:'fa-check', label:'APP ACCEPTED' },
+            'LeaseSigned': { bg:'bg-purple-100', text:'text-purple-800', border:'border-purple-300', icon:'fa-file-signature', label:'LEASE SIGNED' },
+            'Rented': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'RENTED' },
+            'RentedThruUs': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'RENTED THRU US' },
+        };
+        var b = badgeMap[status] || badgeMap['Draft'];
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ' + b.bg + ' ' + b.text + ' border ' + b.border;
+        badge.innerHTML = '<i class="fas ' + b.icon + '"></i> ' + b.label;
+    }
+}
+
+// ═══════ PREVIEW ═══════
+function updateTenantPreview() {
+    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var fmt = function(n) { return n ? '$' + parseFloat(n).toLocaleString() + '/mo' : '--'; };
+    document.getElementById('prevTenantAddress').textContent = (val('tenantStreetAddress') || '--') + (val('tenantUnitNumber') ? ', ' + val('tenantUnitNumber') : '');
+    document.getElementById('prevTenantPropertyType').textContent = val('tenantPropertyType') || '--';
+    var bed = val('tenantBedrooms'), bath = val('tenantFullBaths'), sqft = val('tenantLivingArea');
+    document.getElementById('prevTenantBedBath').textContent = (bed || '--') + ' BD / ' + (bath || '--') + ' BA | ' + (sqft ? sqft + ' sq ft' : '--');
+    document.getElementById('prevTenantClient').textContent = val('tenantClientName') || '--';
+    document.getElementById('prevTenantClientEmail').textContent = val('tenantClientEmail') || '--';
+    document.getElementById('prevTenantListingAgent').textContent = val('tenantListingAgentName') || '--';
+    document.getElementById('prevTenantListingBrokerage').textContent = val('tenantListingBrokerageName') || '--';
+    document.getElementById('prevTenantListRent').textContent = fmt(val('tenantListRent'));
+    document.getElementById('prevTenantFinalRent').textContent = fmt(val('tenantFinalRent'));
+    document.getElementById('prevTenantLeaseTerm').textContent = val('tenantLeaseTerm') ? val('tenantLeaseTerm') + ' mo' : '--';
+    document.getElementById('prevTenantStatus').textContent = val('tenantDealStatus') || 'Draft';
+}
+
+// ═══════ COMMISSION ═══════
+function populateTenantCommissionFields() {
+    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+
+    set('commTenantRlsId', val('tenantRlsId') || '--');
+    var addr = val('tenantStreetAddress'), unit = val('tenantUnitNumber'), zip = val('tenantZipCode');
+    var borough = document.getElementById('tenantBorough');
+    var boroughText = borough && borough.options[borough.selectedIndex] ? borough.options[borough.selectedIndex].text : '';
+    if (boroughText === '-- Borough --') boroughText = '';
+    var parts = []; if (addr) parts.push(addr); if (unit) parts.push(unit); if (boroughText) parts.push(boroughText); if (zip) parts.push(zip);
+    set('commTenantAddress', parts.length ? parts.join(', ') : '--');
+    set('commTenantBorough', boroughText || '--');
+
+    var finalRent = parseFloat(val('tenantFinalRent')) || 0;
+    var listRent = parseFloat(val('tenantListRent')) || 0;
+    var rent = finalRent || listRent;
+    set('commTenantListRent', listRent ? '$' + listRent.toLocaleString() + '/mo' : '--');
+    set('commTenantFinalRent', rent || '');
+
+    var bed = val('tenantBedrooms'), bath = val('tenantFullBaths');
+    set('commTenantBedBath', (bed || '--') + ' BD / ' + (bath || '--') + ' BA');
+    set('commTenantSqFt', val('tenantLivingArea') ? val('tenantLivingArea') + ' sq ft' : '--');
+
+    set('commTenantName', val('tenantClientName'));
+    set('commTenantEmail', val('tenantClientEmail'));
+    set('commTenantPhone', val('tenantClientPhone'));
+    set('commTenantOurAgent', val('headerAgentName'));
+    set('commTenantListingAgentComm', val('tenantListingAgentName'));
+    set('commTenantListingBrokerageComm', val('tenantListingBrokerageName'));
+    set('commTenantLeaseStart', val('tenantLeaseStartDate'));
+
+    calculateTenantCommission();
+}
+
+function updateTenantCommUnit() {
+    var basis = (document.getElementById('commTenantBasis') || {}).value;
+    var unit = document.getElementById('commTenantCommUnit');
+    if (unit) unit.textContent = basis === 'months' ? 'month(s)' : basis === 'percent' ? '%' : '$';
+}
+
+function calculateTenantCommission() {
+    var rent = parseFloat((document.getElementById('commTenantFinalRent') || {}).value) || 0;
+    var basis = (document.getElementById('commTenantBasis') || {}).value || 'months';
+    var commValue = parseFloat((document.getElementById('commTenantCommValue') || {}).value) || 0;
+    var ourSidePct = parseFloat((document.getElementById('commTenantOurSidePct') || {}).value) || 0;
+    var agentSplitPct = parseFloat((document.getElementById('commTenantAgentSplitPct') || {}).value) || 0;
+
+    var gross = 0;
+    if (basis === 'months') gross = rent * commValue;
+    else if (basis === 'percent') gross = (rent * 12) * (commValue / 100);
+    else if (basis === 'flat') gross = commValue;
+
+    var listingSidePct = Math.max(0, 100 - ourSidePct);
+    var el = document.getElementById('commTenantListingSidePct');
+    if (el) el.value = listingSidePct;
+
+    var ourSideAmt = gross * (ourSidePct / 100);
+    var listingSideAmt = gross * (listingSidePct / 100);
+    var agentPayout = ourSideAmt * (agentSplitPct / 100);
+    var companyShare = ourSideAmt - agentPayout;
+
+    var fmt = function(n) { return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+
+    setText('commTenantGrossAmount', fmt(gross));
+    setText('commTenantOurSideAmt', fmt(ourSideAmt));
+    setText('commTenantListingSideAmt', fmt(listingSideAmt));
+    setText('commTenantAgentPayout', fmt(agentPayout));
+    setText('commTenantCompanyShare', fmt(companyShare));
+}
+
+function submitTenantCommissionRequest() {
+    var rent = (document.getElementById('commTenantFinalRent') || {}).value;
+    var commValue = (document.getElementById('commTenantCommValue') || {}).value;
+    var tenantName = (document.getElementById('commTenantName') || {}).value;
+    var payMethod = document.querySelector('input[name="commTenantPayMethod"]:checked');
+    var leaseStart = (document.getElementById('commTenantLeaseStart') || {}).value;
+
+    if (!rent || !commValue || !tenantName || !payMethod || !leaseStart) {
+        alert('Please fill in all required fields:\n- Final Monthly Rent\n- Commission Amount\n- Tenant Name\n- Payment Method\n- Lease Start Date');
+        return;
+    }
+
+    var requestData = {
+        requestId: 'CR-' + Date.now().toString(36).toUpperCase(),
+        status: 'Submitted',
+        submittedDate: new Date().toLocaleString(),
+        rlsId: (document.getElementById('commTenantRlsId') || {}).value || '',
+        rent: rent,
+        agentPayout: (document.getElementById('commTenantAgentPayout') || {}).textContent || '$0',
+        payMethod: payMethod.value,
+        leaseStart: leaseStart
+    };
+    sessionStorage.setItem('tenantCommRequest', JSON.stringify(requestData));
+
+    updateTenantCommStepper(2);
+    document.getElementById('commTenantSubmitDate').textContent = requestData.submittedDate;
+    document.getElementById('commTenantStatusDetails').classList.remove('hidden');
+
+    document.getElementById('commTenantSubmitBtn').classList.add('hidden');
+    document.getElementById('commTenantEditBtn').classList.remove('hidden');
+    setTenantCommFieldsReadonly(true);
+
+    showToast('Commission request submitted — awaiting broker review');
+    addTenantHistoryEntry('Commission Request Submitted', 'Request ' + requestData.requestId + ' submitted for broker review. Agent payout: ' + requestData.agentPayout, 'fa-paper-plane', 'green');
+}
+
+function updateTenantCommStepper(currentStep) {
+    for (var i = 1; i <= 5; i++) {
+        var stepEl = document.getElementById('commTenantStep' + i);
+        if (!stepEl) continue;
+        var circle = stepEl.querySelector('div');
+        var label = stepEl.querySelector('p');
+        if (i < currentStep) {
+            circle.className = 'w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold';
+            label.className = 'text-[10px] font-semibold text-green-700 mt-1 text-center';
+        } else if (i === currentStep) {
+            circle.className = 'w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold';
+            label.className = 'text-[10px] font-semibold text-blue-700 mt-1 text-center';
+        } else {
+            circle.className = 'w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold';
+            label.className = 'text-[10px] font-semibold text-gray-400 mt-1 text-center';
+        }
+    }
+    var lines = document.querySelectorAll('#tenantMainTab7 .flex-1.h-0\\.5');
+    lines.forEach(function(line, idx) {
+        line.className = 'flex-1 h-0.5 min-w-[30px] ' + (idx < currentStep - 1 ? 'bg-green-400' : 'bg-gray-300');
+    });
+}
+
+function setTenantCommFieldsReadonly(locked) {
+    var ids = ['commTenantFinalRent','commTenantBasis','commTenantCommValue','commTenantOurSidePct','commTenantAgentSplitPct','commTenantName','commTenantEmail','commTenantPhone','commTenantOurAgent','commTenantListingAgentComm','commTenantListingBrokerageComm','commTenantLeaseStart','commTenantNotes'];
+    ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.readOnly = locked; if (locked) el.classList.add('bg-gray-50'); else el.classList.remove('bg-gray-50'); }
+    });
+    document.querySelectorAll('input[name="commTenantPayMethod"]').forEach(function(r) { r.disabled = locked; });
+}
+
+function enableTenantCommEdit() {
+    setTenantCommFieldsReadonly(false);
+    document.getElementById('commTenantEditBtn').classList.add('hidden');
+    document.getElementById('commTenantResubmitBtn').classList.remove('hidden');
+    showToast('Fields unlocked — make corrections and resubmit');
+}
+
+function resubmitTenantCommission() {
+    var rent = (document.getElementById('commTenantFinalRent') || {}).value;
+    var commValue = (document.getElementById('commTenantCommValue') || {}).value;
+    if (!rent || !commValue) { alert('Monthly Rent and Commission Amount are required.'); return; }
+
+    var stored = JSON.parse(sessionStorage.getItem('tenantCommRequest') || '{}');
+    stored.status = 'Submitted';
+    stored.resubmittedDate = new Date().toLocaleString();
+    sessionStorage.setItem('tenantCommRequest', JSON.stringify(stored));
+
+    updateTenantCommStepper(2);
+    document.getElementById('commTenantSubmitDate').textContent = stored.resubmittedDate + ' (resubmitted)';
+    setTenantCommFieldsReadonly(true);
+    document.getElementById('commTenantResubmitBtn').classList.add('hidden');
+    document.getElementById('commTenantEditBtn').classList.remove('hidden');
+    document.getElementById('commTenantRejectionNote').classList.add('hidden');
+
+    showToast('Commission request resubmitted');
+    addTenantHistoryEntry('Commission Request Resubmitted', 'Corrections made and resubmitted for broker review.', 'fa-redo', 'blue');
+}
+
+function checkTenantCommStatus() {
+    // Production: no URL-param-driven state
+    var stored = JSON.parse(sessionStorage.getItem('tenantCommRequest') || '{}');
+    var commStatus = stored.status || null;
+    if (!commStatus) return;
+
+    var dealStatus = (document.getElementById('tenantDealStatus') || {}).value;
+    if (dealStatus !== 'Rented' && dealStatus !== 'RentedThruUs') {
+        var sel = document.getElementById('tenantDealStatus');
+        if (sel) sel.value = 'Rented';
+        updateTenantStatusFields();
+    }
+
+    var stepMap = { 'Draft': 1, 'Submitted': 2, 'UnderReview': 3, 'Approved': 4, 'Paid': 5, 'Rejected': 3 };
+    var step = stepMap[commStatus] || 1;
+
+    setTimeout(function() {
+        showTenantMainTab(7);
+        updateTenantCommStepper(step);
+        document.getElementById('commTenantStatusDetails').classList.remove('hidden');
+
+        var stored = JSON.parse(sessionStorage.getItem('tenantCommRequest') || '{}');
+        if (stored.submittedDate) document.getElementById('commTenantSubmitDate').textContent = stored.submittedDate;
+
+        var reviewer = (step >= 3 ? 'Broker' : '--');
+        document.getElementById('commTenantReviewer').textContent = reviewer;
+        if (step >= 3) document.getElementById('commTenantReviewDate').textContent = stored.reviewDate || new Date().toLocaleDateString();
+        if (step >= 5) document.getElementById('commTenantPaymentDate').textContent = stored.paymentDate || new Date().toLocaleDateString();
+
+        if (commStatus === 'Rejected') {
+            document.getElementById('commTenantRejectionNote').classList.remove('hidden');
+            document.getElementById('commTenantRejectionReason').textContent = stored.reason || 'Commission terms do not match lease agreement. Please verify and resubmit.';
+            document.getElementById('commTenantSubmitBtn').classList.add('hidden');
+            document.getElementById('commTenantEditBtn').classList.remove('hidden');
+            var step3 = document.getElementById('commTenantStep3');
+            if (step3) {
+                step3.querySelector('div').className = 'w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold';
+                step3.querySelector('p').className = 'text-[10px] font-semibold text-red-700 mt-1 text-center';
+                step3.querySelector('p').textContent = 'Rejected';
+            }
+        } else if (step >= 2) {
+            setTenantCommFieldsReadonly(true);
+            document.getElementById('commTenantSubmitBtn').classList.add('hidden');
+            if (step < 5) document.getElementById('commTenantEditBtn').classList.remove('hidden');
+        }
+        if (step === 5) {
+            document.getElementById('commTenantEditBtn').classList.add('hidden');
+            document.getElementById('commTenantResubmitBtn').classList.add('hidden');
+        }
+    }, 200);
+}
+
+function addTenantHistoryEntry(title, detail, icon, color) {
+    var timeline = document.getElementById('tenantHistoryTimeline');
+    if (!timeline) return;
+    var entry = document.createElement('div');
+    entry.className = 'flex items-start gap-3 p-3 bg-gray-50 rounded-lg';
+    entry.innerHTML = '<div class="w-8 h-8 bg-' + color + '-100 rounded-full flex items-center justify-center flex-shrink-0">' +
+        '<i class="fas ' + icon + ' text-' + color + '-600 text-xs"></i></div>' +
+        '<div><p class="text-sm font-semibold text-gray-800">' + title + '</p>' +
+        '<p class="text-xs text-gray-500">' + new Date().toLocaleString() + '</p>' +
+        '<p class="text-xs text-gray-600">' + detail + '</p></div>';
+    timeline.insertBefore(entry, timeline.firstChild);
+}
+
+// ═══════ UTILITY ═══════
+function showToast(msg) {
+    var toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.innerHTML = '<i class="fas fa-check-circle mr-2"></i>' + msg;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3000);
+}
+window.alert = function(msg) { showToast(String(msg)); };
+
+function manualSaveDraft() { showToast('Draft saved successfully'); }
+
+function submitTenantDeal() {
+    var addr = (document.getElementById('tenantStreetAddress') || {}).value;
+    var client = (document.getElementById('tenantClientName') || {}).value;
+    if (!addr) { alert('Please search for a listing or enter a property address.'); return; }
+    if (!client) { alert('Please enter the tenant client name.'); showTenantMainTab(3); return; }
+    showToast('Tenant deal submitted successfully');
+}
+
+// ═══════ INIT ═══════
+document.addEventListener('DOMContentLoaded', function() {
+    initLoggedInAgent();
+    var today = new Date().toISOString().split('T')[0];
+    var createDate = document.getElementById('tenantCreateDate');
+    if (createDate) createDate.value = today;
+    document.getElementById('tenantHistoryCreateDate').textContent = new Date().toLocaleString();
+    document.getElementById('tenantLastUpdated').textContent = today;
+    checkTenantCommStatus();
+    console.log('Tenant Deal Form initialized.');
+});
+</script>
+
+</body>
+</html>

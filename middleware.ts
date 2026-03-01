@@ -206,6 +206,7 @@ export default function middleware(req: NextRequest) {
   // Prevent admin/CRM pages from being indexed
   if (
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/crm") ||
     pathname.startsWith("/leads") ||
     pathname.startsWith("/api/crm") ||
     pathname.startsWith("/api/portal")

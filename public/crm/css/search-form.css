@@ -1,0 +1,412 @@
+/* ═══════════════════════════════════════════════════════
+   SEARCH FORM — DRP, CSD, search styling, form redesign
+   Source: SEARCH-STANDALONE.html lines 472–877
+   ═══════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════
+   DATE RANGE PICKER — Dual-Month Calendar Popup
+   ═══════════════════════════════════════════════════════ */
+.drp-wrapper { position: relative; display: inline-block; width: 100%; }
+.drp-trigger {
+    display: flex; align-items: center; gap: 4px;
+    width: 100%; border: 1px solid #d1d5db; border-radius: 4px;
+    padding: 3px 6px; font-size: 11px; cursor: pointer;
+    background: #fff; min-height: 26px; position: relative;
+}
+.drp-trigger .drp-text { flex: 1; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drp-trigger .drp-text.has-value { color: #111827; }
+.drp-trigger .drp-clear { color: #9ca3af; font-size: 13px; cursor: pointer; padding: 0 2px; }
+.drp-trigger .drp-clear:hover { color: #ef4444; }
+.drp-trigger .drp-info { color: #9ca3af; font-size: 10px; cursor: help; }
+.drp-popup {
+    display: none; position: fixed;
+    z-index: 9999; background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 16px; min-width: 520px;
+}
+.drp-popup.open { display: block; }
+.drp-months { display: flex; gap: 16px; margin-bottom: 12px; }
+.drp-month { flex: 1; }
+.drp-month-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #374151;
+}
+.drp-month-header button {
+    background: none; border: none; cursor: pointer; color: #6b7280;
+    font-size: 14px; padding: 2px 6px; border-radius: 4px;
+}
+.drp-month-header button:hover { background: #f3f4f6; }
+.drp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; text-align: center; }
+.drp-grid .drp-dow { font-size: 10px; font-weight: 600; color: #9ca3af; padding: 4px 0; }
+.drp-grid .drp-day {
+    font-size: 11px; padding: 5px 2px; cursor: pointer; border-radius: 4px;
+    color: #374151; transition: background 0.1s;
+}
+.drp-grid .drp-day:hover { background: #e5e7eb; }
+.drp-grid .drp-day.other-month { color: #d1d5db; }
+.drp-grid .drp-day.today { background: #3b82f6; color: #fff; font-weight: 700; }
+.drp-grid .drp-day.selected { background: #3b82f6; color: #fff; }
+.drp-grid .drp-day.in-range { background: #dbeafe; }
+.drp-footer {
+    display: flex; align-items: center; gap: 8px; padding-top: 12px;
+    border-top: 1px solid #e5e7eb; flex-wrap: wrap;
+}
+.drp-footer select { border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 8px; font-size: 11px; }
+.drp-footer label { font-size: 11px; font-weight: 600; color: #6b7280; }
+.drp-footer input[type="text"] {
+    border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 6px;
+    font-size: 11px; width: 90px; text-align: center;
+}
+.drp-actions { display: flex; gap: 6px; margin-left: auto; }
+.drp-actions button { padding: 6px 16px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; }
+.drp-actions .drp-apply { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+.drp-actions .drp-apply:hover { background: #2563eb; }
+.drp-actions button:not(.drp-apply):hover { background: #f3f4f6; }
+
+/* Custom Select Dropdown — always opens downward */
+.csd-wrap { position: relative; }
+.csd-btn {
+    display: flex; align-items: center; justify-content: space-between; gap: 2px;
+    border: 1px solid #d1d5db; border-radius: 4px; padding: 3px 6px;
+    cursor: pointer; background: #fff; width: 100%; box-sizing: border-box;
+    white-space: nowrap; overflow: hidden; min-height: 28px;
+}
+.csd-btn:hover { border-color: #9ca3af; }
+.csd-btn .csd-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.csd-btn .csd-label.placeholder { color: #9ca3af; }
+.csd-btn .csd-arrow { flex-shrink: 0; font-size: 10px; color: #9ca3af; line-height: 1; }
+.csd-panel {
+    display: none; position: fixed; z-index: 10000;
+    background: #fff; border: 1px solid #d1d5db; border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.14); max-height: 240px; overflow-y: auto;
+}
+.csd-panel.open { display: block; }
+.csd-item {
+    padding: 5px 10px; cursor: pointer; white-space: nowrap;
+    font-size: 12px; color: #374151;
+}
+.csd-item:hover { background: #eff6ff; }
+.csd-item.active { background: #3b82f6; color: #fff; }
+
+
+/* ═══════════════════════════════════════════════════════ */
+/* REDESIGN FORM STYLES (sidebar, pills, cards, inputs)   */
+/* ═══════════════════════════════════════════════════════ */
+body { font-family: Manrope, sans-serif; }
+/* Sidebar */
+.sidebar-tab { transition: all 0.2s ease; border-left: 3px solid transparent; }
+.sidebar-tab:hover { background: #f8fafc; border-left-color: #d1d5db; }
+.sidebar-tab.active { background: #eff6ff; border-left-color: #2563eb; color: #1e40af; }
+.sidebar-tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
+.sidebar-tab.active .tab-dot { background: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+.sidebar-tab.completed .tab-dot { background: #16a34a; }
+/* Sub-tabs — soft blue default, solid blue active */
+.sub-tab-pill { transition: all 0.15s ease; padding: 6px 16px; border-radius: 9999px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.sub-tab-pill:hover { background: #bfdbfe; }
+.sub-tab-pill.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+/* Sections */
+.form-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.form-card-header { font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 10px; border-bottom: 1px solid #f3f4f6; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.form-card-header i { color: #B8860B; font-size: 14px; }
+.section-collapse { cursor: pointer; user-select: none; }
+.section-collapse .chevron { transition: transform 0.2s ease; }
+.section-collapse.collapsed .chevron { transform: rotate(-90deg); }
+.section-collapse.collapsed + .section-body { display: none; }
+/* Inputs */
+.field-label { display: block; font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 4px; }
+.field-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.field-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.field-input[readonly] { background: #f9fafb; }
+/* Toast */
+.toast-notification { position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #16a34a; color: #fff; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); font-size: 14px; font-weight: 600; animation: slideInRight .3s ease, fadeOut .3s ease 2.7s forwards; }
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+@keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+/* Radio/Checkbox styling */
+.radio-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; transition: all 0.15s; cursor: pointer; }
+.radio-card:hover { border-color: #93c5fd; background: #f0f9ff; }
+.radio-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+/* Searchable Company Dropdown */
+.company-dropdown { position: relative; }
+.company-dropdown .dd-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 36px 8px 12px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; background: #fff; cursor: pointer; }
+.company-dropdown .dd-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.company-dropdown .dd-input::placeholder { color: #9ca3af; }
+.company-dropdown .dd-chevron { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; font-size: 12px; transition: transform 0.2s; }
+.company-dropdown.open .dd-chevron { transform: translateY(-50%) rotate(180deg); }
+.company-dropdown .dd-list { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; margin-top: 4px; max-height: 280px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,.12); display: none; }
+.company-dropdown.open .dd-list { display: block; }
+.company-dropdown .dd-letter { padding: 6px 12px; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; background: #f9fafb; border-bottom: 1px solid #f3f4f6; position: sticky; top: 0; }
+.company-dropdown .dd-item { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f9fafb; }
+.company-dropdown .dd-item:hover { background: #eff6ff; color: #1d4ed8; }
+.company-dropdown .dd-item.selected { background: #dbeafe; color: #1d4ed8; font-weight: 600; }
+.company-dropdown .dd-empty { padding: 16px 12px; font-size: 13px; color: #9ca3af; text-align: center; font-style: italic; }
+/* Warning banners */
+.warning-banner { border-radius: 8px; padding: 12px 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; }
+/* Scrollbar */
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+/* ═══════════════════════════════════════════════════════
+   SEARCH STYLING REDESIGN — CSS-Only Upgrades
+   Preserves all field IDs, data-field, data-value attrs
+   ═══════════════════════════════════════════════════════ */
+
+/* ---- Header Polish ---- */
+header {
+    background: linear-gradient(180deg, #1a1a1a 0%, #111111 100%) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+}
+#generalNavBar {
+    padding: 14px 24px;
+}
+#generalNavBar > nav {
+    gap: 6px;
+}
+#generalNavBar > nav > button {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 8px;
+    letter-spacing: 0.01em;
+    transition: all 0.15s ease;
+}
+#generalNavBar > nav > button:hover {
+    background: rgba(255,255,255,0.08);
+}
+#generalNavBar > div:first-child {
+    font-size: 1.375rem;
+    letter-spacing: 0.12em;
+}
+
+
+/* ---- Search Type Tabs (General Search / Comparables) ---- */
+#searchTypeTabs {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+#searchTypeTabs button {
+    padding: 14px 24px;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+}
+#searchTypeTabs button i {
+    font-size: 13px;
+}
+
+/* ---- Sales/Rentals/Buildings + Mode Toggle Bar ---- */
+#generalSearchSection > .bg-white.rounded-xl {
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+#generalSearchSection > .bg-white.rounded-xl .px-4.py-3 {
+    padding: 14px 18px;
+}
+#generalSearchSection > .bg-white.rounded-xl .px-4.py-2\.5 {
+    padding: 10px 18px;
+}
+/* Sales/Rentals/Buildings tab buttons */
+#btnSale, #btnRent, #btnBuilding {
+    padding: 7px 18px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    letter-spacing: 0.04em;
+}
+/* Basic/Advanced toggle */
+#btnSearchBasic, #btnSearchAdvanced {
+    padding: 7px 18px !important;
+    font-size: 12px !important;
+}
+/* Primary search button */
+#generalSearchSection button.bg-blue-600 {
+    padding: 8px 28px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+    letter-spacing: 0.02em;
+    transition: all 0.15s ease;
+}
+#generalSearchSection button.bg-blue-600:hover {
+    box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    transform: translateY(-1px);
+}
+
+/* ---- Form Controls (selects, text inputs) ---- */
+#section-main select,
+#section-my select,
+#section-client select,
+#section-last select {
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    min-height: 34px;
+}
+#section-main select:focus,
+#section-main input[type="text"]:focus,
+#section-main input[type="number"]:focus,
+#section-main input[type="tel"]:focus,
+#section-main input[type="email"]:focus,
+#section-main input[type="url"]:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+    outline: none;
+}
+#section-main input[type="text"],
+#section-main input[type="number"],
+#section-main input[type="tel"],
+#section-main input[type="email"],
+#section-main input[type="url"] {
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    min-height: 34px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+/* Placeholder styling */
+#section-main input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+}
+#section-main select option:first-child {
+    color: #9ca3af;
+}
+
+/* ---- Section Cards (Status, Price/Rooms, Quick Search, etc.) ---- */
+#searchBasicMode > div > .border.rounded-lg,
+#searchBasicModeRental > div > .border.rounded-lg,
+#searchBasicModeBuilding .border.rounded-lg {
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    padding: 16px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: box-shadow 0.2s;
+}
+#searchBasicMode > div > .border.rounded-lg:hover,
+#searchBasicModeRental > div > .border.rounded-lg:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+/* ---- Section Labels (Status, Price/Rooms, etc.) ---- */
+#searchBasicMode p.text-xs.font-semibold.text-gray-700,
+#searchBasicModeRental p.text-xs.font-semibold.text-gray-700,
+#searchBasicModeBuilding p.text-xs.font-semibold.text-gray-700 {
+    font-size: 11.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #1f2937;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 12px;
+}
+
+/* ---- Checkboxes & Labels ---- */
+#searchBasicMode label,
+#searchBasicModeRental label,
+#searchBasicModeBuilding label,
+#searchAdvancedMode label {
+    font-size: 12.5px;
+    padding: 2.5px 0;
+    cursor: pointer;
+}
+#searchBasicMode label:hover,
+#searchBasicModeRental label:hover,
+#searchBasicModeBuilding label:hover {
+    color: #111827;
+}
+#searchBasicMode input[type="checkbox"],
+#searchBasicModeRental input[type="checkbox"],
+#searchBasicModeBuilding input[type="checkbox"],
+#searchAdvancedMode input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+/* ---- Basic Search Mode Containers ---- */
+#searchBasicMode,
+#searchBasicModeRental,
+#searchBasicModeBuilding {
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* ---- Transit Line Buttons ---- */
+#searchBasicMode button[style*="background:#"],
+#searchBasicModeRental button[style*="background:#"],
+#searchBasicModeBuilding button[style*="background:#"] {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+#searchBasicMode button[style*="background:#"]:hover,
+#searchBasicModeRental button[style*="background:#"]:hover {
+    transform: scale(1.12);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* ---- Advanced Mode Collapsible Sections ---- */
+#searchAdvancedMode .collapsible-section {
+    border-radius: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+#searchAdvancedMode .section-header {
+    padding: 14px 18px;
+    font-size: 13px;
+    font-weight: 700;
+}
+#searchAdvancedMode .section-content {
+    padding: 18px;
+}
+
+/* ---- Results Section Separator ---- */
+#searchResultsSection {
+    border-top: 3px solid #e5e7eb;
+    padding-top: 16px;
+}
+
+/* ---- Quick Search Button (inside card) ---- */
+#searchBasicMode button.bg-blue-600.w-full,
+#searchBasicModeRental button.bg-blue-600.w-full,
+#searchBasicModeBuilding button.bg-blue-600.w-full {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.25);
+}
+
+/* ---- Date Range Picker trigger upgrade ---- */
+.drp-trigger {
+    min-height: 34px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+/* ---- My Searches / Client Searches / Last Search Sections ---- */
+#section-my, #section-client, #section-last, #section-manage {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ---- Fix: Transit + direct-child cards in search modes ---- */
+#searchBasicMode > .border.rounded-lg,
+#searchBasicModeRental > .border.rounded-lg,
+#searchBasicModeBuilding > .border.rounded-lg {
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border-color: #e5e7eb;
+}
