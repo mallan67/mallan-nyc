@@ -23,7 +23,8 @@
         "rls:validate": "node scripts/validate-rls-compliance.js",
         "rls:generate": "node scripts/generate-rls-bindings.js",
         "rls:inject": "node scripts/inject-rls-attributes.js",
-        "test:rls": "node scripts/test-rls-bindings.js"
+        "test:rls": "node scripts/test-rls-bindings.js",
+        "db:seed": "npx tsx prisma/seed.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",

@@ -15,8 +15,25 @@
  */
 
 /**
- * Minimal canonical listing type for internal use.
+ * OAuth2 token from Trestle OIDC endpoint.
+ */
+export interface TrestleAuthToken {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  /** Internal: absolute expiry timestamp (ms). */
+  _expiresAt: number;
+}
+
+/**
+ * Raw listing record from Trestle API (all 448 fields possible).
+ */
+export type TrestleRawListing = Record<string, unknown>;
+
+/**
+ * Canonical listing type for internal use.
  * Aligned with RESO Data Dictionary where applicable.
+ * Expanded to cover all field categories.
  */
 export interface IDXListing {
   // Identifiers
@@ -24,42 +41,94 @@ export interface IDXListing {
   mlsId: string;
 
   // Status
-  standardStatus: 'Active' | 'Pending' | 'Sold' | 'Withdrawn' | 'Expired' | 'Canceled';
+  standardStatus: 'Active' | 'Pending' | 'Sold' | 'Withdrawn' | 'Expired' | 'Canceled' | 'Coming Soon' | 'Active Under Contract';
   listingType: 'sale' | 'rent';
 
   // Address (RESO-aligned)
   address: {
     streetNumber: string;
     streetName: string;
+    streetDirPrefix?: string;
+    streetDirSuffix?: string;
+    streetSuffix?: string;
     unitNumber: string | null;
     city: string;
+    cityRegion?: string;
+    postalCity?: string;
     stateOrProvince: string;
     postalCode: string;
     county: string;
+    country?: string;
+    crossStreet?: string;
+    directions?: string;
+    latitude?: number;
+    longitude?: number;
+    unparsedAddress?: string;
   };
 
   // Price
   listPrice: number;
   originalListPrice: number;
+  previousListPrice?: number;
   closePrice: number | null;
 
   // Property Details
   propertyType: string;
   propertySubType: string | null;
+  commonInterest?: string;
+  ownershipType?: string;
+  structureType?: string;
   bedroomsTotal: number;
   bathroomsFull: number;
   bathroomsHalf: number;
+  bathroomsTotal?: number;
   livingArea: number | null;
+  livingAreaUnits?: string;
+  buildingAreaTotal?: number;
   lotSizeArea: number | null;
+  lotSizeUnits?: string;
   yearBuilt: number | null;
+  storiesTotal?: number;
+  roomsTotal?: number;
+
+  // Building
+  buildingName?: string;
+  architecturalStyle?: string;
+  constructionMaterials?: string;
+  heating?: string;
+  cooling?: string;
+  flooring?: string;
+
+  // Amenities
+  interiorFeatures?: string;
+  exteriorFeatures?: string;
+  appliances?: string;
+  laundryFeatures?: string;
+  securityFeatures?: string;
+  accessibilityFeatures?: string;
+  communityFeatures?: string;
+  parkingFeatures?: string;
+  parkingTotal?: number;
+  garageSpaces?: number;
+
+  // Financial
+  associationFee?: number;
+  associationFeeFrequency?: string;
+  taxAnnualAmount?: number;
+  taxYear?: number;
 
   // Dates
   listingContractDate: string;
   modificationTimestamp: string;
+  onMarketDate?: string;
+  closeDate?: string;
+  activationDate?: string;
+  availabilityDate?: string;
 
   // Agent/Office
   listAgentMlsId: string;
   listAgentFullName: string;
+  listAgentEmail?: string;
   listOfficeMlsId: string;
   listOfficeName: string;
 
@@ -69,6 +138,25 @@ export interface IDXListing {
     mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan';
     order: number;
   }[];
+  photosCount?: number;
+  virtualTourURLBranded?: string;
+  virtualTourURLUnbranded?: string;
+
+  // Remarks
+  publicRemarks?: string;
+  privateRemarks?: string;
+
+  // Distribution gates
+  idxEntireListingDisplayYN?: boolean;
+  internetEntireListingDisplayYN?: boolean;
+  internetAddressDisplayYN?: boolean;
+  participantOnlyYN?: boolean;
+
+  // Rental-specific
+  leaseAmount?: number;
+  leaseAmountFrequency?: string;
+  petsAllowed?: string;
+  furnished?: string;
 
   // Compliance
   _source: 'idx' | 'exclusive' | 'manual';
@@ -116,4 +204,16 @@ export interface IDXAuditLogEntry {
   resultStatus: 'success' | 'error' | 'disabled' | 'no_credentials';
   durationMs?: number;
   errorMessage?: string;
+}
+
+/**
+ * Sync result from IDX pipeline
+ */
+export interface IDXSyncResult {
+  total_fetched: number;
+  upserted: number;
+  skipped_gates: number;
+  skipped_validation: number;
+  errors: number;
+  duration_ms: number;
 }

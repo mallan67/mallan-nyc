@@ -1,0 +1,495 @@
+,Attribute Name - Current System,,MatrixFieldName,RLS Description,LMP Add/Edit,LMP Search,Requirements/Rules
+,AboveGradeFinishedArea,,AboveGradeFinishedArea,Finished area within the structure that is at or above the surface of the ground.,Yes,Yes,No
+,AboveGradeFinishedAreaSource,,AboveGradeFinishedAreaSource,"The source of the measurements. This is a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",Yes,Yes,No
+,AboveGradeFinishedAreaUnits,,AboveGradeFinishedAreaUnits,"A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",Yes,Yes,Conditional: Required if AboveGradeFinishedArea is entered
+,AccessibilityFeatures,,AccessibilityFeatures,A list or description of the accessibility features included in the sale/lease.,Yes,Yes,No
+,,,ActivationDate,The date a Coming Soon listing is expected to become available as Active in the Source System,Yes,Yes,"Yes, Conditional: Required if MLSStatus=ComingSoon"
+,,,ActivationTimestamp,The timestamp that a Coming Soon listing was made Active in  the RLS System,No,Yes,No
+,,,ActiveOpenHouseCount,Calculated count in Matrix of active open houses,No,Yes,No
+,AlternateStreetDirPrefix,,AlternateStreetDirPrefix,The direction indicator that precedes the listed property's alternate street name.,Yes,Yes,No
+,AlternateStreetDirSuffix,,AlternateStreetDirSuffix,The direction indicator that follows a listed property's alternate street address.,Yes,Yes,No
+,AlternateStreetName,,AlternateStreetName,The street name portion of a listed property's alternate street address.,Yes,Yes,"Conditional: Required if attempting to submit any AlternateStreet attributes
+
+rejects if not in Street Dictionary"
+,AlternateStreetNumber,,AlternateStreetNumber,"The street number portion of a listed property's alternate street address. In some areas the street number may contain non-numeric characters. This field can also contain extensions and modifiers to the street number, such as ""1/2"" or ""-B"". This street number field should not include Prefixes, Direction or Suffixes.",Yes,Yes,Conditional: Required if attempting to submit any AlternateStreet attributes
+,AlternateStreetSuffix,,AlternateStreetSuffix,The suffix portion of a listed property's alternate street address.,Yes,Yes,"No, rejects if not in Street Dictionary"
+,Appliances,,Appliances,A list of the appliances that will be included in the sale/lease of the listing,Yes,Yes,No
+,ArchitectName,,ArchitectName,Name of the architect who designed the building.,Yes,Yes,No
+,ArchitecturalStyle,,ArchitecturalStyle,"A list describing the style of the structure. For example, Prewar, Highrise, Walkup, etc.",Yes,Yes,No
+,AreaOverFAR,,AreaOverFAR,Area over FAR in square feet.,Yes,Yes,No
+,AreaUnderFAR,,AreaUnderFAR,Area under FAR in square feet.,Yes,Yes,No
+,AssociationFee,,AssociationFee,"A fee paid by the homeowner to the Homeowners Association which is used for the upkeep of the common area, neighborhood or other association related benefits. Also known as monthly maintenance fee for coop/condop or monthly common charges for condo. The AssociationFee field does not to include taxes.",Yes,Yes,"Conditional: If PropertyType = Residential AND CommonInterest with Condominium, StockCooperative, or Condop"
+,AssociationFee2,,AssociationFee2,"A fee paid by the homeowner to the second of two Homeowners Associations, which is used for the upkeep of the common area, neighborhood or other association related benefits. This can also be used fo",Yes,Yes,No
+,AssociationFee2Frequency,,AssociationFee2Frequency,"The frequency the association fee is paid. For example, Weekly, Monthly, Annually, Bi-Monthly, One Time, etc.",Yes,Yes,"Conditional: If AssociationFee2 >0, then this is required"
+,AssociationFeeFrequency,,AssociationFeeFrequency,"The frequency the association fee is paid. For example, Weekly, Monthly, Annually, Bi-Monthly, One Time, etc.",Yes,Yes,"Conditional: If PropertyType = Residential AND CommonInterest with Condominium, StockCooperative, Condop AND AssocaitionFee>0"
+,AssociationFeeIncludes,,AssociationFeeIncludes,"Services included with the association fee. For example Landscaping, Trash, Water, etc.",Yes,Yes,No
+,AssociationName,,AssociationName,The name of the Homeowners Association or the legal name of the condo/co-op corporation (as on the stock certificate).,Yes,Yes,No
+,,,AssociationYN,Is there a Homeowners Association. A separate Y/N field is needed because not all associations have dues.,Yes,Yes,No
+,AttachedGarageYN,,AttachedGarageYN,A flag indicating that the garage is attached/connected to the dwelling and can be accessed from the building,Yes,Yes,No
+,AttendanceType,,AttendanceType,The types of building attendants on the property.,Yes,Yes,Yes
+,AvailabilityDate,,AvailabilityDate,The date the property will be available for possession/occupation.,Yes,Yes,Conditional: If PropertyType = ResidentialLease
+,,,BackOnMarketDate,"The date a listing, which had previously gone off market, went back to being on market in the Source System. This date typically will reflect contractual dates.",No,Yes,No
+,,,BackOnMarketTimestamp,"The date a listing, which had previously gone off market, went back to being on market in the RLS System. This date typically will reflect contractual dates.",No,Yes,No
+,Basement,,Basement,"A list of information and features about the basement. i.e. None/Slab, Finished, Partially Finished, Crawl Space, Dirt, Outside Entrance, Radon Mitigation.",Yes,Yes,Conditional: If BasementYN = true
+,BasementYN,,BasementYN,Indicates whether or not the listing that is for sale/lease has a basement.,Yes,Yes,No
+,BathroomCondition,,BathroomCondition,General condition of the property's bathroom(s).,Yes,Yes,No
+,BathroomsFull,,BathroomsFull,"A room containing all 4 of the 4 elements constituting a bath, which are; Toilet, Sink, Bathtub or Shower Head. A Full Bath will typically contain four elements; Sink, Toilet, Tub and Shower Head (in tub or stall). However, some may considered a Sink, Toilet and Tub (without a shower) a Full Bath, others consider this to be a Three Quarter Bath. In the event that BathroomsThreeQuarter is not in use, this field may represent the sum of all Full and Three Quarter bathrooms.",Yes,Yes,Yes
+,BathroomsHalf,,BathroomsHalf,"A room containing 2 of the 4 elements constituting a bath, which are; Toilet, Sink, Bathtub or Shower Head. A Half Bath will typically contain a Sink and Toilet.",Yes,Yes,Yes
+,BathroomsOneQuarter,,BathroomsOneQuarter,"A room containing 1 of the 4 elements constituting a bath which are; Toilet, Sink, Bathtub or Shower Head. Examples are a vanity with a sink or a WC (Water Closet, which is a room with only a toilet).",Yes,Yes,No
+,BathroomsPartial,,BathroomsPartial,"The number of partial bathrooms in the property being sold/leased. When used in combination with the BathroomsFull field, this replaces (or is the sum of) all Half and One Quarter bathrooms; and in the event BathroomsThreeQuarter is not used, BathroomsFull replaces (or is the sum of) all Full and Three Quarter baths. This field should not be used in combination with the BathroomsOneQuarter or the BathroomsHalf.",Yes,Yes,No
+,BathroomsThreeQuarter,,BathroomsThreeQuarter,"A room containing 3 of the 4 elements constituting a bath, which are; Toilet, Sink, Bathtub or Shower Head. A typical Three Quarter Bath will contain Sink, Toilet and Shower. Some may considered a Sink, Toilet and Tub (without a shower) a Three Quarter Bath, others consider this to be a Full Bath.",Yes,Yes,No
+,BathroomsTotal,,BathroomsTotal,Sum of the number of bathrooms with half baths expressed as a decimal.,Yes,Yes,Yes
+,BathroomsTotalInteger,,BathroomsTotalInteger,"The simple sum of the number of bathrooms. For example for a property with two Full Bathrooms and one Half Bathroom, the Bathrooms Total Integer will be 3. Expressing this example as 2.5, you will need to use a non-standard field name. Decimal based bathrooms are not recommended but possible via the Dictionary's extensibility.",No,Yes,No
+,BedroomsTotal,,BedroomsTotal,The total number of bedrooms in the dwelling.,Yes,Yes,Yes
+,BelowGradeFinishedArea,,BelowGradeFinishedArea,Finished area within the structure that is below ground.,Yes,Yes,No
+,BelowGradeFinishedAreaSource,,BelowGradeFinishedAreaSource,"The source of the measurements. This is a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",Yes,Yes,No
+,BelowGradeFinishedAreaUnits,,BelowGradeFinishedAreaUnits,"A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",Yes,Yes,Conditional: Required if BelowGradeFinishedArea is entered
+,BuilderName,,BuilderName,Name of the builder or developer of the property.,Yes,Yes,No
+,BuildingAccessibilityFeatures,,BuildingAccessibilityFeatures,A list or description of the accessibility features in the building. (Not pertaining to the specific listing that is for sale or lease),Yes,Yes,No
+,BuildingAreaSource,,BuildingAreaSource,"The source of the measurements. This is a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",Yes,Yes,No
+,BuildingAreaTotal,,BuildingAreaTotal,Total area of the structure. Includes both finished and unfinished areas.,Yes,Yes,"Conditional: PropertyType = Residential AND  PropertySubType is any of - Duplex, Mixed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family, Single Family Townhouse, Triplex, Unimproved Land."
+,BuildingAreaUnits,,BuildingAreaUnits,"A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",Yes,Yes,Conditional: Required if BuildingAreaTotal is entered
+,BuildingCondition,,BuildingCondition,A listing describing the condition of the building.,Yes,Yes,No
+,BuildingCooling,,BuildingCooling,A list describing the cooling features of the buildings common areas.,Yes,Yes,No
+,BuildingEntryLocation,,BuildingEntryLocation,"A description of the main entryway to the building. i.e. Elevator, Ground Level w/ Steps, Ground Level w/o Steps, Mid Level, Top Level, etc.",Yes,Yes,No
+,BuildingExteriorFeatures,,BuildingExteriorFeatures,A list of features or description of the exterior of the building.,Yes,Yes,No
+,BuildingFeatures,,BuildingFeatures,Features or amenities of the building or business park.,Yes,Yes,No
+,BuildingFencing,,BuildingFencing,A list of types of fencing found at the building.,Yes,Yes,No
+,BuildingHeating,,BuildingHeating,A list describing the heating features of the building.,Yes,Yes,No
+,BuildingLaundryFeatures,,BuildingLaundryFeatures,Pick list of features/services and locations where the laundry is located in the building including dry cleaning/laundry services.,Yes,Yes,Yes
+,BuildingName,,BuildingName,Name of the building or business park including the marketing or vanity building.,Yes,Yes,No
+,BuildingParkingFeatures,,BuildingParkingFeatures,A list of features or description of the parking included in the building.,Yes,Yes,No
+,BuildingParkingTotal,,BuildingParkingTotal,"The total number of parking spaces available for the building, not particularly assigned to the specific unit/listing.",Yes,Yes,No
+,BuildingPatioAndPorchFeatures,,BuildingPatioAndPorchFeatures,A list of features or description of the patio or porch on the property. This includes: terrace or roof deck,Yes,Yes,No
+,BuildingPetsAllowed,,BuildingPetsAllowed,"Indicate the pet policy for the building. Please note, the building policy can be different from what the unit owner will permit.",Yes,Yes,Yes
+,BuildingPetsAllowedComments,,BuildingPetsAllowedComments,Description of what is permitted or restrictions whether there is a number or size limit or breed restrictions,Yes,Yes,"Conditional: If BuildingPetsAllowed = BuildingSizeLimit, BuildingNumberLimit, BuildingBreedRestrictions"
+,BuildingPoolFeatures,,BuildingPoolFeatures,A list of features or description of the pool for common use or access for the building residents,Yes,Yes,No
+,BuildingRules,,BuildingRules,Building-level property rules.,Yes,Yes,No
+,BuildingSecurityFeatures,,BuildingSecurityFeatures,A list describing the security features on the property,Yes,Yes,No
+,BuildingSmokeFreeYN,,BuildingSmokeFreeYN,A building is 100% smoke-free where smoking tobacco products are prohibited within the building. This means no smoking in individual apartments or common indoor and outdoor areas. Some smoke-free buildings may allow smoking only in a limited designated outdoor area. Please refer to the Smoke Free Air Act for more details.,Yes,Yes,No
+,BuildingSocialMedia,,BuildingSocialMediaURL,Building social media URL,Yes,Yes,No
+,BuildingStaffType,,BuildingStaffType,Types of staff employed by the building or association.,Yes,Yes,No
+,BuildingTaxLot,,BuildingTaxLot,"Specific to the Building. A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read ""Lot 12 of Block 45 of Tract 3002 of the City of San Dunes, Desert County."" Such a description would also reference an official plat filed with the clerk or recorder for that area which shows the location of the block and often the dimensions of the lots therein.",Yes,Yes,Yes
+,BuildingTotalGrossFootage,,BuildingTotalGrossFootage,"The entire square footage of a building. GSF typically includes areas such as the building core, maintenance and operations areas, stairwells, elevator shafts, equipment areas, attics, garages, balconies, excavated basement areas, mezzanines, corridors and walkways.",Yes,Yes,No
+,BuildingTotalNetSquareFootage,,BuildingTotalNetSquareFootage,"The area of usable space that’s available for furnishings, equipment, and personnel of a Building. BuildingTotalNetSquareFootage is essentially BuildingGrossSquareFootage minus unusable space.",Yes,Yes,No
+,BusinessType,,BusinessType,"List of type of business on premise or part of the building, if Building Description is mix-use building. Retail, Wholesale, Grocery, Food & Bev, etc. Not to be used to describe the listing that is for lease or sale.",Yes,Yes,No
+,BuyerAgentDirectPhone,,BuyerAgentDirectPhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,Yes,Yes,Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled
+,BuyerAgentEmail,,BuyerAgentEmail,The email address of the Buyer's Agent.,Yes,Yes,Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled
+,BuyerAgentFullName,,BuyerAgentFullName,The full name of the buyer's agent as registered with DOS,Yes,Yes,Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled
+,,,BuyerAgentKeyNumeric,Unique identifier of the Buyer Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric,No,Yes,No
+,BuyerAgentKey,,BuyerAgentMlsId,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resources MemberKey.",Yes,Yes,Yes
+,BuyerAgentRLSParticipantYN,,BuyerAgentRLSParticipantYN,Indicate whether the buyer agent is a RLS Participant.,Yes,Yes,Conditional: MLSStatus = Closed
+,BuyerAgentStateLicense,,BuyerAgentStateLicense,The license of the buyers agent. Separate multiple licenses with a comma and space.,Yes,Yes,Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled
+,BuyerAgentURL,,BuyerAgentURL,The website URL of the buyers agent.,Yes,Yes,No
+,BuyerFinancing,,BuyerFinancing,"A list of options that describe the type of financing used. This field is used when setting a listing to Closed. i.e. cash, FHA loan, etc.",Yes,Yes,No
+,BuyerOfficeEmail,,BuyerOfficeEmail,The email address of the Buyer's Office.,Yes,Yes,No
+,,,BuyerOfficeKeyNumeric,Unique identifier of the Buyer Office. This is the foreign key that relates to the Office resource OfficeKeyNumeric,No,Yes,No
+,BuyerOfficeKey,,BuyerOfficeMlsId,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Office resource OfficeKey.",Yes,Yes,No
+,BuyerOfficeName,,BuyerOfficeName,The legal name of the brokerage representing the buyer.,Yes,Yes,Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled
+,BuyerOfficePhone,,BuyerOfficePhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,Yes,Yes,Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled
+,BuyerOfficeURL,,BuyerOfficeURL,The website URL for the buyers office.,Yes,Yes,No
+,,,BuyerTeamKeyNumeric,Unique identifier of the Buyer Team. This is the foreign key that relates to the Team resource Team KeyNumeric,No,Yes,No
+,BuyerTeamKey,,BuyerTeamMlsId,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Teams resource TeamKey.",Yes,Yes,No
+,BuyerTeamName,,BuyerTeamName,The name of the team representing the buyer.,Yes,Yes,No
+,CableTvExpense,,CableTVExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,CancellationDate,,CancellationDate,"Date the listing contract between the seller and listing agent was cancelled. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",Yes,Yes,Conditional: MLSStatus= Cancelled
+,CapitalReservesTotal,,CapitalReservesTotal,Indicate the total capital reserves amount,Yes,Yes,No
+,CapitalReservesYN,,CapitalReservesYN,Indicate whether the building or property has capital reserve.,Yes,Yes,No
+,CapRate,,CapRate,Cap Rate is equivalent to the return on investment you would receive if you pay cash for a property. The ratio between the net operating income produced by an asset and its capital cost (the original price paid to buy the asset) or alternatively its current market value.,Yes,Yes,No
+,CarportSpaces,,CarportSpaces,The number of carport spaces included in the sale.,Yes,Yes,No
+,CarportYN,,CarportYN,A flag indicating that the listing has a car port.,Yes,Yes,No
+,CeilingHeight,,CeilingHeightFeet,"The average height of the ceilings of the listing that is for sale/lease in Feet. The total ceiling height should be the combination for CeilingHeightFeet and CeilingHeightInches. For example, Ceiling Height is 9 Feet 6 Inches.",Yes,Yes,Conditional: CeilingHeightInches is not null
+,CeilingHeight,,CeilingHeightInches,"The average height of the ceilings of the listing that is for sale/lease in Inches.  The total ceiling height should be the combination for CeilingHeightFeet and CeilingHeightInches. For example, Ceiling Height is 9 Feet 6 Inches.",Yes,Yes,Conditional: CeilingHeightFeet not null
+,CertificateOfOccupancyYN,,CertificateOfOccupancyYN,Indicates whether or not the building has a certificate of occupancy.,Yes,Yes,No
+,City,,City,The city in listing address. ALL listings entered in the RLS must be in New York City. Please note this field is not to indicate on postal or mailing refer to Postal City.,Yes,Yes,Yes
+,CityRegion,,CityRegion,The borough where the listing that is for sale/lease resides.,Yes,Yes,"Yes; CityRegion must match with CountyOrParish:
+Kings-Brooklyn
+Queens- Queens
+New York- Manhattan
+Richmond- Staten Island
+Bronx-Bronx"
+,CloseDate,,CloseDate,"With for-sale listings, the date the purchase agreement was fulfilled. 
+With lease listings, the date the requirements were fulfilled, such as contract and/or deposit. 
+
+This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",Yes,Yes,"Conditional: Required when MLSStatus = Closed
+
+The CloseDate is required to be greater than or equal to the PurchaseContractDate"
+,ClosePrice,,ClosePrice,"The amount paid by the purchaser to the seller for the property under the agreement. For lease/rent, the amount agreed on the monthly rent price between the landlord and the tenant.",Yes,Yes,Conditional: Required when MLSStatus = Closed
+,ClosetsTotal,,ClosetsTotal,The number of closets on the property/unit that is listed.,Yes,Yes,No
+,CoBrokeAgreement,,CoBrokeAgreement,REBNY co-brokerage agreement type.  REBNY Universal Co-broke/REBNY New Development Co-broke/RUNDBA.,Yes,Yes,Yes
+,CoBuyerAgentDirectPhone,,CoBuyerAgentDirectPhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,CoBuyerAgentEmail,,CoBuyerAgentEmail,The email address of the Buyer's Co Agent.,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,CoBuyerAgentFullName,,CoBuyerAgentFullName,The full name of the co-buyer's agent as registered with DOS Licensing,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,,,CoBuyerAgentKeyNumeric,Unique identifier of the Co Buyer Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric,No,Yes,No
+,CoBuyerAgentKey,,CoBuyerAgentMlsId,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resources MemberKey.",Yes,Yes,Conditional: CoBuyerAgentRLSParticipantYN = true
+,CoBuyerAgentRLSParticipantYN,,CoBuyerAgentRLSParticipantYN,Indicate whether the cobuyer agent is an active  RLS Participant.,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,CoBuyerAgentStateLicense,,CoBuyerAgentStateLicense,The license of the co-buyers agent. Separate multiple licenses with a comma and space.,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,CoBuyerAgentURL,,CoBuyerAgentURL,The website URL of the co-buyers agent.,Yes,Yes,No
+,CoBuyerOfficeEmail,,CoBuyerOfficeEmail,The email address of the Buyer's Co Office.,Yes,Yes,No
+,,,CoBuyerOfficeKeyNumeric,Unique identifier of the Co Buyer Office. This is the foreign key that relates to the Office resource Office KeyNumeric,No,Yes,No
+,CoBuyerOfficeKey,,CoBuyerOfficeMlsId,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Office resource OfficeKey.",Yes,Yes,Conditional: CoBuyerAgentRLSParticipantYN = true
+,CoBuyerOfficeName,,CoBuyerOfficeName,The legal name of the brokerage co-representing the buyer.,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,CoBuyerOfficePhone,,CoBuyerOfficePhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,Yes,Yes,Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled
+,CoBuyerOfficeURL,,CoBuyerOfficeURL,The website URL for the co-buyers office.,Yes,Yes,No
+,CoListAgent2DirectPhone,,CoListAgent2DirectPhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,No,Yes,No
+,CoListAgent2Email,,CoListAgent2Email,The email address of the Co Listing Agent 2.,No,Yes,No
+,CoListAgent2FullName,,CoListAgent2FullName,The full name of the co-listing agent 2 as registered with DOS Licensing,No,Yes,No
+,,,CoListAgent2KeyNumeric,Unique identifier of the Co List 2 Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric,No,Yes,No
+,CoListAgent2Key,,CoListAgent2MLSID,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",Yes,Yes,No
+,,,CoListAgent2Nickname,The Alternate name used by the Co Listing Agent 2,No,Yes,
+,CoListAgent2StateLicense,,CoListAgent2StateLicense,The State License Number of the Co Listing Agent 2.,No,Yes,No
+,CoListAgent2URL,,CoListAgent2URL,The website URL of the co-listing agent 2,No,Yes,No
+,CoListAgent3DirectPhone,,CoListAgent3DirectPhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,No,Yes,No
+,CoListAgent3Email,,CoListAgent3Email,The email address of the Co Listing Agent 3.,No,Yes,No
+,CoListAgent3FullName,,CoListAgent3FullName,The full name of the co-listing agent 3 as registered with DOS Licensing,No,Yes,No
+,,,CoListAgent3KeyNumeric,Unique identifier of the Co List 3 Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric,No,Yes,No
+,CoListAgent3Key,,CoListAgent3MLSID,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",Yes,Yes,No
+,,,CoListAgent3Nickname,The Alternate name used by the Co List Agent 3,No,Yes,
+,CoListAgent3StateLicense,,CoListAgent3StateLicense,The State License Number of the Co Listing Agent 3.,No,Yes,No
+,CoListAgent3URL,,CoListAgent3URL,The website URL of the co-listing agent 3.,No,Yes,No
+,CoListAgentDirectPhone,,CoListAgentDirectPhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,No,Yes,No
+,CoListAgentEmail,,CoListAgentEmail,The email address of the Co Listing Agent.,No,Yes,No
+,CoListAgentFullName,,CoListAgentFullName,The full name of the co-listing agent as registered with DOS Licensing,No,Yes,No
+,,,CoListAgentKeyNumeric,Unique identifier of the Co List Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric,No,Yes,No
+,CoListAgentKey,,CoListAgentMlsId,"A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",Yes,Yes,No
+,,,CoListAgentNickname,The Alternate name used by the Co List Agent,No,Yes,
+,CoListAgentStateLicense,,CoListAgentStateLicense,The State License Number of the Co Listing Agent.,No,Yes,No
+,CoListAgentURL,,CoListAgentURL,The website URL of the co-listing agent.,No,Yes,No
+,ComingSoonTimestamp,,ComingSoonTimestamp,The transactional timestamp automatically recorded by the RLS system representing the date/time the listing first entered the Coming Soon status.,No,No,No
+,CommercialUnitsYN,,CommercialUnitsYN,"Indicates the building contains commercial units. Commercial units are exclusively for business-related purposes or to provide a workspace rather than as a living space, which would instead constitute residential real estate.",Yes,Yes,No
+,CommonInterest,,CommonInterest,"Common Interest is a type of ownership in a property that is composed of an individual lot or unit and a share of the ownership or use of common areas. A Common Interest Development (CID) is usually governed by a recorded set of Covenants, Conditions & Restrictions (CC&Rs).
+This will be used to indicate Condominium, Stock Cooperative, Condop, RentalBuilding, or None.",Yes,Yes,Yes
+,Concessions,,Concessions,"Are there concessions included in the sales/lease agreement? Yes, No or Call Listing Agent",Yes,Yes,Yes
+,ConcessionsAmount,,ConcessionsAmount,"The dollar amount of the concessions. If the concessions are made by the seller, some may subtract this value from the sales price as a means of calculating their own true price. If concessions are made by the buyer, some may add this amount to the sale price to create their own true price. Concessions made by both buyer and seller should be subtracted from each other providing a net value. Details of this calculation should be added to the Concessions Comments field.
+
+ConcessionsAmount can also be used for listings that are for lease/rent to indicate whether there are bonus or discount/reduction amount towards rent, deposit, etc",Yes,Yes,Conditional: Required if Concessions = Yes
+,,,ConcessionsBuyerBrokerFee,The dollar amount of the concession agreed upon at closing for the buyer broker fee.  Accepted for Closed status listings only.,Yes,Yes,No; Data entered only when MLSStatus is changed to Closed
+,,,ConcessionsClosingCosts,The dollar amount of the concession agreed upon at closing for the closing costs.,Yes,Yes,No; Data entered only when MLSStatus is changed to Closed
+,ConcessionsComments,,ConcessionsComments,Comments describing the concessions made by the buyer or the seller/landlord.,Yes,Yes,Conditional: Required if Concessions = Yes
+,,,ConcessionsOtherCosts,The dollar amount of the concession agreed upon at closing for the other costs.  Accepted for Closed status listings only.,Yes,Yes,No; Data entered only when MLSStatus is changed to Closed
+,,,ConcessionsPropertyImprovementCosts,The dollar amount of the concession agreed upon at closing for the property improvements. Accepted for Closed status listings only.,Yes,Yes,No; Data entered only when MLSStatus is changed to Closed
+,ConstructionMaterials,,ConstructionMaterials,A list of the materials that were used in the construction of the property.,Yes,Yes,No
+,Cooling,,Cooling,A list describing the cooling or air conditioning features of the property.,Yes,Yes,Conditional: Required when CoolingYN = true
+,CoolingYN,,CoolingYN,The property has cooling or Air Conditioning.,Yes,Yes,No
+,,,CoOwnershipInterest,Describe the interest or shares in which the listing is for. This should be fractional or percentage.,Yes,Yes,Conditional: PropertySubType= Co Ownership
+,,,CoOwnershipRemarks,"Describe the co-ownership, the usage, or limitations/restrictions",Yes,Yes,No
+,Country,,Country,The country abbreviation in a postal address.,No,Yes,Conditional: If submitted the value must be US
+,CountyOrParish,,CountyOrParish,"The County, Parish or other regional authority",Yes,Yes,"Yes; CityRegion must match with CountyOrParish:
+Kings-Brooklyn
+Queens- Queens
+New York- Manhattan
+Richmond- Staten Island
+Bronx-Bronx"
+,CrossStreet,,CrossStreet,"Nearest cross streets to the property. This field is in addition to, and independent of, the driving directions field.",Yes,Yes,No
+,CumulativeDaysOnMarket,,CumulativeDaysOnMarket,"The number of days the property is on market, as defined by the RLS business rules.",No,No,No
+,,,CurrentPrice,The current price of the listing. CurrentPrice = ListPrice for all statuses except for Closed. CurrentPrice = ClosePrice for closed listings.,No,Yes,No
+,CurrentUse,,CurrentUse,"A list of the type(s) of current use of the listing that is for sale or lease within the residential building. The current use of the property is an important factor in understanding the overall condition of the listing and determining its appropriateness for intended use.
+This is not to be used to identify any commercial listings.",Yes,Yes,No
+,DaysOnMarket,,DaysOnMarket,"The number of days the listing is on market, as defined by the RLS business rules. Please refer to the UCBA to make the appropriate calculation for DaysOnMarket.",No,Yes,No
+,DeliveredVacantYN,,DeliveredVacantYN,Will the property be delivered vacant?,Yes,Yes,No
+,DepositAmount,,DepositAmount,"The security deposit the tenant/buyer must pay to the landlord/seller, expressed as a dollar amount.",Yes,Yes,No
+,DevelopmentStatus,,DevelopmentStatus,"A list of the Development Status of the property. The developmental status of land is an important factor in selling, purchasing and developing of land properties.",Yes,Yes,No
+,DiningType,,DiningType,The property's primary type of dining.,Yes,Yes,No
+,DirectionFaces,,DirectionFaces,"The compass direction that the main entrance to the building faces. For example, North, South, East, West, South-West, etc. It may also be known as the building exposure.",Yes,Yes,No
+,,,Directions,Driving directions to the property.,Yes,Yes,No
+,DocumentsAvailable,,DocumentsAvailable,A list of the Documents available for the property. Knowing what documents are available for the property is valuable information.,Yes,Yes,No
+,DocumentsChangeTimestamp,,DocumentsChangeTimestamp,System generated timestamp of when the last update or change to the documents for this listing was made.,No,Yes,No
+,DocumentsCount,,DocumentsCount,The total number of documents or supplements included with the listings.,No,Yes,No
+,DoorFeatures,,DoorFeatures,A list of features or description of the doors included in the sale/lease.,Yes,Yes,No
+,CoExclusiveListingKey,,DuplicateListingIDs,Only to be used if the property have two listings submitted for the purpose of  1) Coexclusive  2) Property is listed both for sale and lease,Yes,Yes,No
+,Electric,,Electric,"A list of electric-service related features of the property (e.g. 110 Volt, 3 Phase, 220 Volt, RV Hookup). Note: the previous ""Electric"" field was renamed to DistanceToElectricComments",Yes,Yes,No
+,ElectricExpense,,ElectricExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,ElectricOnPropertyYN,,ElectricOnPropertyYN,Does the property currently have electrical utility available on the property.,Yes,Yes,No
+,ElevatorsTotal,,ElevatorsTotal,Number of elevators in the building. If there is no elevator then enter '0'. If ElevatorsTotal is greater than 0 then BuildingFeatures to have Elevator(s) as value.,Yes,Yes,Yes
+,EntryLevel,,EntryLevel,"A numeric field that describes the level within the structure, SFR or a unit in a building, where the main entry to the dwelling is located. Entry Level is not used for the unit but for the building in which the property is located.",Yes,Yes,No
+,Exclusions,,Exclusions,Elements of the property that will not be included in the sale. i.e. Chandeliers will be removed prior to close.,Yes,Yes,No
+,ExpirationDate,,ExpirationDate,"The date when the listing agreement will expire. This is the date entered by the agent reflecting when the change occurred, or will occur, contractually, not a timestamp of when the change was made in the MLS. The expiration date of listings, prior to their expiration, cancellation, sale or lease, is confidential information and should be restricted to the agent and their managers, partners or broker.",Yes,Source Specific,Yes; The ExpirationDate entered can be a maximum of 10 years from the current date. Any ExpirationDate more than 10 years in the future will be rejected.
+,Exposures,,Exposures,All cardinal direction exposures of the listing that is for sale/lease,Yes,Yes,No
+,ExteriorFeatures,,ExteriorFeatures,"A list of features or description of the exterior of the property included in the sale/lease. (For Building specific, refer to the BuildingExteriorFeatures)",Yes,Yes,No
+,Fencing,,Fencing,A list of types of fencing found at the property being sold.,Yes,Yes,No
+,FireplaceFeatures,,FireplaceFeatures,A list of features or description of the fireplace(s) included in the sale/lease.,Yes,Yes,Conditional: If FireplaceYN = true OR if FireplaceTotal > 0
+,FireplacesTotal,,FireplacesTotal,The total number of fireplaces included in the listing.,Yes,Yes,Conditional: Must be greater than 0 if FireplacesYN = true
+,FireplaceYN,,FireplaceYN,Does the property include a fireplace.,Yes,Yes,Conditional: Must be true if FireplaceTotal > 0
+,FlipTax,,FlipTax,"The flip tax or transfer fee to be paid for this sale/lease, expressed as either a percentage or a constant currency amount.",Yes,Yes,"Conditional: If CommonInterest = Condominium, StockCooperative, or Condoop AND PropertyType = Residential"
+,FlipTaxRemarks,,FlipTaxRemarks,A text description of the flip tax or transfer fee to be paid for this sale/lease.,Yes,Yes,Conditional: FlipTax > 0
+,FlipTaxType,,FlipTaxType,"A list of types to clarify the value entered in the FlipTax field. For example $, % or some other clarification of the FlipTax.",Yes,Yes,Conditional: FlipTax > 0
+,Flooring,,Flooring,A list of the type(s) of flooring found within the listing.,Yes,Yes,No
+,FloorNumber,,FloorNumber,Floor number of unit (or main entrance to unit if unit duplex/unit triplex/etc.),Yes,Yes,No
+,FoundationArea,,FoundationArea,The area or dimensions of the footprint of the structure on the lot.,Yes,Yes,No
+,FoundationDetails,,FoundationDetails,A list of the type(s) of foundation on which the property sits.,Yes,Yes,No
+,,,FractionalUnitNumber,Unit Number Plus Weeks Assigned (For Example 501-Week 52),Yes,Yes,Conditional: If PropertySubType= Co Ownership
+,FuelExpense,,FuelExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,Furnished,,Furnished,"The listing being leased is furnished, unfurnished or partially furnished.",Yes,Yes,Conditional: PropertyType = ResidentialLease
+,FurnishedListPrice,,FurnishedListPrice,"The current price of the listing when furnishings are included. Depending on the listing, this may or may not be equal to the list price.",Yes,Yes,Conditional: If Furnished = Furnished OR Partially OR Negotiable
+,FurnishedMaxLeaseMonths,,FurnishedMaxLeaseMonths,"The maximum length of the lease when furnished, expressed as a number of months.",Yes,Yes,Conditional: If Furnished = Furnished OR Partially OR Negotiable
+,FurnishedMinLeaseMonths,,FurnishedMinLeaseMonths,"The minimum length of the lease when furnished, expressed as a number of months.",Yes,Yes,Conditional: If Furnished = Furnished OR Partially OR Negotiable
+,GarageSpaces,,GarageSpaces,The number of spaces in the garage assigned or part of the listing that is for sale/lease.,Yes,Yes,Conditional: If GarageSpacesAssignedYN = true
+,GarageSpacesAssignedYN,,GarageSpacesAssignedYN,Indicate whether the unit or listing has a designated parking assigned or included in the sale/lease.,Yes,Yes,No
+,GarageYN,,GarageYN,A flag indicating that the property/building has garage space.,Yes,Yes,Yes
+,GardenerExpense,,GardenerExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,GreenBuildingVerificationType,,GreenBuildingVerificationType,"The name of the verification or certification awarded to a new or pre-existing residential or commercial structure. For example: LEED, Energy Star, ICC-700. In cases where more than one certification have been awarded, leverage multiple iterations of the green verification fields via the repeating element method.",Yes,Yes,No
+,GreenBuildingYN,,GreenBuildingYN,"A building has been certified as green in which  design, construction or operation, reduces or eliminates negative impacts, and can create positive impacts, on our climate and natural environment.",Yes,Yes,No
+,GreenEnergyEfficient,,GreenEnergyEfficient,"Pick list of general green attributes such as energy efficient doors, or appliances without naming specific elements with ratings that may wane over time.",Yes,Yes,No
+,GreenEnergyGeneration,,GreenEnergyGeneration,Methods of generating power that are included in the sale or lease.,Yes,Yes,No
+,GreenIndoorAirQuality,,GreenIndoorAirQuality,Pick list of indoor air quality measures without naming specific elements with ratings that may wane over time.,Yes,Yes,No
+,GreenLocation,,GreenLocation,Pick list describing efficiencies involved with the property's location such as walkability or transportation proximity without naming specific elements with ratings that may wane over time.,Yes,Yes,No
+,GreenSustainability,,GreenSustainability,Pick list of sustainable elements used in the construction of the structure without naming specific elements with ratings that may wane over time.,Yes,Yes,No
+,GreenWaterConservation,,GreenWaterConservation,Pick list of general water conserving attributes of the property such as landscaping or reclamation without naming specific elements with ratings that may wane over time.,Yes,Yes,No
+,GuarantorsAcceptedYN,,GuarantorsAcceptedYN,Indicate whether a guarantor is accepted on listing/unit level. Refer to the buildingrules for building policies.,Yes,Yes,No
+,Heating,,Heating,A list describing the heating features of the property.,Yes,Yes,Conditional: Required if HeatingYN = true
+,HeatingYN,,HeatingYN,Indicates whether or not the property has heating.,Yes,Yes,No
+,HomeWarrantyYN,,HomeWarrantyYN,Indicates whether or not a home warranty is included in the sale of the property.,Yes,Yes,No
+,IDXEntireListingDisplayYN,,IDXEntireListingDisplayYN,"If this is True and the ListOfficeIDXParticipationYN is True, then the listing can be sent to an IDX website.",Yes,Source Specific,Yes: The LMPs are required to set this attribute to default as True.
+,Inclusions,,Inclusions,Portable elements of the property that will be included in the sale.,Yes,Yes,No
+,InsuranceExpense,,InsuranceExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,InteriorFeatures,,InteriorFeatures,A list of features or description of the interior of the property included in the sale/lease.,Yes,Yes,No
+,InternetAddressDisplayYN,,InternetAddressDisplayYN,A yes/no field that states the seller has allowed the listing address to be displayed on Internet sites.,Yes,Source Specific,Yes
+,InternetAutomatedValuationDisplayYN,,InternetAutomatedValuationDisplayYN,A yes/no field that states the seller allows the listing can be displayed with an AVM on Internet sites.,Yes,Source Specific,Yes
+,InternetConsumerCommentYN,,InternetConsumerCommentYN,A yes/no field that states the seller allows a comment or blog system to be attached to the listing on Internet sites.,Yes,Source Specific,Yes
+,InternetEntireListingDisplayYN,,InternetEntireListingDisplayYN,"A yes/no field that states the seller has allowed the listing address to be displayed on Internet sites.
+
+Sale listings with Permissions=Null are not allowed to submit InternetEntireListingDisplayYN=False.  
+
+Listing alerts and auto-sharing must be disabled/turned off for any non-exclusive agent’s listings when InternetEntireListingDisplayYN = False
+
+If Internet Entire Listing Display YN = False, Matrix will automatically override and set the below fields to False:  
+ 
+•        IDX Entire Listing Display YN = False 
+•        Internet Address Display YN = False 
+•        Internet Automated Valuation Display YN = False 
+•        Internet Consumer Comment YN = False",Yes,Yes,Yes
+,KitchenCondition,,KitchenCondition,General condition of the property's kitchen(s).,Yes,Yes,No
+,LaborInformation,,LaborInformation,"Information about labor laws that are applicable to the building. i.e. Union, Non-Union, Employee License Required.",Yes,Yes,No
+,LandAssessedValue,,LandAssessedValue,Assessed value of the land only.,Yes,Yes,No
+,LandLeaseAmount,,LandLeaseAmount,"When the land is not included in the sale, but is leased, the amount of the lease. This is the Space Rent for Mobile homes in a Park.",Yes,Yes,No
+,LandLeaseAmountFrequency,,LandLeaseAmountFrequency,"When the land is not included in the sale, but is leased, the frequency the Land Lease Fee is paid.",Yes,Yes,No
+,LandLeaseExpirationDate,,LandLeaseExpirationDate,"When the land is not included in the sale, but is leased, the expiration date of the Land Lease.",Yes,Yes,No
+,LandLeaseYN,,LandLeaseYN,The land is not included in the sale and a lease exists.,Yes,Yes,No
+,LandmarkStatusYN,,LandmarkStatusYN,"Indicates whether a property has been designated landmark status by the government. Having some sort of historic, artistic, or aesthetic value.",Yes,Yes,No
+,Latitude,,Latitude,"The geographic latitude of some reference point on the property, specified in degrees and decimal parts. Positive numbers must not include the plus symbol.",Yes,No,No
+,LaundryFeatures,,LaundryFeatures,Add this pick list of features and locations where the laundry is located in the property being sold/leased. Refer to BuildingLaundryFeatures for building specific details.,Yes,Yes,No
+,LeaseRenewalOptionYN,,LeaseRenewalOptionYN,Indicates whether or not there is an option to renew the lease for the listing.,Yes,Yes,No
+,LeaseType,,LeaseType,The lease type. Options are Stabilized lease and Non-stabilized lease.,Yes,Yes,Conditional:If PropertyType = ResidentialLease AND CommonInterest = RentalBuilding
+,LegalRoomsTotal,,LegalRoomsTotal,The number of legal rooms in the building.,Yes,Yes,No
+,Levels,,Levels,"The number of levels in the property being sold/leased. For example, One Level, Two Levels, Three or More Levels, <a href=""http://ddwiki.reso.org/pages/viewpage.action?pageId=9941240"">Multi/Split</a>, Loft. A discreet horizontal plane of interior living space (excluding basements).",Yes,Yes,No
+,LicensesExpense,,LicensesExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,ListAgentDirectPhone,,ListAgentDirectPhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,No,Yes,No
+,ListAgentEmail,,ListAgentEmail,The email address of the Listing Agent.,No,Yes,No
+,ListAgentFullName,,ListAgentFullName,The full name of the list agent as registered with DOS Licensing,No,Yes,No
+,ListAgentHasOwnershipInterestYN,,ListAgentHasOwnershipInterestYN,Indicates if list agent or list broker have ownership interest of the listing.,No,Yes,No
+,,,ListAgentKeyNumeric,Unique identifier of the List Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric,No,Yes,No
+,ListAgentKey,,ListAgentMlsId,"The local, well-known identifier for the member. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",Yes,Yes,Yes
+,,,ListAgentNickname,The Alternate name used by the List Agent,No,Yes,
+,ListAgentStateLicense,,ListAgentStateLicense,The license of the listing agent. Separate multiple licenses with a comma and space.,No,Yes,No
+,ListAgentURL,,ListAgentURL,The website URL of the listing agent.,No,Yes,No
+,ListingAgreement,,ListingAgreement,"The nature of the agreement between the seller and the listing agent. Examples are Exclusive Agency, Open Listing, CoExclusive, etc. Please note: Per UCBA, RLS comprises of all exclusive listings. Please reference the UCBA for further details.",Yes,Yes,"Yes - If PropertyType = Residential, then cannot submit Exclusive Right To Lease. If PropertyType = Residential Lease, then cannot submit Exclusive Right to Sell."
+,ListingContractDate,,ListingContractDate,"The effective date of the agreement between the seller landlord and the seller's broker. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS. 
+
+This date is not editable once submitted.",Yes,Yes,Yes; ListingContractDate cannot be more than one year from current date.
+,,,ListingID,"The local, well-known identifier for the Listing. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",No,Yes,"No, generated by Matrix DB with ID for RLS/REBNY"
+,,,ListingIssues,This field specifies an issue with the listing that requires restrictions and/or corrections,No,Source Specific,No
+,,,ListingKeyNumeric,The unique identifier for the listing.,No,Yes,No
+,ListingSocialMedia,,ListingSocialMediaURL,The URL for social media related to this listing.,Yes,Yes,No
+,ListingTerms,,ListingTerms,"Terms of the listing such as Lien Release, Subject to Court Approval or Owner Will Carry. Also may include options that describe the financing terms that are acceptable to the seller, i.e. cash, assumable, FHA loan, etc.",Yes,Yes,No
+,ListingURL,,ListingURL,"Provides a link to the specific listing on a brokerage website, agent website or other public-facing source.",Yes,Yes,No
+,ListOfficeIDXParticipationYN,,ListOfficeIDXParticipationYN,Does the List Office/Broker participate in IDX? True value allows the listing to be sent to an IDX (provided that the list office participates in IDX). This is generated from the IDXOfficeParticipationYN attribute in Member resource and managed through the REBNY membership directory.,No,No,No
+,,,ListOfficeKeyNumeric,Unique identifier of the List Office. This is the foreign key that relates to the Office resource OfficeKeyNumeric,No,Yes,No
+,ListOfficeKey,,ListOfficeMlsId,"The local, well-known identifier. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",No,Yes,No
+,ListOfficeName,,ListOfficeName,The legal name of the brokerage representing the seller.,Yes,Yes,No
+,ListOfficePhone,,ListOfficePhone,North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.,No,Yes,No
+,ListOfficeURL,,ListOfficeURL,The website URL for the listing office.,No,Yes,No
+,ListPrice,,ListPrice,"The current price of the property as determined by the seller/landlord. For auctions this is the minimum or reserve price.
+For rent/leasing, it must reflect the the gross monthly rent/lease for the listing (not net-effective rent).",Yes,Yes,Yes
+,,,ListTeamKeyNumeric,Unique identifier of the List Team. This is the foreign key that relates to the Team resource TeamKeyNumeric,No,Yes,No
+,ListTeamKey,,ListTeamMlsId,"The local, well-known identifier. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",Yes,Yes,No
+,ListTeamName,,ListTeamName,The name of the team representing the seller/landlord,Yes,Yes,No
+,LivingArea,,LivingArea,The total livable area within the structure of the unit or property in which it is for sale or lease.,Yes,Yes,Conditional: If PropertyType = Residential AND CommonInterest = Condominium
+,LivingAreaSource,,LivingAreaSource,"The source of the measurements. This is a pick list of options showing the source of the measurement (e.g., Agent, Assessor, Estimate).",Yes,Yes,No
+,LivingAreaUnits,,LivingAreaUnits,"A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",Yes,Yes,Conditional: If LivingArea > 0
+,Longitude,,Longitude,"The geographic longitude of some reference point on the property, specified in degrees and decimal parts. Positive numbers must not include the plus symbol.",Yes,No,No
+,LotFeatures,,LotFeatures,A list of features or description of the lot included in the sale/lease.,Yes,Yes,No
+,LotSizeArea,,LotSizeArea,"The total area of the lot. See Lot Size Units for the units of measurement (Square Feet, Square Meters, Acres, etc.).",Yes,Yes,"Conditional: PropertySubType = any of Single Family Townhouse, Duplex, MIxed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family Residence, Triplex, Unimproved Land"
+,LotSizeDimensions,,LotSizeDimensions,The dimensions of the lot minimally represented as length and width (i.e. 250 x 180) or a measurement of all sides of the polygon representing the property lines of the property. i.e. 30 x 50 x 120 x 60 x 22.,Yes,Yes,"Conditional: PropertySubType = any of Single Family Townhouse, Duplex, MIxed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family Residence, Triplex, Unimproved Land"
+,LotSizeSource,,LotSizeSource,"The source of the measurements. This may be a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",Yes,Yes,No
+,LotDimensionsSource,,LotSizeSource,"The source of the measurements. This may be a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",Yes,Yes,
+,LotSizeUnits,,LotSizeUnits,"A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",Yes,Yes,Conditional: If LotSizeArea =>0
+,MaintenanceExpense,,MaintenanceExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,MajorChangeTimestamp,,MajorChangeTimestamp,Timestamp of the last major change on the listing (see also MajorChangeType).,No,Yes,No
+,MajorChangeType,,MajorChangeType,"Description of the last major change on the listing, i.e. “price reduction”, “back on market”, etc. May be used to display on a summary view of listing results to quickly identify listings that have had major changes recently.",No,Yes,No
+,ManagerExpense,,ManagerExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations. This is for an individual manager. Use ProfessionalManagementExpense for a management company.,Yes,Yes,No
+,ManagingAgencyListingYN,,ManagingAgencyListingYN,"This field distinguishes between a listing that is handled directly by an owner or an owner’s Managing Agency (having signed up with REBNY), versus a listing that is handled through a standard real estate brokerage company.",Yes,Yes,No
+,,,MatrixTesting,Flag to identify whether it is a test listing submitted. This will be automatically flagged for the LMPs as they are currently testing.  This flag will not be available once migrated to production,No,Yes - TEMPORARY,No
+,MaximumFinancingAmount,,MaximumFinancingAmount,"The maximum amount a lender will finance for the listing, expressed as an amount.",Yes,Yes,No
+,MaximumFinancingPercent,,MaximumFinancingPercent,"The maximum amount a lender will finance for the listing, expressed as a percentage of the sale price.",Yes,Yes,"Conditional: PropertyType = Residential AND CommonInterest = Condominium, StockCooperative, or Condop"
+,MaximumFinancingRemarks,,MaximumFinancingRemarks,Text description of the maximum allowed financing.,Yes,Yes,"Conditional: PropertyType = Residential AND CommonInterest = Condominium, StockCooperative, or Condop"
+,MaxLeaseMonths,,MaxLeaseMonths,The maximum length of the lease expressed as a number of months.,Yes,Yes,No
+,MinLeaseMonths,,MinLeaseMonths,The minimum length of the lease expressed as a number of months.,Yes,Yes,Conditional: If PropertyType = ResidentialLease. The value must be greater than or equal to 1
+,,,MlsMajorChangeType,"Description of the last MLS status major change on the listing, i.e. “price reduction”, “back on market”, etc. May be used to display on a summary view of listing results to quickly identify listings that have had major changes recently.",No,Yes,No
+,StandardStatus,,MlsStatus,RLS Status. Each MlsStatus maps to a single StandardStatus. Multiple MlsStatus may map to a single StandardStatus.,Yes,Yes,Yes
+,,,ModificationTimestamp,The transactional timestamp automatically recorded by the RLS system representing the date/time the listing was last modified.,No,Yes,No
+,,,MoveInCosts,"Specific fees not included in the base rent or deposit that apply to the listing (e.g., application fees, move-in fees).",Yes,Yes,No
+,,,MoveInCostsComments,Comments or clarifications regarding the additional listing fees.Comments or clarifications regarding the Move In Costs.,Yes,Yes,No
+,,,MoveInCostsAmountTotal,The total monetary value of all Move In Costs associated with the listing.,Yes,Yes,Conditional: If MoveInCosts have any value
+,NetMonthlyRent,,NetMonthlyRent,"The lease monthly amount a lessee pays on average per month of a lease period, a mathematical calculation that takes into account free months on the lease as if they'd been paid for.",Yes,Yes,No
+,NetOperatingIncome,,NetOperatingIncome,"Net operating income is the revenue from a property after operating expenses have been deducted, but before deducting income taxes and financing expenses (interest and Principal Payments). For example, Gross Income - Operating Expenses = Net Operating Income (NOI).",Yes,Yes,No
+,NewConstructionYN,,NewConstructionYN,Indicates whether or not the property is newly constructed and has not been previously occupied.,Yes,Yes,Yes
+,NewDevelopmentYN,,NewDevelopmentYN,"Indicates whether or not the property with a structure(s) that is(are) newly constructed, converted or both selling individual units.",Yes,Yes,Yes but cannot enter NewDevelopmentYN = True on Coming Soon listings
+,NewlyConvertedUnitYN,,NewlyConvertedUnitYN,Indicate whether the unit was newly converted from rental or any other property type to condo/coop.,Yes,Yes,No
+,NewTaxesExpense,,NewTaxesExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,NumberOfBuildings,,NumberOfBuildings,Total number of separate buildings on the premise.,Yes,Yes,No
+,NumberOfProfessionalUnitsTotal,,NumberOfProfessionalUnitsTotal,Total number of professional units in building.,Yes,Yes,No
+,NumberOfRetailUnits,,NumberOfRetailUnits,Total number of retail units in building.,Yes,Yes,No
+,NumberOfSeparateElectricMeters,,NumberOfSeparateElectricMeters,Total number of separate meters included/part of the listing.,Yes,Yes,No
+,NumberOfSeparateGasMeters,,NumberOfSeparateGasMeters,Total number of separate meters  included/part of the listing.,Yes,Yes,No
+,NumberOfSeparateWaterMeters,,NumberOfSeparateWaterMeters,Total number of separate meters  included/part of the listing.,Yes,Yes,No
+,NumberOfShares,,NumberOfShares,The number of shares allocated to the specific listing.,Yes,Yes,Conditional: If PropertyType = Residential AND CommonInterest = StockCooperative OR Condops
+,NumberOfUnitsInCommunity,,NumberOfUnitsInCommunity,"The total number of units in the building, complex or community. This is not the number of units being sold, but rather the size of the community in which the dwelling being sold is located.",Yes,Yes,No
+,NumberOfUnitsTotal,,NumberOfUnitsTotal,"Total number of residential units included in the property, occupied or unoccupied.",Yes,Yes,Yes
+,NumberOfUnitsVacant,,NumberOfUnitsVacant,The number of units currently vacant.,Yes,Yes,No
+,OccupantType,,OccupantType,"A field that describes the type of occupant, i.e. Owner, Tenant, Vacant.",Yes,Yes,No
+,OffMarketDate,,OffMarketDate,"The date the listing was taken off market in the Source System. Where possible, this date is reflective of the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",Yes,Yes,Conditional: If MLSStatus DOES NOT EQUAL Active or ComingSoon then require OffMarketDate
+,OffMarketTimestamp,,OffMarketTimestamp,The transactional timestamp automatically recorded by the MLS system representing the most recent date/time the listing's status was set to and off market status (not Active or Backup),No,Yes,No
+,OnMarketDate,,OnMarketDate,"The date the listing was placed on market in the Source System. Where possible, this date is reflective of the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",Yes,Yes,Yes; Conditional: If the MLSStatus=Active
+,OnMarketTimestamp,,OnMarketTimestamp,The transactional timestamp automatically recorded by the MLS system representing the most recent date/time the listing's status was set to Active or Backup. This also includes initial input of the listing to Active/Backup or from a draft or approval status to Active/Backup.,No,Yes,No
+,,,OpenHouseCount,Total count of open house rows,No,Yes,No
+,,,OpenHousePublicCount,Total count of open house rows where OpenHouseType is public,No,Yes,No
+,,,OpenHousePublicUpcoming,Total count of open house rows where OpenHouse Type is public and Open House Start Time is in the future,No,Yes,No
+,,,OpenHouseUpcoming,Total count of open house rows where OpenHouseStartTime is in the future,No,Yes,No
+,OpenParkingSpaces,,OpenParkingSpaces,The number of open or uncovered parking spaces included in the sale.,Yes,Yes,Conditional: Required if OpenParkingYN = True
+,OpenParkingYN,,OpenParkingYN,Indicates whether that any parking spaces associated with the property are not covered by a roof.,Yes,Yes,No
+,OperatingExpense,,OperatingExpense,The costs associated with the operation and maintenance of an income-producing property.,Yes,Yes,No
+,OriginalDetailYN,,OriginalDetailYN,Indicates whether the building still have the original detail.,Yes,Yes,No
+,OriginalEntryTimestamp,,OriginalEntryTimestamp,The transactional timestamp automatically recorded by the RLS system representing the date/time the listing was entered and made visible to members of the RLS.,No,Yes,Yes
+,OriginalListPrice,,OriginalListPrice,The initial list price that was entered into the system or advertised. This differs to PreviousListPrice which is autogenerated by the RLS.,No,Yes,Conditional: if ChangeType = PriceChange
+,OtherEquipment,,OtherEquipment,A list of other equipment that will be included in the listing that is for sale/lease.,Yes,Yes,No
+,OtherExpense,,OtherExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,OtherExpenseRemarks,,OtherExpenseRemarks,Description of other expenses incurred on the property.,Yes,Yes,No
+,OtherStructures,,OtherStructures,"A list of structures other than the main dwelling. For example, Guest House, Barn, Shed, etc.",Yes,Yes,No
+,OwnerPays,,OwnerPays,"A list of expenses for the property paid for by the owner/landlord as opposed to the tenant (e.g. Water, Trash, Electric). The attribute should be used for listings that are being leased by individual owners or listings with less than 5 units. 
+Please refer to attributes such as AssociationAmenities or AssociationFeeIncludes to find values for condos, coops, and condops.",Yes,Yes,No; For PropertyType=ResidentialLease only
+,OwnerPaysPlusConcessionsYN,,OwnerPaysPlusConcessionsYN,True means owner will pay commission portion and provide concession. False means owner will not provide both.,Yes,Yes,No
+,OwnerPaysRemarks,,OwnerPaysRemarks,Describes the detail of what the owner/landlord will pay opposed to the tenant.,Yes,Source Specific,No
+,,,ParcelNumber,A number used to uniquely identify a parcel or lot. This number is typically issued by the county or county assessor. The AP number format varies from county to county. It is recommended that all Parcel Numbers be transmitted without dashes or hyphens.,Yes,Yes,No
+,ParkingFeatures,,ParkingFeatures,A list of features or description of the parking included in the sale/lease.,Yes,Yes,No
+,ParkingTotal,,ParkingTotal,The total number of parking spaces included in the sale or lease.,Yes,Yes,No
+,PatioAndPorchFeatures,,PatioAndPorchFeatures,A list of features or description of the patio or porch included in the sale/lease.,Yes,Yes,No
+,PendingTimestamp,,PendingTimestamp,The transactional timestamp automatically recorded by the RLS system representing the most recent date/time the listing's status was set to Pending.,No,Yes,No
+,PercentOfCommonElements,,PercentOfCommonElements,"For condominiums, ownership of common elements expressed as a percentage. Value entered should be on 0-100 scale, not fractional.",Yes,Yes,Conditional: PropertyType = Residential AND CommonInterest = Condominium
+,Permissions,,Permissions,The level of access permission for the listing. Only listings marked Private (Participant's Only Listing) will be accessible.,Yes,Source Specific,No; Permissions = Private and Permissions = Owner Opt out cannot be selected together
+,PestControlExpense,,PestControlExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,,,PetDepositFee,"If pets allowed, the fee required for deposit.",Yes,Yes,No
+,PetsAllowed,,PetsAllowed,"Indicates whether or not pets are allowed for the specific listing/unit.  For building specific policy, please refer to BuildingPetsAllowed field.",Yes,Yes,Yes; If BuildingPetsAllowed = No then PetsAllowed must = no and no other value
+,PetsAllowedComments,,PetsAllowedComments,Any comments or additional information to expand on the PetsAllowed attribute.,Yes,Yes,"Conditional: If PetsAllowed = UnitBreedRestrictions, UnitNumberLimit OR UnitSizeLimit"
+,PhotosChangeTimestamp,,PhotosChangeTimestamp,System generated timestamp of when the last update or change to the photos for this listing was made.,No,Yes,No
+,PhotosCount,,PhotosCount,The total number of pictures or photos included with the listing.,No,Yes,No
+,PoolExpense,,PoolExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,PoolFeatures,,PoolFeatures,A list of features or description of the pool on the property.,Yes,No,No
+,,,Possession,"A list defining when possession will occur. i.e. COE, COE+1, etc.",Yes,Yes,No
+,PossibleUse,,PossibleUse,"A list of the type(s) of possible or best uses of the property. Probable use gives a good indication of what the best use or potential use of the property could be (e.g., Residential, Recreational, Commercial, Retail).",Yes,Yes,No
+,PostalCity,,PostalCity,"The official city per the U.S. Postal Service (USPS), which may be different from the recorded city. For example ""Astoria, NY"", PostalCity = Astoria.",Yes,Yes,Yes
+,PostalCode,,PostalCode,The postal code portion of a street or mailing address.,Yes,Yes,Yes
+,,,PostalCodePlus4,The postal code + 4 portion of a street or mailing address.,Yes,Yes,No
+,PreviousListPrice,,PreviousListPrice,The most recent previous ListPrice of the listing.,No,Yes,The PreviousListPrice will automatically have ListPrice when the ListPrice changes.
+,,,PreviousStatus,The most recent previous Status of the listing.,No,Yes,No
+,PriceChangeTimestamp,,PriceChangeTimestamp,The transactional timestamp automatically recorded by the RLS system representing the date/time the listing's price was last changed.,No,Yes,No
+,,,PrivateOutdoorSpaceRemarks,Describes in detail the type of private outdoor space available including the dimensions of any outdoor spaces.,Yes,Yes,No
+,,,PrivateOutdoorSpaceSize,Indicates the estimated size of the private outdoor space that is available with the listing.,Yes,Yes,Conditional: If PatioAndPorchFeatures OR ExteriorFeatures have any value other than None
+,PrivateRemarks,,PrivateRemarks,The PrivateRemarks is to be used to share key details across the community that are to be seen only by RLS Participants.,Yes,Yes,No
+,ProfessionalManagementExpense,,ProfessionalManagementExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations. This is for a management company. Use ManagerExpense for a individual manager.,Yes,Yes,No
+,PropertyCondition,,PropertyCondition,"A listing describing the condition of the listing that is for sale/lease. All items in the definition must be met. This attribute is only permitted for agent view ONLY. This cannot be shared or displayed to any consumer/clients. Disclaimer must be conspicuously present on the page where the Property Condition data is displayed: “Property Condition"" information is not verified for authenticity or accuracy and is not guaranteed and may not reflect all real estate activity in the market. ©[YEAR] The Real Estate Board of New York, Inc., All rights reserved.",Yes,Yes,Conditional: If PropertyType = Residential
+,PropertySubType,,PropertySubType,A list of types of residential properties of the listing and not to describe the property that the listing may reside.,Yes,Yes,Yes
+,PropertyType,,PropertyType,A list of types of properties such as Residential Sale or Residential Lease. This attribute will classify whether this is a Sale vs Lease. Any sales should be classified as either Residential Sale; Any leases should be classified as Residential Lease.,Yes,Yes,Yes
+,PublicRemarks,,PublicRemarks,Text remarks that may be displayed to the public. This information is intended to be visible online and distributed. This is typically information that describes the selling points of the listing that is for sale/lease. Please refer to the UCBA for requirements of what is permitted and not permitted.,Yes,Yes,Yes
+,PurchaseContractDate,,PurchaseContractDate,This is the date of when the offer was accepted and contract was fully executed. This contract date should match what is recorded under public records. This is not to be confused with the CloseDate which is a separate attribute.,Yes,Yes,Conditional: MLSStatus = Pending;  The PurchaseContractDate is required to be greater than or equal to the ListingContractDate attribute.
+,RentingAllowedYN,,RentingAllowedYN,Indicates whether or not tenant is permitted to rent/sublet the unit/property,Yes,Yes,No
+,RoofRightsYN,,RoofRightsYN,Indicating whether or not the unit/property have permission to access the building roof.,Yes,Yes,No
+,,,RoomCount,Matrix field that calculates the total number of room rows,No,Yes,No
+,RoomsTotal,,RoomsTotal,"The total number of rooms included in the property listing for sale or lease. For clarification on what constitutes a room, please refer to the NYC Administrative Code.",Yes,Yes,Yes
+,SecurityFeatures,,SecurityFeatures,A list describing the security features on the property.,Yes,Yes,No
+,SeniorCommunityYN,,SeniorCommunityYN,Indicates whether or not a community is a senior community.,Yes,Yes,No
+,ShowingContactName,,ShowingContactName,The name of the contact for the showing of the listed property.,Yes,Yes,No
+,ShowingContactPhoneExt,,ShowingContactPhone,The extension of the given phone number (if applicable).,Yes,Yes,No
+,ShowingContactPhone,,ShowingContactPhone,A telephone number that should be called to arrange showing the property.,Yes,Yes,No
+,ShowingContactType,,ShowingContactType,"The type of contact for the showing. i.e. Agent, Broker, Seller.",Yes,Yes,No
+,ShowingDays,,ShowingDays,"The days of the week that the property is available for showing. i.e. Sundays, Mondays, Tuesdays, Wednesdays, Thursdays, Fridays, Saturdays",Yes,Yes,No
+,ShowingEndTime,,ShowingEndTime,"From the days selected in the ShowingDays field, the end time that the property is available for showing.",Yes,Yes,Conditional: Required if ShowingStartTime is provided. ShowingEndTime  cannot be less than or equal to ShowingEndTime
+,ShowingInstructions,,ShowingInstructions,"Remarks that detail the seller's instructions for showing the subject property. Showing instructions may include: contact information, showing times, notice required or other information. These remarks are privileged and are not for public viewing.",Yes,Yes,Yes
+,ShowingStartTime,,ShowingStartTime,"From the days selected in the ShowingDays field, the start time that the property is available for showing.",Yes,Yes,Conditional: Required if ShowingEndTime is provided. ShowingStartTime  cannot be greater than or equal to ShowingEndTime
+,SizeDimensions,,SizeDimensions,The dimensions of the building minimally represented as length and width (i.e. 250 x 180) or a measurement of all sides of the polygon representing the property. i.e. 30 x 50 x 120 x 60 x 22,Yes,Yes,No
+,ListingKey,,SourceSystemKey,"A unique identifier for this record from the immediate source. This is a string that can include URI or other forms. Alternatively use the ListingKeyNumeric for a numeric only key field. This is the local key of the system. When records are received from other systems, a local key is commonly applied. If conveying the original keys from the source or originating systems, see SourceSystemKey and OriginatingSystemKey. This is the LMP's ListingID",Yes,Yes - TEMPORARY,Yes
+,ModificationTimestamp,,SourceSystemModificationTimestamp,The transactional timestamp automatically recorded by the source system representing the date/time the listing was last modified at the source.,Yes,Source Specific,No
+,,,SourceSystemName,The name of the immediate record provider. The system from which the record was directly received. LMP's Company Name,No,Yes,No
+,SpaFeatures,,SpaFeatures,A list of features or description of the spa included in the sale/lease.,Yes,Yes,No
+,SpaYN,,SpaYN,Indicate whether or not there is a hot tub in the unit or part of the listing that is for sale/lease.,Yes,Yes,No
+,SpecialAssessmentExpirationDateTime,,SpecialAssessmentExpirationDateTime,The date when the special assessment expires,Yes,Yes,No
+,SpecialListingConditions,,SpecialListingConditions,"A list of options that describe the type of sale. i.e. Standard, REO, Short Sale, Probate, Auction, NOD, etc., at the time of listing. This includes whether the applicant is required for board approval.",Yes,Yes,"Conditional: If CommonInterest = Condominium, StockCooperative, or Condop"
+,SponsorUnitYN,,SponsorUnitYN,"A unit offered by the developer/sponsor/owner of the building, usually indicating that the unit is being sold for the first time.
+
+SPONSOR UNIT MUST BE PURSUANT TO AN OFFERING PLAN (AND OR FILED AMENDMENT) AS APPROVED BY THE ATTORNEY GENERAL OF THE STATE OF NY.",Yes,Yes,Conditional: If PropertyType = Residential AND if NewDevelopmentYN = true OR NewConstructionYN = true
+,,,StandardStatus,"The status of the listing as it reflects the state of the contract between the listing agent and seller, or an agreement with a buyer (e.g.Incomplete, Active, Active Under Contract, Canceled, Closed, Expired, Pending, Withdrawn). This is a single-select field.",No,Yes,Yes
+,StateOrProvince,,StateOrProvince,Text field containing the accepted postal abbreviation for the state or province. RLS database contains listing in the 5 Boroughs of NYC therefore all listings should indicate New York for this attribute.,Yes,Yes,Yes
+,StatusChangeTimestamp,,StatusChangeTimestamp,The transactional timestamp automatically recorded by the RLS system representing the date/time the listing's status was last changed.,No,Yes,No
+,Stories,,Stories,The number of floors in the property being listed for sale or lease.,Yes,Yes,No
+,StoriesTotal,,StoriesTotal,"The total number of floors in the building. In the case of multi-dwelling structures, this is the entire structure and not the individual dwelling being sold.",Yes,Yes,Yes
+,StreetDirPrefix,,StreetDirPrefix,The direction indicator that precedes the listed property's street name.,Yes,Yes,No
+,StreetDirSuffix,,StreetDirSuffix,The direction indicator that follows a listed property's street address.,Yes,Yes,No
+,StreetName,,StreetName,The street name portion of a listed property's street address.,Yes,Yes,"Yes
+reject if not in dictionary"
+,StreetNumber,,StreetNumber,"The street number portion of a listed property's street address. In some areas the street number may contain non-numeric characters. This field can also contain extensions and modifiers to the street number, such as ""1/2"" or ""-B"". This street number field should not include Prefixes, Direction or Suffixes.",Yes,Yes,Yes
+,,,StreetNumberNumeric,The integer portion of the street number.,No,No,No
+,StreetSuffix,,StreetSuffix,The suffix portion of a listed property's street address.,Yes,Yes,"No
+reject if not in dictionary"
+,StructureType,,StructureType,"The type of structure that the property completely or partially encompasses. For example: House are the overall sold or leased as a whole. Multi Family or Mixed-Use may be sold/leased in whole, but are often sold or leased by units. This field is the type of structure as opposed to style, which is under the Architectural Style field. Please refer/use PropertySubType when identifying Townhouse, Single Family, Mixused, etc.",Yes,Yes,Yes
+,SubdivisionName,,SubdivisionName,"A neighborhood, community, or complex.",Yes,Yes,Yes
+,SuperExpense,,SuperExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations. This is for superintendent.,Yes,Yes,No
+,SuppliesExpense,,SuppliesExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,SyndicateYN,,SyndicateYN,"Indicates whether a listing can be syndicated to approved data license portals. The Principal Broker, on behalf of the firm, are permitted to select the vendors they wish to opt-in to through the Trestle platform.",Yes,Source Specific,Yes; LMPs are required to default their platform to have this marked as True.
+,TaxAbatementComments,,TaxAbatementComments,Description of the tax abatement,Yes,Yes,Conditional: If TaxAbatement = true
+,TaxAbatementExpirationYear,,TaxAbatementExpirationYear,Indicate the year the tax abatement expires,Yes,Yes,Conditional: If TaxAbatement = true
+,TaxAbatementYN,,TaxAbatementYN,Indicate whether there is a tax abatement,Yes,Yes,"Conditional: If PropertyType = Residential AND CommonInterest = Condominium, Condop, or StockCooperative"
+,TaxAnnualAmount,,TaxAnnualAmount,The annual property tax amount as of the last assessment made by the taxing authority for the building.,Yes,Yes,"Conditional: PropertyType = Residential AND  PropertySubType is any of - Duplex, Mixed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family, Single Family Townhouse, Triplex, Unimproved Land."
+,TaxBlock,,TaxBlock,"A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read ""Lot 12 of Block 45 of Tract 3002 of the City of San Dunes, Desert County."" Such a description would also reference an official plat filed with the clerk or recorder for that area which shows the location of the block and often the dimensions of the lots therein.",Yes,Yes,Yes
+,TaxDeductionAmount,,TaxDeductionAmount,The amount of tax deduction an owner can claim for the property.,Yes,Yes,No
+,TaxDeductionPercent,,TaxDeductionPercent,"The amount of tax deduction an owner can claim for the property, expressed as a percentage of the sale price.",Yes,Yes,No
+,TaxDeductionRemarks,,TaxDeductionRemarks,Remarks relating to the amount of tax deduction an owner can claim for the property.,Yes,Yes,No
+,TaxLot,,TaxLot,"Specific to the Unit, if different from the whole property/building. For example condominiums in NYC typically have their own designated lot number per unit.
+
+A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read ""Lot 12 of Block 45 of Tract 3002 of the City of San Dunes, Desert County."" Such a description would also reference an official plat filed with the clerk or recorder for that area which shows the location of the block and often the dimensions of the lots therein.",Yes,Yes,Conditional: PropertyType = Residential and CommonInterest = Condominium
+,TaxMonthlyAmount,,TaxMonthlyAmount,"The monthly amount of tax for condos. Please refer to Building Resource>TaxAnnualAmount for Townhouse, Single Homes, or Building, Lots.",Yes,Yes,Conditional: PropertyType = Residential AND CommonElements = Condominium
+,,,TotalDocumentsCount,Total Count of all documents including public and private documents,No,Yes,No
+,TotalMonthlyMaintPlusTax,,TotalMonthlyMaintPlusTax,Monthly Tax Amount + Monthly maintenance or common charges.,Yes,Yes,No
+,,,TotalPhotosCount,Total Count of all photos including public and private photos,No,Yes,No
+,,,TransferredFromKey,The previous LMP unique identifier for this record prior to the transfer.,No,Yes,Please reach out to RLS Staff to transfer your new client's listing to your system from prior LMPs system.
+,,,TransferredFromSystemName,The previous system from which the record was directly received. LMP's Company Name,No,Yes,Please reach out to RLS Staff to transfer your new client's listing to your system from prior LMPs system.
+,,,TransferredToSystemName,The name of the new source system (LMP) after the transfer. This should match with the Sourcey System Name after the listing have been claimed,No,Yes,Please reach out to RLS Staff to transfer your new client's listing to your system from prior LMPs system.
+,TrashExpense,,TrashExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,,,UnitCount,Count of all rows for Units Subtable - used for Residential Income,No,Yes,No
+,UnitLine,,UnitLine,Physical line of the property's unit.,Yes,Yes,No
+,UnitNumber,,UnitNumber,"Text field containing the number or portion of a larger building or complex. Unit Number should appear following the street suffix or, if it exists, the street suffix direction, in the street address. Examples are: ""APT G"", ""55"", etc.",Yes,Yes,"Conditional: If PropertySubType = Apartment, Deeded Parking, Garden Apartment, Loft, Office, Retail, Timeshare, Unit Duplex, Unit Quadruplex, Unit Triplex"
+,,,UnitTypes,"A collection of types of units included in the income (multifamily) property. The collection includes a type, beds, baths and other aspects of the type of unit behind described.",Yes,Yes,No
+,,,UnitTypeType,"This field is a list of the types used in the Unit Type repeating elements. The type is a list of possible unit types (i.e., 1 Bedroom, 2 Bedroom, 3 Bedroom, Studio, Loft, etc.). Each selected item is expected to appear as the type in the related UnitType fields in a flattened implementation. The fact that the field repeats the word ""type"" is intentional.  This data is flattened from UnitTypes.",No,Yes,No
+,UnitsFurnished,,UnitsFurnished,"Total Calculated field of unit rows that are furnished. Are the units furnished? i.e. All Units, Varies By Unit, None.",No,Yes,No
+,UnparsedAddress,,UnParsedAddress,"The UnparsedAddress is a text representation of the address. Includes Street Number, Street Dir Prefix, Street Name, Street Dir Suffix, Street Suffix. DO NOT INCLUDE UNIT NUMBER in the UnparsedAddress.",Yes,Yes,Yes
+,,,Video2URL,,No,Yes,No
+,,,Video3URL,,No,Yes,No
+,,,Video4URL,,No,Yes,No
+,VideosChangeTimestamp,,VideosChangeTimestamp,System generated timestamp of when the last update or change to the videos for this listing was made.,No,Yes,No
+,VideosCount,,VideosCount,The total number of videos or virtual tours included with the listing.,No,Yes,No
+,,,VideoURL,,No,Yes,No
+,View,,View,"For unit, a view as seen from the listed unit. For building sale/lease, a view as seen from the property.",Yes,Yes,Conditional: ViewYN = true
+,ViewRemarks,,ViewRemarks,Detail description of the view as seen from the listed sale/lease.,Yes,Yes,Conditional: ViewYN = true
+,ViewYN,,ViewYN,The listed for sale/lease has a view.,Yes,Yes,No
+,VirtualTourURLBranded,,VirtualTourURLBranded,A text field that holds the URL for an branded virtual tour of the property.,Yes,Yes,No
+,VirtualTourURLUnbranded,,VirtualTourURLUnbranded,A text field that holds the URL for an unbranded virtual tour of the property.,Yes,Yes,No
+,VirtualTourURLUnbranded2,,VirtualTourURLUnbranded2,A text field that holds the URL for a 2nd unbranded virtual tour of the property.,Yes,Yes,No
+,VirtualTourURLUnbranded3,,VirtualTourURLUnbranded3,A text field that holds the URL for a 3rd unbranded virtual tour of the property.,Yes,Yes,No
+,WaterfrontYN,,WaterfrontYN,The property is on the waterfront.,Yes,Yes,No
+,WaterSewerExpense,,WaterSewerExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,WindowFeatures,,WindowFeatures,A list of features or description of the windows included in the sale/lease.,Yes,Yes,No
+,WithdrawnDate,,WithdrawnDate,"Date the listing was withdrawn from the market in the Source System. This is not when a listing contract was cancelled or closed, but a withdrawal from the market while the contract between the seller and listing agent is still in effect and an offer has not been accepted. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS. 
+
+The date that the agents wish to no longer place it on market may be a different date from when they withdrew from RLS.",Yes,Yes,Conditional: MLSStatus = Withdrawn and WithdrawnDate must = OffMarketDate
+,WorkmansCompensationExpense,,WorkmansCompensationExpense,The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.,Yes,Yes,No
+,YearBuilt,,YearBuilt,"The year that an occupancy permit is first granted for the house or other local measure of initial habitability of the build. The type definition permits an empty value with an attribute noting that it is an unknown date or that the building is new construction. While constraints have not been applied, convention at the time of adoption has this as a four (4) digit year value.  Must be 1700 or greater and no further than 10 years into the future.",Yes,Yes,"Yes and must be 4 characters, 1700 or greater and no more than 10 years into future."
+,YearRenovated,,YearRenovated,The year the unit was renovated.,Yes,Yes,"No but if entered, must be 4 characters"
+,ZoningDescription,,ZoningDescription,"A list of descriptions of the zoning of the property. The zoning codes are often non-descriptive and variant. Zoning Description is a more descriptive form of the zoning for the property, i.e. Agricultural, Residential, Rezone Possible, etc. Specific zone codes must be added to the Zoning field.",Yes,Yes,No

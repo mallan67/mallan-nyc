@@ -8,7 +8,7 @@
  * REQUIREMENTS:
  * - Server-side use ONLY (will throw if imported client-side)
  * - IDX_ENABLED=true environment variable
- * - Valid IDX_API_KEY and IDX_API_SECRET credentials
+ * - Valid IDX_CLIENT_ID and IDX_CLIENT_SECRET credentials
  * - All access is logged for audit purposes
  *
  * PROHIBITED:
@@ -26,6 +26,9 @@ export type {
   IDXFetchResult,
   IDXConfig,
   IDXAuditLogEntry,
+  IDXSyncResult,
+  TrestleAuthToken,
+  TrestleRawListing,
 } from './types';
 
 // Re-export client functions (server-side only)
@@ -47,6 +50,9 @@ export {
   generateAttributionText,
   mapRESOToInternal,
   validateRESOResponse,
+  ALL_RLS_FIELDS,
+  REQUIRED_RLS_FIELDS,
+  RESO_TO_RLS_RENAMES,
 } from './mapping';
 
 // Re-export logging utilities
@@ -55,3 +61,33 @@ export {
   createAuditEntry,
   logFetchAttempt,
 } from './logger';
+
+// Re-export auth utilities
+export {
+  getAccessToken,
+  hasCredentials,
+  invalidateToken,
+} from './auth';
+
+// Re-export fetch utilities
+export {
+  fetchFromTrestle,
+  fetchSingleListing,
+  buildIncrementalFilter,
+  buildActiveFilter,
+} from './fetch';
+
+// Re-export mapper
+export {
+  mapTrestleToPrisma,
+  checkDistributionGates,
+  validateRequiredFields,
+  getFieldProfile,
+} from './trestle-mapper';
+
+// Re-export sync
+export {
+  syncListings,
+  getLastSyncTimestamp,
+  getSyncStats,
+} from './sync';

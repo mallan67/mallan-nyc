@@ -202,18 +202,204 @@ npm run dev
 
 ---
 
-## Last Work Completed
+## Architecture
 
-**Phase 1 IDX Pre-Approval Hardening** (January 2026)
+### Topology (Current)
 
-- Added `IDX_ENABLED` feature flag (default: false)
-- Created `/lib/idx/` integration shell:
-  - `client.ts` - Server-side IDX client with credential gating
-  - `types.ts` - RESO-aligned canonical listing types
-  - `mapping.ts` - RESO field mapping placeholders
-  - `logger.ts` - Audit logging for compliance
-- Added `IDXDisclaimer` component for required attribution
-- Gated `/api/listings` endpoints to block IDX data until approved
-- Updated `.env.example` with IDX configuration variables
+```
+GitHub Pages (mockups)           Vercel (API + frontend)
+  search-modular/                  mallan-nyc/
+  ├── login.html          ──→     ├── app/api/auth/login
+  ├── CRM (FINAL2.html)   ──→     ├── app/api/crm/*
+  ├── index-built.html     ──→     ├── app/api/crm/listings
+  ├── SALE-FORM-WITH-TOOLS ──→     ├── app/api/crm/listings/[id]
+  └── RENTAL-FORM-WITH-TOOLS ──→   └── app/api/portal/*
+```
 
-**Status:** Awaiting Trestle/REBNY credentials for Phase 2 implementation.
+- **Mockups:** `https://mallan67.github.io/search-modular/` (GitHub Pages)
+- **API:** `https://mallan.nyc/api/` (Vercel, Next.js 14 App Router)
+- **Database:** PostgreSQL on Neon (Prisma ORM)
+- **Auth:** Dual — Bearer token (cross-origin) + httpOnly cookie (same-origin)
+
+### Cross-Origin Auth (Sprint 9)
+
+GitHub Pages and mallan.nyc are different origins. Cookies (`SameSite=Lax`) don't send cross-origin.
+
+**Solution:** Dual auth — cookies for same-origin (future), Bearer token for cross-origin (now).
+
+1. Login returns the session token in the JSON response body (alongside the cookie)
+2. `api-client.js` stores token in `localStorage` (`mallan_session_token`)
+3. All requests send `Authorization: Bearer <token>` header
+4. Backend checks Bearer header first, cookie second
+5. CORS allows `https://mallan67.github.io` + localhost origins
+
+### API Endpoints (42 total)
+
+#### Auth (7)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/auth/login` | POST | Login, sets cookie + returns Bearer token |
+| `/api/auth/logout` | POST | Destroy session, clear cookie |
+| `/api/auth/me` | GET | Current user from session (Bearer or cookie) |
+| `/api/auth/agent/register` | POST | Broker creates agent |
+| `/api/auth/invite` | POST | Generate portal invite (sends email) |
+| `/api/auth/invite/[token]` | GET/POST | Client accepts portal invite |
+| `/api/auth/change-password` | POST | Authenticated password change |
+
+#### CRM Data (17)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/crm/listings` | GET/POST | List + create listings |
+| `/api/crm/listings/[id]` | GET/PATCH/DELETE | Get, update, soft-delete listing |
+| `/api/crm/listings/[id]/status` | PATCH | Status state machine |
+| `/api/crm/listings/[id]/validate` | POST | Dry-run compliance validation |
+| `/api/crm/listings/[id]/photos` | POST | Photo metadata |
+| `/api/crm/agents` | GET/POST | List + create agents (broker-only) |
+| `/api/crm/agents/[id]` | PATCH/DELETE | Update + deactivate agent |
+| `/api/crm/clients` | GET/POST | List + create clients |
+| `/api/crm/clients/[id]` | GET/PATCH | Get + update client |
+| `/api/crm/clients/[id]/invite` | POST | Portal invite |
+| `/api/crm/clients/[id]/preferences` | PUT | Upsert preferences |
+| `/api/crm/clients/[id]/actions` | POST | Record listing reaction |
+| `/api/crm/deals` | GET/POST | List + create deals |
+| `/api/crm/deals/[id]` | GET/PATCH | Get + update deal |
+| `/api/crm/deals/[id]/status` | PATCH | Deal status machine |
+| `/api/crm/showings` | GET | List showings |
+| `/api/crm/showings/[id]` | PATCH | Confirm/cancel/reschedule |
+
+#### Saved Searches (4)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/crm/saved-searches` | GET/POST | List + create |
+| `/api/crm/saved-searches/[id]` | GET/PATCH/DELETE | CRUD |
+| `/api/crm/saved-searches/[id]/execute` | POST | Run criteria against DB |
+
+#### Email (2)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/crm/email` | POST | Send email (template or custom) |
+| `/api/crm/email/bulk` | POST | Bulk listing alerts (broker-only, 50/hr) |
+
+#### Portal — Client-Facing (5)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/portal/me` | GET | Client profile |
+| `/api/portal/listings` | GET | Shared listings (agent info masked for buyers) |
+| `/api/portal/listings/[id]/react` | POST | Like/dislike/discuss/schedule toggle |
+| `/api/portal/showings` | GET/POST | List + request showings |
+| `/api/portal/offers` | GET | Incoming offers (seller/landlord) |
+
+#### IDX/Trestle (2)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
+| `/api/idx/status` | GET | IDX connection status + sync stats |
+
+### Security
+
+- **CORS:** Allowlist — `https://mallan67.github.io`, `http://localhost:3000`, `http://localhost:5500`
+- **Rate Limiting:** 30 req/min API, 120 req/min pages (per IP)
+- **IDX Sync:** 1 call per 5 minutes
+- **Bot Blocking:** 30+ known scraper/AI bots blocked at edge
+- **Session:** DB-backed, 24hr expiry, auto-rotate within 1hr of expiry
+- **Audit:** All mutations logged to AuditEvent table
+- **CSP:** Content Security Policy via `vercel.json`
+
+---
+
+## Sprint Progress
+
+### Sprint 9 — Wire Mockups to Live Backend (2026-03-01)
+
+**Goal:** Make the CRM a real working backend — data from API, login is real, no mock fallback.
+
+**Completed:**
+- CORS + dual auth (Bearer token + httpOnly cookie) on all API routes
+- Login returns token in response body; stored in localStorage
+- `requireAuth()` checks Bearer header first, then cookie
+- `/api/auth/me` accepts both auth methods
+- `api-client.js` rewritten: Bearer token, no write stubs, fail-fast
+- `login.html` created: email/password, auto-redirect if already logged in
+- Auth gates on CRM, both viewers, and search (redirect to login if unauthenticated)
+- `MallanAPI.configure({ baseUrl: 'https://mallan.nyc' })` on all cross-origin files
+- Mock data removed from production paths (`mockListings`, `VIEWER_MOCK_LISTINGS`, `CLIENT_DATA`)
+- Dev escape hatch: `?mock=true` on localhost loads hardcoded mock data
+- RLS validator: 0 UNKNOWN, 10/10 sections pass
+- TypeScript: 0 errors
+
+### Sprint 8 — Viewer Conversion + Quick Wins (2026-03-01)
+- Both WITH-TOOLS files converted to true read-only viewers (VIEWER_MODE=true)
+- 5 missing REBNY fields added, Gates 4+5 in search
+- 101 alert() calls converted to showToast()
+
+### Sprint 7 — Integration, Email & IDX (2026-03-01)
+- SendGrid email integration (5 templates)
+- Saved Searches CRUD + Execute
+- Complete IDX/Trestle pipeline (448-field mapper, OAuth2, sync orchestrator)
+
+### Sprint 6 — Client Management & Portal Wiring (2026-03-01)
+- 6 client CRUD endpoints, 6 portal endpoints, agent roster write API
+- Showing management, CRM mockup wired to all endpoints
+- PII cleanup: 112→0 hardcoded occurrences across all files
+
+### Sprint 5 — Write Operations (2026-03-01)
+- 8 write endpoints (listings, deals)
+- Form submissions wired to API with localStorage fallback
+
+### Sprint 4 — Authentication & Session Foundation (2026-03-01)
+- Prisma schema, auth library, 7 auth endpoints
+- Session cookie auth, middleware protection
+- Seed script, api-client.js bridge module
+
+---
+
+## Development Setup
+
+### Prerequisites
+- Node.js 20.x
+- PostgreSQL 15+ (or Neon free tier)
+- npm (comes with Node.js)
+
+### Local Development
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/mallan67/mallan-nyc.git
+cd mallan-nyc
+
+# 2. Install dependencies (runs prisma generate automatically)
+npm ci
+
+# 3. Configure environment
+cp .env.example .env.local
+# Edit .env.local with your database credentials
+
+# 4. Run database migration + seed
+npx prisma migrate deploy
+npx prisma db seed
+
+# 5. Start development server
+npm run dev
+```
+
+### Environment Variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DATABASE_URL` | Yes | PostgreSQL connection (pooled) |
+| `DIRECT_URL` | Yes | PostgreSQL connection (unpooled, for migrations) |
+| `SENDGRID_API_KEY` | Yes | Email sending |
+| `SENDGRID_FROM_EMAIL` | Yes | Sender address |
+| `PRIVATE_COLLECTION_PASS` | Yes | Legacy admin auth |
+| `IDX_CLIENT_ID` | No | Trestle OAuth client ID |
+| `IDX_CLIENT_SECRET` | No | Trestle OAuth client secret |
+
+### Compliance Validation
+
+```bash
+# Run RLS compliance validator against mockup files
+npm run rls:validate
+
+# Run RLS validator tests (42 assertions)
+npm run test:rls
+```

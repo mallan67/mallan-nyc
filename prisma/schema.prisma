@@ -1,32 +1,54 @@
 // prisma/schema.prisma
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
+// ═══════════════════════════════════════════════════════════
+// AGENT — Licensed real estate agent or broker
+// ═══════════════════════════════════════════════════════════
 model Agent {
   id             BigInt    @id @default(autoincrement())
   first_name     String
   last_name      String
-  // full_name computed in application code when creating/updating agents
   full_name      String?   @db.Text
-  email          String?   @unique
+  email          String    @unique
+  password_hash  String    @map("password_hash")
+  phone          String?
   license_no     String?   @map("license_no")
+  license_type   String?   @map("license_type")     // "broker" | "salesperson"
   license_expiry DateTime? @map("license_expiry")
   sale_split     Decimal?  @db.Decimal(6,3) @map("sale_split")
   rental_split   Decimal?  @db.Decimal(6,3) @map("rental_split")
-  role           String    @default("AGENT")
+  role           String    @default("AGENT")         // "BROKER" | "AGENT"
+  status         String    @default("active")        // "active" | "inactive" | "suspended"
+  last_login     DateTime? @map("last_login")
+
+  leads          Lead[]
+  listings       Listing[]
+  deals          Deal[]
+  showings       Showing[]
+  saved_searches SavedSearch[]
+
+  created_at     DateTime  @default(now()) @map("created_at")
+  updated_at     DateTime  @updatedAt @map("updated_at")
+
   @@map("agents")
 }
 
+// ═══════════════════════════════════════════════════════════
+// DEAL — Commission request (agent → broker)
+// ═══════════════════════════════════════════════════════════
 model Deal {
   id                      BigInt    @id @default(autoincrement())
-  agent_full_name         String    @map("agent_full_name")
-  representation_code     String?   @map("representation_code")
+  agent_id                BigInt    @map("agent_id")
+  agent                   Agent     @relation(fields: [agent_id], references: [id])
+  representation_code     String?   @map("representation_code")  // "buyer" | "tenant"
   property_address        String?   @map("property_address")
   price_usd               Decimal?  @db.Decimal(14,2) @map("price_usd")
   commission_rate_percent Decimal?  @db.Decimal(6,3)  @map("commission_rate_percent")
@@ -34,79 +56,242 @@ model Deal {
   agent_fee_usd           Decimal?  @db.Decimal(14,2) @map("agent_fee_usd")
   company_fee_usd         Decimal?  @db.Decimal(14,2) @map("company_fee_usd")
   gross_commission_usd    Decimal?  @db.Decimal(14,2) @map("gross_commission_usd")
+  status                  String    @default("draft")  // "draft" | "submitted" | "approved" | "rejected" | "closed"
   contract_signed         DateTime? @map("contract_signed")
   contract_closed         DateTime? @map("contract_closed")
+  created_at              DateTime  @default(now()) @map("created_at")
+  updated_at              DateTime  @updatedAt @map("updated_at")
+
+  @@index([agent_id])
+  @@index([status])
   @@map("deals")
 }
 
-/// Client sign-up leads from mallan.nyc/sign-up
+// ═══════════════════════════════════════════════════════════
+// LEAD — Client (buyer/tenant/seller/landlord)
+// ═══════════════════════════════════════════════════════════
 model Lead {
-  id        BigInt   @id @default(autoincrement())
-  firstName String   @map("first_name")
-  lastName  String   @map("last_name")
-  email     String   @unique
-  phone     String
-  roles     String[] // ["buyer","renter","seller","landlord"]
-  status    String   @default("new") // new, contacted, active, closed
-  assignedAgent String? @map("assigned_agent")
-  source    String   @default("website") // website, referral, manual
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              BigInt   @id @default(autoincrement())
+  first_name      String   @map("first_name")
+  last_name       String   @map("last_name")
+  email           String   @unique
+  phone           String
+  roles           String[] // ["buyer","renter","seller","landlord"]
+  status          String   @default("new") // new, contacted, active, closed
+  portal_role     String?  @map("portal_role")    // "buyer" | "tenant" | "seller" | "landlord"
+  portal_token    String?  @unique @map("portal_token")  // invite link token
+  password_hash   String?  @map("password_hash")  // for portal login
+  agent_id        BigInt?  @map("agent_id")
+  agent           Agent?   @relation(fields: [agent_id], references: [id])
+  source          String   @default("website") // website, referral, manual
+  preferences     ClientPreference?
+  actions         ClientListingAction[]
+  showings        Showing[]
+  saved_searches  SavedSearch[]
+  created_at      DateTime @default(now()) @map("created_at")
+  updated_at      DateTime @updatedAt @map("updated_at")
 
   @@index([status])
-  @@index([createdAt])
+  @@index([created_at])
+  @@index([agent_id])
   @@map("leads")
 }
 
-/// IDX/RLS listing synced from Trestle.
-/// Flat columns for WHERE-clause fields; JSON for nested data.
+// ═══════════════════════════════════════════════════════════
+// LISTING — RLS listing (synced from Trestle or created manually)
+// ═══════════════════════════════════════════════════════════
 model Listing {
   id                      BigInt    @id @default(autoincrement())
-  listingId               String    @unique @map("listing_id")         // Trestle ListingId (RESO key)
-  mlsId                   String?   @map("mls_id")
+  listing_id              String    @unique @map("listing_id")         // Trestle ListingId or internal SL-/RL- prefix
+  mls_id                  String?   @map("mls_id")
+  agent_id                BigInt?   @map("agent_id")                   // Listing agent (for exclusive listings)
+  agent                   Agent?    @relation(fields: [agent_id], references: [id])
 
   // --- Filter columns (indexed for queries) ---
   status                  String    @default("Active")                  // RESO StandardStatus
-  listingType             String    @map("listing_type")                // "sale" | "rent"
-  propertyType            String?   @map("property_type")               // RESO PropertyType
-  propertySubType         String?   @map("property_sub_type")
-  listPrice               Decimal   @db.Decimal(14,2) @map("list_price")
-  bedroomsTotal           Int?      @map("bedrooms_total")
-  bathroomsFull           Int?      @map("bathrooms_full")
-  bathroomsHalf           Int?      @map("bathrooms_half")
-  livingArea              Decimal?  @db.Decimal(10,2) @map("living_area")
-  borough                 String?                                        // NYC borough
+  listing_type            String    @map("listing_type")                // "sale" | "rent"
+  property_type           String?   @map("property_type")               // RESO PropertyType
+  property_sub_type       String?   @map("property_sub_type")
+  list_price              Decimal   @db.Decimal(14,2) @map("list_price")
+  bedrooms_total          Int?      @map("bedrooms_total")
+  bathrooms_full          Int?      @map("bathrooms_full")
+  bathrooms_half          Int?      @map("bathrooms_half")
+  living_area             Decimal?  @db.Decimal(10,2) @map("living_area")
+  borough                 String?
   neighborhood            String?
   city                    String?
-  postalCode              String?   @map("postal_code")
+  postal_code             String?   @map("postal_code")
 
-  // --- Distribution gates ---
-  idxDisplayYN            Boolean   @default(true) @map("idx_display_yn")
-  internetEntireListingDisplayYN Boolean @default(true) @map("internet_entire_listing_display_yn")
-  internetAddressDisplayYN Boolean  @default(true) @map("internet_address_display_yn")
-  participantOnly         Boolean   @default(false) @map("participant_only")
-  ownerOptOut             Boolean   @default(false) @map("owner_opt_out")
+  // --- Distribution gates (6 REBNY RLS gates) ---
+  idx_display_yn          Boolean   @default(true) @map("idx_display_yn")
+  internet_entire_listing_display_yn Boolean @default(true) @map("internet_entire_listing_display_yn")
+  internet_address_display_yn Boolean @default(true) @map("internet_address_display_yn")
+  participant_only        Boolean   @default(false) @map("participant_only")
+  owner_opt_out           Boolean   @default(false) @map("owner_opt_out")
 
   // --- JSON columns (nested/variable data) ---
-  address                 Json      @default("{}")                       // Full address object
-  features                Json      @default("{}")                       // Interior, building, pets, etc.
-  media                   Json      @default("[]")                       // Photo/video URLs + order
-  compliance              Json      @default("{}")                       // Attribution, disclaimers
-  agentInfo               Json      @default("{}")  @map("agent_info")   // List agent/office (not public)
-  rawData                 Json?     @map("raw_data")                     // Full Trestle response (debug)
+  address                 Json      @default("{}")
+  features                Json      @default("{}")
+  media                   Json      @default("[]")
+  compliance              Json      @default("{}")
+  agent_info              Json      @default("{}") @map("agent_info")
+  raw_data                Json?     @map("raw_data")
+
+  // --- Relations ---
+  actions                 ClientListingAction[]
+  showings                Showing[]
+
+  // --- Sync tracking (Trestle IDX pipeline) ---
+  last_synced_from_trestle DateTime? @map("last_synced_from_trestle")
+  sync_status              String?   @default("pending") @map("sync_status")  // "pending" | "synced" | "gated:*" | "error"
 
   // --- Timestamps ---
-  modificationTimestamp   DateTime  @map("modification_timestamp")       // Trestle ModificationTimestamp
-  listingContractDate     DateTime? @map("listing_contract_date")
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @updatedAt @map("updated_at")
+  modification_timestamp  DateTime  @map("modification_timestamp")
+  listing_contract_date   DateTime? @map("listing_contract_date")
+  created_at              DateTime  @default(now()) @map("created_at")
+  updated_at              DateTime  @updatedAt @map("updated_at")
 
-  @@index([status, listingType])
-  @@index([listPrice])
+  @@index([status, listing_type])
+  @@index([list_price])
   @@index([borough, neighborhood])
-  @@index([propertyType])
-  @@index([bedroomsTotal])
-  @@index([modificationTimestamp])
-  @@index([idxDisplayYN, ownerOptOut])
+  @@index([property_type])
+  @@index([bedrooms_total])
+  @@index([modification_timestamp])
+  @@index([idx_display_yn, owner_opt_out])
+  @@index([agent_id])
   @@map("listings")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SESSION — Server-side session store
+// ═══════════════════════════════════════════════════════════
+model Session {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  user_type   String   @map("user_type")   // "agent" | "lead"
+  user_id     BigInt   @map("user_id")
+  role        String                        // "BROKER" | "AGENT" | "buyer" | "tenant" | "seller" | "landlord"
+  expires_at  DateTime @map("expires_at")
+  created_at  DateTime @default(now()) @map("created_at")
+  ip_address  String?  @map("ip_address")
+  user_agent  String?  @map("user_agent")   @db.Text
+
+  @@index([token])
+  @@index([user_type, user_id])
+  @@index([expires_at])
+  @@map("sessions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIT EVENT — Immutable log of all data mutations
+// ═══════════════════════════════════════════════════════════
+model AuditEvent {
+  id          BigInt   @id @default(autoincrement())
+  action      String                        // "create" | "update" | "delete" | "status_change" | "login" | "logout"
+  entity_type String   @map("entity_type")  // "listing" | "deal" | "lead" | "agent" | "session"
+  entity_id   String   @map("entity_id")    // ID of the affected record
+  user_type   String   @map("user_type")    // "agent" | "lead" | "system"
+  user_id     BigInt?  @map("user_id")
+  changes     Json?                          // { field: { old, new } } diff
+  ip_address  String?  @map("ip_address")
+  created_at  DateTime @default(now()) @map("created_at")
+
+  @@index([entity_type, entity_id])
+  @@index([user_type, user_id])
+  @@index([created_at])
+  @@map("audit_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLIENT PREFERENCE — Buyer/tenant search criteria
+// ═══════════════════════════════════════════════════════════
+model ClientPreference {
+  id              BigInt   @id @default(autoincrement())
+  lead_id         BigInt   @unique @map("lead_id")
+  lead            Lead     @relation(fields: [lead_id], references: [id])
+  property_types  String[] @map("property_types")
+  neighborhoods   String[]
+  boroughs        String[]
+  min_beds        Int?     @map("min_beds")
+  max_beds        Int?     @map("max_beds")
+  min_baths       Int?     @map("min_baths")
+  max_baths       Int?     @map("max_baths")
+  min_price       Decimal? @db.Decimal(14,2) @map("min_price")
+  max_price       Decimal? @db.Decimal(14,2) @map("max_price")
+  min_sqft        Int?     @map("min_sqft")
+  must_haves      String[] @map("must_haves")
+  deal_breakers   String[] @map("deal_breakers")
+  move_in_date    DateTime? @map("move_in_date")
+  notes           String?  @db.Text
+  created_at      DateTime @default(now()) @map("created_at")
+  updated_at      DateTime @updatedAt @map("updated_at")
+
+  @@index([lead_id])
+  @@map("client_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLIENT LISTING ACTION — Reactions (liked, disliked, discuss, etc.)
+// ═══════════════════════════════════════════════════════════
+model ClientListingAction {
+  id          BigInt   @id @default(autoincrement())
+  lead_id     BigInt   @map("lead_id")
+  lead        Lead     @relation(fields: [lead_id], references: [id])
+  listing_id  BigInt   @map("listing_id")
+  listing     Listing  @relation(fields: [listing_id], references: [id])
+  action      String   // "liked" | "disliked" | "discuss" | "schedule" | "offer"
+  comment     String?  @db.Text
+  created_at  DateTime @default(now()) @map("created_at")
+
+  @@unique([lead_id, listing_id, action])
+  @@index([lead_id])
+  @@index([listing_id])
+  @@map("client_listing_actions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHOWING — Property showing/tour
+// ═══════════════════════════════════════════════════════════
+model Showing {
+  id          BigInt    @id @default(autoincrement())
+  lead_id     BigInt?   @map("lead_id")
+  lead        Lead?     @relation(fields: [lead_id], references: [id])
+  listing_id  BigInt    @map("listing_id")
+  listing     Listing   @relation(fields: [listing_id], references: [id])
+  agent_id    BigInt    @map("agent_id")
+  agent       Agent     @relation(fields: [agent_id], references: [id])
+  date        DateTime
+  time        String?   // "10:00 AM" — display-only
+  type        String    @default("private") // "private" | "openhouse" | "brokersopen" | "virtual"
+  status      String    @default("requested") // "requested" | "confirmed" | "completed" | "cancelled"
+  notes       String?   @db.Text
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+
+  @@index([lead_id])
+  @@index([listing_id])
+  @@index([agent_id])
+  @@index([date])
+  @@map("showings")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVED SEARCH — Persisted search criteria
+// ═══════════════════════════════════════════════════════════
+model SavedSearch {
+  id           BigInt    @id @default(autoincrement())
+  lead_id      BigInt?   @map("lead_id")
+  lead         Lead?     @relation(fields: [lead_id], references: [id])
+  agent_id     BigInt?   @map("agent_id")
+  agent        Agent?    @relation(fields: [agent_id], references: [id])
+  name         String
+  criteria     Json      // { type, minPrice, maxPrice, beds, neighborhoods, ... }
+  last_run     DateTime? @map("last_run")
+  result_count Int?      @map("result_count")
+  created_at   DateTime  @default(now()) @map("created_at")
+  updated_at   DateTime  @updatedAt @map("updated_at")
+
+  @@index([lead_id])
+  @@index([agent_id])
+  @@map("saved_searches")
 }
