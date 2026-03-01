@@ -1,0 +1,1609 @@
+        function normalizeAddress(str) {
+            if (!str) return '';
+            return str.toLowerCase()
+                .replace(/\bE\b\.?/i, 'east')
+                .replace(/\bW\b\.?/i, 'west')
+                .replace(/\bN\b\.?/i, 'north')
+                .replace(/\bS\b\.?/i, 'south')
+                .replace(/\bSt\b\.?/i, 'street')
+                .replace(/\bAve?\b\.?/i, 'avenue')
+                .replace(/\bBlvd\b\.?/i, 'boulevard')
+                .replace(/\bPl\b\.?/i, 'place')
+                .replace(/\bPk\b\.?/i, 'park')
+                .replace(/\bCPW\b/i, 'central park west')
+                .replace(/\s+/g, ' ').trim();
+        }
+
+        function performSearch() {
+            try {
+                // Collect search criteria from the active form
+                activeSearchCriteria = collectSearchCriteria();
+
+                // Filter mockListings based on criteria
+                if (typeof mockListings === 'undefined' || !mockListings) {
+                    showToast('Error: Listing data not loaded. Please refresh the page.', 'error');
+                    return;
+                }
+                if (typeof searchResultsState === 'undefined' || !searchResultsState) {
+                    showToast('Error: Search state not initialized. Please refresh the page.', 'error');
+                    return;
+                }
+
+                searchResultsState.filteredListings = filterListings(mockListings, activeSearchCriteria);
+                searchResultsState.currentPage = 1;
+
+                // Save for "Last Search" recall
+                if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
+
+                // Hide the entire search form container
+                var searchFormContainer = document.getElementById('searchFormContainer');
+                if (searchFormContainer) searchFormContainer.style.display = 'none';
+
+                // Show search results section
+                var searchResultsSection = document.getElementById('searchResultsSection');
+                if (searchResultsSection) {
+                    searchResultsSection.style.display = 'block';
+                    searchResultsSection.classList.remove('hidden');
+                    initializeSearchResults();
+                }
+
+                // Update results count
+                updateResultsCount();
+
+                // Highlight active search type on sticky nav
+                updateStickyNavActive();
+
+                // Close refine panel if open (fresh search resets it)
+                var refinePanel = document.getElementById('refinePanel');
+                if (refinePanel) { refinePanel.style.display = 'none'; _refinePanelOpen = false; }
+
+                // Save search state for refresh persistence
+                _saveSearchState();
+
+                // Update hash to reflect results view
+                if (!window._suppressHashUpdate) {
+                    history.replaceState(null, '', '#results');
+                }
+
+                // Scroll to top of results
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (err) {
+                showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
+            }
+        }
+
+        // Quick Search — search by RLS ID, Zip, Address, or Unit from the Quick Search cards
+        function quickSearch(btn) {
+            var card = btn.closest('.border.rounded-lg') || btn.closest('.border.rounded-lg.p-3');
+            if (!card) { showToast('Quick Search: could not find parent card.', 'error'); return; }
+
+            var inputs = card.querySelectorAll('input[type="text"]');
+            var rlsId = '', zip = '', address = '', unit = '';
+            inputs.forEach(function(inp) {
+                var ph = (inp.placeholder || '').toLowerCase();
+                var val = inp.value.trim();
+                if (!val) return;
+                if (ph.indexOf('rls') !== -1 || ph.indexOf('listing') !== -1) rlsId = val;
+                else if (ph.indexOf('zip') !== -1) zip = val;
+                else if (ph.indexOf('address') !== -1 || ph.indexOf('building') !== -1) address = val;
+                else if (ph.indexOf('unit') !== -1) unit = val;
+            });
+
+            if (!rlsId && !zip && !address) {
+                showToast('Please enter at least one search criterion (RLS ID, Zip, or Address).', 'warning');
+                return;
+            }
+
+            // Filter mockListings by quick search fields
+            var results = mockListings.filter(function(listing) {
+                // RLS ID match (comma-separated, check lid and wid)
+                if (rlsId) {
+                    var ids = rlsId.split(',').map(function(s) { return s.trim().toLowerCase(); });
+                    var matchId = ids.some(function(id) {
+                        return (listing.lid && listing.lid.toLowerCase() === id) ||
+                               (listing.wid && listing.wid.toLowerCase() === id) ||
+                               (String(listing.id) === id);
+                    });
+                    if (!matchId) return false;
+                }
+                // Zip match
+                if (zip && listing.zip !== zip) return false;
+                // Address match (partial)
+                if (address && listing.address.toLowerCase().indexOf(address.toLowerCase()) === -1 &&
+                    (!listing.buildingName || listing.buildingName.toLowerCase().indexOf(address.toLowerCase()) === -1)) return false;
+                // Unit match
+                if (unit && listing.unit && listing.unit.toLowerCase() !== unit.toLowerCase()) return false;
+                return true;
+            });
+
+            searchResultsState.filteredListings = results;
+            searchResultsState.currentPage = 1;
+
+            var searchFormContainer = document.getElementById('searchFormContainer');
+            if (searchFormContainer) searchFormContainer.style.display = 'none';
+
+            var searchResultsSection = document.getElementById('searchResultsSection');
+            if (searchResultsSection) {
+                searchResultsSection.style.display = 'block';
+                searchResultsSection.classList.remove('hidden');
+                initializeSearchResults();
+            }
+            updateResultsCount();
+            updateStickyNavActive();
+
+            // Save search state for refresh persistence
+            _saveSearchState();
+
+            // Update hash to reflect results view
+            if (!window._suppressHashUpdate) {
+                history.replaceState(null, '', '#results');
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ══════════════════════════════════════════════════════
+        // ADDRESS AUTOCOMPLETE — Search forms (Sale, Rental, Building, Advanced)
+        // Searches both buildingDatabase (object) and listingBuildingDB (array)
+        // ══════════════════════════════════════════════════════
+        function searchAddressAutocomplete(query, resultsDivId) {
+            var resultsDiv = document.getElementById(resultsDivId);
+            if (!resultsDiv) return;
+            if (!query || query.length < 2) {
+                resultsDiv.classList.add('hidden');
+                return;
+            }
+
+            var normalizedQuery = normalizeAddress(query);
+            var matches = [];
+
+            // Search object-style buildingDatabase (building search section)
+            if (typeof buildingDatabase === 'object' && !Array.isArray(buildingDatabase)) {
+                Object.keys(buildingDatabase).forEach(function(key) {
+                    var b = buildingDatabase[key];
+                    if (normalizeAddress(key).indexOf(normalizedQuery) !== -1 ||
+                        normalizeAddress(b.address).indexOf(normalizedQuery) !== -1 ||
+                        normalizeAddress(b.name).indexOf(normalizedQuery) !== -1) {
+                        matches.push({
+                            address: b.address,
+                            name: b.name,
+                            neighborhood: b.neighborhood,
+                            borough: b.borough,
+                            zip: b.zip,
+                            type: b.type,
+                            yearBuilt: b.yearBuilt
+                        });
+                    }
+                });
+            }
+
+            // Search array-style listingBuildingDB (listing form IDX)
+            if (typeof listingBuildingDB !== 'undefined' && Array.isArray(listingBuildingDB)) {
+                listingBuildingDB.forEach(function(b) {
+                    var already = matches.some(function(m) { return m.address === b.address; });
+                    if (already) return;
+                    if (normalizeAddress(b.address).indexOf(normalizedQuery) !== -1 ||
+                        normalizeAddress(b.name).indexOf(normalizedQuery) !== -1) {
+                        matches.push({
+                            address: b.address,
+                            name: b.name,
+                            neighborhood: b.neighborhood,
+                            borough: b.borough,
+                            zip: b.zip,
+                            type: b.model || b.type,
+                            yearBuilt: b.yearBuilt
+                        });
+                    }
+                });
+            }
+
+            // Also search mockListings for address matches
+            if (typeof mockListings !== 'undefined') {
+                mockListings.forEach(function(listing) {
+                    var already = matches.some(function(m) { return m.address === listing.address; });
+                    if (already) return;
+                    if (normalizeAddress(listing.address).indexOf(normalizedQuery) !== -1 ||
+                        (listing.buildingName && normalizeAddress(listing.buildingName).indexOf(normalizedQuery) !== -1)) {
+                        matches.push({
+                            address: listing.address,
+                            name: listing.buildingName || '',
+                            neighborhood: listing.neighborhood,
+                            borough: listing.borough || 'Manhattan',
+                            zip: listing.zip,
+                            type: ownershipLabel(listing.ownership) || '',
+                            yearBuilt: ''
+                        });
+                    }
+                });
+            }
+
+            if (matches.length === 0) {
+                resultsDiv.innerHTML = '<div class="px-3 py-2 text-gray-400">No matches found</div>';
+                resultsDiv.classList.remove('hidden');
+                return;
+            }
+
+            resultsDiv.innerHTML = matches.slice(0, 8).map(function(b) {
+                var typeColor = (b.type === 'Coop' || b.type === 'Co-op') ? 'bg-purple-100 text-purple-700' :
+                                b.type === 'Condo' ? 'bg-blue-100 text-blue-700' :
+                                b.type === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
+                                (b.type === 'Rental Bldg' || b.type === 'RentalBuilding') ? 'bg-orange-100 text-orange-700' :
+                                b.type === 'Townhouse' ? 'bg-green-100 text-green-700' :
+                                'bg-gray-100 text-gray-600';
+                return '<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0" ' +
+                    'onclick="selectSearchAddress(this, \'' + resultsDivId + '\')"' +
+                    ' data-address="' + b.address + '" data-name="' + (b.name || '') + '" data-zip="' + (b.zip || '') + '" data-neighborhood="' + (b.neighborhood || '') + '">' +
+                    '<div class="flex justify-between items-center">' +
+                    '<div>' +
+                    '<p class="font-medium text-gray-800">' + b.address + '</p>' +
+                    '<p class="text-gray-500">' + (b.name ? b.name + ' | ' : '') + b.neighborhood + ', ' + b.borough + '</p>' +
+                    '</div>' +
+                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + b.type + '</span>' : '') +
+                    '</div></div>';
+            }).join('');
+            resultsDiv.classList.remove('hidden');
+        }
+
+        // Select an address from autocomplete results
+        function selectSearchAddress(el, resultsDivId) {
+            var address = el.getAttribute('data-address');
+            var resultsDiv = document.getElementById(resultsDivId);
+            // Find the input that triggers this dropdown
+            var inputId = resultsDivId.replace('AddrResults', 'Address');
+            var input = document.getElementById(inputId);
+            if (input) input.value = address;
+            if (resultsDiv) resultsDiv.classList.add('hidden');
+        }
+
+        // Close autocomplete dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            var dropdowns = ['saleSearchAddrResults', 'rentalSearchAddrResults', 'buildingSearchAddrResults', 'advancedSearchAddrResults'];
+            dropdowns.forEach(function(id) {
+                var dd = document.getElementById(id);
+                if (dd && !dd.contains(e.target)) {
+                    var inputId = id.replace('AddrResults', 'Address');
+                    var input = document.getElementById(inputId);
+                    if (input && input !== e.target) dd.classList.add('hidden');
+                }
+            });
+        });
+
+        function collectSearchCriteria() {
+            var criteria = {};
+            criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
+
+            // Determine which basic form is active
+            var activeBasicForm;
+            if (currentSearchTab === 'rent') {
+                activeBasicForm = document.getElementById('searchBasicModeRental');
+            } else if (currentSearchTab === 'building') {
+                activeBasicForm = document.getElementById('searchBasicModeBuilding');
+            } else {
+                activeBasicForm = document.getElementById('searchBasicMode');
+            }
+
+            // Price range — use the correct IDs based on search tab
+            var priceMin, priceMax;
+            if (currentSearchTab === 'rent') {
+                priceMin = document.getElementById('rentalMinRent');
+                priceMax = document.getElementById('rentalMaxRent');
+            } else {
+                priceMin = document.getElementById('saleMinPrice');
+                priceMax = document.getElementById('saleMaxPrice');
+            }
+            if (priceMin && priceMin.value && priceMin.value !== 'custom' && priceMin.value !== '') {
+                var pMin = parseInt(priceMin.value);
+                if (!isNaN(pMin)) criteria.priceMin = pMin;
+            }
+            if (priceMax && priceMax.value && priceMax.value !== 'custom' && priceMax.value !== '') {
+                var pMax = parseInt(priceMax.value);
+                if (!isNaN(pMax)) criteria.priceMax = pMax;
+            }
+
+            // Bedrooms — use the correct IDs based on search tab
+            var bedsMin, bedsMax;
+            if (currentSearchTab === 'rent') {
+                bedsMin = document.getElementById('rentalMinBeds');
+                bedsMax = document.getElementById('rentalMaxBeds');
+            } else {
+                bedsMin = document.getElementById('saleMinBeds');
+                bedsMax = document.getElementById('saleMaxBeds');
+            }
+            if (bedsMin && bedsMin.value && bedsMin.value !== '' && bedsMin.value !== 'custom') {
+                criteria.bedsMin = parseInt(bedsMin.value);
+                if (isNaN(criteria.bedsMin)) delete criteria.bedsMin;
+            }
+            if (bedsMax && bedsMax.value && bedsMax.value !== '' && bedsMax.value !== 'custom') {
+                criteria.bedsMax = parseInt(bedsMax.value);
+                if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
+            }
+
+            // Bathrooms — use correct IDs per tab, parseFloat for half-baths (1.5, 2.5)
+            var bathsMin, bathsMax;
+            if (currentSearchTab === 'rent') {
+                bathsMin = document.getElementById('rentalMinBaths');
+                bathsMax = document.getElementById('rentalMaxBaths');
+            } else {
+                bathsMin = document.getElementById('saleMinBaths');
+                bathsMax = document.getElementById('saleMaxBaths');
+            }
+            if (bathsMin && bathsMin.value && bathsMin.value !== '' && bathsMin.value !== 'custom') {
+                criteria.bathsMin = parseFloat(bathsMin.value);
+                if (isNaN(criteria.bathsMin)) delete criteria.bathsMin;
+            }
+            if (bathsMax && bathsMax.value && bathsMax.value !== '' && bathsMax.value !== 'custom') {
+                criteria.bathsMax = parseFloat(bathsMax.value);
+                if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
+            }
+
+            // Rooms — use correct IDs per tab
+            var roomsMin, roomsMax;
+            if (currentSearchTab === 'rent') {
+                roomsMin = document.getElementById('rentalMinRooms');
+                roomsMax = document.getElementById('rentalMaxRooms');
+            } else {
+                roomsMin = document.getElementById('saleMinRooms');
+                roomsMax = document.getElementById('saleMaxRooms');
+            }
+            if (roomsMin && roomsMin.value && roomsMin.value !== '' && roomsMin.value !== 'custom') {
+                criteria.roomsMin = parseInt(roomsMin.value);
+                if (isNaN(criteria.roomsMin)) delete criteria.roomsMin;
+            }
+            if (roomsMax && roomsMax.value && roomsMax.value !== '' && roomsMax.value !== 'custom') {
+                criteria.roomsMax = parseInt(roomsMax.value);
+                if (isNaN(criteria.roomsMax)) delete criteria.roomsMax;
+            }
+
+            // Square footage — use correct IDs per tab
+            var sqftMin, sqftMax;
+            if (currentSearchTab === 'rent') {
+                sqftMin = document.getElementById('rentalMinSqft');
+                sqftMax = document.getElementById('rentalMaxSqft');
+            } else {
+                sqftMin = document.getElementById('saleMinSqft');
+                sqftMax = document.getElementById('saleMaxSqft');
+            }
+            if (sqftMin && sqftMin.value && sqftMin.value !== '' && sqftMin.value !== 'custom') {
+                criteria.sqftMin = parseInt(sqftMin.value);
+                if (isNaN(criteria.sqftMin)) delete criteria.sqftMin;
+            }
+            if (sqftMax && sqftMax.value && sqftMax.value !== '' && sqftMax.value !== 'custom') {
+                criteria.sqftMax = parseInt(sqftMax.value);
+                if (isNaN(criteria.sqftMax)) delete criteria.sqftMax;
+            }
+
+            // Ownership type (CommonInterest checkboxes)
+            if (activeBasicForm) {
+                var ownershipChecks = activeBasicForm.querySelectorAll('[data-field="CommonInterest"]:checked');
+                if (ownershipChecks.length > 0) {
+                    criteria.ownership = Array.from(ownershipChecks).map(function(cb) { return cb.getAttribute('data-value') || cb.value; });
+                }
+            }
+
+            // Status checkboxes (MlsStatus) — collect all checked statuses
+            // Determine which container has the status checkboxes
+            var statusContainer = activeBasicForm;
+            var advancedMode = document.getElementById('searchAdvancedMode');
+            if (advancedMode && advancedMode.style.display !== 'none') {
+                // In advanced mode, use the visible status options div
+                var saleOpts = document.getElementById('saleStatusOptions');
+                var rentalOpts = document.getElementById('rentalStatusOptions');
+                if (rentalOpts && rentalOpts.style.display !== 'none') {
+                    statusContainer = rentalOpts;
+                } else if (saleOpts && saleOpts.style.display !== 'none') {
+                    statusContainer = saleOpts;
+                } else {
+                    statusContainer = saleOpts; // default to sale
+                }
+            }
+            if (statusContainer) {
+                var statusChecks = statusContainer.querySelectorAll('[data-field="MlsStatus"]:checked');
+                if (statusChecks.length > 0) {
+                    criteria.statuses = [];
+                    statusChecks.forEach(function(cb) {
+                        var val = cb.getAttribute('data-value');
+                        var sub = cb.getAttribute('data-sub-status');
+                        if (sub) {
+                            // Sub-status checkbox (e.g., "Offer Accepted", "Contract Out")
+                            criteria.statuses.push(sub);
+                        } else if (val) {
+                            // Handle comma-separated values (e.g., "Withdrawn,Canceled,Expired,Hold")
+                            var parts = val.split(',');
+                            parts.forEach(function(part) {
+                                var s = part.trim();
+                                // Map to uppercase used in mock data
+                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
+                                else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
+                                else if (s === 'Future') criteria.statuses.push('FUTURE');
+                                else if (s === 'Pending') criteria.statuses.push('PENDING');
+                                else if (s === 'Closed') criteria.statuses.push('CLOSED');
+                                else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
+                                else if (s === 'Canceled') criteria.statuses.push('CANCELED');
+                                else if (s === 'Expired') criteria.statuses.push('EXPIRED');
+                                else if (s === 'Hold') criteria.statuses.push('HOLD');
+                                else if (s === 'Incomplete') criteria.statuses.push('INCOMPLETE');
+                                else criteria.statuses.push(s.toUpperCase());
+                            });
+                        }
+                    });
+                }
+            }
+
+            // Address / building name — collect from whichever form is active
+            var addressInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
+                                 currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
+            var addressInput = document.getElementById(addressInputId);
+            // Also check advanced mode address
+            var advAddr = document.getElementById('advancedSearchAddress');
+            var advancedMode2 = document.getElementById('searchAdvancedMode');
+            if (advancedMode2 && advancedMode2.style.display !== 'none' && advAddr && advAddr.value.trim()) {
+                addressInput = advAddr;
+            }
+            if (addressInput && addressInput.value.trim()) {
+                criteria.address = addressInput.value.trim();
+            }
+
+            // Neighborhood tree — collect from building search or advanced search
+            var neighborhoodTree = null;
+            if (currentSearchTab === 'building') {
+                neighborhoodTree = document.querySelector('#searchBasicModeBuilding .neighborhood-tree');
+            }
+            // Also check advanced mode if visible
+            var advancedMode = document.getElementById('searchAdvancedMode');
+            if (advancedMode && advancedMode.style.display !== 'none') {
+                neighborhoodTree = advancedMode.querySelector('.neighborhood-tree');
+            }
+            if (neighborhoodTree) {
+                var checkedNeighborhoods = [];
+                // Get all checked leaf checkboxes (inside labels, not in summary elements)
+                neighborhoodTree.querySelectorAll('label input[type="checkbox"]:checked').forEach(function(cb) {
+                    var label = cb.closest('label');
+                    if (label) {
+                        var text = label.textContent.trim();
+                        if (text) checkedNeighborhoods.push(text);
+                    }
+                });
+                if (checkedNeighborhoods.length > 0) {
+                    criteria.neighborhoods = checkedNeighborhoods;
+                }
+            }
+
+            return criteria;
+        }
+
+        function clearSearchForm() {
+            // Reset all select elements in basic forms
+            var forms = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
+            forms.forEach(function(formId) {
+                var form = document.getElementById(formId);
+                if (!form) return;
+                form.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
+                form.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+                form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
+            });
+            // Also clear advanced mode checkboxes
+            var advMode = document.getElementById('searchAdvancedMode');
+            if (advMode) {
+                advMode.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+                advMode.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
+                advMode.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
+            }
+            // Re-check the "Active" checkbox by default (sale basic form)
+            var activeCheck = document.querySelector('#searchBasicMode [data-field="MlsStatus"][data-value="Active"]');
+            if (activeCheck) activeCheck.checked = true;
+            // Re-check the "Active" checkbox by default (rental basic form)
+            var rentalActiveCheck = document.querySelector('#searchBasicModeRental [data-field="MlsStatus"][data-value="Active"]');
+            if (rentalActiveCheck) rentalActiveCheck.checked = true;
+            // Re-check the "Active" checkbox in advanced mode (sale status)
+            var advSaleActive = document.querySelector('#saleStatusOptions [data-field="MlsStatus"][data-value="Active"]');
+            if (advSaleActive) advSaleActive.checked = true;
+            // Re-check the "Active" checkbox in advanced mode (rental status)
+            var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="MlsStatus"][data-value="Active"]');
+            if (advRentalActive) advRentalActive.checked = true;
+            // Clear saved search state when form is cleared
+            if (typeof _clearSearchState === 'function') _clearSearchState();
+        }
+
+        // Neighborhood tree: parent-child cascade
+        // Checking a borough/region auto-checks all children; unchecking clears all children
+        function initNeighborhoodCascade() {
+            document.querySelectorAll('.neighborhood-tree').forEach(function(tree) {
+                tree.addEventListener('change', function(e) {
+                    var cb = e.target;
+                    if (cb.type !== 'checkbox') return;
+
+                    // Is this a parent checkbox (inside a <summary>)?
+                    var summary = cb.closest('summary');
+                    if (summary) {
+                        // Find the parent <details> element
+                        var details = summary.parentElement;
+                        if (details && details.tagName === 'DETAILS') {
+                            // Check/uncheck all child checkboxes inside this <details>
+                            var children = details.querySelectorAll('input[type="checkbox"]');
+                            children.forEach(function(child) {
+                                if (child !== cb) child.checked = cb.checked;
+                            });
+                        }
+                    }
+
+                    // Center map + draw/remove polygon when checked/unchecked
+                    // Determine which search form map this checkbox belongs to
+                    var sfType = typeof getSFMapType === 'function' ? getSFMapType(cb) : null;
+
+                    var label = cb.closest('label');
+                    if (label) {
+                        var nbName = label.textContent.trim();
+                        if (cb.checked) {
+                            // Results map
+                            if (typeof mapCenterOnNeighborhood === 'function' && typeof NEIGHBORHOOD_CENTERS !== 'undefined' && NEIGHBORHOOD_CENTERS[nbName]) {
+                                mapCenterOnNeighborhood(nbName);
+                            }
+                            if (typeof toggleNeighborhoodPolygon === 'function') {
+                                toggleNeighborhoodPolygon(nbName, true);
+                            }
+                            // Search form map
+                            if (sfType && typeof toggleSFPolygon === 'function') {
+                                toggleSFPolygon(sfType, nbName, true);
+                                if (typeof sfMapCenterOnNeighborhood === 'function') {
+                                    sfMapCenterOnNeighborhood(sfType, nbName);
+                                }
+                            }
+                        } else {
+                            if (typeof toggleNeighborhoodPolygon === 'function') {
+                                toggleNeighborhoodPolygon(nbName, false);
+                            }
+                            if (sfType && typeof toggleSFPolygon === 'function') {
+                                toggleSFPolygon(sfType, nbName, false);
+                            }
+                        }
+                    }
+
+                    // Also handle parent checkbox toggling children polygons
+                    var summary = cb.closest('summary');
+                    if (summary) {
+                        var details = summary.parentElement;
+                        if (details && details.tagName === 'DETAILS') {
+                            details.querySelectorAll('label').forEach(function(lbl) {
+                                var childName = lbl.textContent.trim();
+                                if (typeof toggleNeighborhoodPolygon === 'function') {
+                                    toggleNeighborhoodPolygon(childName, cb.checked);
+                                }
+                                if (sfType && typeof toggleSFPolygon === 'function') {
+                                    toggleSFPolygon(sfType, childName, cb.checked);
+                                }
+                            });
+                        }
+                    }
+
+                    // Update parent state: if all siblings unchecked, uncheck parent
+                    var parentDetails = cb.closest('details');
+                    if (parentDetails) {
+                        var parentSummary = parentDetails.querySelector(':scope > summary > input[type="checkbox"]');
+                        if (parentSummary && parentSummary !== cb) {
+                            var allChildren = parentDetails.querySelectorAll('input[type="checkbox"]');
+                            var anyChecked = false;
+                            allChildren.forEach(function(child) {
+                                if (child !== parentSummary && child.checked) anyChecked = true;
+                            });
+                            parentSummary.checked = anyChecked;
+                        }
+                    }
+                });
+            });
+        }
+        // Initialize cascade on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initNeighborhoodCascade);
+        } else {
+            initNeighborhoodCascade();
+        }
+
+        function filterListings(listings, criteria) {
+            return listings.filter(function(listing) {
+
+                // ═══════════════════════════════════════════════════════════
+                // REBNY DISTRIBUTION GATES — UCBA 2026 Art. I Sec. 4-5
+                // These gates MUST be enforced BEFORE any other filter.
+                // ═══════════════════════════════════════════════════════════
+
+                var perm = listing.permissions || {};
+
+                // Gate 1: Owner Opt-Out — NEVER display (UCBA Art. I Sec. 4(A))
+                if (perm.ownerOptOut === true) return false;
+
+                // Gate 2: Participant Only — visible in RLS backend only, not IDX search
+                // In IDX/public search context, exclude these listings
+                if (perm.participantOnly === true) return false;
+
+                // Gate 3: IDX Display — if opted out, exclude from IDX display
+                if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
+
+                // Gate 4: Syndication — SyndicateYN controls third-party distribution.
+                // In IDX search context, listing still appears but is flagged as non-syndicated.
+                // The badge is rendered in the view layer (shared-badges.js → syndicationBadge).
+                // No filtering here — syndication does NOT block IDX display.
+
+                // Gate 5: Coming Soon — listing IS displayed in search results, but:
+                // - "Coming Soon" badge is shown (view layer)
+                // - Schedule Showing button is disabled (view layer)
+                // - Text: "Coming Soon. No Showings or Open House until [date]" (view layer)
+                // No filtering here — Coming Soon listings are visible in IDX search.
+
+                // Gate 6: Closed Status — suppress listings closed > 24 hours
+                if (listing.status === 'CLOSED' && listing.closedDate) {
+                    var closedTime = new Date(listing.closedDate).getTime();
+                    var now = Date.now();
+                    var hoursSinceClosed = (now - closedTime) / (1000 * 60 * 60);
+                    if (hoursSinceClosed > 24) return false;
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // Standard search filters
+                // ═══════════════════════════════════════════════════════════
+
+                // Search tab filter — only show sale or rental listings
+                if (criteria.searchTab === 'rent' && listing.listingCategory !== 'rental') return false;
+                if (criteria.searchTab === 'sale' && listing.listingCategory === 'rental') return false;
+
+                // Price filter
+                if (criteria.priceMin && listing.price < criteria.priceMin) return false;
+                if (criteria.priceMax && listing.price > criteria.priceMax) return false;
+
+                // Beds filter — explicit null check (beds=0 is valid for studios)
+                if (criteria.bedsMin !== undefined && criteria.bedsMin !== null && listing.beds < criteria.bedsMin) return false;
+                if (criteria.bedsMax !== undefined && criteria.bedsMax !== null && listing.beds > criteria.bedsMax) return false;
+
+                // Baths filter — explicit null check (0 is valid)
+                if (criteria.bathsMin !== undefined && criteria.bathsMin !== null && listing.baths < criteria.bathsMin) return false;
+                if (criteria.bathsMax !== undefined && criteria.bathsMax !== null && listing.baths > criteria.bathsMax) return false;
+
+                // Rooms filter — explicit null check (0 is valid)
+                if (criteria.roomsMin !== undefined && criteria.roomsMin !== null && listing.rooms < criteria.roomsMin) return false;
+                if (criteria.roomsMax !== undefined && criteria.roomsMax !== null && listing.rooms > criteria.roomsMax) return false;
+
+                // Sqft filter — exclude listings with null/undefined sqft when filter is set
+                if (criteria.sqftMin !== undefined && criteria.sqftMin !== null) {
+                    if (!listing.intSqft && listing.intSqft !== 0) return false; // null sqft excluded
+                    if (listing.intSqft < criteria.sqftMin) return false;
+                }
+                if (criteria.sqftMax !== undefined && criteria.sqftMax !== null) {
+                    if (!listing.intSqft && listing.intSqft !== 0) return false;
+                    if (listing.intSqft > criteria.sqftMax) return false;
+                }
+
+                // Ownership filter — exact match (not indexOf, to prevent Condo matching Condop)
+                if (criteria.ownership && criteria.ownership.length > 0) {
+                    var match = criteria.ownership.some(function(o) {
+                        return listing.ownership.toLowerCase() === o.toLowerCase();
+                    });
+                    if (!match) return false;
+                }
+
+                // Address / building name filter — partial match
+                if (criteria.address) {
+                    var normAddr = normalizeAddress(criteria.address);
+                    var addrMatch = normalizeAddress(listing.address).indexOf(normAddr) !== -1;
+                    var bldgMatch = listing.buildingName && normalizeAddress(listing.buildingName).indexOf(normAddr) !== -1;
+                    if (!addrMatch && !bldgMatch) return false;
+                }
+
+                // Neighborhood filter — single value (Quick Search) or multi-select (tree)
+                if (criteria.neighborhood) {
+                    if (listing.neighborhood.toLowerCase().indexOf(criteria.neighborhood.toLowerCase()) === -1) return false;
+                }
+                if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
+                    var nMatch = criteria.neighborhoods.some(function(n) {
+                        return listing.neighborhood.toLowerCase() === n.toLowerCase();
+                    });
+                    if (!nMatch) return false;
+                }
+
+                // Status filter
+                if (criteria.statuses && criteria.statuses.length > 0) {
+                    var statusMatch = criteria.statuses.some(function(s) {
+                        return listing.status.toLowerCase() === s.toLowerCase();
+                    });
+                    if (!statusMatch) return false;
+                }
+
+                return true;
+            });
+        }
+
+        function updateResultsCount() {
+            var filtered = searchResultsState.filteredListings || mockListings;
+            var count = filtered.length;
+            var perPage = searchResultsState.perPage || 50;
+            var totalPages = Math.max(1, Math.ceil(count / perPage));
+
+            // Update all results count elements
+            var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
+            countEls.forEach(function(el) { el.textContent = count + ' Results'; });
+
+            // Update pagination
+            var totalPagesEl = document.getElementById('totalPages');
+            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+
+            var currentPageEl = document.getElementById('currentPage');
+            if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
+        }
+
+        // Back to search - show search form, hide results
+        function backToSearch() {
+            // Close refine panel if open
+            var refinePanel = document.getElementById('refinePanel');
+            if (refinePanel) { refinePanel.style.display = 'none'; _refinePanelOpen = false; }
+
+            // Show the search form container
+            var searchFormContainer = document.getElementById('searchFormContainer');
+            if (searchFormContainer) searchFormContainer.style.display = 'block';
+
+            // Restore the proper search mode display
+            var btnBasic = document.getElementById('btnSearchBasic');
+            var isBasicMode = btnBasic && btnBasic.classList.contains('bg-gray-900');
+
+            var basicModeSales = document.getElementById('searchBasicMode');
+            var basicModeRental = document.getElementById('searchBasicModeRental');
+            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var advancedMode = document.getElementById('searchAdvancedMode');
+
+            // Hide all modes first
+            if (basicModeSales) basicModeSales.style.display = 'none';
+            if (basicModeRental) basicModeRental.style.display = 'none';
+            if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+            if (advancedMode) advancedMode.style.display = 'none';
+
+            // Show the appropriate mode
+            if (isBasicMode) {
+                if (currentSearchTab === 'sale' && basicModeSales) basicModeSales.style.display = 'block';
+                else if (currentSearchTab === 'rent' && basicModeRental) basicModeRental.style.display = 'block';
+                else if (currentSearchTab === 'building' && basicModeBuilding) basicModeBuilding.style.display = 'block';
+            } else {
+                if (advancedMode) advancedMode.style.display = 'block';
+            }
+
+            // Hide search results section
+            var searchResultsSection = document.getElementById('searchResultsSection');
+            if (searchResultsSection) searchResultsSection.style.display = 'none';
+
+            // Clear saved search state (user intentionally went back)
+            _clearSearchState();
+
+            // Update hash to reflect search form view
+            history.pushState(null, '', '#main');
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ─── INLINE REFINE PANEL ────────────────────────────────────────────
+        // Lets users quickly adjust search criteria without leaving results.
+        // Reads from activeSearchCriteria, syncs back to main form, re-runs search.
+        // ─────────────────────────────────────────────────────────────────────
+
+        var _refinePanelOpen = false;
+
+        function toggleRefinePanel() {
+            var panel = document.getElementById('refinePanel');
+            if (!panel) return;
+            _refinePanelOpen = !_refinePanelOpen;
+            panel.style.display = _refinePanelOpen ? 'block' : 'none';
+            // Update toggle button style
+            var btn = document.getElementById('refineToggleBtn');
+            if (btn) {
+                if (_refinePanelOpen) {
+                    btn.classList.add('text-blue-800');
+                    btn.classList.remove('text-blue-600');
+                } else {
+                    btn.classList.remove('text-blue-800');
+                    btn.classList.add('text-blue-600');
+                }
+            }
+            if (_refinePanelOpen) populateRefinePanel();
+        }
+
+        function populateRefinePanel() {
+            var c = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : {};
+
+            // Search type label
+            var typeLabel = document.getElementById('refineSearchType');
+            if (typeLabel) {
+                var tab = c.searchTab || currentSearchTab || 'sale';
+                typeLabel.textContent = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
+            }
+
+            // Price
+            setSelectValue('refineMinPrice', c.priceMin || '');
+            setSelectValue('refineMaxPrice', c.priceMax || '');
+
+            // Beds
+            setSelectValue('refineMinBeds', c.bedsMin != null ? c.bedsMin : '');
+            setSelectValue('refineMaxBeds', c.bedsMax != null ? c.bedsMax : '');
+
+            // Baths
+            setSelectValue('refineMinBaths', c.bathsMin != null ? c.bathsMin : '');
+            setSelectValue('refineMaxBaths', c.bathsMax != null ? c.bathsMax : '');
+
+            // Statuses
+            var statuses = c.statuses || ['ACTIVE'];
+            var el;
+            el = document.getElementById('refineStatusActive');
+            if (el) el.checked = statuses.indexOf('ACTIVE') !== -1;
+            el = document.getElementById('refineStatusComingSoon');
+            if (el) el.checked = statuses.indexOf('COMING_SOON') !== -1;
+            el = document.getElementById('refineStatusPending');
+            if (el) el.checked = statuses.indexOf('PENDING') !== -1;
+            el = document.getElementById('refineStatusContract');
+            if (el) el.checked = statuses.indexOf('CONTRACT') !== -1 || statuses.indexOf('UNDER_CONTRACT') !== -1;
+            el = document.getElementById('refineStatusClosed');
+            if (el) el.checked = statuses.indexOf('CLOSED') !== -1;
+
+            // Build applied filters pills
+            buildRefineFilterPills(c);
+        }
+
+        function setSelectValue(id, val) {
+            var sel = document.getElementById(id);
+            if (!sel) return;
+            val = String(val);
+            // Try exact match first
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
+            }
+            // Try closest match for price values
+            if (val && !isNaN(parseFloat(val))) {
+                var numVal = parseFloat(val);
+                var bestIdx = 0, bestDiff = Infinity;
+                for (var j = 1; j < sel.options.length; j++) {
+                    var optVal = parseFloat(sel.options[j].value);
+                    if (!isNaN(optVal)) {
+                        var diff = Math.abs(optVal - numVal);
+                        if (diff < bestDiff) { bestDiff = diff; bestIdx = j; }
+                    }
+                }
+                sel.selectedIndex = bestIdx;
+            } else {
+                sel.selectedIndex = 0; // "Any"
+            }
+        }
+
+        function buildRefineFilterPills(c) {
+            var container = document.getElementById('refineAppliedFilters');
+            if (!container) return;
+            var pills = [];
+
+            function formatPrice(v) {
+                if (!v) return '';
+                if (v >= 1000000) return '$' + (v / 1000000) + 'M';
+                return '$' + (v / 1000) + 'K';
+            }
+
+            if (c.priceMin || c.priceMax) {
+                var pLabel = (c.priceMin ? formatPrice(c.priceMin) : 'Any') + ' – ' + (c.priceMax ? formatPrice(c.priceMax) : 'Any');
+                pills.push({ label: 'Price: ' + pLabel, key: 'price' });
+            }
+            if (c.bedsMin != null || c.bedsMax != null) {
+                var bLabel = (c.bedsMin != null ? (c.bedsMin === 0 ? 'Studio' : c.bedsMin + ' BR') : 'Any') + ' – ' + (c.bedsMax != null ? c.bedsMax + ' BR' : 'Any');
+                pills.push({ label: 'Beds: ' + bLabel, key: 'beds' });
+            }
+            if (c.bathsMin != null || c.bathsMax != null) {
+                var baLabel = (c.bathsMin != null ? c.bathsMin + ' BA' : 'Any') + ' – ' + (c.bathsMax != null ? c.bathsMax + ' BA' : 'Any');
+                pills.push({ label: 'Baths: ' + baLabel, key: 'baths' });
+            }
+            if (c.neighborhoods && c.neighborhoods.length > 0) {
+                var nLabel = c.neighborhoods.length <= 2 ? c.neighborhoods.join(', ') : c.neighborhoods.length + ' neighborhoods';
+                pills.push({ label: nLabel, key: 'neighborhoods' });
+            }
+            if (c.ownership && c.ownership.length > 0) {
+                pills.push({ label: c.ownership.join(', '), key: 'ownership' });
+            }
+
+            if (pills.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'flex';
+            container.innerHTML = '<span class="text-[10px] text-gray-400 font-semibold mr-1">Filters:</span>' +
+                pills.map(function(p) {
+                    return '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[11px] font-medium rounded-full">' +
+                        p.label +
+                        '<button onclick="removeRefineFilter(\'' + p.key + '\')" class="ml-0.5 text-blue-400 hover:text-red-500 transition-colors"><i class="fas fa-times text-[8px]"></i></button>' +
+                    '</span>';
+                }).join('');
+        }
+
+        function removeRefineFilter(key) {
+            if (!activeSearchCriteria) return;
+            if (key === 'price') { delete activeSearchCriteria.priceMin; delete activeSearchCriteria.priceMax; }
+            else if (key === 'beds') { delete activeSearchCriteria.bedsMin; delete activeSearchCriteria.bedsMax; }
+            else if (key === 'baths') { delete activeSearchCriteria.bathsMin; delete activeSearchCriteria.bathsMax; }
+            else if (key === 'neighborhoods') { delete activeSearchCriteria.neighborhoods; }
+            else if (key === 'ownership') { delete activeSearchCriteria.ownership; }
+            applyRefinedSearch();
+        }
+
+        function applyRefinedSearch() {
+            // Build criteria from refine panel controls
+            var c = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : {};
+            c.searchTab = c.searchTab || currentSearchTab || 'sale';
+
+            // Price
+            var pMin = document.getElementById('refineMinPrice');
+            var pMax = document.getElementById('refineMaxPrice');
+            if (pMin && pMin.value) c.priceMin = parseInt(pMin.value); else delete c.priceMin;
+            if (pMax && pMax.value) c.priceMax = parseInt(pMax.value); else delete c.priceMax;
+
+            // Beds
+            var bMin = document.getElementById('refineMinBeds');
+            var bMax = document.getElementById('refineMaxBeds');
+            if (bMin && bMin.value !== '') c.bedsMin = parseInt(bMin.value); else delete c.bedsMin;
+            if (bMax && bMax.value !== '') c.bedsMax = parseInt(bMax.value); else delete c.bedsMax;
+
+            // Baths
+            var baMin = document.getElementById('refineMinBaths');
+            var baMax = document.getElementById('refineMaxBaths');
+            if (baMin && baMin.value !== '') c.bathsMin = parseFloat(baMin.value); else delete c.bathsMin;
+            if (baMax && baMax.value !== '') c.bathsMax = parseFloat(baMax.value); else delete c.bathsMax;
+
+            // Statuses
+            var statuses = [];
+            if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('ACTIVE');
+            if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('COMING_SOON');
+            if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('PENDING');
+            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('CONTRACT'); statuses.push('UNDER_CONTRACT'); }
+            if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('CLOSED');
+            if (statuses.length > 0) c.statuses = statuses; else delete c.statuses;
+
+            // Update activeSearchCriteria
+            activeSearchCriteria = c;
+
+            // Sync back to main form selects so "Full Search" stays consistent
+            syncRefineToMainForm(c);
+
+            // Re-filter and re-render
+            if (typeof mockListings !== 'undefined' && typeof searchResultsState !== 'undefined') {
+                searchResultsState.filteredListings = filterListings(mockListings, c);
+                searchResultsState.currentPage = 1;
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+            }
+
+            // Update pills
+            buildRefineFilterPills(c);
+
+            // Save for Last Search recall
+            if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
+        }
+
+        function syncRefineToMainForm(c) {
+            // Sync refine panel values back to the main form dropdowns
+            var isRental = (c.searchTab === 'rent');
+            var prefix = isRental ? 'rental' : 'sale';
+
+            var minPriceId = isRental ? 'rentalMinRent' : 'saleMinPrice';
+            var maxPriceId = isRental ? 'rentalMaxRent' : 'saleMaxPrice';
+            setSelectValue(minPriceId, c.priceMin || '');
+            setSelectValue(maxPriceId, c.priceMax || '');
+
+            setSelectValue(prefix + 'MinBeds', c.bedsMin != null ? c.bedsMin : '');
+            setSelectValue(prefix + 'MaxBeds', c.bedsMax != null ? c.bedsMax : '');
+            setSelectValue(prefix + 'MinBaths', c.bathsMin != null ? c.bathsMin : '');
+            setSelectValue(prefix + 'MaxBaths', c.bathsMax != null ? c.bathsMax : '');
+        }
+
+        function clearRefinePanel() {
+            // Reset all refine panel controls
+            ['refineMinPrice','refineMaxPrice','refineMinBeds','refineMaxBeds','refineMinBaths','refineMaxBaths'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.selectedIndex = 0;
+            });
+            var cb = document.getElementById('refineStatusActive');
+            if (cb) cb.checked = true;
+            ['refineStatusComingSoon','refineStatusPending','refineStatusContract','refineStatusClosed'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.checked = false;
+            });
+            // Apply immediately
+            applyRefinedSearch();
+        }
+
+        // Highlight the active search type/mode on the sticky nav bar
+        function updateStickyNavActive() {
+            var nav = document.getElementById('stickySearchNav');
+            if (!nav) return;
+            var btns = nav.querySelectorAll('button');
+            var btnBasic = document.getElementById('btnSearchBasic');
+            var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
+            var activeMode = isBasic ? 'basic' : 'advanced';
+
+            // Reset all buttons to outline style
+            btns.forEach(function(btn) {
+                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-amber-600', 'bg-purple-600', 'text-white',
+                    'border-blue-600', 'border-green-600', 'border-amber-600', 'border-purple-600');
+                var oc = btn.getAttribute('onclick') || '';
+                if (oc.indexOf('Comparables') !== -1) {
+                    btn.classList.add('border-purple-500', 'text-purple-600');
+                } else if (oc.indexOf("'building'") !== -1) {
+                    btn.classList.add('border-amber-500', 'text-amber-600');
+                } else if (oc.indexOf("'rent'") !== -1) {
+                    btn.classList.add('border-green-500', 'text-green-600');
+                } else {
+                    btn.classList.add('border-blue-500', 'text-blue-600');
+                }
+            });
+
+            // Highlight active button
+            btns.forEach(function(btn) {
+                var oc = btn.getAttribute('onclick') || '';
+                var isMatch = false;
+                if (currentSearchTab === 'sale' && activeMode === 'basic' && oc.indexOf("'sale'") !== -1 && oc.indexOf("'basic'") !== -1) isMatch = true;
+                if (currentSearchTab === 'sale' && activeMode === 'advanced' && oc.indexOf("'sale'") !== -1 && oc.indexOf("'advanced'") !== -1) isMatch = true;
+                if (currentSearchTab === 'rent' && activeMode === 'basic' && oc.indexOf("'rent'") !== -1 && oc.indexOf("'basic'") !== -1) isMatch = true;
+                if (currentSearchTab === 'rent' && activeMode === 'advanced' && oc.indexOf("'rent'") !== -1 && oc.indexOf("'advanced'") !== -1) isMatch = true;
+                if (currentSearchTab === 'building' && oc.indexOf("'building'") !== -1) isMatch = true;
+
+                if (isMatch) {
+                    btn.classList.remove('text-blue-600', 'text-green-600', 'text-amber-600', 'border-blue-500', 'border-green-500', 'border-amber-500');
+                    if (currentSearchTab === 'sale') btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                    else if (currentSearchTab === 'rent') btn.classList.add('bg-green-600', 'text-white', 'border-green-600');
+                    else btn.classList.add('bg-amber-600', 'text-white', 'border-amber-600');
+                }
+            });
+        }
+
+        // Jump to a specific search form from results sticky nav
+        function jumpToSearch(tab, mode) {
+            // Hide results
+            var searchResultsSection = document.getElementById('searchResultsSection');
+            if (searchResultsSection) searchResultsSection.style.display = 'none';
+
+            // Show search form container
+            var searchFormContainer = document.getElementById('searchFormContainer');
+            if (searchFormContainer) searchFormContainer.style.display = 'block';
+
+            // Switch to the correct tab (sale, rent, building) — uses existing function
+            toggleSearchTab(tab);
+
+            // Switch to the correct mode (basic or advanced) — uses existing function
+            toggleSearchMode(mode);
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Jump to Comparables from results sticky nav
+        function jumpToComparables() {
+            var searchResultsSection = document.getElementById('searchResultsSection');
+            if (searchResultsSection) searchResultsSection.style.display = 'none';
+            var searchFormContainer = document.getElementById('searchFormContainer');
+            if (searchFormContainer) searchFormContainer.style.display = 'block';
+            if (typeof toggleSearchType === 'function') toggleSearchType('comparables');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ─── SESSION PERSISTENCE ─────────────────────────────────────────────
+        // Save/restore search results across page refresh via sessionStorage
+        // ─────────────────────────────────────────────────────────────────────
+
+        function _saveSearchState() {
+            try {
+                var filtered = searchResultsState.filteredListings || [];
+                var ids = filtered.map(function(l) { return l.id; });
+                // Also capture the active address input value
+                var addrId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
+                             currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
+                var addrEl = document.getElementById(addrId);
+                var adv = document.getElementById('advancedSearchAddress');
+                var advMode = document.getElementById('searchAdvancedMode');
+                var addr = '';
+                if (advMode && advMode.style.display !== 'none' && adv && adv.value.trim()) {
+                    addr = adv.value.trim();
+                } else if (addrEl && addrEl.value.trim()) {
+                    addr = addrEl.value.trim();
+                }
+                sessionStorage.setItem('_searchState', JSON.stringify({
+                    filteredIds: ids,
+                    tab: currentSearchTab,
+                    page: searchResultsState.currentPage || 1,
+                    address: addr
+                }));
+            } catch (e) { /* sessionStorage full or unavailable */ }
+        }
+
+        function _clearSearchState() {
+            try { sessionStorage.removeItem('_searchState'); } catch (e) {}
+        }
+
+        function _restoreSearchState() {
+            try {
+                var raw = sessionStorage.getItem('_searchState');
+                if (!raw) return false;
+                var state = JSON.parse(raw);
+                if (!state || !state.filteredIds || !Array.isArray(state.filteredIds)) return false;
+
+                // Restore the search tab
+                if (state.tab) {
+                    currentSearchTab = state.tab;
+                    if (typeof toggleSearchTab === 'function') {
+                        window._suppressHashUpdate = true;
+                        toggleSearchTab(state.tab);
+                        window._suppressHashUpdate = false;
+                    }
+                }
+
+                // Rebuild filteredListings from saved IDs
+                var idSet = {};
+                state.filteredIds.forEach(function(id) { idSet[id] = true; });
+                searchResultsState.filteredListings = mockListings.filter(function(l) { return idSet[l.id]; });
+                searchResultsState.currentPage = state.page || 1;
+
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // Track current search tab mode globally (sale, rent, building)
+        var currentSearchTab = 'sale';
+
+        // New unified function for switching between Sales, Rentals, and Buildings tabs
+        function toggleSearchTab(tab) {
+            currentSearchTab = tab;
+            var btnSale = document.getElementById('btnSale');
+            var btnRent = document.getElementById('btnRent');
+            var btnBuilding = document.getElementById('btnBuilding');
+
+            // Basic Search Mode layouts
+            var basicModeSales = document.getElementById('searchBasicMode');
+            var basicModeRental = document.getElementById('searchBasicModeRental');
+            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var advancedMode = document.getElementById('searchAdvancedMode');
+
+            // Check if we're in Basic mode
+            var btnBasic = document.getElementById('btnSearchBasic');
+            var isBasicMode = btnBasic && btnBasic.classList.contains('bg-gray-900');
+
+            // Reset all tab buttons
+            [btnSale, btnRent, btnBuilding].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('bg-gray-900', 'text-white');
+                    btn.classList.add('bg-white', 'text-gray-500', 'border', 'border-gray-200');
+                }
+            });
+
+            // Hide all basic layouts
+            if (basicModeSales) basicModeSales.style.display = 'none';
+            if (basicModeRental) basicModeRental.style.display = 'none';
+            if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+
+            // Activate selected tab
+            if (tab === 'sale') {
+                if (btnSale) {
+                    btnSale.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
+                    btnSale.classList.add('bg-gray-900', 'text-white');
+                }
+                if (isBasicMode && basicModeSales) basicModeSales.style.display = 'block';
+            } else if (tab === 'rent') {
+                if (btnRent) {
+                    btnRent.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
+                    btnRent.classList.add('bg-gray-900', 'text-white');
+                }
+                if (isBasicMode && basicModeRental) basicModeRental.style.display = 'block';
+            } else if (tab === 'building') {
+                if (btnBuilding) {
+                    btnBuilding.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
+                    btnBuilding.classList.add('bg-gray-900', 'text-white');
+                }
+                if (isBasicMode && basicModeBuilding) basicModeBuilding.style.display = 'block';
+            }
+
+            // Toggle calculators based on mode (sale vs rent) in Advanced Search
+            var saleCalc = document.getElementById('saleInvestmentCalc');
+            var rentCalc = document.getElementById('rentVsBuyCalc');
+
+            // Rental-specific sections
+            var rentalStatusOptions = document.getElementById('rentalStatusOptions');
+            var furnishedOptionsSection = document.getElementById('furnishedOptionsSection');
+            var leaseDetailsSection = document.getElementById('leaseDetailsSection');
+            var listingTypeSection = document.getElementById('listingTypeSection');
+            var concessionsSection = document.getElementById('concessionsSection');
+            var leaseAvailabilitySection = document.getElementById('leaseAvailabilitySection');
+            var managementCompaniesSection = document.getElementById('managementCompaniesSection');
+
+            // Sale-specific status options (the default status checkboxes)
+            var saleStatusOptions = document.getElementById('saleStatusOptions');
+
+            // Sale-specific sections
+            var saleFinancialDetailsSection = document.getElementById('saleFinancialDetailsSection');
+            var salePurchasingOptions = document.getElementById('salePurchasingOptions');
+            var saleContractSignedDate = document.getElementById('saleContractSignedDateFilter');
+            var saleSoldClosedDate = document.getElementById('saleSoldClosedDate');
+            var saleCapRateSection = document.getElementById('saleCapRateSection');
+            var saleNOISection = document.getElementById('saleNOISection');
+
+            // Rental-specific date fields
+            var rentalLeaseSignedDate = document.getElementById('rentalLeaseSignedDate');
+            var rentalRentedDate = document.getElementById('rentalRentedDate');
+
+            // Price fields - Sale vs Rental
+            var salePriceFields = document.getElementById('salePriceFields');
+            var rentPriceFields = document.getElementById('rentPriceFields');
+            var salePriceExpenseRow = document.getElementById('salePriceExpenseRow');
+            var rentPriceExpenseRow = document.getElementById('rentPriceExpenseRow');
+            var priceLabel = document.getElementById('priceLabel');
+            var monthlyExpensesFields = document.getElementById('monthlyExpensesFields');
+            var netMonthlyRentFields = document.getElementById('netMonthlyRentFields');
+            var monthlyLabel = document.getElementById('monthlyLabel');
+            var monthlySection = document.getElementById('monthlySection');
+            var mortgageCalculator = document.getElementById('mortgageCalculator');
+
+            if (tab === 'sale') {
+                if (saleCalc) saleCalc.style.display = 'block';
+                if (rentCalc) rentCalc.style.display = 'none';
+                // Hide rental-specific sections
+                if (rentalStatusOptions) rentalStatusOptions.style.display = 'none';
+                if (furnishedOptionsSection) furnishedOptionsSection.style.display = 'none';
+                if (leaseDetailsSection) leaseDetailsSection.style.display = 'none';
+                if (listingTypeSection) listingTypeSection.style.display = 'none';
+                if (concessionsSection) concessionsSection.style.display = 'none';
+                if (leaseAvailabilitySection) leaseAvailabilitySection.style.display = 'none';
+                if (managementCompaniesSection) managementCompaniesSection.style.display = 'none';
+                // Show sale status options
+                if (saleStatusOptions) saleStatusOptions.style.display = 'block';
+                // Show sale-specific sections
+                if (saleFinancialDetailsSection) saleFinancialDetailsSection.style.display = 'block';
+                if (salePurchasingOptions) salePurchasingOptions.style.display = 'block';
+                // Show sale-specific date fields, hide rental date fields
+                if (saleContractSignedDate) saleContractSignedDate.style.display = 'block';
+                if (saleSoldClosedDate) saleSoldClosedDate.style.display = 'block';
+                if (rentalLeaseSignedDate) rentalLeaseSignedDate.style.display = 'none';
+                if (rentalRentedDate) rentalRentedDate.style.display = 'none';
+                // Show sale-specific commercial fields
+                if (saleCapRateSection) saleCapRateSection.style.display = 'block';
+                if (saleNOISection) saleNOISection.style.display = 'block';
+                // Show sale price row, hide rental price row
+                if (salePriceExpenseRow) salePriceExpenseRow.style.display = 'flex';
+                if (rentPriceExpenseRow) rentPriceExpenseRow.style.display = 'none';
+                // Show mortgage calculator for sales
+                if (mortgageCalculator) mortgageCalculator.style.display = 'block';
+            } else if (tab === 'rent') {
+                if (saleCalc) saleCalc.style.display = 'none';
+                if (rentCalc) rentCalc.style.display = 'block';
+                // Show rental-specific sections
+                if (rentalStatusOptions) rentalStatusOptions.style.display = 'block';
+                if (furnishedOptionsSection) furnishedOptionsSection.style.display = 'block';
+                if (leaseDetailsSection) leaseDetailsSection.style.display = 'block';
+                if (listingTypeSection) listingTypeSection.style.display = 'block';
+                if (concessionsSection) concessionsSection.style.display = 'block';
+                if (leaseAvailabilitySection) leaseAvailabilitySection.style.display = 'block';
+                if (managementCompaniesSection) managementCompaniesSection.style.display = 'block';
+                // Hide sale status options
+                if (saleStatusOptions) saleStatusOptions.style.display = 'none';
+                // Hide sale-specific sections
+                if (saleFinancialDetailsSection) saleFinancialDetailsSection.style.display = 'none';
+                if (salePurchasingOptions) salePurchasingOptions.style.display = 'none';
+                // Hide sale-specific date fields, show rental date fields
+                if (saleContractSignedDate) saleContractSignedDate.style.display = 'none';
+                if (saleSoldClosedDate) saleSoldClosedDate.style.display = 'none';
+                if (rentalLeaseSignedDate) rentalLeaseSignedDate.style.display = 'block';
+                if (rentalRentedDate) rentalRentedDate.style.display = 'block';
+                // Hide sale-specific commercial fields (Cap Rate, NOI are for investment sales)
+                if (saleCapRateSection) saleCapRateSection.style.display = 'none';
+                if (saleNOISection) saleNOISection.style.display = 'none';
+                // Show rental price row, hide sale price row
+                if (salePriceExpenseRow) salePriceExpenseRow.style.display = 'none';
+                if (rentPriceExpenseRow) rentPriceExpenseRow.style.display = 'flex';
+                // Hide mortgage calculator for rentals
+                if (mortgageCalculator) mortgageCalculator.style.display = 'none';
+            } else {
+                // Building search - hide both calculators and rental sections
+                if (saleCalc) saleCalc.style.display = 'none';
+                if (rentCalc) rentCalc.style.display = 'none';
+                if (rentalStatusOptions) rentalStatusOptions.style.display = 'none';
+                if (furnishedOptionsSection) furnishedOptionsSection.style.display = 'none';
+                if (leaseDetailsSection) leaseDetailsSection.style.display = 'none';
+                if (listingTypeSection) listingTypeSection.style.display = 'none';
+                if (concessionsSection) concessionsSection.style.display = 'none';
+                if (leaseAvailabilitySection) leaseAvailabilitySection.style.display = 'none';
+                if (managementCompaniesSection) managementCompaniesSection.style.display = 'none';
+                if (saleStatusOptions) saleStatusOptions.style.display = 'block';
+                // Show sale-specific sections for building search
+                if (saleFinancialDetailsSection) saleFinancialDetailsSection.style.display = 'block';
+                if (salePurchasingOptions) salePurchasingOptions.style.display = 'block';
+                // Show sale-specific date fields for building search
+                if (saleContractSignedDate) saleContractSignedDate.style.display = 'block';
+                if (saleSoldClosedDate) saleSoldClosedDate.style.display = 'block';
+                if (rentalLeaseSignedDate) rentalLeaseSignedDate.style.display = 'none';
+                if (rentalRentedDate) rentalRentedDate.style.display = 'none';
+                // Show sale-specific commercial fields for building search
+                if (saleCapRateSection) saleCapRateSection.style.display = 'block';
+                if (saleNOISection) saleNOISection.style.display = 'block';
+                // Default to sale price row for building search
+                if (salePriceExpenseRow) salePriceExpenseRow.style.display = 'flex';
+                if (rentPriceExpenseRow) rentPriceExpenseRow.style.display = 'none';
+                // Show mortgage calculator for building search
+                if (mortgageCalculator) mortgageCalculator.style.display = 'block';
+            }
+        }
+
+        // Legacy function - now calls toggleSearchTab
+        var currentSaleRentMode = 'sale';
+        function toggleSaleRent(type) {
+            currentSaleRentMode = type;
+            toggleSearchTab(type);
+        }
+
+        function toggleSearchMode(mode) {
+            var btnBasic = document.getElementById('btnSearchBasic');
+            var btnAdvanced = document.getElementById('btnSearchAdvanced');
+            var basicModeSales = document.getElementById('searchBasicMode');
+            var basicModeRental = document.getElementById('searchBasicModeRental');
+            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var advancedMode = document.getElementById('searchAdvancedMode');
+            var expandControls = document.getElementById('expandCollapseControls');
+
+            if (mode === 'basic') {
+                btnBasic.classList.remove('text-gray-500');
+                btnBasic.classList.add('bg-gray-900', 'text-white');
+                btnAdvanced.classList.remove('bg-gray-900', 'text-white');
+                btnAdvanced.classList.add('text-gray-500');
+                if (expandControls) expandControls.classList.add('hidden');
+
+                // Hide all first
+                if (basicModeSales) basicModeSales.style.display = 'none';
+                if (basicModeRental) basicModeRental.style.display = 'none';
+                if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+                if (advancedMode) advancedMode.style.display = 'none';
+
+                // Show the appropriate basic layout based on current tab
+                if (currentSearchTab === 'sale' && basicModeSales) {
+                    basicModeSales.style.display = 'block';
+                } else if (currentSearchTab === 'rent' && basicModeRental) {
+                    basicModeRental.style.display = 'block';
+                } else if (currentSearchTab === 'building' && basicModeBuilding) {
+                    basicModeBuilding.style.display = 'block';
+                }
+            } else {
+                btnAdvanced.classList.remove('text-gray-500');
+                btnAdvanced.classList.add('bg-gray-900', 'text-white');
+                btnBasic.classList.remove('bg-gray-900', 'text-white');
+                btnBasic.classList.add('text-gray-500');
+                if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
+
+                if (advancedMode) advancedMode.style.display = 'block';
+                if (basicModeSales) basicModeSales.style.display = 'none';
+                if (basicModeRental) basicModeRental.style.display = 'none';
+                if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+            }
+        }
+
+        function expandAllSections() {
+            var sections = document.querySelectorAll('#searchAdvancedMode .section-content');
+            var icons = document.querySelectorAll('#searchAdvancedMode .section-header i');
+            sections.forEach(function(s) { s.classList.remove('collapsed'); });
+            icons.forEach(function(i) { i.classList.remove('fa-plus'); i.classList.add('fa-minus'); });
+        }
+
+        function collapseAllSections() {
+            var sections = document.querySelectorAll('#searchAdvancedMode .section-content');
+            var icons = document.querySelectorAll('#searchAdvancedMode .section-header i');
+            sections.forEach(function(s) { s.classList.add('collapsed'); });
+            icons.forEach(function(i) { i.classList.remove('fa-minus'); i.classList.add('fa-plus'); });
+        }
+
+        function detectIDType(input) {
+            var value = input.value.toUpperCase().trim();
+            var hint = document.getElementById('idTypeHint');
+
+            if (!value) {
+                hint.textContent = '';
+                return;
+            }
+
+            if (value.startsWith('RLS')) {
+                hint.textContent = '🔍 Detected: RLS ID (REBNY Listing Service)';
+                hint.className = 'text-xs text-blue-600 mt-2 font-semibold';
+            } else if (value.startsWith('WEB')) {
+                hint.textContent = '🔍 Detected: Web ID (Website Listing Reference)';
+                hint.className = 'text-xs text-green-600 mt-2 font-semibold';
+            } else if (/^\d{6,}$/.test(value)) {
+                hint.textContent = '🔍 Detected: Internal Listing Number';
+                hint.className = 'text-xs text-purple-600 mt-2 font-semibold';
+            } else {
+                hint.textContent = '💡 Enter RLS ID, Web ID, or Internal Listing #';
+                hint.className = 'text-xs text-gray-500 mt-2';
+            }
+        }
+
+        // Add new ID search row
+        function addIdSearchRow() {
+            var container = document.getElementById('idSearchContainer');
+            var rowCount = container.querySelectorAll('.id-search-row').length;
+            var newRow = document.createElement('div');
+            newRow.className = 'id-search-row flex items-center gap-2 mb-2';
+            newRow.innerHTML = `
+                <input type="text" placeholder="Enter RLS ID, Web ID, or Internal Listing #"
+                       class="flex-1 border-2 border-blue-500 rounded-lg px-4 py-3 text-sm font-mono"
+                       oninput="detectIDType(this)">
+                <button type="button" onclick="removeSearchRow(this, 'id-search-row')" class="w-10 h-10 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center justify-center" title="Remove" aria-label="Remove">
+                    <i class="fas fa-minus"></i>
+                </button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        // Add new address search row
+        function addAddressSearchRow() {
+            var container = document.getElementById('addressSearchContainer');
+            var newRow = document.createElement('div');
+            newRow.className = 'address-search-row mb-2';
+            newRow.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <input type="text" placeholder="Enter Address or Building Name" class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                    <input type="text" placeholder="Unit #" class="w-24 border rounded-lg px-3 py-2 text-sm">
+                    <button type="button" onclick="removeSearchRow(this, 'address-search-row')" class="w-8 h-8 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center justify-center text-xs flex-shrink-0" title="Remove" aria-label="Remove">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        }
+
+        // Remove search row (for both ID and address)
+        function removeSearchRow(button, rowClass) {
+            var row = button.closest('.' + rowClass);
+            if (row) row.remove();
+        }
+
+        function toggleSearchType(type) {
+            var btnGeneral = document.getElementById('btnGeneralSearch');
+            var btnComparables = document.getElementById('btnComparables');
+            var generalSection = document.getElementById('generalSearchSection');
+            var comparablesSection = document.getElementById('comparablesSection');
+
+            if (type === 'general') {
+                btnGeneral.classList.add('border-b-3', 'border-blue-600', 'text-blue-700', 'bg-white');
+                btnGeneral.classList.remove('text-gray-700', 'border-transparent', 'bg-gray-50');
+                btnComparables.classList.remove('border-blue-600', 'border-purple-600', 'text-blue-700', 'text-purple-700', 'bg-white');
+                btnComparables.classList.add('text-gray-700', 'border-transparent', 'bg-gray-50');
+
+                generalSection.style.display = 'block';
+                comparablesSection.style.display = 'none';
+            } else {
+                btnComparables.classList.add('border-b-3', 'border-purple-600', 'text-purple-700', 'bg-white');
+                btnComparables.classList.remove('text-gray-700', 'border-transparent', 'bg-gray-50');
+                btnGeneral.classList.remove('border-blue-600', 'text-blue-700', 'bg-white');
+                btnGeneral.classList.add('text-gray-700', 'border-transparent', 'bg-gray-50');
+
+                comparablesSection.style.display = 'block';
+                generalSection.style.display = 'none';
+            }
+        }
+
+        function openCompPage(method) {
+            // Hide selection page
+            document.getElementById('comparablesSelectionPage').style.display = 'none';
+
+            // Show the selected page
+            if (method === 'property') {
+                document.getElementById('subjectPropertyPage').style.display = 'block';
+            } else if (method === 'building') {
+                document.getElementById('subjectBuildingsPage').style.display = 'block';
+            } else if (method === 'general') {
+                document.getElementById('generalCriteriaPage').style.display = 'block';
+            }
+        }
+
+        function backToCompSelection() {
+            // Hide all comp pages
+            document.querySelectorAll('.comparables-page').forEach(page => {
+                page.style.display = 'none';
+            });
+
+            // Show selection page
+            document.getElementById('comparablesSelectionPage').style.display = 'block';
+        }
+
+        function toggleCompSaleRent(type) {
+            // Selection page elements
+            var compSaleDates = document.getElementById('compSaleDates');
+            var compRentalDates = document.getElementById('compRentalDates');
+
+            // Subject Buildings page elements
+            var compBuildingPriceLabel = document.getElementById('compBuildingPriceLabel');
+            var compBuildingSaleDates = document.getElementById('compBuildingSaleDates');
+            var compBuildingRentalDates = document.getElementById('compBuildingRentalDates');
+
+            // General Criteria page elements
+            var compGeneralPriceLabel = document.getElementById('compGeneralPriceLabel');
+            var compGeneralSaleDates = document.getElementById('compGeneralSaleDates');
+            var compGeneralRentalDates = document.getElementById('compGeneralRentalDates');
+
+            // Update all sale/rent buttons in comparables
+            var saleBtns = ['btnCompSale', 'btnCompPropertySale', 'btnCompBuildingSale', 'btnCompGeneralSale'];
+            var rentBtns = ['btnCompRent', 'btnCompPropertyRent', 'btnCompBuildingRent', 'btnCompGeneralRent'];
+
+            if (type === 'sale') {
+                // Update button styling
+                saleBtns.forEach(id => {
+                    var btn = document.getElementById(id);
+                    if (btn) {
+                        btn.classList.remove('bg-gray-200', 'text-gray-700');
+                        btn.classList.add('bg-blue-600', 'text-white');
+                    }
+                });
+                rentBtns.forEach(id => {
+                    var btn = document.getElementById(id);
+                    if (btn) {
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                        btn.classList.add('bg-gray-200', 'text-gray-700');
+                    }
+                });
+
+                // Update labels to "Price"
+                if (compBuildingPriceLabel) compBuildingPriceLabel.textContent = 'Price';
+                if (compGeneralPriceLabel) compGeneralPriceLabel.textContent = 'Price';
+
+                // Show sale dates, hide rental dates
+                if (compSaleDates) compSaleDates.style.display = 'block';
+                if (compRentalDates) compRentalDates.style.display = 'none';
+                if (compBuildingSaleDates) compBuildingSaleDates.style.display = 'block';
+                if (compBuildingRentalDates) compBuildingRentalDates.style.display = 'none';
+                if (compGeneralSaleDates) compGeneralSaleDates.style.display = 'block';
+                if (compGeneralRentalDates) compGeneralRentalDates.style.display = 'none';
+            } else {
+                // Update button styling
+                rentBtns.forEach(id => {
+                    var btn = document.getElementById(id);
+                    if (btn) {
+                        btn.classList.remove('bg-gray-200', 'text-gray-700');
+                        btn.classList.add('bg-blue-600', 'text-white');
+                    }
+                });
+                saleBtns.forEach(id => {
+                    var btn = document.getElementById(id);
+                    if (btn) {
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                        btn.classList.add('bg-gray-200', 'text-gray-700');
+                    }
+                });
+
+                // Update labels to "Rent"
+                if (compBuildingPriceLabel) compBuildingPriceLabel.textContent = 'Rent';
+                if (compGeneralPriceLabel) compGeneralPriceLabel.textContent = 'Rent';
+
+                // Show rental dates, hide sale dates
+                if (compRentalDates) compRentalDates.style.display = 'block';
+                if (compSaleDates) compSaleDates.style.display = 'none';
+                if (compBuildingRentalDates) compBuildingRentalDates.style.display = 'block';
+                if (compBuildingSaleDates) compBuildingSaleDates.style.display = 'none';
+                if (compGeneralRentalDates) compGeneralRentalDates.style.display = 'block';
+                if (compGeneralSaleDates) compGeneralSaleDates.style.display = 'none';
+            }
+        }
+
+        function showCompResults(page) {
+            // Determine if we're in sale or rental mode by checking button states
+            var isSaleMode = true;
+
+            if (page === 'property') {
+                var btn = document.getElementById('btnCompPropertySale');
+                isSaleMode = btn && btn.classList.contains('bg-blue-600');
+            } else if (page === 'building') {
+                var btn = document.getElementById('btnCompBuildingSale');
+                isSaleMode = btn && btn.classList.contains('bg-blue-600');
+            } else if (page === 'general') {
+                var btn = document.getElementById('btnCompGeneralSale');
+                isSaleMode = btn && btn.classList.contains('bg-blue-600');
+            }
+
+            // Show results section and update label
+            var resultsDiv = document.getElementById(`comp${page.charAt(0).toUpperCase() + page.slice(1)}Results`);
+            var resultsTypeSpan = document.getElementById(`comp${page.charAt(0).toUpperCase() + page.slice(1)}ResultsType`);
+
+            if (resultsDiv) {
+                resultsDiv.style.display = 'block';
+            }
+
+            if (resultsTypeSpan) {
+                resultsTypeSpan.textContent = isSaleMode ? 'Comps for Sale' : 'Comps for Rental';
+            }
+        }
+

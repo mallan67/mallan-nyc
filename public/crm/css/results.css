@@ -1,0 +1,860 @@
+/* ═══════════════════════════════════════════════════════
+   RESULTS — Search results display styles
+   Source: SEARCH-STANDALONE.html (results-specific rules)
+   Note: Most result styles are in search-form.css (#searchResultsSection)
+   This file is reserved for additional result-only styles if needed.
+   ═══════════════════════════════════════════════════════ */
+
+/* Report version (customer/agent) handled dynamically by populateReportPreview() */
+
+/* ── Photo Lightbox — Full-screen photo viewer ── */
+.photo-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.photo-lightbox.open {
+    opacity: 1;
+    pointer-events: all;
+}
+.photo-lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    backdrop-filter: blur(8px);
+}
+.photo-lightbox-content {
+    position: relative;
+    z-index: 1;
+    max-width: 90vw;
+    max-height: 78vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.photo-lightbox-img {
+    max-width: 90vw;
+    max-height: 74vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    transition: opacity 0.2s ease;
+}
+.photo-lightbox-caption {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    letter-spacing: 0.02em;
+}
+.photo-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.photo-lightbox-close:hover {
+    background: rgba(255,255,255,0.2);
+}
+.photo-lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.photo-lightbox-nav:hover {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.25);
+}
+.photo-lightbox-prev { left: 16px; }
+.photo-lightbox-next { right: 16px; }
+.photo-lightbox-counter {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.1em;
+}
+/* Thumbnail strip at bottom */
+.photo-lightbox-strip {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+    max-width: 80vw;
+    overflow-x: auto;
+    padding: 6px 8px;
+    scrollbar-width: none;
+}
+.photo-lightbox-strip::-webkit-scrollbar { display: none; }
+.photo-lightbox-thumb {
+    flex-shrink: 0;
+    width: 56px;
+    height: 40px;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    opacity: 0.4;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+.photo-lightbox-thumb.active {
+    opacity: 1;
+    border-color: #fff;
+}
+.photo-lightbox-thumb:hover {
+    opacity: 0.8;
+}
+.photo-lightbox-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+@media (max-width: 768px) {
+    .photo-lightbox-nav { width: 36px; height: 36px; font-size: 14px; }
+    .photo-lightbox-prev { left: 8px; }
+    .photo-lightbox-next { right: 8px; }
+    .photo-lightbox-strip { bottom: 8px; max-width: 92vw; }
+    .photo-lightbox-thumb { width: 44px; height: 32px; }
+    .photo-lightbox-img { max-width: 96vw; max-height: 70vh; }
+}
+
+/* ── Detail Page Photo Grid — Uniform sizing ── */
+.detail-photo-grid {
+    border-radius: 12px;
+    overflow: hidden;
+}
+.detail-photo-grid > div:first-child {
+    min-height: 0;
+}
+.detail-thumbs > div {
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f1f5f9;
+    min-height: 0;
+}
+.detail-thumbs > div img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ── Cinematic Minimalism — bright, high-contrast, macro-whitespace ── */
+.cm-photo {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    filter: contrast(1.05) brightness(1.03);
+    transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                filter 0.5s ease;
+}
+.cm-photo-wrap {
+    overflow: hidden;
+    position: relative;
+    background: #f1f5f9;
+}
+.cm-photo-wrap:hover .cm-photo {
+    transform: scale(1.04);
+    filter: contrast(1.08) brightness(1.06);
+}
+/* Gradient overlay for text legibility on photos */
+.cm-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent 20%, rgba(0,0,0,0.45));
+}
+/* Gallery card photo — proper aspect ratio at any card width */
+.cm-card-photo {
+    aspect-ratio: 4/3;
+}
+
+/* ── Luxury Detail Page ── */
+.bg-gold { background: #B8860B; }
+.text-gold { color: #B8860B; }
+.border-gold { border-color: #B8860B; }
+
+/* Hero banners removed — clean white cards for print compatibility */
+
+.lux-btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    background: #fff;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+.lux-btn-outline:hover {
+    background: #f9fafb;
+    border-color: #1a1a1a;
+    color: #1a1a1a;
+}
+
+.lux-btn-gold {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #1a1a1a;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.lux-btn-gold:hover {
+    background: #333;
+}
+
+.lux-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lux-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.lux-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 4px;
+    font-size: 13px;
+}
+.lux-field span:first-child { color: #6b7280; font-size: 12px; }
+.lux-field span:last-child { font-weight: 600; color: #1a1a1a; font-size: 13px; }
+
+.lux-field-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 3px;
+}
+
+.lux-amenity-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    transition: all 0.15s ease;
+}
+.lux-amenity-card:hover {
+    border-color: #1a1a1a;
+    background: #f9fafb;
+}
+.lux-amenity-card i {
+    color: #9ca3af;
+    width: 14px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.lux-policy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid #f3f4f6;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.lux-score-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+}
+.lux-score-circle {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16px;
+    color: #1a1a1a;
+    flex-shrink: 0;
+    position: relative;
+}
+.lux-score-circle::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    background: #fff;
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.lux-media-thumb {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    aspect-ratio: 4/3;
+}
+.lux-media-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+.lux-media-thumb:hover img {
+    transform: scale(1.05);
+}
+.lux-media-thumb .caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 10px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.5));
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ── Agent-Only Sections (clean neutral) ── */
+.agent-only-section {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px 14px;
+    position: relative;
+}
+.agent-only-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 4px;
+}
+
+/* ── Detail Page Tab Navigation ── */
+.detail-tab {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    white-space: nowrap;
+}
+.detail-tab:hover {
+    color: #1a1a1a;
+}
+.detail-tab.active {
+    color: #1a1a1a;
+    border-bottom-color: #1a1a1a;
+}
+
+/* ── Luxury Sidebar — Primary Action Buttons ── */
+.sidebar-action-primary {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.sidebar-action-primary i {
+    font-size: 14px;
+    opacity: 0.85;
+}
+.sidebar-action-primary:hover {
+    background: #333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── Luxury Card ── */
+.sidebar-card-luxury {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* ── Section Labels ── */
+.sidebar-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #B8860B;
+}
+
+/* ── Agent Badge ── */
+.sidebar-badge-agent {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    background: linear-gradient(135deg, #f8f6f0, #f3f1ea);
+    color: #9a8a6e;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-radius: 4px;
+    border: 1px solid #e8e2d4;
+}
+
+/* ── Contact Links ── */
+.sidebar-contact-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #374151;
+    text-decoration: none;
+    padding: 4px 0;
+    transition: color 0.15s ease;
+}
+.sidebar-contact-link i {
+    color: #B8860B;
+    width: 14px;
+    text-align: center;
+}
+.sidebar-contact-link:hover {
+    color: #B8860B;
+}
+
+/* ── Tool Buttons (Financial, Quick Actions) ── */
+.sidebar-tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #f0efe9;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #555;
+    background: #fafaf7;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+}
+.sidebar-tool-btn:hover {
+    border-color: #B8860B;
+    background: #fffdf5;
+    color: #1a1a1a;
+    box-shadow: 0 1px 4px rgba(184,134,11,0.08);
+}
+.sidebar-tool-btn i {
+    width: 14px;
+    text-align: center;
+    color: #c4a85c;
+    font-size: 10px;
+}
+.sidebar-tool-btn:hover i {
+    color: #B8860B;
+}
+
+/* ── Legacy (keep for non-sidebar uses) ── */
+.output-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+}
+.output-action-btn:hover {
+    border-color: #1a1a1a;
+    background: #f9fafb;
+    color: #1a1a1a;
+}
+.output-action-btn i {
+    width: 14px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 11px;
+}
+.output-action-btn:hover i {
+    color: #374151;
+}
+
+/* ── Stats Row ── */
+.lux-stat-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+.lux-stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-right: 1px solid #f3f4f6;
+}
+.lux-stat-item:last-child {
+    border-right: none;
+}
+.lux-stat-value {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.2;
+}
+.lux-stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+    margin-top: 1px;
+}
+
+/* ── Key Feature Grid ── */
+.lux-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid #f3f4f6;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #374151;
+}
+.lux-feature-item i {
+    color: #6b7280;
+    width: 14px;
+    text-align: center;
+    font-size: 12px;
+}
+.lux-feature-item .feature-label {
+    color: #9ca3af;
+    font-size: 10px;
+}
+.lux-feature-item .feature-value {
+    font-weight: 600;
+}
+
+/* ── Send to Client Modal ── */
+.send-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.send-modal-content {
+    background: #fff;
+    border-radius: 16px;
+    width: 480px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.send-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.send-modal-body {
+    padding: 24px;
+}
+.send-format-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.send-format-option:hover {
+    border-color: #B8860B;
+    background: #fffbeb;
+}
+.send-format-option.selected {
+    border-color: #B8860B;
+    background: #fef3c7;
+}
+
+/* ── Responsive Detail Page ── */
+@media (max-width: 1024px) {
+    .detail-2col {
+        flex-direction: column !important;
+    }
+    .detail-sidebar {
+        width: 100% !important;
+        order: -1;
+    }
+}
+@media (max-width: 768px) {
+    .detail-photo-grid {
+        grid-template-columns: 1fr !important;
+        height: 240px !important;
+    }
+    .detail-photo-grid .detail-thumbs {
+        display: none !important;
+    }
+    .lux-stat-bar {
+        flex-wrap: wrap;
+    }
+    .lux-stat-item {
+        min-width: 33%;
+        padding: 8px 6px;
+    }
+    .lux-stat-value {
+        font-size: 15px;
+    }
+    .detail-tab {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+    .lux-card {
+        padding: 12px 14px;
+    }
+    .output-action-btn {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+    .sidebar-action-primary {
+        padding: 8px 4px;
+        font-size: 9px;
+    }
+    .sidebar-action-primary i {
+        font-size: 12px;
+    }
+    .sidebar-card-luxury {
+        padding: 12px;
+    }
+    .sidebar-tool-btn {
+        padding: 6px 8px;
+        font-size: 10px;
+    }
+}
+
+/* ══════════════════════════════════════════════════
+   MAP VIEW — Google Maps split-view styles
+   ══════════════════════════════════════════════════ */
+
+/* Price label pins */
+.map-pin-price {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 14px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 2px solid rgba(255,255,255,0.9);
+    line-height: 1.3;
+    text-align: center;
+    position: absolute;
+    transform: translate(-50%, -50%);
+}
+.map-pin-price:hover,
+.map-pin-price.active {
+    transform: translate(-50%, -50%) scale(1.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    z-index: 999 !important;
+}
+.map-pin-price.sale { background: #3b82f6; }
+.map-pin-price.rental { background: #22c55e; }
+.map-pin-price.coming-soon { background: #f59e0b; }
+.map-pin-price.selected {
+    border-color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+}
+
+/* Map popup card */
+.map-popup-card { width: 280px; font-family: Inter, system-ui, sans-serif; }
+.map-popup-photo {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 6px 6px 0 0;
+    display: block;
+}
+.map-popup-photo-placeholder {
+    width: 100%;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px 6px 0 0;
+    font-size: 24px;
+}
+.map-popup-body { padding: 10px 12px; }
+.map-popup-price { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+.map-popup-address { font-size: 12px; color: #6b7280; margin-top: 2px; line-height: 1.3; }
+.map-popup-details {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #374151;
+    font-weight: 500;
+}
+.map-popup-attr {
+    font-size: 9px;
+    color: #9ca3af;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #f3f4f6;
+    line-height: 1.3;
+}
+
+/* Map list items — left panel */
+.map-list-item {
+    transition: background 0.15s, border-color 0.15s;
+    border-left: 3px solid transparent;
+}
+.map-list-item:hover,
+.map-list-item.map-hover {
+    background: #eff6ff !important;
+    border-left-color: #3b82f6 !important;
+}
+.map-list-item.map-selected {
+    background: #dbeafe !important;
+    border-left-color: #1e40af !important;
+}
+
+/* Google Maps InfoWindow overrides */
+.gm-style-iw { padding: 0 !important; border-radius: 8px !important; overflow: hidden !important; }
+.gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
+.gm-style-iw-chr { position: absolute; top: 4px; right: 4px; z-index: 2; }
+.gm-style-iw-chr button { background: rgba(255,255,255,0.9) !important; border-radius: 50% !important; }
+
+/* Responsive map */
+@media (max-width: 768px) {
+    #mapViewContainer {
+        flex-direction: column-reverse !important;
+    }
+    #mapListPanel {
+        width: 100% !important;
+        max-height: 35vh !important;
+        border-right: none !important;
+        border-top: 1px solid #e5e7eb;
+    }
+    #mapPanel {
+        width: 100% !important;
+        min-height: 350px !important;
+    }
+    .map-pin-price { font-size: 10px; padding: 2px 6px; }
+    .map-popup-card { width: 240px; }
+    .map-popup-photo, .map-popup-photo-placeholder { height: 110px; }
+}
+
+/* ── Print Styles ── */
+@media print {
+    #listingDetailPage .print\:hidden { display: none !important; }
+    #listingDetailPage { position: static !important; overflow: visible !important; }
+    .agent-only-section { border-color: #ccc !important; background: #fafafa !important; }
+    .output-action-btn { display: none !important; }
+    .sidebar-action-primary { display: none !important; }
+    .sidebar-tool-btn { display: none !important; }
+    .lux-btn-gold { display: none !important; }
+}

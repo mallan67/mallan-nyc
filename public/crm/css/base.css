@@ -1,0 +1,199 @@
+/* ═══════════════════════════════════════════════════════
+   BASE — Variables, reset, fonts, theme, animations
+   Source: SEARCH-STANDALONE.html lines 36–168, 183–190, 396–470
+   ═══════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+}
+.font-display { font-family: 'Playfair Display', serif; }
+
+/* Clean Light Theme */
+.luxury-header { background: #FFFFFF; border-bottom: 1px solid #E5E7EB; }
+.luxury-sidebar { background: #FFFFFF; }
+.luxury-gold { color: #B8860B; }
+.luxury-gold-bg { background: #B8860B; }
+.luxury-border { border-color: #E5E7EB; }
+
+/* Sidebar Styling - Clean */
+.sidebar-link { transition: all 0.15s; color: #374151; }
+.sidebar-link:hover { background: #F3F4F6; color: #111827; }
+.sidebar-link.active { background: #EFF6FF; color: #1D4ED8; font-weight: 500; }
+
+/* Sidebar Section Headers (collapsible major groups) */
+.sidebar-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; cursor: pointer; -webkit-user-select: none; user-select: none;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.05em;
+    text-transform: uppercase; color: #111827; border-radius: 6px;
+    transition: background 0.15s;
+}
+.sidebar-section-header:hover { background: #F3F4F6; }
+.sidebar-section-header .chevron { transition: transform 0.2s; font-size: 10px; }
+.sidebar-section-header.collapsed .chevron { transform: rotate(-90deg); }
+.sidebar-section-body { overflow: hidden; transition: max-height 0.25s ease; }
+.sidebar-section-body.collapsed { max-height: 0 !important; overflow: hidden; }
+
+/* Sidebar Parent Items (expandable groups within a section) */
+.sidebar-parent-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 7px 12px; border-radius: 6px; font-size: 13px;
+    font-weight: 600; color: #374151; cursor: pointer; transition: background 0.15s;
+    text-align: left; background: none; border: none;
+}
+.sidebar-parent-btn:hover { background: #F3F4F6; }
+.sidebar-parent-btn .parent-chevron { transition: transform 0.2s; font-size: 9px; color: #9CA3AF; }
+.sidebar-parent-btn.expanded .parent-chevron { transform: rotate(90deg); }
+.sidebar-children { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+.sidebar-children.expanded { max-height: 500px; }
+
+/* Sidebar Child Items */
+.sidebar-child {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%; padding: 6px 12px 6px 28px; border-radius: 6px;
+    font-size: 12.5px; color: #6B7280; cursor: pointer;
+    transition: all 0.15s; text-align: left; background: none; border: none;
+}
+.sidebar-child:hover { background: #F3F4F6; color: #111827; }
+.sidebar-child.active { background: #EFF6FF; color: #1D4ED8; font-weight: 500; }
+
+/* Sidebar Dividers */
+.sidebar-divider { height: 1px; background: #E5E7EB; margin: 10px 8px; }
+
+/* In standalone mode, tab-content sections are always visible (managed by section wrappers) */
+.tab-content { display: block; }
+.tab-content.active { display: block; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.collapsible-section { border: 1px solid #E5E7EB; border-radius: 8px; margin-bottom: 16px; background: #F9FAFB; }
+.section-header { padding: 12px 16px; background: #F9FAFB; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; border-radius: 8px; }
+.section-header:hover { background: #F3F4F6; }
+.section-content { padding: 16px; background: #F9FAFB; border-radius: 0 0 8px 8px; }
+.section-content.collapsed { display: none; }
+
+/* Inner cards within collapsible sections */
+.section-content .inner-card { background: white; padding: 12px; border-radius: 8px; border: 1px solid #F3F4F6; }
+
+/* Stat Cards - Light Theme */
+.stat-card { background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%); border: 1px solid rgba(59, 130, 246, 0.3); }
+.stat-card-2 { background: linear-gradient(135deg, #B8860B 0%, #D4A843 100%); }
+.stat-card-3 { background: linear-gradient(135deg, #10B981 0%, #34D399 100%); border: 1px solid rgba(16, 185, 129, 0.3); }
+.stat-card-4 { background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%); border: 1px solid rgba(139, 92, 246, 0.3); }
+
+/* Tier Badges */
+.tier-standard { background: #6B7280; color: white; }
+.tier-premium { background: #3B82F6; color: white; }
+.tier-luxury { background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%); color: white; }
+.tier-ultra-luxury { background: linear-gradient(135deg, #C9A962 0%, #E8D5A3 100%); color: #78350F; }
+.tier-trophy { background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%); color: white; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); } }
+
+.neighborhood-tree details { margin-left: 12px; }
+.neighborhood-tree summary { cursor: pointer; padding: 4px 0; }
+.neighborhood-tree summary:hover { background: #F5F3F0; }
+.submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.submenu.open { max-height: 1000px; }
+.listing-step { animation: fadeIn 0.3s; }
+
+/* Portal-specific themes - Light Background */
+.portal-broker .luxury-sidebar { background: #F9FAFB; }
+.portal-agent .luxury-sidebar { background: #F9FAFB; }
+.portal-staff .luxury-sidebar { background: #F3F4F6; }
+.portal-client .luxury-sidebar { background: #F9FAFB; }
+.portal-investor .luxury-sidebar { background: #F9FAFB; }
+
+/* Luxury form inputs */
+.luxury-input { border: 1px solid rgba(201, 169, 98, 0.3); background: white; }
+.luxury-input:focus { border-color: #C9A962; box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.1); outline: none; }
+
+/* Gold accent button */
+.btn-luxury { background: linear-gradient(135deg, #C9A962 0%, #E8D5A3 100%); color: #78350F; font-weight: 600; }
+.btn-luxury:hover { background: linear-gradient(135deg, #E8D5A3 0%, #C9A962 100%); }
+
+/* Mobile Menu Toggle */
+.mobile-menu-btn { display: none; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+
+/* Normalize details/summary marker across browsers */
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::marker { display: none; content: ''; }
+
+/* Safari webkit prefixes for backdrop-filter */
+.backdrop-blur { -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+
+/* Access Level Badges */
+.access-broker { background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%); color: white; }
+.access-agent { background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%); color: white; }
+.access-readonly { background: #E5E7EB; color: #6B7280; }
+
+/* Fix overflow and alignment issues */
+select, input[type="text"], input[type="number"], input[type="email"],
+input[type="tel"], input[type="date"], input[type="time"], input[type="url"] { max-width: 100%; }
+.grid > div { min-width: 0; }
+
+/* Ensure main content area fills properly */
+.main-content {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Search box fixes */
+#searchBasicMode select,
+#searchBasicModeRental select,
+#searchBasicModeBuilding select {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Grid containment fix */
+.grid {
+    width: 100%;
+}
+.grid > * {
+    min-width: 0;
+}
+
+/* Focus styles — visible for accessibility */
+:focus-visible {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+/* Fix Tailwind v4 default border color (v3 used gray-200, v4 uses currentColor/black) */
+*, *::before, *::after {
+    border-color: #d1d5db; /* gray-300 — matches Tailwind v3 default */
+}
+
+/* Font Awesome icon protection — ensure Tailwind v4 preflight doesn't interfere */
+.fa, .fas, .far, .fab, .fal, .fat, .fad,
+.fa-solid, .fa-regular, .fa-brands, .fa-light, .fa-thin, .fa-duotone {
+    font-family: "Font Awesome 6 Free" !important;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1;
+    text-rendering: auto;
+    display: inline-block;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+.fas, .fa-solid { font-weight: 900 !important; }
+.far, .fa-regular { font-weight: 400 !important; }
+.fab, .fa-brands { font-family: "Font Awesome 6 Brands" !important; font-weight: 400 !important; }
+
+/* Softer placeholder text for selects and inputs */
+select.placeholder-active {
+    color: #9ca3af; /* gray-400 */
+}
+select.placeholder-active option {
+    color: #111827; /* gray-900 — real options stay dark in the dropdown */
+}
+input::placeholder {
+    color: #9ca3af; /* gray-400 */
+}

@@ -1,0 +1,251 @@
+        function initializeSearchResults() {
+            // Clean stale selectedListings — remove IDs that don't exist in current results
+            try {
+                var currentIds = (searchResultsState.filteredListings || mockListings).map(function(l) { return l.id; });
+                searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
+                    return currentIds.indexOf(id) !== -1;
+                });
+                localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
+                // Also filter out previously-removed listings from this session
+                var removedKey = 'removedListings_' + LOGGED_IN_AGENT.id;
+                var removed = JSON.parse(localStorage.getItem(removedKey)) || [];
+                if (removed.length > 0) {
+                    var removedSet = {};
+                    removed.forEach(function(id) { removedSet[id] = true; });
+                    var source = searchResultsState.filteredListings || mockListings.slice();
+                    searchResultsState.filteredListings = source.filter(function(l) { return !removedSet[l.id]; });
+                }
+            } catch(e) { /* silent */ }
+            try { renderSearchResults(); } catch(e) { /* silent */ }
+            try { updateSelectionActionBar(); } catch(e) { /* silent */ }
+            try { populateClientList(); } catch(e) { /* silent */ }
+            try { populateSavedSearchList(); } catch(e) { /* silent */ }
+            try { populateFieldSelectionGrid(); } catch(e) { /* silent */ }
+            try { populateSavedLayoutsList(); } catch(e) { /* silent */ }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // VIEW MODE FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        // ── View mode icons/labels (user-facing) ──
+        var VIEW_ICONS  = { grid: 'fa-list', gallery: 'fa-th-large', shortSummary: 'fa-align-left', summary: 'fa-bars', masterDetail: 'fa-columns', map: 'fa-map' };
+        var VIEW_LABELS = { grid: 'List', gallery: 'Grid', shortSummary: 'Short Summary', summary: 'Summary', masterDetail: 'Master Details', map: 'Map' };
+
+        // Tracks the last non-map view so the List button can restore it
+        var lastListViewMode = searchResultsState.viewMode !== 'map' ? searchResultsState.viewMode : 'gallery';
+
+        function toggleViewModeDropdown(event) {
+            var dd = document.getElementById('viewModeDropdown');
+            dd.classList.toggle('hidden');
+        }
+
+        // Called by dropdown items — sets the list results view mode
+        function setViewMode(mode) {
+            searchResultsState.viewMode = mode;
+            localStorage.setItem('searchResultsViewMode', mode);
+
+            // Track last non-map mode
+            if (mode !== 'map') {
+                lastListViewMode = mode;
+            }
+
+            // Update dropdown button to show the list mode (not map)
+            var displayMode = (mode === 'map') ? lastListViewMode : mode;
+            document.getElementById('viewModeIcon').className = 'fas ' + (VIEW_ICONS[displayMode] || 'fa-th-large');
+            document.getElementById('viewModeLabel').textContent = VIEW_LABELS[displayMode] || 'Grid';
+
+            // Hide dropdown
+            document.getElementById('viewModeDropdown').classList.add('hidden');
+
+            // Update List/Map toggle buttons
+            updateListMapToggle(mode === 'map' ? 'map' : 'list');
+
+            // Grid column headers
+            var gch = document.getElementById('gridColumnHeaders');
+            if (gch) gch.style.display = 'none';
+            var avgR = document.getElementById('averagesRow');
+            if (avgR) avgR.style.display = (mode === 'grid') ? 'flex' : 'none';
+
+            // Render results in new mode
+            renderSearchResults();
+        }
+
+        // Called by standalone List/Map buttons
+        function toggleListMapView(view) {
+            if (view === 'list') {
+                setViewMode(lastListViewMode);
+            } else {
+                setViewMode('map');
+            }
+        }
+
+        // Visual toggle for List/Map buttons
+        function updateListMapToggle(active) {
+            var listBtn = document.getElementById('btnListView');
+            var mapBtn = document.getElementById('btnMapView');
+            if (!listBtn || !mapBtn) return;
+            var onClass = 'px-2.5 py-1.5 bg-white text-gray-700 text-xs rounded-md shadow-sm font-medium transition-all';
+            var offClass = 'px-2.5 py-1.5 text-gray-500 text-xs rounded-md font-medium hover:text-gray-700 transition-all';
+            listBtn.className = (active === 'list') ? onClass : offClass;
+            mapBtn.className = (active === 'map') ? onClass : offClass;
+        }
+
+        // Close view mode dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            var dd = document.getElementById('viewModeDropdown');
+            var btn = document.getElementById('viewModeBtn');
+            if (dd && !dd.contains(e.target) && btn && !btn.contains(e.target)) {
+                dd.classList.add('hidden');
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // RENDER FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        function getFilteredListings(skipPagination) {
+            var listings = (searchResultsState.filteredListings || mockListings).slice();
+            // ══════════════════════════════════════════════════════════════════
+            // COMPLIANCE HARD-BLOCK (Defense-in-depth)
+            // ══════════════════════════════════════════════════════════════════
+            // REBNY Distribution Gates: These MUST be enforced regardless of upstream filtering.
+            // Gate 1: Owner Opt-Out → NEVER display (UCBA Art. I Sec. 4(A))
+            // Gate 2: Participant Only → RLS participants only, NOT for IDX/public display
+            // Gate 3: IDX Display Opted Out → NOT for IDX websites (InternetEntireListingDisplayYN=false)
+            // Gate 4: Syndication → SyndicateYN=false → NOT for third-party portals (no filter, badge only)
+            // Gate 5: Coming Soon → MlsStatus=ComingSoon → visible but no showings (no filter, badge + disable)
+            // Gate 6: Closed Status → suppress after 24 hours (filtered in search-engine.js)
+            //
+            // ── VOW vs IDX ARCHITECTURE (Production Implementation) ──
+            // Public visitors (no login) = IDX rules: limited fields, full attribution, no sold data
+            // Logged-in clients (VOW) = VOW rules: fuller data, sold/leased info, requires broker-consumer ack
+            // CRM agents (RLS) = Full data access, all fields, commission info (internal only)
+            // Implementation: Add auth layer to toggle Gate 2/3 filtering based on user role.
+            // VOW consumers must acknowledge broker relationship before viewing enhanced data.
+            //
+            // ── FAIR HOUSING LANGUAGE SCREENING (Production Implementation) ──
+            // Existing: Description text validator (debounced real-time, ~line 20245)
+            // TODO: Extend screening to search form inputs, client preference fields,
+            //       and agent-entered notes. Use same patterns from description validator.
+            //       Ref: REBNY "word and phrase list" per Fair Housing Act + NYS + NYC HRL.
+            // Production: VOW-authenticated clients may see Gate 2/3 listings — implement auth layer before enabling.
+            listings = listings.filter(function(l) {
+                var p = l.permissions || {};
+                if (p.ownerOptOut === true) return false;
+                if (p.participantOnly === true) return false;
+                if (l.idxDisplayYN === false || p.idxDisplay === false) return false;
+                return true;
+            });
+            // Apply status flag filters (picked, liked, shown, etc.)
+            if (typeof filterState !== 'undefined' && typeof listingFlags !== 'undefined') {
+                var activeFlags = [];
+                for (var fk in filterState.statusFilters) {
+                    if (filterState.statusFilters[fk]) activeFlags.push(fk);
+                }
+                if (activeFlags.length > 0) {
+                    listings = listings.filter(function(l) {
+                        return activeFlags.some(function(flag) {
+                            return listingFlags[l.id] && listingFlags[l.id][flag];
+                        });
+                    });
+                }
+            }
+            // Apply sorting
+            var field = searchResultsState.sortField;
+            var order = searchResultsState.sortOrder;
+            if (field) {
+                listings.sort(function(a, b) {
+                    var va = a[field], vb = b[field];
+                    if (va == null) va = '';
+                    if (vb == null) vb = '';
+                    if (typeof va === 'number' && typeof vb === 'number') {
+                        return order === 'asc' ? va - vb : vb - va;
+                    }
+                    va = String(va).toLowerCase();
+                    vb = String(vb).toLowerCase();
+                    if (va < vb) return order === 'asc' ? -1 : 1;
+                    if (va > vb) return order === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+            // Apply pagination unless explicitly skipped (e.g., for total count)
+            if (!skipPagination) {
+                var perPage = searchResultsState.perPage || 50;
+                var page = searchResultsState.currentPage || 1;
+                var start = (page - 1) * perPage;
+                listings = listings.slice(start, start + perPage);
+            }
+            return listings;
+        }
+
+        function renderSearchResults() {
+            var mode = searchResultsState.viewMode;
+
+            // Container display types: masterDetail and map use flex layout, others use block
+            var containerDisplay = {
+                gridViewContainer: 'block',
+                galleryViewContainer: 'block',
+                shortSummaryViewContainer: 'block',
+                summaryViewContainer: 'block',
+                masterDetailViewContainer: 'flex',
+                mapViewContainer: 'flex'
+            };
+
+            // Hide all containers using style.display (more reliable than class toggling with Tailwind CDN)
+            Object.keys(containerDisplay).forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            // Hide static grid column headers (replaced by dynamic <thead> in grid mode)
+            var staticHeaders = document.getElementById('gridColumnHeaders');
+            if (staticHeaders) staticHeaders.style.display = 'none';
+            var avgRow = document.getElementById('averagesRow');
+            if (avgRow) avgRow.style.display = (mode === 'grid') ? 'flex' : 'none';
+
+            // Show and render appropriate container
+            var activeContainer;
+            switch(mode) {
+                case 'grid':
+                    activeContainer = document.getElementById('gridViewContainer');
+                    if (activeContainer) activeContainer.style.display = containerDisplay.gridViewContainer;
+                    renderGridView();
+                    break;
+                case 'gallery':
+                    activeContainer = document.getElementById('galleryViewContainer');
+                    if (activeContainer) activeContainer.style.display = containerDisplay.galleryViewContainer;
+                    renderGalleryView();
+                    break;
+                case 'shortSummary':
+                    activeContainer = document.getElementById('shortSummaryViewContainer');
+                    if (activeContainer) activeContainer.style.display = containerDisplay.shortSummaryViewContainer;
+                    renderShortSummaryView();
+                    break;
+                case 'summary':
+                    activeContainer = document.getElementById('summaryViewContainer');
+                    if (activeContainer) activeContainer.style.display = containerDisplay.summaryViewContainer;
+                    renderSummaryView();
+                    break;
+                case 'masterDetail':
+                    activeContainer = document.getElementById('masterDetailViewContainer');
+                    if (activeContainer) activeContainer.style.display = containerDisplay.masterDetailViewContainer;
+                    renderMasterDetailView();
+                    break;
+                case 'map':
+                    activeContainer = document.getElementById('mapViewContainer');
+                    if (activeContainer) activeContainer.style.display = containerDisplay.mapViewContainer;
+                    renderMapView();
+                    break;
+            }
+
+            // Update counts after render
+            updateResultsCount();
+
+            // Run REBNY Test Suite after each render (non-blocking, silent)
+            if (typeof REBNYTestSuite === 'function') {
+                REBNYTestSuite({ verbose: false, context: 'render' });
+            }
+        }
+
+        // Column definitions for grid view — maps field IDs to header labels and cell renderers

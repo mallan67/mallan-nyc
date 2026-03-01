@@ -1,0 +1,330 @@
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // DATE RANGE PICKER — Dual-Month Calendar Component (SHARED)
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        // State for active picker
+        var activeDRP = null;
+        var drpFromDate = null;
+        var drpToDate = null;
+        var drpViewMonth = null; // { year, month } for left calendar
+        var drpSelectingFrom = true; // true = picking From, false = picking To
+
+        function formatDateMDY(d) {
+            if (!d) return '';
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            return mm + '/' + dd + '/' + d.getFullYear();
+        }
+
+        function parseDateMDY(str) {
+            if (!str) return null;
+            var parts = str.split('/');
+            if (parts.length !== 3) return null;
+            var d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function sameDay(a, b) {
+            if (!a || !b) return false;
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        }
+
+        function betweenDays(d, from, to) {
+            if (!d || !from || !to) return false;
+            var t = d.getTime();
+            var f = from.getTime();
+            var e = to.getTime();
+            return t > Math.min(f, e) && t < Math.max(f, e);
+        }
+
+        function buildMonthGrid(year, month, container) {
+            container.innerHTML = '';
+            var dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            dows.forEach(function(d) {
+                var el = document.createElement('div');
+                el.className = 'drp-dow';
+                el.textContent = d;
+                container.appendChild(el);
+            });
+            var firstDay = new Date(year, month, 1).getDay();
+            var daysInMonth = new Date(year, month + 1, 0).getDate();
+            var today = new Date();
+            // Previous month padding
+            var prevDays = new Date(year, month, 0).getDate();
+            for (var i = firstDay - 1; i >= 0; i--) {
+                var el = document.createElement('div');
+                el.className = 'drp-day other-month';
+                el.textContent = prevDays - i;
+                container.appendChild(el);
+            }
+            // Current month days
+            for (var d = 1; d <= daysInMonth; d++) {
+                var el = document.createElement('div');
+                el.className = 'drp-day';
+                var thisDate = new Date(year, month, d);
+                if (sameDay(thisDate, today)) el.classList.add('today');
+                if (sameDay(thisDate, drpFromDate) || sameDay(thisDate, drpToDate)) el.classList.add('selected');
+                if (drpFromDate && drpToDate && betweenDays(thisDate, drpFromDate, drpToDate)) el.classList.add('in-range');
+                el.textContent = d;
+                el.setAttribute('data-date', year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+                el.addEventListener('click', function() { onDRPDayClick(this); });
+                container.appendChild(el);
+            }
+            // Next month padding
+            var totalCells = container.children.length;
+            var remaining = (totalCells <= 42) ? 42 - totalCells : 0;
+            for (var i = 1; i <= remaining; i++) {
+                var el = document.createElement('div');
+                el.className = 'drp-day other-month';
+                el.textContent = i;
+                container.appendChild(el);
+            }
+        }
+
+        function renderDRPCalendar() {
+            if (!activeDRP) return;
+            var popup = activeDRP.querySelector('.drp-popup');
+            if (!popup) return;
+            var leftGrid = popup.querySelector('.drp-grid-left');
+            var rightGrid = popup.querySelector('.drp-grid-right');
+            var leftTitle = popup.querySelector('.drp-title-left');
+            var rightTitle = popup.querySelector('.drp-title-right');
+            var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            leftTitle.textContent = months[drpViewMonth.month] + ' ' + drpViewMonth.year;
+            var rightMonth = drpViewMonth.month + 1;
+            var rightYear = drpViewMonth.year;
+            if (rightMonth > 11) { rightMonth = 0; rightYear++; }
+            rightTitle.textContent = months[rightMonth] + ' ' + rightYear;
+            buildMonthGrid(drpViewMonth.year, drpViewMonth.month, leftGrid);
+            buildMonthGrid(rightYear, rightMonth, rightGrid);
+            // Update footer inputs
+            var fromInput = popup.querySelector('.drp-from-input');
+            var toInput = popup.querySelector('.drp-to-input');
+            if (fromInput) fromInput.value = formatDateMDY(drpFromDate);
+            if (toInput) toInput.value = formatDateMDY(drpToDate);
+        }
+
+        function onDRPDayClick(dayEl) {
+            if (dayEl.classList.contains('other-month')) return;
+            var dateStr = dayEl.getAttribute('data-date');
+            var parts = dateStr.split('-');
+            var clickedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            if (drpSelectingFrom || (drpFromDate && drpToDate)) {
+                // Start new range
+                drpFromDate = clickedDate;
+                drpToDate = null;
+                drpSelectingFrom = false;
+            } else {
+                // Complete range
+                drpToDate = clickedDate;
+                // Ensure from <= to
+                if (drpToDate < drpFromDate) {
+                    var temp = drpFromDate;
+                    drpFromDate = drpToDate;
+                    drpToDate = temp;
+                }
+                drpSelectingFrom = true;
+            }
+            renderDRPCalendar();
+        }
+
+        function drpPrevMonth() {
+            drpViewMonth.month--;
+            if (drpViewMonth.month < 0) { drpViewMonth.month = 11; drpViewMonth.year--; }
+            renderDRPCalendar();
+        }
+
+        function drpNextMonth() {
+            drpViewMonth.month++;
+            if (drpViewMonth.month > 11) { drpViewMonth.month = 0; drpViewMonth.year++; }
+            renderDRPCalendar();
+        }
+
+        function drpSetToday() {
+            var today = new Date();
+            drpFromDate = today;
+            drpToDate = today;
+            drpViewMonth = { year: today.getFullYear(), month: today.getMonth() };
+            drpSelectingFrom = true;
+            renderDRPCalendar();
+        }
+
+        function openDateRangePicker(triggerEl) {
+            var wrapper = triggerEl.closest('.drp-wrapper');
+            // Close any other open picker
+            closeAllDRP();
+            activeDRP = wrapper;
+            // Create popup if not exists
+            var existing = wrapper.querySelector('.drp-popup');
+            if (!existing) {
+                var popup = document.createElement('div');
+                popup.className = 'drp-popup';
+                popup.innerHTML = '' +
+                    '<div class="drp-months">' +
+                        '<div class="drp-month">' +
+                            '<div class="drp-month-header">' +
+                                '<button onclick="drpPrevMonth()">&#8249;</button>' +
+                                '<span class="drp-title-left"></span>' +
+                                '<span></span>' +
+                            '</div>' +
+                            '<div class="drp-grid drp-grid-left"></div>' +
+                        '</div>' +
+                        '<div class="drp-month">' +
+                            '<div class="drp-month-header">' +
+                                '<span></span>' +
+                                '<span class="drp-title-right"></span>' +
+                                '<button onclick="drpNextMonth()">&#8250;</button>' +
+                            '</div>' +
+                            '<div class="drp-grid drp-grid-right"></div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="drp-footer">' +
+                        '<select onchange="if(this.value===\'today\') drpSetToday()">' +
+                            '<option value="today">Today</option>' +
+                        '</select>' +
+                        '<label>From</label>' +
+                        '<input type="text" class="drp-from-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'from\')">' +
+                        '<label>To</label>' +
+                        '<input type="text" class="drp-to-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'to\')">' +
+                        '<div class="drp-actions">' +
+                            '<button class="drp-apply" onclick="applyDateRange()">Apply</button>' +
+                            '<button onclick="cancelDateRange()">Cancel</button>' +
+                            '<button onclick="clearDateRangeFromPopup()">Clear</button>' +
+                        '</div>' +
+                    '</div>';
+                popup.addEventListener('click', function(e) { e.stopPropagation(); });
+                wrapper.appendChild(popup);
+            }
+            // Initialize view
+            var now = new Date();
+            drpViewMonth = { year: now.getFullYear(), month: now.getMonth() };
+            // Check if wrapper already has stored dates
+            var storedFrom = wrapper.getAttribute('data-from');
+            var storedTo = wrapper.getAttribute('data-to');
+            if (storedFrom) {
+                drpFromDate = parseDateMDY(storedFrom);
+                drpToDate = parseDateMDY(storedTo);
+                if (drpFromDate) drpViewMonth = { year: drpFromDate.getFullYear(), month: drpFromDate.getMonth() };
+                drpSelectingFrom = true;
+            } else {
+                drpFromDate = null;
+                drpToDate = null;
+                drpSelectingFrom = true;
+            }
+            var popupEl = wrapper.querySelector('.drp-popup');
+            popupEl.classList.add('open');
+            // Position fixed popup relative to trigger
+            var trigger = wrapper.querySelector('.drp-trigger');
+            var rect = trigger.getBoundingClientRect();
+            var popupW = 520;
+            var leftPos = rect.left + (rect.width / 2) - (popupW / 2);
+            // Keep within viewport
+            if (leftPos < 8) leftPos = 8;
+            if (leftPos + popupW > window.innerWidth - 8) leftPos = window.innerWidth - popupW - 8;
+            popupEl.style.top = (rect.bottom + 4) + 'px';
+            popupEl.style.left = leftPos + 'px';
+            renderDRPCalendar();
+        }
+
+        function drpManualDateInput(input, which) {
+            var d = parseDateMDY(input.value);
+            if (!d) return;
+            if (which === 'from') drpFromDate = d;
+            else drpToDate = d;
+            if (drpFromDate && drpToDate && drpToDate < drpFromDate) {
+                var temp = drpFromDate;
+                drpFromDate = drpToDate;
+                drpToDate = temp;
+            }
+            renderDRPCalendar();
+        }
+
+        function applyDateRange() {
+            if (!activeDRP) return;
+            var trigger = activeDRP.querySelector('.drp-trigger');
+            var textEl = trigger.querySelector('.drp-text');
+            var clearBtn = trigger.querySelector('.drp-clear');
+            if (drpFromDate && drpToDate) {
+                textEl.textContent = formatDateMDY(drpFromDate) + ' - ' + formatDateMDY(drpToDate);
+                textEl.classList.add('has-value');
+                clearBtn.style.display = '';
+                activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
+                activeDRP.setAttribute('data-to', formatDateMDY(drpToDate));
+            } else if (drpFromDate) {
+                textEl.textContent = formatDateMDY(drpFromDate);
+                textEl.classList.add('has-value');
+                clearBtn.style.display = '';
+                activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
+                activeDRP.removeAttribute('data-to');
+            }
+            closeAllDRP();
+        }
+
+        function cancelDateRange() {
+            closeAllDRP();
+        }
+
+        function clearDateRangeFromPopup() {
+            drpFromDate = null;
+            drpToDate = null;
+            drpSelectingFrom = true;
+            renderDRPCalendar();
+        }
+
+        function clearDateRange(clearBtn) {
+            var wrapper = clearBtn.closest('.drp-wrapper');
+            var trigger = wrapper.querySelector('.drp-trigger');
+            var textEl = trigger.querySelector('.drp-text');
+            textEl.textContent = 'Select Date Range';
+            textEl.classList.remove('has-value');
+            clearBtn.style.display = 'none';
+            wrapper.removeAttribute('data-from');
+            wrapper.removeAttribute('data-to');
+        }
+
+        function closeAllDRP() {
+            document.querySelectorAll('.drp-popup.open').forEach(function(p) {
+                p.classList.remove('open');
+            });
+            activeDRP = null;
+        }
+
+        // Close picker when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.drp-wrapper')) {
+                closeAllDRP();
+            }
+        });
+
+        // Reposition popup on scroll (since it's position:fixed)
+        function repositionDRP() {
+            if (!activeDRP) return;
+            var popupEl = activeDRP.querySelector('.drp-popup.open');
+            if (!popupEl) return;
+            var trigger = activeDRP.querySelector('.drp-trigger');
+            var rect = trigger.getBoundingClientRect();
+            var popupW = 520;
+            var leftPos = rect.left + (rect.width / 2) - (popupW / 2);
+            if (leftPos < 8) leftPos = 8;
+            if (leftPos + popupW > window.innerWidth - 8) leftPos = window.innerWidth - popupW - 8;
+            // If trigger scrolled out of view, close the picker
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                closeAllDRP();
+                return;
+            }
+            popupEl.style.top = (rect.bottom + 4) + 'px';
+            popupEl.style.left = leftPos + 'px';
+        }
+        // Attach scroll listener to main content area and window
+        var mainContentEl = document.getElementById('mainContent');
+        if (mainContentEl) mainContentEl.addEventListener('scroll', repositionDRP);
+        window.addEventListener('scroll', repositionDRP);
+        window.addEventListener('resize', repositionDRP);
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // SIDEBAR SECTION & PARENT TOGGLE FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Collapse/expand a major sidebar section (Admin Dashboard, Broker/Agent, Tools)
+         */
