@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-// RENDER MAP — MapLibre GL JS + OpenFreeMap Positron vector tiles
+// RENDER MAP — MapLibre GL JS + OpenFreeMap Liberty vector tiles
 // Dependencies: maplibre-gl.js (loaded via CDN in <head>)
 // ═══════════════════════════════════════════════════════
 
@@ -68,7 +68,7 @@ function initGoogleMap() {
 
     _gmap = new maplibregl.Map({
         container: el,
-        style: 'https://tiles.openfreemap.org/styles/positron',
+        style: 'https://tiles.openfreemap.org/styles/liberty',
         center: [-73.9855, 40.7580],
         zoom: 13,
         attributionControl: true
