@@ -207,19 +207,19 @@ npm run dev
 ### Topology (Current)
 
 ```
-GitHub Pages (mockups)           Vercel (API + frontend)
-  search-modular/                  mallan-nyc/
-  ├── login.html          ──→     ├── app/api/auth/login
-  ├── CRM (FINAL2.html)   ──→     ├── app/api/crm/*
-  ├── index-built.html     ──→     ├── app/api/crm/listings
-  ├── SALE-FORM-WITH-TOOLS ──→     ├── app/api/crm/listings/[id]
-  └── RENTAL-FORM-WITH-TOOLS ──→   └── app/api/portal/*
+Vercel (mallan.nyc)
+  public/crm/                      app/api/
+  ├── login.html          ──→     ├── auth/login
+  ├── CRM (FINAL2.html)   ──→     ├── crm/*
+  ├── index-built.html     ──→     ├── crm/listings
+  ├── SALE-FORM-WITH-TOOLS ──→     ├── crm/listings/[id]
+  └── RENTAL-FORM-WITH-TOOLS ──→   └── portal/*
 ```
 
-- **Mockups:** `https://mallan67.github.io/search-modular/` (GitHub Pages)
+- **CRM Mockups:** `https://mallan.nyc/crm/` (same-origin static files)
 - **API:** `https://mallan.nyc/api/` (Vercel, Next.js 14 App Router)
 - **Database:** PostgreSQL on Neon (Prisma ORM)
-- **Auth:** Dual — Bearer token (cross-origin) + httpOnly cookie (same-origin)
+- **Auth:** httpOnly cookie (same-origin) + Bearer token fallback
 
 ### Cross-Origin Auth (Sprint 9)
 
@@ -304,6 +304,12 @@ GitHub Pages and mallan.nyc are different origins. Cookies (`SameSite=Lax`) don'
 - **Session:** DB-backed, 24hr expiry, auto-rotate within 1hr of expiry
 - **Audit:** All mutations logged to AuditEvent table
 - **CSP:** Content Security Policy via `vercel.json`
+
+---
+
+## Last Work Completed
+
+- **Sprint 10 (2026-03-01):** Moved CRM mockups to `public/crm/` for same-origin serving on Vercel. Redesigned login page. Fixed `DATABASE_URL` env var (was pointing to wrong Neon project). Removed exposed Google Maps API key from source — now served via `/api/config/maps-key` endpoint. Added `/crm/*` CSP headers and noindex directives.
 
 ---
 
