@@ -29314,7 +29314,7 @@ Equal Housing Opportunity
         // OPEN SEARCH — no PII in URL. Identity via session cookie.
         // ══════════════════════════════════════════════════════
         function openSearch(hash) {
-            window.open('index-built.html' + (hash ? '#' + hash : ''), '_blank', 'noopener,noreferrer');
+            window.open('/crm/search' + (hash ? '#' + hash : ''), '_blank', 'noopener,noreferrer');
         }
 
         // ══════════════════════════════════════════════════════
@@ -29575,13 +29575,13 @@ Equal Housing Opportunity
                     };
                 } else {
                     // Not authenticated — redirect to login
-                    window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+                    window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
                 }
             });
         }
         // Handle 401 events from API calls
         window.addEventListener('mallan:auth:unauthorized', function() {
-            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
         });
 
         // ══════════════════════════════════════════════════════
@@ -38010,7 +38010,7 @@ Equal Housing Opportunity
             // Actions
             { cat: 'Actions', label: 'New Sale Listing', icon: 'fa-plus-circle', action: function(){ if(typeof openListingForm==='function') openListingForm('sale'); else showToast('Sale listing form will open here.', 'info'); } },
             { cat: 'Actions', label: 'New Rental Listing', icon: 'fa-plus-circle', action: function(){ if(typeof openListingForm==='function') openListingForm('rental'); else showToast('Rental listing form will open here.', 'info'); } },
-            { cat: 'Actions', label: 'Open Property Search', icon: 'fa-search-location', action: function(){ if(typeof openSearch==='function') openSearch(); else window.open('index-built.html','_blank','noopener,noreferrer'); } },
+            { cat: 'Actions', label: 'Open Property Search', icon: 'fa-search-location', action: function(){ if(typeof openSearch==='function') openSearch(); else window.open('/crm/search','_blank','noopener,noreferrer'); } },
             { cat: 'Actions', label: 'Export Company Listings CSV', icon: 'fa-file-csv', action: function(){ showToast('Exporting 284 listings to CSV...', 'info'); } },
 
             // Portals

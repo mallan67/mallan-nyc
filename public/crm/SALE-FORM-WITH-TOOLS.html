@@ -5399,7 +5399,7 @@ function initLoggedInAgent() {
                 }
             } else {
                 // Not authenticated — redirect to login
-                window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+                window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
                 return;
             }
         });
@@ -5407,7 +5407,7 @@ function initLoggedInAgent() {
 }
 // Handle 401 events from API calls
 window.addEventListener('mallan:auth:unauthorized', function() {
-    window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+    window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
 });
 
 function cancelSaleForm() { /* No-op — viewer only */ }

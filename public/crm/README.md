@@ -7,33 +7,36 @@ All CRM/search mockup files live here. Edit them directly — no external copy s
 Previously these files were split between `search-modular` (Desktop) and `mallan-nyc` (Git/Vercel).
 As of March 2026, everything is consolidated here in one repo.
 
-## URLs
+## URLs (Clean)
 
-| URL | What |
-|-----|------|
-| `mallan.nyc/crm/login.html` | CRM login |
-| `mallan.nyc/crm/MALLAN-NYC-CRM-FINAL2.html` | CRM dashboard (Broker Admin + Agent Admin + 4 Client Portals) |
-| `mallan.nyc/crm/index-built.html` | Agent search (IDX — per-agent private) |
-| `mallan.nyc/crm/SALE-FORM-REDESIGN.html` | Sale listing submission form |
-| `mallan.nyc/crm/RENTAL-FORM-REDESIGN.html` | Rental listing submission form |
-| `mallan.nyc/crm/SALE-FORM-WITH-TOOLS.html` | Sale listing viewer (read-only) |
-| `mallan.nyc/crm/RENTAL-FORM-WITH-TOOLS.html` | Rental listing viewer (read-only) |
-| `mallan.nyc/crm/BUYER-DEAL-FORM.html` | Buyer deal / commission request (internal) |
-| `mallan.nyc/crm/TENANT-DEAL-FORM.html` | Tenant deal / commission request (internal) |
+All CRM pages use clean URLs via Vercel rewrites. The underlying HTML filenames still work but should not be used in links.
+
+| Clean URL | What | File |
+|-----------|------|------|
+| `mallan.nyc/crm/login` | CRM login | `login.html` |
+| `mallan.nyc/crm` | CRM dashboard | `MALLAN-NYC-CRM-FINAL2.html` |
+| `mallan.nyc/crm/dashboard` | CRM dashboard (alias) | `MALLAN-NYC-CRM-FINAL2.html` |
+| `mallan.nyc/crm/search` | Agent search (IDX) | `index-built.html` |
+| `mallan.nyc/crm/sale-listing` | Sale listing submission | `SALE-FORM-REDESIGN.html` |
+| `mallan.nyc/crm/rental-listing` | Rental listing submission | `RENTAL-FORM-REDESIGN.html` |
+| `mallan.nyc/crm/sale-view` | Sale listing viewer (read-only) | `SALE-FORM-WITH-TOOLS.html` |
+| `mallan.nyc/crm/rental-view` | Rental listing viewer (read-only) | `RENTAL-FORM-WITH-TOOLS.html` |
+| `mallan.nyc/crm/buyer-deal` | Buyer deal / commission request | `BUYER-DEAL-FORM.html` |
+| `mallan.nyc/crm/tenant-deal` | Tenant deal / commission request | `TENANT-DEAL-FORM.html` |
 
 ## File Structure
 
 ```
 public/crm/
-  login.html                      # Login page
-  MALLAN-NYC-CRM-FINAL2.html      # CRM hub
-  index-built.html                # IDX search (BUILD ARTIFACT — not in git)
-  SALE-FORM-REDESIGN.html         # Sale submission
-  SALE-FORM-WITH-TOOLS.html       # Sale viewer
-  RENTAL-FORM-REDESIGN.html       # Rental submission
-  RENTAL-FORM-WITH-TOOLS.html     # Rental viewer
-  BUYER-DEAL-FORM.html            # Buyer deal form
-  TENANT-DEAL-FORM.html           # Tenant deal form
+  login.html                      # Login page (/crm/login)
+  MALLAN-NYC-CRM-FINAL2.html      # CRM hub (/crm or /crm/dashboard)
+  index-built.html                # IDX search (/crm/search) — BUILD ARTIFACT, not in git
+  SALE-FORM-REDESIGN.html         # Sale submission (/crm/sale-listing)
+  SALE-FORM-WITH-TOOLS.html       # Sale viewer (/crm/sale-view)
+  RENTAL-FORM-REDESIGN.html       # Rental submission (/crm/rental-listing)
+  RENTAL-FORM-WITH-TOOLS.html     # Rental viewer (/crm/rental-view)
+  BUYER-DEAL-FORM.html            # Buyer deal form (/crm/buyer-deal)
+  TENANT-DEAL-FORM.html           # Tenant deal form (/crm/tenant-deal)
   css/                            # 8 stylesheets
   js/                             # Runtime JS (9 subdirs)
   html/                           # Section partials + modals (build source)
@@ -70,12 +73,9 @@ npm run crm:test
 
 - `/crm/*` paths have `X-Robots-Tag: noindex, nofollow` header (set in `vercel.json`)
 - Development files (`html/`, `tests/`, `scripts/`, `build.js`, `index.html`) return 404 via middleware
-- HTML files have their own JS-based auth gates that redirect to `login.html`
+- HTML files have their own JS-based auth gates that redirect to `/crm/login`
 - API calls go to `/api/crm/*` and `/api/portal/*` which require session cookie or Bearer token
 
-## Why No Code Changes Were Needed
+## Internal Link Convention
 
-- All HTML file references use **relative paths** (`login.html`, `MALLAN-NYC-CRM-FINAL2.html`, etc.)
-- `api-client.js` defaults to empty `_baseUrl` (same-origin) — only sets `https://mallan.nyc` when NOT on mallan.nyc
-- CSS/JS are either inline or loaded via relative paths (`js/core/api-client.js`)
-- Login redirect defaults to `MALLAN-NYC-CRM-FINAL2.html` (relative)
+All internal links use clean URLs (`/crm/dashboard`, `/crm/login`, `/crm/search`), not raw filenames. This is enforced by Vercel rewrites in `vercel.json`.
