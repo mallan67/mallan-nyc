@@ -124,20 +124,86 @@ export function sanitizeForPortal(
   listing: Record<string, unknown>,
   portalRole: string
 ): Record<string, unknown> {
-  // Start with public sanitization
-  const result = sanitizeForPublic(listing);
-
+  // Capture agent_info before public sanitization strips it
+  const agentInfo = listing.agent_info as Record<string, unknown> | null | undefined;
   const isBuyerOrTenant = portalRole === "buyer" || portalRole === "tenant";
 
-  // Agent info masking for buyer/tenant portals
-  if (isBuyerOrTenant && result.agent_info && typeof result.agent_info === "object") {
-    const agentInfo = result.agent_info as Record<string, unknown>;
-    result.agent_info = {
-      company: agentInfo.company ?? agentInfo.ListOfficeName ?? null,
-    };
+  // Apply public sanitization (strips CRM_ONLY_FIELDS including agent_info)
+  const result = sanitizeForPublic(listing);
+
+  // Re-add agent_info in appropriate shape
+  if (isBuyerOrTenant) {
+    result.agent_info = agentInfo
+      ? { company: agentInfo.company ?? agentInfo.ListOfficeName ?? null }
+      : null;
+  } else {
+    // Seller/landlord sees their agent's info
+    result.agent_info = agentInfo ?? null;
   }
 
   return result;
+}
+
+// ─── Prisma-model helpers for portal endpoints ──────────────────────────
+
+/** Listing fields needed by portal sanitization */
+export type PortalListingInput = {
+  id: bigint;
+  listing_id: string;
+  status: string;
+  listing_type: string;
+  property_type: string | null;
+  property_sub_type: string | null;
+  list_price: unknown;
+  bedrooms_total: number | null;
+  bathrooms_full: number | null;
+  bathrooms_half: number | null;
+  living_area: unknown;
+  borough: string | null;
+  neighborhood: string | null;
+  address: unknown;
+  features: unknown;
+  media: unknown;
+  agent_info: unknown;
+  internet_address_display_yn: boolean;
+  owner_opt_out: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * Convert a Prisma Listing into a portal-safe object.
+ * Canonical function for ALL /api/portal/** endpoints that return listing data.
+ * Enforces: owner opt-out exclusion, address suppression, agent PII masking, CRM field stripping.
+ */
+export function sanitizeListingForPortal(
+  listing: PortalListingInput,
+  portalRole: string
+): Record<string, unknown> | null {
+  // Owner opt-out: listing must not be shown at all
+  if (listing.owner_opt_out) return null;
+
+  const flat: Record<string, unknown> = {
+    id: listing.id.toString(),
+    listing_id: listing.listing_id,
+    status: listing.status,
+    listing_type: listing.listing_type,
+    property_type: listing.property_type,
+    property_sub_type: listing.property_sub_type,
+    list_price: listing.list_price?.toString() ?? null,
+    bedrooms_total: listing.bedrooms_total,
+    bathrooms_full: listing.bathrooms_full,
+    bathrooms_half: listing.bathrooms_half,
+    living_area: listing.living_area?.toString() ?? null,
+    borough: listing.borough,
+    neighborhood: listing.neighborhood,
+    address: listing.address,
+    features: listing.features,
+    media: listing.media,
+    agent_info: listing.agent_info,
+    internet_address_display_yn: listing.internet_address_display_yn,
+  };
+
+  return sanitizeForPortal(flat, portalRole);
 }
 
 /**
