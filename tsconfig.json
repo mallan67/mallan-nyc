@@ -45,6 +45,7 @@
   "exclude": [
     "node_modules",
     "scripts",
-    "public/crm"
+    "public/crm",
+    "lib/rls-validator"
   ]
 }
