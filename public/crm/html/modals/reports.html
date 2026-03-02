@@ -1,0 +1,623 @@
+<!-- REPORTS MODAL (extracted from section-main) -->
+<div id="reportsModal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-4 border-b bg-gray-800 flex items-center justify-between flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-white">Reports</h3>
+                <p class="text-xs text-gray-400">(Maximum 250 Records Can Be Selected for a Report)</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="showFavoriteReportsDropdown()" class="text-sm text-gray-300 hover:text-white flex items-center gap-1">
+                    <i class="fas fa-bookmark"></i> Favorite Reports
+                </button>
+                <button onclick="previewReport()" class="text-sm text-gray-300 hover:text-white flex items-center gap-1">
+                    <i class="fas fa-eye"></i> Preview Report
+                </button>
+                <button onclick="closeReportsModal()" class="text-gray-400 hover:text-white" aria-label="Close">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Tabs -->
+        <div class="flex border-b bg-gray-700 flex-shrink-0">
+            <button onclick="switchReportTab('general')" id="reportTabGeneral" class="px-6 py-3 text-sm font-semibold text-white bg-blue-600">General Options</button>
+            <button onclick="switchReportTab('customize')" id="reportTabCustomize" class="px-6 py-3 text-sm font-semibold text-gray-300 hover:text-white">Customize</button>
+            <button onclick="switchReportTab('sortOrder')" id="reportTabSortOrder" class="px-6 py-3 text-sm font-semibold text-gray-300 hover:text-white">Edit Sort Order and Selections</button>
+        </div>
+        <!-- Modal Body -->
+        <div class="p-6 overflow-y-auto flex-1">
+            <!-- ══════ General Options Tab ══════ -->
+            <div id="reportGeneralOptions">
+                <!-- Step 1: Choose Format (single-select) -->
+                <section class="mb-6">
+                    <h4 class="text-blue-600 font-semibold mb-4">Step 1: Choose Format</h4>
+                    <div class="grid grid-cols-4 gap-3" data-step="format">
+                        <button type="button" class="report-tile p-4 border-2 border-blue-600 bg-blue-50 rounded-lg text-center" data-value="grid">
+                            <i class="fas fa-th-large text-2xl text-blue-600 mb-2"></i>
+                            <p class="text-sm font-semibold">Grid</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="list">
+                            <i class="fas fa-list text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">List</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="summary">
+                            <i class="fas fa-align-left text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Summary</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="detail">
+                            <i class="fas fa-file-alt text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Detail</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="factSheet">
+                            <i class="fas fa-clipboard-list text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Fact Sheet</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="cma">
+                            <i class="fas fa-chart-bar text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">CMA</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="openHouse">
+                            <i class="fas fa-home text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Open House</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="images">
+                            <i class="fas fa-images text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Images</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="comparison">
+                            <i class="fas fa-balance-scale text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Comparison</p>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Step 2: Choose Version (single-select) -->
+                <section class="mb-6">
+                    <h4 class="text-blue-600 font-semibold mb-4">Step 2: Choose Version</h4>
+                    <div class="flex gap-3" data-step="version">
+                        <button type="button" class="report-tile flex-1 p-4 border rounded-lg text-center hover:border-blue-300" data-value="customer">
+                            <i class="fas fa-user text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Customer Version</p>
+                        </button>
+                        <button type="button" class="report-tile flex-1 p-4 border rounded-lg text-center hover:border-blue-300" data-value="agent">
+                            <i class="fas fa-user-tie text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Agent Version</p>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Step 3: Choose Optional Content (multi-select checkboxes) -->
+                <section class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-blue-600 font-semibold">Step 3: Choose Optional Content</h4>
+                        <div class="flex gap-2">
+                            <button onclick="toggleAllReportOptions(true)" class="text-xs px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition" title="Check all options"><i class="fas fa-check-double mr-1"></i> Check All</button>
+                            <button onclick="toggleAllReportOptions(false)" class="text-xs px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-lg transition" title="Uncheck all options"><i class="fas fa-times mr-1"></i> Uncheck All</button>
+                            <button onclick="saveReportDefaults()" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition" title="Save current selections as default for this version"><i class="fas fa-save mr-1"></i> Save as Default</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-x-6 gap-y-2 text-sm" id="optionalContentOptions">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingTypeCompany"> Listing Type &amp; Company</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingContact"> Listing Contact</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="dom"> DOM</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="updatedSoldDate"> Updated/Sold Date</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="priceSqft"> Price / SqFt</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="originalPrice"> Original Price</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="nextOpenHouse"> Next Open House</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="mediaViewerLink"> Media Viewer Link</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingWebLink"> Listing Web Link</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="googleMapLink"> Google Map Link</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="acrisLink"> ACRIS Link</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingImages"> Listing Images</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="buildingImages"> Building Images</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="buildingSummaryCoverPage"> Building Summary Cover Page</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="customAgentComments"> Custom Agent Comments</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="importPersonalComments"> Import Personal Comments</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="commentsAboutCustomer"> Comments About Customer</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="appointmentTime"> Appointment Time</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="fullListingAddress" checked> Full Listing Address</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="streetNameOnly"> Street Name Only</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="crossStreets"> Cross Streets</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="priceRoom"> Price / Room</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="map"> Map</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="includeAverages"> Include Averages</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="numberListings"> Number Listings</label>
+                    </div>
+                    <!-- Media Quick Access (Photos, Video, 3D) -->
+                    <h5 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-4 mb-2">Media</h5>
+                    <div class="grid grid-cols-4 gap-x-6 gap-y-2 text-sm" id="mediaContentOptions">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="photoGallery"> <i class="fas fa-images text-blue-500"></i> Photo Gallery</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="virtualTour"> <i class="fas fa-vr-cardboard text-green-500"></i> 3D Virtual Tour</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="videoTour"> <i class="fas fa-video text-red-500"></i> Video Tour</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingFloorplans"> <i class="fas fa-drafting-compass text-purple-500"></i> Floor Plans</label>
+                    </div>
+                </section>
+
+                <!-- Photo Layout Options (shown for Fact Sheet + Detail formats) -->
+                <section class="mb-6 hidden" id="factSheetOptionsSection">
+                    <h5 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Photo Layout</h5>
+                    <div class="flex gap-6 items-center text-sm">
+                        <div class="flex items-center gap-2">
+                            <label class="font-semibold text-gray-700 text-xs">Photos:</label>
+                            <select id="fsPhotoCount" class="border rounded px-2 py-1.5 text-sm" onchange="reportState.options.factSheetPhotoCount = parseInt(this.value)">
+                                <option value="0">None</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4" selected>4</option>
+                                <option value="6">6</option>
+                                <option value="8">8</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="font-semibold text-gray-700 text-xs">Layout:</label>
+                            <button type="button" id="fsLayoutVertical" class="px-3 py-1.5 text-xs font-semibold rounded border-2 border-blue-600 bg-blue-50 text-blue-600" onclick="setFsLayout('vertical')"><i class="fas fa-grip-lines-vertical mr-1"></i>Vertical</button>
+                            <button type="button" id="fsLayoutHorizontal" class="px-3 py-1.5 text-xs font-semibold rounded border text-gray-500 hover:border-blue-300" onclick="setFsLayout('horizontal')"><i class="fas fa-grip-lines mr-1"></i>Horizontal</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Description Editor (shown when Detail/Fact Sheet/CMA format selected) -->
+                <section class="mb-6" id="reportDescriptionSection">
+                    <h4 class="text-blue-600 font-semibold mb-2">Edit Description <span class="text-xs font-normal text-gray-400 ml-1">(optional — modify listing description for this report)</span></h4>
+                    <textarea id="reportDescriptionEditor" class="w-full border rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-y focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition" rows="4" placeholder="Listing description will appear here when a listing is selected..."></textarea>
+                    <div class="flex items-center justify-between mt-1.5">
+                        <span class="text-xs text-gray-400" id="reportDescCharCount">0 characters</span>
+                        <button onclick="resetReportDescription()" class="text-xs text-blue-500 hover:underline">Reset to original</button>
+                    </div>
+                </section>
+
+                <!-- Step 4: Choose Output (single-select) -->
+                <section class="mb-6">
+                    <h4 class="text-blue-600 font-semibold mb-4">Step 4: Choose Output</h4>
+                    <div class="grid grid-cols-5 gap-3" data-step="output">
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="email">
+                            <i class="fas fa-envelope text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Email</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="print">
+                            <i class="fas fa-print text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Print</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="share">
+                            <i class="fas fa-link text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Shareable Link</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="csv">
+                            <i class="fas fa-file-csv text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">CSV</p>
+                        </button>
+                        <button type="button" class="report-tile p-4 border rounded-lg text-center hover:border-blue-300" data-value="excel">
+                            <i class="fas fa-file-excel text-2xl text-gray-400 mb-2"></i>
+                            <p class="text-sm">Excel</p>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Step 5: Email Recipient (shown only when Email output selected) -->
+                <section id="reportEmailRecipientSection" class="mb-6 hidden">
+                    <h4 class="text-blue-600 font-semibold mb-4">Step 5: Send To</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5"><i class="fas fa-users text-blue-500 mr-1"></i>Select from My Clients</label>
+                            <select id="reportRecipientClient" class="w-full border rounded-lg px-3 py-2.5 text-sm" onchange="reportClientSelected(this)">
+                                <option value="">— Choose a client —</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5"><i class="fas fa-envelope text-blue-500 mr-1"></i>Or enter email manually</label>
+                            <input type="email" id="reportRecipientEmail" class="w-full border rounded-lg px-3 py-2.5 text-sm" placeholder="recipient@example.com">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2"><i class="fas fa-info-circle mr-1"></i>Select a client to auto-fill their name and email, or type any email address.</p>
+                </section>
+
+                <!-- Report Title & Prepared For -->
+                <section class="mb-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Report Title</label>
+                            <input type="text" id="reportTitle" value="Property Report" class="w-full border rounded px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Prepared For</label>
+                            <input type="text" id="reportPreparedFor" placeholder="Client name" class="w-full border rounded px-3 py-2 text-sm">
+                        </div>
+                        <div class="flex items-end gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                                <input type="checkbox" class="w-4 h-4" id="reportAgentHeadshot" checked> Agent Headshot on Email
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Validation Errors -->
+                <div id="reportErrors" class="hidden mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" aria-live="polite"></div>
+            </div>
+
+            <!-- Customize Tab - Field Selection using Field Dictionaries -->
+            <div id="reportCustomizeOptions" class="hidden">
+                <!-- Listing Type Selector -->
+                <div class="mb-4 flex items-center gap-4">
+                    <label class="text-sm font-semibold text-gray-700">Report Type:</label>
+                    <div class="flex gap-2">
+                        <button onclick="setReportFieldType('sale')" id="reportTypeSale" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white">Sales</button>
+                        <button onclick="setReportFieldType('rental')" id="reportTypeRental" class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">Rentals</button>
+                        <button onclick="setReportFieldType('building')" id="reportTypeBuilding" class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">Buildings</button>
+                    </div>
+                    <div class="ml-auto flex items-center gap-2">
+                        <button onclick="selectAllReportFields()" class="px-3 py-1.5 text-xs border rounded hover:bg-gray-50">Select All</button>
+                        <button onclick="deselectAllReportFields()" class="px-3 py-1.5 text-xs border rounded hover:bg-gray-50">Deselect All</button>
+                    </div>
+                </div>
+
+                <!-- Sales Field Selection (default) -->
+                <div id="reportSalesFields" class="space-y-4">
+                    <!-- Essentials -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-blue-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-star"></i> Listing Essentials
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm" id="salesEssentialsFields">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="listingType" checked> Listing Type</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="status" checked> Status</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="price" checked> Price</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="maintCC" checked> Maint/CC</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="reTaxes" checked> RE Taxes</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="totalMonthly" checked> Total Monthly</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="availableDate"> Available Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="exclusiveStartDate"> Exclusive Start</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="exclusiveEndDate"> Exclusive End</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="virtualTourUrl"> Virtual Tour URL</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="videoTourUrl"> Video Tour URL</label>
+                        </div>
+                    </div>
+                    <!-- Unit Information -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-green-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-home"></i> Unit Information
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bedrooms" checked> Bedrooms</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="fullBathrooms" checked> Full Baths</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="halfBathrooms"> Half Baths</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="totalBathrooms" checked> Total Baths</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="totalRooms" checked> Total Rooms</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="approxInteriorSqft" checked> Interior SqFt</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="approxExteriorSqft"> Exterior SqFt</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="sqftSource"> SqFt Source</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="floor"> Floor</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="totalFloors"> Total Floors</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="unitNumber"> Unit Number</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="unitType"> Unit Type</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="condition"> Condition</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="exposures"> Exposures</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="viewType"> View Type</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="viewDescription"> View Description</label>
+                        </div>
+                    </div>
+                    <!-- Unit Features -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-purple-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-th-list"></i> Unit Features
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="airConditioning"> A/C</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="heating"> Heating</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="fireplace"> Fireplace</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="numFireplaces"> # Fireplaces</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="washerDryerInUnit"> W/D in Unit</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="dishwasher"> Dishwasher</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="privateOutdoorSpace"> Outdoor Space</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="outdoorSpaceType"> Outdoor Type</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="outdoorSpaceSqft"> Outdoor SqFt</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="homeOffice"> Home Office</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="ceilingHeight"> Ceiling Height</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="hardwoodFloors"> Hardwood Floors</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="privateStorage"> Storage</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="parkingIncluded"> Parking Incl</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="parkingSpaces"> Parking Spaces</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="smartHome"> Smart Home</label>
+                        </div>
+                    </div>
+                    <!-- Financing & Requirements -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-orange-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-dollar-sign"></i> Financing & Co-op/Condo Requirements
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="financingAllowed"> Financing %</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="flipTaxPercent"> Flip Tax %</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="flipTaxPaidBy"> Flip Tax Paid By</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="taxAbatement"> Tax Abatement</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="sponsorUnit"> Sponsor Unit</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="shares"> Shares</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="boardApprovalRequired"> Board Approval</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="firstRightOfRefusal"> First Right</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="petsAllowed"> Pets Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="sublettingAllowed"> Subletting</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="piedATerreAllowed"> Pied-a-Terre</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="guarantorsAllowed"> Guarantors</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="minimumDownPayment"> Min Down %</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="incomeRequirement"> Income Req</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="purchaseApplicationFee"> App Fee</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="moveInFee"> Move-In Fee</label>
+                        </div>
+                    </div>
+                    <!-- Commission & Contacts -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-gray-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-user-tie"></i> Commission & Agent Info
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="buyersBrokerCompensation"> Buyer Commission</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bonus"> Bonus</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bonusExpirationDate"> Bonus Exp Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bonusRemarks"> Bonus Remarks</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="primaryAgentName"> Agent Name</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="primaryAgentEmail"> Agent Email</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="primaryAgentPhone"> Agent Phone</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="listingOfficeName"> Office Name</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="coListingAgentName"> Co-Agent</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="showingInstructions"> Showing Info</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="lockboxInfo"> Lockbox</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="keyLocation"> Key Location</label>
+                        </div>
+                    </div>
+                    <!-- Dates & History -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-calendar-alt"></i> Dates & History
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="listedDate" checked> Listed Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="updatedDate"> Updated Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="contractSignedDate"> Contract Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="closingDate"> Closing Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="dom" checked> Days on Market</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="cdom"> Cum. DOM</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="originalPrice"> Original Price</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="priceChangeDate"> Price Change</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="previousSoldDate"> Prev Sold Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="previousSoldPrice"> Prev Sold Price</label>
+                        </div>
+                    </div>
+                    <!-- IDs & References -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-gray-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-hashtag"></i> IDs & External References
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="rlsId"> RLS ID</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="webId"> Web ID</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="mlsNumber"> MLS #</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="internalListingNumber"> Internal #</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="acrisId"> ACRIS ID</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bbl"> BBL</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bin"> BIN</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="taxBlock"> Tax Block</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="taxLot"> Tax Lot</label>
+                        </div>
+                    </div>
+                    <!-- Description -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-indigo-600 mb-3 flex items-center gap-2">
+                            <i class="fas fa-align-left"></i> Description & Marketing
+                        </h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="publicDescription"> Public Description</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="privateRemarks"> Private Remarks</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="marketingHeadline"> Headline</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="highlights"> Highlights</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="keyFeatures"> Key Features</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rental Fields (hidden by default) -->
+                <div id="reportRentalFields" class="space-y-4 hidden">
+                    <!-- Rental Essentials -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-blue-600 mb-3"><i class="fas fa-star"></i> Rental Essentials</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="listingType" checked> Listing Type</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="status" checked> Status</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="price" checked> Monthly Rent</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="availableDate" checked> Available Date</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="leaseTermMin"> Lease Term Min</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="leaseTermMax"> Lease Term Max</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="furnished"> Furnished</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="virtualTourUrl"> Virtual Tour</label>
+                        </div>
+                    </div>
+                    <!-- Rental Fees & Deposits -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-orange-600 mb-3"><i class="fas fa-dollar-sign"></i> Fees & Deposits</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="brokerFee"> Broker Fee</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="brokerFeeAmount"> Broker Fee Amount</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="ownerPays"> Owner Pays (OP)</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="concessions"> Concessions</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="securityDeposit"> Security Deposit</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="lastMonthRequired"> Last Month Req</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="moveInCost"> Move-In Cost</label>
+                        </div>
+                    </div>
+                    <!-- Rental Requirements -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-purple-600 mb-3"><i class="fas fa-clipboard-check"></i> Rental Requirements</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="incomeRequirement"> Income Req</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="creditScoreMin"> Credit Score Min</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="guarantorsAllowed"> Guarantors Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="studentsAllowed"> Students Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="employmentVerify"> Employment Verify</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="backgroundCheck"> Background Check</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="purchaseApplicationFee"> Application Fee</label>
+                        </div>
+                    </div>
+                    <!-- Rental Pet & Utilities -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-green-600 mb-3"><i class="fas fa-paw"></i> Pets & Utilities</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="petsAllowed"> Pets Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="petDeposit"> Pet Deposit</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="petRent"> Pet Rent</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="dogsAllowed"> Dogs Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="catsAllowed"> Cats Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="heatIncluded"> Heat Included</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="hotWaterIncluded"> Hot Water Incl</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="electricIncluded"> Electric Incl</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="gasIncluded"> Gas Incl</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="internetIncluded"> Internet Incl</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Building Fields (hidden by default) -->
+                <div id="reportBuildingFields" class="space-y-4 hidden">
+                    <!-- Building Essentials -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-blue-600 mb-3"><i class="fas fa-building"></i> Building Essentials</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="buildingName" checked> Building Name</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="buildingAddress" checked> Address</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="buildingNeighborhood" checked> Neighborhood</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="buildingZip" checked> Zip Code</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="buildingOwnership" checked> Ownership Type</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="yearBuilt" checked> Year Built</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="totalUnits" checked> Total Units</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="totalFloors" checked> Total Floors</label>
+                        </div>
+                    </div>
+                    <!-- Building Amenities -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-green-600 mb-3"><i class="fas fa-concierge-bell"></i> Amenities</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="doorman"> Doorman</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="concierge"> Concierge</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="elevator"> Elevator</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="laundry"> Laundry</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="fitnessCenter"> Fitness Center</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="pool"> Pool</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="roofDeck"> Roof Deck</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="lounge"> Lounge</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="businessCenter"> Business Center</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="coWorking"> Co-Working</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="playroom"> Playroom</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="petSpa"> Pet Spa</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="dogRun"> Dog Run</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="spaSauna"> Spa/Sauna</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bikeRoom"> Bike Room</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="evCharging"> EV Charging</label>
+                        </div>
+                    </div>
+                    <!-- Building Policies -->
+                    <div class="border rounded-lg p-4">
+                        <h5 class="text-sm font-bold text-purple-600 mb-3"><i class="fas fa-gavel"></i> Policies & Financials</h5>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="bldgPetsAllowed"> Pets Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="sublettingAllowed"> Subletting</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="piedATerreAllowed"> Pied-a-Terre</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="maxFinancing"> Max Financing</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="underlyingMortgage"> Underlying Mortgage</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="reserveFund"> Reserve Fund</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="taxAbatement"> Tax Abatement</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="j51"> J-51</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4 report-field" data-field="fourTwentyOneA"> 421-a</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Fields Count -->
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                    <span class="text-sm text-blue-700"><i class="fas fa-check-circle mr-2"></i><span id="selectedFieldsCount">15</span> fields selected for report</span>
+                    <button onclick="saveFieldSelection()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Save Selection</button>
+                </div>
+            </div>
+
+            <!-- Sort Order Tab -->
+            <div id="reportSortOrderOptions" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <!-- Sort By -->
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-700 mb-2">Sort Results By</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="price" checked class="w-4 h-4">
+                                <span class="text-sm">Price (Low to High)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="priceDesc" class="w-4 h-4">
+                                <span class="text-sm">Price (High to Low)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="address" class="w-4 h-4">
+                                <span class="text-sm">Address (A-Z)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="listedDate" class="w-4 h-4">
+                                <span class="text-sm">Listed Date (Newest)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="dom" class="w-4 h-4">
+                                <span class="text-sm">Days on Market</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="beds" class="w-4 h-4">
+                                <span class="text-sm">Bedrooms</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSort" value="sqft" class="w-4 h-4">
+                                <span class="text-sm">Square Feet</span>
+                            </label>
+                        </div>
+                    </div>
+                    <!-- Listing Selection -->
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-700 mb-2">Include in Report</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSelection" value="all" checked class="w-4 h-4">
+                                <span class="text-sm">All Results (<span id="reportAllCount">400</span>)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSelection" value="selected" class="w-4 h-4">
+                                <span class="text-sm">Selected Only (<span id="reportSelectedCount">0</span>)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSelection" value="picked" class="w-4 h-4">
+                                <span class="text-sm">Picked Listings (<span id="reportPickedCount">0</span>)</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="reportSelection" value="liked" class="w-4 h-4">
+                                <span class="text-sm">Liked Listings (<span id="reportLikedCount">0</span>)</span>
+                            </label>
+                        </div>
+                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p class="text-xs text-yellow-700"><i class="fas fa-exclamation-triangle mr-1"></i> Maximum 250 records per report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Reports Modal Footer -->
+        <div class="p-4 border-t bg-gray-100 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="closeReportsModal()" class="px-4 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                <button onclick="saveReportFavorite()" class="px-4 py-2 border bg-white rounded-lg text-sm hover:bg-gray-50">
+                    <i class="fas fa-star mr-1"></i> Save as Favorite
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="previewReport()" class="px-5 py-2.5 border bg-white rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fas fa-eye"></i> Preview Report
+                </button>
+                <button onclick="generateReport()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Generate & Send
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

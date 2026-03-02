@@ -1,9 +1,11 @@
 # CRM Mockups — `public/crm/`
 
-## Overview
+## This Is the Source of Truth
 
-CRM mockup files served same-origin from Vercel at `mallan.nyc/crm/`.
-Moved from GitHub Pages (`mallan67.github.io/search-modular/`) to eliminate CORS and Bearer token workarounds — cookies work natively on the same domain.
+All CRM/search mockup files live here. Edit them directly — no external copy step needed.
+
+Previously these files were split between `search-modular` (Desktop) and `mallan-nyc` (Git/Vercel).
+As of March 2026, everything is consolidated here in one repo.
 
 ## URLs
 
@@ -25,7 +27,7 @@ Moved from GitHub Pages (`mallan67.github.io/search-modular/`) to eliminate CORS
 public/crm/
   login.html                      # Login page
   MALLAN-NYC-CRM-FINAL2.html      # CRM hub
-  index-built.html                # IDX search
+  index-built.html                # IDX search (BUILD ARTIFACT — not in git)
   SALE-FORM-REDESIGN.html         # Sale submission
   SALE-FORM-WITH-TOOLS.html       # Sale viewer
   RENTAL-FORM-REDESIGN.html       # Rental submission
@@ -33,17 +35,43 @@ public/crm/
   BUYER-DEAL-FORM.html            # Buyer deal form
   TENANT-DEAL-FORM.html           # Tenant deal form
   css/                            # 8 stylesheets
-  js/                             # Runtime JS (9 subdirs, no _dead-code)
-    compliance/
-    core/                         # api-client.js lives here
-    crm/
-    init/
-    listing/
-    manage/
-    output/
-    render/
-    search/
+  js/                             # Runtime JS (9 subdirs)
+  html/                           # Section partials + modals (build source)
+  tests/                          # 29 test files
+  scripts/                        # 7 utility scripts
+  COMPLIANCE/                     # Compliance checklist
+  CONTRACTS/                      # API contract
+  docs/                           # Extraction plan
+  build.js                        # Assembles index-built.html from modular source
+  index.html                      # Source template for build.js
 ```
+
+## Build System
+
+`index-built.html` is a **build artifact** — it's assembled from `index.html` + `html/` partials + `css/` + `js/` by `build.js`.
+
+**It is NOT tracked in git.** Vercel generates it at deploy time via:
+
+```
+node public/crm/build.js && npm run build
+```
+
+To rebuild locally:
+```bash
+npm run crm:build
+```
+
+To run tests:
+```bash
+npm run crm:test
+```
+
+## Middleware Protection
+
+- `/crm/*` paths have `X-Robots-Tag: noindex, nofollow` header (set in `vercel.json`)
+- Development files (`html/`, `tests/`, `scripts/`, `build.js`, `index.html`) return 404 via middleware
+- HTML files have their own JS-based auth gates that redirect to `login.html`
+- API calls go to `/api/crm/*` and `/api/portal/*` which require session cookie or Bearer token
 
 ## Why No Code Changes Were Needed
 
@@ -51,18 +79,3 @@ public/crm/
 - `api-client.js` defaults to empty `_baseUrl` (same-origin) — only sets `https://mallan.nyc` when NOT on mallan.nyc
 - CSS/JS are either inline or loaded via relative paths (`js/core/api-client.js`)
 - Login redirect defaults to `MALLAN-NYC-CRM-FINAL2.html` (relative)
-
-## Middleware Protection
-
-- `/crm/*` paths have `X-Robots-Tag: noindex, nofollow` header (set in `middleware.ts`)
-- HTML files have their own JS-based auth gates that redirect to `login.html`
-- API calls go to `/api/crm/*` and `/api/portal/*` which require session cookie or Bearer token
-
-## Source
-
-Copied from `Desktop/1/Old/search-modular/` (the canonical mockup repo).
-Excluded: `*.backup-*.html`, `backups/`, `_dead-code/`, `.git/`, `node_modules/`, `docs/`, `html/`, `tests/`, `scripts/`.
-
-## Do NOT Edit Here
-
-These are copies. Edit the originals in `search-modular/` and re-copy.

@@ -1,0 +1,49 @@
+<!-- LISTING TYPE INFO MODAL (standalone) -->
+<div id="searchListingTypeInfoModal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between rounded-t-xl">
+            <h3 class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Type Guide</h3>
+            <button type="button" onclick="document.getElementById('searchListingTypeInfoModal').style.display='none'" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-5 space-y-4 text-sm">
+            <div class="border-l-4 border-blue-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Right to Sell / Lease <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToSell / ExclusiveRightToLease)</span></p>
+                <p class="text-gray-600 mt-1">The broker earns commission <strong>no matter who sells/leases the property</strong> — even if the owner finds the buyer/tenant themselves. Most common and most protective listing agreement.</p>
+                <p class="text-green-700 text-xs mt-1"><i class="fas fa-check-circle mr-1"></i>Full RLS distribution. Full commission protection.</p>
+            </div>
+            <div class="border-l-4 border-amber-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(ExclusiveAgency)</span></p>
+                <p class="text-gray-600 mt-1">One broker is the exclusive agent, <strong>but if the owner sells/leases themselves (no broker involved), they do NOT owe commission.</strong></p>
+                <p class="text-amber-700 text-xs mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>RLS eligible, but less commission protection for the agent.</p>
+            </div>
+            <div class="border-l-4 border-purple-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Right w/ Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
+                <p class="text-gray-600 mt-1">Same as Exclusive Right, <strong>except for specific named exceptions</strong> listed in the agreement. Commission owed on all other transactions.</p>
+                <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Exceptions documented in listing agreement.</p>
+            </div>
+            <div class="border-l-4 border-teal-500 pl-3">
+                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusive)</span></p>
+                <p class="text-gray-600 mt-1"><strong>Two brokers share the exclusive right.</strong> Either can sell/lease. Commission owed regardless of who finds the buyer/tenant.</p>
+                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both firms named on listing.</p>
+            </div>
+            <hr class="border-gray-200">
+            <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
+                <p class="font-bold text-blue-800">In-House (Company) <span class="text-[10px] text-red-500 font-semibold">NOT ON RLS</span></p>
+                <p class="text-gray-600 mt-1">Filters to <strong>Mallan Real Estate company-only listings</strong>. These are private listings not submitted to REBNY RLS, marketed exclusively by our agents.</p>
+                <p class="text-red-600 text-xs mt-1"><i class="fas fa-lock mr-1"></i>Internal only — no IDX, no syndication.</p>
+            </div>
+            <hr class="border-gray-200">
+            <div class="border-l-4 border-gray-400 pl-3">
+                <p class="font-bold text-gray-900">RLS: Private Owner Opt-Out</p>
+                <p class="text-gray-600 mt-1">Owner signed Exhibit B. Listing is on RLS but <strong>hidden from all public channels</strong>. Only visible to RLS Participants.</p>
+            </div>
+            <div class="border-l-4 border-gray-400 pl-3">
+                <p class="font-bold text-gray-900">RLS: Private Participant Only</p>
+                <p class="text-gray-600 mt-1">Broker-set restriction. Listing on RLS but not displayed publicly. <strong>Visible only to authorized RLS Participants.</strong></p>
+            </div>
+        </div>
+        <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
+            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. <strong>ListingAgreement</strong> maps to RESO standard. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
+        </div>
+    </div>
+</div>

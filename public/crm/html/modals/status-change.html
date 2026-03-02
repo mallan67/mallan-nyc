@@ -1,0 +1,17 @@
+<!-- MANAGE STATUS MODAL + TOAST (standalone) -->
+<div id="manageStatusModal" class="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-900">Change Status</h3>
+            <button onclick="document.getElementById('manageStatusModal').style.display='none'" class="text-gray-400 hover:text-gray-600" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <p id="manageStatusAddress" class="text-sm text-gray-500 mb-4"></p>
+        <div id="manageStatusOptions" class="flex flex-col gap-2"></div>
+    </div>
+</div>
+
+<!-- Manage Toast -->
+<div id="manageToast" class="fixed bottom-6 right-6 z-[250] bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 transition-all" style="display:none; opacity:0">
+    <i class="fas fa-check-circle text-green-400"></i>
+    <span id="manageToastMsg"></span>
+</div>

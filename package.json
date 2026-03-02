@@ -24,7 +24,9 @@
         "rls:generate": "node scripts/generate-rls-bindings.js",
         "rls:inject": "node scripts/inject-rls-attributes.js",
         "test:rls": "node scripts/test-rls-bindings.js",
-        "db:seed": "npx tsx prisma/seed.ts"
+        "db:seed": "npx tsx prisma/seed.ts",
+        "crm:build": "node public/crm/build.js",
+        "crm:test": "node public/crm/tests/05-test-suite-runner.js"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",

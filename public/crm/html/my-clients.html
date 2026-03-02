@@ -1,0 +1,388 @@
+<!-- SECTION: CLIENT MANAGEMENT -->
+<!-- Modals extracted: invite-client, schedule-showing, portfolio-comment -->
+<div id="section-client" class="p-4 sm:p-6 lg:p-8" style="display:none">
+
+    <div id="clientSubContent-clients">
+        <!-- Section Header -->
+        <div id="clientSectionHeader" class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900 tracking-tight">My Clients</h2>
+                <p class="text-sm text-gray-500 mt-1">Manage relationships, track deals, deliver curated listings</p>
+            </div>
+            <button onclick="openAddClientModal()" class="px-5 py-2.5 bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-all rounded-lg flex items-center gap-2 shadow-sm">
+                <i class="fas fa-plus text-xs"></i>Add Client
+            </button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div id="clientTabBar" class="flex items-center border-b border-gray-200 mb-5">
+            <button onclick="switchClientTab('active')" id="clientTabActive" class="client-status-tab px-4 py-3 text-sm font-semibold border-b-2 border-[#3B82F6] text-gray-900 bg-transparent transition-all">
+                All Clients <span id="clientTabActiveCount" class="ml-1 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-bold">4</span>
+            </button>
+            <button onclick="switchClientTab('dealPipeline')" id="clientTabDealPipeline" class="client-status-tab px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-transparent transition-all">
+                Lead Pipeline
+            </button>
+            <button onclick="switchClientTab('closed')" id="clientTabClosed" class="client-status-tab px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-transparent transition-all">
+                Closed Deals <span id="clientTabClosedCount" class="ml-1 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold">2</span>
+            </button>
+        </div>
+
+        <!-- Filter Bar -->
+        <div id="clientFilterBar" class="flex flex-col sm:flex-row gap-2 mb-4">
+            <div class="relative flex-1">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                <input type="text" placeholder="Search by name, email, neighborhood..." class="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 focus:outline-none transition-all" id="clientDirectorySearch" oninput="filterClientList()">
+            </div>
+            <select class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none cursor-pointer" id="clientTypeFilter" onchange="filterClientList()">
+                <option value="all">All Types</option>
+                <option value="buyer">Buyer</option>
+                <option value="renter">Renter</option>
+                <option value="seller">Seller</option>
+                <option value="landlord">Landlord</option>
+                <option value="investor">Investor</option>
+            </select>
+            <select class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none cursor-pointer" id="clientStageFilter" onchange="filterClientList()">
+                <option value="all">All Stages</option>
+                <option value="new_lead">New Lead</option>
+                <option value="qualified">Qualified</option>
+                <option value="requirements_confirmed">Req. Confirmed</option>
+                <option value="searching">Searching</option>
+                <option value="touring">Touring</option>
+                <option value="shortlist">Shortlist</option>
+                <option value="offer_prep">Offer Prep</option>
+                <option value="offer_submitted">Offer Submitted</option>
+                <option value="negotiation">Negotiation</option>
+                <option value="contract_signed">Contract Signed</option>
+                <option value="closing_scheduled">Closing Scheduled</option>
+                <option value="closed">Closed</option>
+            </select>
+            <select class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none cursor-pointer hidden sm:block" id="clientSortBy" onchange="sortClientGrid()">
+                <option value="name">Sort: Name</option>
+                <option value="pipeline">Sort: Pipeline Stage</option>
+                <option value="dealValue">Sort: Deal Value</option>
+                <option value="lastActivity">Sort: Last Activity</option>
+            </select>
+        </div>
+
+        <!-- Client Table View — sortable, filterable -->
+        <div id="clientTableView" class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[900px]" id="clientTable">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-gray-800 transition-colors" onclick="sortClientColumn('name')">Name <i class="fas fa-sort text-gray-300 ml-1 text-[9px]"></i></th>
+                            <th class="px-4 py-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-gray-800 transition-colors" onclick="sortClientColumn('type')">Role <i class="fas fa-sort text-gray-300 ml-1 text-[9px]"></i></th>
+                            <th class="px-4 py-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-gray-800 transition-colors" onclick="sortClientColumn('dealStage')">Stage <i class="fas fa-sort text-gray-300 ml-1 text-[9px]"></i></th>
+                            <th class="px-4 py-3 text-right cursor-pointer select-none whitespace-nowrap hover:text-gray-800 transition-colors" onclick="sortClientColumn('budget')">Budget <i class="fas fa-sort text-gray-300 ml-1 text-[9px]"></i></th>
+                            <th class="px-4 py-3 text-center whitespace-nowrap">BD</th>
+                            <th class="px-4 py-3 text-center whitespace-nowrap">BA</th>
+                            <th class="px-4 py-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-gray-800 transition-colors" onclick="sortClientColumn('neighborhood')">Neighborhood <i class="fas fa-sort text-gray-300 ml-1 text-[9px]"></i></th>
+                            <th class="px-4 py-3 text-left cursor-pointer select-none whitespace-nowrap hover:text-gray-800 transition-colors" onclick="sortClientColumn('lastActivity')">Activity <i class="fas fa-sort text-gray-300 ml-1 text-[9px]"></i></th>
+                            <th class="px-4 py-3 text-center whitespace-nowrap">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientTableBody" class="divide-y divide-gray-100">
+                        <!-- Rendered by renderClientGrid() -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Nurture Pipeline View -->
+        <div id="clientPipelineView" class="hidden">
+            <div id="pipelineSummaryBar" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6"></div>
+            <div id="pipelineContent" class="space-y-5"></div>
+        </div>
+
+        <!-- Lead Pipeline Kanban -->
+        <div id="dealPipelineContainer" style="display:none" class="mt-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Lead Pipeline</h3>
+                <div class="flex items-center gap-3 text-xs">
+                    <span id="pipelineActiveCount" class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full font-semibold">0 active</span>
+                    <span id="pipelineTotalValue" class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full font-semibold">$0 pipeline</span>
+                </div>
+            </div>
+            <div id="dealPipelineSummaryBar" class="flex items-center gap-1 mb-5 p-3 bg-gray-50 border border-gray-200 rounded-lg text-[10px] font-medium overflow-x-auto"></div>
+            <div id="pipelineKanbanBoard" class="flex gap-4 overflow-x-auto pb-4" style="min-height:400px"></div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- CLIENT WORKSPACE -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="clientWorkspace" class="hidden">
+            <!-- Navigation Breadcrumb Bar -->
+            <div class="bg-white border border-gray-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm shadow-sm">
+                <button onclick="showSearchSection('main')" class="text-blue-600 hover:text-blue-800 hover:underline transition-colors font-semibold flex items-center gap-1.5">
+                    <i class="fas fa-arrow-left text-xs"></i>Search
+                </button>
+                <i class="fas fa-chevron-right text-[10px] text-gray-300"></i>
+                <button onclick="closeClientWorkspace()" class="text-blue-600 hover:text-blue-800 hover:underline transition-colors font-semibold">All Clients</button>
+                <i class="fas fa-chevron-right text-[10px] text-gray-300"></i>
+                <span id="wsBreadcrumbClientName" class="text-gray-900 font-bold"></span>
+                <i class="fas fa-chevron-right text-[10px] text-gray-300 ws-breadcrumb-tab hidden"></i>
+                <span id="wsBreadcrumbTab" class="text-gray-600 font-medium ws-breadcrumb-tab hidden"></span>
+            </div>
+
+            <!-- Client Header Card -->
+            <div class="bg-white border border-gray-200 rounded-lg mb-5 overflow-hidden">
+                <!-- Top section: Name, badges, actions -->
+                <div class="p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <!-- Row 1: Name + Badges -->
+                            <div class="flex items-center gap-2.5 mb-1">
+                                <h2 id="wsClientName" class="text-xl sm:text-2xl font-bold text-gray-900 truncate"></h2>
+                                <span id="wsClientTypeBadge" class="text-[11px] px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0"></span>
+                                <span id="wsClientStatusBadge" class="text-[11px] px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0"></span>
+                            </div>
+                            <!-- Row 2: Deal Stage + Contact -->
+                            <div class="flex items-center gap-3 mb-2">
+                                <select id="wsDealStage" onchange="updateDealStage(currentWorkspaceClientId, this.value)" class="text-xs px-2.5 py-1 font-medium border border-gray-200 rounded-lg bg-white cursor-pointer hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-all text-gray-700">
+                                    <option value="new_lead">New Lead</option>
+                                    <option value="qualified">Qualified</option>
+                                    <option value="requirements_confirmed">Requirements Confirmed</option>
+                                    <option value="searching">Searching</option>
+                                    <option value="touring">Touring</option>
+                                    <option value="shortlist">Shortlist</option>
+                                    <option value="offer_prep">Offer Prep</option>
+                                    <option value="offer_submitted">Offer Submitted</option>
+                                    <option value="negotiation">Negotiation</option>
+                                    <option value="contract_signed">Contract Signed</option>
+                                    <option value="closing_scheduled">Closing Scheduled</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                                <span class="text-gray-300">|</span>
+                                <p id="wsClientSubtitle" class="text-sm text-gray-500"></p>
+                            </div>
+                            <!-- Row 3: Meta chips -->
+                            <div class="flex items-center gap-3 flex-wrap text-xs text-gray-400">
+                                <span id="wsLastActivityChip" class="hidden"><i class="fas fa-clock mr-0.5"></i><span id="wsLastActivityText"></span></span>
+                                <span id="wsLastContactedChip" class="hidden"><i class="fas fa-phone mr-0.5"></i><span id="wsLastContactedText"></span></span>
+                                <span id="wsComplianceBadge"><i class="fas fa-shield-alt mr-0.5 text-emerald-500"></i>No-VOW / Snapshot</span>
+                                <span class="text-emerald-500"><i class="fas fa-check-circle mr-0.5"></i>Compliant</span>
+                            </div>
+                        </div>
+                        <!-- Action buttons -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button onclick="openInviteModal(currentWorkspaceClientId)" class="px-3.5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-all hidden sm:inline-flex items-center gap-1.5" id="wsInviteBtn"><i class="fas fa-paper-plane text-xs text-gray-400"></i> Invite</button>
+                            <button onclick="enterViewAsClient(currentWorkspaceClientId)" class="px-3.5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-all hidden sm:inline-flex items-center gap-1.5" id="wsViewAsBtn"><i class="fas fa-eye text-xs text-gray-400"></i> View</button>
+                            <button onclick="editClientPreferences(currentWorkspaceClientId)" class="px-3.5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-all flex items-center gap-1.5"><i class="fas fa-pen text-xs text-gray-400"></i> Edit</button>
+                            <div class="relative">
+                                <button onclick="document.getElementById('wsMoreDropdown').classList.toggle('hidden')" class="w-9 h-9 border border-gray-200 rounded-lg text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center"><i class="fas fa-ellipsis-v text-sm"></i></button>
+                                <div id="wsMoreDropdown" class="hidden absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-20 w-56 py-1.5">
+                                    <p class="px-3.5 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Collections</p>
+                                    <button onclick="__MallanMock.createCollectionFromSelectedListings(currentWorkspaceClientId);document.getElementById('wsMoreDropdown').classList.add('hidden')" class="w-full text-left px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"><i class="fas fa-layer-group text-gray-400 mr-2.5 w-4 text-center"></i>Create Collection</button>
+                                    <button onclick="sendLatestClientCollection();document.getElementById('wsMoreDropdown').classList.add('hidden')" class="w-full text-left px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"><i class="fas fa-paper-plane text-gray-400 mr-2.5 w-4 text-center"></i>Send Latest</button>
+                                    <div class="border-t border-gray-100 my-1.5"></div>
+                                    <p class="px-3.5 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</p>
+                                    <button onclick="markClientClosed(currentWorkspaceClientId);document.getElementById('wsMoreDropdown').classList.add('hidden')" id="wsMarkClosedBtn" class="w-full text-left px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"><i class="fas fa-archive text-gray-400 mr-2.5 w-4 text-center"></i>Mark Closed</button>
+                                    <button onclick="markClientActive(currentWorkspaceClientId);document.getElementById('wsMoreDropdown').classList.add('hidden')" id="wsReactivateBtn" class="w-full text-left px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors hidden"><i class="fas fa-undo text-gray-400 mr-2.5 w-4 text-center"></i>Reactivate</button>
+                                    <div class="border-t border-gray-100 my-1.5"></div>
+                                    <button onclick="deleteClientConfirm(currentWorkspaceClientId);document.getElementById('wsMoreDropdown').classList.add('hidden')" class="w-full text-left px-3.5 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"><i class="fas fa-trash mr-2.5 w-4 text-center"></i>Delete Client</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Workspace Tabs — clean bottom border -->
+                <div class="border-t border-gray-100 px-5 sm:px-6 overflow-x-auto" id="wsTabPills">
+                    <div class="flex gap-0 -mb-px">
+                        <button onclick="switchWsContentTab('overview')" class="ws-content-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-[#3B82F6] text-gray-900 bg-transparent transition-all" data-tab="overview">Overview</button>
+                        <button onclick="switchWsContentTab('search')" class="ws-content-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-transparent transition-all" data-tab="search">Searches</button>
+                        <button onclick="switchWsContentTab('portfolio')" class="ws-content-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-transparent transition-all" data-tab="portfolio">Portfolio</button>
+                        <button onclick="switchWsContentTab('alerts')" class="ws-content-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-transparent transition-all relative" data-tab="alerts">Matches <span id="wsAlertBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold"></span></button>
+                        <button onclick="switchWsContentTab('activity')" class="ws-content-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-transparent transition-all" data-tab="activity">Activity</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions toolbar (subtle) -->
+            <div id="wsCommandBar" class="bg-white border border-gray-200 rounded-lg p-3 mb-4 hidden">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Quick Actions</span>
+                    <button onclick="cmdSendCollection()" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex items-center gap-1.5 transition-all"><i class="fas fa-paper-plane text-emerald-500 text-[10px]"></i>Send Collection</button>
+                    <button onclick="cmdCreateTour()" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex items-center gap-1.5 transition-all"><i class="fas fa-route text-purple-500 text-[10px]"></i>Create Tour</button>
+                    <button onclick="cmdGenerateReport()" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex items-center gap-1.5 transition-all"><i class="fas fa-file-alt text-blue-500 text-[10px]"></i>Report</button>
+                    <button onclick="cmdLogNote()" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex items-center gap-1.5 transition-all"><i class="fas fa-sticky-note text-blue-500 text-[10px]"></i>Note</button>
+                    <button onclick="cmdMessage()" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex items-center gap-1.5 transition-all"><i class="fas fa-comment-dots text-indigo-500 text-[10px]"></i>Message</button>
+                </div>
+            </div>
+
+            <!-- Tab Panels -->
+            <div id="wsTabOverview" class="ws-tab-panel">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-2">
+                                <div class="relative flex-1">
+                                    <i class="fas fa-hashtag absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
+                                    <input type="text" placeholder="Quick jump: enter listing ID (e.g., ML-2024-001)..." class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none transition-all" id="wsListingIdJump" onkeydown="if(event.key==='Enter')jumpToListing(this.value)">
+                                </div>
+                                <button onclick="jumpToListing(document.getElementById('wsListingIdJump').value)" class="px-3.5 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-all flex-shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            </div>
+                        </div>
+                        <div id="wsProfileCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsFinancialReadinessCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                        <div id="wsPreferencesCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsNotesIntelCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                        <div id="wsCoViewersCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsClosedInfoCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                        <div id="wsNurtureCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                    </div>
+                    <div class="space-y-4">
+                        <div id="wsDealHealthCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsQuickStats" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsTasksCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                        <div id="wsNextActionsCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                        <div id="wsCollectionsSummary" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 hidden"></div>
+                        <div id="wsDeliveryCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsInviteStatusCard" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                        <div id="wsShowings" class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="wsTabSearch" class="ws-tab-panel hidden">
+                <!-- Saved Searches — Full Width, Primary Content -->
+                <div id="wsSavedSearches" class="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4"></div>
+
+                <!-- Search Criteria Editor (inline — shown when editing a saved search) -->
+                <div id="wsSearchEditor" class="bg-white border border-blue-200 rounded-lg overflow-hidden mb-4 hidden">
+                    <div class="px-5 py-3 border-b border-blue-100 bg-blue-50 flex items-center justify-between">
+                        <h4 class="text-sm font-semibold text-blue-800"><i class="fas fa-pen mr-2"></i>Edit Search Criteria</h4>
+                        <button onclick="closeSearchEditor()" class="text-xs text-blue-600 hover:text-blue-800 font-medium"><i class="fas fa-times mr-1"></i>Cancel</button>
+                    </div>
+                    <div class="p-5">
+                        <input type="hidden" id="wsEditSearchId" value="">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Search Name</label>
+                                <input type="text" id="wsEditSearchName" placeholder="e.g. UWS 2BR under $2M" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Neighborhoods</label>
+                                <input type="text" id="wsEditNeighborhoods" placeholder="e.g. Upper West Side, Tribeca" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Bedrooms</label>
+                                <select id="wsEditBeds" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                                    <option value="">Any</option>
+                                    <option value="0">Studio</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4+</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Bathrooms</label>
+                                <select id="wsEditBaths" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                                    <option value="">Any</option>
+                                    <option value="1">1+</option>
+                                    <option value="2">2+</option>
+                                    <option value="3">3+</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Min Price</label>
+                                <input type="text" id="wsEditMinPrice" placeholder="$500,000" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Max Price</label>
+                                <input type="text" id="wsEditMaxPrice" placeholder="$2,000,000" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Property Type</label>
+                                <select id="wsEditPropertyType" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                                    <option value="">Any</option>
+                                    <option value="condo">Condo</option>
+                                    <option value="co-op">Co-op</option>
+                                    <option value="condop">Condop</option>
+                                    <option value="townhouse">Townhouse</option>
+                                    <option value="house">House</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Alert Frequency</label>
+                                <select id="wsEditAlertFreq" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                                    <option value="instant">Instant</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="off">Off</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                            <button onclick="closeSearchEditor()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">Cancel</button>
+                            <button onclick="saveSearchEdits()" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all font-medium"><i class="fas fa-save mr-1.5"></i>Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Criteria History + Neighborhood Heatmap — Side by Side Below -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div id="wsCriteriaHistory" class="bg-white border border-gray-200 rounded-lg p-5 hidden"></div>
+                    <div id="wsNeighborhoodHeatmap" class="bg-white border border-gray-200 rounded-lg p-5 hidden"></div>
+                </div>
+            </div>
+            <div id="wsTabPortfolio" class="ws-tab-panel hidden">
+                <div id="wsPortfolioStats" class="bg-white border border-gray-200 rounded-lg p-5 mb-4"></div>
+                <div id="wsPreferenceDriftCard" class="bg-white border border-gray-200 rounded-lg p-5 mb-4 hidden"></div>
+                <div id="wsCollectionsPanel" class="bg-white border border-gray-200 rounded-lg p-5 mb-4"></div>
+                <div id="wsPortfolioTimeline" class="bg-white border border-gray-200 rounded-lg p-5 mb-4 hidden"></div>
+                <div class="flex items-center justify-between mb-4">
+                    <div></div>
+                    <button onclick="emailClientPortfolio(currentWorkspaceClientId)" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-all"><i class="fas fa-envelope mr-2 text-blue-400"></i>Email Portfolio</button>
+                </div>
+                <div id="wsPortfolioListings" class="bg-white border border-gray-200 rounded-lg p-5"></div>
+            </div>
+            <div id="wsTabAlerts" class="ws-tab-panel hidden">
+                <div id="wsAlertQueue" class="space-y-4"></div>
+            </div>
+            <div id="wsTabActivity" class="ws-tab-panel hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div id="wsResponseMetrics" class="bg-white border border-gray-200 rounded-lg p-5"></div>
+                    <div id="wsCommunicationBreakdown" class="bg-white border border-gray-200 rounded-lg p-5"></div>
+                </div>
+                <div id="wsActivityLogDesktop" class="bg-white border border-gray-200 rounded-lg p-5"></div>
+                <div id="wsMessagesPanel" class="bg-white border border-gray-200 rounded-lg p-5 mt-4"></div>
+            </div>
+
+            <!-- Mobile sticky action bar -->
+            <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 flex gap-2 justify-center lg:hidden z-40 shadow-lg" id="wsMobileActions" style="display:none">
+                <button onclick="runClientQuickSearch(currentWorkspaceClientId)" class="flex-1 px-3 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg"><i class="fas fa-search mr-1.5 text-blue-500"></i>Search</button>
+                <button onclick="emailClientPortfolio(currentWorkspaceClientId)" class="flex-1 px-3 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg"><i class="fas fa-envelope mr-1.5 text-emerald-500"></i>Email</button>
+                <button onclick="openScheduleShowing(currentWorkspaceClientId)" class="flex-1 px-3 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg"><i class="fas fa-calendar mr-1.5 text-purple-500"></i>Schedule</button>
+            </div>
+        </div>
+
+    </div><!-- End clientSubContent-clients -->
+
+    <!-- VIEW AS CLIENT OVERLAY -->
+    <div id="viewAsClientOverlay" class="fixed inset-0 z-[100] hidden" style="background:#f8f8f6;">
+        <div class="bg-gray-900 text-white px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <span class="text-lg font-bold tracking-wider" style="color: #C4A052;">MALLAN</span>
+                <span class="text-[10px] px-2.5 py-1 bg-white/10 text-gray-300 font-medium tracking-wider uppercase rounded">Client Preview</span>
+            </div>
+            <button onclick="exitViewAsClient()" class="px-4 py-2 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all"><i class="fas fa-times mr-2"></i>Exit Preview</button>
+        </div>
+        <div class="max-w-4xl mx-auto px-8 py-5">
+            <p id="viewAsClientHeader" class="text-xl font-bold text-gray-900"></p>
+            <p class="text-sm text-gray-500 mt-1">This is what your client sees when they log in to their portal</p>
+        </div>
+        <div class="max-w-4xl mx-auto px-8 pb-8 overflow-y-auto" style="max-height:calc(100vh - 200px)">
+            <div id="viewAsClientListings" class="space-y-4"></div>
+        </div>
+        <div class="border-t border-gray-200 bg-white">
+            <div class="max-w-4xl mx-auto px-8 py-4 text-xs text-gray-500 space-y-1">
+                <p>Listing(s) courtesy of the REBNY Listing Service (RLS). Information is deemed reliable but not guaranteed.</p>
+                <p>Last Updated: <span id="viewAsClientTimestamp"></span></p>
+                <p class="font-semibold">Equal Housing Opportunity</p>
+            </div>
+        </div>
+    </div>
+
+</div>

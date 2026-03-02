@@ -151,6 +151,21 @@ export default function middleware(req: NextRequest) {
     rateLimitMap.set(syncKey, { count: 1, resetAt: now + SYNC_WINDOW_MS });
   }
 
+  // ── 4b. Block CRM development files from public access ──
+  // html/ partials, tests/, scripts/, build.js, index.html are source files — not for browsers
+  if (
+    pathname.startsWith("/crm/html/") ||
+    pathname.startsWith("/crm/tests/") ||
+    pathname.startsWith("/crm/scripts/") ||
+    pathname.startsWith("/crm/COMPLIANCE/") ||
+    pathname.startsWith("/crm/CONTRACTS/") ||
+    pathname.startsWith("/crm/docs/") ||
+    pathname === "/crm/build.js" ||
+    pathname === "/crm/index.html"
+  ) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
   // ── 5. CRM route protection ──
   // /api/crm/* requires a session_token cookie OR Bearer token (validated in route handler).
   // Edge middleware does a fast presence check; full DB validation
