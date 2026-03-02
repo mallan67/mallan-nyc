@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   // This is the backend enforcement layer that ensures compliance on live payloads,
   // not just mockup HTML (addresses the "validator exists ≠ enforcement exists" gap).
   const enforcement = assertRlsCompliantPayload(body, {
-    listingType,
+    listingType: listingType as "sale" | "rent",
     isNewDevelopment: body.NewDevelopmentYN === true,
     currentStatus: (body.MlsStatus as string) || undefined,
   });

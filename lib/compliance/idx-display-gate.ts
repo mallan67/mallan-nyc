@@ -98,31 +98,20 @@ export function sanitizeForPublicDisplay(listing: Listing): Listing {
   // Strip agent direct contact info from public display
   // (Public sees office/company name only, per REBNY display rules)
   if (sanitized.agent && typeof sanitized.agent === 'object') {
-    const agent = { ...(sanitized.agent as Record<string, unknown>) };
-    delete agent.email;
-    delete agent.directPhone;
-    delete agent.personalPhone;
-    delete agent.ListAgentEmail;
-    delete agent.ListAgentDirectPhone;
-    sanitized.agent = agent as typeof sanitized.agent;
+    const { listAgentEmail, listAgentPhone, ...safeAgent } = sanitized.agent;
+    void listAgentEmail; void listAgentPhone;
+    sanitized.agent = safeAgent as typeof sanitized.agent;
   }
-
-  // Strip internal-only fields that should never appear in IDX responses
-  const internal = sanitized as unknown as Record<string, unknown>;
-  delete internal.raw_data;
-  delete internal.sync_status;
-  delete internal.last_synced_from_trestle;
 
   // Address suppression per InternetAddressDisplayYN
   if (!canDisplayAddress(listing)) {
     if (sanitized.address && typeof sanitized.address === 'object') {
       sanitized.address = {
         ...sanitized.address,
-        street: 'Address Undisclosed',
-        streetNumber: undefined,
-        streetName: undefined,
-        unit: undefined,
-      } as typeof sanitized.address;
+        streetNumber: '',
+        streetName: 'Address Undisclosed',
+        unit: '',
+      };
     }
   }
 
