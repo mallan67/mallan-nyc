@@ -15,7 +15,7 @@ export default function ExclusivesVault() {
     if (hasAuth) setIsUnlocked(true);
   }, []);
 
-  const handleUnlock = () => {
+  const _handleUnlock = () => {
     // In production, this would open the sign-in flow
     // For now, simulate unlock
     setIsUnlocked(true);

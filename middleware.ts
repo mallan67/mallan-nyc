@@ -42,7 +42,7 @@ function setCorsHeaders(response: NextResponse, origin: string): NextResponse {
   response.headers.set("Access-Control-Allow-Origin", origin);
   response.headers.set("Access-Control-Allow-Credentials", "true");
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
   response.headers.set("Access-Control-Max-Age", "86400");
   return response;
 }
@@ -190,9 +190,7 @@ export default function middleware(req: NextRequest) {
     !pathname.startsWith("/crm/js/") &&
     !pathname.startsWith("/crm/css/")
   ) {
-    const hasSession = req.cookies.has(SESSION_COOKIE);
-    const hasBearer = (req.headers.get("authorization") ?? "").startsWith("Bearer ");
-    if (!hasSession && !hasBearer) {
+    if (!req.cookies.has(SESSION_COOKIE)) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/login";
       loginUrl.searchParams.set("redirect", pathname);
@@ -201,13 +199,11 @@ export default function middleware(req: NextRequest) {
   }
 
   // ── 5. CRM API route protection ──
-  // /api/crm/* requires a session_token cookie OR Bearer token (validated in route handler).
+  // /api/crm/* requires a session_token cookie (validated in route handler).
   // Edge middleware does a fast presence check; full DB validation
   // happens in requireAuth()/requireRole() inside each route handler.
   if (pathname.startsWith("/api/crm")) {
-    const hasSession = req.cookies.has(SESSION_COOKIE);
-    const hasBearer = (req.headers.get("authorization") ?? "").startsWith("Bearer ");
-    if (!hasSession && !hasBearer) {
+    if (!req.cookies.has(SESSION_COOKIE)) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
@@ -216,11 +212,9 @@ export default function middleware(req: NextRequest) {
   }
 
   // ── 6. Portal route protection ──
-  // /api/portal/* requires a session_token cookie OR Bearer token (same pattern).
+  // /api/portal/* requires a session_token cookie.
   if (pathname.startsWith("/api/portal")) {
-    const hasSession = req.cookies.has(SESSION_COOKIE);
-    const hasBearer = (req.headers.get("authorization") ?? "").startsWith("Bearer ");
-    if (!hasSession && !hasBearer) {
+    if (!req.cookies.has(SESSION_COOKIE)) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }

@@ -42,6 +42,7 @@ export type ListingContext = {
   isNewDevelopment?: boolean;
   currentStatus?: string;
   previousStatus?: string;
+  statusChangedAt?: Date;
 };
 
 // ─── Removed Fields (NAR Settlement Aug 2025) ─────────────────────────────
@@ -122,9 +123,9 @@ const COMPENSATION_PATTERNS = [
 
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
-const TERMINAL_STATUSES = new Set(["Closed"]);
+import { DOM_RESET_DAYS } from "./dom-tracker";
 
-const DOM_RESET_DAYS = 30; // UCBA 2026: changed from 90 → 30
+const TERMINAL_STATUSES = new Set(["Closed"]);
 
 // ─── Main Enforcement Function ────────────────────────────────────────────
 
@@ -318,13 +319,29 @@ export function assertRlsCompliantPayload(
     ctx.previousStatus === "Cancelled" ||
     ctx.previousStatus === "TemporarilyOffMarket"
   ) {
-    warnings.push({
-      code: "ST-002",
-      severity: "WARNING",
-      field: "MlsStatus",
-      message: `DOM resets after ${DOM_RESET_DAYS} consecutive days in ${ctx.previousStatus} status (UCBA 2026).`,
-      ucbaRef: "UCBA Sec. J",
-    });
+    if (ctx.statusChangedAt) {
+      const elapsed = Math.floor(
+        (Date.now() - ctx.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const willReset = elapsed >= DOM_RESET_DAYS;
+      warnings.push({
+        code: "ST-002",
+        severity: "WARNING",
+        field: "MlsStatus",
+        message: willReset
+          ? `DOM will reset: ${elapsed} days in ${ctx.previousStatus} (>= ${DOM_RESET_DAYS} day threshold). UCBA 2026.`
+          : `DOM will resume: ${elapsed} days in ${ctx.previousStatus} (< ${DOM_RESET_DAYS} day threshold). UCBA 2026.`,
+        ucbaRef: "UCBA Sec. J",
+      });
+    } else {
+      warnings.push({
+        code: "ST-002",
+        severity: "WARNING",
+        field: "MlsStatus",
+        message: `DOM resets after ${DOM_RESET_DAYS} consecutive days in ${ctx.previousStatus} status (UCBA 2026).`,
+        ucbaRef: "UCBA Sec. J",
+      });
+    }
   }
 
   // ── 6. Content scanning (Fair Housing, Agent Info, Off-Market) ─────

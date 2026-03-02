@@ -20,7 +20,7 @@ function ChevronIcon({ open }: { open?: boolean }) {
   );
 }
 
-function NavDropdown({ label, items, dark }: { label: string; items: { title: string; href: string }[]; dark?: boolean }) {
+function NavDropdown({ label, items, dark: _dark }: { label: string; items: { title: string; href: string }[]; dark?: boolean }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
   const ref = useRef<HTMLDivElement>(null);
