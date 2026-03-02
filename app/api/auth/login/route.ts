@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
 
       const res = NextResponse.json({
         success: true,
-        token,
+        // Security: token is set as httpOnly cookie only — never returned in JSON.
+        // This prevents XSS-based session theft on the public CRM origin.
         user: {
           id: lead.id.toString(),
           name: `${lead.first_name} ${lead.last_name}`,
@@ -111,15 +112,14 @@ export async function POST(req: NextRequest) {
 
       const res = NextResponse.json({
         success: true,
-        token,
+        // Security: token is set as httpOnly cookie only — never returned in JSON.
         user: {
           id: agent.id.toString(),
           name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
           email: agent.email,
           role: agent.role,
           userType: "agent",
-          licenseNo: agent.license_no,
-          phone: agent.phone,
+          // licenseNo and phone omitted from login response — fetch via /api/auth/me if needed
         },
       });
 

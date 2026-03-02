@@ -1,10 +1,11 @@
 // /api/crm/listings
 // GET: Returns listings with ownership enforcement.
-// POST: Create a new listing (runs compliance validation).
+// POST: Create a new listing (runs compliance validation + RLS enforcement gate).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
+import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Run REBNY RLS compliance validation
+  // Run REBNY RLS compliance validation (existing validator)
   const validation = validateListing(body);
   if (!validation.valid) {
     return NextResponse.json(
@@ -132,6 +133,25 @@ export async function POST(req: NextRequest) {
           suggestions: validation.suggestions,
           compliance: validation.compliance,
         },
+      },
+      { status: 422 }
+    );
+  }
+
+  // RLS Enforcement Gate — hard gate on UCBA/RLS rules for write path
+  // This is the backend enforcement layer that ensures compliance on live payloads,
+  // not just mockup HTML (addresses the "validator exists ≠ enforcement exists" gap).
+  const enforcement = assertRlsCompliantPayload(body, {
+    listingType,
+    isNewDevelopment: body.NewDevelopmentYN === true,
+    currentStatus: (body.MlsStatus as string) || undefined,
+  });
+  if (!enforcement.passed) {
+    return NextResponse.json(
+      {
+        error: "Listing blocked by RLS enforcement gate",
+        blockers: enforcement.blockers,
+        warnings: enforcement.warnings,
       },
       { status: 422 }
     );

@@ -1,13 +1,14 @@
 // POST /api/crm/clients/[id]/invite
 // Generate a portal invite token for a client.
+// Security: token is hashed before storage, has 72h TTL, raw token never returned in JSON.
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { generatePortalToken } from "@/lib/auth/portal-token";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -48,13 +49,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const portalToken = randomUUID();
+  // Generate token: raw for URL, hash for DB storage
+  const { rawToken, tokenHash, expiresAt } = generatePortalToken();
 
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
       portal_role: portalRole,
-      portal_token: portalToken,
+      portal_token: tokenHash,
+      portal_token_expires_at: expiresAt,
     },
   });
 
@@ -67,9 +70,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
+  // Security: return only the invite URL — never the raw token in JSON.
+  // The raw token is embedded in the URL which should only be sent via email.
+  const inviteUrl = `/portal/invite?token=${rawToken}`;
+
   return NextResponse.json({
-    inviteUrl: `/portal/invite?token=${portalToken}`,
-    portalToken,
+    success: true,
+    inviteUrl,
     portalRole,
+    expiresAt: expiresAt.toISOString(),
   });
 }

@@ -79,7 +79,8 @@ model Lead {
   roles           String[] // ["buyer","renter","seller","landlord"]
   status          String   @default("new") // new, contacted, active, closed
   portal_role     String?  @map("portal_role")    // "buyer" | "tenant" | "seller" | "landlord"
-  portal_token    String?  @unique @map("portal_token")  // invite link token
+  portal_token    String?  @unique @map("portal_token")  // SHA-256 hash of invite token
+  portal_token_expires_at DateTime? @map("portal_token_expires_at") // TTL for invite token (72h)
   password_hash   String?  @map("password_hash")  // for portal login
   agent_id        BigInt?  @map("agent_id")
   agent           Agent?   @relation(fields: [agent_id], references: [id])
