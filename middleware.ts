@@ -21,13 +21,16 @@ export const config = {
 
 /**
  * Allowed CORS origins for cross-origin API access.
- * GitHub Pages (mockups) + localhost (dev).
+ * Production: GitHub Pages only. Dev: + localhost origins.
  */
-const ALLOWED_ORIGINS = [
+const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+const ALLOWED_ORIGINS: string[] = [
   "https://mallan67.github.io",
-  "http://localhost:3000",
-  "http://localhost:5500",
-  "http://127.0.0.1:5500",
+  ...(isProd ? [] : [
+    "http://localhost:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+  ]),
 ];
 
 function isAllowedOrigin(origin: string | null): boolean {
@@ -263,8 +266,8 @@ export default function middleware(req: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
 
-  // Prevent CDN/browser caching of CRM and admin pages (sensitive content)
-  if (isPrivatePage) {
+  // Prevent CDN/browser caching of CRM/admin pages AND private API responses (PII)
+  if (isPrivatePage || isPrivateApi) {
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     response.headers.set("Pragma", "no-cache");
   }

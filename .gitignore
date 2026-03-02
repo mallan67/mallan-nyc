@@ -69,6 +69,8 @@ web_modules/
 .env
 .env.*
 !.env.example
+env.txt
+**/env.txt
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -169,6 +171,14 @@ public/crm/index-built.html
 
 # Archive directory (legacy backups)
 archive/
+_backup/
 .vercel
 .aider*
 .env*.local
+
+# Build/temp artifacts
+build.log
+build_output.txt
+lint.log
+*.log
+nul
