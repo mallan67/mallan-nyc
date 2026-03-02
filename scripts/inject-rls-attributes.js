@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const SEARCH_MODULAR = path.resolve(REPO_ROOT, '..', '1', 'Old', 'search-modular');
+const SEARCH_MODULAR = path.resolve(REPO_ROOT, 'public', 'crm');
 const BINDINGS_PATH = path.join(REPO_ROOT, 'data', 'rls-form-bindings.json');
 const DRY_RUN = process.argv.includes('--dry-run');
 

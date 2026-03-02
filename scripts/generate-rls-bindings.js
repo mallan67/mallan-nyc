@@ -15,7 +15,7 @@ const path = require('path');
 const { parse: parseHTML } = require('node-html-parser');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const SEARCH_MODULAR = path.resolve(REPO_ROOT, '..', '1', 'Old', 'search-modular');
+const SEARCH_MODULAR = path.resolve(REPO_ROOT, 'public', 'crm');
 const LOOKUP_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-lookup.csv');
 const FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv');
 

@@ -23,20 +23,24 @@ echo "================================================================"
 echo ""
 
 # ── Locate files ──
+# Resolve CRM root relative to this script (scripts/ lives inside public/crm/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CRM_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 VIEWER_FILES=(
-  "SALE-FORM-WITH-TOOLS.html"
-  "RENTAL-FORM-WITH-TOOLS.html"
+  "$CRM_DIR/SALE-FORM-WITH-TOOLS.html"
+  "$CRM_DIR/RENTAL-FORM-WITH-TOOLS.html"
 )
 
 ALL_HTML_FILES=(
-  "MALLAN-NYC-CRM-FINAL2.html"
-  "index-built.html"
-  "SALE-FORM-REDESIGN.html"
-  "RENTAL-FORM-REDESIGN.html"
-  "SALE-FORM-WITH-TOOLS.html"
-  "RENTAL-FORM-WITH-TOOLS.html"
-  "BUYER-DEAL-FORM.html"
-  "TENANT-DEAL-FORM.html"
+  "$CRM_DIR/MALLAN-NYC-CRM-FINAL2.html"
+  "$CRM_DIR/index-built.html"
+  "$CRM_DIR/SALE-FORM-REDESIGN.html"
+  "$CRM_DIR/RENTAL-FORM-REDESIGN.html"
+  "$CRM_DIR/SALE-FORM-WITH-TOOLS.html"
+  "$CRM_DIR/RENTAL-FORM-WITH-TOOLS.html"
+  "$CRM_DIR/BUYER-DEAL-FORM.html"
+  "$CRM_DIR/TENANT-DEAL-FORM.html"
 )
 
 # ── Section 1: PII Check ──

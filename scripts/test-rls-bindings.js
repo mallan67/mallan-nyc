@@ -14,7 +14,7 @@ const assert = require('assert');
 const { parse: parseHTML } = require('node-html-parser');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const SEARCH_MODULAR = path.resolve(REPO_ROOT, '..', '1', 'Old', 'search-modular');
+const SEARCH_MODULAR = path.resolve(REPO_ROOT, 'public', 'crm');
 
 // ── Load External Config ─────────────────────────────────────────────────
 

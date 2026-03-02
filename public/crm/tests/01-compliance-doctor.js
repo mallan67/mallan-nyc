@@ -80,7 +80,7 @@ function REBNYComplianceDoctor(options) {
             'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
             'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
         ];
-        var statusElements = document.querySelectorAll('[data-reso-field="StandardStatus"]');
+        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
@@ -184,7 +184,7 @@ function REBNYComplianceDoctor(options) {
     (function test6_RequiredFields() {
         var requiredResoFields = [
             'UnparsedAddress', 'ListPrice', 'BedroomsTotal', 'BathroomsTotalInteger',
-            'StandardStatus', 'PropertyType', 'ListAgentFullName', 'ListOfficeName',
+            'MlsStatus', 'PropertyType', 'ListAgentFullName', 'ListOfficeName',
             'ListingId', 'OnMarketDate'
         ];
         var missingFields = [];
