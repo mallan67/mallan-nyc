@@ -534,10 +534,6 @@
                     if (label) {
                         var nbName = label.textContent.trim();
                         if (cb.checked) {
-                            // Results map
-                            if (typeof mapCenterOnNeighborhood === 'function' && typeof NEIGHBORHOOD_CENTERS !== 'undefined' && NEIGHBORHOOD_CENTERS[nbName]) {
-                                mapCenterOnNeighborhood(nbName);
-                            }
                             if (typeof toggleNeighborhoodPolygon === 'function') {
                                 toggleNeighborhoodPolygon(nbName, true);
                             }

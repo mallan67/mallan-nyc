@@ -1675,7 +1675,7 @@ function REBNYWiringTest(options) {
         }
 
         // 3. All search views use dynamic status colors (not hardcoded green)
-        var viewFns = ['renderGalleryView','renderShortSummaryView','renderSummaryView','renderMasterDetailView','renderMapView'];
+        var viewFns = ['renderGalleryView','renderShortSummaryView','renderSummaryView','renderMasterDetailView'];
         var hardcoded = [];
         viewFns.forEach(function(fn) {
             if (typeof window[fn] === 'function') {
@@ -1693,11 +1693,6 @@ function REBNYWiringTest(options) {
             var mdSrc = renderMasterDetailView.toString();
             if (mdSrc.indexOf('data-source') !== -1) checks.push('masterDetail:source');
             else issues.push('MasterDetail missing data-source');
-        }
-        if (typeof renderMapView === 'function') {
-            var mvSrc = renderMapView.toString();
-            if (mvSrc.indexOf('data-source') !== -1) checks.push('map:source');
-            else issues.push('Map missing data-source');
         }
 
         // 5. formatCurrency is null-safe
@@ -2350,7 +2345,7 @@ function StrictIntegrityTests(options) {
     // INT-03: No unexpected DOM mutations during suite
     (function() {
         // Filter to result containers only (not expected modal/badge)
-        var containerIds = ['gridViewContainer','galleryViewContainer','shortSummaryViewContainer','summaryViewContainer','masterDetailViewContainer','mapViewContainer'];
+        var containerIds = ['gridViewContainer','galleryViewContainer','shortSummaryViewContainer','summaryViewContainer','masterDetailViewContainer'];
         var unexpected = _strictGuards.domMutations.filter(function(m) {
             return containerIds.indexOf(m.target) !== -1;
         });
@@ -2653,7 +2648,7 @@ function AllowlistLeakTests(options) {
         var violations = [];
         var containers = document.querySelectorAll(
             '#gridViewContainer, #galleryViewContainer, #shortSummaryViewContainer, ' +
-            '#summaryViewContainer, #masterDetailViewContainer, #mapViewContainer, #reportPreviewContent');
+            '#summaryViewContainer, #masterDetailViewContainer, #reportPreviewContent');
         containers.forEach(function(c) {
             if (c.style.display === 'none' || !c.offsetParent) return;
             var html = c.innerHTML || '';
