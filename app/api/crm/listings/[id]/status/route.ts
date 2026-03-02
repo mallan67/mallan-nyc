@@ -9,6 +9,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
+import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -104,6 +105,29 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Sold/Rented status requires broker approval" },
       { status: 403 }
+    );
+  }
+
+  // RLS Enforcement Gate — validate status-related UCBA rules (Coming Soon, terminal, etc.)
+  const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
+  const enforcement = assertRlsCompliantPayload(
+    { ...existingRaw, MlsStatus: newStatus },
+    {
+      listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
+      isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,
+      currentStatus: newStatus,
+      previousStatus: currentStatus,
+      statusChangedAt: listing.status_changed_at ?? undefined,
+    }
+  );
+  if (!enforcement.passed) {
+    return NextResponse.json(
+      {
+        error: "Status change blocked by RLS enforcement gate",
+        blockers: enforcement.blockers,
+        warnings: enforcement.warnings,
+      },
+      { status: 422 }
     );
   }
 

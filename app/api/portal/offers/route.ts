@@ -1,9 +1,11 @@
 // GET /api/portal/offers
 // Seller/landlord portal: incoming offers on their listings.
 // Uses ClientListingAction with action="offer" (v1 — no separate Offer model).
+// Uses centralized DTO for REBNY-compliant address suppression.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
+import { sanitizeForPublic } from "@/lib/compliance/dto";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -33,10 +35,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ offers: [] });
   }
 
-  // Find listings managed by this client's agent
+  // Find listings managed by this client's agent (exclude owner opt-out)
   const agentListings = await prisma.listing.findMany({
-    where: { agent_id: lead.agent_id },
-    select: { id: true, listing_id: true, address: true, list_price: true },
+    where: {
+      agent_id: lead.agent_id,
+      owner_opt_out: false,
+    },
+    select: {
+      id: true,
+      listing_id: true,
+      address: true,
+      list_price: true,
+      internet_address_display_yn: true,
+    },
   });
 
   if (agentListings.length === 0) {
@@ -69,10 +80,17 @@ export async function GET(req: NextRequest) {
 
   const offers = offerActions.map((a) => {
     const listing = listingMap.get(a.listing_id.toString());
+    // Centralized address suppression via DTO (REBNY RLS compliance)
+    const sanitized = listing
+      ? sanitizeForPublic({
+          address: listing.address,
+          internet_address_display_yn: listing.internet_address_display_yn,
+        })
+      : null;
     return {
       id: a.id.toString(),
       listing_id: a.listing_id.toString(),
-      listing_address: listing?.address ?? null,
+      listing_address: sanitized?.address ?? null,
       list_price: listing?.list_price?.toString() ?? null,
       comment: a.comment,
       created_at: a.created_at,

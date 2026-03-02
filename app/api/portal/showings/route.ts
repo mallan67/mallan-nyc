@@ -1,8 +1,10 @@
 // /api/portal/showings
 // GET: Client's showings. POST: Client requests a showing. Lead users only.
+// Uses centralized DTO for REBNY-compliant address suppression.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
+import { sanitizeForPublic } from "@/lib/compliance/dto";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -42,24 +44,29 @@ export async function GET(req: NextRequest) {
     orderBy: { date: "asc" },
   });
 
-  const serialized = showings.map((s) => ({
-    id: s.id.toString(),
-    listing_id: s.listing_id.toString(),
-    date: s.date,
-    time: s.time,
-    type: s.type,
-    status: s.status,
-    notes: s.notes,
-    listing: {
-      id: s.listing.id.toString(),
-      listing_id: s.listing.listing_id,
-      address: s.listing.internet_address_display_yn
-        ? s.listing.address
-        : { street: "Address Undisclosed" },
-      list_price: s.listing.list_price.toString(),
-      listing_type: s.listing.listing_type,
-    },
-  }));
+  const serialized = showings.map((s) => {
+    // Centralized address suppression via DTO (REBNY RLS compliance)
+    const sanitizedListing = sanitizeForPublic({
+      address: s.listing.address,
+      internet_address_display_yn: s.listing.internet_address_display_yn,
+    });
+    return {
+      id: s.id.toString(),
+      listing_id: s.listing_id.toString(),
+      date: s.date,
+      time: s.time,
+      type: s.type,
+      status: s.status,
+      notes: s.notes,
+      listing: {
+        id: s.listing.id.toString(),
+        listing_id: s.listing.listing_id,
+        address: sanitizedListing.address,
+        list_price: s.listing.list_price.toString(),
+        listing_type: s.listing.listing_type,
+      },
+    };
+  });
 
   return NextResponse.json({ showings: serialized });
 }
