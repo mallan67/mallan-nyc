@@ -13,7 +13,8 @@ All CRM pages use clean URLs via Vercel rewrites. The underlying HTML filenames 
 
 | Clean URL | What | File |
 |-----------|------|------|
-| `mallan.nyc/crm/login` | CRM login | `login.html` |
+| `mallan.nyc/login` | Login (all portals) | `login.html` |
+| `mallan.nyc/crm/login` | Login (alias, kept for compat) | `login.html` |
 | `mallan.nyc/crm` | CRM dashboard | `MALLAN-NYC-CRM-FINAL2.html` |
 | `mallan.nyc/crm/dashboard` | CRM dashboard (alias) | `MALLAN-NYC-CRM-FINAL2.html` |
 | `mallan.nyc/crm/search` | Agent search (IDX) | `index-built.html` |
@@ -28,7 +29,7 @@ All CRM pages use clean URLs via Vercel rewrites. The underlying HTML filenames 
 
 ```
 public/crm/
-  login.html                      # Login page (/crm/login)
+  login.html                      # Login page (/login — also /crm/login)
   MALLAN-NYC-CRM-FINAL2.html      # CRM hub (/crm or /crm/dashboard)
   index-built.html                # IDX search (/crm/search) — BUILD ARTIFACT, not in git
   SALE-FORM-REDESIGN.html         # Sale submission (/crm/sale-listing)
@@ -73,9 +74,21 @@ npm run crm:test
 
 - `/crm/*` paths have `X-Robots-Tag: noindex, nofollow` header (set in `vercel.json`)
 - Development files (`html/`, `tests/`, `scripts/`, `build.js`, `index.html`) return 404 via middleware
-- HTML files have their own JS-based auth gates that redirect to `/crm/login`
+- HTML files have their own JS-based auth gates that redirect to `/login`
 - API calls go to `/api/crm/*` and `/api/portal/*` which require session cookie or Bearer token
 
 ## Internal Link Convention
 
-All internal links use clean URLs (`/crm/dashboard`, `/crm/login`, `/crm/search`), not raw filenames. This is enforced by Vercel rewrites in `vercel.json`.
+All internal links use clean URLs (`/login`, `/crm/dashboard`, `/crm/search`), not raw filenames. This is enforced by Vercel rewrites in `vercel.json`.
+
+## Login & Portal Routing
+
+Login is at `mallan.nyc/login` (shared by all portal types). After login, each role is routed to its own dashboard:
+
+| Portal | Redirect |
+|--------|----------|
+| Broker / Agent | `/crm/dashboard` |
+| Buyer | `/crm/dashboard#buyer` |
+| Tenant | `/crm/dashboard#tenant` |
+| Seller | `/crm/dashboard#seller` |
+| Landlord | `/crm/dashboard#landlord` |

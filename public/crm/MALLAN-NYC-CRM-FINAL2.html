@@ -29575,14 +29575,27 @@ Equal Housing Opportunity
                     };
                 } else {
                     // Not authenticated — redirect to login
-                    window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
+                    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
                 }
             });
         }
         // Handle 401 events from API calls
         window.addEventListener('mallan:auth:unauthorized', function() {
-            window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
         });
+
+        // ══════════════════════════════════════════════════════
+        // PORTAL ROUTING — Auto-switch portal based on URL hash
+        // Login redirects buyer→#buyer, tenant→#tenant, etc.
+        // ══════════════════════════════════════════════════════
+        (function initPortalRouting() {
+            var portalMap = { buyer: 'client', tenant: 'tenant', seller: 'seller', landlord: 'landlord', broker: 'broker' };
+            var hash = window.location.hash.replace('#', '').toLowerCase();
+            if (hash && portalMap[hash] && typeof switchPortal === 'function') {
+                // Defer until DOM + portal divs are ready
+                setTimeout(function() { switchPortal(portalMap[hash]); }, 100);
+            }
+        })();
 
         // ══════════════════════════════════════════════════════
         // AGENT ROSTER SYSTEM — localStorage-persisted

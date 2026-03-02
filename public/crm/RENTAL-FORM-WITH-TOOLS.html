@@ -5417,14 +5417,14 @@ function initLoggedInAgent() {
                 }
             } else {
                 // Not authenticated — redirect to login
-                window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
+                window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
                 return;
             }
         });
     }
     // Handle 401 events from API calls
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
     });
 
     // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)

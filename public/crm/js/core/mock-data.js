@@ -409,8 +409,10 @@
                         mockListings.length = 0;
                         apiListings.forEach(function(l) { mockListings.push(l); });
                         console.log('[MockData] Loaded ' + apiListings.length + ' listings from API');
-                        // Refresh the current view if search is already rendered
-                        if (typeof performSearch === 'function') performSearch();
+                        // Refresh the current view ONLY if user is already viewing results
+                        var resultsSection = document.getElementById('searchResultsSection');
+                        var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
+                        if (isViewingResults && typeof performSearch === 'function') performSearch();
                     } else {
                         console.warn('[MockData] API returned 0 listings');
                         _showNoListingsMessage('No listings available.');
