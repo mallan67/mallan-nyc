@@ -1,0 +1,185 @@
+name: CRM Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/crm/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/crm/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: public/crm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Section 1: PII String Check"
+        run: |
+          echo "Checking for personal PII strings..."
+          FAIL=0
+          PII_PATTERNS=("Maya Allan" "maya@" "10311201806" "ui-avatars.com" "broker2024")
+          HTML_FILES=(
+            MALLAN-NYC-CRM-FINAL2.html
+            SALE-FORM-REDESIGN.html
+            RENTAL-FORM-REDESIGN.html
+            SALE-FORM-WITH-TOOLS.html
+            RENTAL-FORM-WITH-TOOLS.html
+            BUYER-DEAL-FORM.html
+            TENANT-DEAL-FORM.html
+          )
+
+          for pattern in "${PII_PATTERNS[@]}"; do
+            for file in "${HTML_FILES[@]}"; do
+              if [ -f "$file" ]; then
+                count=$(grep -c "$pattern" "$file" 2>/dev/null || true)
+                if [ "$count" -gt 0 ]; then
+                  echo "FAIL: $file contains '$pattern' ($count occurrences)"
+                  FAIL=1
+                fi
+              fi
+            done
+          done
+
+          if [ "$FAIL" -eq 0 ]; then
+            echo "PASS: No personal PII strings found"
+          else
+            exit 1
+          fi
+
+      - name: "Section 2: Viewer File Safety"
+        run: |
+          echo "Checking viewer files for write paths..."
+          FAIL=0
+
+          for file in SALE-FORM-WITH-TOOLS.html RENTAL-FORM-WITH-TOOLS.html; do
+            if [ -f "$file" ]; then
+              # Check for form tags with action/method
+              if grep -qE '<form[^>]+(action=|method=)' "$file" 2>/dev/null; then
+                echo "FAIL: $file has <form> tags with action/method"
+                FAIL=1
+              fi
+
+              # Check for type="submit" buttons
+              if grep -q 'type="submit"' "$file" 2>/dev/null; then
+                echo "FAIL: $file contains type=submit"
+                FAIL=1
+              fi
+
+              # Check for setInterval (autosave timers)
+              if grep -q 'setInterval' "$file" 2>/dev/null; then
+                echo "FAIL: $file contains setInterval (autosave)"
+                FAIL=1
+              fi
+
+              # Check VIEWER_MODE = true
+              if ! grep -q 'VIEWER_MODE = true' "$file" 2>/dev/null; then
+                echo "FAIL: $file missing VIEWER_MODE = true"
+                FAIL=1
+              fi
+
+              # Check data-rls-viewer="true"
+              if ! grep -q 'data-rls-viewer="true"' "$file" 2>/dev/null; then
+                echo "FAIL: $file missing data-rls-viewer=\"true\""
+                FAIL=1
+              fi
+            fi
+          done
+
+          if [ "$FAIL" -eq 0 ]; then
+            echo "PASS: Viewer files are read-only safe"
+          else
+            exit 1
+          fi
+
+      - name: "Section 3: URL Parameter PII Safety"
+        run: |
+          echo "Checking for PII in URL parameters..."
+          FAIL=0
+          HTML_FILES=(
+            MALLAN-NYC-CRM-FINAL2.html
+            SALE-FORM-REDESIGN.html
+            RENTAL-FORM-REDESIGN.html
+            SALE-FORM-WITH-TOOLS.html
+            RENTAL-FORM-WITH-TOOLS.html
+            BUYER-DEAL-FORM.html
+            TENANT-DEAL-FORM.html
+          )
+          PATTERNS=(
+            "params\.get\(['\"]agentName"
+            "params\.get\(['\"]agentEmail"
+            "params\.get\(['\"]agentPhone"
+            "params\.get\(['\"]agentLicense"
+            "params\.get\(['\"]brokerName"
+            "URLSearchParams.*agentName"
+            "URLSearchParams.*agentEmail"
+          )
+
+          for pattern in "${PATTERNS[@]}"; do
+            for file in "${HTML_FILES[@]}"; do
+              if [ -f "$file" ]; then
+                count=$(grep -cE "$pattern" "$file" 2>/dev/null || true)
+                if [ "$count" -gt 0 ]; then
+                  echo "FAIL: $file reads PII from URL: '$pattern' ($count)"
+                  FAIL=1
+                fi
+              fi
+            done
+          done
+
+          if [ "$FAIL" -eq 0 ]; then
+            echo "PASS: No PII in URL parameters"
+          else
+            exit 1
+          fi
+
+      - name: "Section 4: Alert Burn-Down Report"
+        if: always()
+        run: |
+          echo "=== Alert Count Report ==="
+          HTML_FILES=(
+            MALLAN-NYC-CRM-FINAL2.html
+            SALE-FORM-REDESIGN.html
+            RENTAL-FORM-REDESIGN.html
+            SALE-FORM-WITH-TOOLS.html
+            RENTAL-FORM-WITH-TOOLS.html
+            BUYER-DEAL-FORM.html
+            TENANT-DEAL-FORM.html
+          )
+          for file in "${HTML_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              count=$(grep -c "alert(" "$file" 2>/dev/null || true)
+              echo "  $file: $count alert() calls"
+            fi
+          done
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build index-built.html from source
+        run: node public/crm/build.js
+
+      - name: Verify build output exists
+        run: |
+          if [ ! -f public/crm/index-built.html ]; then
+            echo "FAIL: build.js did not produce index-built.html"
+            exit 1
+          fi
+          SIZE=$(wc -c < public/crm/index-built.html)
+          echo "index-built.html: $SIZE bytes"
+          if [ "$SIZE" -lt 100000 ]; then
+            echo "FAIL: index-built.html is suspiciously small ($SIZE bytes)"
+            exit 1
+          fi
+          echo "PASS: Build output verified"

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>MALLAN NYC - Search Standalone</title>
+    <script>
+    // Global error handler — catches any JS errors during page load
+    window.onerror = function(msg, url, line, col, error) {
+        var errDiv = document.getElementById('jsErrorBanner');
+        if (!errDiv) {
+            errDiv = document.createElement('div');
+            errDiv.id = 'jsErrorBanner';
+            errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fee;border-bottom:2px solid #f00;padding:8px 16px;font:12px monospace;max-height:200px;overflow-y:auto;';
+            errDiv.innerHTML = '<strong style="color:red">JS Errors Detected:</strong><br>';
+            document.body.appendChild(errDiv);
+        }
+        errDiv.innerHTML += 'Line ' + line + ': ' + msg + '<br>';
+        return false;
+    };
+    </script>
+    <script>
+    // Route-aware render blocking — hide search form BEFORE first paint
+    // when restoring results/detail view on refresh. Prevents flash of search form.
+    (function() {
+        var h = location.hash.replace('#','').split('/')[0];
+        if (h === 'results' || h === 'detail') {
+            var s = document.createElement('style'); s.id = 'routeBlock'; s.textContent = '#searchFormContainer{display:none!important}'; document.head.appendChild(s);
+        }
+    })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
+    <style type="text/tailwindcss">
+        @import "tailwindcss";
+    </style>
+    <!-- Font Awesome 6.7.2 — preload critical font files for instant icon rendering -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- MapLibre GL JS — vector map engine (replaces Leaflet) -->
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+    <!-- ═══ CSS Modules ═══ -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/search-form.css">
+    <link rel="stylesheet" href="css/results.css">
+    <link rel="stylesheet" href="css/manage.css">
+    <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/print.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- Early utility functions needed by onclick handlers in HTML -->
+<script>
+function toggleSection(header) {
+    var content = header.nextElementSibling;
+    var icon = header.querySelector('i');
+    if (content) content.classList.toggle('collapsed');
+    if (icon) { icon.classList.toggle('fa-minus'); icon.classList.toggle('fa-plus'); }
+}
+</script>
+
+<!-- ═══ HTML Sections ═══ -->
+<!-- @include html/nav.html -->
+<!-- @include html/search-form-and-results.html -->
+<!-- @include html/my-searches.html -->
+<!-- @include html/last-search.html -->
+<!-- @include html/manage-listings.html -->
+
+<!-- ═══ Modals ═══ -->
+<!-- @include html/modals/grid-layouts.html -->
+<!-- @include html/modals/reports.html -->
+<!-- @include html/modals/save-search.html -->
+<!-- @include html/modals/report-preview.html -->
+<!-- @include html/modals/filter.html -->
+<!-- @include html/modals/listing-type-info.html -->
+<!-- @include html/modals/map-selection.html -->
+
+<!-- ═══ JavaScript ═══ -->
+<script>
+// ═══════════════════════════════════════════════════════
+// MAIN SCRIPT BLOCK
+// ═══════════════════════════════════════════════════════
+</script>
+
+<!-- Core -->
+<script src="js/core/api-client.js"></script>
+<script src="js/core/agent-context.js"></script>
+<script src="js/core/email-service.js"></script>
+<script src="js/core/nav.js"></script>
+
+<!-- Manage Listings + Open Houses -->
+<script src="js/manage/manage-listings.js"></script>
+<script src="js/manage/open-houses.js"></script>
+
+<!-- Search -->
+<script src="js/search/date-range-picker.js"></script>
+<script src="js/search/search-engine.js"></script>
+<script src="js/search/form-ui-helpers.js"></script>
+<script src="js/search/agent-functions.js"></script>
+<script src="js/search/search-actions.js"></script>
+
+<!-- Core Data -->
+<script src="js/core/reso-field-map.js"></script>
+<script src="js/core/mock-data.js"></script>
+<script src="js/crm/client-database.js"></script>
+<script src="js/search/field-dictionaries.js"></script>
+
+<!-- Render -->
+<script src="js/render/render-dispatcher.js"></script>
+<script src="js/render/grid-column-defs.js"></script>
+<script src="js/render/render-grid.js"></script>
+<script src="js/render/shared-badges.js"></script>
+<script src="js/render/render-gallery.js"></script>
+<script src="js/render/render-short-summary.js"></script>
+<script src="js/render/render-summary.js"></script>
+<script src="js/render/render-master-detail.js"></script>
+<script src="js/render/render-map.js"></script>
+<script src="js/render/neighborhood-polygons.js"></script>
+<script src="js/render/search-form-maps.js"></script>
+
+<!-- Selection -->
+<script src="js/listing/listing-selection.js"></script>
+
+<!-- Saved Searches -->
+<script src="js/search/saved-searches.js"></script>
+
+<!-- Grid Layouts -->
+<script src="js/render/grid-layouts.js"></script>
+
+<!-- Print Helper (CSP-safe Blob URL) -->
+<script src="js/output/print-helper.js"></script>
+
+<!-- Reports (Comparables) -->
+<script src="js/output/reports.js"></script>
+<script src="js/output/report-customize.js"></script>
+<script src="js/output/calculators.js"></script>
+
+<!-- Search: Pagination, Rent vs Buy, Filter -->
+<script src="js/search/pagination.js"></script>
+<script src="js/search/rent-vs-buy.js"></script>
+<script src="js/search/filter-modal.js"></script>
+
+<!-- Listing: Flags, Toolbar -->
+<script src="js/listing/listing-flags.js"></script>
+<script src="js/listing/toolbar-functions.js"></script>
+
+<!-- Init -->
+<script src="js/init/init-ui.js"></script>
+
+<!-- Hash routing -->
+<script src="js/init/init-hash-routing.js"></script>
+
+<!-- Compliance: REBNY Gates + Fair Housing + Content Scanners -->
+<script src="js/compliance/fair-housing.js"></script>
+<script src="js/compliance/content-scanners.js"></script>
+<script src="js/compliance/compliance-gates-and-output.js"></script>
+
+<!-- ═══ Test Framework (conditional) ═══ -->
+<script>
+if (window.location.search.indexOf('test') !== -1) {
+    var s = document.createElement('script');
+    s.src = 'tests/offline-test-framework.js';
+    document.body.appendChild(s);
+}
+</script>
+
+</body>
+</html>

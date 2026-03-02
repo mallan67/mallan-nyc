@@ -1,0 +1,25 @@
+<!-- HEADER / NAV -->
+<header class="bg-[#1a1a1a] text-white sticky top-0 z-50">
+    <!-- General Search Mode Nav -->
+    <div id="generalNavBar" class="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+        <div class="text-lg sm:text-xl font-bold tracking-wider flex-shrink-0" style="color: #C4A052;">MALLAN</div>
+        <nav class="flex gap-1.5 sm:gap-2 mx-3">
+            <button onclick="showSearchSection('main')" id="searchNav-main" class="px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg bg-white/15 text-white flex-shrink-0 flex items-center gap-1.5">
+                <i class="fas fa-search text-xs"></i>
+                <span class="hidden sm:inline">Search</span>
+            </button>
+            <button onclick="showSearchSection('manage')" id="searchNav-manage" class="px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex-shrink-0 flex items-center gap-1.5">
+                <i class="fas fa-building text-xs"></i>
+                <span class="hidden sm:inline">Manage</span>
+            </button>
+        </nav>
+        <div id="agentBadge" class="hidden sm:flex items-center gap-2 text-xs flex-shrink-0">
+            <div class="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-[10px] font-bold" id="agentBadgeInitials">--</div>
+            <div class="text-gray-400"><span id="agentBadgeName" class="text-white font-medium">--</span> <span class="text-gray-500">&bull;</span> <span id="agentBadgeRole" class="text-amber-400">Agent</span></div>
+            <button onclick="openEmailSettings()" class="ml-2 w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-amber-400 transition-all" title="Email Settings">
+                <i class="fas fa-cog text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+</header>

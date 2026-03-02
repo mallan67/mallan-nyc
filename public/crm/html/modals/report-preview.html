@@ -1,0 +1,719 @@
+<!-- REPORT PREVIEW MODAL (extracted from section-main) -->
+<div id="reportPreviewModal" class="fixed inset-0 bg-black/50 z-[75] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+        <!-- Preview Header -->
+        <div class="p-4 border-b bg-gradient-to-r from-gray-800 to-gray-900 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <h3 class="text-lg font-bold text-white">Report Preview</h3>
+                <div class="flex gap-2">
+                    <button onclick="switchPreviewFormat('grid')" id="previewFormatGrid" class="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white">Grid</button>
+                    <button onclick="switchPreviewFormat('list')" id="previewFormatList" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">List</button>
+                    <button onclick="switchPreviewFormat('summary')" id="previewFormatSummary" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">Summary</button>
+                    <button onclick="switchPreviewFormat('detail')" id="previewFormatDetail" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">Detail</button>
+                    <button onclick="switchPreviewFormat('comparison')" id="previewFormatComparison" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">Comparison</button>
+                    <button onclick="switchPreviewFormat('factSheet')" id="previewFormatFactSheet" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">Fact Sheet</button>
+                    <button onclick="switchPreviewFormat('cma')" id="previewFormatCma" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">CMA</button>
+                    <button onclick="switchPreviewFormat('openHouse')" id="previewFormatOpenHouse" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">Open House</button>
+                    <button onclick="switchPreviewFormat('images')" id="previewFormatImages" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">Images</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="copyReportAndEmail()" class="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Send to Client
+                </button>
+                <button onclick="printReportFromPreview()" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                    <i class="fas fa-print"></i> Print/PDF
+                </button>
+                <button onclick="closeReportPreview()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Preview Content - Scrollable -->
+        <div class="flex-1 overflow-y-auto bg-gray-100 p-6" id="reportPreviewBody">
+            <!-- Report Container (Simulated Paper) -->
+            <div class="max-w-5xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden" id="reportPreviewContent">
+
+                <!-- GRID FORMAT PREVIEW -->
+                <div id="previewGrid" class="report-preview-format">
+                    <!-- Report Header -->
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-2xl font-bold">MALLAN NYC</h1>
+                                <p class="text-gray-300 text-sm">Luxury Real Estate</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-semibold">Property Search Report</p>
+                                <p class="text-gray-300 text-sm">Prepared: February 4, 2026</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client & Search Info -->
+                    <div class="p-6 border-b bg-gray-50">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Prepared For</p>
+                                <p class="font-semibold text-gray-900">Victoria Chen</p>
+                                <p class="text-sm text-gray-600">victoria.chen@email.com</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Search Criteria</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">$3M - $10M</span>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">2-4 BR</span>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Condo/Co-op</span>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">UES, UWS, Tribeca</span>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Doorman</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Table -->
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-bold text-gray-900">Matching Properties</h2>
+                            <span class="text-sm text-gray-500">6 of 47 results</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="bg-gray-100 text-left">
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">#</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">Address</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">Price</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">BR</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">BA</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">SqFt</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">$/SF</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">Maint/CC</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">Type</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">Status</th>
+                                        <th scope="col" class="p-3 font-semibold text-gray-700">DOM</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="p-3 text-gray-500">1</td>
+                                        <td class="p-3 font-medium">432 Park Ave, 78A</td>
+                                        <td class="p-3 font-semibold text-green-700">$8,750,000</td>
+                                        <td class="p-3">3</td>
+                                        <td class="p-3">3.5</td>
+                                        <td class="p-3">2,847</td>
+                                        <td class="p-3">$3,073</td>
+                                        <td class="p-3">$6,350</td>
+                                        <td class="p-3">Condo</td>
+                                        <td class="p-3"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3">45</td>
+                                    </tr>
+                                    <tr class="border-b hover:bg-gray-50 bg-blue-50/30">
+                                        <td class="p-3 text-gray-500">2</td>
+                                        <td class="p-3 font-medium">150 E 72nd St, PH-A</td>
+                                        <td class="p-3 font-semibold text-green-700">$6,950,000</td>
+                                        <td class="p-3">4</td>
+                                        <td class="p-3">4</td>
+                                        <td class="p-3">3,200</td>
+                                        <td class="p-3">$2,172</td>
+                                        <td class="p-3">$8,500</td>
+                                        <td class="p-3">Co-op</td>
+                                        <td class="p-3"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3">12</td>
+                                    </tr>
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="p-3 text-gray-500">3</td>
+                                        <td class="p-3 font-medium">15 Central Park W, 32B</td>
+                                        <td class="p-3 font-semibold text-green-700">$5,495,000</td>
+                                        <td class="p-3">2</td>
+                                        <td class="p-3">2.5</td>
+                                        <td class="p-3">2,100</td>
+                                        <td class="p-3">$2,617</td>
+                                        <td class="p-3">$5,200</td>
+                                        <td class="p-3">Condo</td>
+                                        <td class="p-3"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3">8</td>
+                                    </tr>
+                                    <tr class="border-b hover:bg-gray-50 bg-blue-50/30">
+                                        <td class="p-3 text-gray-500">4</td>
+                                        <td class="p-3 font-medium">56 Leonard St, 45W</td>
+                                        <td class="p-3 font-semibold text-green-700">$4,850,000</td>
+                                        <td class="p-3">3</td>
+                                        <td class="p-3">3</td>
+                                        <td class="p-3">2,450</td>
+                                        <td class="p-3">$1,980</td>
+                                        <td class="p-3">$4,100</td>
+                                        <td class="p-3">Condo</td>
+                                        <td class="p-3"><span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">Offer In</span></td>
+                                        <td class="p-3">22</td>
+                                    </tr>
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="p-3 text-gray-500">5</td>
+                                        <td class="p-3 font-medium">1 West End Ave, 28C</td>
+                                        <td class="p-3 font-semibold text-green-700">$3,995,000</td>
+                                        <td class="p-3">3</td>
+                                        <td class="p-3">3</td>
+                                        <td class="p-3">2,180</td>
+                                        <td class="p-3">$1,833</td>
+                                        <td class="p-3">$3,800</td>
+                                        <td class="p-3">Condo</td>
+                                        <td class="p-3"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3">5</td>
+                                    </tr>
+                                    <tr class="border-b hover:bg-gray-50 bg-blue-50/30">
+                                        <td class="p-3 text-gray-500">6</td>
+                                        <td class="p-3 font-medium">520 Park Ave, 18A</td>
+                                        <td class="p-3 font-semibold text-green-700">$3,250,000</td>
+                                        <td class="p-3">2</td>
+                                        <td class="p-3">2</td>
+                                        <td class="p-3">1,650</td>
+                                        <td class="p-3">$1,970</td>
+                                        <td class="p-3">$4,200</td>
+                                        <td class="p-3">Co-op</td>
+                                        <td class="p-3"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3">30</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Averages Row -->
+                        <div class="mt-4 p-4 bg-gray-100 rounded-lg">
+                            <div class="grid grid-cols-6 gap-4 text-center text-sm">
+                                <div>
+                                    <p class="text-gray-500 text-xs">Avg Price</p>
+                                    <p class="font-bold text-gray-900">$5,548,333</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs">Avg $/SF</p>
+                                    <p class="font-bold text-gray-900">$2,274</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs">Avg SqFt</p>
+                                    <p class="font-bold text-gray-900">2,405</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs">Avg Maint</p>
+                                    <p class="font-bold text-gray-900">$5,358</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs">Avg DOM</p>
+                                    <p class="font-bold text-gray-900">20 days</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-xs">Total</p>
+                                    <p class="font-bold text-gray-900">6 listings</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- REBNY Compliance Notice (Customer Version) -->
+                    <div class="customer-only p-4 mx-6 mt-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+                        <p class="font-semibold mb-1">REBNY RLS Compliance Notice</p>
+                        <p>Based on information from the REBNY Listing Service for the period January 1, 2026 through February 12, 2026. Information is deemed reliable but not guaranteed. Equal Housing Opportunity.</p>
+                        <p class="mt-1">The data relating to real estate for sale on this report comes from the Real Estate Board of New York's Residential Listing Service. Information deemed reliable but not guaranteed. This report is intended for the recipient named above and should not be redistributed.</p>
+                    </div>
+
+                    <!-- Agent-Only Data Section -->
+                    <div class="agent-only p-4 mx-6 mt-4 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+                        <p class="font-semibold text-amber-800 mb-2">Agent-Only Data</p>
+                        <div class="grid grid-cols-3 gap-3 text-gray-700">
+                            <div><span class="font-medium">Listing Type:</span> Exclusive</div>
+                            <div><span class="font-medium">Listing ID:</span> 23709741</div>
+                            <div><span class="font-medium">Web ID:</span> 20068372</div>
+                            <div><span class="font-medium">Co-Broke Agent:</span> Sales Team</div>
+                            <div><span class="font-medium">Co-Broke Co.:</span> Bohemia Realty</div>
+                            <div><span class="font-medium">Agent Phone:</span> (212) 555-0101</div>
+                            <div><span class="font-medium">Private Remarks:</span> Owner motivated. Will accept 10% below ask.</div>
+                        </div>
+                    </div>
+
+                    <!-- Report Footer -->
+                    <div class="p-6 border-t bg-gray-50">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-gray-500 text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-gray-900" id="reportPreviewAgentName">--</p>
+                                    <p class="text-sm text-gray-600" id="reportPreviewAgentTitle">Licensed Real Estate Broker</p>
+                                    <p class="text-sm text-gray-500" id="reportPreviewAgentContact">--</p>
+                                </div>
+                            </div>
+                            <div class="text-right text-xs text-gray-500">
+                                <p>Data provided by REBNY RLS via Trestle</p>
+                                <p>Last updated: Feb 12, 2026 3:45 PM</p>
+                                <p class="mt-1">Information deemed reliable but not guaranteed.</p>
+                                <p class="customer-only mt-1 flex items-center justify-end gap-1"><i class="fas fa-home"></i> Equal Housing Opportunity</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIST FORMAT PREVIEW (populated dynamically) -->
+                <div id="previewList" class="report-preview-format hidden"></div>
+
+                <!-- SUMMARY FORMAT PREVIEW -->
+                <div id="previewSummary" class="report-preview-format hidden">
+                    <!-- Report Header -->
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-2xl font-bold">MALLAN NYC</h1>
+                                <p class="text-gray-300 text-sm">Luxury Real Estate</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-semibold">Property Summary Report</p>
+                                <p class="text-gray-300 text-sm">Prepared for: Victoria Chen</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <!-- Listing Card 1 -->
+                            <div class="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                                <div class="h-40 bg-gradient-to-br from-slate-700 to-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
+                                    <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[8%] w-[12%] h-[38%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 left-[28%] w-[15%] h-[52%] bg-white/15 rounded-t-sm"></div><div class="absolute bottom-0 right-[10%] w-[11%] h-[35%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[30%] w-[13%] h-[45%] bg-white/10 rounded-t-sm"></div></div>
+                                    <i class="fas fa-building text-3xl text-white/30 mb-1 relative z-10"></i>
+                                    <span class="text-white/50 text-xs relative z-10">Midtown East</span>
+                                    <span class="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">ACTIVE</span>
+                                    <span class="absolute top-2 right-2 px-2 py-1 bg-black/60 text-white text-xs rounded">1 / 12</span>
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xl font-bold text-gray-900">$8,750,000</span>
+                                        <span class="text-xs text-gray-500">$3,073/SF</span>
+                                    </div>
+                                    <p class="font-semibold text-gray-800 mb-1">432 Park Avenue, Unit 78A</p>
+                                    <p class="text-sm text-gray-500 mb-2">Midtown East, Manhattan</p>
+                                    <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                        <span><i class="fas fa-bed mr-1"></i> 3 BR</span>
+                                        <span><i class="fas fa-bath mr-1"></i> 3.5 BA</span>
+                                        <span><i class="fas fa-ruler-combined mr-1"></i> 2,847 SF</span>
+                                    </div>
+                                    <div class="pt-3 border-t text-xs text-gray-500 flex items-center justify-between">
+                                        <span>Condo | Post-War | Doorman</span>
+                                        <span>DOM: 45</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Listing Card 2 -->
+                            <div class="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                                <div class="h-40 bg-gradient-to-br from-blue-800 to-indigo-900 flex flex-col items-center justify-center relative overflow-hidden">
+                                    <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[6%] w-[10%] h-[42%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 left-[22%] w-[14%] h-[56%] bg-white/15 rounded-t-sm"></div><div class="absolute bottom-0 right-[8%] w-[12%] h-[38%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[28%] w-[11%] h-[48%] bg-white/10 rounded-t-sm"></div></div>
+                                    <i class="fas fa-building text-3xl text-white/30 mb-1 relative z-10"></i>
+                                    <span class="text-white/50 text-xs relative z-10">Upper East Side</span>
+                                    <span class="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">ACTIVE</span>
+                                    <span class="absolute top-2 right-2 px-2 py-1 bg-black/60 text-white text-xs rounded">1 / 18</span>
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xl font-bold text-gray-900">$6,950,000</span>
+                                        <span class="text-xs text-gray-500">$2,172/SF</span>
+                                    </div>
+                                    <p class="font-semibold text-gray-800 mb-1">150 East 72nd Street, PH-A</p>
+                                    <p class="text-sm text-gray-500 mb-2">Upper East Side, Manhattan</p>
+                                    <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                        <span><i class="fas fa-bed mr-1"></i> 4 BR</span>
+                                        <span><i class="fas fa-bath mr-1"></i> 4 BA</span>
+                                        <span><i class="fas fa-ruler-combined mr-1"></i> 3,200 SF</span>
+                                    </div>
+                                    <div class="pt-3 border-t text-xs text-gray-500 flex items-center justify-between">
+                                        <span>Co-op | Pre-War | Doorman</span>
+                                        <span>DOM: 12</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Listing Card 3 -->
+                            <div class="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                                <div class="h-40 bg-gradient-to-br from-emerald-800 to-emerald-950 flex flex-col items-center justify-center relative overflow-hidden">
+                                    <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[10%] w-[12%] h-[40%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 left-[30%] w-[14%] h-[54%] bg-white/15 rounded-t-sm"></div><div class="absolute bottom-0 right-[12%] w-[11%] h-[36%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[30%] w-[10%] h-[46%] bg-white/10 rounded-t-sm"></div></div>
+                                    <i class="fas fa-building text-3xl text-white/30 mb-1 relative z-10"></i>
+                                    <span class="text-white/50 text-xs relative z-10">Lincoln Square</span>
+                                    <span class="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">ACTIVE</span>
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xl font-bold text-gray-900">$5,495,000</span>
+                                        <span class="text-xs text-gray-500">$2,617/SF</span>
+                                    </div>
+                                    <p class="font-semibold text-gray-800 mb-1">15 Central Park West, 32B</p>
+                                    <p class="text-sm text-gray-500 mb-2">Lincoln Square, Manhattan</p>
+                                    <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                        <span><i class="fas fa-bed mr-1"></i> 2 BR</span>
+                                        <span><i class="fas fa-bath mr-1"></i> 2.5 BA</span>
+                                        <span><i class="fas fa-ruler-combined mr-1"></i> 2,100 SF</span>
+                                    </div>
+                                    <div class="pt-3 border-t text-xs text-gray-500 flex items-center justify-between">
+                                        <span>Condo | Post-War | Full Service</span>
+                                        <span>DOM: 8</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Listing Card 4 -->
+                            <div class="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                                <div class="h-40 bg-gradient-to-br from-rose-800 to-rose-950 flex flex-col items-center justify-center relative overflow-hidden">
+                                    <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[7%] w-[13%] h-[44%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 left-[26%] w-[16%] h-[58%] bg-white/15 rounded-t-sm"></div><div class="absolute bottom-0 right-[8%] w-[10%] h-[40%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[25%] w-[12%] h-[50%] bg-white/10 rounded-t-sm"></div></div>
+                                    <i class="fas fa-building text-3xl text-white/30 mb-1 relative z-10"></i>
+                                    <span class="text-white/50 text-xs relative z-10">Tribeca</span>
+                                    <span class="absolute top-2 left-2 px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">OFFER IN</span>
+                                </div>
+                                <div class="p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xl font-bold text-gray-900">$4,850,000</span>
+                                        <span class="text-xs text-gray-500">$1,980/SF</span>
+                                    </div>
+                                    <p class="font-semibold text-gray-800 mb-1">56 Leonard Street, 45W</p>
+                                    <p class="text-sm text-gray-500 mb-2">Tribeca, Manhattan</p>
+                                    <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                        <span><i class="fas fa-bed mr-1"></i> 3 BR</span>
+                                        <span><i class="fas fa-bath mr-1"></i> 3 BA</span>
+                                        <span><i class="fas fa-ruler-combined mr-1"></i> 2,450 SF</span>
+                                    </div>
+                                    <div class="pt-3 border-t text-xs text-gray-500 flex items-center justify-between">
+                                        <span>Condo | New Development</span>
+                                        <span>DOM: 22</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DETAIL FORMAT PREVIEW -->
+                <div id="previewDetail" class="report-preview-format hidden">
+                    <!-- Report Header -->
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-2xl font-bold">MALLAN NYC</h1>
+                                <p class="text-gray-300 text-sm">Luxury Real Estate</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-semibold">Detailed Property Report</p>
+                                <p class="text-gray-300 text-sm">Listing 1 of 6</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Listing -->
+                    <div class="p-6">
+                        <!-- Photo Gallery -->
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div class="col-span-2 h-64 bg-gradient-to-br from-slate-700 to-slate-900 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+                                <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[5%] w-[8%] h-[35%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 left-[18%] w-[10%] h-[50%] bg-white/15 rounded-t-sm"></div><div class="absolute bottom-0 left-[35%] w-[12%] h-[60%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[30%] w-[9%] h-[42%] bg-white/10 rounded-t-sm"></div><div class="absolute bottom-0 right-[15%] w-[11%] h-[55%] bg-white/15 rounded-t-sm"></div><div class="absolute bottom-0 right-[3%] w-[7%] h-[30%] bg-white/20 rounded-t-sm"></div></div>
+                                <i class="fas fa-building text-5xl text-white/30 mb-2 relative z-10"></i>
+                                <span class="text-white/50 text-sm font-medium relative z-10">Midtown East</span>
+                                <span class="text-white/30 text-xs relative z-10">432 Park Avenue</span>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="h-[122px] bg-gradient-to-br from-slate-600 to-slate-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+                                    <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[10%] w-[15%] h-[40%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[10%] w-[18%] h-[55%] bg-white/15 rounded-t-sm"></div></div>
+                                    <i class="fas fa-building text-2xl text-white/30 relative z-10"></i>
+                                </div>
+                                <div class="h-[122px] bg-gradient-to-br from-slate-600 to-slate-800 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+                                    <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[15%] w-[18%] h-[45%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[12%] w-[15%] h-[50%] bg-white/15 rounded-t-sm"></div></div>
+                                    <i class="fas fa-building text-2xl text-white/30 relative z-10"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Price & Address -->
+                        <div class="flex items-start justify-between mb-6">
+                            <div>
+                                <h2 class="text-3xl font-bold text-gray-900 mb-1">$8,750,000</h2>
+                                <p class="text-xl text-gray-700">432 Park Avenue, Unit 78A</p>
+                                <p class="text-gray-500">Midtown East, Manhattan, NY 10022</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="px-3 py-1.5 bg-green-100 text-green-700 font-semibold rounded-lg">ACTIVE</span>
+                                <p class="text-sm text-gray-500 mt-2">Listed: Dec 21, 2025</p>
+                                <p class="text-sm text-gray-500">DOM: 45 days</p>
+                            </div>
+                        </div>
+
+                        <!-- Key Stats -->
+                        <div class="grid grid-cols-5 gap-4 p-4 bg-blue-50 rounded-lg mb-6">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-700">3</p>
+                                <p class="text-xs text-gray-600">Bedrooms</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-700">3.5</p>
+                                <p class="text-xs text-gray-600">Bathrooms</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-700">2,847</p>
+                                <p class="text-xs text-gray-600">Interior SF</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-700">$3,073</p>
+                                <p class="text-xs text-gray-600">Price/SF</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-700">78</p>
+                                <p class="text-xs text-gray-600">Floor</p>
+                            </div>
+                        </div>
+
+                        <!-- Details Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                            <!-- Property Details -->
+                            <div class="border rounded-lg p-4">
+                                <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                    <i class="fas fa-home text-blue-600"></i> Property Details
+                                </h3>
+                                <div class="grid grid-cols-2 gap-y-2 text-sm">
+                                    <span class="text-gray-500">Type:</span>
+                                    <span class="font-medium">Condo</span>
+                                    <span class="text-gray-500">Building:</span>
+                                    <span class="font-medium">Post-War</span>
+                                    <span class="text-gray-500">Total Rooms:</span>
+                                    <span class="font-medium">6</span>
+                                    <span class="text-gray-500">Exposures:</span>
+                                    <span class="font-medium">North, East</span>
+                                    <span class="text-gray-500">Views:</span>
+                                    <span class="font-medium">Central Park, City</span>
+                                    <span class="text-gray-500">Condition:</span>
+                                    <span class="font-medium">Excellent</span>
+                                </div>
+                            </div>
+
+                            <!-- Financial Details -->
+                            <div class="border rounded-lg p-4">
+                                <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                    <i class="fas fa-dollar-sign text-green-600"></i> Financial Details
+                                </h3>
+                                <div class="grid grid-cols-2 gap-y-2 text-sm">
+                                    <span class="text-gray-500">Common Charges:</span>
+                                    <span class="font-medium">$4,250/mo</span>
+                                    <span class="text-gray-500">RE Taxes:</span>
+                                    <span class="font-medium">$2,100/mo</span>
+                                    <span class="text-gray-500">Total Monthly:</span>
+                                    <span class="font-medium text-green-700">$6,350/mo</span>
+                                    <span class="text-gray-500">Tax Abatement:</span>
+                                    <span class="font-medium">Yes (until 2030)</span>
+                                    <span class="text-gray-500">Financing:</span>
+                                    <span class="font-medium">Up to 90%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Features -->
+                        <div class="border rounded-lg p-4 mb-6">
+                            <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-star text-amber-500"></i> Features & Amenities
+                            </h3>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Private Terrace (450 SF)</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Washer/Dryer</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">10'+ Ceilings</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Floor-to-Ceiling Windows</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Smart Home</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Wine Storage</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Central A/C</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Hardwood Floors</span>
+                                <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">Chef's Kitchen</span>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="border rounded-lg p-4">
+                            <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-align-left text-gray-600"></i> Description
+                            </h3>
+                            <p class="text-sm text-gray-700 leading-relaxed">
+                                Spectacular 3-bedroom, 3.5-bathroom residence on the 78th floor of the iconic 432 Park Avenue.
+                                This stunning home offers approximately 2,847 square feet of interior living space plus a 450
+                                square foot private terrace with breathtaking views of Central Park and the Manhattan skyline.
+                                Features include 12'6" ceilings, floor-to-ceiling windows, a chef's kitchen with top-of-the-line
+                                appliances, and a luxurious primary suite with dual walk-in closets and a spa-like bathroom.
+                                Building amenities include 24-hour doorman and concierge, fitness center, swimming pool, private
+                                dining room, and screening room.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COMPARISON FORMAT PREVIEW -->
+                <div id="previewComparison" class="report-preview-format hidden">
+                    <!-- Report Header -->
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-2xl font-bold">MALLAN NYC</h1>
+                                <p class="text-gray-300 text-sm">Luxury Real Estate</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-semibold">Property Comparison Report</p>
+                                <p class="text-gray-300 text-sm">Prepared for: Victoria Chen</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Table -->
+                    <div class="p-6">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b-2">
+                                        <th scope="col" class="p-3 text-left bg-gray-100 w-40"></th>
+                                        <th scope="col" class="p-3 text-center bg-blue-50">
+                                            <div class="h-24 bg-gradient-to-br from-slate-700 to-slate-900 rounded mb-2 flex flex-col items-center justify-center relative overflow-hidden">
+                                                <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[10%] w-[15%] h-[40%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[10%] w-[18%] h-[55%] bg-white/15 rounded-t-sm"></div></div>
+                                                <i class="fas fa-building text-lg text-white/30 relative z-10"></i>
+                                            </div>
+                                            <span class="font-bold">432 Park Ave</span>
+                                        </th>
+                                        <th scope="col" class="p-3 text-center bg-green-50">
+                                            <div class="h-24 bg-gradient-to-br from-emerald-700 to-emerald-900 rounded mb-2 flex flex-col items-center justify-center relative overflow-hidden">
+                                                <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[12%] w-[16%] h-[42%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[8%] w-[14%] h-[50%] bg-white/15 rounded-t-sm"></div></div>
+                                                <i class="fas fa-building text-lg text-white/30 relative z-10"></i>
+                                            </div>
+                                            <span class="font-bold">150 E 72nd St</span>
+                                        </th>
+                                        <th scope="col" class="p-3 text-center bg-purple-50">
+                                            <div class="h-24 bg-gradient-to-br from-purple-700 to-purple-900 rounded mb-2 flex flex-col items-center justify-center relative overflow-hidden">
+                                                <div class="absolute inset-0 opacity-10"><div class="absolute bottom-0 left-[8%] w-[18%] h-[45%] bg-white/20 rounded-t-sm"></div><div class="absolute bottom-0 right-[12%] w-[15%] h-[48%] bg-white/15 rounded-t-sm"></div></div>
+                                                <i class="fas fa-building text-lg text-white/30 relative z-10"></i>
+                                            </div>
+                                            <span class="font-bold">15 CPW</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">Price</td>
+                                        <td class="p-3 text-center font-bold text-green-700">$8,750,000</td>
+                                        <td class="p-3 text-center font-bold text-green-700">$6,950,000</td>
+                                        <td class="p-3 text-center font-bold text-green-700">$5,495,000</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-semibold text-gray-700">$/SF</td>
+                                        <td class="p-3 text-center">$3,073</td>
+                                        <td class="p-3 text-center">$2,172</td>
+                                        <td class="p-3 text-center">$2,617</td>
+                                    </tr>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">Bedrooms</td>
+                                        <td class="p-3 text-center">3</td>
+                                        <td class="p-3 text-center font-bold text-blue-600">4</td>
+                                        <td class="p-3 text-center">2</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-semibold text-gray-700">Bathrooms</td>
+                                        <td class="p-3 text-center">3.5</td>
+                                        <td class="p-3 text-center font-bold text-blue-600">4</td>
+                                        <td class="p-3 text-center">2.5</td>
+                                    </tr>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">SqFt</td>
+                                        <td class="p-3 text-center">2,847</td>
+                                        <td class="p-3 text-center font-bold text-blue-600">3,200</td>
+                                        <td class="p-3 text-center">2,100</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-semibold text-gray-700">Type</td>
+                                        <td class="p-3 text-center">Condo</td>
+                                        <td class="p-3 text-center">Co-op</td>
+                                        <td class="p-3 text-center">Condo</td>
+                                    </tr>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">Building Era</td>
+                                        <td class="p-3 text-center">Post-War</td>
+                                        <td class="p-3 text-center">Pre-War</td>
+                                        <td class="p-3 text-center">Post-War</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-semibold text-gray-700">Maint/CC</td>
+                                        <td class="p-3 text-center">$6,350</td>
+                                        <td class="p-3 text-center text-orange-600">$8,500</td>
+                                        <td class="p-3 text-center text-green-600">$5,200</td>
+                                    </tr>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">Floor</td>
+                                        <td class="p-3 text-center font-bold text-blue-600">78</td>
+                                        <td class="p-3 text-center">PH</td>
+                                        <td class="p-3 text-center">32</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-semibold text-gray-700">Outdoor Space</td>
+                                        <td class="p-3 text-center"><i class="fas fa-check text-green-500"></i> 450 SF</td>
+                                        <td class="p-3 text-center"><i class="fas fa-check text-green-500"></i> Roof Deck</td>
+                                        <td class="p-3 text-center"><i class="fas fa-times text-red-400"></i></td>
+                                    </tr>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">W/D in Unit</td>
+                                        <td class="p-3 text-center"><i class="fas fa-check text-green-500"></i></td>
+                                        <td class="p-3 text-center"><i class="fas fa-check text-green-500"></i></td>
+                                        <td class="p-3 text-center"><i class="fas fa-check text-green-500"></i></td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-semibold text-gray-700">DOM</td>
+                                        <td class="p-3 text-center">45</td>
+                                        <td class="p-3 text-center text-green-600">12</td>
+                                        <td class="p-3 text-center text-green-600">8</td>
+                                    </tr>
+                                    <tr class="border-b bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-700">Status</td>
+                                        <td class="p-3 text-center"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3 text-center"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                        <td class="p-3 text-center"><span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">Active</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Agent Notes -->
+                        <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <h4 class="font-bold text-amber-800 mb-2"><i class="fas fa-comment-dots mr-2"></i>Agent Notes</h4>
+                            <p class="text-sm text-amber-900">
+                                Based on your criteria, I recommend viewing 150 E 72nd St first - it offers the best value per
+                                square foot and has 4 bedrooms for growing your family. 432 Park Ave has the most spectacular
+                                views but is at the top of your budget. 15 CPW is the newest listing and priced well for the building.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FACT SHEET FORMAT PREVIEW -->
+                <div id="previewFactSheet" class="report-preview-format hidden"></div>
+
+                <!-- CMA FORMAT PREVIEW -->
+                <div id="previewCma" class="report-preview-format hidden"></div>
+
+                <!-- OPEN HOUSE FORMAT PREVIEW -->
+                <div id="previewOpenHouse" class="report-preview-format hidden"></div>
+
+                <!-- IMAGES FORMAT PREVIEW -->
+                <div id="previewImages" class="report-preview-format hidden"></div>
+
+
+
+            </div>
+        </div>
+
+        <!-- Preview Footer (dynamically updated by populateReportPreview) -->
+        <div id="reportPreviewFooter" class="p-4 border-t bg-gray-50 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-4 text-sm text-gray-600">
+                <span><i class="fas fa-file-alt mr-1"></i> 0 listings</span>
+                <span><i class="fas fa-calendar mr-1"></i> —</span>
+                <span><i class="fas fa-user mr-1"></i> —</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="closeReportPreview()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Close Preview</button>
+                <button onclick="copyReportAndEmail()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                    <i class="fas fa-paper-plane mr-2"></i> Send to Client
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

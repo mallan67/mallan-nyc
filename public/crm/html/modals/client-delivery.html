@@ -1,0 +1,197 @@
+<!-- CLIENT DELIVERY MODAL (extracted from section-main) -->
+<div id="clientDeliveryModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-6 border-b bg-gradient-to-r from-gray-700 to-gray-800">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold text-white" id="deliveryModalTitle">Send to Client</h3>
+                    <p class="text-white/70 text-sm"><span id="deliveryListingCount">3</span> listings selected</p>
+                </div>
+                <button onclick="closeDeliveryModal()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 overflow-y-auto max-h-[60vh]">
+            <!-- Client Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Select Client</label>
+                <select class="w-full border rounded-lg px-4 py-3 text-sm" id="clientSelect">
+                    <option value="">-- Choose a client --</option>
+                    <!-- Dynamically populated by populateClientSelect() -->
+                </select>
+                <button class="mt-2 text-sm text-blue-600 hover:underline">
+                    <i class="fas fa-plus mr-1"></i> Add New Client
+                </button>
+            </div>
+
+            <!-- Email Delivery Options -->
+            <div id="emailDeliveryOptions" class="delivery-options">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Email Subject</label>
+                    <input type="text" value="Properties Matching Your Criteria - Curated by [Agent Name]" class="w-full border rounded-lg px-4 py-2 text-sm">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Personal Message (Optional)</label>
+                    <textarea rows="3" placeholder="Add a personal note to your client..." class="w-full border rounded-lg px-4 py-2 text-sm"></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Email Template</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <label class="border rounded-lg p-3 cursor-pointer hover:border-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="emailTemplate" value="standard" class="sr-only" checked>
+                            <p class="font-semibold text-sm">Standard</p>
+                            <p class="text-xs text-gray-500">Clean, professional</p>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer hover:border-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="emailTemplate" value="luxury" class="sr-only">
+                            <p class="font-semibold text-sm">Luxury</p>
+                            <p class="text-xs text-gray-500">Premium branded</p>
+                        </label>
+                        <label class="border rounded-lg p-3 cursor-pointer hover:border-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="emailTemplate" value="minimal" class="sr-only">
+                            <p class="font-semibold text-sm">Minimal</p>
+                            <p class="text-xs text-gray-500">Text-focused</p>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4"> Include floor plans
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4" checked> Include pricing details
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4"> Request feedback
+                    </label>
+                </div>
+            </div>
+
+            <!-- Portal Delivery Options -->
+            <div id="portalDeliveryOptions" class="delivery-options hidden">
+                <div class="p-4 bg-purple-50 border border-purple-200 rounded-lg mb-4">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-info-circle text-purple-600"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-purple-900">Client Portal Delivery</p>
+                            <p class="text-xs text-purple-700">Listings will appear in the client's saved properties with your notes.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Collection Name</label>
+                    <input type="text" placeholder="e.g., 'Upper East Side Options' or 'Trophy Properties'" class="w-full border rounded-lg px-4 py-2 text-sm">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Agent Notes (Visible to Client)</label>
+                    <textarea rows="3" placeholder="Why you selected these properties..." class="w-full border rounded-lg px-4 py-2 text-sm"></textarea>
+                </div>
+                <div class="flex items-center gap-4 text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4" checked> Send notification email
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4"> Allow client to request showings
+                    </label>
+                </div>
+            </div>
+
+            <!-- PDF Delivery Options -->
+            <div id="pdfDeliveryOptions" class="delivery-options hidden">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">PDF Format</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="pdfFormat" value="summary" class="sr-only" checked>
+                            <p class="font-semibold text-sm">Summary View</p>
+                            <p class="text-xs text-gray-500">Multiple listings per page</p>
+                        </label>
+                        <label class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                            <input type="radio" name="pdfFormat" value="detailed" class="sr-only">
+                            <p class="font-semibold text-sm">Full Brochure</p>
+                            <p class="text-xs text-gray-500">One listing per page, all details</p>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4" checked> Include cover page
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4" checked> Include agent contact
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4"> Include floor plans
+                    </label>
+                </div>
+            </div>
+
+            <!-- Luxury Package Options -->
+            <div id="luxuryDeliveryOptions" class="delivery-options hidden">
+                <div class="p-4 bg-gradient-to-r from-luxury-gold/10 to-transparent border border-luxury-gold/30 rounded-lg mb-4">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-crown text-luxury-gold text-xl"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">White-Glove Luxury Presentation</p>
+                            <p class="text-xs text-gray-600">Premium branded package for discerning clients</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Presentation Title</label>
+                        <input type="text" value="Exclusive Properties for [Client Name]" class="w-full border rounded-lg px-4 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Branding</label>
+                        <select class="w-full border rounded-lg px-4 py-2 text-sm">
+                            <option>Mallan NYC Luxury</option>
+                            <option>Co-branded with Brokerage</option>
+                            <option>Agent Personal Brand</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Include Extras</label>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4" checked> High-res photography
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4" checked> Virtual tour links
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4" checked> Neighborhood insights
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4" checked> Building financials
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4"> Comparable sales data
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4"> Investment analysis
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t bg-gray-50 flex items-center justify-between">
+            <button onclick="closeDeliveryModal()" class="px-6 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>
+            <div class="flex items-center gap-3">
+                <button onclick="previewListingSheet()" class="px-6 py-2 border rounded-lg text-sm hover:bg-gray-100">
+                    <i class="fas fa-eye mr-2"></i> Preview
+                </button>
+                <button onclick="emailListingSheet()" class="px-6 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600">
+                    <i class="fas fa-paper-plane mr-2"></i> Send Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
