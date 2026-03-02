@@ -222,6 +222,7 @@ export default function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/admin") ||
     pathname.startsWith("/crm") ||
+    pathname === "/login" ||
     pathname.startsWith("/leads") ||
     pathname.startsWith("/api/crm") ||
     pathname.startsWith("/api/portal")

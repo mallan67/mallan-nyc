@@ -69,11 +69,11 @@ if (typeof MallanAPI !== 'undefined') {
             if (u.photo) AGENT_PROFILE.photo = u.photo;
         } else {
             // Not authenticated — redirect to login
-            window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
         }
     });
     // Handle 401 events from API calls
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
     });
 }

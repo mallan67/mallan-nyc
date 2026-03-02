@@ -282,6 +282,7 @@
                 <button class="portal-btn" data-portal="buyer">Buyer</button>
                 <button class="portal-btn" data-portal="tenant">Tenant</button>
                 <button class="portal-btn" data-portal="seller">Seller</button>
+                <button class="portal-btn" data-portal="landlord">Landlord</button>
             </div>
             <input type="hidden" id="portalType" value="agent">
         </div>
@@ -294,7 +295,7 @@
     </div>
 
     <!-- API Client -->
-    <script src="js/core/api-client.js"></script>
+    <script src="/crm/js/core/api-client.js"></script>
 
     <script>
     (function () {
@@ -315,10 +316,21 @@
             }).catch(function () { /* not logged in */ });
         }
 
-        // ── Redirect target ──
+        // ── Redirect target (role-aware) ──
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
-            return params.get('redirect') || '/crm/dashboard';
+            var explicit = params.get('redirect');
+            if (explicit) return explicit;
+
+            // Route by portal type
+            var portal = document.getElementById('portalType').value;
+            switch (portal) {
+                case 'buyer':    return '/crm/dashboard#buyer';
+                case 'tenant':   return '/crm/dashboard#tenant';
+                case 'seller':   return '/crm/dashboard#seller';
+                case 'landlord': return '/crm/dashboard#landlord';
+                default:         return '/crm/dashboard';
+            }
         }
 
         function redirectAfterLogin() {
