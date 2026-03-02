@@ -1,13 +1,14 @@
 // POST /api/auth/invite
 // Agent generates a portal invite link for a client and sends invite email.
+// Security: token hashed before storage, 72h TTL, raw token only in email link.
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { generatePortalToken } from "@/lib/auth/portal-token";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { portalInviteEmail } from "@/lib/email/templates";
 
@@ -44,13 +45,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate invite token
-    const portalToken = randomUUID();
+    // Generate token: raw for email URL, hash for DB storage
+    const { rawToken, tokenHash, expiresAt } = generatePortalToken();
+
     await prisma.lead.update({
       where: { id: lead.id },
       data: {
         portal_role: portalRole,
-        portal_token: portalToken,
+        portal_token: tokenHash,
+        portal_token_expires_at: expiresAt,
       },
     });
 
@@ -59,9 +62,10 @@ export async function POST(req: NextRequest) {
       portalRole,
     });
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc"}/portal/accept?token=${portalToken}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
+    const inviteUrl = `${baseUrl}/portal/accept?token=${rawToken}`;
 
-    // Send invite email via SendGrid
+    // Send invite email via SendGrid — raw token goes ONLY in the email link
     const agent = await prisma.agent.findUnique({
       where: { id: auth.userId },
       select: { full_name: true, first_name: true, last_name: true },
@@ -69,7 +73,7 @@ export async function POST(req: NextRequest) {
     const agentName = agent?.full_name || `${agent?.first_name || ""} ${agent?.last_name || ""}`.trim() || "Your Agent";
     const clientName = `${lead.first_name} ${lead.last_name}`;
 
-    const emailHtml = portalInviteEmail(clientName, portalToken, agentName, portalRole);
+    const emailHtml = portalInviteEmail(clientName, rawToken, agentName, portalRole);
     const emailResult = await sendEmail(
       lead.email,
       "You're Invited to Your Client Portal — Mallan Real Estate",
@@ -77,11 +81,12 @@ export async function POST(req: NextRequest) {
       auth
     );
 
+    // Security: never return raw token or hash in JSON response
     return NextResponse.json({
       success: true,
       inviteUrl,
-      portalToken,
       emailSent: emailResult.success,
+      expiresAt: expiresAt.toISOString(),
     });
   } catch (err) {
     console.error("Invite error:", err);

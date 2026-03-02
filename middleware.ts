@@ -249,16 +249,24 @@ export default function middleware(req: NextRequest) {
     setCorsHeaders(response, origin!);
   }
 
-  // Prevent admin/CRM pages from being indexed
-  if (
+  // Private pages: prevent indexing + prevent caching
+  const isPrivatePage =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/crm") ||
     pathname === "/login" ||
-    pathname.startsWith("/leads") ||
+    pathname.startsWith("/leads");
+  const isPrivateApi =
     pathname.startsWith("/api/crm") ||
-    pathname.startsWith("/api/portal")
-  ) {
+    pathname.startsWith("/api/portal");
+
+  if (isPrivatePage || isPrivateApi) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+
+  // Prevent CDN/browser caching of CRM and admin pages (sensitive content)
+  if (isPrivatePage) {
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.headers.set("Pragma", "no-cache");
   }
 
   return response;
