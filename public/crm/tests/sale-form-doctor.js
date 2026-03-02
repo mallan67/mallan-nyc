@@ -10,8 +10,8 @@
  *           NY DOS Advertising Laws (19 NYCRR 175.25), REBNY RLS compliance,
  *           UCBA 2026 (January 2026 revision)
  *
- * Mallan Real Estate Inc. -- Brokerage License #10991205323
- * Agent: Maya Allan -- License #10311201806
+ * Mallan Real Estate Inc.
+ * Sale Form Validation Tool
  *
  * VERSION: 1.0.0
  * DATE: 2026-02-13

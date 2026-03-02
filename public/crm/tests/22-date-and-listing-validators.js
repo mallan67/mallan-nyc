@@ -244,7 +244,7 @@
             if (!company) return;
             // Mock agent data (same as sale form — production will use REBNY API)
             var agents = {
-                mallan: [{ name: 'Maya Allan', id: 'MALR-001', phone: '646-258-4460', email: 'maya@mallan.nyc', license: '10311201806' }],
+                mallan: [{ name: 'Demo Agent', id: 'MALR-001', phone: '555-000-0000', email: 'demo@example.com', license: 'DEMO-LIC-001' }],
                 compass: [{ name: 'Agent Smith', id: 'COMP-101', phone: '212-555-0101', email: 'smith@compass.com', license: '10401234567' }],
                 douglas: [{ name: 'Agent Jones', id: 'DELI-201', phone: '212-555-0201', email: 'jones@elliman.com', license: '10402345678' }],
                 corcoran: [{ name: 'Agent Brown', id: 'CORC-301', phone: '212-555-0301', email: 'brown@corcoran.com', license: '10403456789' }],

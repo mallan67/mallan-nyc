@@ -33,7 +33,7 @@ async function main() {
   // AGENTS
   // ═══════════════════════════════════════════════════════════
 
-  const mayaHash = await hashPassword("MallanBroker2026!");
+  const mayaHash = await hashPassword(process.env.SEED_BROKER_PASSWORD || "ChangeMe_Broker_2026!");
 
   const maya = await prisma.agent.upsert({
     where: { email: "maya@mallan.nyc" },
@@ -69,7 +69,7 @@ async function main() {
   });
   console.log("  Agent: Maya Allan (BROKER) id=" + maya.id);
 
-  const agentAHash = await hashPassword("TestAgent2026!");
+  const agentAHash = await hashPassword(process.env.SEED_AGENT_PASSWORD || "ChangeMe_Agent_2026!");
 
   const agentA = await prisma.agent.upsert({
     where: { email: "alex@mallan.nyc" },
@@ -105,7 +105,7 @@ async function main() {
   });
   console.log("  Agent: Alex Rivera (AGENT) id=" + agentA.id);
 
-  const agentBHash = await hashPassword("TestAgent2026!");
+  const agentBHash = await hashPassword(process.env.SEED_AGENT_PASSWORD || "ChangeMe_Agent_2026!");
 
   const agentB = await prisma.agent.upsert({
     where: { email: "jamie@mallan.nyc" },
@@ -305,7 +305,7 @@ async function main() {
   // Non-Maya listings (from other brokerages — imported via RLS)
   const otherListings = [
     {
-      listing_id: "SL-23709741",
+      listing_id: "SL-MOCK-S001",
       listing_type: "sale",
       status: "Active",
       property_type: "Residential",
@@ -317,10 +317,10 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Fort George",
       address: { street: "140 HILLSIDE AVENUE", unit: "2C", city: "New York", state: "NY", zip: "10040" },
-      agent_info: { company: "Bohemia Realty Group", agentName: "Sales Team" },
+      agent_info: { company: "Demo Brokerage A", agentName: "Demo Agent A" },
     },
     {
-      listing_id: "SL-23603339",
+      listing_id: "SL-MOCK-S002",
       listing_type: "sale",
       status: "Active",
       property_type: "Residential",
@@ -332,10 +332,10 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Inwood",
       address: { street: "581 ACADEMY STREET", unit: "2F", city: "New York", state: "NY", zip: "10034" },
-      agent_info: { company: "Maz Group NY", agentName: "Tarek Bendida" },
+      agent_info: { company: "Demo Brokerage B", agentName: "Demo Agent B" },
     },
     {
-      listing_id: "SL-23692908",
+      listing_id: "SL-MOCK-S003",
       listing_type: "sale",
       status: "Active",
       property_type: "Residential",
@@ -347,10 +347,10 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Morningside Heights",
       address: { street: "516 WEST 112TH STREET", unit: "4B", city: "New York", state: "NY", zip: "10025" },
-      agent_info: { company: "Manhattan Network Inc", agentName: "Victor Laino" },
+      agent_info: { company: "Demo Brokerage C", agentName: "Demo Agent C" },
     },
     {
-      listing_id: "SL-23663883",
+      listing_id: "SL-MOCK-S004",
       listing_type: "sale",
       status: "Active",
       property_type: "Residential",
@@ -362,7 +362,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Lenox Hill",
       address: { street: "350 EAST 62ND STREET", unit: "1M", city: "New York", state: "NY", zip: "10065" },
-      agent_info: { company: "REDF - Redfin REBNY", agentName: "Jason Warner" },
+      agent_info: { company: "Demo Brokerage D", agentName: "Demo Agent D" },
     },
     {
       listing_id: "SL-MOCK-005",
@@ -467,7 +467,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Upper East Side",
       address: { street: "170 EAST 87TH STREET", unit: "3C", city: "New York", state: "NY", zip: "10128" },
-      agent_info: { company: "Related Sales", agentName: "Sarah Kim" },
+      agent_info: { company: "Demo Brokerage E", agentName: "Demo Agent E" },
     },
     {
       listing_id: "SL-23810004",
@@ -482,7 +482,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Hell's Kitchen",
       address: { street: "420 WEST 42ND STREET", unit: "28F", city: "New York", state: "NY", zip: "10036" },
-      agent_info: { company: "Douglas Elliman", agentName: "Michael Torres" },
+      agent_info: { company: "Demo Brokerage F", agentName: "Demo Agent F" },
     },
     {
       listing_id: "SL-23810005",
@@ -497,7 +497,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Tribeca",
       address: { street: "100 BARCLAY STREET", unit: "15G", city: "New York", state: "NY", zip: "10007" },
-      agent_info: { company: "Brown Harris Stevens", agentName: "Amanda Chen" },
+      agent_info: { company: "Demo Brokerage G", agentName: "Demo Agent G" },
     },
     {
       listing_id: "SL-23810006",
@@ -512,7 +512,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Washington Heights",
       address: { street: "3345 BROADWAY", unit: "4E", city: "New York", state: "NY", zip: "10031" },
-      agent_info: { company: "Maz Group NY", agentName: "Tarek Bendida" },
+      agent_info: { company: "Demo Brokerage B", agentName: "Demo Agent B" },
     },
     // Distribution gate test listings (no agent — RLS imports)
     {
@@ -528,7 +528,7 @@ async function main() {
       neighborhood: "Upper East Side",
       address: { street: "999 PARK AVENUE", unit: "30A", city: "New York", state: "NY", zip: "10028" },
       owner_opt_out: true,
-      agent_info: { company: "Sotheby's", agentName: "Test Agent" },
+      agent_info: { company: "Demo Brokerage H", agentName: "Test Agent" },
     },
     {
       listing_id: "SL-23830002",
@@ -544,7 +544,7 @@ async function main() {
       address: { street: "100 CENTRAL PARK SOUTH", unit: "15B", city: "New York", state: "NY", zip: "10019" },
       participant_only: true,
       idx_display_yn: false,
-      agent_info: { company: "Douglas Elliman", agentName: "Test Agent 2" },
+      agent_info: { company: "Demo Brokerage I", agentName: "Test Agent 2" },
     },
     {
       listing_id: "SL-23830004",
@@ -560,7 +560,7 @@ async function main() {
       neighborhood: "Upper West Side",
       address: { street: "220 RIVERSIDE BOULEVARD", unit: "19F", city: "New York", state: "NY", zip: "10069" },
       idx_display_yn: false,
-      agent_info: { company: "Compass", agentName: "IDX Test Agent" },
+      agent_info: { company: "Demo Brokerage J", agentName: "IDX Test Agent" },
     },
     {
       listing_id: "SL-23830005",
@@ -576,7 +576,7 @@ async function main() {
       neighborhood: "Upper West Side",
       address: { street: "15 CENTRAL PARK WEST", unit: "22A", city: "New York", state: "NY", zip: "10023" },
       internet_address_display_yn: false,
-      agent_info: { company: "Brown Harris Stevens", agentName: "Address Test Agent" },
+      agent_info: { company: "Demo Brokerage K", agentName: "Address Test Agent" },
     },
     // Studio + Condop (other agents)
     {
@@ -592,7 +592,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Upper East Side",
       address: { street: "330 EAST 75TH STREET", unit: "3F", city: "New York", state: "NY", zip: "10021" },
-      agent_info: { company: "Corcoran Group", agentName: "Lisa Park" },
+      agent_info: { company: "Demo Brokerage L", agentName: "Demo Agent L" },
     },
     {
       listing_id: "SL-23820004",
@@ -607,7 +607,7 @@ async function main() {
       borough: "Manhattan",
       neighborhood: "Upper East Side",
       address: { street: "1760 SECOND AVENUE", unit: "9C", city: "New York", state: "NY", zip: "10128" },
-      agent_info: { company: "Compass", agentName: "David Kim" },
+      agent_info: { company: "Demo Brokerage M", agentName: "Demo Agent M" },
     },
   ];
 

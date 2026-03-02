@@ -1,5 +1,6 @@
 // app/api/ai/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth/middleware";
 
 // Make sure this runs on the Node runtime (not Edge)
 export const runtime = "nodejs";
@@ -7,21 +8,15 @@ export const runtime = "nodejs";
 type Role = "user" | "assistant" | "system";
 type ChatMessage = { role: Role; content: string };
 
-// Simple GET so you can open /api/ai in the browser to verify it's deployed
+// GET — minimal health check (no secrets leaked)
 export async function GET() {
-  const key = (process.env.OPENAI_API_KEY || "").trim();
-  return NextResponse.json({
-    ok: true,
-    route: "/api/ai",
-    accepts: ["POST"],
-    hasKey: Boolean(key),
-    keyLength: key.length || 0,
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-  });
+  return NextResponse.json({ ok: true, route: "/api/ai", accepts: ["POST"] });
 }
 
-// Chat POST handler
-export async function POST(req: Request) {
+// Chat POST handler — requires authenticated agent or broker
+export async function POST(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
   try {
     // Read body safely
     let body: any = {};

@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import { requireBroker, isAuthError } from '@/lib/auth/middleware';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,10 @@ export async function GET() {
   return NextResponse.json(settings);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireBroker(request);
+  if (isAuthError(auth)) return auth;
+
   try {
     const body = await request.json();
     const currentSettings = await getSettings();

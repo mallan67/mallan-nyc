@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
     contacts.unshift(submission);
     await writeContacts(contacts);
 
-    // Log for Vercel dashboard visibility
-    console.log(`[CONTACT] New submission from ${submission.email} at ${submission.receivedAt}`);
+    // Log for Vercel dashboard visibility (redacted PII)
+    console.log(`[CONTACT] New submission id=${submission.id} at ${submission.receivedAt}`);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
@@ -120,14 +120,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Admin endpoint to retrieve submissions
+// GET - Admin endpoint to retrieve submissions (requires broker auth)
 export async function GET(request: NextRequest) {
-  // Basic auth check via header (admin pages will need to implement auth)
+  // Require valid admin key — reject if missing or wrong
   const authHeader = request.headers.get('x-admin-key');
-
-  // For now, allow access without auth (will be behind admin route)
-  // In production, add proper authentication
-  if (authHeader && authHeader !== process.env.ADMIN_KEY) {
+  if (!authHeader || authHeader !== process.env.ADMIN_KEY) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
