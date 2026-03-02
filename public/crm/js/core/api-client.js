@@ -11,34 +11,29 @@ var MallanAPI = (function () {
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var _baseUrl = ''; // Same origin when served from Next.js; set via MallanAPI.configure()
-  var _token = null; // Bearer token for cross-origin auth (stored in localStorage)
+  var _token = null; // In-memory only (NEVER persisted to localStorage — XSS safe)
   var _user = null;  // Populated by init()
   var _context = null; // Full /api/auth/me response (principalType, role, portalRole, user)
   var _ready = false;
   var _readyCallbacks = [];
 
-  // ─── Token persistence ─────────────────────────────────────────────────
-  var TOKEN_KEY = 'mallan_session_token';
+  // ─── Token handling (memory-only) ──────────────────────────────────────
+  // Auth uses HttpOnly session_token cookie (set by server, sent via credentials: 'include').
+  // _token is kept in memory ONLY for the current page session — never written to storage.
+  // On page refresh, auth is re-established via the HttpOnly cookie → /api/auth/me.
 
   function _saveToken(token) {
-    if (token) {
-      _token = token;
-      try { localStorage.setItem(TOKEN_KEY, token); } catch (e) { /* private browsing */ }
-    }
-  }
-
-  function _loadToken() {
-    try { _token = localStorage.getItem(TOKEN_KEY) || null; } catch (e) { _token = null; }
-    return _token;
+    if (token) { _token = token; }
   }
 
   function _clearToken() {
     _token = null;
-    try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* ok */ }
+    // Clean up any legacy localStorage token from previous versions
+    try { localStorage.removeItem('mallan_session_token'); } catch (e) { /* ok */ }
   }
 
-  // Restore token on load
-  _loadToken();
+  // Clean up any legacy localStorage token on load
+  try { localStorage.removeItem('mallan_session_token'); } catch (e) { /* ok */ }
 
   // ─── Internal helpers ────────────────────────────────────────────────────
 
@@ -500,8 +495,8 @@ var MallanAPI = (function () {
     /** @returns {boolean} Whether init has completed successfully */
     get isReady() { return _ready; },
 
-    /** @returns {boolean} Whether a Bearer token is stored */
-    get hasToken() { return !!_token; },
+    /** @returns {boolean} Whether a session exists (in-memory token or cookie) */
+    get hasToken() { return !!_token || document.cookie.indexOf('session_token=') !== -1; },
 
     /**
      * Returns the full canonical context from /api/auth/me.
@@ -530,7 +525,5 @@ var MallanAPI = (function () {
     savedSearches: savedSearches,
     email: email,
 
-    // Exposed for advanced usage / testing
-    _fetch: _fetch,
   };
 })();

@@ -61,6 +61,7 @@ const BLOCKED_BOTS =
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const GENERAL_RATE_LIMIT = 120;
 const API_RATE_LIMIT = 30;
+const LOGIN_RATE_LIMIT = 5; // Strict: 5 login attempts per minute per IP
 const RATE_WINDOW_MS = 60_000;
 
 // Periodic cleanup to prevent memory leak (every 5 minutes)
@@ -121,7 +122,18 @@ export default function middleware(req: NextRequest) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // ── 3. Rate limiting ──
+  // ── 3a. Login rate limiting (strict: 5/min per IP) ──
+  if (pathname === "/api/auth/login" && req.method === "POST") {
+    const loginKey = `${ip}:login`;
+    if (!checkRateLimit(loginKey, LOGIN_RATE_LIMIT)) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Try again in 1 minute." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+  }
+
+  // ── 3b. General rate limiting ──
   const isApi = pathname.startsWith("/api");
   const limit = isApi ? API_RATE_LIMIT : GENERAL_RATE_LIMIT;
   const rateLimitKey = `${ip}:${isApi ? "api" : "page"}`;
