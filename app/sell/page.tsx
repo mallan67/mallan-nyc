@@ -3,7 +3,6 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import Image from 'next/image';
-import Link from 'next/link';
 import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
 import CMARequestForm from '@/app/components/CMARequestForm';
 

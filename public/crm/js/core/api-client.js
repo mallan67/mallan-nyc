@@ -2,7 +2,7 @@
 // API CLIENT — Bridge between CRM mockup and Next.js backend
 // Must be loaded BEFORE agent-context.js so session data is available.
 //
-// Sprint 9: Bearer token auth for cross-origin (GitHub Pages → mallan.nyc).
+// Auth: HttpOnly session_token cookie (same-origin). No Bearer tokens.
 // All methods call real endpoints. No mock fallback in production.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -11,34 +11,18 @@ var MallanAPI = (function () {
 
   // ─── Configuration ───────────────────────────────────────────────────────
   var _baseUrl = ''; // Same origin when served from Next.js; set via MallanAPI.configure()
-  var _token = null; // In-memory only (NEVER persisted to localStorage — XSS safe)
   var _user = null;  // Populated by init()
   var _context = null; // Full /api/auth/me response (principalType, role, portalRole, user)
   var _ready = false;
   var _readyCallbacks = [];
 
-  // ─── Token handling (memory-only) ──────────────────────────────────────
-  // Auth uses HttpOnly session_token cookie (set by server, sent via credentials: 'include').
-  // _token is kept in memory ONLY for the current page session — never written to storage.
-  // On page refresh, auth is re-established via the HttpOnly cookie → /api/auth/me.
-
-  function _saveToken(token) {
-    if (token) { _token = token; }
-  }
-
-  function _clearToken() {
-    _token = null;
-    // Clean up any legacy localStorage token from previous versions
-    try { localStorage.removeItem('mallan_session_token'); } catch (e) { /* ok */ }
-  }
-
-  // Clean up any legacy localStorage token on load
+  // Clean up any legacy localStorage token from previous versions
   try { localStorage.removeItem('mallan_session_token'); } catch (e) { /* ok */ }
 
   // ─── Internal helpers ────────────────────────────────────────────────────
 
   /**
-   * Core fetch wrapper. Sends Bearer token + credentials (cookies).
+   * Core fetch wrapper. Sends credentials (cookies) for auth.
    * Handles 401 → dispatch unauthorized event.
    */
   function _fetch(path, options) {
@@ -49,10 +33,6 @@ var MallanAPI = (function () {
     if (options.body && typeof options.body === 'string') {
       headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     }
-    // Attach Bearer token if available
-    if (_token) {
-      headers['Authorization'] = 'Bearer ' + _token;
-    }
 
     return fetch(url, {
       method: options.method || 'GET',
@@ -62,7 +42,6 @@ var MallanAPI = (function () {
     }).then(function (res) {
       if (res.status === 401) {
         console.warn('[MallanAPI] 401 Unauthorized — redirecting to login');
-        _clearToken();
         window.dispatchEvent(new CustomEvent('mallan:auth:unauthorized'));
         return Promise.reject(new Error('Unauthorized'));
       }
@@ -86,7 +65,7 @@ var MallanAPI = (function () {
   var auth = {
     /**
      * Login with email + password.
-     * Stores Bearer token from response for cross-origin auth.
+     * Server sets HttpOnly session_token cookie on success.
      */
     login: function (email, password, portalType) {
       return _fetch('/api/auth/login', {
@@ -97,9 +76,6 @@ var MallanAPI = (function () {
           portalType: portalType || 'agent',
         }),
       }).then(function (data) {
-        if (data.token) {
-          _saveToken(data.token);
-        }
         _user = data.user || null;
         _ready = true;
         return data;
@@ -107,17 +83,15 @@ var MallanAPI = (function () {
     },
 
     /**
-     * Logout — destroy session, clear token.
+     * Logout — destroy session on server, clear local state.
      */
     logout: function () {
       return _fetch('/api/auth/logout', { method: 'POST' }).then(function () {
-        _clearToken();
         _user = null;
         _context = null;
         _ready = false;
       }).catch(function () {
         // Clear local state even if API call fails
-        _clearToken();
         _user = null;
         _context = null;
         _ready = false;
@@ -495,8 +469,8 @@ var MallanAPI = (function () {
     /** @returns {boolean} Whether init has completed successfully */
     get isReady() { return _ready; },
 
-    /** @returns {boolean} Whether a session exists (in-memory token or cookie) */
-    get hasToken() { return !!_token || document.cookie.indexOf('session_token=') !== -1; },
+    /** @returns {boolean} Whether a session cookie exists */
+    get hasToken() { return document.cookie.indexOf('session_token=') !== -1; },
 
     /**
      * Returns the full canonical context from /api/auth/me.

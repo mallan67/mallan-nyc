@@ -1,5 +1,6 @@
 // PATCH /api/crm/listings/[id]/status
 // Status state machine transition with REBNY RLS rules enforcement.
+// Includes DOM tracking per UCBA 2026 (30-day reset).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -7,6 +8,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -105,20 +107,42 @@ export async function PATCH(
     );
   }
 
+  // Compute DOM tracking fields for this transition
+  const domUpdate = computeDomTransition(
+    {
+      status: currentStatus,
+      status_changed_at: listing.status_changed_at,
+      first_active_date: listing.first_active_date,
+      days_on_market: listing.days_on_market,
+    },
+    newStatus
+  );
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {
       status: newStatus,
       modification_timestamp: new Date(),
+      status_changed_at: domUpdate.status_changed_at,
+      first_active_date: domUpdate.first_active_date,
+      days_on_market: domUpdate.days_on_market,
+      cumulative_days_on_market: domUpdate.cumulative_days_on_market,
     },
   });
+
+  const domReset = domUpdate.days_on_market === 0 && listing.days_on_market > 0;
 
   await logAuditEvent(
     "status_change",
     "listing",
     listing.id.toString(),
     auth,
-    { previous_status: currentStatus, new_status: newStatus },
+    {
+      previous_status: currentStatus,
+      new_status: newStatus,
+      days_on_market: domUpdate.days_on_market,
+      ...(domReset ? { dom_reset: true, previous_dom: listing.days_on_market } : {}),
+    },
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
@@ -127,5 +151,7 @@ export async function PATCH(
     listing_id: listing.listing_id,
     previous_status: currentStatus,
     status: newStatus,
+    days_on_market: domUpdate.days_on_market,
+    ...(domReset ? { dom_reset: true } : {}),
   });
 }

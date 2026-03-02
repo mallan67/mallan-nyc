@@ -142,6 +142,12 @@ model Listing {
   actions                 ClientListingAction[]
   showings                Showing[]
 
+  // --- DOM tracking (UCBA 2026: 30-day reset) ---
+  status_changed_at           DateTime? @map("status_changed_at")
+  first_active_date           DateTime? @map("first_active_date")
+  days_on_market              Int       @default(0) @map("days_on_market")
+  cumulative_days_on_market   Int       @default(0) @map("cumulative_days_on_market")
+
   // --- Sync tracking (Trestle IDX pipeline) ---
   last_synced_from_trestle DateTime? @map("last_synced_from_trestle")
   sync_status              String?   @default("pending") @map("sync_status")  // "pending" | "synced" | "gated:*" | "error"

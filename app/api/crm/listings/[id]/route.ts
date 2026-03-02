@@ -9,6 +9,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
+import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -85,6 +86,24 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Merge existing raw_data with updates for validation
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
   const merged = { ...existingRaw, ...body };
+
+  // RLS Enforcement Gate — same gate as POST (create)
+  const enforcement = assertRlsCompliantPayload(merged, {
+    listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
+    isNewDevelopment: merged.NewDevelopmentYN === true,
+    currentStatus: (merged.MlsStatus as string) || listing.status || undefined,
+    previousStatus: listing.status || undefined,
+  });
+  if (!enforcement.passed) {
+    return NextResponse.json(
+      {
+        error: "Update blocked by RLS enforcement gate",
+        blockers: enforcement.blockers,
+        warnings: enforcement.warnings,
+      },
+      { status: 422 }
+    );
+  }
 
   // Re-validate merged data
   const validation = validateListing(merged);

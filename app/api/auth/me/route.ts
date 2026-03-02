@@ -30,11 +30,7 @@ function licenseTitle(type: string | null): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  // Check Bearer header first (cross-origin), then cookie (same-origin)
-  const authHeader = req.headers.get("authorization");
-  const token = (authHeader && authHeader.startsWith("Bearer "))
-    ? authHeader.slice(7)
-    : req.cookies.get(SESSION_COOKIE)?.value;
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
 
   if (!token) {
     return NextResponse.json({

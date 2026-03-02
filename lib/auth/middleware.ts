@@ -8,14 +8,9 @@ import type { Prisma } from "@prisma/client";
 const SESSION_COOKIE = "session_token";
 
 /**
- * Extract session token from request.
- * Checks Bearer header first (cross-origin), then cookie (same-origin).
+ * Extract session token from cookie.
  */
 function getSessionToken(req: NextRequest): string | null {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    return authHeader.slice(7);
-  }
   return req.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 

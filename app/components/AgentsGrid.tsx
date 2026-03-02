@@ -35,7 +35,7 @@ export default function AgentsGrid() {
       const bioH = bioRef.current.scrollHeight;
       setBioOverflows(bioH > photoH);
     }
-  });
+  }, []);
 
   useEffect(() => {
     fetch('/api/agents/public')
