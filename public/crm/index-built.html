@@ -24,12 +24,15 @@
     };
     </script>
     <script>
-    // Route-aware render blocking — hide search form BEFORE first paint
-    // when restoring results/detail view on refresh. Prevents flash of search form.
+    // Route-aware render blocking — only restore detail view on refresh (not results).
+    // Fresh page loads always start at search form.
     (function() {
         var h = location.hash.replace('#','').split('/')[0];
-        if (h === 'results' || h === 'detail') {
+        if (h === 'detail') {
             var s = document.createElement('style'); s.id = 'routeBlock'; s.textContent = '#searchFormContainer{display:none!important}'; document.head.appendChild(s);
+        } else if (h === 'results') {
+            // Clear stale #results hash — always start at search form on fresh load
+            history.replaceState(null, '', location.pathname + '#main');
         }
     })();
     </script>
@@ -1610,6 +1613,7 @@ header {
 @media (max-width: 767px) {
     .mobile-menu-btn { display: flex; }
     .luxury-sidebar {
+        display: block !important;
         position: fixed !important;
         left: -280px;
         top: 49px;
@@ -1947,7 +1951,7 @@ function toggleMobileMenu() {
 
 </header>
 <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
-<aside id="luxury-sidebar" class="luxury-sidebar" style="padding:16px 12px;">
+<aside id="luxury-sidebar" class="luxury-sidebar" style="display:none;padding:16px 12px;">
     <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
         <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 text-xs font-bold" id="mobileBadgeInitials">--</div>
         <div class="text-sm"><span id="mobileBadgeName" class="font-semibold text-gray-900">--</span><br><span id="mobileBadgeRole" class="text-xs text-amber-600">Agent</span></div>
@@ -27965,9 +27969,8 @@ function emailCurrentCalc() {
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
 
-        // ── IMMEDIATE: hide the search form if we're restoring results/detail ──
-        // This prevents the flash of the basic search form before results load.
-        if (route === 'results' || route === 'detail') {
+        // ── IMMEDIATE: hide the search form if we're restoring a detail view ──
+        if (route === 'detail') {
             var sf = document.getElementById('searchFormContainer');
             if (sf) sf.style.display = 'none';
         }
