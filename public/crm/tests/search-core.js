@@ -175,14 +175,14 @@ var SearchCore = (function() {
 
         /** Brokerage info — used in all output surfaces */
         brokerage: {
-            name:       'Mallan Real Estate Inc.',
-            license:    '#10991205323',
-            agentName:  'Maya Allan',
-            agentLicense: '#10311201806',
-            phone:      '646-258-4460',
-            email:      'maya@mallan.nyc',
-            address:    '400 East 90th Street, Suite 17C, New York, NY 10128',
-            website:    'mallan.nyc'
+            name:       'Demo Realty Inc.',
+            license:    '#DEMO-LIC-001',
+            agentName:  'Demo Agent',
+            agentLicense: '#DEMO-AGT-001',
+            phone:      '555-000-0000',
+            email:      'demo@example.com',
+            address:    '123 Demo Street, Suite 1, New York, NY 10001',
+            website:    'example.com'
         },
 
         /**

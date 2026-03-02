@@ -14,11 +14,14 @@ import {
   parseValidationResponse,
   getRulesVersion,
 } from '@/lib/compliance';
+import { requireAgentOrBroker, isAuthError } from '@/lib/auth/middleware';
 
 // Force dynamic rendering for API routes
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAgentOrBroker(request);
+  if (isAuthError(auth)) return auth;
   try {
     const body = await request.json();
     const { listing } = body;

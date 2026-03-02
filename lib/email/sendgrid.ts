@@ -28,8 +28,7 @@ export async function sendEmail(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!apiKey) {
     // Dev mode: log to console instead of sending
-    console.log(`[Email:DEV] To: ${to} | Subject: ${subject}`);
-    console.log(`[Email:DEV] Body length: ${html.length} chars`);
+    console.log(`[Email:DEV] Subject: ${subject} | Body length: ${html.length} chars`);
     await logEmailAudit("send_dev", to, subject, user);
     return { success: true, messageId: "dev-mode" };
   }
@@ -74,7 +73,7 @@ export async function sendTemplatedEmail(
   }
 
   if (!apiKey) {
-    console.log(`[Email:DEV] Template: ${templateKey} | To: ${to}`, dynamicData);
+    console.log(`[Email:DEV] Template: ${templateKey}`);
     await logEmailAudit("template_dev", to, `template:${templateKey}`, user);
     return { success: true, messageId: "dev-mode" };
   }

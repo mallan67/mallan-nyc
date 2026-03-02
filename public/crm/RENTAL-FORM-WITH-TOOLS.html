@@ -4228,6 +4228,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 var VIEWER_PARAMS = new URLSearchParams(window.location.search);
 var VIEWER_LISTING_ID = VIEWER_PARAMS.get('listingId') || VIEWER_PARAMS.get('id') || '';
 // Fail closed — unknown/missing role defaults to most restrictive (tenant), not broker
+// URL param is initial hint only; overridden by server-validated role after auth
 var VIEWER_ROLE_RAW = VIEWER_PARAMS.get('role') || '';
 var VIEWER_VALID_ROLES = ['broker', 'agent', 'buyer', 'tenant', 'seller', 'landlord'];
 var VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(VIEWER_ROLE_RAW) >= 0 ? VIEWER_ROLE_RAW : 'tenant';
@@ -4237,6 +4238,15 @@ var _isLocal = (location.hostname === 'localhost' || location.hostname === '127.
 // ── Try API fetch first, fall back to mock data ──
 if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
     MallanAPI.onReady(function() {
+        // Override URL param with server-validated role (prevents ?role=broker bypass)
+        try {
+            var ctx = MallanAPI.getContext ? MallanAPI.getContext() : null;
+            if (ctx && ctx.authenticated) {
+                var serverRole = (ctx.portalRole || ctx.role || 'tenant').toLowerCase();
+                VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(serverRole) >= 0 ? serverRole : 'tenant';
+                if (typeof applyRentalRoleMasking === 'function') applyRentalRoleMasking();
+            }
+        } catch(e) { /* fail closed — keep tenant default */ }
         MallanAPI.listings.get(VIEWER_LISTING_ID).then(function(apiData) {
             VIEWER_MOCK_LISTINGS[VIEWER_LISTING_ID] = {
                 listingId: apiData.listing_id || VIEWER_LISTING_ID,
@@ -4309,7 +4319,7 @@ var _isDevMock = (function() {
 var _RENTAL_VIEWER_MOCK = {
     'RL-2001': {
         listingId: 'RL-2001', status: 'Active',
-        address: '400 East 90th Street', unit: '12B', city: 'New York', state: 'NY', zipCode: '10128',
+        address: '123 Demo Street', unit: '2B', city: 'New York', state: 'NY', zipCode: '10001',
         borough: 'Manhattan', neighborhood: 'Upper East Side', crossStreet: 'First Avenue',
         propertyType: 'Condo', listingType: 'ExclusiveRightToRent',
         monthlyRent: '4,500', securityDeposit: '4,500', leaseTerm: '12',

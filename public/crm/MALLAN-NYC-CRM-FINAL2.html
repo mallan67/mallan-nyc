@@ -3938,19 +3938,19 @@ The spacious living/dining area is perfect for entertaining, while the master su
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                             <div class="p-3 bg-gray-50 rounded-lg text-center">
                                 <p class="text-xs text-gray-500 mb-1">Sale Price</p>
-                                <p class="font-bold text-gray-900">$2,000,000</p>
+                                <p class="font-bold text-gray-900" id="commExSalePrice">$--</p>
                             </div>
                             <div class="p-3 bg-blue-50 rounded-lg text-center">
                                 <p class="text-xs text-blue-600 mb-1">Co-Broke Offered</p>
-                                <p class="font-bold text-blue-800">3%</p>
+                                <p class="font-bold text-blue-800" id="commExCoBroke">--%</p>
                             </div>
                             <div class="p-3 bg-green-50 rounded-lg text-center">
                                 <p class="text-xs text-green-600 mb-1">Gross Commission</p>
-                                <p class="font-bold text-green-700">$60,000</p>
+                                <p class="font-bold text-green-700" id="commExGross">$--</p>
                             </div>
                             <div class="p-3 bg-amber-50 rounded-lg text-center">
-                                <p class="text-xs text-amber-600 mb-1">Your Split (60%)</p>
-                                <p class="font-bold text-amber-700">$36,000</p>
+                                <p class="text-xs text-amber-600 mb-1">Your Split</p>
+                                <p class="font-bold text-amber-700" id="commExSplit">$--</p>
                             </div>
                         </div>
                     </div>
@@ -4205,19 +4205,19 @@ The spacious living/dining area is perfect for entertaining, while the master su
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                                     <div class="p-3 bg-white rounded-lg text-center">
                                         <p class="text-xs text-gray-500 mb-1">Monthly Rent</p>
-                                        <p class="font-bold text-gray-900">$4,000</p>
+                                        <p class="font-bold text-gray-900" id="rentalCommExRent">$--</p>
                                     </div>
                                     <div class="p-3 bg-white rounded-lg text-center">
                                         <p class="text-xs text-gray-500 mb-1">Annual Rent</p>
-                                        <p class="font-bold text-gray-900">$48,000</p>
+                                        <p class="font-bold text-gray-900" id="rentalCommExAnnual">$--</p>
                                     </div>
                                     <div class="p-3 bg-green-100 rounded-lg text-center">
-                                        <p class="text-xs text-green-600 mb-1">Fee (15%)</p>
-                                        <p class="font-bold text-green-700">$7,200</p>
+                                        <p class="text-xs text-green-600 mb-1">Fee</p>
+                                        <p class="font-bold text-green-700" id="rentalCommExFee">$--</p>
                                     </div>
                                     <div class="p-3 bg-amber-100 rounded-lg text-center">
-                                        <p class="text-xs text-amber-600 mb-1">Your Split (60%)</p>
-                                        <p class="font-bold text-amber-700">$4,320</p>
+                                        <p class="text-xs text-amber-600 mb-1">Your Split</p>
+                                        <p class="font-bold text-amber-700" id="rentalCommExSplit">$--</p>
                                     </div>
                                 </div>
                             </div>
@@ -17642,7 +17642,7 @@ The spacious living/dining area is perfect for entertaining, while the master su
                                     <td class="p-3">
                                         <div class="flex items-center gap-2">
                                             <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-xs">MT</div>
-                                            <span class="font-medium">Michael Torres</span>
+                                            <span class="font-medium">Demo Agent F</span>
                                         </div>
                                     </td>
                                     <td class="p-3 text-gray-600">Jan 18, 2026</td>
@@ -18149,7 +18149,7 @@ The spacious living/dining area is perfect for entertaining, while the master su
                                     <td class="p-3 text-gray-600">Feb 6, 2026</td>
                                     <td class="p-3 text-gray-600">11:00 AM</td>
                                     <td class="p-3 font-medium showing-log-agent">--</td>
-                                    <td class="p-3 text-gray-600">Michael Torres</td>
+                                    <td class="p-3 text-gray-600">Demo Agent F</td>
                                     <td class="p-3 text-gray-600 text-xs">"Nice unit, considering a few options in the area."</td>
                                     <td class="p-3">
                                         <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-semibold">Warm</span>
@@ -22203,7 +22203,7 @@ The spacious living/dining area is perfect for entertaining, while the master su
                             <tbody>
                                 <tr class="border-t hover:bg-gray-50 cursor-pointer" onclick="openListingViewer('sale','SL-AL01')">
                                     <td class="px-3 py-2"><div class="w-12 h-9 rounded overflow-hidden bg-gray-100 flex-shrink-0"><img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=96&h=72&q=70&fit=crop" class="w-full h-full object-cover" alt=""></div></td>
-                                    <td class="px-3 py-2"><span class="font-semibold">200 E 66th St #A1506</span><p class="text-[10px] text-gray-400">RLS# 23709741</p></td>
+                                    <td class="px-3 py-2"><span class="font-semibold">200 E 66th St #A1506</span><p class="text-[10px] text-gray-400">RLS# MOCK-S001</p></td>
                                     <td class="px-3 py-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Sale</span></td>
                                     <td class="px-3 py-2 font-semibold">$1,750,000</td>
                                     <td class="px-3 py-2">2/2</td>
@@ -30870,10 +30870,10 @@ Equal Housing Opportunity
 
         var mockListings = [
             // Sale listings
-            { id: 1, address: '140 HILLSIDE AVENUE', unit: '2C', price: 500000, totalMonthly: 1304, rooms: 2, beds: 1, baths: 1, reTaxes: 694, maintCC: 610, intSqft: 675, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Fort George', borough: 'Manhattan', zip: '10040', era: 'Post-War', listingType: 'Exclusive', lid: '23709741', wid: '20068372', dom: 13, listedDate: '01/22/2026', updatedDate: '01/24/2026', company: 'Bohemia Realty Group', agentName: 'Sales Team', agentEmail: 'sales@140hillside.com', priceChange: null, photoCount: 17 },
-            { id: 2, address: '581 ACADEMY STREET', unit: '2F', price: 500000, totalMonthly: 1124, rooms: 4, beds: 2, baths: 1, reTaxes: 371, maintCC: 753, intSqft: 900, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Inwood', borough: 'Manhattan', zip: '10034', era: 'Pre-War', listingType: 'Exclusive', lid: '23603339', wid: '20048398', dom: 145, listedDate: '09/12/2025', updatedDate: '01/30/2026', company: 'Maz Group NY', agentName: 'Tarek Bendida', agentEmail: 'tarek@mazgroupny.com', agentPhone: '(917) 251-4679', priceChange: 'down', originalPrice: 525000, photoCount: 11 },
-            { id: 3, address: '516 WEST 112TH STREET', unit: '4B', price: 509900, totalMonthly: 998, rooms: 3, beds: 1, baths: 1, reTaxes: 323, maintCC: 675, intSqft: 650, status: 'PENDING', ownership: 'Condo', neighborhood: 'Morningside Heights', borough: 'Manhattan', zip: '10025', era: 'Post-War', listingType: 'Exclusive', lid: '23692908', wid: null, dom: 30, listedDate: '01/05/2026', updatedDate: '02/04/2026', company: 'Manhattan Network Inc', agentName: 'Victor Laino', agentEmail: 'vlaino1@gmail.com', agentPhone: '(212) 867-4240', priceChange: 'down', originalPrice: 524900, photoCount: 10 },
-            { id: 4, address: '350 EAST 62ND STREET', unit: '1M', price: 519000, totalMonthly: 959, rooms: 3, beds: 1, baths: 1, reTaxes: 234.17, maintCC: 724.44, intSqft: 472, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Lenox Hill', borough: 'Manhattan', zip: '10065', era: 'Pre-War', listingType: 'Exclusive', lid: '23663883', wid: '20060516', dom: 78, listedDate: '11/18/2025', updatedDate: null, company: 'REDF - Redfin REBNY', agentName: 'Jason Warner', agentEmail: null, agentPhone: '(646) 256-7334', priceChange: null, photoCount: 18 },
+            { id: 1, address: '140 HILLSIDE AVENUE', unit: '2C', price: 500000, totalMonthly: 1304, rooms: 2, beds: 1, baths: 1, reTaxes: 694, maintCC: 610, intSqft: 675, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Fort George', borough: 'Manhattan', zip: '10040', era: 'Post-War', listingType: 'Exclusive', lid: 'MOCK-S001', wid: 'MOCK-W001', dom: 13, listedDate: '01/22/2026', updatedDate: '01/24/2026', company: 'Demo Brokerage A', agentName: 'Demo Agent A', agentEmail: 'agentA@example.com', priceChange: null, photoCount: 17 },
+            { id: 2, address: '581 ACADEMY STREET', unit: '2F', price: 500000, totalMonthly: 1124, rooms: 4, beds: 2, baths: 1, reTaxes: 371, maintCC: 753, intSqft: 900, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Inwood', borough: 'Manhattan', zip: '10034', era: 'Pre-War', listingType: 'Exclusive', lid: 'MOCK-S002', wid: 'MOCK-W002', dom: 145, listedDate: '09/12/2025', updatedDate: '01/30/2026', company: 'Demo Brokerage B', agentName: 'Demo Agent B', agentEmail: 'agentB@example.com', agentPhone: '(555) 000-0001', priceChange: 'down', originalPrice: 525000, photoCount: 11 },
+            { id: 3, address: '516 WEST 112TH STREET', unit: '4B', price: 509900, totalMonthly: 998, rooms: 3, beds: 1, baths: 1, reTaxes: 323, maintCC: 675, intSqft: 650, status: 'PENDING', ownership: 'Condo', neighborhood: 'Morningside Heights', borough: 'Manhattan', zip: '10025', era: 'Post-War', listingType: 'Exclusive', lid: 'MOCK-S003', wid: null, dom: 30, listedDate: '01/05/2026', updatedDate: '02/04/2026', company: 'Demo Brokerage C', agentName: 'Demo Agent C', agentEmail: 'agentC@example.com', agentPhone: '(555) 000-0002', priceChange: 'down', originalPrice: 524900, photoCount: 10 },
+            { id: 4, address: '350 EAST 62ND STREET', unit: '1M', price: 519000, totalMonthly: 959, rooms: 3, beds: 1, baths: 1, reTaxes: 234.17, maintCC: 724.44, intSqft: 472, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Lenox Hill', borough: 'Manhattan', zip: '10065', era: 'Pre-War', listingType: 'Exclusive', lid: 'MOCK-S004', wid: 'MOCK-W004', dom: 78, listedDate: '11/18/2025', updatedDate: null, company: 'Demo Brokerage D', agentName: 'Demo Agent D', agentEmail: null, agentPhone: '(555) 000-0003', priceChange: null, photoCount: 18 },
             { id: 5, address: '504 WEST 136TH STREET', unit: '6A', price: 525000, totalMonthly: 789, rooms: 4, beds: 1, baths: 1, reTaxes: 4.25, maintCC: 785, intSqft: 636, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Hamilton Heights', borough: 'Manhattan', zip: '10031', era: 'Pre-War', listingType: 'Exclusive', lid: null, wid: null, dom: 45, listedDate: '12/20/2025', priceChange: 'down', photoCount: 8 },
             { id: 6, address: '753 ST NICHOLAS AVENUE', unit: '5B', price: 525000, totalMonthly: 1393, rooms: 3, beds: 1, baths: 1, reTaxes: 535, maintCC: 858, intSqft: null, status: 'CLOSED', ownership: 'Condo', neighborhood: 'Sugar Hill', borough: 'Manhattan', zip: '10031', era: 'Pre-War', listingType: 'Open', lid: null, wid: null, dom: 22, listedDate: '01/13/2026', priceChange: null, photoCount: 6 },
             { id: 7, address: '250 MANHATTAN AVENUE', unit: '1A', price: 525000, totalMonthly: 1055, rooms: 3, beds: 1, baths: 1, reTaxes: 291, maintCC: 764, intSqft: 654, status: 'ACTIVE', ownership: 'Condop', neighborhood: 'Harlem', borough: 'Manhattan', zip: '10026', era: 'New Construction', listingType: 'Exclusive', lid: null, wid: null, dom: 60, listedDate: '12/05/2025', priceChange: 'down', photoCount: 12 },
