@@ -27,11 +27,12 @@
     // Route-aware render blocking — only restore detail view on refresh (not results).
     // Fresh page loads always start at search form.
     (function() {
+        // Clear stale search state on every fresh page load so results never auto-show
+        try { sessionStorage.removeItem('_searchState'); } catch(e) {}
         var h = location.hash.replace('#','').split('/')[0];
         if (h === 'detail') {
             var s = document.createElement('style'); s.id = 'routeBlock'; s.textContent = '#searchFormContainer{display:none!important}'; document.head.appendChild(s);
         } else if (h === 'results') {
-            // Clear stale #results hash — always start at search form on fresh load
             history.replaceState(null, '', location.pathname + '#main');
         }
     })();
@@ -28054,6 +28055,18 @@ function emailCurrentCalc() {
         // Remove the render-blocking style now that routing is resolved
         var routeBlock = document.getElementById('routeBlock');
         if (routeBlock) routeBlock.remove();
+
+        // Safety net: after ALL DOMContentLoaded handlers have run, force-check the view.
+        // If hash is 'main' (or empty) but results are visible, fix it.
+        setTimeout(function() {
+            var finalHash = (window.location.hash.replace('#','').split('/')[0]) || 'main';
+            if (finalHash === 'main' || finalHash === '') {
+                var _sf = document.getElementById('searchFormContainer');
+                var _sr = document.getElementById('searchResultsSection');
+                if (_sf) _sf.style.display = 'block';
+                if (_sr) { _sr.style.display = 'none'; _sr.classList.add('hidden'); }
+            }
+        }, 50);
 
         // ── Handle browser back/forward buttons ──
         window.addEventListener('hashchange', function() {
