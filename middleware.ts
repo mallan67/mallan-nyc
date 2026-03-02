@@ -166,7 +166,26 @@ export default function middleware(req: NextRequest) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  // ── 5. CRM route protection ──
+  // ── 4c. CRM page protection ──
+  // All /crm/* HTML pages require auth. Unauthenticated visitors get redirected to /login.
+  // Excludes: /crm/login (the login page itself), /crm/js/* and /crm/css/* (static assets needed by login).
+  if (
+    pathname.startsWith("/crm") &&
+    !pathname.startsWith("/crm/login") &&
+    !pathname.startsWith("/crm/js/") &&
+    !pathname.startsWith("/crm/css/")
+  ) {
+    const hasSession = req.cookies.has(SESSION_COOKIE);
+    const hasBearer = (req.headers.get("authorization") ?? "").startsWith("Bearer ");
+    if (!hasSession && !hasBearer) {
+      const loginUrl = req.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // ── 5. CRM API route protection ──
   // /api/crm/* requires a session_token cookie OR Bearer token (validated in route handler).
   // Edge middleware does a fast presence check; full DB validation
   // happens in requireAuth()/requireRole() inside each route handler.

@@ -67,6 +67,23 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script>
+// ── Auth gate (defense-in-depth — middleware is primary) ──
+(function() {
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.hasToken) {
+        MallanAPI.init().then(function(d) {
+            if (!d.authenticated) window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        }).catch(function() {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        });
+    } else {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+    }
+    window.addEventListener('mallan:auth:unauthorized', function() {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+    });
+})();
+</script>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
