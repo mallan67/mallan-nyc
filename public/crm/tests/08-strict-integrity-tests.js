@@ -46,7 +46,7 @@ function StrictIntegrityTests(options) {
     // INT-03: No unexpected DOM mutations during suite
     (function() {
         // Filter to result containers only (not expected modal/badge)
-        var containerIds = ['gridViewContainer','galleryViewContainer','shortSummaryViewContainer','summaryViewContainer','masterDetailViewContainer','mapViewContainer'];
+        var containerIds = ['gridViewContainer','galleryViewContainer','shortSummaryViewContainer','summaryViewContainer','masterDetailViewContainer'];
         var unexpected = _strictGuards.domMutations.filter(function(m) {
             return containerIds.indexOf(m.target) !== -1;
         });

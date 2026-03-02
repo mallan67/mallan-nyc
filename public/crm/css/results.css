@@ -826,25 +826,6 @@
 .gm-style-iw-chr { position: absolute; top: 4px; right: 4px; z-index: 2; }
 .gm-style-iw-chr button { background: rgba(255,255,255,0.9) !important; border-radius: 50% !important; }
 
-/* Responsive map */
-@media (max-width: 768px) {
-    #mapViewContainer {
-        flex-direction: column-reverse !important;
-    }
-    #mapListPanel {
-        width: 100% !important;
-        max-height: 35vh !important;
-        border-right: none !important;
-        border-top: 1px solid #e5e7eb;
-    }
-    #mapPanel {
-        width: 100% !important;
-        min-height: 350px !important;
-    }
-    .map-pin-price { font-size: 10px; padding: 2px 6px; }
-    .map-popup-card { width: 240px; }
-    .map-popup-photo, .map-popup-photo-placeholder { height: 110px; }
-}
 
 /* ── Print Styles ── */
 @media print {

@@ -29,11 +29,10 @@
         // ═══════════════════════════════════════════════════════════════════════════════
 
         // ── View mode icons/labels (user-facing) ──
-        var VIEW_ICONS  = { grid: 'fa-list', gallery: 'fa-th-large', shortSummary: 'fa-align-left', summary: 'fa-bars', masterDetail: 'fa-columns', map: 'fa-map' };
-        var VIEW_LABELS = { grid: 'List', gallery: 'Grid', shortSummary: 'Short Summary', summary: 'Summary', masterDetail: 'Master Details', map: 'Map' };
+        var VIEW_ICONS  = { grid: 'fa-list', gallery: 'fa-th-large', shortSummary: 'fa-align-left', summary: 'fa-bars', masterDetail: 'fa-columns' };
+        var VIEW_LABELS = { grid: 'List', gallery: 'Grid', shortSummary: 'Short Summary', summary: 'Summary', masterDetail: 'Master Details' };
 
-        // Tracks the last non-map view so the List button can restore it
-        var lastListViewMode = searchResultsState.viewMode !== 'map' ? searchResultsState.viewMode : 'gallery';
+        var lastListViewMode = searchResultsState.viewMode || 'gallery';
 
         function toggleViewModeDropdown(event) {
             var dd = document.getElementById('viewModeDropdown');
@@ -45,21 +44,15 @@
             searchResultsState.viewMode = mode;
             localStorage.setItem('searchResultsViewMode', mode);
 
-            // Track last non-map mode
-            if (mode !== 'map') {
-                lastListViewMode = mode;
-            }
+            lastListViewMode = mode;
 
-            // Update dropdown button to show the list mode (not map)
-            var displayMode = (mode === 'map') ? lastListViewMode : mode;
+            var displayMode = mode;
             document.getElementById('viewModeIcon').className = 'fas ' + (VIEW_ICONS[displayMode] || 'fa-th-large');
             document.getElementById('viewModeLabel').textContent = VIEW_LABELS[displayMode] || 'Grid';
 
             // Hide dropdown
             document.getElementById('viewModeDropdown').classList.add('hidden');
 
-            // Update List/Map toggle buttons
-            updateListMapToggle(mode === 'map' ? 'map' : 'list');
 
             // Grid column headers
             var gch = document.getElementById('gridColumnHeaders');
@@ -71,25 +64,6 @@
             renderSearchResults();
         }
 
-        // Called by standalone List/Map buttons
-        function toggleListMapView(view) {
-            if (view === 'list') {
-                setViewMode(lastListViewMode);
-            } else {
-                setViewMode('map');
-            }
-        }
-
-        // Visual toggle for List/Map buttons
-        function updateListMapToggle(active) {
-            var listBtn = document.getElementById('btnListView');
-            var mapBtn = document.getElementById('btnMapView');
-            if (!listBtn || !mapBtn) return;
-            var onClass = 'px-2.5 py-1.5 bg-white text-gray-700 text-xs rounded-md shadow-sm font-medium transition-all';
-            var offClass = 'px-2.5 py-1.5 text-gray-500 text-xs rounded-md font-medium hover:text-gray-700 transition-all';
-            listBtn.className = (active === 'list') ? onClass : offClass;
-            mapBtn.className = (active === 'map') ? onClass : offClass;
-        }
 
         // Close view mode dropdown when clicking outside
         document.addEventListener('click', function(e) {
@@ -188,8 +162,7 @@
                 galleryViewContainer: 'block',
                 shortSummaryViewContainer: 'block',
                 summaryViewContainer: 'block',
-                masterDetailViewContainer: 'flex',
-                mapViewContainer: 'flex'
+                masterDetailViewContainer: 'flex'
             };
 
             // Hide all containers using style.display (more reliable than class toggling with Tailwind CDN)
@@ -231,11 +204,6 @@
                     activeContainer = document.getElementById('masterDetailViewContainer');
                     if (activeContainer) activeContainer.style.display = containerDisplay.masterDetailViewContainer;
                     renderMasterDetailView();
-                    break;
-                case 'map':
-                    activeContainer = document.getElementById('mapViewContainer');
-                    if (activeContainer) activeContainer.style.display = containerDisplay.mapViewContainer;
-                    renderMapView();
                     break;
             }
 

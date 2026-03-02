@@ -153,7 +153,7 @@ function REBNYWiringTest(options) {
         }
 
         // 3. All search views use dynamic status colors (not hardcoded green)
-        var viewFns = ['renderGalleryView','renderShortSummaryView','renderSummaryView','renderMasterDetailView','renderMapView'];
+        var viewFns = ['renderGalleryView','renderShortSummaryView','renderSummaryView','renderMasterDetailView'];
         var hardcoded = [];
         viewFns.forEach(function(fn) {
             if (typeof window[fn] === 'function') {
@@ -171,11 +171,6 @@ function REBNYWiringTest(options) {
             var mdSrc = renderMasterDetailView.toString();
             if (mdSrc.indexOf('data-source') !== -1) checks.push('masterDetail:source');
             else issues.push('MasterDetail missing data-source');
-        }
-        if (typeof renderMapView === 'function') {
-            var mvSrc = renderMapView.toString();
-            if (mvSrc.indexOf('data-source') !== -1) checks.push('map:source');
-            else issues.push('Map missing data-source');
         }
 
         // 5. formatCurrency is null-safe

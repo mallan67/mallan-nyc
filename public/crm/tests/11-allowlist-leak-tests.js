@@ -68,7 +68,7 @@ function AllowlistLeakTests(options) {
         var violations = [];
         var containers = document.querySelectorAll(
             '#gridViewContainer, #galleryViewContainer, #shortSummaryViewContainer, ' +
-            '#summaryViewContainer, #masterDetailViewContainer, #mapViewContainer, #reportPreviewContent');
+            '#summaryViewContainer, #masterDetailViewContainer, #reportPreviewContent');
         containers.forEach(function(c) {
             if (c.style.display === 'none' || !c.offsetParent) return;
             var html = c.innerHTML || '';
