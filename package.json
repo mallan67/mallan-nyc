@@ -26,7 +26,9 @@
         "test:rls": "node scripts/test-rls-bindings.js",
         "db:seed": "npx tsx prisma/seed.ts",
         "crm:build": "node public/crm/build.js",
-        "crm:test": "node public/crm/tests/05-test-suite-runner.js"
+        "crm:test": "node public/crm/tests/05-test-suite-runner.js",
+        "rls:v2": "npx tsx lib/rls-validator/src/cli.ts",
+        "rls:v2:test": "npx jest --config lib/rls-validator/jest.config.js"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",
@@ -49,6 +51,7 @@
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
+        "@types/jest": "^30.0.0",
         "@types/node": "^20.11.30",
         "@types/pg": "^8.15.6",
         "@types/react": "^18.3.3",
@@ -56,12 +59,17 @@
         "@types/sharp": "^0.31.1",
         "@typescript-eslint/eslint-plugin": "^8.46.4",
         "@typescript-eslint/parser": "^8.46.4",
+        "commander": "^14.0.3",
+        "csv-parse": "^6.1.0",
         "eslint": "^8.57.0",
         "eslint-config-next": "14.2.33",
+        "jest": "^30.2.0",
         "node-html-parser": "^7.0.2",
         "postcss": "^8.4.35",
         "tailwindcss": "^4.1.18",
+        "ts-jest": "^29.4.6",
         "typescript": "^5.4.0",
-        "xlsx": "^0.18.5"
+        "xlsx": "^0.18.5",
+        "zod": "^4.3.6"
     }
 }
