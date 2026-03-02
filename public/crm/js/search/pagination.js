@@ -285,7 +285,7 @@
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Listing IDs</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">L-ID</span><span class="font-semibold">${listing.lid || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">W-ID</span><span class="font-semibold">${listing.wid || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">ListingKey</span><span class="font-semibold">${listing.wid || listing.lid || listing.id}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">SourceSystemKey</span><span class="font-semibold">${listing.wid || listing.lid || listing.id}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Internet Display</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Address Display</span><span class="font-semibold">${listing.addressDisplayYN !== false ? 'Yes' : 'No'}</span></div>
@@ -1445,7 +1445,7 @@
             h += '<div class="print-section"><h3><i class="fas fa-eye" style="margin-right:6px"></i> Showing Instructions</h3><div style="font-size:13px;color:#444">' + (listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')) + '</div></div>';
 
             // Reference line
-            h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; ListingKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
+            h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
 
             // Footer
             h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '#10991205323') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';

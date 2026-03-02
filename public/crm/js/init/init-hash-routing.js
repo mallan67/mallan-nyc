@@ -82,10 +82,12 @@
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
             } else {
-                // No saved state — fall back to a fresh search (shows all listings)
-                if (typeof performSearch === 'function') {
-                    performSearch();
-                }
+                // No saved state — fall back to search form (NOT all listings)
+                var searchFormContainer = document.getElementById('searchFormContainer');
+                var searchResultsSection = document.getElementById('searchResultsSection');
+                if (searchFormContainer) searchFormContainer.style.display = 'block';
+                if (searchResultsSection) searchResultsSection.style.display = 'none';
+                history.replaceState(null, '', '#main');
             }
         }
 

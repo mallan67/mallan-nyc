@@ -33,7 +33,7 @@ const { parse: parseHTML } = require('node-html-parser');
 const VERBOSE = process.argv.includes('--verbose');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const SEARCH_MODULAR = path.resolve(REPO_ROOT, '..', '1', 'Old', 'search-modular');
+const SEARCH_MODULAR = path.resolve(REPO_ROOT, 'public', 'crm');
 
 // File categories (enforced by validator)
 const FILE_CONFIG = {
