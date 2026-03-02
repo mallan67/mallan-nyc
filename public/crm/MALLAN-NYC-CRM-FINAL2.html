@@ -29591,9 +29591,18 @@ Equal Housing Opportunity
         (function initPortalRouting() {
             var portalMap = { buyer: 'client', tenant: 'tenant', seller: 'seller', landlord: 'landlord', broker: 'broker' };
             var hash = window.location.hash.replace('#', '').toLowerCase();
-            if (hash && portalMap[hash] && typeof switchPortal === 'function') {
-                // Defer until DOM + portal divs are ready
-                setTimeout(function() { switchPortal(portalMap[hash]); }, 100);
+            if (!hash || !portalMap[hash] || typeof switchPortal !== 'function') return;
+            // Wait for API context so we can validate role before switching
+            if (typeof MallanAPI !== 'undefined') {
+                MallanAPI.onReady(function() {
+                    var ctx = MallanAPI.getContext();
+                    var role = (ctx.role || '').toUpperCase();
+                    // Broker portal requires BROKER role
+                    if (hash === 'broker' && role !== 'BROKER') return;
+                    // Client portals require matching portal role (or broker can view any)
+                    if (['buyer','tenant','seller','landlord'].indexOf(hash) !== -1 && role === 'AGENT') return;
+                    switchPortal(portalMap[hash]);
+                });
             }
         })();
 

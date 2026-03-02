@@ -316,11 +316,14 @@
             }).catch(function () { /* not logged in */ });
         }
 
-        // ── Redirect target (role-aware) ──
+        // ── Redirect target (role-aware, safe against open redirect) ──
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
             var explicit = params.get('redirect');
-            if (explicit) return explicit;
+            // Only allow relative paths starting with /crm/ or /admin/
+            if (explicit && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(explicit)) {
+                return explicit;
+            }
 
             // Route by portal type
             var portal = document.getElementById('portalType').value;

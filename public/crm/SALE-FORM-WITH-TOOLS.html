@@ -4838,6 +4838,8 @@ if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
 
 // ── PostMessage listener — CRM opener can send listing ID after open ──
 window.addEventListener('message', function(event) {
+    // Only accept messages from our own origin
+    if (event.origin !== window.location.origin) return;
     if (!event.data || event.data.type !== 'loadListing') return;
     var id = event.data.listingId;
     if (!id || VIEWER_LISTING_ID === id) return;
