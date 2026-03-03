@@ -28,7 +28,14 @@
         "crm:build": "node public/crm/build.js",
         "crm:test": "node public/crm/tests/05-test-suite-runner.js",
         "rls:v2": "npx tsx lib/rls-validator/src/cli.ts",
-        "rls:v2:test": "npx jest --config lib/rls-validator/jest.config.js"
+        "rls:v2:test": "npx jest --config lib/rls-validator/jest.config.js",
+        "test:compliance": "npx jest --config lib/compliance/jest.config.js",
+        "geo:fetch-names": "node scripts/fetch-rls-neighborhoods.js",
+        "geo:build": "node scripts/build-rls-geojson.js",
+        "geo:derive": "node scripts/build-rls-geo-derived.js",
+        "geo:validate": "node scripts/validate-rls-geo.js",
+        "geo:aliases": "node scripts/build-rls-aliases.js",
+        "geo:all": "npm run geo:build && npm run geo:aliases && npm run geo:derive && npm run geo:validate"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",

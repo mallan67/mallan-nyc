@@ -1,0 +1,69 @@
+<!-- NEIGHBORHOOD MAP MODAL — MapLibre GL + OpenFreeMap -->
+<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- Modal Header -->
+        <div class="p-4 border-b bg-gray-800 flex items-center justify-between flex-shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-white">Select Neighborhoods</h3>
+                <p class="text-xs text-gray-400">Click polygons on the map or check boxes in the sidebar</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="nbMapSelectedCount" class="text-xs text-gray-300">0 selected</span>
+                <button onclick="clearNeighborhoodMapSelection()" class="text-sm text-gray-300 hover:text-white flex items-center gap-1">
+                    <i class="fas fa-undo"></i> Clear
+                </button>
+                <button onclick="closeNeighborhoodMap()" class="text-gray-400 hover:text-white" aria-label="Close">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search box -->
+        <div class="px-4 py-2 border-b flex-shrink-0">
+            <input type="text" id="nbMapSearch" placeholder="Search neighborhoods..."
+                   class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                   oninput="filterNeighborhoodMapSidebar(this.value)">
+        </div>
+
+        <!-- Body: Sidebar + Map -->
+        <div class="flex flex-1 min-h-0">
+            <!-- Sidebar -->
+            <div id="nbMapSidebar" class="w-56 border-r overflow-y-auto flex-shrink-0 bg-gray-50 text-sm">
+                <p class="p-3 text-xs text-gray-400 italic">Loading neighborhoods...</p>
+            </div>
+
+            <!-- Map container -->
+            <div class="flex-1 relative min-h-[400px]">
+                <div id="nbMapContainer" class="absolute inset-0"></div>
+                <!-- Error state -->
+                <div id="nbMapError" class="absolute inset-0 hidden flex items-center justify-center bg-gray-100">
+                    <div class="text-center p-6">
+                        <i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-2"></i>
+                        <p class="text-sm text-gray-600 font-medium">Could not load neighborhood map data</p>
+                        <p class="text-xs text-gray-400 mt-1">Check that geo files are built (npm run geo:all)</p>
+                    </div>
+                </div>
+                <!-- Style switcher -->
+                <div class="absolute top-2 right-2 z-10 bg-white/90 rounded shadow text-xs">
+                    <select id="nbMapStyleSelect" onchange="switchNeighborhoodMapStyle(this.value)"
+                            class="px-2 py-1 text-xs border-0 bg-transparent focus:outline-none cursor-pointer">
+                        <option value="positron">Positron</option>
+                        <option value="bright">Bright</option>
+                        <option value="liberty">Liberty</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
+            <button onclick="closeNeighborhoodMap()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+            </button>
+            <button onclick="confirmNeighborhoodMapSelection()"
+                    class="px-4 py-2 text-sm font-semibold text-white bg-yellow-700 hover:bg-yellow-800 rounded-lg">
+                Select Neighborhoods
+            </button>
+        </div>
+    </div>
+</div>
