@@ -1,3 +1,6 @@
+        // Active search criteria — shared across search-engine, refine panel, and reports
+        var activeSearchCriteria = null;
+
         // ── Neighborhood alias map: canonical polygon name → RLS variants ──
         // Alias values can be: string (single polygon), array (multi-polygon), or null (no polygon)
         var _neighborhoodAliases = null;
@@ -61,7 +64,7 @@
                 var canonicals = result.selectedNeighborhoods;
                 var allVariants = expandCanonicalToVariants(canonicals);
 
-                activeSearchCriteria = activeSearchCriteria || collectSearchCriteria();
+                if (!activeSearchCriteria) activeSearchCriteria = collectSearchCriteria();
                 activeSearchCriteria.neighborhoods = allVariants;
                 activeSearchCriteria._neighborhoodCanonicals = canonicals; // for pills display
 
