@@ -1,69 +1,123 @@
 <!-- NEIGHBORHOOD MAP MODAL — MapLibre GL + OpenFreeMap -->
-<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <!-- Modal Header -->
-        <div class="p-4 border-b bg-gray-800 flex items-center justify-between flex-shrink-0">
-            <div>
-                <h3 class="text-lg font-bold text-white">Select Neighborhoods</h3>
-                <p class="text-xs text-gray-400">Click polygons on the map or check boxes in the sidebar</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <span id="nbMapSelectedCount" class="text-xs text-gray-300">0 selected</span>
-                <button onclick="clearNeighborhoodMapSelection()" class="text-sm text-gray-300 hover:text-white flex items-center gap-1">
-                    <i class="fas fa-undo"></i> Clear
-                </button>
-                <button onclick="closeNeighborhoodMap()" class="text-gray-400 hover:text-white" aria-label="Close">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Search box -->
-        <div class="px-4 py-2 border-b flex-shrink-0">
-            <input type="text" id="nbMapSearch" placeholder="Search neighborhoods..."
-                   class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                   oninput="filterNeighborhoodMapSidebar(this.value)">
-        </div>
-
-        <!-- Body: Sidebar + Map -->
-        <div class="flex flex-1 min-h-0">
-            <!-- Sidebar -->
-            <div id="nbMapSidebar" class="w-56 border-r overflow-y-auto flex-shrink-0 bg-gray-50 text-sm">
-                <p class="p-3 text-xs text-gray-400 italic">Loading neighborhoods...</p>
-            </div>
-
-            <!-- Map container -->
-            <div class="flex-1 relative min-h-[400px]">
-                <div id="nbMapContainer" class="absolute inset-0"></div>
-                <!-- Error state -->
-                <div id="nbMapError" class="absolute inset-0 hidden flex items-center justify-center bg-gray-100">
-                    <div class="text-center p-6">
-                        <i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-2"></i>
-                        <p class="text-sm text-gray-600 font-medium">Could not load neighborhood map data</p>
-                        <p class="text-xs text-gray-400 mt-1">Check that geo files are built (npm run geo:all)</p>
-                    </div>
+<style>
+  /* Neighborhood Map Modal — clean reference design */
+  .nb-modal-panel { background: rgba(255,255,255,0.96); }
+  .nb-sidebar-header {
+    padding: 14px 14px 10px 14px;
+    border-bottom: 1px solid rgba(17,24,39,0.10);
+    background: linear-gradient(to bottom, rgba(255,255,255,0.98), rgba(255,255,255,0.93));
+  }
+  .nb-title { font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: #111827; }
+  .nb-pill { font-size: 11px; color: #111827; border: 1px solid rgba(17,24,39,0.10); padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,0.9); }
+  .nb-search-input {
+    flex: 1; border: 1px solid rgba(17,24,39,0.10); border-radius: 12px;
+    padding: 10px 12px; font-size: 12px; outline: none; width: 100%;
+  }
+  .nb-search-input:focus { border-color: rgba(37,99,235,0.4); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .nb-clear-btn {
+    border: 1px solid rgba(239,68,68,0.25); color: #b91c1c; background: rgba(254,242,242,0.9);
+    border-radius: 12px; padding: 9px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .nb-clear-btn:hover { background: rgba(254,226,226,0.9); }
+  #nbMapList { overflow: auto; padding: 10px 10px 14px 10px; }
+  #nbMapList details {
+    border: 1px solid rgba(17,24,39,0.08); border-radius: 14px;
+    background: rgba(255,255,255,0.92); margin: 8px 4px; overflow: hidden;
+  }
+  #nbMapList summary {
+    cursor: pointer; padding: 10px 10px; font-weight: 700; font-size: 12px; color: #111827;
+    display: flex; align-items: center; justify-content: space-between; list-style: none;
+  }
+  #nbMapList summary::-webkit-details-marker { display: none; }
+  .nb-borough-meta { font-weight: 600; font-size: 11px; color: rgba(17,24,39,0.55); }
+  .nb-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-top: 1px solid rgba(17,24,39,0.06); font-size: 12px; color: #111827; cursor: pointer;
+  }
+  .nb-item:hover { background: rgba(37,99,235,0.06); }
+  .nb-item input[type="checkbox"] { width: 14px; height: 14px; accent-color: #B8860B; cursor: pointer; flex-shrink: 0; }
+  .nb-item-name { flex: 1; line-height: 1.2; font-weight: 500; }
+  .nb-item-borough { font-size: 10px; color: rgba(17,24,39,0.55); margin-top: 1px; }
+  .nb-item-chevron { font-size: 11px; color: rgba(17,24,39,0.55); flex-shrink: 0; }
+  /* Style switcher on map */
+  .nb-style-select {
+    border-radius: 14px; border: 1px solid rgba(255,255,255,0.26);
+    background: rgba(17,24,39,0.40); backdrop-filter: blur(10px); color: white;
+    padding: 10px 12px; font-size: 12px; outline: none; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    cursor: pointer;
+  }
+  .nb-style-select option { color: #111827; }
+  /* Confirm bar */
+  .nb-confirm-bar {
+    padding: 10px 14px; border-top: 1px solid rgba(17,24,39,0.10);
+    background: linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.93));
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .nb-confirm-btn {
+    padding: 10px 18px; border-radius: 12px; font-size: 12px; font-weight: 700;
+    background: #B8860B; color: white; border: none; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(184,134,11,0.25);
+  }
+  .nb-confirm-btn:hover { background: #9a7209; }
+  .nb-cancel-btn {
+    padding: 10px 14px; border-radius: 12px; font-size: 12px; font-weight: 500;
+    background: transparent; color: rgba(17,24,39,0.55); border: 1px solid rgba(17,24,39,0.10); cursor: pointer;
+  }
+  .nb-cancel-btn:hover { background: rgba(17,24,39,0.04); }
+</style>
+<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 z-50 hidden" style="display:none;">
+    <div class="absolute inset-0 flex" style="padding: 0;">
+        <!-- Sidebar -->
+        <aside id="nbMapSidebarWrap" class="nb-modal-panel flex flex-col flex-shrink-0" style="width: 320px; border-right: 1px solid rgba(17,24,39,0.10); z-index: 5;">
+            <!-- Header -->
+            <div class="nb-sidebar-header">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                    <span class="nb-title">NYC Neighborhoods</span>
+                    <span id="nbMapSelectedCount" class="nb-pill">0 selected</span>
                 </div>
-                <!-- Style switcher -->
-                <div class="absolute top-2 right-2 z-10 bg-white/90 rounded shadow text-xs">
-                    <select id="nbMapStyleSelect" onchange="switchNeighborhoodMapStyle(this.value)"
-                            class="px-2 py-1 text-xs border-0 bg-transparent focus:outline-none cursor-pointer">
-                        <option value="positron">Positron</option>
-                        <option value="bright">Bright</option>
-                        <option value="liberty">Liberty</option>
-                    </select>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="nbMapSearch" placeholder="Filter neighborhoods (e.g., SoHo, Williamsburg)"
+                           class="nb-search-input" oninput="filterNeighborhoodMapSidebar(this.value)">
+                    <button id="nbMapClearBtn" onclick="clearNeighborhoodMapSelection()" class="nb-clear-btn" style="display:none;">Clear</button>
                 </div>
             </div>
-        </div>
+            <!-- List -->
+            <div id="nbMapList" class="flex-1 min-h-0">
+                <div style="padding:20px; text-align:center;">
+                    <div style="color:rgba(17,24,39,0.3); font-size:14px; margin-bottom:6px;">&#9696;</div>
+                    <div style="font-size:11px; color:rgba(17,24,39,0.4);">Loading neighborhoods...</div>
+                </div>
+            </div>
+            <!-- Confirm bar -->
+            <div class="nb-confirm-bar">
+                <button onclick="closeNeighborhoodMap()" class="nb-cancel-btn">Cancel</button>
+                <button onclick="confirmNeighborhoodMapSelection()" class="nb-confirm-btn">Select Neighborhoods</button>
+            </div>
+        </aside>
 
-        <!-- Footer -->
-        <div class="p-4 border-t bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
-            <button onclick="closeNeighborhoodMap()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-                Cancel
-            </button>
-            <button onclick="confirmNeighborhoodMapSelection()"
-                    class="px-4 py-2 text-sm font-semibold text-white bg-yellow-700 hover:bg-yellow-800 rounded-lg">
-                Select Neighborhoods
-            </button>
+        <!-- Map -->
+        <div style="position:relative; flex:1; min-width:0;">
+            <div id="nbMapContainer" style="position:absolute; inset:0;"></div>
+            <!-- Error state -->
+            <div id="nbMapError" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:#f3f4f6;">
+                <div style="text-align:center; padding:24px;">
+                    <div style="font-size:32px; color:#f87171; margin-bottom:12px;">&#9888;</div>
+                    <p style="font-size:13px; font-weight:600; color:#374151;">Could not load neighborhood map</p>
+                    <p style="font-size:11px; color:#6b7280; margin-top:4px;">Check that geo files are built: <code style="background:#e5e7eb; padding:2px 4px; border-radius:4px;">npm run geo:all</code></p>
+                </div>
+            </div>
+            <!-- Style switcher -->
+            <div style="position:absolute; top:12px; right:12px; z-index:10;">
+                <select id="nbMapStyleSelect" onchange="switchNeighborhoodMapStyle(this.value)" class="nb-style-select">
+                    <option value="positron">Positron</option>
+                    <option value="bright" selected>Bright</option>
+                    <option value="liberty">Liberty</option>
+                </select>
+            </div>
+            <!-- Close button on map -->
+            <div style="position:absolute; top:12px; left:12px; z-index:10;">
+                <button onclick="closeNeighborhoodMap()" style="width:40px; height:40px; border-radius:14px; border:1px solid rgba(255,255,255,0.26); background:rgba(17,24,39,0.40); backdrop-filter:blur(10px); color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(0,0,0,0.18); font-size:16px;" aria-label="Close">&times;</button>
+            </div>
         </div>
     </div>
 </div>
