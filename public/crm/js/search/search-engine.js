@@ -70,9 +70,29 @@
 
                 searchResultsState.filteredListings = filterListings(mockListings, activeSearchCriteria);
                 searchResultsState.currentPage = 1;
+
+                // Transition to results view (same as performSearch) if not already there
+                var searchFormContainer = document.getElementById('searchFormContainer');
+                var searchResultsSection = document.getElementById('searchResultsSection');
+                if (searchFormContainer && searchFormContainer.style.display !== 'none') {
+                    searchFormContainer.style.display = 'none';
+                }
+                if (searchResultsSection) {
+                    searchResultsSection.style.display = 'block';
+                    searchResultsSection.classList.remove('hidden');
+                }
+
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof buildRefineFilterPills === 'function') buildRefineFilterPills(activeSearchCriteria);
+                if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
+                if (typeof _saveSearchState === 'function') _saveSearchState();
+
+                // Update hash and scroll
+                if (!window._suppressHashUpdate) {
+                    history.replaceState(null, '', '#results');
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
         };
 
