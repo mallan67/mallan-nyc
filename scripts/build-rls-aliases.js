@@ -663,6 +663,40 @@ const MANUAL = {
   'Woodrow': 'Great Kills',
 };
 
+// ── NULL NEIGHBORHOOD CLASSIFICATIONS ──
+// Every null alias MUST have a classification entry here.
+// Types: "subarea" (sub-part of a recognized area), "micro-area" (very small/niche),
+//        "unbounded" (recognized area, no polygon yet — too broad or future expansion)
+// parentPolygons: polygon names that geographically overlap or contain this area (empty [] if none)
+const NULL_CLASSIFICATIONS = {
+  // Bedford-Stuyvesant family — major Brooklyn neighborhood, no polygon yet
+  'BED-STUY':              { type: 'unbounded', parentPolygons: [] },
+  'Bed Stuy':              { type: 'unbounded', parentPolygons: [] },
+  'Bedford':               { type: 'unbounded', parentPolygons: [] },
+  'Bedford - Stuyvesant':  { type: 'unbounded', parentPolygons: [] },
+  'Bedford Stuyvesant':    { type: 'unbounded', parentPolygons: [] },
+  'Bedford-Stuyvesant':    { type: 'unbounded', parentPolygons: [] },
+  'Bedford/Stuyvesant':    { type: 'unbounded', parentPolygons: [] },
+
+  // Beekman — micro-area in east Midtown Manhattan
+  'BEEKMAN':               { type: 'micro-area', parentPolygons: ['Turtle Bay'] },
+  'Beekman':               { type: 'micro-area', parentPolygons: ['Turtle Bay'] },
+  'Beekman Place':         { type: 'micro-area', parentPolygons: ['Sutton Place', 'Turtle Bay'] },
+
+  // Crown Heights — major Brooklyn neighborhood, no polygon yet
+  'Crown Heights':         { type: 'unbounded', parentPolygons: [] },
+  'Crown Heights North':   { type: 'subarea',   parentPolygons: [] },
+
+  // Stuyvesant Heights — small Brooklyn area near Bed-Stuy
+  'STUYHEI':               { type: 'micro-area', parentPolygons: [] },
+
+  // Upper Fifth — micro-area along Fifth Ave / Central Park
+  'Upper Fifth':           { type: 'micro-area', parentPolygons: ['Upper East Side'] },
+
+  // Upper Manhattan — too broad, spans multiple neighborhoods
+  'Upper M':               { type: 'unbounded',  parentPolygons: ['Washington Heights', 'Hamilton Heights', 'Inwood'] },
+};
+
 // ── BUILD ALIAS MAP ──
 // Values: string (single polygon), string[] (multi-polygon), null (distinct, no polygon)
 
@@ -762,27 +796,60 @@ for (const entry of canon.neighborhoods) {
   console.log('  [UNMATCH] ' + name + ' (' + (entry.boroughHint || entry.borough || '?') + ')');
 }
 
+// ── Build classifications for null aliases ──
+const classifications = {};
+let missingClassifications = [];
+
+for (const [name, val] of Object.entries(aliases)) {
+  if (val !== null) continue; // only classify nulls
+  if (NULL_CLASSIFICATIONS[name]) {
+    const cls = NULL_CLASSIFICATIONS[name];
+    // Validate parentPolygons reference real polygon names
+    const badParents = cls.parentPolygons.filter(p => !polySet.has(p));
+    if (badParents.length > 0) {
+      console.log('  [WARN] ' + name + ' has invalid parentPolygons: ' + badParents.join(', '));
+    }
+    classifications[name] = {
+      type: cls.type,
+      parentPolygons: cls.parentPolygons,
+      hasPolygon: false,
+    };
+  } else {
+    missingClassifications.push(name);
+  }
+}
+
+if (missingClassifications.length > 0) {
+  console.log('\n[ERROR] ' + missingClassifications.length + ' null aliases missing classification:');
+  missingClassifications.forEach(n => console.log('  - ' + n));
+  console.log('Add entries to NULL_CLASSIFICATIONS in build-rls-aliases.js');
+  process.exit(1);
+}
+
 // Write output
 const output = {
   _meta: {
-    version: 2,
-    description: 'Maps RLS SubdivisionName variants to polygon names. Values: string (single), array (multi-polygon), null (distinct, no polygon yet)',
+    version: 3,
+    description: 'Maps RLS SubdivisionName variants to polygon names. Values: string (single), array (multi-polygon), null (distinct, no polygon yet). Classifications required for all nulls.',
     totalAliases: Object.keys(aliases).length,
     matched: matched,
     multiMapped: multiMapped,
     distinctNoPolygon: distinctNoPolygon,
+    classified: Object.keys(classifications).length,
     unmatched: unmatched,
     generatedAt: new Date().toISOString(),
   },
   aliases: aliases,
+  classifications: classifications,
 };
 
 fs.writeFileSync(OUT_FILE, JSON.stringify(output, null, 2));
 
-console.log('\n=== Alias Map Built (v2) ===');
+console.log('\n=== Alias Map Built (v3) ===');
 console.log('Total aliases:        ' + Object.keys(aliases).length);
 console.log('Matched (single):     ' + matched);
 console.log('Multi-mapped (array): ' + multiMapped);
 console.log('Distinct (no polygon):' + distinctNoPolygon);
+console.log('Classified (null):    ' + Object.keys(classifications).length);
 console.log('Unmatched:            ' + unmatched);
 console.log('Output:               ' + OUT_FILE);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * validate-rls-geo.js — 12-check CI-gateable validator for RLS neighborhood geo data
+ * validate-rls-geo.js — 13-check CI-gateable validator for RLS neighborhood geo data
  *
  * STRICTNESS:
  *   - When trestleVerified = true  → failures are ERRORS (exit 1)
@@ -20,6 +20,7 @@
  *  10.  Centroids file exists and count matches
  *  11.  GeoJSON file size under 5MB
  *  12.  Minified file size under 500KB
+ *  13.  All null aliases have classification + parentPolygons
  *
  * Usage: node scripts/validate-rls-geo.js
  *   or:  npm run geo:validate
@@ -68,7 +69,7 @@ function info(msg) {
 }
 
 function main() {
-  console.log('=== RLS Geo Validator (12 checks) ===\n');
+  console.log('=== RLS Geo Validator (13 checks) ===\n');
 
   // ── Check 1: Canonical file ──
   let canonical = null;
@@ -262,6 +263,54 @@ function main() {
     }
   } catch (e) {
     fail('12. Minified size check: ' + e.message);
+  }
+
+  // ── Check 13: Null aliases must have classification + parentPolygons ──
+  const nullAliases = Object.entries(aliasMap).filter(([, v]) => v === null).map(([k]) => k);
+  let classifications = {};
+  try {
+    const aliasData = JSON.parse(fs.readFileSync(ALIAS_PATH, 'utf8'));
+    classifications = aliasData.classifications || {};
+  } catch (_) {
+    // Already loaded above, but classifications might not exist in older files
+  }
+
+  const VALID_TYPES = ['subarea', 'micro-area', 'unbounded'];
+  const unclassified = [];
+  const badType = [];
+  const missingParent = [];
+
+  for (const name of nullAliases) {
+    const cls = classifications[name];
+    if (!cls) {
+      unclassified.push(name);
+      continue;
+    }
+    if (!cls.type || !VALID_TYPES.includes(cls.type)) {
+      badType.push(name + ' (type=' + (cls.type || 'missing') + ')');
+    }
+    if (!Array.isArray(cls.parentPolygons)) {
+      missingParent.push(name);
+    } else {
+      // Validate parentPolygons reference real polygon names
+      const badParents = cls.parentPolygons.filter((p) => !geoNames.has(p));
+      if (badParents.length > 0) {
+        badType.push(name + ' (invalid parents: ' + badParents.join(', ') + ')');
+      }
+    }
+  }
+
+  if (unclassified.length === 0 && badType.length === 0 && missingParent.length === 0) {
+    pass('13. All ' + nullAliases.length + ' null aliases classified (' +
+      Object.values(classifications).filter((c) => c.type === 'unbounded').length + ' unbounded, ' +
+      Object.values(classifications).filter((c) => c.type === 'micro-area').length + ' micro-area, ' +
+      Object.values(classifications).filter((c) => c.type === 'subarea').length + ' subarea)');
+  } else {
+    const parts = [];
+    if (unclassified.length > 0) parts.push(unclassified.length + ' unclassified: ' + unclassified.join(', '));
+    if (badType.length > 0) parts.push(badType.length + ' bad type: ' + badType.join(', '));
+    if (missingParent.length > 0) parts.push(missingParent.length + ' missing parentPolygons: ' + missingParent.join(', '));
+    fail('13. Null alias classification: ' + parts.join('; '));
   }
 
   // ── Summary ──

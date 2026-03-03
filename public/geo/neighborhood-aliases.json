@@ -1,13 +1,14 @@
 {
   "_meta": {
-    "version": 2,
-    "description": "Maps RLS SubdivisionName variants to polygon names. Values: string (single), array (multi-polygon), null (distinct, no polygon yet)",
+    "version": 3,
+    "description": "Maps RLS SubdivisionName variants to polygon names. Values: string (single), array (multi-polygon), null (distinct, no polygon yet). Classifications required for all nulls.",
     "totalAliases": 593,
     "matched": 552,
     "multiMapped": 26,
     "distinctNoPolygon": 15,
+    "classified": 15,
     "unmatched": 0,
-    "generatedAt": "2026-03-03T16:59:37.068Z"
+    "generatedAt": "2026-03-03T17:20:06.313Z"
   },
   "aliases": {
     "ALLERTON": "Fordham",
@@ -682,5 +683,95 @@
     "ZEREGA": "Pelham Bay",
     "lincoln square": "Upper West Side",
     "midtown": "Midtown"
+  },
+  "classifications": {
+    "BED-STUY": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "BEEKMAN": {
+      "type": "micro-area",
+      "parentPolygons": [
+        "Turtle Bay"
+      ],
+      "hasPolygon": false
+    },
+    "Bed Stuy": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Bedford": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Bedford - Stuyvesant": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Bedford Stuyvesant": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Bedford-Stuyvesant": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Bedford/Stuyvesant": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Beekman": {
+      "type": "micro-area",
+      "parentPolygons": [
+        "Turtle Bay"
+      ],
+      "hasPolygon": false
+    },
+    "Beekman Place": {
+      "type": "micro-area",
+      "parentPolygons": [
+        "Sutton Place",
+        "Turtle Bay"
+      ],
+      "hasPolygon": false
+    },
+    "Crown Heights": {
+      "type": "unbounded",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Crown Heights North": {
+      "type": "subarea",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "STUYHEI": {
+      "type": "micro-area",
+      "parentPolygons": [],
+      "hasPolygon": false
+    },
+    "Upper Fifth": {
+      "type": "micro-area",
+      "parentPolygons": [
+        "Upper East Side"
+      ],
+      "hasPolygon": false
+    },
+    "Upper M": {
+      "type": "unbounded",
+      "parentPolygons": [
+        "Washington Heights",
+        "Hamilton Heights",
+        "Inwood"
+      ],
+      "hasPolygon": false
+    }
   }
 }
