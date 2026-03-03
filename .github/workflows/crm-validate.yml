@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - 'public/crm/**'
+      - 'data/rls/**'
+      - 'public/geo/**'
   pull_request:
     branches: [main]
     paths:
       - 'public/crm/**'
+      - 'data/rls/**'
+      - 'public/geo/**'
 
 jobs:
   validate:
@@ -183,3 +187,21 @@ jobs:
             exit 1
           fi
           echo "PASS: Build output verified"
+
+  geo-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: "Geo: Build GeoJSON from canonical list"
+        run: node scripts/build-rls-geojson.js
+
+      - name: "Geo: Generate derived files"
+        run: node scripts/build-rls-geo-derived.js
+
+      - name: "Geo: Run 12-check validator"
+        run: node scripts/validate-rls-geo.js

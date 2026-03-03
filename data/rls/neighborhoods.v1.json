@@ -1,0 +1,4744 @@
+{
+  "_meta": {
+    "version": 1,
+    "source": "Trestle OData groupby(SubdivisionName)",
+    "trestleVerified": true,
+    "rlsNeighborField": "SubdivisionName",
+    "generatedAt": "2026-03-03T14:09:58.544Z",
+    "count": 674
+  },
+  "neighborhoods": [
+    {
+      "name": "ALLERTON",
+      "borough": "Bronx",
+      "slug": "allerton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "ASTORIA",
+      "borough": "Queens",
+      "slug": "astoria",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "All Midtown",
+      "borough": "Manhattan",
+      "slug": "all-midtown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Allerton",
+      "borough": "Bronx",
+      "slug": "allerton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Alphabet City",
+      "borough": "Manhattan",
+      "slug": "alphabet-city",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Annadale",
+      "borough": "Staten Island",
+      "slug": "annadale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Arden Heights",
+      "borough": "Staten Island",
+      "slug": "arden-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Arrochar",
+      "borough": "Staten Island",
+      "slug": "arrochar",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Arverne",
+      "borough": "Queens",
+      "slug": "arverne",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Astoria",
+      "borough": "Queens",
+      "slug": "astoria",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Astoria Heights",
+      "borough": "Queens",
+      "slug": "astoria-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Auburndale",
+      "borough": "Queens",
+      "slug": "auburndale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BATHBEAC",
+      "borough": "Brooklyn",
+      "slug": "bathbeac",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BATTERY",
+      "borough": "Manhattan",
+      "slug": "battery",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BAYCHESTER",
+      "borough": "Bronx",
+      "slug": "baychester",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BAYRIDGE",
+      "borough": "Brooklyn",
+      "slug": "bayridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BAYSIDE",
+      "borough": "Queens",
+      "slug": "bayside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BED-STUY",
+      "borough": "Brooklyn",
+      "slug": "bed-stuy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BEDFORDPARK",
+      "borough": "Brooklyn",
+      "slug": "bedfordpark",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BEEKMAN",
+      "borough": "Manhattan",
+      "slug": "beekman",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BENHURST",
+      "borough": "Brooklyn",
+      "slug": "benhurst",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BERGENBEACH",
+      "borough": "Brooklyn",
+      "slug": "bergenbeach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BKLYNHTS",
+      "borough": "Brooklyn",
+      "slug": "bklynhts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BLHARBOR",
+      "borough": "Queens",
+      "slug": "blharbor",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BOERUMHL",
+      "borough": "Brooklyn",
+      "slug": "boerumhl",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BOROPARK",
+      "borough": "Brooklyn",
+      "slug": "boropark",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BRIGHTON",
+      "borough": "Brooklyn",
+      "slug": "brighton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BRONXOTHER",
+      "borough": "Bronx",
+      "slug": "bronxother",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BROOKLYN",
+      "borough": "Brooklyn",
+      "slug": "brooklyn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BROWVIL",
+      "borough": "Brooklyn",
+      "slug": "browvil",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "BUSK",
+      "borough": "Brooklyn",
+      "slug": "busk",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bath Beach",
+      "borough": "Brooklyn",
+      "slug": "bath-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Battery Park",
+      "borough": "Manhattan",
+      "slug": "battery-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Battery Park City",
+      "borough": "Manhattan",
+      "slug": "battery-park-city",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bay Ridge",
+      "borough": "Brooklyn",
+      "slug": "bay-ridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bay Terrace",
+      "borough": "Queens",
+      "slug": "bay-terrace",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bay Terrace 1",
+      "borough": "Queens",
+      "slug": "bay-terrace-1",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Baychester",
+      "borough": "Bronx",
+      "slug": "baychester",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bayside",
+      "borough": "Queens",
+      "slug": "bayside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bayswater",
+      "borough": "Queens",
+      "slug": "bayswater",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bed Stuy",
+      "borough": "Brooklyn",
+      "slug": "bed-stuy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bedford",
+      "borough": "Brooklyn",
+      "slug": "bedford",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bedford - Stuyvesant",
+      "borough": "Manhattan",
+      "slug": "bedford-stuyvesant",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bedford Park",
+      "borough": "Bronx",
+      "slug": "bedford-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bedford Stuyvesant",
+      "borough": "Manhattan",
+      "slug": "bedford-stuyvesant",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bedford-Stuyvesant",
+      "borough": "Manhattan",
+      "slug": "bedford-stuyvesant",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bedford/Stuyvesant",
+      "borough": "Manhattan",
+      "slug": "bedford-stuyvesant",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Beechurst",
+      "borough": "Queens",
+      "slug": "beechurst",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Beekman",
+      "borough": "Manhattan",
+      "slug": "beekman",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Beekman Place",
+      "borough": "Manhattan",
+      "slug": "beekman-place",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Beekman/Sutton Place",
+      "borough": "Manhattan",
+      "slug": "beekman-sutton-place",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bellaire",
+      "borough": "Queens",
+      "slug": "bellaire",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Belle Harbor",
+      "borough": "Queens",
+      "slug": "belle-harbor",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bellerose",
+      "borough": "Queens",
+      "slug": "bellerose",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Belmont",
+      "borough": "Bronx",
+      "slug": "belmont",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Belmont | Little Ita",
+      "borough": "Bronx",
+      "slug": "belmont-little-ita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Belmont | Little Italy",
+      "borough": "Manhattan",
+      "slug": "belmont-little-italy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bensonhurst",
+      "borough": "Brooklyn",
+      "slug": "bensonhurst",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bergen Beach",
+      "borough": "Brooklyn",
+      "slug": "bergen-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Beverley Square West",
+      "borough": "Brooklyn",
+      "slug": "beverley-square-west",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Birchwood Towers",
+      "borough": "Queens",
+      "slug": "birchwood-towers",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Blissville",
+      "borough": "Queens",
+      "slug": "blissville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Boerum",
+      "borough": "Brooklyn",
+      "slug": "boerum",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Boerum Hill",
+      "borough": "Brooklyn",
+      "slug": "boerum-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Borough Park",
+      "borough": "Brooklyn",
+      "slug": "borough-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bowery",
+      "borough": "Manhattan",
+      "slug": "bowery",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bowne Park",
+      "borough": "Queens",
+      "slug": "bowne-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Breezy Point",
+      "borough": "Queens",
+      "slug": "breezy-point",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Briarwood",
+      "borough": "Queens",
+      "slug": "briarwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Brickwood Towers",
+      "borough": "Queens",
+      "slug": "brickwood-towers",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Brighton Beach",
+      "borough": "Brooklyn",
+      "slug": "brighton-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Broad Channel",
+      "borough": "Queens",
+      "slug": "broad-channel",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Broadway Junction",
+      "borough": "Brooklyn",
+      "slug": "broadway-junction",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bronx",
+      "borough": "Bronx",
+      "slug": "bronx",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bronx (Other)",
+      "borough": "Bronx",
+      "slug": "bronx-other",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bronxdale",
+      "borough": "Bronx",
+      "slug": "bronxdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bronxwood",
+      "borough": "Bronx",
+      "slug": "bronxwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Brooklyn",
+      "borough": "Brooklyn",
+      "slug": "brooklyn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Brooklyn Heights",
+      "borough": "Brooklyn",
+      "slug": "brooklyn-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Brookville",
+      "borough": "Queens",
+      "slug": "brookville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Brownsville",
+      "borough": "Brooklyn",
+      "slug": "brownsville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bryant Park",
+      "borough": "Manhattan",
+      "slug": "bryant-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bull's Head",
+      "borough": "Staten Island",
+      "slug": "bulls-head",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bulls Head",
+      "borough": "Staten Island",
+      "slug": "bulls-head",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bushwick",
+      "borough": "Brooklyn",
+      "slug": "bushwick",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Bushwick South",
+      "borough": "Brooklyn",
+      "slug": "bushwick-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CANARSIE",
+      "borough": "Brooklyn",
+      "slug": "canarsie",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CARLGDNS",
+      "borough": "Brooklyn",
+      "slug": "carlgdns",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CARNEGIE",
+      "borough": "Manhattan",
+      "slug": "carnegie",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CENTPKSTH",
+      "borough": "Manhattan",
+      "slug": "centpksth",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CHELSEA",
+      "borough": "Manhattan",
+      "slug": "chelsea",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CITYLINE",
+      "borough": "Brooklyn",
+      "slug": "cityline",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CLASONPOINT",
+      "borough": "Bronx",
+      "slug": "clasonpoint",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CLINTHL",
+      "borough": "Brooklyn",
+      "slug": "clinthl",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CLINTON",
+      "borough": "Manhattan",
+      "slug": "clinton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CLINTON DUT",
+      "borough": "Manhattan",
+      "slug": "clinton-dut",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "COBBLEHL",
+      "borough": "Manhattan",
+      "slug": "cobblehl",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "COLUMBIASTWATERFRONT",
+      "borough": "Brooklyn",
+      "slug": "columbiastwaterfront",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "COLUMBUSCIR",
+      "borough": "Manhattan",
+      "slug": "columbuscir",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CONCOURSE",
+      "borough": "Bronx",
+      "slug": "concourse",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CONEYISL",
+      "borough": "Brooklyn",
+      "slug": "coneyisl",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CROTONAPARKEAST",
+      "borough": "Bronx",
+      "slug": "crotonaparkeast",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CROWNHEI",
+      "borough": "Brooklyn",
+      "slug": "crownhei",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "CYPRESS",
+      "borough": "Brooklyn",
+      "slug": "cypress",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Cambria Heights",
+      "borough": "Queens",
+      "slug": "cambria-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Canarsie",
+      "borough": "Brooklyn",
+      "slug": "canarsie",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Carnegie Hill",
+      "borough": "Manhattan",
+      "slug": "carnegie-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Carroll Gardens",
+      "borough": "Brooklyn",
+      "slug": "carroll-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Castle Hill",
+      "borough": "Bronx",
+      "slug": "castle-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Castleton Corners",
+      "borough": "Staten Island",
+      "slug": "castleton-corners",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Caton Park",
+      "borough": "Brooklyn",
+      "slug": "caton-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Central Harlem",
+      "borough": "Manhattan",
+      "slug": "central-harlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Central Park South",
+      "borough": "Manhattan",
+      "slug": "central-park-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Central Park West",
+      "borough": "Manhattan",
+      "slug": "central-park-west",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Central Riverdale",
+      "borough": "Bronx",
+      "slug": "central-riverdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Charleston",
+      "borough": "Staten Island",
+      "slug": "charleston",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Chelsea",
+      "borough": "Manhattan",
+      "slug": "chelsea",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Chelsea / Flatiron",
+      "borough": "Manhattan",
+      "slug": "chelsea-flatiron",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Chelsea/Flatiron",
+      "borough": "Manhattan",
+      "slug": "chelsea-flatiron",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Chinatown",
+      "borough": "Manhattan",
+      "slug": "chinatown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Chinatown / Little I",
+      "borough": "Manhattan",
+      "slug": "chinatown-little-i",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Chinatown Little Ita",
+      "borough": "Manhattan",
+      "slug": "chinatown-little-ita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "City Island",
+      "borough": "Bronx",
+      "slug": "city-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "City Line",
+      "borough": "Brooklyn",
+      "slug": "city-line",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Civic Center",
+      "borough": "Manhattan",
+      "slug": "civic-center",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Claremont",
+      "borough": "Bronx",
+      "slug": "claremont",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Claremont Village",
+      "borough": "Bronx",
+      "slug": "claremont-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Clason Point",
+      "borough": "Bronx",
+      "slug": "clason-point",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Clearview",
+      "borough": "Queens",
+      "slug": "clearview",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Clinton",
+      "borough": "Manhattan",
+      "slug": "clinton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Clinton / Hell's Kit",
+      "borough": "Manhattan",
+      "slug": "clinton-hells-kit",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Clinton Hill",
+      "borough": "Brooklyn",
+      "slug": "clinton-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Clinton Hill/Ft Gree",
+      "borough": "Brooklyn",
+      "slug": "clinton-hill-ft-gree",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Cobble Hill",
+      "borough": "Brooklyn",
+      "slug": "cobble-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "College Point",
+      "borough": "Queens",
+      "slug": "college-point",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Presb",
+      "borough": "Manhattan",
+      "slug": "columbia-presb",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia St Waterfr",
+      "borough": "Manhattan",
+      "slug": "columbia-st-waterfr",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia St Waterfr.",
+      "borough": "Manhattan",
+      "slug": "columbia-st-waterfr",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia St Waterfro",
+      "borough": "Manhattan",
+      "slug": "columbia-st-waterfro",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia St Waterfront District",
+      "borough": "Manhattan",
+      "slug": "columbia-st-waterfront-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia St. Waterfront",
+      "borough": "Manhattan",
+      "slug": "columbia-st-waterfront",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Street WD",
+      "borough": "Manhattan",
+      "slug": "columbia-street-wd",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Street Wat",
+      "borough": "Manhattan",
+      "slug": "columbia-street-wat",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Street Wate",
+      "borough": "Manhattan",
+      "slug": "columbia-street-wate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Street Waterfront",
+      "borough": "Manhattan",
+      "slug": "columbia-street-waterfront",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Street Waterfront District",
+      "borough": "Manhattan",
+      "slug": "columbia-street-waterfront-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Columbia Waterfront",
+      "borough": "Manhattan",
+      "slug": "columbia-waterfront",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Concord",
+      "borough": "Staten Island",
+      "slug": "concord",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Concourse",
+      "borough": "Bronx",
+      "slug": "concourse",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Concourse Village",
+      "borough": "Bronx",
+      "slug": "concourse-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Coney Island",
+      "borough": "Brooklyn",
+      "slug": "coney-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Corona",
+      "borough": "Queens",
+      "slug": "corona",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Country Club",
+      "borough": "Bronx",
+      "slug": "country-club",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Court Square",
+      "borough": "Queens",
+      "slug": "court-square",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Crotona Park",
+      "borough": "Bronx",
+      "slug": "crotona-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Crotona Park East",
+      "borough": "Bronx",
+      "slug": "crotona-park-east",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Crown Heights",
+      "borough": "Brooklyn",
+      "slug": "crown-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Crown Heights North",
+      "borough": "Brooklyn",
+      "slug": "crown-heights-north",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Cypress Hills",
+      "borough": "Brooklyn",
+      "slug": "cypress-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DITMASPK",
+      "borough": "Brooklyn",
+      "slug": "ditmaspk",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DNU-Brooklyn",
+      "borough": "Brooklyn",
+      "slug": "dnu-brooklyn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DTWNBKYN",
+      "borough": "Brooklyn",
+      "slug": "dtwnbkyn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DUMBO",
+      "borough": "Brooklyn",
+      "slug": "dumbo",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DUMBO / Vinegar Hill",
+      "borough": "Brooklyn",
+      "slug": "dumbo-vinegar-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill",
+      "borough": "Brooklyn",
+      "slug": "dumbo-vinegar-hill-downtown-brooklyn-boerum-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "DYKERSHT",
+      "borough": "Brooklyn",
+      "slug": "dykersht",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ditmars Park",
+      "borough": "Queens",
+      "slug": "ditmars-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ditmars Steinway",
+      "borough": "Queens",
+      "slug": "ditmars-steinway",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ditmars-Steinway",
+      "borough": "Queens",
+      "slug": "ditmars-steinway",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ditmas Park",
+      "borough": "Brooklyn",
+      "slug": "ditmas-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ditmas Park West",
+      "borough": "Brooklyn",
+      "slug": "ditmas-park-west",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ditmas park",
+      "borough": "Brooklyn",
+      "slug": "ditmas-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Dongan Hills",
+      "borough": "Staten Island",
+      "slug": "dongan-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Douglaston",
+      "borough": "Queens",
+      "slug": "douglaston",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Downtown Bklyn",
+      "borough": "Brooklyn",
+      "slug": "downtown-bklyn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Downtown Brooklyn",
+      "borough": "Brooklyn",
+      "slug": "downtown-brooklyn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Dumbo",
+      "borough": "Brooklyn",
+      "slug": "dumbo",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Dumbo - Vinegar Hill",
+      "borough": "Brooklyn",
+      "slug": "dumbo-vinegar-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Dyker Heights",
+      "borough": "Brooklyn",
+      "slug": "dyker-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "E. Greenwich Village",
+      "borough": "Manhattan",
+      "slug": "e-greenwich-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "EASTVILL",
+      "borough": "Manhattan",
+      "slug": "eastvill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "EASTWILLIAMSBURG",
+      "borough": "Brooklyn",
+      "slug": "eastwilliamsburg",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "EFLATBUS",
+      "borough": "Brooklyn",
+      "slug": "eflatbus",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "EHARLEM",
+      "borough": "Manhattan",
+      "slug": "eharlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "ELTINGVILLE",
+      "borough": "Staten Island",
+      "slug": "eltingville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "ENY",
+      "borough": "Brooklyn",
+      "slug": "eny",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Elmhurst",
+      "borough": "Queens",
+      "slug": "east-elmhurst",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Flatbush",
+      "borough": "Brooklyn",
+      "slug": "east-flatbush",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Flatbush-Farragut",
+      "borough": "Brooklyn",
+      "slug": "east-flatbush-farragut",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Flushing",
+      "borough": "Queens",
+      "slug": "east-flushing",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Harlem",
+      "borough": "Manhattan",
+      "slug": "east-harlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Midwood",
+      "borough": "Brooklyn",
+      "slug": "east-midwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Morrisania",
+      "borough": "Bronx",
+      "slug": "east-morrisania",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East New York",
+      "borough": "Brooklyn",
+      "slug": "east-new-york",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Tremont",
+      "borough": "Bronx",
+      "slug": "east-tremont",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Village",
+      "borough": "Manhattan",
+      "slug": "east-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "East Williamsburg",
+      "borough": "Brooklyn",
+      "slug": "east-williamsburg",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Eastchester",
+      "borough": "Bronx",
+      "slug": "eastchester",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Edenwald",
+      "borough": "Bronx",
+      "slug": "edenwald",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Edgemere",
+      "borough": "Queens",
+      "slug": "edgemere",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Elm Park",
+      "borough": "Staten Island",
+      "slug": "elm-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Elmhurst",
+      "borough": "Queens",
+      "slug": "elmhurst",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Eltingville",
+      "borough": "Staten Island",
+      "slug": "eltingville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Erasmus",
+      "borough": "Brooklyn",
+      "slug": "erasmus",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FASHCNTR",
+      "borough": "Manhattan",
+      "slug": "fashcntr",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FHAMIL",
+      "borough": "Bronx",
+      "slug": "fhamil",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FIELDSTON",
+      "borough": "Bronx",
+      "slug": "fieldston",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FINLDIST",
+      "borough": "Manhattan",
+      "slug": "finldist",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FLATBUSH",
+      "borough": "Brooklyn",
+      "slug": "flatbush",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FLATIRON",
+      "borough": "Manhattan",
+      "slug": "flatiron",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FLATLAND",
+      "borough": "Brooklyn",
+      "slug": "flatland",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FLPK",
+      "borough": "Queens",
+      "slug": "flpk",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FLUSHING",
+      "borough": "Queens",
+      "slug": "flushing",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FORDHAM",
+      "borough": "Bronx",
+      "slug": "fordham",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FORHILLS",
+      "borough": "Queens",
+      "slug": "forhills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "FORTGRNE",
+      "borough": "Brooklyn",
+      "slug": "fortgrne",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Farragut",
+      "borough": "Brooklyn",
+      "slug": "farragut",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fashion District",
+      "borough": "Manhattan",
+      "slug": "fashion-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fieldston",
+      "borough": "Bronx",
+      "slug": "fieldston",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Financial District",
+      "borough": "Manhattan",
+      "slug": "financial-district",
+      "aliases": [
+        "FiDi"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Financial District (",
+      "borough": "Manhattan",
+      "slug": "financial-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fiske Terrace",
+      "borough": "Brooklyn",
+      "slug": "fiske-terrace",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Flatbush",
+      "borough": "Brooklyn",
+      "slug": "flatbush",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Flatiron",
+      "borough": "Manhattan",
+      "slug": "flatiron",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Flatiron District",
+      "borough": "Manhattan",
+      "slug": "flatiron-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Flatlands",
+      "borough": "Brooklyn",
+      "slug": "flatlands",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Flushing",
+      "borough": "Queens",
+      "slug": "flushing",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Flushing Heights",
+      "borough": "Queens",
+      "slug": "flushing-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fordham",
+      "borough": "Bronx",
+      "slug": "fordham",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fordham Heights",
+      "borough": "Bronx",
+      "slug": "fordham-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fordham Manor",
+      "borough": "Bronx",
+      "slug": "fordham-manor",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Forest Hills",
+      "borough": "Queens",
+      "slug": "forest-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Forest Hills Garden",
+      "borough": "Queens",
+      "slug": "forest-hills-garden",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Forest Hills Gardens",
+      "borough": "Queens",
+      "slug": "forest-hills-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Forest Hills Ward",
+      "borough": "Queens",
+      "slug": "forest-hills-ward",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Forest Park",
+      "borough": "Queens",
+      "slug": "forest-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fort George",
+      "borough": "Manhattan",
+      "slug": "fort-george",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fort Greene",
+      "borough": "Brooklyn",
+      "slug": "fort-greene",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fort Hamilton",
+      "borough": "Brooklyn",
+      "slug": "fort-hamilton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fresh Kills",
+      "borough": "Staten Island",
+      "slug": "fresh-kills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fresh Meadows",
+      "borough": "Queens",
+      "slug": "fresh-meadows",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ft. Greene",
+      "borough": "Brooklyn",
+      "slug": "ft-greene",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fulton Ferry",
+      "borough": "Manhattan",
+      "slug": "fulton-ferry",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Fulton/Seaport",
+      "borough": "Manhattan",
+      "slug": "fulton-seaport",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GOWANUS",
+      "borough": "Brooklyn",
+      "slug": "gowanus",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GRAMERCY",
+      "borough": "Manhattan",
+      "slug": "gramercy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GRANDCONCOURSE",
+      "borough": "Bronx",
+      "slug": "grandconcourse",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GRAVESND",
+      "borough": "Brooklyn",
+      "slug": "gravesnd",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GREENPT",
+      "borough": "Brooklyn",
+      "slug": "greenpt",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GREENWD",
+      "borough": "Brooklyn",
+      "slug": "greenwd",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "GRENVILL",
+      "borough": "Bronx",
+      "slug": "grenvill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Garment District",
+      "borough": "Manhattan",
+      "slug": "garment-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Georgetown",
+      "borough": "Brooklyn",
+      "slug": "georgetown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Gerritsen Beach",
+      "borough": "Brooklyn",
+      "slug": "gerritsen-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Glen Oaks",
+      "borough": "Queens",
+      "slug": "glen-oaks",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Glendale",
+      "borough": "Queens",
+      "slug": "glendale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Gowanus",
+      "borough": "Brooklyn",
+      "slug": "gowanus",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Gramercy",
+      "borough": "Manhattan",
+      "slug": "gramercy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Gramercy Park",
+      "borough": "Manhattan",
+      "slug": "gramercy-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Graniteville",
+      "borough": "Staten Island",
+      "slug": "graniteville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Grant City",
+      "borough": "Staten Island",
+      "slug": "grant-city",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Grasmere",
+      "borough": "Staten Island",
+      "slug": "grasmere",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Gravesend",
+      "borough": "Brooklyn",
+      "slug": "gravesend",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Great Kills",
+      "borough": "Staten Island",
+      "slug": "great-kills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Green Point",
+      "borough": "Brooklyn",
+      "slug": "green-point",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenpoint",
+      "borough": "Brooklyn",
+      "slug": "greenpoint",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenridge",
+      "borough": "Staten Island",
+      "slug": "greenridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenwich Village",
+      "borough": "Manhattan",
+      "slug": "greenwich-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenwich Village/We",
+      "borough": "Manhattan",
+      "slug": "greenwich-village-we",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenwich Village/West Village",
+      "borough": "Manhattan",
+      "slug": "greenwich-village-west-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenwood",
+      "borough": "Brooklyn",
+      "slug": "greenwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Greenwood Heights",
+      "borough": "Brooklyn",
+      "slug": "greenwood-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Grenwich Village",
+      "borough": "Manhattan",
+      "slug": "grenwich-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Grymes Hill",
+      "borough": "Staten Island",
+      "slug": "grymes-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "HAMHGTS",
+      "borough": "Manhattan",
+      "slug": "hamhgts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "HARLEM",
+      "borough": "Manhattan",
+      "slug": "harlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "HDBH",
+      "borough": "Manhattan",
+      "slug": "hdbh",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "HIGHBRIDGE",
+      "borough": "Bronx",
+      "slug": "highbridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "HOMECRE",
+      "borough": "Brooklyn",
+      "slug": "homecre",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "HUDHGTS",
+      "borough": "Manhattan",
+      "slug": "hudhgts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hamilton Heights",
+      "borough": "Manhattan",
+      "slug": "hamilton-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hammels",
+      "borough": "Queens",
+      "slug": "hammels",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Harlem",
+      "borough": "Manhattan",
+      "slug": "harlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Harlem / Morningside",
+      "borough": "Manhattan",
+      "slug": "harlem-morningside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Heartland Village",
+      "borough": "Staten Island",
+      "slug": "heartland-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hell's Kitchen",
+      "borough": "Manhattan",
+      "slug": "hells-kitchen",
+      "aliases": [
+        "Clinton"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Hells Kitchen",
+      "borough": "Manhattan",
+      "slug": "hells-kitchen",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "High Bridge",
+      "borough": "Bronx",
+      "slug": "high-bridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Highbridge",
+      "borough": "Bronx",
+      "slug": "highbridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Highland Park",
+      "borough": "Brooklyn",
+      "slug": "highland-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hillcrest",
+      "borough": "Queens",
+      "slug": "hillcrest",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hollis",
+      "borough": "Queens",
+      "slug": "hollis",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hollis Hills",
+      "borough": "Queens",
+      "slug": "hollis-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Holliswood",
+      "borough": "Queens",
+      "slug": "holliswood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Homecrest",
+      "borough": "Brooklyn",
+      "slug": "homecrest",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Howard Beach",
+      "borough": "Queens",
+      "slug": "howard-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Howard Beach 1",
+      "borough": "Queens",
+      "slug": "howard-beach-1",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Huguenot",
+      "borough": "Staten Island",
+      "slug": "huguenot",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hunters Point",
+      "borough": "Queens",
+      "slug": "hunters-point",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hunters Point-Sunnyside-West Maspeth",
+      "borough": "Queens",
+      "slug": "hunters-point-sunnyside-west-maspeth",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hunters Point-sunnyside-west Maspeth",
+      "borough": "Queens",
+      "slug": "hunters-point-sunnyside-west-maspeth",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Hunts Point",
+      "borough": "Bronx",
+      "slug": "hunts-point",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "INWOOD",
+      "borough": "Manhattan",
+      "slug": "inwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "ITALCHIN",
+      "borough": "Manhattan",
+      "slug": "italchin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Inwood",
+      "borough": "Manhattan",
+      "slug": "inwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Inwood / Washington",
+      "borough": "Manhattan",
+      "slug": "inwood-washington",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Inwood/Marble Hill",
+      "borough": "Manhattan",
+      "slug": "inwood-marble-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "JACOBJAV",
+      "borough": "Manhattan",
+      "slug": "jacobjav",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "JKHTS",
+      "borough": "Queens",
+      "slug": "jkhts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "JMCA",
+      "borough": "Queens",
+      "slug": "jmca",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "JMCAH",
+      "borough": "Queens",
+      "slug": "jmcah",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jackson Heights",
+      "borough": "Queens",
+      "slug": "jackson-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jackson heights",
+      "borough": "Queens",
+      "slug": "jackson-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jamaica",
+      "borough": "Queens",
+      "slug": "jamaica",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jamaica Center",
+      "borough": "Queens",
+      "slug": "jamaica-center",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jamaica Estate",
+      "borough": "Queens",
+      "slug": "jamaica-estate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jamaica Estates",
+      "borough": "Queens",
+      "slug": "jamaica-estates",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Jamaica Hills",
+      "borough": "Queens",
+      "slug": "jamaica-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "KENSINGT",
+      "borough": "Brooklyn",
+      "slug": "kensingt",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "KGARDENS",
+      "borough": "Queens",
+      "slug": "kgardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "KINGSBRIDGE",
+      "borough": "Bronx",
+      "slug": "kingsbridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "KIPS",
+      "borough": "Manhattan",
+      "slug": "kips",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "KIPSBAY",
+      "borough": "Manhattan",
+      "slug": "kipsbay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kensingtn/Ocean Pkwy",
+      "borough": "Brooklyn",
+      "slug": "kensingtn-ocean-pkwy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kensington",
+      "borough": "Brooklyn",
+      "slug": "kensington",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kensington / Ocean Pkwy",
+      "borough": "Brooklyn",
+      "slug": "kensington-ocean-pkwy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kensington and Parkv",
+      "borough": "Brooklyn",
+      "slug": "kensington-and-parkv",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kew Garden Hills",
+      "borough": "Queens",
+      "slug": "kew-garden-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kew Gardens",
+      "borough": "Queens",
+      "slug": "kew-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kew Gardens Hills",
+      "borough": "Queens",
+      "slug": "kew-gardens-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kings Club District",
+      "borough": "Brooklyn",
+      "slug": "kings-club-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kingsbridge",
+      "borough": "Bronx",
+      "slug": "kingsbridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kingsbridge Heights",
+      "borough": "Bronx",
+      "slug": "kingsbridge-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Kips Bay",
+      "borough": "Manhattan",
+      "slug": "kips-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Koreatown",
+      "borough": "Manhattan",
+      "slug": "koreatown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "LINCOLN",
+      "borough": "Manhattan",
+      "slug": "lincoln",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "LNGCTY",
+      "borough": "Queens",
+      "slug": "lngcty",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "LOEAST",
+      "borough": "Manhattan",
+      "slug": "loeast",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "LONGWOOD",
+      "borough": "Bronx",
+      "slug": "longwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Laconia",
+      "borough": "Bronx",
+      "slug": "laconia",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Laurelton",
+      "borough": "Queens",
+      "slug": "laurelton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lefferts",
+      "borough": "Brooklyn",
+      "slug": "lefferts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lefferts Garden",
+      "borough": "Brooklyn",
+      "slug": "lefferts-garden",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lefferts Gardens",
+      "borough": "Brooklyn",
+      "slug": "lefferts-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lenox Hill",
+      "borough": "Manhattan",
+      "slug": "lenox-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lenox Hill-Roosevelt",
+      "borough": "Manhattan",
+      "slug": "lenox-hill-roosevelt",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lenox Hill-Roosevelt Island",
+      "borough": "Manhattan",
+      "slug": "lenox-hill-roosevelt-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lenox Hill-roosevelt Island",
+      "borough": "Manhattan",
+      "slug": "lenox-hill-roosevelt-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lincoln Center",
+      "borough": "Manhattan",
+      "slug": "lincoln-center",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lincoln Sq",
+      "borough": "Manhattan",
+      "slug": "lincoln-sq",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lincoln Square",
+      "borough": "Manhattan",
+      "slug": "lincoln-square",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lindenwood",
+      "borough": "Queens",
+      "slug": "lindenwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Little Italy",
+      "borough": "Manhattan",
+      "slug": "little-italy",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Little Neck",
+      "borough": "Queens",
+      "slug": "little-neck",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Long Island City",
+      "borough": "Queens",
+      "slug": "long-island-city",
+      "aliases": [
+        "LIC"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Longwood",
+      "borough": "Bronx",
+      "slug": "longwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lower East Side",
+      "borough": "Manhattan",
+      "slug": "lower-east-side",
+      "aliases": [
+        "LES"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Lower East Side/Chin",
+      "borough": "Manhattan",
+      "slug": "lower-east-side-chin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lower East Side/Chinatown",
+      "borough": "Manhattan",
+      "slug": "lower-east-side-chinatown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lower Eastside",
+      "borough": "Manhattan",
+      "slug": "lower-eastside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Lower Manhattan",
+      "borough": "Manhattan",
+      "slug": "lower-manhattan",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MANBEACH",
+      "borough": "Brooklyn",
+      "slug": "manbeach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MANHATTAN",
+      "borough": "Manhattan",
+      "slug": "manhattan",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MAPLETON",
+      "borough": "Brooklyn",
+      "slug": "mapleton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MELROSE",
+      "borough": "Bronx",
+      "slug": "melrose",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MIDTOWN",
+      "borough": "Manhattan",
+      "slug": "midtown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MIDWOOD",
+      "borough": "Brooklyn",
+      "slug": "midwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MILLBAS",
+      "borough": "Brooklyn",
+      "slug": "millbas",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MORNHGTS",
+      "borough": "Manhattan",
+      "slug": "mornhgts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MOTTHAVEN",
+      "borough": "Bronx",
+      "slug": "motthaven",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MSPH",
+      "borough": "Manhattan",
+      "slug": "msph",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MURRAY",
+      "borough": "Manhattan",
+      "slug": "murray",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "MV",
+      "borough": "Manhattan",
+      "slug": "mv",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Malba",
+      "borough": "Queens",
+      "slug": "malba",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Manhattan",
+      "borough": "Manhattan",
+      "slug": "manhattan",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Manhattan Avenue",
+      "borough": "Manhattan",
+      "slug": "manhattan-avenue",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Manhattan Beach",
+      "borough": "Brooklyn",
+      "slug": "manhattan-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Manhattan Valley",
+      "borough": "Manhattan",
+      "slug": "manhattan-valley",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Manhattanville",
+      "borough": "Manhattan",
+      "slug": "manhattanville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Manor Heights",
+      "borough": "Staten Island",
+      "slug": "manor-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mapleton",
+      "borough": "Brooklyn",
+      "slug": "mapleton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Marble Hill",
+      "borough": "Manhattan",
+      "slug": "marble-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Marine Park",
+      "borough": "Brooklyn",
+      "slug": "marine-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Marine Park/Mill Basin",
+      "borough": "Brooklyn",
+      "slug": "marine-park-mill-basin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Marine Pk/Mill Basin",
+      "borough": "Brooklyn",
+      "slug": "marine-pk-mill-basin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mariner's Harbor",
+      "borough": "Staten Island",
+      "slug": "mariners-harbor",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mariners Harbor",
+      "borough": "Staten Island",
+      "slug": "mariners-harbor",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Maspeth",
+      "borough": "Queens",
+      "slug": "maspeth",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Meatpacking",
+      "borough": "Manhattan",
+      "slug": "meatpacking",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Meatpacking District",
+      "borough": "Manhattan",
+      "slug": "meatpacking-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Melrose",
+      "borough": "Bronx",
+      "slug": "melrose",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Middle East Side",
+      "borough": "Manhattan",
+      "slug": "middle-east-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Middle Village",
+      "borough": "Queens",
+      "slug": "middle-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Middle West Side",
+      "borough": "Manhattan",
+      "slug": "middle-west-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midland Beach",
+      "borough": "Staten Island",
+      "slug": "midland-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown",
+      "borough": "Manhattan",
+      "slug": "midtown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown Center",
+      "borough": "Manhattan",
+      "slug": "midtown-center",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown Central",
+      "borough": "Manhattan",
+      "slug": "midtown-central",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown East",
+      "borough": "Manhattan",
+      "slug": "midtown-east",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown South",
+      "borough": "Manhattan",
+      "slug": "midtown-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown West",
+      "borough": "Manhattan",
+      "slug": "midtown-west",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midtown West / Hell'",
+      "borough": "Manhattan",
+      "slug": "midtown-west-hell",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midwood",
+      "borough": "Brooklyn",
+      "slug": "midwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Midwood Park",
+      "borough": "Brooklyn",
+      "slug": "midwood-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mill Basin",
+      "borough": "Brooklyn",
+      "slug": "mill-basin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Morningside Heights",
+      "borough": "Manhattan",
+      "slug": "morningside-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Morris Heights",
+      "borough": "Bronx",
+      "slug": "morris-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Morris Park",
+      "borough": "Bronx",
+      "slug": "morris-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Morrisania",
+      "borough": "Bronx",
+      "slug": "morrisania",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mott Haven",
+      "borough": "Bronx",
+      "slug": "mott-haven",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mount Eden",
+      "borough": "Bronx",
+      "slug": "mount-eden",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mount Hope",
+      "borough": "Bronx",
+      "slug": "mount-hope",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Mt. Morris Park",
+      "borough": "Bronx",
+      "slug": "mt-morris-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Murray Hill",
+      "borough": "Manhattan",
+      "slug": "murray-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Murray Hill (QNS)",
+      "borough": "Manhattan",
+      "slug": "murray-hill-qns",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Murray Hill / Kip's",
+      "borough": "Manhattan",
+      "slug": "murray-hill-kips",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Murray Hill / Kips B",
+      "borough": "Manhattan",
+      "slug": "murray-hill-kips-b",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Murray Hill Kips Bay",
+      "borough": "Manhattan",
+      "slug": "murray-hill-kips-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Murray Hill-kips Bay",
+      "borough": "Manhattan",
+      "slug": "murray-hill-kips-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NEW UTRECHT",
+      "borough": "Brooklyn",
+      "slug": "new-utrecht",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NOHO",
+      "borough": "Manhattan",
+      "slug": "noho",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NOMAD",
+      "borough": "Manhattan",
+      "slug": "nomad",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NORTH RIVERDALE",
+      "borough": "Bronx",
+      "slug": "north-riverdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NORTHEAST BRONX",
+      "borough": "Bronx",
+      "slug": "northeast-bronx",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NORTHWEST BRONX",
+      "borough": "Bronx",
+      "slug": "northwest-bronx",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Navy Yard",
+      "borough": "Manhattan",
+      "slug": "navy-yard",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Neponsit",
+      "borough": "Queens",
+      "slug": "neponsit",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "New Brighton",
+      "borough": "Staten Island",
+      "slug": "new-brighton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "New Dorp",
+      "borough": "Staten Island",
+      "slug": "new-dorp",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "New Dorp Beach",
+      "borough": "Staten Island",
+      "slug": "new-dorp-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "New Lots",
+      "borough": "Brooklyn",
+      "slug": "new-lots",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "New Springville",
+      "borough": "Staten Island",
+      "slug": "new-springville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NoHo",
+      "borough": "Manhattan",
+      "slug": "noho",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NoLIta",
+      "borough": "Manhattan",
+      "slug": "nolita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NoLita",
+      "borough": "Manhattan",
+      "slug": "nolita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "NoMad",
+      "borough": "Manhattan",
+      "slug": "nomad",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Noho",
+      "borough": "Manhattan",
+      "slug": "noho",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Noho/Central Village",
+      "borough": "Manhattan",
+      "slug": "noho-central-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Nolita",
+      "borough": "Manhattan",
+      "slug": "nolita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Nomad",
+      "borough": "Manhattan",
+      "slug": "nomad",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "North Corona",
+      "borough": "Queens",
+      "slug": "north-corona",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "North Riverdale",
+      "borough": "Bronx",
+      "slug": "north-riverdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "North Side-south Side",
+      "borough": "Brooklyn",
+      "slug": "north-side-south-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "North Slope",
+      "borough": "Brooklyn",
+      "slug": "north-slope",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Northeast Flatbush",
+      "borough": "Brooklyn",
+      "slug": "northeast-flatbush",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "OCEANHIL",
+      "borough": "Brooklyn",
+      "slug": "oceanhil",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "OLINVILLE",
+      "borough": "Bronx",
+      "slug": "olinville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Oakland Gardens",
+      "borough": "Queens",
+      "slug": "oakland-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Oakwood",
+      "borough": "Staten Island",
+      "slug": "oakwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Oakwood Heights",
+      "borough": "Staten Island",
+      "slug": "oakwood-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ocean Hill",
+      "borough": "Brooklyn",
+      "slug": "ocean-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ocean Hill Brownsvil",
+      "borough": "Brooklyn",
+      "slug": "ocean-hill-brownsvil",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ocean Hill Brownsville",
+      "borough": "Brooklyn",
+      "slug": "ocean-hill-brownsville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ocean Parkway",
+      "borough": "Brooklyn",
+      "slug": "ocean-parkway",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ocean Parkway South",
+      "borough": "Brooklyn",
+      "slug": "ocean-parkway-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Old Howard Beach",
+      "borough": "Queens",
+      "slug": "old-howard-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Old Mill Basin",
+      "borough": "Brooklyn",
+      "slug": "old-mill-basin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Olinville",
+      "borough": "Bronx",
+      "slug": "olinville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ozone Park",
+      "borough": "Queens",
+      "slug": "ozone-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "PARKCHESTER",
+      "borough": "Bronx",
+      "slug": "parkchester",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "PARKSLOP",
+      "borough": "Brooklyn",
+      "slug": "parkslop",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "PROSHEI",
+      "borough": "Brooklyn",
+      "slug": "proshei",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "PROSLEFR",
+      "borough": "Brooklyn",
+      "slug": "proslefr",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "PROSPARK",
+      "borough": "Brooklyn",
+      "slug": "prospark",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Pacific Park",
+      "borough": "Brooklyn",
+      "slug": "pacific-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Paerdegat Basin",
+      "borough": "Brooklyn",
+      "slug": "paerdegat-basin",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Park Hill",
+      "borough": "Brooklyn",
+      "slug": "park-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Park Slope",
+      "borough": "Brooklyn",
+      "slug": "park-slope",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Park Slope South",
+      "borough": "Brooklyn",
+      "slug": "park-slope-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Park Slope-gowanus",
+      "borough": "Brooklyn",
+      "slug": "park-slope-gowanus",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Park Slope/Prospect",
+      "borough": "Brooklyn",
+      "slug": "park-slope-prospect",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Park Slope/Prospect Park",
+      "borough": "Brooklyn",
+      "slug": "park-slope-prospect-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Parkchester",
+      "borough": "Bronx",
+      "slug": "parkchester",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Pelham Bay",
+      "borough": "Bronx",
+      "slug": "pelham-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Pelham Gardens",
+      "borough": "Bronx",
+      "slug": "pelham-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Pelham Parkway",
+      "borough": "Bronx",
+      "slug": "pelham-parkway",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Peter Cooper Village",
+      "borough": "Manhattan",
+      "slug": "peter-cooper-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Pleasant Plains",
+      "borough": "Staten Island",
+      "slug": "pleasant-plains",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Pomonok",
+      "borough": "Queens",
+      "slug": "pomonok",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Port Morris",
+      "borough": "Bronx",
+      "slug": "port-morris",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Port Richmond",
+      "borough": "Staten Island",
+      "slug": "port-richmond",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prince's Bay",
+      "borough": "Staten Island",
+      "slug": "princes-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect - Lefferts",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Heights",
+      "borough": "Brooklyn",
+      "slug": "prospect-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Hights",
+      "borough": "Brooklyn",
+      "slug": "prospect-hights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Leffert Gdn",
+      "borough": "Brooklyn",
+      "slug": "prospect-leffert-gdn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Lefferts",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Lefferts G",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts-g",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Lefferts Ga",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts-ga",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Lefferts Gardens",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Lefferts Gardens-Wingate",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts-gardens-wingate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Park",
+      "borough": "Brooklyn",
+      "slug": "prospect-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Park So.",
+      "borough": "Brooklyn",
+      "slug": "prospect-park-so",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect Park South",
+      "borough": "Brooklyn",
+      "slug": "prospect-park-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Prospect-Lefferts G",
+      "borough": "Brooklyn",
+      "slug": "prospect-lefferts-g",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "QUEENS",
+      "borough": "Queens",
+      "slug": "queens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Queens",
+      "borough": "Queens",
+      "slug": "queens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Queens Village",
+      "borough": "Queens",
+      "slug": "queens-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Queensboro Hill",
+      "borough": "Queens",
+      "slug": "queensboro-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "RED HOOK",
+      "borough": "Brooklyn",
+      "slug": "red-hook",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "REDHOOK",
+      "borough": "Brooklyn",
+      "slug": "redhook",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "REMSEN",
+      "borough": "Brooklyn",
+      "slug": "remsen",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "RGWD",
+      "borough": "Queens",
+      "slug": "rgwd",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "RI",
+      "borough": "Manhattan",
+      "slug": "ri",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "RICHMONDTOWN",
+      "borough": "Staten Island",
+      "slug": "richmondtown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "RIVERDALE",
+      "borough": "Bronx",
+      "slug": "riverdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "ROSEBANK",
+      "borough": "Staten Island",
+      "slug": "rosebank",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ramsen Village",
+      "borough": "Brooklyn",
+      "slug": "ramsen-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Randall Manor",
+      "borough": "Staten Island",
+      "slug": "randall-manor",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Red Hook",
+      "borough": "Brooklyn",
+      "slug": "red-hook",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Redhook",
+      "borough": "Brooklyn",
+      "slug": "redhook",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Rego Park",
+      "borough": "Queens",
+      "slug": "rego-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Remsen Village",
+      "borough": "Brooklyn",
+      "slug": "remsen-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Richmond Hill",
+      "borough": "Queens",
+      "slug": "richmond-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Richmond Hills",
+      "borough": "Queens",
+      "slug": "richmond-hills",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Richmond Town",
+      "borough": "Staten Island",
+      "slug": "richmond-town",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Richmond Valley",
+      "borough": "Staten Island",
+      "slug": "richmond-valley",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Richmondtown",
+      "borough": "Staten Island",
+      "slug": "richmondtown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ridgewood",
+      "borough": "Queens",
+      "slug": "ridgewood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Riverdale",
+      "borough": "Bronx",
+      "slug": "riverdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Rochdale",
+      "borough": "Queens",
+      "slug": "rochdale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Roosevelt Island",
+      "borough": "Manhattan",
+      "slug": "roosevelt-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Rose Hill",
+      "borough": "Manhattan",
+      "slug": "rose-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Rosebank",
+      "borough": "Staten Island",
+      "slug": "rosebank",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Rosedale",
+      "borough": "Queens",
+      "slug": "rosedale",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Rossville",
+      "borough": "Staten Island",
+      "slug": "rossville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SEAGATE",
+      "borough": "Brooklyn",
+      "slug": "seagate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SHEEPBAY",
+      "borough": "Brooklyn",
+      "slug": "sheepbay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SOHO",
+      "borough": "Manhattan",
+      "slug": "soho",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SOUTHEAST BRONX",
+      "borough": "Bronx",
+      "slug": "southeast-bronx",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SOUTHSTSEAPORT",
+      "borough": "Manhattan",
+      "slug": "southstseaport",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SPUYTENDUYVIL",
+      "borough": "Bronx",
+      "slug": "spuytenduyvil",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "STATEN ISLAND",
+      "borough": "Staten Island",
+      "slug": "staten-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "STUYHEI",
+      "borough": "Manhattan",
+      "slug": "stuyhei",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SUNNYSIDE",
+      "borough": "Queens",
+      "slug": "sunnyside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SUNSETPK",
+      "borough": "Brooklyn",
+      "slug": "sunsetpk",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SUTTON",
+      "borough": "Manhattan",
+      "slug": "sutton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Saint Albans",
+      "borough": "Queens",
+      "slug": "saint-albans",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Saint George",
+      "borough": "Staten Island",
+      "slug": "saint-george",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Schuylerville",
+      "borough": "Bronx",
+      "slug": "schuylerville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sea Gate",
+      "borough": "Brooklyn",
+      "slug": "sea-gate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Seagate",
+      "borough": "Brooklyn",
+      "slug": "seagate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Seaport",
+      "borough": "Manhattan",
+      "slug": "seaport",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Seaport District",
+      "borough": "Manhattan",
+      "slug": "seaport-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Seaside",
+      "borough": "Queens",
+      "slug": "seaside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sheephead Bay",
+      "borough": "Brooklyn",
+      "slug": "sheephead-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sheepshead Bay",
+      "borough": "Brooklyn",
+      "slug": "sheepshead-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Shore Acres",
+      "borough": "Staten Island",
+      "slug": "shore-acres",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Silver Lake",
+      "borough": "Staten Island",
+      "slug": "silver-lake",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SoHo",
+      "borough": "Manhattan",
+      "slug": "soho",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SoHo-Nolita",
+      "borough": "Manhattan",
+      "slug": "soho-nolita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "SoHo/Nolita",
+      "borough": "Manhattan",
+      "slug": "soho-nolita",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Soho",
+      "borough": "Manhattan",
+      "slug": "soho",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Soundview",
+      "borough": "Bronx",
+      "slug": "soundview",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Beach",
+      "borough": "Staten Island",
+      "slug": "south-beach",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Harlem",
+      "borough": "Manhattan",
+      "slug": "south-harlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Jamaica",
+      "borough": "Queens",
+      "slug": "south-jamaica",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Marlboro",
+      "borough": "Brooklyn",
+      "slug": "south-marlboro",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Midwood",
+      "borough": "Brooklyn",
+      "slug": "south-midwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Ozone Park",
+      "borough": "Queens",
+      "slug": "south-ozone-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Richmond Hill",
+      "borough": "Queens",
+      "slug": "south-richmond-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Slope",
+      "borough": "Brooklyn",
+      "slug": "south-slope",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Street Seaport",
+      "borough": "Manhattan",
+      "slug": "south-street-seaport",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Village",
+      "borough": "Manhattan",
+      "slug": "south-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "South Williamsburg",
+      "borough": "Brooklyn",
+      "slug": "south-williamsburg",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Spring Creek",
+      "borough": "Brooklyn",
+      "slug": "spring-creek",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Spuyten Duyvil",
+      "borough": "Bronx",
+      "slug": "spuyten-duyvil",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "St Albans",
+      "borough": "Queens",
+      "slug": "st-albans",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "St. Albans",
+      "borough": "Queens",
+      "slug": "st-albans",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "St. George",
+      "borough": "Staten Island",
+      "slug": "st-george",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Stapleton",
+      "borough": "Staten Island",
+      "slug": "stapleton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Stapleton Heights",
+      "borough": "Staten Island",
+      "slug": "stapleton-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Starrett City",
+      "borough": "Brooklyn",
+      "slug": "starrett-city",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Staten Island",
+      "borough": "Staten Island",
+      "slug": "staten-island",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Steinway-Ditmars",
+      "borough": "Queens",
+      "slug": "steinway-ditmars",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Stuyvesant",
+      "borough": "Manhattan",
+      "slug": "stuyvesant",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Stuyvesant Heights",
+      "borough": "Manhattan",
+      "slug": "stuyvesant-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Stuyvesant Town",
+      "borough": "Manhattan",
+      "slug": "stuyvesant-town",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sugar Hill",
+      "borough": "Manhattan",
+      "slug": "sugar-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sunnyside",
+      "borough": "Queens",
+      "slug": "sunnyside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sunnyside Gardens",
+      "borough": "Queens",
+      "slug": "sunnyside-gardens",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sunset Park",
+      "borough": "Brooklyn",
+      "slug": "sunset-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sutton",
+      "borough": "Manhattan",
+      "slug": "sutton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sutton Area",
+      "borough": "Manhattan",
+      "slug": "sutton-area",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Sutton Place",
+      "borough": "Manhattan",
+      "slug": "sutton-place",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "THROGSNECK",
+      "borough": "Bronx",
+      "slug": "throgsneck",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "TREMONT",
+      "borough": "Bronx",
+      "slug": "tremont",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "TRIBECA",
+      "borough": "Manhattan",
+      "slug": "tribeca",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "TURTLBAY",
+      "borough": "Manhattan",
+      "slug": "turtlbay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "The Bronx",
+      "borough": "Bronx",
+      "slug": "the-bronx",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "The Bronx (Other)",
+      "borough": "Bronx",
+      "slug": "the-bronx-other",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "The Rockaways",
+      "borough": "Queens",
+      "slug": "the-rockaways",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Theater District",
+      "borough": "Manhattan",
+      "slug": "theater-district",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Throggs Neck",
+      "borough": "Bronx",
+      "slug": "throggs-neck",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Throgs Neck",
+      "borough": "Bronx",
+      "slug": "throgs-neck",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Throgs Neck - Edgewa",
+      "borough": "Bronx",
+      "slug": "throgs-neck-edgewa",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Times Square Theatre",
+      "borough": "Manhattan",
+      "slug": "times-square-theatre",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Todt Hill",
+      "borough": "Staten Island",
+      "slug": "todt-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Tompkinsville",
+      "borough": "Staten Island",
+      "slug": "tompkinsville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Tottenville",
+      "borough": "Staten Island",
+      "slug": "tottenville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Travis",
+      "borough": "Staten Island",
+      "slug": "travis",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Tremont",
+      "borough": "Bronx",
+      "slug": "tremont",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "TriBeCa",
+      "borough": "Manhattan",
+      "slug": "tribeca",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Tribeca",
+      "borough": "Manhattan",
+      "slug": "tribeca",
+      "aliases": [
+        "TriBeCa"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Tudor City",
+      "borough": "Manhattan",
+      "slug": "tudor-city",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Turtle Bay",
+      "borough": "Manhattan",
+      "slug": "turtle-bay",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Turtle Bay-East Midtown",
+      "borough": "Manhattan",
+      "slug": "turtle-bay-east-midtown",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Two Bridges",
+      "borough": "Manhattan",
+      "slug": "two-bridges",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "UES",
+      "borough": "Manhattan",
+      "slug": "ues",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "UPEAST",
+      "borough": "Manhattan",
+      "slug": "upeast",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "UPPER EAST SIDE",
+      "borough": "Manhattan",
+      "slug": "upper-east-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "UPPER WEST SIDE",
+      "borough": "Manhattan",
+      "slug": "upper-west-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "UPWEST",
+      "borough": "Manhattan",
+      "slug": "upwest",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "UWS",
+      "borough": "Manhattan",
+      "slug": "uws",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Union Square",
+      "borough": "Manhattan",
+      "slug": "union-square",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Union Square Park",
+      "borough": "Manhattan",
+      "slug": "union-square-park",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Unionport",
+      "borough": "Bronx",
+      "slug": "unionport",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "University Heights",
+      "borough": "Bronx",
+      "slug": "university-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper Carnegie",
+      "borough": "Manhattan",
+      "slug": "upper-carnegie",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper Carnegie Hill",
+      "borough": "Manhattan",
+      "slug": "upper-carnegie-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper East Side",
+      "borough": "Manhattan",
+      "slug": "upper-east-side",
+      "aliases": [
+        "UES"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper Fifth",
+      "borough": "Manhattan",
+      "slug": "upper-fifth",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper M",
+      "borough": "Manhattan",
+      "slug": "upper-m",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper West Side",
+      "borough": "Manhattan",
+      "slug": "upper-west-side",
+      "aliases": [
+        "UWS"
+      ],
+      "source": "trestle"
+    },
+    {
+      "name": "Upper West Sidee",
+      "borough": "Manhattan",
+      "slug": "upper-west-sidee",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Utopia",
+      "borough": "Queens",
+      "slug": "utopia",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Van Nest",
+      "borough": "Bronx",
+      "slug": "van-nest",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Vinegar Hill",
+      "borough": "Brooklyn",
+      "slug": "vinegar-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "W. Greenwich Village",
+      "borough": "Manhattan",
+      "slug": "w-greenwich-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WAKEFIELD",
+      "borough": "Bronx",
+      "slug": "wakefield",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WASHHGTS",
+      "borough": "Manhattan",
+      "slug": "washhgts",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WESTFARMS",
+      "borough": "Bronx",
+      "slug": "westfarms",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WESTVILL",
+      "borough": "Manhattan",
+      "slug": "westvill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WILLIAMS",
+      "borough": "Brooklyn",
+      "slug": "williams",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WILLIAMSBRIDGE",
+      "borough": "Bronx",
+      "slug": "williamsbridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "WINDTERR",
+      "borough": "Brooklyn",
+      "slug": "windterr",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Wakefield",
+      "borough": "Bronx",
+      "slug": "wakefield",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Ward Hill",
+      "borough": "Staten Island",
+      "slug": "ward-hill",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Washington Heights",
+      "borough": "Manhattan",
+      "slug": "washington-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Weeksville",
+      "borough": "Brooklyn",
+      "slug": "weeksville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West 30's",
+      "borough": "Manhattan",
+      "slug": "west-30s",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West 30s - Clinton",
+      "borough": "Manhattan",
+      "slug": "west-30s-clinton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Brighton",
+      "borough": "Staten Island",
+      "slug": "west-brighton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Farms",
+      "borough": "Bronx",
+      "slug": "west-farms",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Harlem",
+      "borough": "Manhattan",
+      "slug": "west-harlem",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Harlem & Manhat",
+      "borough": "Manhattan",
+      "slug": "west-harlem-manhat",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Harlem & Manhattanville",
+      "borough": "Manhattan",
+      "slug": "west-harlem-manhattanville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Midwood",
+      "borough": "Brooklyn",
+      "slug": "west-midwood",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West New Brighton",
+      "borough": "Staten Island",
+      "slug": "west-new-brighton",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Village",
+      "borough": "Manhattan",
+      "slug": "west-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "West Village / Green",
+      "borough": "Manhattan",
+      "slug": "west-village-green",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Westchester Square",
+      "borough": "Bronx",
+      "slug": "westchester-square",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Westchester Village",
+      "borough": "Bronx",
+      "slug": "westchester-village",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Westerleigh",
+      "borough": "Staten Island",
+      "slug": "westerleigh",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Whitestone",
+      "borough": "Queens",
+      "slug": "whitestone",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Williamsbridge",
+      "borough": "Bronx",
+      "slug": "williamsbridge",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Williamsburg",
+      "borough": "Brooklyn",
+      "slug": "williamsburg",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Williamsburg N Side",
+      "borough": "Brooklyn",
+      "slug": "williamsburg-n-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Williamsburg S Side",
+      "borough": "Brooklyn",
+      "slug": "williamsburg-s-side",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Williamsburg,North",
+      "borough": "Brooklyn",
+      "slug": "williamsburg-north",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Williamsburg,South",
+      "borough": "Brooklyn",
+      "slug": "williamsburg-south",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Willowbrook",
+      "borough": "Staten Island",
+      "slug": "willowbrook",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Windor Terrace",
+      "borough": "Brooklyn",
+      "slug": "windor-terrace",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Windsor Terrace",
+      "borough": "Brooklyn",
+      "slug": "windsor-terrace",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Wingate",
+      "borough": "Brooklyn",
+      "slug": "wingate",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Woodhaven",
+      "borough": "Queens",
+      "slug": "woodhaven",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Woodlawn",
+      "borough": "Bronx",
+      "slug": "woodlawn",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Woodlawn Heights",
+      "borough": "Bronx",
+      "slug": "woodlawn-heights",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Woodrow",
+      "borough": "Staten Island",
+      "slug": "woodrow",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Woodside",
+      "borough": "Queens",
+      "slug": "woodside",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "Yorkville",
+      "borough": "Manhattan",
+      "slug": "yorkville",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "ZEREGA",
+      "borough": "Bronx",
+      "slug": "zerega",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "lincoln square",
+      "borough": "Manhattan",
+      "slug": "lincoln-square",
+      "aliases": [],
+      "source": "trestle"
+    },
+    {
+      "name": "midtown",
+      "borough": "Manhattan",
+      "slug": "midtown",
+      "aliases": [],
+      "source": "trestle"
+    }
+  ]
+}

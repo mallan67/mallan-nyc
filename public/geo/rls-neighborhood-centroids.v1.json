@@ -1,0 +1,407 @@
+{
+  "Astoria": {
+    "lng": -73.923748,
+    "lat": 40.765768,
+    "borough": "Queens"
+  },
+  "Battery Park City": {
+    "lng": -74.0145,
+    "lat": 40.7095,
+    "borough": "Manhattan"
+  },
+  "Bayside": {
+    "lng": -73.760963,
+    "lat": 40.762791,
+    "borough": "Queens"
+  },
+  "Boerum Hill": {
+    "lng": -73.9838,
+    "lat": 40.6822,
+    "borough": "Brooklyn"
+  },
+  "Brooklyn Heights": {
+    "lng": -73.993775,
+    "lat": 40.695522,
+    "borough": "Brooklyn"
+  },
+  "Carnegie Hill": {
+    "lng": -73.9562,
+    "lat": 40.7838,
+    "borough": "Manhattan"
+  },
+  "Carroll Gardens": {
+    "lng": -73.9918,
+    "lat": 40.679,
+    "borough": "Brooklyn"
+  },
+  "Chelsea": {
+    "lng": -74.0002,
+    "lat": 40.7448,
+    "borough": "Manhattan"
+  },
+  "Chinatown": {
+    "lng": -73.9958,
+    "lat": 40.7152,
+    "borough": "Manhattan"
+  },
+  "City Island": {
+    "lng": -73.8205,
+    "lat": 40.842,
+    "borough": "Bronx"
+  },
+  "Civic Center": {
+    "lng": -74.0042,
+    "lat": 40.7128,
+    "borough": "Manhattan"
+  },
+  "Cobble Hill": {
+    "lng": -73.9932,
+    "lat": 40.6845,
+    "borough": "Brooklyn"
+  },
+  "DUMBO": {
+    "lng": -73.9892,
+    "lat": 40.7005,
+    "borough": "Brooklyn"
+  },
+  "Dongan Hills": {
+    "lng": -73.0742,
+    "lat": 40.5968,
+    "borough": "Staten Island"
+  },
+  "Downtown Brooklyn": {
+    "lng": -73.9838,
+    "lat": 40.691,
+    "borough": "Brooklyn"
+  },
+  "East Harlem": {
+    "lng": -73.937271,
+    "lat": 40.8036,
+    "borough": "Manhattan"
+  },
+  "East Village": {
+    "lng": -73.979085,
+    "lat": 40.725484,
+    "borough": "Manhattan"
+  },
+  "Financial District": {
+    "lng": -74.0058,
+    "lat": 40.7082,
+    "borough": "Manhattan"
+  },
+  "Flatiron": {
+    "lng": -73.9895,
+    "lat": 40.7425,
+    "borough": "Manhattan"
+  },
+  "Flushing": {
+    "lng": -73.831077,
+    "lat": 40.759869,
+    "borough": "Queens"
+  },
+  "Fordham": {
+    "lng": -73.899152,
+    "lat": 40.85874,
+    "borough": "Bronx"
+  },
+  "Forest Hills": {
+    "lng": -73.849037,
+    "lat": 40.723112,
+    "borough": "Queens"
+  },
+  "Fort Greene": {
+    "lng": -73.97397,
+    "lat": 40.692727,
+    "borough": "Brooklyn"
+  },
+  "Gowanus": {
+    "lng": -73.984,
+    "lat": 40.6762,
+    "borough": "Brooklyn"
+  },
+  "Gramercy": {
+    "lng": -73.9828,
+    "lat": 40.7368,
+    "borough": "Manhattan"
+  },
+  "Gramercy Park": {
+    "lng": -73.9855,
+    "lat": 40.7375,
+    "borough": "Manhattan"
+  },
+  "Great Kills": {
+    "lng": -74.144553,
+    "lat": 40.544815,
+    "borough": "Staten Island"
+  },
+  "Greenpoint": {
+    "lng": -73.949121,
+    "lat": 40.730185,
+    "borough": "Brooklyn"
+  },
+  "Greenwich Village": {
+    "lng": -73.995523,
+    "lat": 40.729698,
+    "borough": "Manhattan"
+  },
+  "Hamilton Heights": {
+    "lng": -73.949,
+    "lat": 40.8222,
+    "borough": "Manhattan"
+  },
+  "Harlem": {
+    "lng": -73.949804,
+    "lat": 40.805471,
+    "borough": "Manhattan"
+  },
+  "Hell's Kitchen": {
+    "lng": -73.997856,
+    "lat": 40.767438,
+    "borough": "Manhattan"
+  },
+  "Inwood": {
+    "lng": -73.91823,
+    "lat": 40.864726,
+    "borough": "Manhattan"
+  },
+  "Jackson Heights": {
+    "lng": -73.886791,
+    "lat": 40.759404,
+    "borough": "Queens"
+  },
+  "Kingsbridge": {
+    "lng": -73.9038,
+    "lat": 40.8815,
+    "borough": "Bronx"
+  },
+  "Kips Bay": {
+    "lng": -73.97474,
+    "lat": 40.742596,
+    "borough": "Manhattan"
+  },
+  "Lenox Hill": {
+    "lng": -73.9582,
+    "lat": 40.7672,
+    "borough": "Manhattan"
+  },
+  "Little Italy": {
+    "lng": -73.9975,
+    "lat": 40.7182,
+    "borough": "Manhattan"
+  },
+  "Long Island City": {
+    "lng": -73.952332,
+    "lat": 40.744186,
+    "borough": "Queens"
+  },
+  "Lower East Side": {
+    "lng": -73.983204,
+    "lat": 40.715975,
+    "borough": "Manhattan"
+  },
+  "Manhattanville": {
+    "lng": -73.9542,
+    "lat": 40.82,
+    "borough": "Manhattan"
+  },
+  "Marble Hill": {
+    "lng": -73.9098,
+    "lat": 40.8758,
+    "borough": "Manhattan"
+  },
+  "Midtown": {
+    "lng": -73.9812,
+    "lat": 40.7578,
+    "borough": "Manhattan"
+  },
+  "Midtown East": {
+    "lng": -73.9692,
+    "lat": 40.7548,
+    "borough": "Manhattan"
+  },
+  "Midtown West": {
+    "lng": -73.979581,
+    "lat": 40.756843,
+    "borough": "Manhattan"
+  },
+  "Morningside Heights": {
+    "lng": -73.957978,
+    "lat": 40.810621,
+    "borough": "Manhattan"
+  },
+  "Mott Haven": {
+    "lng": -73.920499,
+    "lat": 40.808892,
+    "borough": "Bronx"
+  },
+  "Murray Hill": {
+    "lng": -73.97474,
+    "lat": 40.742596,
+    "borough": "Manhattan"
+  },
+  "New Brighton": {
+    "lng": -74.081145,
+    "lat": 40.641747,
+    "borough": "Staten Island"
+  },
+  "NoHo": {
+    "lng": -73.994389,
+    "lat": 40.726889,
+    "borough": "Manhattan"
+  },
+  "NoMad": {
+    "lng": -73.9898,
+    "lat": 40.7478,
+    "borough": "Manhattan"
+  },
+  "Nolita": {
+    "lng": -73.9958,
+    "lat": 40.7232,
+    "borough": "Manhattan"
+  },
+  "Park Slope": {
+    "lng": -73.975024,
+    "lat": 40.676138,
+    "borough": "Brooklyn"
+  },
+  "Pelham Bay": {
+    "lng": -73.8268,
+    "lat": 40.8502,
+    "borough": "Bronx"
+  },
+  "Peter Cooper Village": {
+    "lng": -73.9752,
+    "lat": 40.734,
+    "borough": "Manhattan"
+  },
+  "Prospect Heights": {
+    "lng": -73.966836,
+    "lat": 40.676006,
+    "borough": "Brooklyn"
+  },
+  "Red Hook": {
+    "lng": -74.0072,
+    "lat": 40.6738,
+    "borough": "Brooklyn"
+  },
+  "Riverdale": {
+    "lng": -73.9078,
+    "lat": 40.8965,
+    "borough": "Bronx"
+  },
+  "Roosevelt Island": {
+    "lng": -73.952,
+    "lat": 40.7632,
+    "borough": "Manhattan"
+  },
+  "SoHo": {
+    "lng": -74.002,
+    "lat": 40.7232,
+    "borough": "Manhattan"
+  },
+  "South Beach": {
+    "lng": -74.0668,
+    "lat": 40.5918,
+    "borough": "Staten Island"
+  },
+  "South Slope": {
+    "lng": -73.9825,
+    "lat": 40.6635,
+    "borough": "Brooklyn"
+  },
+  "Spuyten Duyvil": {
+    "lng": -73.9148,
+    "lat": 40.882,
+    "borough": "Bronx"
+  },
+  "St. George": {
+    "lng": -74.081145,
+    "lat": 40.641747,
+    "borough": "Staten Island"
+  },
+  "Stuyvesant Town": {
+    "lng": -73.9765,
+    "lat": 40.7295,
+    "borough": "Manhattan"
+  },
+  "Sugar Hill": {
+    "lng": -73.9478,
+    "lat": 40.8288,
+    "borough": "Manhattan"
+  },
+  "Sunnyside": {
+    "lng": -73.922891,
+    "lat": 40.738731,
+    "borough": "Queens"
+  },
+  "Sutton Place": {
+    "lng": -73.9632,
+    "lat": 40.7582,
+    "borough": "Manhattan"
+  },
+  "Todt Hill": {
+    "lng": -74.12586,
+    "lat": 40.588984,
+    "borough": "Staten Island"
+  },
+  "Tribeca": {
+    "lng": -74.0078,
+    "lat": 40.7205,
+    "borough": "Manhattan"
+  },
+  "Turtle Bay": {
+    "lng": -73.9708,
+    "lat": 40.7512,
+    "borough": "Manhattan"
+  },
+  "Two Bridges": {
+    "lng": -73.9888,
+    "lat": 40.7098,
+    "borough": "Manhattan"
+  },
+  "Union Square": {
+    "lng": -73.9912,
+    "lat": 40.7368,
+    "borough": "Manhattan"
+  },
+  "Upper East Side": {
+    "lng": -73.9622,
+    "lat": 40.7745,
+    "borough": "Manhattan"
+  },
+  "Upper West Side": {
+    "lng": -73.980966,
+    "lat": 40.787007,
+    "borough": "Manhattan"
+  },
+  "Washington Heights": {
+    "lng": -73.940225,
+    "lat": 40.842469,
+    "borough": "Manhattan"
+  },
+  "West Harlem": {
+    "lng": -73.9538,
+    "lat": 40.8122,
+    "borough": "Manhattan"
+  },
+  "West Village": {
+    "lng": -74.010007,
+    "lat": 40.735862,
+    "borough": "Manhattan"
+  },
+  "Williamsburg": {
+    "lng": -73.959829,
+    "lat": 40.715395,
+    "borough": "Brooklyn"
+  },
+  "Windsor Terrace": {
+    "lng": -73.981,
+    "lat": 40.6558,
+    "borough": "Brooklyn"
+  },
+  "Yorkville": {
+    "lng": -73.944821,
+    "lat": 40.778566,
+    "borough": "Manhattan"
+  }
+}
