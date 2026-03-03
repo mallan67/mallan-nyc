@@ -214,8 +214,12 @@
     _map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
     _map.on('load', function () {
-      _loaded = true;
-      addLayers(geojson);
+      if (!_loaded) { _loaded = true; addLayers(geojson); }
+    });
+
+    // Fallback: 'idle' fires after all rendering — catches missed 'load' events
+    _map.once('idle', function () {
+      if (!_loaded) { _loaded = true; addLayers(geojson); }
     });
   }
 
