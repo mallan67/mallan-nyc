@@ -35,7 +35,8 @@
         "geo:derive": "node scripts/build-rls-geo-derived.js",
         "geo:validate": "node scripts/validate-rls-geo.js",
         "geo:aliases": "node scripts/build-rls-aliases.js",
-        "geo:all": "npm run geo:build && npm run geo:aliases && npm run geo:derive && npm run geo:validate"
+        "geo:all": "npm run geo:build && npm run geo:aliases && npm run geo:derive && npm run geo:validate",
+        "test:geo": "node scripts/__tests__/neighborhood-expansion.test.js"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",

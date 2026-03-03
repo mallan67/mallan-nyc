@@ -1,11 +1,13 @@
 {
   "_meta": {
-    "version": 1,
-    "description": "Maps RLS SubdivisionName variants to polygon names",
+    "version": 2,
+    "description": "Maps RLS SubdivisionName variants to polygon names. Values: string (single), array (multi-polygon), null (distinct, no polygon yet)",
     "totalAliases": 593,
-    "matched": 593,
+    "matched": 552,
+    "multiMapped": 26,
+    "distinctNoPolygon": 15,
     "unmatched": 0,
-    "generatedAt": "2026-03-03T16:26:29.600Z"
+    "generatedAt": "2026-03-03T16:59:37.068Z"
   },
   "aliases": {
     "ALLERTON": "Fordham",
@@ -24,9 +26,9 @@
     "BAYCHESTER": "Pelham Bay",
     "BAYRIDGE": "Downtown Brooklyn",
     "BAYSIDE": "Bayside",
-    "BED-STUY": "Prospect Heights",
+    "BED-STUY": null,
     "BEDFORDPARK": "Fordham",
-    "BEEKMAN": "Sutton Place",
+    "BEEKMAN": null,
     "BENHURST": "Downtown Brooklyn",
     "BERGENBEACH": "Downtown Brooklyn",
     "BKLYNHTS": "Brooklyn Heights",
@@ -45,16 +47,16 @@
     "Bay Terrace 1": "Downtown Brooklyn",
     "Baychester": "Pelham Bay",
     "Bayswater": "Bayside",
-    "Bed Stuy": "Prospect Heights",
-    "Bedford": "Prospect Heights",
-    "Bedford - Stuyvesant": "Prospect Heights",
+    "Bed Stuy": null,
+    "Bedford": null,
+    "Bedford - Stuyvesant": null,
     "Bedford Park": "Fordham",
-    "Bedford Stuyvesant": "Prospect Heights",
-    "Bedford-Stuyvesant": "Prospect Heights",
-    "Bedford/Stuyvesant": "Prospect Heights",
+    "Bedford Stuyvesant": null,
+    "Bedford-Stuyvesant": null,
+    "Bedford/Stuyvesant": null,
     "Beechurst": "Bayside",
-    "Beekman": "Sutton Place",
-    "Beekman Place": "Sutton Place",
+    "Beekman": null,
+    "Beekman Place": null,
     "Beekman/Sutton Place": "Sutton Place",
     "Bellaire": "Bayside",
     "Belle Harbor": "Bayside",
@@ -117,10 +119,22 @@
     "Central Park West": "Upper West Side",
     "Central Riverdale": "Riverdale",
     "Charleston": "Great Kills",
-    "Chelsea / Flatiron": "Chelsea",
-    "Chelsea/Flatiron": "Chelsea",
-    "Chinatown / Little I": "Chinatown",
-    "Chinatown Little Ita": "Chinatown",
+    "Chelsea / Flatiron": [
+      "Chelsea",
+      "Flatiron"
+    ],
+    "Chelsea/Flatiron": [
+      "Chelsea",
+      "Flatiron"
+    ],
+    "Chinatown / Little I": [
+      "Chinatown",
+      "Little Italy"
+    ],
+    "Chinatown Little Ita": [
+      "Chinatown",
+      "Little Italy"
+    ],
     "City Line": "Downtown Brooklyn",
     "Claremont": "Mott Haven",
     "Claremont Village": "Mott Haven",
@@ -152,14 +166,18 @@
     "Court Square": "Long Island City",
     "Crotona Park": "Mott Haven",
     "Crotona Park East": "Mott Haven",
-    "Crown Heights": "Prospect Heights",
-    "Crown Heights North": "Prospect Heights",
+    "Crown Heights": null,
+    "Crown Heights North": null,
     "Cypress Hills": "Downtown Brooklyn",
     "DITMASPK": "Windsor Terrace",
     "DNU-Brooklyn": "Downtown Brooklyn",
     "DTWNBKYN": "Downtown Brooklyn",
     "DUMBO / Vinegar Hill": "DUMBO",
-    "DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill": "DUMBO",
+    "DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill": [
+      "DUMBO",
+      "Downtown Brooklyn",
+      "Boerum Hill"
+    ],
     "DYKERSHT": "Downtown Brooklyn",
     "Ditmars Park": "Astoria",
     "Ditmars Steinway": "Astoria",
@@ -247,8 +265,14 @@
     "Gravesend": "Downtown Brooklyn",
     "Green Point": "Greenpoint",
     "Greenridge": "Great Kills",
-    "Greenwich Village/We": "Greenwich Village",
-    "Greenwich Village/West Village": "Greenwich Village",
+    "Greenwich Village/We": [
+      "Greenwich Village",
+      "West Village"
+    ],
+    "Greenwich Village/West Village": [
+      "Greenwich Village",
+      "West Village"
+    ],
     "Greenwood": "South Slope",
     "Greenwood Heights": "South Slope",
     "Grenwich Village": "Greenwich Village",
@@ -260,7 +284,10 @@
     "HOMECRE": "Downtown Brooklyn",
     "HUDHGTS": "Washington Heights",
     "Hammels": "Bayside",
-    "Harlem / Morningside": "Harlem",
+    "Harlem / Morningside": [
+      "Harlem",
+      "Morningside Heights"
+    ],
     "Heartland Village": "Dongan Hills",
     "Hells Kitchen": "Hell's Kitchen",
     "High Bridge": "Kingsbridge",
@@ -275,13 +302,25 @@
     "Howard Beach 1": "Bayside",
     "Huguenot": "Great Kills",
     "Hunters Point": "Long Island City",
-    "Hunters Point-Sunnyside-West Maspeth": "Long Island City",
-    "Hunters Point-sunnyside-west Maspeth": "Long Island City",
+    "Hunters Point-Sunnyside-West Maspeth": [
+      "Long Island City",
+      "Sunnyside"
+    ],
+    "Hunters Point-sunnyside-west Maspeth": [
+      "Long Island City",
+      "Sunnyside"
+    ],
     "Hunts Point": "Mott Haven",
     "INWOOD": "Inwood",
     "ITALCHIN": "Chinatown",
-    "Inwood / Washington": "Inwood",
-    "Inwood/Marble Hill": "Inwood",
+    "Inwood / Washington": [
+      "Inwood",
+      "Washington Heights"
+    ],
+    "Inwood/Marble Hill": [
+      "Inwood",
+      "Marble Hill"
+    ],
     "JACOBJAV": "Hell's Kitchen",
     "JKHTS": "Jackson Heights",
     "JMCA": "Jackson Heights",
@@ -316,17 +355,32 @@
     "Lefferts": "Prospect Heights",
     "Lefferts Garden": "Prospect Heights",
     "Lefferts Gardens": "Prospect Heights",
-    "Lenox Hill-Roosevelt": "Lenox Hill",
-    "Lenox Hill-Roosevelt Island": "Lenox Hill",
-    "Lenox Hill-roosevelt Island": "Lenox Hill",
+    "Lenox Hill-Roosevelt": [
+      "Lenox Hill",
+      "Roosevelt Island"
+    ],
+    "Lenox Hill-Roosevelt Island": [
+      "Lenox Hill",
+      "Roosevelt Island"
+    ],
+    "Lenox Hill-roosevelt Island": [
+      "Lenox Hill",
+      "Roosevelt Island"
+    ],
     "Lincoln Center": "Upper West Side",
     "Lincoln Sq": "Upper West Side",
     "Lincoln Square": "Upper West Side",
     "Lindenwood": "Bayside",
     "Little Neck": "Bayside",
     "Longwood": "Mott Haven",
-    "Lower East Side/Chin": "Lower East Side",
-    "Lower East Side/Chinatown": "Lower East Side",
+    "Lower East Side/Chin": [
+      "Lower East Side",
+      "Chinatown"
+    ],
+    "Lower East Side/Chinatown": [
+      "Lower East Side",
+      "Chinatown"
+    ],
     "Lower Eastside": "Lower East Side",
     "Lower Manhattan": "Financial District",
     "MANBEACH": "Downtown Brooklyn",
@@ -375,10 +429,22 @@
     "Mount Hope": "Fordham",
     "Mt. Morris Park": "Harlem",
     "Murray Hill (QNS)": "Flushing",
-    "Murray Hill / Kip's": "Murray Hill",
-    "Murray Hill / Kips B": "Murray Hill",
-    "Murray Hill Kips Bay": "Murray Hill",
-    "Murray Hill-kips Bay": "Murray Hill",
+    "Murray Hill / Kip's": [
+      "Murray Hill",
+      "Kips Bay"
+    ],
+    "Murray Hill / Kips B": [
+      "Murray Hill",
+      "Kips Bay"
+    ],
+    "Murray Hill Kips Bay": [
+      "Murray Hill",
+      "Kips Bay"
+    ],
+    "Murray Hill-kips Bay": [
+      "Murray Hill",
+      "Kips Bay"
+    ],
     "NEW UTRECHT": "Downtown Brooklyn",
     "NOHO": "NoHo",
     "NOMAD": "NoMad",
@@ -482,7 +548,7 @@
     "SOUTHSTSEAPORT": "Financial District",
     "SPUYTENDUYVIL": "Spuyten Duyvil",
     "STATEN ISLAND": "St. George",
-    "STUYHEI": "Williamsburg",
+    "STUYHEI": null,
     "SUNNYSIDE": "Sunnyside",
     "SUNSETPK": "South Slope",
     "SUTTON": "Sutton Place",
@@ -498,8 +564,14 @@
     "Sheepshead Bay": "Downtown Brooklyn",
     "Shore Acres": "St. George",
     "Silver Lake": "St. George",
-    "SoHo-Nolita": "SoHo",
-    "SoHo/Nolita": "SoHo",
+    "SoHo-Nolita": [
+      "SoHo",
+      "Nolita"
+    ],
+    "SoHo/Nolita": [
+      "SoHo",
+      "Nolita"
+    ],
     "Soho": "SoHo",
     "Soundview": "Pelham Bay",
     "South Harlem": "Harlem",
@@ -555,8 +627,8 @@
     "University Heights": "Kingsbridge",
     "Upper Carnegie": "Carnegie Hill",
     "Upper Carnegie Hill": "Carnegie Hill",
-    "Upper Fifth": "Upper East Side",
-    "Upper M": "Upper East Side",
+    "Upper Fifth": null,
+    "Upper M": null,
     "Upper West Sidee": "Upper West Side",
     "Utopia": "Flushing",
     "Van Nest": "Pelham Bay",
@@ -576,11 +648,20 @@
     "West 30s - Clinton": "Midtown West",
     "West Brighton": "St. George",
     "West Farms": "Mott Haven",
-    "West Harlem & Manhat": "West Harlem",
-    "West Harlem & Manhattanville": "West Harlem",
+    "West Harlem & Manhat": [
+      "West Harlem",
+      "Manhattanville"
+    ],
+    "West Harlem & Manhattanville": [
+      "West Harlem",
+      "Manhattanville"
+    ],
     "West Midwood": "Downtown Brooklyn",
     "West New Brighton": "St. George",
-    "West Village / Green": "West Village",
+    "West Village / Green": [
+      "West Village",
+      "Greenwich Village"
+    ],
     "Westchester Square": "Pelham Bay",
     "Westchester Village": "Pelham Bay",
     "Westerleigh": "St. George",

@@ -88,13 +88,16 @@
         if (data && data.aliases) {
           _aliasMap = data.aliases;
           // Build reverse map: polygon name → [variant names]
+          // Alias values can be string, array, or null
           _reverseAliases = {};
           Object.keys(_aliasMap).forEach(function (variant) {
-            var poly = _aliasMap[variant];
-            if (poly) {
+            var val = _aliasMap[variant];
+            if (!val) return; // null = distinct, no polygon
+            var polys = Array.isArray(val) ? val : [val];
+            polys.forEach(function (poly) {
               if (!_reverseAliases[poly]) _reverseAliases[poly] = [];
               _reverseAliases[poly].push(variant);
-            }
+            });
           });
         }
         cb();
@@ -343,19 +346,10 @@
   };
 
   window.confirmNeighborhoodMapSelection = function () {
-    var polyNames = Object.keys(_selectedNames).sort();
-    // Expand each polygon name to include all its RLS aliases
-    var allNames = [];
-    polyNames.forEach(function (name) {
-      allNames.push(name);
-      if (_reverseAliases[name]) {
-        _reverseAliases[name].forEach(function (alias) {
-          allNames.push(alias);
-        });
-      }
-    });
+    // Return CANONICAL polygon names only — variant expansion happens in search query builder
+    var selected = Object.keys(_selectedNames).sort();
     if (_callback) {
-      _callback({ selectedNeighborhoods: allNames, polygonNames: polyNames });
+      _callback({ selectedNeighborhoods: selected });
     }
     window.closeNeighborhoodMap();
   };
