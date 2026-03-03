@@ -14392,12 +14392,20 @@ function manageShowToast(msg) {
                 if (typeof buildRefineFilterPills === 'function') buildRefineFilterPills(activeSearchCriteria);
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
                 if (typeof _saveSearchState === 'function') _saveSearchState();
+                if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
 
                 // Update hash and scroll
                 if (!window._suppressHashUpdate) {
                     history.replaceState(null, '', '#results');
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // User feedback
+                var count = searchResultsState.filteredListings ? searchResultsState.filteredListings.length : 0;
+                var label = canonicals.length === 1 ? canonicals[0] : canonicals.length + ' neighborhoods';
+                if (typeof showToast === 'function') {
+                    showToast(label + ' — ' + count + ' result' + (count !== 1 ? 's' : '') + ' found', count > 0 ? 'success' : 'info');
+                }
             });
         };
 
@@ -20314,8 +20322,17 @@ function parseBudgetValue(td) {
   window.confirmNeighborhoodMapSelection = function () {
     // Return CANONICAL polygon names only — variant expansion happens in search query builder
     var selected = Object.keys(_selectedNames).sort();
-    if (_callback) {
-      _callback({ selectedNeighborhoods: selected });
+    if (selected.length === 0) {
+      if (typeof showToast === 'function') showToast('No neighborhoods selected', 'warning');
+      return; // Keep map open so user can select
+    }
+    try {
+      if (_callback) {
+        _callback({ selectedNeighborhoods: selected });
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') showToast('Error applying neighborhoods: ' + err.message, 'error');
+      return; // Keep map open on error
     }
     window.closeNeighborhoodMap();
   };
