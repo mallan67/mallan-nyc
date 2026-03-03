@@ -1,4 +1,4 @@
-// ─── S: SEARCH CORRECTNESS TESTS (4) ──────────────────────────────────────
+// ─── S: SEARCH CORRECTNESS TESTS (7) ──────────────────────────────────────
 function SearchCorrectnessTests(options) {
     options = options || {};
     var runActive = options.runActive || false;
@@ -67,6 +67,57 @@ function SearchCorrectnessTests(options) {
         });
         addResult('S4', 'Duplicate Suppression', dupes.length === 0 ? 'PASS' : 'FAIL',
             dupes.length === 0 ? ids.length + ' listings, 0 duplicates' : dupes.length + ' duplicate IDs: ' + dupes.slice(0, 5).join(','));
+    })();
+
+    // S5: Neighborhood canonical expansion (ACTIVE)
+    (function() {
+        if (!runActive) { addResult('S5', 'Neighborhood Canonical Expansion', 'SKIP', 'Active — click Run Active'); return; }
+        if (typeof expandCanonicalToVariants !== 'function') { addResult('S5', 'Neighborhood Canonical Expansion', 'FAIL', 'expandCanonicalToVariants function missing'); return; }
+        var expanded = expandCanonicalToVariants(['Chelsea']);
+        var issues = [];
+        // Must include the canonical itself
+        if (expanded.indexOf('Chelsea') === -1) issues.push('Missing canonical "Chelsea" in output');
+        // Must never return empty
+        if (!expanded || expanded.length === 0) issues.push('Expansion returned empty array');
+        // If alias map loaded, should include variants
+        if (typeof _aliasReverseMap !== 'undefined' && _aliasReverseMap && _aliasReverseMap['Chelsea'] && _aliasReverseMap['Chelsea'].length > 0) {
+            if (expanded.length <= 1) issues.push('Alias map loaded but no variants expanded (expected >1, got ' + expanded.length + ')');
+        }
+        // Expansion with empty input should return empty
+        var emptyResult = expandCanonicalToVariants([]);
+        if (emptyResult && emptyResult.length > 0) issues.push('Empty input should return empty, got ' + emptyResult.length);
+        addResult('S5', 'Neighborhood Canonical Expansion', issues.length === 0 ? 'PASS' : 'FAIL',
+            issues.length > 0 ? issues.join('; ') : 'Chelsea → ' + expanded.length + ' variants (canonical + aliases)');
+    })();
+
+    // S6: NeighborhoodCanonical on ingest (ACTIVE)
+    (function() {
+        if (!runActive) { addResult('S6', 'NeighborhoodCanonical Ingest', 'SKIP', 'Active — click Run Active'); return; }
+        if (typeof mockListings === 'undefined') { addResult('S6', 'NeighborhoodCanonical Ingest', 'FAIL', 'mockListings not available'); return; }
+        var issues = [];
+        var withCanonical = 0, withNeighborhood = 0;
+        mockListings.forEach(function(l) {
+            if (l.neighborhood) withNeighborhood++;
+            if (l.neighborhoodCanonical) withCanonical++;
+        });
+        if (withNeighborhood > 0 && withCanonical === 0) issues.push('No listings have neighborhoodCanonical (alias map may not have loaded)');
+        // Every listing with neighborhood should have canonical
+        mockListings.forEach(function(l) {
+            if (l.neighborhood && !l.neighborhoodCanonical) issues.push('Listing ' + l.id + ' has neighborhood but no canonical');
+        });
+        addResult('S6', 'NeighborhoodCanonical Ingest', issues.length === 0 ? 'PASS' : 'WARN',
+            issues.length > 0 ? issues.join('; ') : withCanonical + '/' + withNeighborhood + ' listings have canonical neighborhood');
+    })();
+
+    // S7: Map→Search bridge function exists (ACTIVE)
+    (function() {
+        if (!runActive) { addResult('S7', 'Map→Search Bridge', 'SKIP', 'Active — click Run Active'); return; }
+        var issues = [];
+        if (typeof openNeighborhoodMapForSearch !== 'function') issues.push('openNeighborhoodMapForSearch not defined');
+        if (typeof expandCanonicalToVariants !== 'function') issues.push('expandCanonicalToVariants not defined');
+        if (typeof openNeighborhoodMap !== 'function') issues.push('openNeighborhoodMap not defined (map JS not loaded)');
+        addResult('S7', 'Map→Search Bridge', issues.length === 0 ? 'PASS' : 'FAIL',
+            issues.length > 0 ? issues.join('; ') : 'All bridge functions present');
     })();
 
     return { mode: 'search_correctness', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };

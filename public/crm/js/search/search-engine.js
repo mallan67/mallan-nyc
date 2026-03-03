@@ -1,3 +1,78 @@
+        // ── Neighborhood alias map: canonical polygon name → RLS variants ──
+        // Alias values can be: string (single polygon), array (multi-polygon), or null (no polygon)
+        var _neighborhoodAliases = null;
+        var _aliasReverseMap = {};       // canonical → [variant1, variant2, ...]
+
+        (function loadNeighborhoodAliases() {
+            var base = window.location.pathname.replace(/\/[^/]*$/, '');
+            var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'neighborhood-aliases.json';
+            fetch(url)
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (data && data.aliases) {
+                        _neighborhoodAliases = data.aliases;
+                        _aliasReverseMap = {};
+                        Object.keys(data.aliases).forEach(function(variant) {
+                            var val = data.aliases[variant];
+                            if (!val) return; // null = distinct, no polygon
+                            // val can be string or array
+                            var canonicals = Array.isArray(val) ? val : [val];
+                            canonicals.forEach(function(canonical) {
+                                if (!_aliasReverseMap[canonical]) _aliasReverseMap[canonical] = [];
+                                _aliasReverseMap[canonical].push(variant);
+                            });
+                        });
+                    }
+                })
+                .catch(function() { /* non-fatal */ });
+        })();
+
+        /**
+         * Expand canonical names to include all RLS SubdivisionName variants.
+         * Used by the search query builder so the filter matches any listing
+         * regardless of which variant was used in the RLS data.
+         */
+        function expandCanonicalToVariants(canonicalNames) {
+            if (!_aliasReverseMap || !canonicalNames) return canonicalNames;
+            var expanded = [];
+            canonicalNames.forEach(function(name) {
+                expanded.push(name);
+                if (_aliasReverseMap[name]) {
+                    _aliasReverseMap[name].forEach(function(v) { expanded.push(v); });
+                }
+            });
+            return expanded;
+        }
+
+        /**
+         * openNeighborhoodMapForSearch() — bridge between map modal and search.
+         * Opens the map, receives canonical polygon names, expands to variants,
+         * and runs the search.
+         */
+        window.openNeighborhoodMapForSearch = function() {
+            if (typeof openNeighborhoodMap !== 'function') {
+                showToast('Neighborhood map not loaded', 'error');
+                return;
+            }
+            openNeighborhoodMap(function(result) {
+                if (!result.selectedNeighborhoods || result.selectedNeighborhoods.length === 0) return;
+
+                // Canonical names from map → expand to all RLS variants for filtering
+                var canonicals = result.selectedNeighborhoods;
+                var allVariants = expandCanonicalToVariants(canonicals);
+
+                activeSearchCriteria = activeSearchCriteria || collectSearchCriteria();
+                activeSearchCriteria.neighborhoods = allVariants;
+                activeSearchCriteria._neighborhoodCanonicals = canonicals; // for pills display
+
+                searchResultsState.filteredListings = filterListings(mockListings, activeSearchCriteria);
+                searchResultsState.currentPage = 1;
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+                if (typeof buildRefineFilterPills === 'function') buildRefineFilterPills(activeSearchCriteria);
+            });
+        };
+
         function normalizeAddress(str) {
             if (!str) return '';
             return str.toLowerCase()
@@ -594,7 +669,19 @@
             initNeighborhoodCascade();
         }
 
-        function filterListings(listings, criteria) {
+        // ── Display context detection ──
+        // 'idx' = public IDX (default) | 'vow' = authenticated client portal | 'crm' = agent/broker
+        var searchDisplayContext = 'idx';
+        if (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT && LOGGED_IN_AGENT.id) {
+            searchDisplayContext = 'crm';
+        } else if (localStorage.getItem('vow_display_context') === 'vow') {
+            searchDisplayContext = 'vow';
+        }
+
+        function filterListings(listings, criteria, displayContext) {
+            // displayContext: 'idx' (default/public) | 'vow' (authenticated client) | 'crm' (agent/broker)
+            displayContext = displayContext || searchDisplayContext || 'idx';
+
             return listings.filter(function(listing) {
 
                 // ═══════════════════════════════════════════════════════════
@@ -604,15 +691,24 @@
 
                 var perm = listing.permissions || {};
 
-                // Gate 1: Owner Opt-Out — NEVER display (UCBA Art. I Sec. 4(A))
+                // Gate 1: Owner Opt-Out — NEVER display in ANY context (UCBA Art. I Sec. 4(A))
                 if (perm.ownerOptOut === true) return false;
 
-                // Gate 2: Participant Only — visible in RLS backend only, not IDX search
-                // In IDX/public search context, exclude these listings
-                if (perm.participantOnly === true) return false;
+                // Gate 2: Participant Only — CRM only (authorized RLS participants)
+                if (perm.participantOnly === true) {
+                    if (displayContext !== 'crm') return false;
+                }
 
-                // Gate 3: IDX Display — if opted out, exclude from IDX display
-                if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
+                // Gate 3: Display context — IDX vs VOW vs CRM
+                if (displayContext === 'idx') {
+                    // IDX: both IDX and Internet gates must be true
+                    if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
+                    if (listing.internetDisplayYN === false) return false;
+                } else if (displayContext === 'vow') {
+                    // VOW: only InternetEntireListingDisplayYN matters (IDX flag irrelevant)
+                    if (listing.internetDisplayYN === false) return false;
+                }
+                // CRM: no Gate 3 filtering (authorized participant sees all except Owner Opt-Out)
 
                 // Gate 4: Syndication — SyndicateYN controls third-party distribution.
                 // In IDX search context, listing still appears but is flagged as non-syndicated.
@@ -683,14 +779,24 @@
                     if (!addrMatch && !bldgMatch) return false;
                 }
 
-                // Neighborhood filter — single value (Quick Search) or multi-select (tree)
+                // Neighborhood filter — single value (Quick Search) or multi-select (tree/map)
                 if (criteria.neighborhood) {
-                    if (listing.neighborhood.toLowerCase().indexOf(criteria.neighborhood.toLowerCase()) === -1) return false;
+                    var nLower = criteria.neighborhood.toLowerCase();
+                    var nHit = (listing.neighborhood && listing.neighborhood.toLowerCase().indexOf(nLower) !== -1)
+                            || (listing.neighborhoodCanonical && listing.neighborhoodCanonical.toLowerCase().indexOf(nLower) !== -1);
+                    if (!nHit) return false;
                 }
                 if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                    var nMatch = criteria.neighborhoods.some(function(n) {
-                        return listing.neighborhood.toLowerCase() === n.toLowerCase();
-                    });
+                    var nLookup = {};
+                    criteria.neighborhoods.forEach(function(n) { nLookup[n.toLowerCase()] = true; });
+                    var nMatch = (listing.neighborhood && nLookup[listing.neighborhood.toLowerCase()])
+                              || (listing.neighborhoodCanonical && nLookup[listing.neighborhoodCanonical.toLowerCase()]);
+                    // Also check multi-canonical array (e.g. "Chelsea / Flatiron" → ["Chelsea", "Flatiron"])
+                    if (!nMatch && listing.neighborhoodCanonicals) {
+                        for (var nc = 0; nc < listing.neighborhoodCanonicals.length; nc++) {
+                            if (nLookup[listing.neighborhoodCanonicals[nc].toLowerCase()]) { nMatch = true; break; }
+                        }
+                    }
                     if (!nMatch) return false;
                 }
 
@@ -887,7 +993,9 @@
                 pills.push({ label: 'Baths: ' + baLabel, key: 'baths' });
             }
             if (c.neighborhoods && c.neighborhoods.length > 0) {
-                var nLabel = c.neighborhoods.length <= 2 ? c.neighborhoods.join(', ') : c.neighborhoods.length + ' neighborhoods';
+                // Show canonical names in pills (cleaner than showing all 593 variants)
+                var displayNames = c._neighborhoodCanonicals || c.neighborhoods;
+                var nLabel = displayNames.length <= 3 ? displayNames.join(', ') : displayNames.length + ' neighborhoods';
                 pills.push({ label: nLabel, key: 'neighborhoods' });
             }
             if (c.ownership && c.ownership.length > 0) {

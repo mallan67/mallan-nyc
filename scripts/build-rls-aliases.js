@@ -10,8 +10,13 @@
  *   1. Exact match to polygon name → skip (already mapped)
  *   2. Case-insensitive exact match
  *   3. Known abbreviation code dictionary
- *   4. Substring / fuzzy matching
- *   5. Manual overrides for compound names, sub-neighborhoods
+ *   4. Manual overrides for compound names, sub-neighborhoods
+ *   5. Fuzzy / substring matching
+ *
+ * Values can be:
+ *   - string: single polygon mapping (e.g. "CHELSEA" → "Chelsea")
+ *   - array:  multi-polygon mapping (e.g. "Chelsea / Flatiron" → ["Chelsea", "Flatiron"])
+ *   - null:   distinct neighborhood with no polygon yet (not a wrong mapping)
  *
  * Usage: node scripts/build-rls-aliases.js
  */
@@ -38,7 +43,7 @@ polyNames.forEach(n => { polyLower[n.toLowerCase()] = n; });
 const ABBREV = {
   // Manhattan
   'BATTERY': 'Battery Park City',
-  'BEEKMAN': 'Sutton Place',
+  'BEEKMAN': null, // Beekman is distinct from Sutton Place — no polygon yet
   'CARNEGIE': 'Carnegie Hill',
   'CENTPKSTH': 'Midtown',
   'CHELSEA': 'Chelsea',
@@ -75,7 +80,7 @@ const ABBREV = {
   'SOHO': 'SoHo',
   'SOUTHSTSEAPORT': 'Financial District',
   'SPUYTENDUYVIL': 'Spuyten Duyvil',
-  'STUYHEI': 'Williamsburg',
+  'STUYHEI': null, // Stuyvesant Heights is distinct — no polygon yet
   'SUTTON': 'Sutton Place',
   'TRIBECA': 'Tribeca',
   'TURTLBAY': 'Turtle Bay',
@@ -92,7 +97,7 @@ const ABBREV = {
   // Brooklyn
   'BATHBEAC': 'Downtown Brooklyn',
   'BAYRIDGE': 'Downtown Brooklyn',
-  'BED-STUY': 'Prospect Heights',
+  'BED-STUY': null, // Bed-Stuy is distinct from Prospect Heights — no polygon yet
   'BENHURST': 'Downtown Brooklyn',
   'BERGENBEACH': 'Downtown Brooklyn',
   'BKLYNHTS': 'Brooklyn Heights',
@@ -202,18 +207,18 @@ const MANUAL = {
   'All Midtown': 'Midtown',
   'Alphabet City': 'East Village',
   'Battery Park': 'Battery Park City',
-  'Beekman': 'Sutton Place',
-  'Beekman Place': 'Sutton Place',
-  'Beekman/Sutton Place': 'Sutton Place',
+  'Beekman': null, // Beekman is distinct — small area near Beekman Place
+  'Beekman Place': null, // distinct from Sutton Place
+  'Beekman/Sutton Place': ['Sutton Place'], // combined — Beekman has no polygon, Sutton does
   'Bowery': 'Lower East Side',
   'Bryant Park': 'Midtown',
   'Central Harlem': 'Harlem',
   'Central Park South': 'Midtown',
   'Central Park West': 'Upper West Side',
-  'Chelsea / Flatiron': 'Chelsea',
-  'Chelsea/Flatiron': 'Chelsea',
-  'Chinatown / Little I': 'Chinatown',
-  'Chinatown Little Ita': 'Chinatown',
+  'Chelsea / Flatiron': ['Chelsea', 'Flatiron'],
+  'Chelsea/Flatiron': ['Chelsea', 'Flatiron'],
+  'Chinatown / Little I': ['Chinatown', 'Little Italy'],
+  'Chinatown Little Ita': ['Chinatown', 'Little Italy'],
   'Clinton': 'Hell\'s Kitchen',
   'Clinton / Hell\'s Kit': 'Hell\'s Kitchen',
   'Columbia Presb': 'Washington Heights',
@@ -235,23 +240,23 @@ const MANUAL = {
   'Fulton Ferry': 'DUMBO',
   'Fulton/Seaport': 'Financial District',
   'Garment District': 'Midtown',
-  'Greenwich Village/We': 'Greenwich Village',
-  'Greenwich Village/West Village': 'Greenwich Village',
+  'Greenwich Village/We': ['Greenwich Village', 'West Village'],
+  'Greenwich Village/West Village': ['Greenwich Village', 'West Village'],
   'Grenwich Village': 'Greenwich Village',
-  'Harlem / Morningside': 'Harlem',
+  'Harlem / Morningside': ['Harlem', 'Morningside Heights'],
   'Hells Kitchen': 'Hell\'s Kitchen',
-  'Inwood / Washington': 'Inwood',
-  'Inwood/Marble Hill': 'Inwood',
+  'Inwood / Washington': ['Inwood', 'Washington Heights'],
+  'Inwood/Marble Hill': ['Inwood', 'Marble Hill'],
   'Koreatown': 'Midtown',
-  'Lenox Hill-Roosevelt': 'Lenox Hill',
-  'Lenox Hill-Roosevelt Island': 'Lenox Hill',
-  'Lenox Hill-roosevelt Island': 'Lenox Hill',
+  'Lenox Hill-Roosevelt': ['Lenox Hill', 'Roosevelt Island'],
+  'Lenox Hill-Roosevelt Island': ['Lenox Hill', 'Roosevelt Island'],
+  'Lenox Hill-roosevelt Island': ['Lenox Hill', 'Roosevelt Island'],
   'Lincoln Center': 'Upper West Side',
   'Lincoln Sq': 'Upper West Side',
   'Lincoln Square': 'Upper West Side',
   'lincoln square': 'Upper West Side',
-  'Lower East Side/Chin': 'Lower East Side',
-  'Lower East Side/Chinatown': 'Lower East Side',
+  'Lower East Side/Chin': ['Lower East Side', 'Chinatown'],
+  'Lower East Side/Chinatown': ['Lower East Side', 'Chinatown'],
   'Lower Eastside': 'Lower East Side',
   'Lower Manhattan': 'Financial District',
   'Manhattan': 'Midtown',
@@ -266,10 +271,10 @@ const MANUAL = {
   'Midtown South': 'Midtown',
   'Midtown West / Hell\'': 'Midtown West',
   'midtown': 'Midtown',
-  'Murray Hill / Kip\'s': 'Murray Hill',
-  'Murray Hill / Kips B': 'Murray Hill',
-  'Murray Hill Kips Bay': 'Murray Hill',
-  'Murray Hill-kips Bay': 'Murray Hill',
+  'Murray Hill / Kip\'s': ['Murray Hill', 'Kips Bay'],
+  'Murray Hill / Kips B': ['Murray Hill', 'Kips Bay'],
+  'Murray Hill Kips Bay': ['Murray Hill', 'Kips Bay'],
+  'Murray Hill-kips Bay': ['Murray Hill', 'Kips Bay'],
   'Navy Yard': 'Fort Greene',
   'NoLIta': 'Nolita',
   'NoLita': 'Nolita',
@@ -279,8 +284,8 @@ const MANUAL = {
   'Rose Hill': 'Flatiron',
   'Seaport': 'Financial District',
   'Seaport District': 'Financial District',
-  'SoHo-Nolita': 'SoHo',
-  'SoHo/Nolita': 'SoHo',
+  'SoHo-Nolita': ['SoHo', 'Nolita'],
+  'SoHo/Nolita': ['SoHo', 'Nolita'],
   'Soho': 'SoHo',
   'South Harlem': 'Harlem',
   'South Street Seaport': 'Financial District',
@@ -298,15 +303,15 @@ const MANUAL = {
   'University Heights': 'Kingsbridge',
   'Upper Carnegie': 'Carnegie Hill',
   'Upper Carnegie Hill': 'Carnegie Hill',
-  'Upper Fifth': 'Upper East Side',
-  'Upper M': 'Upper East Side',
+  'Upper Fifth': null, // Upper Fifth (Fifth Ave along Central Park) — distinct from UES
+  'Upper M': null, // Upper Manhattan — too broad, not a single neighborhood
   'Upper West Sidee': 'Upper West Side',
   'W. Greenwich Village': 'West Village',
   'West 30\'s': 'Midtown West',
   'West 30s - Clinton': 'Midtown West',
-  'West Harlem & Manhat': 'West Harlem',
-  'West Harlem & Manhattanville': 'West Harlem',
-  'West Village / Green': 'West Village',
+  'West Harlem & Manhat': ['West Harlem', 'Manhattanville'],
+  'West Harlem & Manhattanville': ['West Harlem', 'Manhattanville'],
+  'West Village / Green': ['West Village', 'Greenwich Village'],
   'Fort George': 'Washington Heights',
   'MANHATTAN': 'Midtown',
 
@@ -315,13 +320,13 @@ const MANUAL = {
   'Bay Ridge': 'Downtown Brooklyn',
   'Bay Terrace': 'Downtown Brooklyn',
   'Bay Terrace 1': 'Downtown Brooklyn',
-  'Bed Stuy': 'Prospect Heights',
-  'Bedford': 'Prospect Heights',
-  'Bedford - Stuyvesant': 'Prospect Heights',
+  'Bed Stuy': null, // Bed-Stuy is distinct from Prospect Heights — no polygon yet
+  'Bedford': null, // Bedford/Bed-Stuy is distinct
+  'Bedford - Stuyvesant': null, // distinct neighborhood
   'Bedford Park': 'Fordham',
-  'Bedford Stuyvesant': 'Prospect Heights',
-  'Bedford-Stuyvesant': 'Prospect Heights',
-  'Bedford/Stuyvesant': 'Prospect Heights',
+  'Bedford Stuyvesant': null, // Bed-Stuy is distinct
+  'Bedford-Stuyvesant': null, // Bed-Stuy is distinct
+  'Bedford/Stuyvesant': null, // Bed-Stuy is distinct
   'Bensonhurst': 'Downtown Brooklyn',
   'Bergen Beach': 'Downtown Brooklyn',
   'Beverley Square West': 'Windsor Terrace',
@@ -338,15 +343,15 @@ const MANUAL = {
   'Caton Park': 'Windsor Terrace',
   'City Line': 'Downtown Brooklyn',
   'Clinton Hill': 'Fort Greene',
-  'Clinton Hill/Ft Gree': 'Fort Greene',
+  'Clinton Hill/Ft Gree': ['Fort Greene'], // Clinton Hill has no polygon yet
   'Cobble Hill': 'Cobble Hill',
   'Coney Island': 'Downtown Brooklyn',
-  'Crown Heights': 'Prospect Heights',
-  'Crown Heights North': 'Prospect Heights',
+  'Crown Heights': null, // Crown Heights is distinct from Prospect Heights
+  'Crown Heights North': null, // distinct
   'Cypress Hills': 'Downtown Brooklyn',
   'DNU-Brooklyn': 'Downtown Brooklyn',
-  'DUMBO / Vinegar Hill': 'DUMBO',
-  'DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill': 'DUMBO',
+  'DUMBO / Vinegar Hill': ['DUMBO'],
+  'DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill': ['DUMBO', 'Downtown Brooklyn', 'Boerum Hill'],
   'Ditmars Park': 'Astoria',
   'Ditmars Steinway': 'Astoria',
   'Ditmars-Steinway': 'Astoria',
@@ -378,9 +383,9 @@ const MANUAL = {
   'Highland Park': 'Downtown Brooklyn',
   'Homecrest': 'Downtown Brooklyn',
   'Kensington': 'Windsor Terrace',
-  'Kensington / Ocean Pkwy': 'Windsor Terrace',
+  'Kensington / Ocean Pkwy': ['Windsor Terrace'],
   'Kensington and Parkv': 'Windsor Terrace',
-  'Kensingtn/Ocean Pkwy': 'Windsor Terrace',
+  'Kensingtn/Ocean Pkwy': ['Windsor Terrace'],
   'Kings Club District': 'Downtown Brooklyn',
   'Lefferts': 'Prospect Heights',
   'Lefferts Garden': 'Prospect Heights',
@@ -408,8 +413,8 @@ const MANUAL = {
   'Park Hill': 'Downtown Brooklyn',
   'Park Slope South': 'Park Slope',
   'Park Slope-gowanus': 'Park Slope',
-  'Park Slope/Prospect': 'Park Slope',
-  'Park Slope/Prospect Park': 'Park Slope',
+  'Park Slope/Prospect': ['Park Slope'],
+  'Park Slope/Prospect Park': ['Park Slope'],
   'Prospect - Lefferts': 'Prospect Heights',
   'Prospect Hights': 'Prospect Heights',
   'Prospect Leffert Gdn': 'Prospect Heights',
@@ -488,8 +493,8 @@ const MANUAL = {
   'Howard Beach': 'Bayside',
   'Howard Beach 1': 'Bayside',
   'Hunters Point': 'Long Island City',
-  'Hunters Point-Sunnyside-West Maspeth': 'Long Island City',
-  'Hunters Point-sunnyside-west Maspeth': 'Long Island City',
+  'Hunters Point-Sunnyside-West Maspeth': ['Long Island City', 'Sunnyside'],
+  'Hunters Point-sunnyside-west Maspeth': ['Long Island City', 'Sunnyside'],
   'Jackson heights': 'Jackson Heights',
   'Jamaica': 'Bayside',
   'Jamaica Center': 'Bayside',
@@ -544,8 +549,8 @@ const MANUAL = {
   'Allerton': 'Fordham',
   'Baychester': 'Pelham Bay',
   'Belmont': 'Fordham',
-  'Belmont | Little Ita': 'Fordham',
-  'Belmont | Little Italy': 'Fordham',
+  'Belmont | Little Ita': ['Fordham'], // Bronx Little Italy / Belmont area
+  'Belmont | Little Italy': ['Fordham'], // Bronx Little Italy / Belmont area
   'Bronx': 'Mott Haven',
   'Bronx (Other)': 'Mott Haven',
   'Bronxdale': 'Fordham',
@@ -659,10 +664,13 @@ const MANUAL = {
 };
 
 // ── BUILD ALIAS MAP ──
+// Values: string (single polygon), string[] (multi-polygon), null (distinct, no polygon)
 
 const aliases = {};
 let matched = 0;
 let unmatched = 0;
+let multiMapped = 0;
+let distinctNoPolygon = 0;
 
 for (const entry of canon.neighborhoods) {
   const name = entry.name;
@@ -678,17 +686,42 @@ for (const entry of canon.neighborhoods) {
     continue;
   }
 
-  // 2. Abbreviation code lookup (case-sensitive on uppercase)
-  if (ABBREV[name]) {
-    aliases[name] = ABBREV[name];
-    matched++;
+  // 2. Abbreviation code lookup
+  if (name in ABBREV) {
+    const val = ABBREV[name];
+    if (val === null) {
+      aliases[name] = null;
+      distinctNoPolygon++;
+    } else {
+      aliases[name] = val;
+      matched++;
+    }
     continue;
   }
 
-  // 3. Manual override
-  if (MANUAL[name]) {
-    aliases[name] = MANUAL[name];
-    matched++;
+  // 3. Manual override (string, array, or null)
+  if (name in MANUAL) {
+    const val = MANUAL[name];
+    if (val === null) {
+      aliases[name] = null;
+      distinctNoPolygon++;
+    } else if (Array.isArray(val)) {
+      // Filter to only polygons that actually exist
+      const validPolys = val.filter(p => polySet.has(p));
+      if (validPolys.length === 0) {
+        aliases[name] = null;
+        distinctNoPolygon++;
+      } else if (validPolys.length === 1) {
+        aliases[name] = validPolys[0];
+        matched++;
+      } else {
+        aliases[name] = validPolys;
+        multiMapped++;
+      }
+    } else {
+      aliases[name] = val;
+      matched++;
+    }
     continue;
   }
 
@@ -726,16 +759,18 @@ for (const entry of canon.neighborhoods) {
   // Unmatched — log it
   aliases[name] = null;
   unmatched++;
-  console.log('  [UNMATCH] ' + name + ' (' + entry.borough + ')');
+  console.log('  [UNMATCH] ' + name + ' (' + (entry.boroughHint || entry.borough || '?') + ')');
 }
 
 // Write output
 const output = {
   _meta: {
-    version: 1,
-    description: 'Maps RLS SubdivisionName variants to polygon names',
+    version: 2,
+    description: 'Maps RLS SubdivisionName variants to polygon names. Values: string (single), array (multi-polygon), null (distinct, no polygon yet)',
     totalAliases: Object.keys(aliases).length,
     matched: matched,
+    multiMapped: multiMapped,
+    distinctNoPolygon: distinctNoPolygon,
     unmatched: unmatched,
     generatedAt: new Date().toISOString(),
   },
@@ -744,8 +779,10 @@ const output = {
 
 fs.writeFileSync(OUT_FILE, JSON.stringify(output, null, 2));
 
-console.log('\n=== Alias Map Built ===');
-console.log('Total aliases: ' + Object.keys(aliases).length);
-console.log('Matched:       ' + matched);
-console.log('Unmatched:     ' + unmatched);
-console.log('Output:        ' + OUT_FILE);
+console.log('\n=== Alias Map Built (v2) ===');
+console.log('Total aliases:        ' + Object.keys(aliases).length);
+console.log('Matched (single):     ' + matched);
+console.log('Multi-mapped (array): ' + multiMapped);
+console.log('Distinct (no polygon):' + distinctNoPolygon);
+console.log('Unmatched:            ' + unmatched);
+console.log('Output:               ' + OUT_FILE);

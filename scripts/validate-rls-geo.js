@@ -118,10 +118,14 @@ function main() {
     info('   No alias file found — checking direct matches only');
   }
 
-  // A canonical name is "covered" if it has a polygon OR an alias to a polygon
+  // A canonical name is "covered" if it has a polygon, an alias to a polygon,
+  // or is explicitly null (distinct neighborhood, no polygon yet — acceptable)
   const missingInGeo = [...canonicalNames].filter((n) => {
     if (geoNames.has(n)) return false; // direct polygon
-    if (aliasMap[n] && geoNames.has(aliasMap[n])) return false; // alias to polygon
+    const val = aliasMap[n];
+    if (val === null) return false; // explicitly distinct, no polygon — OK
+    if (Array.isArray(val)) return !val.some((p) => geoNames.has(p)); // multi: covered if any polygon exists
+    if (val && geoNames.has(val)) return false; // single alias to polygon
     return true;
   });
   const extraInGeo = [...geoNames].filter((n) => !canonicalNames.has(n));
