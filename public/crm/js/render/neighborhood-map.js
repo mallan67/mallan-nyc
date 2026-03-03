@@ -129,47 +129,68 @@
   function showMapError() {
     var errEl = document.getElementById('nbMapError');
     var mapEl = document.getElementById('nbMapContainer');
-    if (errEl) errEl.classList.remove('hidden');
-    if (mapEl) mapEl.style.display = 'none';
+    if (errEl) { errEl.style.display = 'flex'; }
+    if (mapEl) { mapEl.style.display = 'none'; }
   }
 
   // ── Build sidebar from GeoJSON (no hardcoded arrays) ──
 
-  function buildSidebar(geojson) {
-    var sidebar = document.getElementById('nbMapSidebar');
-    if (!sidebar) return;
+  function buildSidebar(geojson, filterText) {
+    var listEl = document.getElementById('nbMapList');
+    if (!listEl) return;
 
-    // Group by borough
+    var ft = (filterText || '').trim().toLowerCase();
+
+    // Group by borough — filter features if search active
     var byBorough = {};
     for (var i = 0; i < geojson.features.length; i++) {
       var f = geojson.features[i];
+      var name = f.properties.name || '';
+      if (ft && name.toLowerCase().indexOf(ft) === -1) continue;
       var borough = f.properties.borough || 'Other';
       if (!byBorough[borough]) byBorough[borough] = [];
-      byBorough[borough].push(f.properties.name);
+      byBorough[borough].push(name);
     }
 
-    // Sort boroughs, neighborhoods within each
-    var boroughs = Object.keys(byBorough).sort();
-    var html = '';
+    // Borough display order: Manhattan first, then alpha
+    var boroughs = Object.keys(byBorough).sort(function (a, b) {
+      if (a === 'Manhattan') return -1;
+      if (b === 'Manhattan') return 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    });
 
+    var html = '';
     for (var b = 0; b < boroughs.length; b++) {
       var bName = boroughs[b];
       var names = byBorough[bName].sort();
-      html += '<div class="nb-borough-group" data-borough="' + bName + '">';
-      html += '<div class="px-3 py-2 bg-gray-200 text-xs font-bold text-gray-700 sticky top-0">' + bName + ' (' + names.length + ')</div>';
+      // Auto-open when filtering, or open Manhattan by default
+      var openAttr = (ft.length > 0 || bName === 'Manhattan') ? ' open' : '';
+      html += '<details class="nb-borough-group" data-borough="' + bName + '"' + openAttr + '>';
+      html += '<summary><span>' + bName + '</span><span class="nb-borough-meta">' + names.length + '</span></summary>';
       for (var n = 0; n < names.length; n++) {
-        var name = names[n];
-        var escapedName = name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        var checked = _selectedNames[name] ? ' checked' : '';
-        html += '<label class="nb-sidebar-item flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-yellow-50" data-name="' + escapedName + '">';
-        html += '<input type="checkbox" class="nb-sidebar-cb accent-yellow-700"' + checked + ' onchange="toggleNeighborhoodMapItem(\'' + escapedName.replace(/'/g, "\\'") + '\', this.checked)">';
-        html += '<span class="text-xs">' + name + '</span>';
-        html += '</label>';
+        var nName = names[n];
+        var escapedName = nName.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        var checked = _selectedNames[nName] ? ' checked' : '';
+        html += '<div class="nb-item nb-sidebar-item" data-name="' + escapedName + '" onclick="toggleNeighborhoodMapItemFromRow(this,event)">';
+        html += '<input type="checkbox" class="nb-sidebar-cb"' + checked + ' data-nb="' + escapedName + '" onchange="toggleNeighborhoodMapItem(\'' + escapedName.replace(/'/g, "\\'") + '\',this.checked)">';
+        html += '<div class="nb-item-name">' + nName + '<div class="nb-item-borough">' + bName + '</div></div>';
+        html += '<div class="nb-item-chevron">&#8250;</div>';
+        html += '</div>';
       }
-      html += '</div>';
+      html += '</details>';
     }
 
-    sidebar.innerHTML = html;
+    if (boroughs.length === 0 && ft) {
+      html = '<div style="padding:20px; text-align:center; font-size:12px; color:rgba(17,24,39,0.4);">No neighborhoods match &ldquo;' + ft.replace(/</g, '&lt;') + '&rdquo;</div>';
+    }
+
+    listEl.innerHTML = html;
+
+    // Show/hide clear button
+    var clearBtn = document.getElementById('nbMapClearBtn');
+    if (clearBtn) {
+      clearBtn.style.display = Object.keys(_selectedNames).length > 0 ? '' : 'none';
+    }
   }
 
   // ── Initialize map ──
@@ -183,7 +204,7 @@
 
     _map = new maplibregl.Map({
       container: 'nbMapContainer',
-      style: STYLE_URLS.positron,
+      style: STYLE_URLS.bright,
       center: [-73.97, 40.75],
       zoom: 10.5,
       minZoom: 9,
@@ -326,23 +347,29 @@
   window.openNeighborhoodMap = function (callback) {
     _callback = callback || null;
     var modal = document.getElementById('neighborhoodMapModal');
-    if (modal) modal.classList.remove('hidden');
+    if (modal) { modal.classList.remove('hidden'); modal.style.display = ''; }
 
     ensureMapLibre(function () {
       loadGeoJSON(function (geojson) {
         buildSidebar(geojson);
-        initMap(geojson);
-        // If map was already loaded, resize to fit container
-        if (_map) {
-          setTimeout(function () { _map.resize(); }, 100);
-        }
+        // Delay map init to ensure the modal is fully laid out
+        requestAnimationFrame(function () {
+          initMap(geojson);
+          // Multiple resize calls to guarantee tiles render
+          if (_map) {
+            _map.resize();
+            setTimeout(function () { _map.resize(); }, 150);
+            setTimeout(function () { _map.resize(); }, 400);
+            setTimeout(function () { _map.resize(); }, 800);
+          }
+        });
       });
     });
   };
 
   window.closeNeighborhoodMap = function () {
     var modal = document.getElementById('neighborhoodMapModal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
   };
 
   window.confirmNeighborhoodMapSelection = function () {
@@ -352,6 +379,17 @@
       _callback({ selectedNeighborhoods: selected });
     }
     window.closeNeighborhoodMap();
+  };
+
+  window.toggleNeighborhoodMapItemFromRow = function (rowEl, evt) {
+    // Prevent double-toggle when clicking the checkbox itself
+    if (evt && evt.target && evt.target.tagName === 'INPUT') return;
+    var cb = rowEl.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    var name = cb.getAttribute('data-nb');
+    if (!name) return;
+    cb.checked = !cb.checked;
+    window.toggleNeighborhoodMapItem(name, cb.checked);
   };
 
   window.toggleNeighborhoodMapItem = function (name, checked) {
@@ -386,6 +424,12 @@
     }
 
     updateSelectedCount();
+
+    // Show/hide clear button
+    var clearBtn = document.getElementById('nbMapClearBtn');
+    if (clearBtn) {
+      clearBtn.style.display = Object.keys(_selectedNames).length > 0 ? '' : 'none';
+    }
   };
 
   window.clearNeighborhoodMapSelection = function () {
@@ -402,24 +446,13 @@
       }
     }
     updateSelectedCount();
+    // Hide clear button
+    var clearBtn = document.getElementById('nbMapClearBtn');
+    if (clearBtn) clearBtn.style.display = 'none';
   };
 
   window.filterNeighborhoodMapSidebar = function (query) {
-    var q = (query || '').toLowerCase().trim();
-    var items = document.querySelectorAll('.nb-sidebar-item');
-    var groups = document.querySelectorAll('.nb-borough-group');
-
-    // Show/hide individual items
-    for (var i = 0; i < items.length; i++) {
-      var name = (items[i].getAttribute('data-name') || '').toLowerCase();
-      items[i].style.display = (!q || name.includes(q)) ? '' : 'none';
-    }
-
-    // Show/hide borough headers (hide if all items hidden)
-    for (var g = 0; g < groups.length; g++) {
-      var visibleItems = groups[g].querySelectorAll('.nb-sidebar-item:not([style*="display: none"])');
-      groups[g].style.display = (!q || visibleItems.length > 0) ? '' : 'none';
-    }
+    if (_geojsonData) buildSidebar(_geojsonData, query);
   };
 
   window.switchNeighborhoodMapStyle = function (styleName) {
