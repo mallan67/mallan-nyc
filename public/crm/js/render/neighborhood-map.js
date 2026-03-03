@@ -379,8 +379,17 @@
   window.confirmNeighborhoodMapSelection = function () {
     // Return CANONICAL polygon names only — variant expansion happens in search query builder
     var selected = Object.keys(_selectedNames).sort();
-    if (_callback) {
-      _callback({ selectedNeighborhoods: selected });
+    if (selected.length === 0) {
+      if (typeof showToast === 'function') showToast('No neighborhoods selected', 'warning');
+      return; // Keep map open so user can select
+    }
+    try {
+      if (_callback) {
+        _callback({ selectedNeighborhoods: selected });
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') showToast('Error applying neighborhoods: ' + err.message, 'error');
+      return; // Keep map open on error
     }
     window.closeNeighborhoodMap();
   };

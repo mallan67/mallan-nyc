@@ -87,12 +87,20 @@
                 if (typeof buildRefineFilterPills === 'function') buildRefineFilterPills(activeSearchCriteria);
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
                 if (typeof _saveSearchState === 'function') _saveSearchState();
+                if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
 
                 // Update hash and scroll
                 if (!window._suppressHashUpdate) {
                     history.replaceState(null, '', '#results');
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // User feedback
+                var count = searchResultsState.filteredListings ? searchResultsState.filteredListings.length : 0;
+                var label = canonicals.length === 1 ? canonicals[0] : canonicals.length + ' neighborhoods';
+                if (typeof showToast === 'function') {
+                    showToast(label + ' — ' + count + ' result' + (count !== 1 ? 's' : '') + ' found', count > 0 ? 'success' : 'info');
+                }
             });
         };
 
