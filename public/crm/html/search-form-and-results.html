@@ -487,6 +487,26 @@
                         </div>
                     </div>
 
+                    <!-- Area / Neighborhood (Sale Basic) -->
+                    <div class="border rounded-lg p-3 mb-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs font-semibold text-gray-700">Area / Neighborhood</p>
+                            <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-semibold" title="Select neighborhoods on map"><i class="fas fa-map-marked-alt mr-1"></i>Map</button>
+                        </div>
+                        <div class="border rounded-lg p-3 max-h-64 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
+                            <details>
+                                <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> NYC</summary>
+                                <div class="ml-3 space-y-0.5">
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Bronx</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Brooklyn</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Manhattan</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Queens</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Staten Island</label>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+
                     <!-- Row 2: Listing Type, Ownership, Attended Lobby, Building Features -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <!-- Listing Type -->
@@ -1273,6 +1293,26 @@
                         </div>
                     </div>
 
+                    <!-- Area / Neighborhood (Rental Basic) -->
+                    <div class="border rounded-lg p-3 mb-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs font-semibold text-gray-700">Area / Neighborhood</p>
+                            <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-semibold" title="Select neighborhoods on map"><i class="fas fa-map-marked-alt mr-1"></i>Map</button>
+                        </div>
+                        <div class="border rounded-lg p-3 max-h-64 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
+                            <details>
+                                <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> NYC</summary>
+                                <div class="ml-3 space-y-0.5">
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Bronx</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Brooklyn</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Manhattan</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Queens</label>
+                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Staten Island</label>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+
                     <!-- Row 2: Listing Type, Ownership, OP/Free Rent/Concessions, Building Features -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
@@ -1797,7 +1837,7 @@
                             <div class="border rounded-lg p-3">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="text-xs font-semibold text-gray-700">Area / Neighborhood</p>
-                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-amber-50 border border-gray-300 text-gray-600 hover:text-amber-700" title="Select neighborhoods on map">Map</button>
+                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-semibold" title="Select neighborhoods on map"><i class="fas fa-map-marked-alt mr-1"></i>Map</button>
                                 </div>
                                 <div class="border rounded-lg p-3 max-h-96 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
                                     <details open>
@@ -2910,7 +2950,7 @@
                             <div class="mb-4">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="text-xs font-semibold text-gray-600">Area / Neighborhood</p>
-                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-amber-50 border border-gray-300 text-gray-600 hover:text-amber-700" title="Select neighborhoods on map">Map</button>
+                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-semibold" title="Select neighborhoods on map"><i class="fas fa-map-marked-alt mr-1"></i>Map</button>
                                 </div>
                                 <div class="border rounded-lg p-3 max-h-96 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
                                     <details open>
@@ -6226,7 +6266,10 @@
 
                                 <!-- Neighborhoods -->
                                 <div class="mb-4">
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Neighborhoods</label>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="block text-sm font-semibold text-gray-700">Neighborhoods</label>
+                                        <button type="button" onclick="openNeighborhoodMapForSearch()" class="text-xs px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-semibold" title="Select neighborhoods on map"><i class="fas fa-map-marked-alt mr-1"></i>Map</button>
+                                    </div>
                                     <div class="border rounded-lg p-3 max-h-64 overflow-y-auto neighborhood-tree">
                                         <details open class="text-sm">
                                             <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1">
@@ -6829,6 +6872,9 @@
                                 </button>
                                 <button onclick="openFilterModal()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Filter Results">
                                     <i class="fas fa-filter"></i>
+                                </button>
+                                <button onclick="openNeighborhoodMapForSearch()" class="p-2 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors" title="Neighborhood Map">
+                                    <i class="fas fa-map-marked-alt"></i>
                                 </button>
                             </div>
                         </div>
