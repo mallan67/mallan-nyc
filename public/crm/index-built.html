@@ -11744,7 +11744,7 @@ function toggleSection(header) {
   }
   .nb-cancel-btn:hover { background: rgba(17,24,39,0.04); }
 </style>
-<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 z-50 hidden" style="display:none;">
+<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 hidden" style="display:none; z-index:100000;">
     <div class="absolute inset-0 flex" style="padding: 0;">
         <!-- Sidebar -->
         <aside id="nbMapSidebarWrap" class="nb-modal-panel flex flex-col flex-shrink-0" style="width: 320px; border-right: 1px solid rgba(17,24,39,0.10); z-index: 5;">
@@ -19952,6 +19952,13 @@ function parseBudgetValue(td) {
  * Polygons: gold (#B8860B) fill 0.08 opacity, 0.16 on hover
  *
  * Sidebar is generated from GeoJSON properties — NO hardcoded arrays.
+ *
+ * State architecture:
+ *   _selectedNames = single source of truth for selection
+ *   On open: initialized from search state (_neighborhoodCanonicals) if present
+ *   On apply: emits canonical names, does NOT clear _selectedNames
+ *   On reopen: restores from _selectedNames (persists between opens)
+ *   rehydrateSelection() re-applies feature-state after any map/style change
  */
 
 /* global maplibregl */
@@ -19964,24 +19971,14 @@ function parseBudgetValue(td) {
   var _selectedNames = {};
   var _callback = null;
   var _loaded = false;
-  var _aliasMap = null; // variant → polygon name (loaded from aliases JSON)
-  var _reverseAliases = {}; // polygon name → [variant1, variant2, ...]
+  var _layersAdded = false;
+  var _aliasMap = null;
+  var _reverseAliases = {};
 
-  var ALIAS_URL = (window.location.pathname.includes('/crm/')
-    ? '/geo/'
-    : '../geo/') + 'neighborhood-aliases.json';
-
-  var GEOJSON_URL = (window.location.pathname.includes('/crm/')
-    ? '/geo/'
-    : '../geo/') + 'rls-neighborhoods.v1.min.geojson';
-
-  // Resolve relative to page location — try multiple paths
-  function resolveGeoURL() {
-    // In built file or served from public/crm/
+  // Resolve geo file path relative to page location
+  function resolveGeoBase() {
     var base = window.location.pathname.replace(/\/[^/]*$/, '');
-    if (base.endsWith('/crm')) return '/geo/rls-neighborhoods.v1.min.geojson';
-    // Fallback: relative path
-    return '../geo/rls-neighborhoods.v1.min.geojson';
+    return base.endsWith('/crm') ? '/geo/' : '../geo/';
   }
 
   var STYLE_URLS = {
@@ -20000,7 +19997,6 @@ function parseBudgetValue(td) {
   function ensureMapLibre(cb) {
     if (typeof maplibregl !== 'undefined') return cb();
 
-    // CSS
     if (!document.querySelector('link[href*="maplibre-gl"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
@@ -20008,34 +20004,27 @@ function parseBudgetValue(td) {
       document.head.appendChild(link);
     }
 
-    // JS
     var script = document.createElement('script');
     script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
     script.onload = cb;
-    script.onerror = function () {
-      showMapError();
-    };
+    script.onerror = function () { showMapError(); };
     document.head.appendChild(script);
   }
 
-  // ── Fetch GeoJSON ──
+  // ── Fetch GeoJSON + Aliases ──
 
   function loadAliases(cb) {
     if (_aliasMap) return cb();
-    var url = ALIAS_URL.replace('/geo/', resolveGeoURL().replace('rls-neighborhoods.v1.min.geojson', ''));
-    // Simpler: just derive from same base
-    var base = resolveGeoURL().replace('rls-neighborhoods.v1.min.geojson', '');
+    var base = resolveGeoBase();
     fetch(base + 'neighborhood-aliases.json')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (data && data.aliases) {
           _aliasMap = data.aliases;
-          // Build reverse map: polygon name → [variant names]
-          // Alias values can be string, array, or null
           _reverseAliases = {};
           Object.keys(_aliasMap).forEach(function (variant) {
             var val = _aliasMap[variant];
-            if (!val) return; // null = distinct, no polygon
+            if (!val) return;
             var polys = Array.isArray(val) ? val : [val];
             polys.forEach(function (poly) {
               if (!_reverseAliases[poly]) _reverseAliases[poly] = [];
@@ -20045,13 +20034,12 @@ function parseBudgetValue(td) {
         }
         cb();
       })
-      .catch(function () { cb(); }); // non-fatal — map works without aliases
+      .catch(function () { cb(); });
   }
 
   function loadGeoJSON(cb) {
     if (_geojsonData) return cb(_geojsonData);
-
-    var url = resolveGeoURL();
+    var url = resolveGeoBase() + 'rls-neighborhoods.v1.min.geojson';
     fetch(url)
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -20059,14 +20047,9 @@ function parseBudgetValue(td) {
       })
       .then(function (data) {
         _geojsonData = data;
-        // Also load aliases in parallel (non-blocking)
-        loadAliases(function () {
-          cb(data);
-        });
+        loadAliases(function () { cb(data); });
       })
-      .catch(function () {
-        showMapError();
-      });
+      .catch(function () { showMapError(); });
   }
 
   function showMapError() {
@@ -20083,8 +20066,6 @@ function parseBudgetValue(td) {
     if (!listEl) return;
 
     var ft = (filterText || '').trim().toLowerCase();
-
-    // Group by borough — filter features if search active
     var byBorough = {};
     for (var i = 0; i < geojson.features.length; i++) {
       var f = geojson.features[i];
@@ -20095,7 +20076,6 @@ function parseBudgetValue(td) {
       byBorough[borough].push(name);
     }
 
-    // Borough display order: Manhattan first, then alpha
     var boroughs = Object.keys(byBorough).sort(function (a, b) {
       if (a === 'Manhattan') return -1;
       if (b === 'Manhattan') return 1;
@@ -20106,7 +20086,6 @@ function parseBudgetValue(td) {
     for (var b = 0; b < boroughs.length; b++) {
       var bName = boroughs[b];
       var names = byBorough[bName].sort();
-      // Auto-open when filtering, or open Manhattan by default
       var openAttr = (ft.length > 0 || bName === 'Manhattan') ? ' open' : '';
       html += '<details class="nb-borough-group" data-borough="' + bName + '"' + openAttr + '>';
       html += '<summary><span>' + bName + '</span><span class="nb-borough-meta">' + names.length + '</span></summary>';
@@ -20129,27 +20108,49 @@ function parseBudgetValue(td) {
 
     listEl.innerHTML = html;
 
-    // Show/hide clear button
     var clearBtn = document.getElementById('nbMapClearBtn');
     if (clearBtn) {
       clearBtn.style.display = Object.keys(_selectedNames).length > 0 ? '' : 'none';
     }
   }
 
+  // ── Rehydrate selection — single function called after any map/style change ──
+
+  function rehydrateSelection() {
+    if (!_map || !_loaded || !_geojsonData) return;
+
+    // Ensure source and layers exist
+    if (!_map.getSource('nb-source')) {
+      addLayers(_geojsonData);
+      return; // addLayers calls rehydrateSelection at the end
+    }
+
+    // Apply feature-state for all polygons
+    try {
+      for (var i = 0; i < _geojsonData.features.length; i++) {
+        var name = _geojsonData.features[i].properties.name;
+        _map.setFeatureState(
+          { source: 'nb-source', id: i },
+          { selected: !!_selectedNames[name] }
+        );
+      }
+    } catch (_) { /* source not ready yet — will retry on next event */ }
+  }
+
   // ── Initialize map ──
 
   function initMap(geojson) {
     if (_map) {
-      // Map already exists — just re-add layers after style change
-      addLayers(geojson);
+      // Map already exists — rehydrate layers + selection
+      rehydrateSelection();
       return;
     }
 
     _map = new maplibregl.Map({
       container: 'nbMapContainer',
       style: STYLE_URLS.bright,
-      center: [-73.97, 40.75],
-      zoom: 10.5,
+      center: [-73.96, 40.755],
+      zoom: 11.5,
       minZoom: 9,
       maxZoom: 16,
     });
@@ -20157,7 +20158,8 @@ function parseBudgetValue(td) {
     _map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
     _map.on('load', function () {
-      if (!_loaded) { _loaded = true; addLayers(geojson); }
+      _loaded = true;
+      addLayers(geojson);
     });
 
     // Fallback: 'idle' fires after all rendering — catches missed 'load' events
@@ -20171,7 +20173,6 @@ function parseBudgetValue(td) {
 
     // Remove old layers/source if they exist
     try { if (_map.getLayer('nb-fill')) _map.removeLayer('nb-fill'); } catch (_) {}
-    try { if (_map.getLayer('nb-fill-hover')) _map.removeLayer('nb-fill-hover'); } catch (_) {}
     try { if (_map.getLayer('nb-line')) _map.removeLayer('nb-line'); } catch (_) {}
     try { if (_map.getLayer('nb-label')) _map.removeLayer('nb-label'); } catch (_) {}
     try { if (_map.getSource('nb-source')) _map.removeSource('nb-source'); } catch (_) {}
@@ -20182,7 +20183,7 @@ function parseBudgetValue(td) {
       generateId: true,
     });
 
-    // Fill layer — all polygons
+    // Fill layer — all polygons, styled via feature-state
     _map.addLayer({
       id: 'nb-fill',
       type: 'fill',
@@ -20239,43 +20240,34 @@ function parseBudgetValue(td) {
       _map.getCanvas().style.cursor = 'pointer';
       if (e.features.length > 0) {
         if (hoveredId !== null) {
-          _map.setFeatureState({ source: 'nb-source', id: hoveredId }, { hover: false });
+          try { _map.setFeatureState({ source: 'nb-source', id: hoveredId }, { hover: false }); } catch (_) {}
         }
         hoveredId = e.features[0].id;
-        _map.setFeatureState({ source: 'nb-source', id: hoveredId }, { hover: true });
+        try { _map.setFeatureState({ source: 'nb-source', id: hoveredId }, { hover: true }); } catch (_) {}
       }
     });
 
     _map.on('mouseleave', 'nb-fill', function () {
       _map.getCanvas().style.cursor = '';
       if (hoveredId !== null) {
-        _map.setFeatureState({ source: 'nb-source', id: hoveredId }, { hover: false });
+        try { _map.setFeatureState({ source: 'nb-source', id: hoveredId }, { hover: false }); } catch (_) {}
         hoveredId = null;
       }
     });
 
-    // Click to toggle selection
+    // Click to toggle selection on map
     _map.on('click', 'nb-fill', function (e) {
       if (e.features.length > 0) {
         var name = e.features[0].properties.name;
         var isSelected = !!_selectedNames[name];
-        toggleNeighborhoodMapItem(name, !isSelected);
+        window.toggleNeighborhoodMapItem(name, !isSelected);
       }
     });
 
-    // Restore selected state
-    syncFeatureStates();
-  }
+    _layersAdded = true;
 
-  function syncFeatureStates() {
-    if (!_map || !_loaded || !_geojsonData) return;
-    for (var i = 0; i < _geojsonData.features.length; i++) {
-      var name = _geojsonData.features[i].properties.name;
-      _map.setFeatureState(
-        { source: 'nb-source', id: i },
-        { selected: !!_selectedNames[name] }
-      );
-    }
+    // Rehydrate selection state onto new layers
+    rehydrateSelection();
   }
 
   function updateSelectedCount() {
@@ -20284,47 +20276,71 @@ function parseBudgetValue(td) {
     if (countEl) countEl.textContent = count + ' selected';
   }
 
+  // ── Initialize _selectedNames from search state ──
+
+  function initSelectionFromSearchState() {
+    // If search already has _neighborhoodCanonicals, use them
+    if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria &&
+        activeSearchCriteria._neighborhoodCanonicals &&
+        activeSearchCriteria._neighborhoodCanonicals.length > 0) {
+      _selectedNames = {};
+      activeSearchCriteria._neighborhoodCanonicals.forEach(function (name) {
+        _selectedNames[name] = true;
+      });
+    }
+    // Otherwise keep existing _selectedNames (persists between opens)
+  }
+
   // ── Public API ──
 
-  /**
-   * openNeighborhoodMap(callback)
-   *   callback: function({ selectedNeighborhoods: string[] })
-   *   Single entry point — one button wires to this.
-   */
   window.openNeighborhoodMap = function (callback) {
     _callback = callback || null;
+
+    // (A) Initialize selection from search state
+    initSelectionFromSearchState();
+
     var modal = document.getElementById('neighborhoodMapModal');
-    if (modal) { modal.classList.remove('hidden'); modal.style.display = ''; }
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.style.display = '';
+      // Prevent document-level click handlers from interfering with modal
+      if (!modal._stopPropBound) {
+        modal.addEventListener('click', function (e) { e.stopPropagation(); });
+        modal._stopPropBound = true;
+      }
+    }
 
     ensureMapLibre(function () {
       loadGeoJSON(function (geojson) {
         buildSidebar(geojson);
-        // Delay map init to ensure the modal is fully laid out
+        updateSelectedCount();
         requestAnimationFrame(function () {
           initMap(geojson);
-          // Multiple resize calls to guarantee tiles render
           if (_map) {
             _map.resize();
-            setTimeout(function () { _map.resize(); }, 150);
-            setTimeout(function () { _map.resize(); }, 400);
-            setTimeout(function () { _map.resize(); }, 800);
+            // (C) Rehydrate after modal shown + resize
+            setTimeout(function () {
+              _map.resize();
+              rehydrateSelection();
+            }, 200);
+            setTimeout(function () { _map.resize(); }, 500);
           }
         });
       });
     });
   };
 
+  // (D) Close only hides UI — does NOT clear _selectedNames
   window.closeNeighborhoodMap = function () {
     var modal = document.getElementById('neighborhoodMapModal');
     if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
   };
 
   window.confirmNeighborhoodMapSelection = function () {
-    // Return CANONICAL polygon names only — variant expansion happens in search query builder
     var selected = Object.keys(_selectedNames).sort();
     if (selected.length === 0) {
       if (typeof showToast === 'function') showToast('No neighborhoods selected', 'warning');
-      return; // Keep map open so user can select
+      return;
     }
     try {
       if (_callback) {
@@ -20332,13 +20348,12 @@ function parseBudgetValue(td) {
       }
     } catch (err) {
       if (typeof showToast === 'function') showToast('Error applying neighborhoods: ' + err.message, 'error');
-      return; // Keep map open on error
+      return;
     }
     window.closeNeighborhoodMap();
   };
 
   window.toggleNeighborhoodMapItemFromRow = function (rowEl, evt) {
-    // Prevent double-toggle when clicking the checkbox itself
     if (evt && evt.target && evt.target.tagName === 'INPUT') return;
     var cb = rowEl.querySelector('input[type="checkbox"]');
     if (!cb) return;
@@ -20364,16 +20379,18 @@ function parseBudgetValue(td) {
       }
     }
 
-    // Sync map feature state
-    if (_geojsonData) {
+    // Sync map feature state immediately
+    if (_geojsonData && _map && _loaded) {
       for (var j = 0; j < _geojsonData.features.length; j++) {
         if (_geojsonData.features[j].properties.name === name) {
-          if (_map && _loaded) {
-            _map.setFeatureState(
-              { source: 'nb-source', id: j },
-              { selected: checked }
-            );
-          }
+          try {
+            if (_map.getSource('nb-source')) {
+              _map.setFeatureState(
+                { source: 'nb-source', id: j },
+                { selected: checked }
+              );
+            }
+          } catch (_) { /* source not ready */ }
           break;
         }
       }
@@ -20381,7 +20398,6 @@ function parseBudgetValue(td) {
 
     updateSelectedCount();
 
-    // Show/hide clear button
     var clearBtn = document.getElementById('nbMapClearBtn');
     if (clearBtn) {
       clearBtn.style.display = Object.keys(_selectedNames).length > 0 ? '' : 'none';
@@ -20390,19 +20406,20 @@ function parseBudgetValue(td) {
 
   window.clearNeighborhoodMapSelection = function () {
     _selectedNames = {};
-    // Uncheck all sidebar checkboxes
     var cbs = document.querySelectorAll('.nb-sidebar-cb');
     for (var i = 0; i < cbs.length; i++) {
       cbs[i].checked = false;
     }
-    // Clear map feature states
     if (_geojsonData && _map && _loaded) {
-      for (var j = 0; j < _geojsonData.features.length; j++) {
-        _map.setFeatureState({ source: 'nb-source', id: j }, { selected: false });
-      }
+      try {
+        if (_map.getSource('nb-source')) {
+          for (var j = 0; j < _geojsonData.features.length; j++) {
+            _map.setFeatureState({ source: 'nb-source', id: j }, { selected: false });
+          }
+        }
+      } catch (_) {}
     }
     updateSelectedCount();
-    // Hide clear button
     var clearBtn = document.getElementById('nbMapClearBtn');
     if (clearBtn) clearBtn.style.display = 'none';
   };
@@ -20411,13 +20428,15 @@ function parseBudgetValue(td) {
     if (_geojsonData) buildSidebar(_geojsonData, query);
   };
 
+  // (C) Style switch — rehydrate selection after style reload
   window.switchNeighborhoodMapStyle = function (styleName) {
     if (!_map || !STYLE_URLS[styleName]) return;
     _loaded = false;
+    _layersAdded = false;
     _map.setStyle(STYLE_URLS[styleName]);
     _map.once('style.load', function () {
       _loaded = true;
-      if (_geojsonData) addLayers(_geojsonData);
+      if (_geojsonData) addLayers(_geojsonData); // addLayers calls rehydrateSelection
     });
   };
 
