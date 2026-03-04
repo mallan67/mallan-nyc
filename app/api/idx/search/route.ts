@@ -134,13 +134,17 @@ function buildODataFilter(params: URLSearchParams): string {
   }
 
   // Status — default to active statuses for CRM agents
+  // StandardStatus uses RESO enum values (PascalCase, no spaces)
   const status = params.get("status");
   if (status) {
-    const statuses = status.split(",").map(s => `StandardStatus eq '${escapeOData(s.trim())}'`);
+    const statuses = status.split(",").map(s => {
+      const normalized = s.trim().replace(/\s+/g, ''); // "Coming Soon" → "ComingSoon"
+      return `StandardStatus eq '${escapeOData(normalized)}'`;
+    });
     parts.push(`(${statuses.join(" or ")})`);
   } else {
     parts.push(
-      "(StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract')"
+      "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')"
     );
   }
 

@@ -86,7 +86,7 @@ export async function GET(request: Request) {
       try {
         // Build OData $filter — push what we can to the server
         const filterParts: string[] = [
-          "(StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract')",
+          "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
         ];
 
         if (listingType === 'sale' || listingType === 'buy') {
