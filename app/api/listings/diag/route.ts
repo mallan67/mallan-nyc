@@ -5,6 +5,9 @@ import { checkDistributionGates, IDX_PLUS_SELECT_FIELDS } from '@/lib/idx/trestl
 import { mapRESOToInternal } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 
+// Prevent static generation at build time
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/listings/diag — temporary diagnostic endpoint.
  * Tests FULL Trestle pipeline step by step. DELETE after verified.
