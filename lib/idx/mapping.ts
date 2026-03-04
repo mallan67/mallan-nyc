@@ -235,6 +235,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     streetName: String(normalized.StreetName || ''),
     unitNumber: normalized.UnitNumber ? String(normalized.UnitNumber) : null,
     city: String(normalized.City || ''),
+    cityRegion: normalized.CityRegion ? String(normalized.CityRegion) : undefined,
     stateOrProvince: String(normalized.StateOrProvince || 'NY'),
     postalCode: String(normalized.PostalCode || ''),
     county: String(normalized.CountyOrParish || ''),
@@ -276,6 +277,51 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
         order: Number(item.Order || i),
       };
     }) : [],
+    // Remarks — public only (private remarks NEVER mapped to IDXListing)
+    publicRemarks: normalized.PublicRemarks ? String(normalized.PublicRemarks) : undefined,
+    // Distribution gate flags (for address suppression + downstream checks)
+    idxEntireListingDisplayYN: normalized.IDXEntireListingDisplayYN !== false,
+    internetEntireListingDisplayYN: normalized.InternetEntireListingDisplayYN !== false,
+    internetAddressDisplayYN: normalized.InternetAddressDisplayYN !== false,
+    participantOnlyYN: normalized.ParticipantOnlyYN === true,
+    // Building & property details
+    buildingName: normalized.BuildingName ? String(normalized.BuildingName) : undefined,
+    storiesTotal: normalized.StoriesTotal != null ? Number(normalized.StoriesTotal) : undefined,
+    roomsTotal: normalized.RoomsTotal != null ? Number(normalized.RoomsTotal) : undefined,
+    architecturalStyle: normalized.ArchitecturalStyle ? String(normalized.ArchitecturalStyle) : undefined,
+    constructionMaterials: normalized.ConstructionMaterials ? String(normalized.ConstructionMaterials) : undefined,
+    heating: normalized.Heating ? String(normalized.Heating) : undefined,
+    cooling: normalized.Cooling ? String(normalized.Cooling) : undefined,
+    flooring: normalized.Flooring ? String(normalized.Flooring) : undefined,
+    // Amenities
+    interiorFeatures: normalized.InteriorFeatures ? String(normalized.InteriorFeatures) : undefined,
+    exteriorFeatures: normalized.ExteriorFeatures ? String(normalized.ExteriorFeatures) : undefined,
+    appliances: normalized.Appliances ? String(normalized.Appliances) : undefined,
+    laundryFeatures: normalized.LaundryFeatures ? String(normalized.LaundryFeatures) : undefined,
+    securityFeatures: normalized.SecurityFeatures ? String(normalized.SecurityFeatures) : undefined,
+    communityFeatures: normalized.CommunityFeatures ? String(normalized.CommunityFeatures) : undefined,
+    parkingFeatures: normalized.ParkingFeatures ? String(normalized.ParkingFeatures) : undefined,
+    parkingTotal: normalized.ParkingTotal != null ? Number(normalized.ParkingTotal) : undefined,
+    garageSpaces: normalized.GarageSpaces != null ? Number(normalized.GarageSpaces) : undefined,
+    // Financial
+    associationFee: normalized.AssociationFee != null ? Number(normalized.AssociationFee) : undefined,
+    associationFeeFrequency: normalized.AssociationFeeFrequency ? String(normalized.AssociationFeeFrequency) : undefined,
+    taxAnnualAmount: normalized.TaxAnnualAmount != null ? Number(normalized.TaxAnnualAmount) : undefined,
+    taxYear: normalized.TaxYear != null ? Number(normalized.TaxYear) : undefined,
+    // Dates
+    onMarketDate: normalized.OnMarketDate ? String(normalized.OnMarketDate) : undefined,
+    activationDate: normalized.ActivationDate ? String(normalized.ActivationDate) : undefined,
+    availabilityDate: normalized.AvailabilityDate ? String(normalized.AvailabilityDate) : undefined,
+    closeDate: normalized.CloseDate ? String(normalized.CloseDate) : undefined,
+    // Photos & virtual tours
+    photosCount: normalized.PhotosCount != null ? Number(normalized.PhotosCount) : undefined,
+    virtualTourURLBranded: normalized.VirtualTourURLBranded ? String(normalized.VirtualTourURLBranded) : undefined,
+    virtualTourURLUnbranded: normalized.VirtualTourURLUnbranded ? String(normalized.VirtualTourURLUnbranded) : undefined,
+    // Rental-specific
+    leaseAmount: normalized.LeaseAmount != null ? Number(normalized.LeaseAmount) : undefined,
+    leaseAmountFrequency: normalized.LeaseAmountFrequency ? String(normalized.LeaseAmountFrequency) : undefined,
+    petsAllowed: normalized.PetsAllowed ? String(normalized.PetsAllowed) : undefined,
+    furnished: normalized.Furnished ? String(normalized.Furnished) : undefined,
     _source: 'idx',
     _lastFetched: new Date().toISOString(),
     _displayCompliance: {

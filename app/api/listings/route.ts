@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
-import { logAccessDenied } from '@/lib/idx';
 import { isDisplayableInIDX, sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
+import { fetchFromTrestle } from '@/lib/idx/fetch';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { toPublicDTO } from '@/lib/idx/public-dto';
 
 /**
  * Simple in-memory rate limiter (60 requests per minute per IP)
@@ -25,39 +28,29 @@ function checkRateLimit(ip: string): boolean {
 }
 
 /**
- * Check if this endpoint should serve IDX data
- * Currently serves local JSON data only (exclusive/manual listings)
- */
-function isIDXDataRequest(request: Request): boolean {
-  const { searchParams } = new URL(request.url);
-  // Future: Check for IDX-specific query params
-  // For now, this endpoint only serves local data
-  return searchParams.get('source') === 'idx';
-}
-
-/**
  * GET /api/listings
  *
- * COMPLIANCE NOTE:
- * This endpoint currently serves ONLY local/exclusive listings from data/listings.json.
- * It does NOT serve IDX/MLS data. When IDX integration is enabled, IDX data will be
- * fetched server-side via lib/idx/client.ts and merged with exclusive listings.
+ * COMPLIANCE PIPELINE (Option A — distribution gates on raw Trestle data):
+ *   fetchFromTrestle() → raw records
+ *   checkDistributionGates(raw) → filter non-displayable
+ *   mapRESOToInternal(raw) → IDXListing
+ *   toPublicDTO(listing) → PublicListingDTO (strips private data, suppresses address)
+ *
+ * When IDX_ENABLED=true: fetches from Trestle/REBNY RLS via OData v4.
+ * When IDX_ENABLED=false (or Trestle fails): falls back to data/listings.json.
  *
  * Query parameters:
- * - type: 'sale' | 'rent' - Filter by listing type
- * - neighborhood: string - Filter by neighborhood ID
+ * - type: 'sale' | 'rent' | 'buy' - Filter by listing type
+ * - neighborhood: string - Filter by neighborhood (CityRegion)
  * - borough: string - Filter by borough
  * - minPrice: number - Minimum price
  * - maxPrice: number - Maximum price
  * - beds: number - Minimum number of bedrooms
- * - propertyType: string - Property type (Condo, Co-op, etc.)
- * - pets: boolean - Only show pet-friendly listings
- * - featured: boolean - Only show featured listings
- * - exclusive: boolean - Only show exclusive listings
+ * - propertyType: string - Property sub-type (Condo, Co-op, etc.)
+ * - pets: boolean - Only show pet-friendly listings (local path only)
+ * - featured: boolean - Only show featured listings (local path only)
+ * - exclusive: boolean - Only show exclusive listings (local path only)
  * - limit: number - Max results (default 50)
- * - source: 'idx' - (Future) Request IDX data specifically
- *
- * Future: This endpoint will be enhanced to pull from IDX/RLS feeds
  */
 export async function GET(request: Request) {
   // Rate limiting — prevent bulk scraping
@@ -69,28 +62,11 @@ export async function GET(request: Request) {
     );
   }
 
-  // Gate IDX data requests until integration is complete
-  if (isIDXDataRequest(request)) {
-    const idxEnabled = process.env.IDX_ENABLED === 'true';
-    if (!idxEnabled) {
-      logAccessDenied('IDX disabled - source=idx rejected', '/api/listings');
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'IDX data source not available',
-          _compliance: {
-            message: 'IDX integration pending approval. Only exclusive listings available.',
-          },
-        },
-        { status: 503 }
-      );
-    }
-    // Future: Fetch from IDX when enabled
-  }
   try {
     const { searchParams } = new URL(request.url);
+    const useIDX = process.env.IDX_ENABLED === 'true';
 
-    // Get query params
+    // Parse query params
     const listingType = searchParams.get('type');
     const neighborhood = searchParams.get('neighborhood');
     const borough = searchParams.get('borough');
@@ -103,11 +79,117 @@ export async function GET(request: Request) {
     const exclusiveOnly = searchParams.get('exclusive') === 'true';
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-    // Type the listings array using REBNY-compliant schema
+    // ═══════════════════════════════════════════════════════════
+    // IDX PATH: Fetch from Trestle/REBNY RLS
+    // ═══════════════════════════════════════════════════════════
+    if (useIDX) {
+      try {
+        // Build OData $filter — push what we can to the server
+        const filterParts: string[] = [
+          "(MlsStatus eq 'Active' or MlsStatus eq 'Coming Soon' or MlsStatus eq 'Active Under Contract')",
+        ];
+
+        if (listingType === 'sale' || listingType === 'buy') {
+          filterParts.push("PropertyType ne 'ResidentialLease'");
+        } else if (listingType === 'rent') {
+          filterParts.push("PropertyType eq 'ResidentialLease'");
+        }
+
+        if (minPrice) filterParts.push(`ListPrice ge ${parseInt(minPrice, 10)}`);
+        if (maxPrice) filterParts.push(`ListPrice le ${parseInt(maxPrice, 10)}`);
+        if (minBeds) filterParts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
+
+        // Fetch extra records to account for gate filtering
+        const fetchTop = Math.min(limit * 2, 200);
+
+        const result = await fetchFromTrestle({
+          filter: filterParts.join(' and '),
+          top: fetchTop,
+        });
+
+        // Step 1: Distribution gates on RAW Trestle data (Option A)
+        // This runs checkDistributionGates() BEFORE mapping — works directly on
+        // raw OData field names. No type mismatch with Listing type.
+        const displayable = result.records.filter(
+          (raw) => checkDistributionGates(raw).displayable
+        );
+
+        // Step 2: Map to IDXListing
+        const mapped = displayable
+          .map((raw) => mapRESOToInternal(raw))
+          .filter((l): l is NonNullable<typeof l> => l !== null);
+
+        // Step 3: Post-fetch filters (can't push to OData)
+        let filtered = mapped;
+
+        if (borough) {
+          const boroughLower = borough.toLowerCase();
+          filtered = filtered.filter((l) => {
+            const county = l.address.county.toLowerCase();
+            const city = l.address.city.toLowerCase();
+            // NYC borough → county mapping
+            if (boroughLower === 'manhattan') return county.includes('new york') || city === 'manhattan';
+            if (boroughLower === 'brooklyn') return county.includes('kings') || city === 'brooklyn';
+            if (boroughLower === 'queens') return county.includes('queens') || city === 'queens';
+            if (boroughLower === 'bronx') return county.includes('bronx') || city === 'bronx';
+            if (boroughLower === 'staten island') return county.includes('richmond') || city === 'staten island';
+            return county.includes(boroughLower) || city === boroughLower;
+          });
+        }
+
+        if (neighborhood) {
+          const neighborhoodLower = neighborhood.toLowerCase();
+          filtered = filtered.filter(
+            (l) => l.address.cityRegion?.toLowerCase() === neighborhoodLower
+          );
+        }
+
+        if (propertyTypeFilter) {
+          const ptLower = propertyTypeFilter.toLowerCase();
+          filtered = filtered.filter(
+            (l) =>
+              l.propertyType.toLowerCase() === ptLower ||
+              (l.propertySubType && l.propertySubType.toLowerCase() === ptLower)
+          );
+        }
+
+        // Step 4: Apply limit and convert to public DTO
+        const publicListings = filtered.slice(0, limit).map(toPublicDTO);
+
+        return NextResponse.json(
+          {
+            success: true,
+            count: publicListings.length,
+            listings: publicListings,
+            _compliance: {
+              source: 'idx',
+              idxEnabled: true,
+              attribution: generateAttributionText(),
+              disclaimer:
+                'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
+              totalFetched: result.totalFetched,
+              gateFiltered: result.records.length - displayable.length,
+            },
+          },
+          {
+            headers: {
+              'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+            },
+          }
+        );
+      } catch (idxError) {
+        // IDX fetch failed — fall through to local data for resilience
+        console.error('[/api/listings] IDX fetch failed, falling back to local data:', idxError);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // LOCAL PATH: Serve from data/listings.json (fallback)
+    // ═══════════════════════════════════════════════════════════
     let listings = listingsData.listings as unknown as Listing[];
 
     // Apply filters — REBNY RLS: Enforce all 6 distribution gates
-    listings = listings.filter(listing => {
+    listings = listings.filter((listing) => {
       // Centralized IDX display gate (all 6 REBNY distribution gates)
       if (!isDisplayableInIDX(listing)) return false;
 
@@ -127,7 +209,7 @@ export async function GET(request: Request) {
       if (minPrice && listing.price.listPrice < parseInt(minPrice, 10)) return false;
       if (maxPrice && listing.price.listPrice > parseInt(maxPrice, 10)) return false;
 
-      // Beds filter (using REBNY-compliant nested structure)
+      // Beds filter
       if (minBeds && listing.propertyInfo.bedroomsTotal < parseInt(minBeds, 10)) return false;
 
       // Property type filter
@@ -163,14 +245,11 @@ export async function GET(request: Request) {
         success: true,
         count: sanitizedListings.length,
         listings: sanitizedListings,
-        // Compliance metadata
         _compliance: {
-          source: 'exclusive', // Currently serving exclusive/manual listings only
-          idxEnabled: process.env.IDX_ENABLED === 'true',
+          source: 'exclusive',
+          idxEnabled: useIDX,
           disclaimer: 'Information deemed reliable but not guaranteed.',
         },
-        // Future: Add pagination info
-        // pagination: { page: 1, pageSize: limit, total: totalCount }
       },
       {
         headers: {
