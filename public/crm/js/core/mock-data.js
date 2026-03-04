@@ -53,8 +53,13 @@
             { id: 26, address: '401 EAST 60TH STREET', unit: '11C', price: 780000, totalMonthly: 1350, rooms: 3, beds: 1, baths: 1, fullBaths: 1, halfBaths: 0, reTaxes: 380, maintCC: 970, intSqft: 700, status: 'CLOSED', ownership: 'Condominium', propertyType: 'Residential', propertySubType: 'Condominium', neighborhood: 'Upper East Side', borough: 'Manhattan', zip: '10065', era: 'Post-War', yearBuilt: 1960, buildingName: null, listingType: 'Exclusive', lid: '23830006', wid: '20095006', dom: 45, cdom: 45, listedDate: '01/01/2026', updatedDate: '02/13/2026', company: 'Mallan Real Estate Inc.', agentName: 'Demo Agent', closedDate: '02/13/2026', photoCount: 9, latitude: 40.7615, longitude: -73.9600, description: 'Recently closed listing for 24hr test.', idxDisplayYN: true, addressDisplayYN: true, permissions: { ownerOptOut: false, participantOnly: false, idxDisplay: true, syndication: true } },
         ];
 
-        // Production: empty array, populated from API. Dev mock: hardcoded data.
-        var mockListings = _isDevMock ? _MOCK_LISTINGS_DATA.slice() : [];
+        // Localhost: always start with mock data (available immediately for search).
+        // Production: empty array, populated from API.
+        var _isLocalhost = (function() {
+            var h = window.location.hostname;
+            return h === 'localhost' || h === '127.0.0.1' || h === '';
+        })();
+        var mockListings = (_isDevMock || _isLocalhost) ? _MOCK_LISTINGS_DATA.slice() : [];
 
         // ── REBNY Distribution Gate defaults ──
         // Add default permissions to all listings that don't have explicit permissions set
@@ -452,29 +457,88 @@
             };
         }
 
-        // Fetch listings from API (production) or skip if dev mock mode
+        // ── Production data loading ─────────────────────────────────────────────
+        // Priority: 1) IDX/Trestle search  2) Prisma DB  3) keep mock data (localhost)
+        // On localhost, mockListings already has mock data — API upgrades it if available.
+        // On production, mockListings starts empty — API populates it.
         if (typeof MallanAPI !== 'undefined' && !_isDevMock) {
             MallanAPI.onReady(function() {
-                MallanAPI.listings.list({ limit: 200 }).then(function(result) {
-                    if (result.listings && result.listings.length > 0) {
-                        var apiListings = result.listings.map(transformAPIListing);
-                        // Replace mockListings in-place (preserving reference)
-                        mockListings.length = 0;
-                        apiListings.forEach(function(l) { mockListings.push(l); });
-                        console.log('[MockData] Loaded ' + apiListings.length + ' listings from API');
-                        // Refresh the current view ONLY if user is already viewing results
-                        var resultsSection = document.getElementById('searchResultsSection');
-                        var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
-                        if (isViewingResults && typeof performSearch === 'function') performSearch();
+                _loadFromIDX().catch(function() {
+                    // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
+                    console.warn('[MockData] IDX unavailable, falling back to local DB');
+                    return _loadFromPrisma();
+                }).catch(function() {
+                    // All API sources failed
+                    if (_isLocalhost) {
+                        // On localhost, mock data is already loaded — just log it
+                        console.warn('[MockData] API unavailable on localhost — using mock data');
                     } else {
-                        console.warn('[MockData] API returned 0 listings');
-                        _showNoListingsMessage('No listings available.');
+                        _showNoListingsMessage('Unable to load listings. Check your connection.');
                     }
-                }).catch(function(err) {
-                    console.error('[MockData] API fetch failed:', err.message);
-                    _showNoListingsMessage('Unable to load listings. Check your connection.');
                 });
             });
+        }
+
+        /**
+         * Load listings from IDX/Trestle (primary source).
+         * IDX response is already in CRM flat shape — push directly.
+         */
+        function _loadFromIDX() {
+            return MallanAPI.idx.search({ limit: 200 }).then(function(result) {
+                if (result.listings && result.listings.length > 0) {
+                    _replaceListings(result.listings, 'IDX/Trestle');
+                    // Show REBNY attribution
+                    if (result.attribution) _showAttribution(result.attribution);
+                    return result;
+                }
+                return Promise.reject(new Error('IDX returned 0 listings'));
+            });
+        }
+
+        /**
+         * Load listings from Prisma DB (fallback — local exclusives).
+         */
+        function _loadFromPrisma() {
+            return MallanAPI.listings.list({ limit: 200 }).then(function(result) {
+                if (result.listings && result.listings.length > 0) {
+                    var apiListings = result.listings.map(transformAPIListing);
+                    _replaceListings(apiListings, 'local DB');
+                    return result;
+                }
+                _showNoListingsMessage('No listings available.');
+                return Promise.reject(new Error('Local DB returned 0 listings'));
+            });
+        }
+
+        /**
+         * Replace mockListings in-place and refresh view if visible.
+         */
+        function _replaceListings(listings, source) {
+            mockListings.length = 0;
+            listings.forEach(function(l) { mockListings.push(l); });
+            // Apply borough defaults + neighborhood resolution
+            mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+            mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+            console.log('[MockData] Loaded ' + listings.length + ' listings from ' + source);
+            // Refresh the current view ONLY if user is already viewing results
+            var resultsSection = document.getElementById('searchResultsSection');
+            var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
+            if (isViewingResults && typeof performSearch === 'function') performSearch();
+        }
+
+        /**
+         * Show REBNY attribution text at the bottom of results.
+         */
+        function _showAttribution(text) {
+            var existing = document.getElementById('rebnyAttribution');
+            if (existing) { existing.textContent = text; return; }
+            var resultsEl = document.getElementById('searchResults') || document.getElementById('listingGrid');
+            if (!resultsEl || !resultsEl.parentNode) return;
+            var attrDiv = document.createElement('div');
+            attrDiv.id = 'rebnyAttribution';
+            attrDiv.style.cssText = 'text-align:center;padding:12px 20px;color:#9ca3af;font-size:11px;border-top:1px solid #e5e7eb;margin-top:16px;';
+            attrDiv.textContent = text;
+            resultsEl.parentNode.insertBefore(attrDiv, resultsEl.nextSibling);
         }
 
         function _showNoListingsMessage(msg) {
