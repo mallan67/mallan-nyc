@@ -85,6 +85,12 @@ export {
   getFieldProfile,
 } from './trestle-mapper';
 
+// Re-export public DTO
+export {
+  toPublicDTO,
+} from './public-dto';
+export type { PublicListingDTO } from './public-dto';
+
 // Re-export sync
 export {
   syncListings,

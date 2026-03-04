@@ -170,7 +170,7 @@ const B12_UNIT_ROOMS = [
   "TotalLegalRooms",
 ];
 
-// B13: Building Details (18 fields)
+// B13: Building Details (19 fields)
 const B13_BUILDING = [
   "BuildingName", "BuilderName", "ArchitectName",
   "YearBuilt", "YearBuiltSource", "YearBuiltDetails",
@@ -178,6 +178,7 @@ const B13_BUILDING = [
   "Roof", "Foundation", "Heating", "Cooling",
   "ElectricOnPropertyYN", "Sewer", "WaterSource",
   "OtherStructures", "FloorNumber", "FloorNumberInBuilding",
+  "BuildingKeyNumeric",
 ];
 
 // B14: Building Amenities (20 fields)

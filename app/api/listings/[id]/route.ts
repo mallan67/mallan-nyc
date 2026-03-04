@@ -1,50 +1,104 @@
 import { NextResponse } from 'next/server';
 import listingsData from '@/data/listings.json';
-import { logAccessDenied } from '@/lib/idx';
 import { sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
+import { fetchSingleListing } from '@/lib/idx/fetch';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { toPublicDTO } from '@/lib/idx/public-dto';
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 /**
- * Check if listing ID appears to be an IDX/MLS ID
- * IDX IDs typically follow specific patterns (e.g., MLS numbers)
- */
-function isIDXListingId(id: string): boolean {
-  // Local listings use our own ID format (e.g., 'sale-001', 'rent-001')
-  // IDX listings would use MLS numbers (typically numeric or alphanumeric patterns)
-  // For now, assume any ID not matching our format might be IDX
-  return !id.match(/^(sale|rent)-\d{3}$/);
-}
-
-/**
  * GET /api/listings/:id
  *
- * COMPLIANCE NOTE:
- * This endpoint currently serves ONLY local/exclusive listings from data/listings.json.
- * It does NOT serve IDX/MLS data. When IDX integration is enabled, IDX listings
- * will be fetched server-side via lib/idx/client.ts.
+ * COMPLIANCE PIPELINE (Option A — distribution gates on raw Trestle data):
+ *   fetchSingleListing(listingKey) → raw record
+ *   checkDistributionGates(raw) → reject if non-displayable
+ *   mapRESOToInternal(raw) → IDXListing
+ *   toPublicDTO(listing) → PublicListingDTO (strips private data, suppresses address)
  *
- * Returns a single listing by ID
+ * When IDX_ENABLED=true: fetches from Trestle by ListingKey.
+ * When IDX_ENABLED=false (or Trestle fails): falls back to data/listings.json.
  *
- * Future: This endpoint will be enhanced to pull from IDX/RLS feeds
+ * Returns 404 if:
+ * - Listing not found in either source
+ * - Listing fails distribution gates (must NOT be shown publicly)
  */
 export async function GET(request: Request, { params }: Props) {
   try {
     const { id } = await params;
+    const useIDX = process.env.IDX_ENABLED === 'true';
 
-    // Gate potential IDX listing requests
-    if (isIDXListingId(id)) {
-      const idxEnabled = process.env.IDX_ENABLED === 'true';
-      if (!idxEnabled) {
-        logAccessDenied('IDX disabled - IDX listing ID rejected', '/api/listings/[id]', id);
-        // Continue to check local listings - might be a valid local ID
+    // ═══════════════════════════════════════════════════════════
+    // IDX PATH: Fetch single listing from Trestle by ListingKey
+    // ═══════════════════════════════════════════════════════════
+    if (useIDX) {
+      try {
+        const raw = await fetchSingleListing(id);
+
+        if (raw) {
+          // Step 1: Distribution gates on RAW Trestle data
+          const gateResult = checkDistributionGates(raw);
+          if (!gateResult.displayable) {
+            // Listing exists but fails compliance gates — return 404
+            // Do NOT reveal the reason to the public (compliance: fail closed)
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'Listing not found',
+                _compliance: {
+                  source: 'idx',
+                  idxEnabled: true,
+                },
+              },
+              { status: 404 }
+            );
+          }
+
+          // Step 2: Map to IDXListing
+          const listing = mapRESOToInternal(raw);
+          if (!listing) {
+            return NextResponse.json(
+              { success: false, error: 'Listing not found' },
+              { status: 404 }
+            );
+          }
+
+          // Step 3: Convert to public DTO (strips private data, suppresses address)
+          const publicListing = toPublicDTO(listing);
+
+          return NextResponse.json(
+            {
+              success: true,
+              listing: publicListing,
+              _compliance: {
+                source: 'idx',
+                idxEnabled: true,
+                attribution: generateAttributionText(),
+                disclaimer:
+                  'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
+              },
+            },
+            {
+              headers: {
+                'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+              },
+            }
+          );
+        }
+        // raw is null — listing not found in Trestle, fall through to local
+      } catch (idxError) {
+        // IDX fetch failed — fall through to local data for resilience
+        console.error(`[/api/listings/${id}] IDX fetch failed, falling back to local data:`, idxError);
       }
-      // Future: Fetch from IDX when enabled for IDX IDs
     }
 
-    const listing = listingsData.listings.find(l => l.id === id);
+    // ═══════════════════════════════════════════════════════════
+    // LOCAL PATH: Serve from data/listings.json (fallback)
+    // ═══════════════════════════════════════════════════════════
+    const listing = listingsData.listings.find((l) => l.id === id);
 
     if (!listing) {
       return NextResponse.json(
@@ -52,8 +106,8 @@ export async function GET(request: Request, { params }: Props) {
           success: false,
           error: 'Listing not found',
           _compliance: {
-            note: 'Listing may be an IDX listing not yet available.',
-            idxEnabled: process.env.IDX_ENABLED === 'true',
+            source: 'exclusive',
+            idxEnabled: useIDX,
           },
         },
         { status: 404 }
@@ -61,15 +115,17 @@ export async function GET(request: Request, { params }: Props) {
     }
 
     // REBNY COMPLIANCE: Sanitize listing for public display — strip private data
-    const sanitizedListing = sanitizeForPublicDisplay(listing as unknown as import('@/lib/types/listing').Listing);
+    const sanitizedListing = sanitizeForPublicDisplay(
+      listing as unknown as import('@/lib/types/listing').Listing
+    );
 
     return NextResponse.json(
       {
         success: true,
         listing: sanitizedListing,
         _compliance: {
-          source: 'exclusive', // Currently serving exclusive/manual listings only
-          idxEnabled: process.env.IDX_ENABLED === 'true',
+          source: 'exclusive',
+          idxEnabled: useIDX,
           disclaimer: 'Information deemed reliable but not guaranteed.',
         },
       },
