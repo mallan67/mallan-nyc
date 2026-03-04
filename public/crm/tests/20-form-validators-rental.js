@@ -1,7 +1,8 @@
-            if (addr && addrDisp) addrDisp.textContent = addr.value || '[Enter Address]';
-            if (unit && unitDisp) unitDisp.textContent = unit.value || '[Unit]';
-        }
-        
+// ─── 20: RENTAL FORM VALIDATORS ───────────────────────────────────────
+// Extracted rental form validation logic for browser-based testing.
+// Run inside RENTAL-FORM-REDESIGN.html context (requires DOM + form globals).
+// ──────────────────────────────────────────────────────────────────────
+(function() {
         function validateStatusChange(prefix) {
             // Stub — full validation to be added
         }
@@ -179,3 +180,6 @@
         var rentalOpenHouseCount = 0;
         function addRentalOpenHouse() {
             rentalOpenHouseCount++;
+            // (truncated — full implementation in RENTAL-FORM-REDESIGN.html)
+        }
+})();

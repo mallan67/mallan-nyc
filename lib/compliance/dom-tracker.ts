@@ -1,26 +1,36 @@
 /**
  * DOM Tracker — Days on Market calculation + 30-day reset enforcement (UCBA 2026)
  *
- * UCBA 2026 rules:
+ * UCBA 2026 rules (Art. I, Sec. 11):
  *   - DOM accrues only while listing is Active or ActiveUnderContract
  *   - DOM does NOT accrue during ComingSoon, Withdrawn, Cancelled, Expired
+ *   - DOM does NOT accrue while Permissions = "Participant Only Network"
+ *     (even if status is Active) — UCBA 2026 explicit carve-out
  *   - If listing is in Withdrawn/Cancelled for >= 30 consecutive days,
  *     DOM resets to 0 upon reactivation
  *   - If < 30 days in Withdrawn/Cancelled, DOM resumes where it left off
  *   - Sold/Rented = final DOM snapshot (no further accrual)
+ *   - Cannot circumvent by re-naming or re-listing
  */
 
 /** Number of consecutive days in Withdrawn/Cancelled before DOM resets */
 export const DOM_RESET_DAYS = 30;
 
-/** Statuses where DOM actively accrues */
+/** Statuses where DOM actively accrues (subject to permissions check) */
 const DOM_ACCRUING_STATUSES = new Set(["Active", "ActiveUnderContract"]);
 
 /** Statuses that can trigger a DOM reset after DOM_RESET_DAYS */
 const DOM_RESET_ELIGIBLE_STATUSES = new Set(["Withdrawn", "Cancelled"]);
 
+/** Permissions values that suppress DOM accrual even when status is Active */
+const DOM_SUPPRESSING_PERMISSIONS = new Set([
+  "Participant Only Network",
+  "Private",
+]);
+
 type ListingDomFields = {
   status: string;
+  permissions?: string | null;
   status_changed_at: Date | null;
   first_active_date: Date | null;
   days_on_market: number;
@@ -42,12 +52,27 @@ export function shouldResetDom(listing: ListingDomFields): boolean {
 }
 
 /**
+ * Check if DOM accrual is suppressed by permissions.
+ * UCBA 2026: "Coming Soon" and "Participant Only Network" do NOT accrue DOM.
+ */
+export function isDomSuppressedByPermissions(
+  permissions: string | null | undefined
+): boolean {
+  if (!permissions) return false;
+  return DOM_SUPPRESSING_PERMISSIONS.has(permissions);
+}
+
+/**
  * Compute DOM update fields for a status transition.
  * Returns partial update data to spread into a Prisma update.
+ *
+ * Permissions-aware: if listing has DOM-suppressing permissions
+ * (Participant Only Network), DOM does not accrue even if status is Active.
  */
 export function computeDomTransition(
   listing: ListingDomFields,
-  newStatus: string
+  newStatus: string,
+  newPermissions?: string | null
 ): {
   status_changed_at: Date;
   first_active_date: Date | null;
@@ -56,7 +81,14 @@ export function computeDomTransition(
 } {
   const now = new Date();
   const isActivating = DOM_ACCRUING_STATUSES.has(newStatus);
-  const wasAccruing = DOM_ACCRUING_STATUSES.has(listing.status);
+  const wasAccruing =
+    DOM_ACCRUING_STATUSES.has(listing.status) &&
+    !isDomSuppressedByPermissions(listing.permissions);
+
+  // If activating but permissions suppress DOM, treat as non-accruing
+  const effectivelyActivating =
+    isActivating &&
+    !isDomSuppressedByPermissions(newPermissions ?? listing.permissions);
 
   // Snapshot current DOM before transition (if was accruing)
   let currentDom = listing.days_on_market;
@@ -69,7 +101,7 @@ export function computeDomTransition(
 
   // Determine if DOM resets
   let resetDom = false;
-  if (isActivating && shouldResetDom(listing)) {
+  if (effectivelyActivating && shouldResetDom(listing)) {
     resetDom = true;
   }
 
@@ -83,7 +115,7 @@ export function computeDomTransition(
     };
   }
 
-  if (isActivating) {
+  if (effectivelyActivating) {
     return {
       status_changed_at: now,
       first_active_date: resetDom ? now : (listing.first_active_date ?? now),
@@ -92,7 +124,8 @@ export function computeDomTransition(
     };
   }
 
-  // Moving to non-accruing status (Withdrawn, Cancelled, Expired, ComingSoon, etc.)
+  // Moving to non-accruing status (Withdrawn, Cancelled, Expired, ComingSoon,
+  // or Active with DOM-suppressing permissions like Participant Only Network)
   return {
     status_changed_at: now,
     first_active_date: listing.first_active_date,

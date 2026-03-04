@@ -3,6 +3,7 @@
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 const portalTypes = [
@@ -21,13 +22,63 @@ const colorMap: Record<string, { bg: string; text: string; border: string; activ
   amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-gray-200', activeBg: 'bg-amber-100', activeBorder: 'border-amber-500' },
 };
 
-export default function SignInPage() {
-  const [selectedPortal, setSelectedPortal] = useState('client');
-  const [submitted, setSubmitted] = useState(false);
+// Map UI labels to the portalType the login API expects
+const portalApiMap: Record<string, string> = {
+  buyer: 'buyer',
+  renter: 'tenant',
+  seller: 'seller',
+  landlord: 'landlord',
+  agent: 'agent',
+};
 
-  function handleSubmit(e: React.FormEvent) {
+export default function SignInPage() {
+  const router = useRouter();
+  const [selectedPortal, setSelectedPortal] = useState('agent');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          portalType: portalApiMap[selectedPortal] || 'agent',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      setUserName(data.user?.name || '');
+      setSubmitted(true);
+
+      // Redirect based on role after short delay so user sees success
+      const role = data.user?.role || selectedPortal;
+      const isAgent = role === 'broker' || role === 'agent';
+      setTimeout(() => {
+        router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/');
+      }, 1500);
+    } catch {
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (submitted) {
@@ -43,7 +94,9 @@ export default function SignInPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-display font-semibold mb-2">Signed In</h1>
+              <h1 className="text-2xl font-display font-semibold mb-2">
+                {userName ? `Welcome, ${userName}` : 'Signed In'}
+              </h1>
               <p className="text-brand-dark/60 mb-4">
                 Redirecting to your <strong>{portal?.label}</strong> portal...
               </p>
@@ -116,6 +169,8 @@ export default function SignInPage() {
                   type="email"
                   id="email"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="you@example.com"
                 />
@@ -129,16 +184,25 @@ export default function SignInPage() {
                   type="password"
                   id="password"
                   required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="Your password"
                 />
               </div>
 
+              {error && (
+                <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm text-center">
+                  {error}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full bg-brand-dark text-white py-3 rounded-2xl hover:bg-brand-dark/90 transition-colors font-medium"
+                disabled={loading}
+                className="w-full bg-brand-dark text-white py-3 rounded-2xl hover:bg-brand-dark/90 transition-colors font-medium disabled:opacity-50"
               >
-                Sign In
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
 

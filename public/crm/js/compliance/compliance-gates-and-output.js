@@ -7,7 +7,9 @@
 // LOGGED_IN_AGENT + AGENT_PROFILE defined at top of first <script> block
 
 // Compliance gate — check each listing before output
-function checkListingCompliance(listingIds) {
+// displayContext: 'idx' (default/public) | 'vow' (authenticated client) | 'crm' (agent/broker)
+function checkListingCompliance(listingIds, displayContext) {
+    displayContext = displayContext || (typeof searchDisplayContext !== 'undefined' ? searchDisplayContext : 'idx');
     var result = { passed: [], blocked: [], warnings: [] };
     listingIds.forEach(function(id) {
         var listing = mockListings.find(function(l) { return l.id === id; });
@@ -15,23 +17,37 @@ function checkListingCompliance(listingIds) {
 
         var perm = listing.permissions || {};
 
-        // Gate 1: Owner Opt-Out — NEVER display (UCBA Art. I Sec. 4(A))
+        // Gate 1: Owner Opt-Out — NEVER display in ANY context (UCBA Art. I Sec. 4(A))
         if (perm.ownerOptOut === true) {
             result.blocked.push({ id: id, address: listing.address, reason: 'Owner opted out of all display — listing cannot be shown or distributed (UCBA Art. I Sec. 4(A))' });
             return;
         }
 
-        // Gate 2: Participant Only — not for IDX/public display
+        // Gate 2: Participant Only — CRM only (authorized RLS participants)
         if (perm.participantOnly === true) {
-            result.blocked.push({ id: id, address: listing.address, reason: 'Participant Only — listing is restricted to RLS participants only, not for IDX/public display' });
-            return;
+            if (displayContext !== 'crm') {
+                result.blocked.push({ id: id, address: listing.address, reason: 'Participant Only — visible to RLS participants only (RLS: Permissions=Private)' });
+                return;
+            }
         }
 
-        // Gate 3: IDX Display opt-out — NEVER show on IDX websites
-        if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-            result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — listing cannot be displayed on IDX websites or distributed' });
-            return;
+        // Gate 3: Display context — IDX vs VOW vs CRM
+        if (displayContext === 'idx') {
+            if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
+                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (RLS: IDXEntireListingDisplayYN)' });
+                return;
+            }
+            if (listing.internetDisplayYN === false) {
+                result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out — not shown on any website (RLS: InternetEntireListingDisplayYN)' });
+                return;
+            }
+        } else if (displayContext === 'vow') {
+            if (listing.internetDisplayYN === false) {
+                result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out — not shown in VOW portal (RLS: InternetEntireListingDisplayYN)' });
+                return;
+            }
         }
+        // CRM: skip Gate 3 (authorized participant sees all except Owner Opt-Out)
 
         // Gate 4: Syndication — track for distribution control
         // SyndicateYN=false means listing should NOT go to third-party portals,
@@ -1078,6 +1094,9 @@ function completeVowRegistration() {
         timestamp: new Date().toISOString(),
         acknowledged: true
     }));
+
+    // Set VOW display context so search engine uses VOW gates
+    localStorage.setItem('vow_display_context', 'vow');
 
     if (typeof logAuditEntry === 'function') {
         logAuditEntry('vow_registration', { agentId: agentId, timestamp: new Date().toISOString() });

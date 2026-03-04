@@ -1,4 +1,8 @@
-        
+// ─── 21: DESCRIPTION COMPLIANCE TESTS ─────────────────────────────────
+// Fair Housing + REBNY description compliance scanner logic.
+// Run inside form HTML context (requires DOM).
+// ──────────────────────────────────────────────────────────────────────
+(function() {
         // ── Fair Housing Violations (Federal + NY State + NYC Title 8) ──
         var FAIR_HOUSING_VIOLATIONS = [
             // Federal Protected Classes — Fair Housing Act 42 U.S.C. 3604(c)
@@ -179,3 +183,7 @@
                     field.classList.remove('border-red-500', 'bg-red-50');
                 }
             });
+            // (truncated — full implementation in form HTML)
+            return missing.length === 0;
+        }
+})();

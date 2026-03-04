@@ -103,12 +103,24 @@
             // TODO: Extend screening to search form inputs, client preference fields,
             //       and agent-entered notes. Use same patterns from description validator.
             //       Ref: REBNY "word and phrase list" per Fair Housing Act + NYS + NYC HRL.
-            // Production: VOW-authenticated clients may see Gate 2/3 listings — implement auth layer before enabling.
+            // Display context: IDX (public), VOW (authenticated client), CRM (agent/broker)
+            var renderContext = (typeof searchDisplayContext !== 'undefined') ? searchDisplayContext : 'idx';
             listings = listings.filter(function(l) {
                 var p = l.permissions || {};
+                // Gate 1: Owner Opt-Out — NEVER display in ANY context
                 if (p.ownerOptOut === true) return false;
-                if (p.participantOnly === true) return false;
-                if (l.idxDisplayYN === false || p.idxDisplay === false) return false;
+                // Gate 2: Participant Only — CRM only
+                if (p.participantOnly === true) {
+                    if (renderContext !== 'crm') return false;
+                }
+                // Gate 3: context-aware display
+                if (renderContext === 'idx') {
+                    if (l.idxDisplayYN === false || p.idxDisplay === false) return false;
+                    if (l.internetDisplayYN === false) return false;
+                } else if (renderContext === 'vow') {
+                    if (l.internetDisplayYN === false) return false;
+                }
+                // CRM: no Gate 3 filtering
                 return true;
             });
             // Apply status flag filters (picked, liked, shown, etc.)

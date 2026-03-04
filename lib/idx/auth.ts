@@ -14,8 +14,15 @@ export interface TrestleAuthToken {
 // In-memory token cache
 let cachedToken: TrestleAuthToken | null = null;
 
-const TOKEN_ENDPOINT =
-  "https://api.cotality.com/trestle/oidc/connect/token";
+// Derive token endpoint from centralized TRESTLE_API_URL per compliance requirement.
+// Env validation is deferred to getAccessToken() — no top-level throws (Vercel serverless safety).
+function getTrestleTokenEndpoint(): string {
+  const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  if (process.env.NODE_ENV === "production" && !process.env.TRESTLE_API_URL) {
+    throw new Error("Missing TRESTLE_API_URL environment variable");
+  }
+  return `${base}/oidc/connect/token`;
+}
 
 // Buffer before expiry to refresh (default 5 minutes, configurable via env)
 const EXPIRY_BUFFER_SECONDS = parseInt(
@@ -49,7 +56,7 @@ export async function getAccessToken(): Promise<string> {
     scope: "api",
   });
 
-  const response = await fetch(TOKEN_ENDPOINT, {
+  const response = await fetch(getTrestleTokenEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),

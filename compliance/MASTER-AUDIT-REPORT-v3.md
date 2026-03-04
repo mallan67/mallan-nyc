@@ -2571,7 +2571,7 @@ This is an existential system dependency.
 
 2. Base URL must be stored in environment configuration:
 
-   * `TRESTLE_BASE_URL=https://api.cotality.com/trestle`
+   * `TRESTLE_API_URL=https://api.cotality.com/trestle`
    * Separate staging and production values
    * No hardcoded strings allowed
 
@@ -2643,7 +2643,7 @@ Load testing must simulate realistic quota constraints.
 1. **No hardcoded endpoints anywhere in code**
 2. Base URL stored in:
 
-   * ENV variable (`TRESTLE_BASE_URL`)
+   * ENV variable (`TRESTLE_API_URL`)
    * Staging + Production separated
 3. Health check endpoint test added to CI
 4. Fallback error logging on failed IDX refresh

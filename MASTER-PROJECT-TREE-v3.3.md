@@ -407,12 +407,12 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 **AR.1 Mandatory Migration:**
 1. All references to deprecated hosts removed from: backend services, API clients, environment configs, documentation, test fixtures, comments
-2. Base URL in environment config: `TRESTLE_BASE_URL=https://api.cotality.com/trestle` — separate staging and production values — no hardcoded strings
+2. Base URL in environment config: `TRESTLE_API_URL=https://api.cotality.com/trestle` — separate staging and production values — no hardcoded strings
 3. OAuth2 token endpoint validated against new host
 4. All integration tests pass using new endpoint before Phase 3 completion
 
 **AR.2 Infrastructure Layer Update (Layer 0):**
-- Environment-based external API configuration (`TRESTLE_BASE_URL`)
+- Environment-based external API configuration (`TRESTLE_API_URL`)
 - Trestle/Cotality endpoint migration completed
 - OAuth token refresh validation
 - External API health monitoring (IDX heartbeat check)
@@ -630,7 +630,7 @@ Phase 0 (Mockup) ──→ Phase 1 (Data) ──→ Phase 2 (Auth) ──→ Pha
 
 **Enforcement:**
 - CI-gated (AR.3) — build fails on detection
-- Standardized ENV variable: `TRESTLE_BASE_URL=https://api.cotality.com/trestle`
+- Standardized ENV variable: `TRESTLE_API_URL=https://api.cotality.com/trestle`
 - Separate staging and production values
 - Deprecated URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) trigger build failure
 - Hard deadline: March 31, 2026. Vendor may decommission earlier with notice; do not rely on quota boost.
@@ -681,5 +681,5 @@ If API response malformed → **fail-closed**: do not partially ingest listing.
 *Trestle/Cotality endpoint migration enforced — hard deadline March 31, 2026*
 *Vendor may decommission earlier with notice; do not rely on quota boost*
 *Old media URLs continue through 2026 warranty; do not treat as permanent*
-*ENV: `TRESTLE_BASE_URL=https://api.cotality.com/trestle`*
+*ENV: `TRESTLE_API_URL=https://api.cotality.com/trestle`*
 *All migration controls integrated into Layer 0 + CI gating + Go-Live checklist*

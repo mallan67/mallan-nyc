@@ -75,8 +75,8 @@ function REBNYComplianceExtended(options) {
         }
         var origLen = mockListings.length;
         // Inject 2 test listings: one IDX-blocked, one address-suppressed
-        mockListings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
-        mockListings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
+        mockListings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true });
+        mockListings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false });
         var r = checkListingCompliance([99901, 99902]);
         mockListings.splice(origLen);
         var idxBlocked = r.blocked.some(function(b) { return b.id === 99901; });

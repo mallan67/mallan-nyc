@@ -227,9 +227,15 @@
                 var listing = mockListings.find(function(l) { return l.id === listingId; });
                 if (!listing) return;
 
-                // REBNY RLS I-29: Block Owner Opt-Out from client distribution
-                if (listing.idxDisplayYN === false) {
-                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' is Owner Opt-Out (I-29 idxDisplayYN=false) — cannot add to client portfolio');
+                // REBNY RLS Distribution Gates: Block non-displayable listings from client portfolio
+                var listingPerm = listing.permissions || {};
+                if (listingPerm.ownerOptOut === true) {
+                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — Owner Opt-Out (Permissions=OwnerOptOut)');
+                    blocked++;
+                    return;
+                }
+                if (listing.internetDisplayYN === false) {
+                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — InternetEntireListingDisplayYN=false');
                     blocked++;
                     return;
                 }
@@ -290,8 +296,9 @@
             } else {
                 // Not in portfolio yet — add it with feedback (auto-save)
                 var listing = mockListings.find(function(l) { return l.id === listingId; });
-                if (listing && listing.idxDisplayYN === false) {
-                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' is Owner Opt-Out (I-29)');
+                var feedbackPerm = listing ? (listing.permissions || {}) : {};
+                if (listing && (feedbackPerm.ownerOptOut === true || listing.internetDisplayYN === false)) {
+                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — Owner Opt-Out or InternetEntireListingDisplayYN=false');
                     return;
                 }
                 client.portfolio.listings.push({

@@ -17,16 +17,16 @@ const crypto = require('crypto');
 
 // ── File mapping ──────────────────────────────────────────────────────────────
 
-const OLD_DIR = path.resolve(__dirname, '..', '..', '1', 'Old');
-const BACKUP_DIR = path.join(OLD_DIR, '.backups');
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const CRM_DIR = path.join(PROJECT_ROOT, 'public', 'crm');
+const BACKUP_DIR = path.join(CRM_DIR, '.backups');
 const METADATA_FILE = path.join(PROJECT_ROOT, 'trestle-metadata.xml');
 
 const FILES = {
-  search: { path: path.join(OLD_DIR, 'SEARCH-STANDALONE.html'), label: 'Search' },
-  sale:   { path: path.join(OLD_DIR, 'SALE-FORM-REDESIGN.html'), label: 'Sale Form' },
-  rental: { path: path.join(OLD_DIR, 'RENTAL-FORM-REDESIGN.html'), label: 'Rental Form' },
-  crm:    { path: path.join(OLD_DIR, 'MALLAN-NYC-CRM-FINAL2.html'), label: 'CRM Backend' },
+  search: { path: path.join(CRM_DIR, 'index-built.html'), label: 'Search' },
+  sale:   { path: path.join(CRM_DIR, 'SALE-FORM-REDESIGN.html'), label: 'Sale Form' },
+  rental: { path: path.join(CRM_DIR, 'RENTAL-FORM-REDESIGN.html'), label: 'Rental Form' },
+  crm:    { path: path.join(CRM_DIR, 'MALLAN-NYC-CRM-FINAL2.html'), label: 'CRM Backend' },
 };
 
 // ── Colors (ANSI) ─────────────────────────────────────────────────────────────
@@ -314,7 +314,7 @@ function searchChecks(content) {
     return (block.match(/\{\s*id\s*:\s*\d+/g) || []).length;
   }
 
-  const crmPath = path.join(OLD_DIR, 'MALLAN-NYC-CRM-FINAL2.html');
+  const crmPath = path.join(CRM_DIR, 'MALLAN-NYC-CRM-FINAL2.html');
   if (fs.existsSync(crmPath)) {
     const crmContent = fs.readFileSync(crmPath, 'utf-8');
     const searchCount = countMockListings(content);
@@ -753,7 +753,7 @@ function cmdSchemaSnapshot() {
 
   if (!fs.existsSync(METADATA_FILE)) {
     console.error(C.red(`\n  Metadata file not found: ${METADATA_FILE}`));
-    console.error(C.dim('  Download from: GET https://api-prod.corelogic.com/trestle/odata/$metadata\n'));
+    console.error(C.dim('  Download from: GET https://api.cotality.com/trestle/odata/$metadata\n'));
     process.exit(1);
   }
 

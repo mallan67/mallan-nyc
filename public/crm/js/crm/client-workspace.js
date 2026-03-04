@@ -3401,8 +3401,9 @@
                     if (perm.ownerOptOut === true) return false;
                     // Gate 2: Participant Only — exclude from client delivery (RLS-only)
                     if (perm.participantOnly === true) return false;
-                    // Gate 3: IDX Display — must be opted in for client delivery
-                    if (!listing.idxDisplayYN || perm.idxDisplay === false) return false;
+                    // Gate 3: Internet + IDX Display — must be opted in for client delivery
+                    if (listing.internetDisplayYN === false) return false;
+                    if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
                     // Gate 5: Coming Soon — include in matches but flag; no showings
                     // (Coming Soon listings pass through; badge handles display)
                     if (criteria.listingType === 'rental' && listing.listingCategory !== 'rental') return false;

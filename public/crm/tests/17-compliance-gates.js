@@ -23,9 +23,15 @@ function checkListingCompliance(listingIds) {
             return;
         }
 
-        // Gate 3: IDX Display opt-out — NEVER show on IDX websites
+        // Gate 3a: Internet Entire Listing Display — master gate (InternetEntireListingDisplayYN)
+        if (listing.internetDisplayYN === false) {
+            result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out (InternetEntireListingDisplayYN=false) — listing cannot be displayed on any internet channel' });
+            return;
+        }
+
+        // Gate 3b: IDX Display opt-out — not shown on IDX websites (IDXEntireListingDisplayYN)
         if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-            result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — listing cannot be displayed on IDX websites or distributed' });
+            result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — listing cannot be displayed on IDX websites' });
             return;
         }
 

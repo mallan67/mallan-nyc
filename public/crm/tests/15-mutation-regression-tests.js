@@ -52,10 +52,10 @@ function MutationRegressionTests(options) {
         }
         var origLen = mockListings.length;
         // Inject 4 violation types
-        mockListings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
-        mockListings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
-        mockListings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
-        mockListings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
+        mockListings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true });
+        mockListings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false });
+        mockListings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true });
+        mockListings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true });
         var r = checkListingCompliance([88801, 88802, 88803, 88804]);
         mockListings.splice(origLen); // restore
         var caught = [], missed = [];

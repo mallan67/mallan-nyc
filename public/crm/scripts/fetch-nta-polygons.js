@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// DEPRECATED — Output file js/render/neighborhood-polygons.js was deleted.
+// Polygons migrated to GeoJSON + js/render/neighborhood-map.js.
+// Use fetch-nta-geojson.js if regeneration is needed (also deprecated).
+console.error('DEPRECATED: neighborhood-polygons.js no longer exists. Polygons migrated to GeoJSON.');
+process.exit(0);
 // Fetch NYC NTA (Neighborhood Tabulation Areas) boundaries from NYC Open Data
 // and generate neighborhood-polygons.js with accurate coordinates
 // Uses NTA 2020 dataset: https://data.cityofnewyork.us/resource/9nt8-h7nd.geojson

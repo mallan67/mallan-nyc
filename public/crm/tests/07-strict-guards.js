@@ -42,6 +42,7 @@ function computeDatasetHash() {
         parts.push([l.id, l.status, l.updatedDate || '',
             l.addressDisplayYN === undefined ? 'UNDEF' : String(l.addressDisplayYN),
             l.idxDisplayYN === undefined ? 'UNDEF' : String(l.idxDisplayYN),
+            l.internetDisplayYN === undefined ? 'UNDEF' : String(l.internetDisplayYN),
             l.price, l.address].join('|'));
     });
     var str = parts.join(';;');

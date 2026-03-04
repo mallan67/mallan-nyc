@@ -1,5 +1,8 @@
-        }
-        
+// ─── 19: SALE FORM VALIDATORS ─────────────────────────────────────────
+// Extracted sale form validation logic for browser-based testing.
+// Run inside SALE-FORM-REDESIGN.html context (requires DOM + form globals).
+// ──────────────────────────────────────────────────────────────────────
+(function() {
         function activateSaleValidation() {
             window._saleValidationActivated = true;
             updateSaleValidationSummary();
@@ -279,3 +282,4 @@
             var section = document.getElementById('saleOptOutFormSection');
             if (section) section.style.display = isOptOut ? '' : 'none';
         }
+})();

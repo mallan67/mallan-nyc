@@ -1,7 +1,13 @@
 /**
+ * DEPRECATED — This script targeted js/render/neighborhood-polygons.js which was
+ * deleted and replaced with GeoJSON + js/render/neighborhood-map.js.
+ * Duplicate check was last run 2026-02-23 (0 duplicates).
+ *
  * check-dupes.js — Check for duplicate polygon/center entries in neighborhood-polygons.js
  * Compares first 3 coordinates of each polygon and all center coordinates to find duplicates.
  */
+console.error('DEPRECATED: neighborhood-polygons.js no longer exists. Polygons migrated to GeoJSON.');
+process.exit(0);
 
 const fs = require('fs');
 const path = require('path');

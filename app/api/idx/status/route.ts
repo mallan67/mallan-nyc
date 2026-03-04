@@ -24,11 +24,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const endpoint = process.env.TRESTLE_API_URL;
+    if (!endpoint && process.env.NODE_ENV === "production") {
+      console.error("[IDX Status] TRESTLE_API_URL not set in production");
+    }
+
     return NextResponse.json({
       enabled,
       credentialsPresent,
       ready,
-      endpoint: process.env.IDX_BASE_URL || "https://api.cotality.com",
+      endpoint: endpoint || "NOT_SET",
       stats,
     });
   } catch (err) {
