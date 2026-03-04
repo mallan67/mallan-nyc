@@ -20,6 +20,15 @@
   var _aliasMap = null;
   var _reverseAliases = {};
 
+  // ── Debug banner ── (temporary — shows step-by-step progress on the modal)
+  var _debugLines = [];
+  function _dbg(msg) {
+    console.log('[NB-MAP] ' + msg);
+    _debugLines.push(new Date().toLocaleTimeString() + ' — ' + msg);
+    var el = document.getElementById('nbDebugBanner');
+    if (el) el.textContent = _debugLines.slice(-6).join(' | ');
+  }
+
   function resolveGeoBase() {
     var base = window.location.pathname.replace(/\/[^/]*$/, '');
     return base.endsWith('/crm') ? '/geo/' : '../geo/';
@@ -36,7 +45,8 @@
   // ── Load MapLibre ──
 
   function ensureMapLibre(cb) {
-    if (typeof maplibregl !== 'undefined') return cb();
+    if (typeof maplibregl !== 'undefined') { _dbg('MapLibre already loaded'); return cb(); }
+    _dbg('Loading MapLibre from CDN...');
     if (!document.querySelector('link[href*="maplibre-gl"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
@@ -45,8 +55,8 @@
     }
     var script = document.createElement('script');
     script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-    script.onload = cb;
-    script.onerror = function () { showMapError(); };
+    script.onload = function () { _dbg('MapLibre loaded OK'); cb(); };
+    script.onerror = function () { _dbg('ERROR: MapLibre failed to load'); showMapError(); };
     document.head.appendChild(script);
   }
 
@@ -75,11 +85,24 @@
   }
 
   function loadGeoJSON(cb) {
-    if (_geojsonData) return cb(_geojsonData);
-    fetch(resolveGeoBase() + 'rls-neighborhoods.v1.min.geojson')
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function (data) { _geojsonData = data; loadAliases(function () { cb(data); }); })
-      .catch(function () { showMapError(); });
+    if (_geojsonData) { _dbg('GeoJSON cached (' + _geojsonData.features.length + ' features)'); return cb(_geojsonData); }
+    var url = resolveGeoBase() + 'rls-neighborhoods.v1.min.geojson';
+    _dbg('Fetching GeoJSON: ' + url);
+    fetch(url)
+      .then(function (r) {
+        _dbg('GeoJSON response: ' + r.status);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        _dbg('GeoJSON parsed: ' + data.features.length + ' features');
+        _geojsonData = data;
+        loadAliases(function () { cb(data); });
+      })
+      .catch(function (err) {
+        _dbg('ERROR fetching GeoJSON: ' + (err.message || err));
+        showMapError();
+      });
   }
 
   function showMapError() {
@@ -93,7 +116,7 @@
 
   function buildSidebar(geojson, filterText) {
     var listEl = document.getElementById('nbMapList');
-    if (!listEl) return;
+    if (!listEl) { _dbg('ERROR: #nbMapList not found'); return; }
 
     var ft = (filterText || '').trim().toLowerCase();
     var byBorough = {};
@@ -136,6 +159,7 @@
     }
 
     listEl.innerHTML = html;
+    _dbg('Sidebar built: ' + boroughs.length + ' boroughs');
 
     // Event delegation — single handler for all sidebar clicks
     if (!listEl._bound) {
@@ -222,64 +246,108 @@
   // ── Map setup ──
 
   function initMap(geojson) {
-    if (_map) { rehydrateSelection(); return; }
+    if (_map) {
+      _dbg('Map reused (already exists)');
+      rehydrateSelection();
+      return;
+    }
 
-    _map = new maplibregl.Map({
-      container: 'nbMapContainer',
-      style: STYLES.bright,
-      center: [-73.96, 40.755],
-      zoom: 11.5,
-      minZoom: 9,
-      maxZoom: 16,
-    });
+    var container = document.getElementById('nbMapContainer');
+    if (!container) { _dbg('ERROR: #nbMapContainer not found'); return; }
+    var rect = container.getBoundingClientRect();
+    _dbg('Container size: ' + Math.round(rect.width) + 'x' + Math.round(rect.height));
+
+    if (rect.width < 10 || rect.height < 10) {
+      _dbg('WARNING: Container too small — delaying map init');
+      setTimeout(function () { initMap(geojson); }, 300);
+      return;
+    }
+
+    try {
+      _map = new maplibregl.Map({
+        container: 'nbMapContainer',
+        style: STYLES.bright,
+        center: [-73.96, 40.755],
+        zoom: 11.5,
+        minZoom: 9,
+        maxZoom: 16,
+      });
+      _dbg('Map created OK');
+    } catch (err) {
+      _dbg('ERROR creating map: ' + err.message);
+      showMapError();
+      return;
+    }
 
     _map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
-    _map.on('load', function () { _loaded = true; addLayers(geojson); });
-    _map.once('idle', function () { if (!_loaded) { _loaded = true; addLayers(geojson); } });
+    // Catch MapLibre errors
+    _map.on('error', function (e) {
+      _dbg('Map error: ' + (e.error ? e.error.message : e.message || 'unknown'));
+    });
+
+    _map.on('load', function () {
+      _dbg('Map style loaded — adding layers');
+      _loaded = true;
+      addLayers(geojson);
+    });
+    _map.once('idle', function () {
+      if (!_loaded) {
+        _dbg('Map idle (fallback) — adding layers');
+        _loaded = true;
+        addLayers(geojson);
+      }
+    });
   }
 
   function addLayers(geojson) {
-    if (!_map || !_loaded) return;
+    if (!_map || !_loaded) { _dbg('addLayers skipped: map=' + !!_map + ' loaded=' + _loaded); return; }
 
-    try { if (_map.getLayer('nb-fill')) _map.removeLayer('nb-fill'); } catch (_) {}
-    try { if (_map.getLayer('nb-line')) _map.removeLayer('nb-line'); } catch (_) {}
-    try { if (_map.getLayer('nb-label')) _map.removeLayer('nb-label'); } catch (_) {}
-    try { if (_map.getSource('nb-source')) _map.removeSource('nb-source'); } catch (_) {}
+    try {
+      try { if (_map.getLayer('nb-fill')) _map.removeLayer('nb-fill'); } catch (_) {}
+      try { if (_map.getLayer('nb-line')) _map.removeLayer('nb-line'); } catch (_) {}
+      try { if (_map.getLayer('nb-label')) _map.removeLayer('nb-label'); } catch (_) {}
+      try { if (_map.getSource('nb-source')) _map.removeSource('nb-source'); } catch (_) {}
 
-    _map.addSource('nb-source', {
-      type: 'geojson',
-      data: geojson,
-      promoteId: 'slug',
-    });
+      _map.addSource('nb-source', {
+        type: 'geojson',
+        data: geojson,
+        promoteId: 'slug',
+      });
 
-    _map.addLayer({
-      id: 'nb-fill', type: 'fill', source: 'nb-source',
-      paint: {
-        'fill-color': GOLD,
-        'fill-opacity': [
-          'case',
-          ['boolean', ['feature-state', 'selected'], false], 0.30,
-          ['boolean', ['feature-state', 'hover'], false], 0.16,
-          0.08,
-        ],
-      },
-    });
+      _map.addLayer({
+        id: 'nb-fill', type: 'fill', source: 'nb-source',
+        paint: {
+          'fill-color': GOLD,
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 0.30,
+            ['boolean', ['feature-state', 'hover'], false], 0.16,
+            0.08,
+          ],
+        },
+      });
 
-    _map.addLayer({
-      id: 'nb-line', type: 'line', source: 'nb-source',
-      paint: {
-        'line-color': GOLD,
-        'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2.5, 1],
-        'line-opacity': 0.7,
-      },
-    });
+      _map.addLayer({
+        id: 'nb-line', type: 'line', source: 'nb-source',
+        paint: {
+          'line-color': GOLD,
+          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2.5, 1],
+          'line-opacity': 0.7,
+        },
+      });
 
-    _map.addLayer({
-      id: 'nb-label', type: 'symbol', source: 'nb-source',
-      layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-anchor': 'center', 'text-allow-overlap': false },
-      paint: { 'text-color': '#333', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
-    });
+      _map.addLayer({
+        id: 'nb-label', type: 'symbol', source: 'nb-source',
+        layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-anchor': 'center', 'text-allow-overlap': false },
+        paint: { 'text-color': '#333', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+      });
+
+      _dbg('Layers added OK (' + geojson.features.length + ' polygons)');
+    } catch (err) {
+      _dbg('ERROR adding layers: ' + err.message);
+      return;
+    }
 
     // Hover
     var hoveredId = null;
@@ -311,12 +379,24 @@
 
   function showModal() {
     var modal = document.getElementById('neighborhoodMapModal');
-    if (!modal) return;
+    if (!modal) { _dbg('ERROR: #neighborhoodMapModal not found in DOM!'); return; }
+
+    // Inject debug banner if not already present
+    if (!document.getElementById('nbDebugBanner')) {
+      var banner = document.createElement('div');
+      banner.id = 'nbDebugBanner';
+      banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:100001;background:#111;color:#0f0;font-family:monospace;font-size:10px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;';
+      modal.appendChild(banner);
+    }
+
     modal.classList.remove('hidden');
     modal.style.display = 'block';
+    _dbg('Modal shown');
   }
 
   function hideModal() {
+    _dbg('hideModal called');
+    console.trace('[NB-MAP] hideModal trace');
     var modal = document.getElementById('neighborhoodMapModal');
     if (!modal) return;
     modal.classList.add('hidden');
@@ -326,6 +406,8 @@
   // ── Public API ──
 
   window.openNeighborhoodMap = function (callback) {
+    _debugLines = [];
+    _dbg('openNeighborhoodMap called');
     _callback = callback || null;
     initFromSearchState();
     showModal();
@@ -347,11 +429,13 @@
   };
 
   window.closeNeighborhoodMap = function () {
+    _dbg('closeNeighborhoodMap called');
     hideModal();
   };
 
   window.confirmNeighborhoodMapSelection = function () {
     var selected = Object.keys(_selectedNames).sort();
+    _dbg('confirmSelection: ' + selected.length + ' selected');
     if (!selected.length) {
       if (typeof showToast === 'function') showToast('No neighborhoods selected', 'warning');
       return;
@@ -392,10 +476,12 @@
 
   window.switchNeighborhoodMapStyle = function (styleName) {
     if (!_map || !STYLES[styleName]) return;
+    _dbg('Switching style to: ' + styleName);
     _loaded = false;
     _map.setStyle(STYLES[styleName]);
     _map.once('style.load', function () {
       _loaded = true;
+      _dbg('Style loaded — re-adding layers');
       if (_geojsonData) addLayers(_geojsonData);
     });
   };
