@@ -166,6 +166,8 @@ export type PortalListingInput = {
   media: unknown;
   agent_info: unknown;
   internet_address_display_yn: boolean;
+  internet_entire_listing_display_yn?: boolean;
+  participant_only: boolean;
   owner_opt_out: boolean;
   [key: string]: unknown;
 };
@@ -179,8 +181,14 @@ export function sanitizeListingForPortal(
   listing: PortalListingInput,
   portalRole: string
 ): Record<string, unknown> | null {
-  // Owner opt-out: listing must not be shown at all
+  // Owner opt-out: listing must not be shown at all (UCBA Art. I, Sec. 4(A))
   if (listing.owner_opt_out) return null;
+
+  // Participant Only: visible to RLS participants only, not portal/public (UCBA Gate 2)
+  if (listing.participant_only) return null;
+
+  // Internet display opt-out: listing cannot appear on any website/portal (RLS Gate 3)
+  if (listing.internet_entire_listing_display_yn === false) return null;
 
   const flat: Record<string, unknown> = {
     id: listing.id.toString(),

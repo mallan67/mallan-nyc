@@ -197,7 +197,7 @@ var SearchCore = (function() {
         checkListingDisplay: function(listing) {
             // Master gate: InternetEntireListingDisplayYN (REBNY B6)
             // If false, AUTO-CASCADES: IDX=false, Address=false, AVM=false, ConsumerComment=false
-            if (listing.internetEntireListingDisplayYN === false) {
+            if (listing.internetEntireListingDisplayYN === false || listing.internetDisplayYN === false) {
                 return { allowed: false, reason: 'Internet display opted out (InternetEntireListingDisplayYN=false) — cascades to IDX/address/AVM', addressVisible: false };
             }
             // IDX display gate

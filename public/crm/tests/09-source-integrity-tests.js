@@ -46,7 +46,7 @@ function SourceIntegrityTests(options) {
     // SRC-03: Compliance flags fail-closed (missing = FAIL, not default-to-true)
     (function() {
         if (typeof mockListings === 'undefined') { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'FAIL', 'mockListings undefined'); return; }
-        var complianceFlags = ['idxDisplayYN','addressDisplayYN'];
+        var complianceFlags = ['idxDisplayYN','internetDisplayYN','addressDisplayYN'];
         var violations = [];
         mockListings.forEach(function(l) {
             complianceFlags.forEach(function(flag) {

@@ -287,9 +287,9 @@
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">W-ID</span><span class="font-semibold">${listing.wid || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">SourceSystemKey</span><span class="font-semibold">${listing.wid || listing.lid || listing.id}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Internet Display</div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Address Display</span><span class="font-semibold">${listing.addressDisplayYN !== false ? 'Yes' : 'No'}</span></div>
-                                        ${!isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Entire Listing Display</span><span class="font-semibold">---</span></div>' : ''}
                                     </div>
                                 </div>
                             </div>
@@ -479,6 +479,7 @@
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Distribution</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Owner Opt-Out</span><span class="font-semibold">${listing.permissions && listing.permissions.ownerOptOut ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Participant Only</span><span class="font-semibold">${listing.permissions && listing.permissions.participantOnly ? 'Yes' : 'No'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication ? 'Yes' : 'No'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">CoBroke</div>

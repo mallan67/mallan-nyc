@@ -6971,8 +6971,8 @@ The spacious living/dining area is perfect for entertaining, while the master su
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px] mr-1"></i>Not Activated</span>
             </div>
-            <p class="text-xs text-gray-400">RLS/RESO/IDX: VOWOptOutYN</p>
-            <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed access not applied for.</p>
+            <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+            <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
         </div>
         <!-- RLS: SyndicateYN — defaults to TRUE per RLS rules -->
         <div class="border rounded-lg p-4">
@@ -6997,8 +6997,9 @@ The spacious living/dining area is perfect for entertaining, while the master su
         <input type="checkbox" class="w-4 h-4" id="rentalSendToAll" data-rls-field="SyndicateYN">
         <span class="text-sm font-medium">Send This Listing to All Available Sites</span>
     </label>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_IDX" class="w-4 h-4" checked data-rls-field="IDXEntireListingDisplayYN"> IDX</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_VOW" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> VOW</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Listhub</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateYN"> NY MLS</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Realtor</label>
@@ -11003,8 +11004,8 @@ The spacious living/dining area is perfect for entertaining, while the master su
                     </label>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px]"></i> Not Activated</span>
                 </div>
-                <p class="text-xs text-gray-400">RLS/RESO/IDX: VOWOptOutYN</p>
-                <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed access not applied for. Data is still sent to VOW via RLS — this opt-out will apply when activated.</p>
+                <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+                <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
             </div>
 
             <!-- RLS: SyndicateYN — defaults to TRUE per RLS rules -->
@@ -11041,9 +11042,10 @@ The spacious living/dining area is perfect for entertaining, while the master su
             <input type="checkbox" class="w-4 h-4" id="saleSendToAll" data-rls-field="SyndicateYN">
             <span class="text-sm font-medium">Send This Listing to All Available Sites</span>
         </label>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             <!-- REBNY I29: IDXEntireListingDisplayYN -->
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_IDX" class="w-4 h-4" checked data-rls-field="IDXEntireListingDisplayYN"> IDX</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_VOW" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> VOW</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Listhub</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateYN"> NY MLS</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Realtor</label>
@@ -29302,8 +29304,22 @@ Equal Housing Opportunity
         }
 
         // OPEN SEARCH — no PII in URL. Identity via session cookie.
+        // If in client portal context (buyer/tenant), require VOW registration first.
         // ══════════════════════════════════════════════════════
         function openSearch(hash) {
+            // Client portal context → require VOW acknowledgment before search
+            if (currentPortal === 'buyer' || currentPortal === 'tenant') {
+                if (typeof vowAuthGate === 'function') {
+                    vowAuthGate(function(registered) {
+                        if (registered) {
+                            localStorage.setItem('vow_display_context', 'vow');
+                            window.open('/crm/search' + (hash ? '#' + hash : ''), '_blank', 'noopener,noreferrer');
+                        }
+                    });
+                    return;
+                }
+            }
+            // Agent/broker — open directly (CRM context)
             window.open('/crm/search' + (hash ? '#' + hash : ''), '_blank', 'noopener,noreferrer');
         }
 
@@ -32332,12 +32348,45 @@ Equal Housing Opportunity
             var oursAlone = document.getElementById('saleOursAloneWarning');
             var optOutSection = document.getElementById('saleOptOutFormSection');
             var isOptOut = (value === 'OwnerOptOut' || value === 'ParticipantOnly');
-        
+
             if (warning) warning.style.display = isOptOut ? '' : 'none';
             if (oursAlone) oursAlone.style.display = value === 'OursAlone' ? '' : 'none';
             if (optOutSection) optOutSection.style.display = value === 'OwnerOptOut' ? '' : 'none';
+
+            // Re-evaluate InternetEntireListingDisplayYN lock when permissions change
+            enforceSaleInternetDisplayRule();
         }
-        
+
+        // ── RLS Rule: Sale+Permissions=Null cannot set InternetEntireListingDisplayYN=False ──
+        function enforceSaleInternetDisplayRule() {
+            var listingType = document.querySelector('input[name="saleListingType"]:checked');
+            var internetCheckbox = document.getElementById('saleInternetEntireListingDisplayYN');
+            if (!internetCheckbox) return;
+
+            var permValue = listingType ? listingType.value : '';
+            var isNullPermission = !permValue || permValue === '' ||
+                ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'CoExclusive'].includes(permValue);
+
+            var container = internetCheckbox.closest('.border');
+            if (isNullPermission) {
+                internetCheckbox.checked = true;
+                internetCheckbox.disabled = true;
+                if (container) container.classList.add('opacity-60');
+                var notice = container ? container.querySelector('.rls-lock-notice') : null;
+                if (!notice && container) {
+                    var p = document.createElement('p');
+                    p.className = 'text-[10px] text-amber-600 mt-1 rls-lock-notice';
+                    p.innerHTML = '<i class="fas fa-lock mr-1"></i>RLS Rule: Sale listings with standard permissions cannot opt out of internet display';
+                    container.appendChild(p);
+                }
+            } else {
+                internetCheckbox.disabled = false;
+                if (container) container.classList.remove('opacity-60');
+                var notice = container ? container.querySelector('.rls-lock-notice') : null;
+                if (notice) notice.remove();
+            }
+        }
+
         // ══════════════════════════════════════════════════════
         // STATUS HANDLERS
         // ══════════════════════════════════════════════════════

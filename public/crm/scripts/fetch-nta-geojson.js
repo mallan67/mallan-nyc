@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /**
+ * DEPRECATED — Output file js/render/neighborhood-polygons.js was deleted.
+ * Polygons migrated to GeoJSON (public/geo/) + js/render/neighborhood-map.js.
+ *
  * fetch-nta-geojson.js — Download NYC Open Data NTA 2020 polygons
  * and generate neighborhood-polygons.js for MapLibre GL JS
  *
  * Data source: https://data.cityofnewyork.us/City-Government/2020-Neighborhood-Tabulation-Areas-NTAs-/9nt8-h7nd
  *
- * Output: js/render/neighborhood-polygons.js
+ * Output: js/render/neighborhood-polygons.js (DELETED)
  */
+console.error('DEPRECATED: neighborhood-polygons.js no longer exists. Polygons migrated to GeoJSON.');
+process.exit(0);
 
 const https = require('https');
 const fs = require('fs');

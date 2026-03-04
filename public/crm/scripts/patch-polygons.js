@@ -1,8 +1,14 @@
 /**
+ * DEPRECATED — This script targeted js/render/neighborhood-polygons.js which was
+ * deleted and replaced with GeoJSON (public/geo/rls-neighborhoods.v1.min.geojson)
+ * + js/render/neighborhood-map.js. This patch was already applied 2026-02-23.
+ *
  * patch-polygons.js — Replace duplicate polygon/center data with unique boundaries
  * Based on commonly accepted NYC real estate neighborhood boundaries
  * Run: node scripts/patch-polygons.js
  */
+console.error('DEPRECATED: neighborhood-polygons.js no longer exists. Polygons migrated to GeoJSON.');
+process.exit(0);
 const fs = require('fs');
 const path = require('path');
 

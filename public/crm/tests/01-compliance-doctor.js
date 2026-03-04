@@ -62,14 +62,17 @@ function REBNYComplianceDoctor(options) {
         }
         var fnSource = checkListingCompliance.toString();
         var checksIdx = fnSource.indexOf('idxDisplayYN') !== -1;
+        var checksInternet = fnSource.indexOf('internetDisplayYN') !== -1;
         var checksAddress = fnSource.indexOf('addressDisplayYN') !== -1;
 
-        if (checksIdx && checksAddress) {
-            addResult(2, 'Opt-Out Filtering', 'PASS', 'checkListingCompliance() gates IDX opt-out and address suppression');
+        if (checksIdx && checksInternet && checksAddress) {
+            addResult(2, 'Opt-Out Filtering', 'PASS', 'checkListingCompliance() gates IDX opt-out, internet display, and address suppression');
+        } else if (checksIdx && checksAddress) {
+            addResult(2, 'Opt-Out Filtering', 'FAIL', 'IDX + address checked but internetDisplayYN (master gate) missing');
         } else if (checksIdx) {
-            addResult(2, 'Opt-Out Filtering', 'FAIL', 'IDX opt-out checked but addressDisplayYN suppression missing');
+            addResult(2, 'Opt-Out Filtering', 'FAIL', 'IDX opt-out checked but internetDisplayYN and addressDisplayYN missing');
         } else {
-            addResult(2, 'Opt-Out Filtering', 'FAIL', 'checkListingCompliance() does not check idxDisplayYN');
+            addResult(2, 'Opt-Out Filtering', 'FAIL', 'checkListingCompliance() does not check idxDisplayYN or internetDisplayYN');
         }
     })();
 

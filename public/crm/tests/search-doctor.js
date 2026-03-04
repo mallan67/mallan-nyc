@@ -270,7 +270,7 @@ var SearchDoctor = (function() {
 
         // SD-01: IDX Display Gate (IDXEntireListingDisplayYN)
         if (hasSC && typeof SearchCore.Compliance.checkListingDisplay === 'function') {
-            var testListing = { idxDisplayYN: false, addressDisplayYN: true };
+            var testListing = { idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true };
             var result = SearchCore.Compliance.checkListingDisplay(testListing);
             if (!result.allowed) { pass('SD-01', 'IDX Display Gate', 'checkListingDisplay blocks idxDisplayYN=false'); }
             else { fail('SD-01', 'IDX Display Gate', 'checkListingDisplay does NOT block idxDisplayYN=false'); }
@@ -278,7 +278,7 @@ var SearchDoctor = (function() {
 
         // SD-02: Owner Opt-Out Gate (UCBA Art. I, Sec. 5(A) — incurable violation)
         if (hasSC && typeof SearchCore.Compliance.checkListingDisplay === 'function') {
-            var testOO = { idxDisplayYN: true, ownerOptOut: true, addressDisplayYN: true };
+            var testOO = { idxDisplayYN: true, internetDisplayYN: true, ownerOptOut: true, addressDisplayYN: true };
             var resOO = SearchCore.Compliance.checkListingDisplay(testOO);
             if (!resOO.allowed) { pass('SD-02', 'Owner Opt-Out Gate', 'Blocks ownerOptOut=true'); }
             else { fail('SD-02', 'Owner Opt-Out Gate', 'Does NOT block ownerOptOut=true — $250/$500 incurable violation'); }
@@ -286,7 +286,7 @@ var SearchDoctor = (function() {
 
         // SD-03: Participant Only Gate (UCBA Definition (W))
         if (hasSC && typeof SearchCore.Compliance.checkListingDisplay === 'function') {
-            var testPO = { idxDisplayYN: true, participantOnly: true, addressDisplayYN: true };
+            var testPO = { idxDisplayYN: true, internetDisplayYN: true, participantOnly: true, addressDisplayYN: true };
             var resPO = SearchCore.Compliance.checkListingDisplay(testPO);
             if (!resPO.allowed) { pass('SD-03', 'Participant Only Gate', 'Blocks participantOnly=true'); }
             else { fail('SD-03', 'Participant Only Gate', 'Does NOT block participantOnly=true'); }
@@ -294,7 +294,7 @@ var SearchDoctor = (function() {
 
         // SD-04: Address Suppression (InternetAddressDisplayYN)
         if (hasSC && typeof SearchCore.Compliance.checkListingDisplay === 'function') {
-            var testAddr = { idxDisplayYN: true, addressDisplayYN: false };
+            var testAddr = { idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false };
             var resAddr = SearchCore.Compliance.checkListingDisplay(testAddr);
             if (resAddr.allowed && !resAddr.addressVisible) { pass('SD-04', 'Address Suppression', 'addressDisplayYN=false hides address'); }
             else { fail('SD-04', 'Address Suppression', 'Does NOT suppress address when addressDisplayYN=false'); }
@@ -311,7 +311,7 @@ var SearchDoctor = (function() {
         // SD-06: Per-listing "Listing Courtesy of" attribution (UCBA Art. III, Sec. 2(C))
         if (hasSC && typeof SearchCore.ListingOutput.buildListingSheetHTML === 'function') {
             var testListings = [{ id: 1, price: 1000000, address: '123 Test', beds: 2, baths: 1, ownership: 'Condo',
-                                  company: 'Test Co', agentName: 'Agent', idxDisplayYN: true, addressDisplayYN: true }];
+                                  company: 'Test Co', agentName: 'Agent', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true }];
             var outputHTML = SearchCore.ListingOutput.buildListingSheetHTML(testListings);
             if (/Listing Courtesy of/i.test(outputHTML)) { pass('SD-06', 'Per-Listing Attribution', '"Listing Courtesy of" found in output'); }
             else { fail('SD-06', 'Per-Listing Attribution', 'Missing "Listing Courtesy of [broker]" — UCBA Art. III, Sec. 2(C)'); }
@@ -431,8 +431,8 @@ var SearchDoctor = (function() {
         // LO-01: Compliance gate before output
         if (hasSC && typeof SearchCore.Compliance.gateListingsForOutput === 'function') {
             var testGate = SearchCore.Compliance.gateListingsForOutput([
-                { id: 1, idxDisplayYN: true, addressDisplayYN: true, price: 100 },
-                { id: 2, idxDisplayYN: false, addressDisplayYN: true, price: 200 }
+                { id: 1, idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true, price: 100 },
+                { id: 2, idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true, price: 200 }
             ]);
             if (testGate.passed.length === 1 && testGate.blocked.length === 1) {
                 pass('LO-01', 'Output Compliance Gate', 'gateListingsForOutput correctly filters');
@@ -442,7 +442,7 @@ var SearchDoctor = (function() {
         // LO-02: Blocked listings notification in output
         if (hasSC && typeof SearchCore.ListingOutput.buildListingSheetHTML === 'function') {
             var testBlocked = SearchCore.ListingOutput.buildListingSheetHTML([
-                { id: 1, idxDisplayYN: false, addressDisplayYN: true, price: 100, address: '123 Blocked', beds: 1, baths: 1 }
+                { id: 1, idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true, price: 100, address: '123 Blocked', beds: 1, baths: 1 }
             ]);
             if (/excluded|blocked/i.test(testBlocked)) { pass('LO-02', 'Blocked Listing Notification', 'Exclusion notice present in output'); }
             else { fail('LO-02', 'Blocked Listing Notification', 'No exclusion notice when listings are blocked'); }
@@ -501,7 +501,7 @@ var SearchDoctor = (function() {
         // LO-08: Address suppression in email output
         if (hasSC && typeof SearchCore.ListingOutput.buildListingSheetHTML === 'function') {
             var testAddrSuppress = SearchCore.ListingOutput.buildListingSheetHTML([
-                { id: 1, idxDisplayYN: true, addressDisplayYN: false, price: 100, address: '999 Secret St', beds: 1, baths: 1 }
+                { id: 1, idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false, price: 100, address: '999 Secret St', beds: 1, baths: 1 }
             ]);
             if (/Address Available Upon Request/i.test(testAddrSuppress) && testAddrSuppress.indexOf('999 Secret St') === -1) {
                 pass('LO-08', 'Address Suppression in Output', '"Address Available Upon Request" shown, actual address hidden');
@@ -654,11 +654,13 @@ var SearchDoctor = (function() {
         // MOCK DATA INTEGRITY (DI-01 to DI-03)
         // ═════════════════════════════════════════════════════════════════════
 
-        // DI-01: IDX display flags present on all listings
+        // DI-01: IDX + Internet display flags present on all listings
         if (hasML) {
             var missingIdxFlag = listings.filter(function(l) { return l.idxDisplayYN === undefined; });
-            if (missingIdxFlag.length > 0) { warn('DI-01', 'IDX Display Flags', missingIdxFlag.length + ' listing(s) missing idxDisplayYN'); }
-            else { pass('DI-01', 'IDX Display Flags', 'All listings have idxDisplayYN'); }
+            var missingInetFlag = listings.filter(function(l) { return l.internetDisplayYN === undefined; });
+            if (missingIdxFlag.length > 0 || missingInetFlag.length > 0) {
+                warn('DI-01', 'Display Flags', (missingIdxFlag.length ? missingIdxFlag.length + ' missing idxDisplayYN' : '') + (missingInetFlag.length ? (missingIdxFlag.length ? ', ' : '') + missingInetFlag.length + ' missing internetDisplayYN' : ''));
+            } else { pass('DI-01', 'Display Flags', 'All listings have idxDisplayYN + internetDisplayYN'); }
         }
 
         // DI-02: addressDisplayYN present on all listings
@@ -827,6 +829,7 @@ var SearchDoctor = (function() {
                     intSqft: l.intSqft,
                     listingCategory: l.listingCategory,
                     idxDisplayYN: l.idxDisplayYN,
+                    internetDisplayYN: l.internetDisplayYN,
                     addressDisplayYN: l.addressDisplayYN
                 };
             })

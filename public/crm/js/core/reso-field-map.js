@@ -105,8 +105,8 @@
             walkScore:      'WalkScore',                 // Trestle-only (not in RLS CSV)
 
             // ── Display Control Flags ──
-            idxDisplayYN:           'InternetEntireListingDisplayYN',  // RLS: InternetEntireListingDisplayYN (master gate — cascades to addr/AVM/comment)
-            idxSpecificDisplayYN:   'IDXEntireListingDisplayYN',      // RLS: IDXEntireListingDisplayYN (IDX-specific gate, requires office participation)
+            idxDisplayYN:           'IDXEntireListingDisplayYN',       // RLS: IDXEntireListingDisplayYN (IDX-specific gate, requires office participation)
+            internetDisplayYN:      'InternetEntireListingDisplayYN',  // RLS: InternetEntireListingDisplayYN (master gate — cascades to addr/AVM/comment)
             addressDisplayYN:       'InternetAddressDisplayYN',       // RLS: InternetAddressDisplayYN
             syndicateTo:            'SyndicateTo',                    // Trestle: SyndicateTo (multi-enum)
 

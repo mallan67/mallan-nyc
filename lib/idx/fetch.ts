@@ -5,9 +5,15 @@
 import { getAccessToken, invalidateToken } from "./auth";
 import { ALL_RLS_FIELDS } from "./trestle-mapper";
 
-const TRESTLE_BASE_URL =
-  process.env.IDX_BASE_URL || "https://api.cotality.com";
-const PROPERTY_ENDPOINT = `${TRESTLE_BASE_URL}/trestle/odata/Property`;
+// Derive Trestle property endpoint from centralized TRESTLE_API_URL.
+// Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
+function getPropertyEndpoint(): string {
+  const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  if (process.env.NODE_ENV === "production" && !process.env.TRESTLE_API_URL) {
+    throw new Error("Missing TRESTLE_API_URL environment variable");
+  }
+  return `${base}/odata/Property`;
+}
 const MAX_PAGE_SIZE = 200;
 
 export interface TrestleFetchOptions {
@@ -51,7 +57,7 @@ export async function fetchFromTrestle(
   if (options.skip) params.set("$skip", String(options.skip));
   params.set("$orderby", options.orderby || "ModificationTimestamp desc");
 
-  const url = `${PROPERTY_ENDPOINT}?${params.toString()}`;
+  const url = `${getPropertyEndpoint()}?${params.toString()}`;
   const maxTotal = options.maxTotal || 1000;
 
   const allRecords: Record<string, unknown>[] = [];
@@ -112,7 +118,7 @@ export async function fetchSingleListing(
 ): Promise<Record<string, unknown> | null> {
   const token = await getAccessToken();
   const selectFields = ALL_RLS_FIELDS.join(",");
-  const url = `${PROPERTY_ENDPOINT}('${encodeURIComponent(listingKey)}')?$select=${selectFields}`;
+  const url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}`;
 
   const response = await fetchPage(url, token);
 

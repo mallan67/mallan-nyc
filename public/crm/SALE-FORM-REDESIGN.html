@@ -3104,8 +3104,8 @@ body { font-family: Manrope, sans-serif; }
                     </label>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px]"></i> Not Activated</span>
                 </div>
-                <p class="text-xs text-gray-400">RLS/RESO/IDX: VOWOptOutYN</p>
-                <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed access not applied for. Data is still sent to VOW via RLS — this opt-out will apply when activated.</p>
+                <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+                <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
             </div>
 
             <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
@@ -3142,9 +3142,10 @@ body { font-family: Manrope, sans-serif; }
             <input type="checkbox" class="w-4 h-4" id="saleSendToAll" data-rls-field="SyndicateYN">
             <span class="text-sm font-medium">Send This Listing to All Available Sites</span>
         </label>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             <!-- REBNY I29: IDXEntireListingDisplayYN -->
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_IDX" class="w-4 h-4" checked data-rls-field="IDXEntireListingDisplayYN"> IDX</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_VOW" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> VOW</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Listhub</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateYN"> NY MLS</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Realtor</label>
@@ -5044,6 +5045,41 @@ function handleSaleListingTypeChange(value) {
     if (warning) warning.style.display = isOptOut ? '' : 'none';
     if (inHouse) inHouse.style.display = value === 'InHouse' ? '' : 'none';
     if (optOutSection) optOutSection.style.display = value === 'OwnerOptOut' ? '' : 'none';
+
+    // Re-evaluate InternetEntireListingDisplayYN lock when permissions change
+    enforceSaleInternetDisplayRule();
+}
+
+// ── RLS Rule: Sale+Permissions=Null cannot set InternetEntireListingDisplayYN=False ──
+// (RLS Data Rules — InternetEntireListingDisplayYN, CSV L251)
+function enforceSaleInternetDisplayRule() {
+    var listingType = document.querySelector('input[name="saleListingType"]:checked');
+    var internetCheckbox = document.getElementById('saleInternetEntireListingDisplayYN');
+    if (!internetCheckbox) return;
+
+    var permValue = listingType ? listingType.value : '';
+    // Permissions=Null (standard exclusive listings — no OwnerOptOut/Private) → MUST be True
+    var isNullPermission = !permValue || permValue === '' ||
+        ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'CoExclusive'].includes(permValue);
+
+    var container = internetCheckbox.closest('.border');
+    if (isNullPermission) {
+        internetCheckbox.checked = true;
+        internetCheckbox.disabled = true;
+        if (container) container.classList.add('opacity-60');
+        var notice = container ? container.querySelector('.rls-lock-notice') : null;
+        if (!notice && container) {
+            var p = document.createElement('p');
+            p.className = 'text-[10px] text-amber-600 mt-1 rls-lock-notice';
+            p.innerHTML = '<i class="fas fa-lock mr-1"></i>RLS Rule: Sale listings with standard permissions cannot opt out of internet display';
+            container.appendChild(p);
+        }
+    } else {
+        internetCheckbox.disabled = false;
+        if (container) container.classList.remove('opacity-60');
+        var notice = container ? container.querySelector('.rls-lock-notice') : null;
+        if (notice) notice.remove();
+    }
 }
 
 // ══════════════════════════════════════════════════════
@@ -7154,11 +7190,14 @@ function collectSaleFormData() {
     data.NewDevelopmentYN = data.saleNewDevelopment === true || data.saleNewDevelopment === 'true';
 
     // Distribution gates
-    data.IDXEntireListingDisplayYN = data.saleIdxDisplay !== 'false' && data.saleIdxDisplay !== false;
-    data.InternetEntireListingDisplayYN = data.saleInternetDisplay !== 'false' && data.saleInternetDisplay !== false;
-    data.InternetAddressDisplayYN = data.saleAddressDisplay !== 'false' && data.saleAddressDisplay !== false;
-    data.ParticipantOnly = data.saleParticipantOnly === 'true' || data.saleParticipantOnly === true;
-    data.OwnerOptOut = data.saleOwnerOptOut === 'true' || data.saleOwnerOptOut === true;
+    // Map actual checkbox IDs to RESO field names
+    data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
+    data.InternetEntireListingDisplayYN = data.saleInternetEntireListingDisplayYN !== false && data.saleDist_VOW !== false;
+    data.InternetAddressDisplayYN = data.saleInternetAddressDisplayYN !== false;
+    data.SyndicateYN = data.saleSyndicateYN !== false;
+    // Permissions from listing type radio
+    var saleListType = data.saleListingType || '';
+    data.Permissions = saleListType === 'OwnerOptOut' ? 'Owner Opt-Out' : saleListType === 'ParticipantOnly' ? 'Private' : null;
 
     // Agent identity from session (hidden fields populated by initLoggedInAgent)
     data.ListAgentMlsId = data.saleUpdatingAgent || '';
@@ -8204,6 +8243,9 @@ document.addEventListener('DOMContentLoaded', function() {
             enforceSaleComingSoon14Day();
         });
     }
+
+    // Enforce Sale+Permissions=Null internet display lock on page load
+    enforceSaleInternetDisplayRule();
 
     // Auto-save on any input/change
     const formContainer = document.querySelector('.flex-1');

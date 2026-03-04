@@ -155,9 +155,9 @@
             var selectedListings = selectedIds.length > 0
                 ? allListings.filter(function(l) { return selectedIds.indexOf(l.id) > -1; })
                 : allListings;
-            var optedOut = selectedListings.filter(function(l) { return l.idxDisplayYN === false; });
+            var optedOut = selectedListings.filter(function(l) { return l.idxDisplayYN === false || l.internetDisplayYN === false; });
             if (optedOut.length > 0 && optedOut.length === selectedListings.length) {
-                errors.push('All selected listings have IDX display opted out — cannot generate report.');
+                errors.push('All selected listings have display opted out (IDX or Internet) — cannot generate report.');
             } else if (optedOut.length > 0) {
                 // Warning, not blocker — they'll be filtered out
             }
@@ -2121,6 +2121,7 @@
             listings = listings.filter(function(l) {
                 var perm = l.permissions || {};
                 if (perm.ownerOptOut) return false;
+                if (l.internetDisplayYN === false) return false;
                 if (l.idxDisplayYN === false) return false;
                 return true;
             });
@@ -2324,8 +2325,8 @@
                 listings = allListings;
             }
             if (listings.length === 0) listings = allListings;
-            // IDX compliance filter — remove opted-out listings
-            listings = listings.filter(function(l) { return l.idxDisplayYN !== false; });
+            // IDX + Internet compliance filter — remove opted-out listings
+            listings = listings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
             // Sort via reportState
             listings = getSortedListings(listings);
             // Enforce 250 cap

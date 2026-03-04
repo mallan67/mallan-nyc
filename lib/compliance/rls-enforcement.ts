@@ -227,6 +227,24 @@ export function assertRlsCompliantPayload(
     }
   }
 
+  // Sale+Permissions=Null cannot set InternetEntireListingDisplayYN=false (RLS Data Rule)
+  if (ctx.listingType === "sale") {
+    const permissions = payload.Permissions;
+    if (
+      (!permissions || permissions === "" || permissions === null) &&
+      payload.InternetEntireListingDisplayYN === false
+    ) {
+      blockers.push({
+        code: "DG-003",
+        severity: "BLOCKER",
+        field: "InternetEntireListingDisplayYN",
+        message:
+          "Sale listings with Permissions=Null cannot set InternetEntireListingDisplayYN to False (RLS Data Rule).",
+        ucbaRef: "RLS Data Rules — InternetEntireListingDisplayYN",
+      });
+    }
+  }
+
   // Owner Opt-Out blocks all display
   if (payload.MlsStatus === "OwnerOptOut" || payload.Permissions === "Owner Opt-Out") {
     const displayFields = [

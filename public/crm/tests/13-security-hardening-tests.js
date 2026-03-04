@@ -102,3 +102,4 @@ function SecurityHardeningV2Tests(options) {
     })();
 
     return { mode: 'security_v2', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
+}

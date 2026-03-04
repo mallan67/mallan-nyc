@@ -58,11 +58,13 @@
             floor: (id % 30) + 1,
             description: o.desc || ('Deterministic fixture listing ' + id + '.'),
             idxDisplayYN: o.idx !== undefined ? o.idx : true,
+            internetDisplayYN: o.inet !== undefined ? o.inet : true,
             addressDisplayYN: o.addr !== undefined ? o.addr : true,
             permissions: {
                 ownerOptOut: (o.oo) || false,
                 participantOnly: (o.po) || false,
                 idxDisplay: o.idx !== undefined ? o.idx : true,
+                internetDisplay: o.inet !== undefined ? o.inet : true,
                 syndication: o.syn !== undefined ? o.syn : true
             },
             comingSoonDate: o.csd || undefined,
@@ -285,8 +287,8 @@
 
     function getTestPacks() {
         // Pre-compute expected counts from frozen fixtures
-        var allSales = FIXTURES.filter(function(l) { return !l.listingCategory && !l.permissions.ownerOptOut && !l.permissions.participantOnly && l.idxDisplayYN !== false; });
-        var allRentals = FIXTURES.filter(function(l) { return l.listingCategory === 'rental' && !l.permissions.ownerOptOut && !l.permissions.participantOnly && l.idxDisplayYN !== false; });
+        var allSales = FIXTURES.filter(function(l) { return !l.listingCategory && !l.permissions.ownerOptOut && !l.permissions.participantOnly && l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
+        var allRentals = FIXTURES.filter(function(l) { return l.listingCategory === 'rental' && !l.permissions.ownerOptOut && !l.permissions.participantOnly && l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
         var activeSales = allSales.filter(function(l) { return l.status === 'ACTIVE'; });
         var activeRentals = allRentals.filter(function(l) { return l.status === 'ACTIVE'; });
 
@@ -423,14 +425,16 @@
                     return { pass: true, detail: 'All participant-only listings correctly excluded' };
                 }
             },
-            // ── TP-13: IDX Display Gate ──
+            // ── TP-13: IDX + Internet Display Gate ──
             {
-                id: 'TP-13', name: 'IDX Display Gate',
+                id: 'TP-13', name: 'IDX + Internet Display Gate',
                 criteria: { searchTab: 'sale' },
                 validate: function(results) {
                     var idxBlocked = results.filter(function(r) { return r.idxDisplayYN === false; });
+                    var inetBlocked = results.filter(function(r) { return r.internetDisplayYN === false; });
+                    if (inetBlocked.length > 0) return { pass: false, detail: 'CRITICAL: ' + inetBlocked.length + ' InternetEntireListingDisplayYN=false listings displayed' };
                     if (idxBlocked.length > 0) return { pass: false, detail: 'CRITICAL: ' + idxBlocked.length + ' IDX-opted-out listings displayed — UCBA violation' };
-                    return { pass: true, detail: 'All IDX opt-out listings correctly excluded' };
+                    return { pass: true, detail: 'All IDX + Internet opt-out listings correctly excluded' };
                 }
             },
             // ── TP-14: Address Suppression ──
@@ -548,6 +552,7 @@
                         var p = r.permissions || {};
                         if (p.ownerOptOut) violations.push('ID-' + r.id + ':ownerOptOut');
                         if (p.participantOnly) violations.push('ID-' + r.id + ':participantOnly');
+                        if (r.internetDisplayYN === false) violations.push('ID-' + r.id + ':inetOff');
                         if (r.idxDisplayYN === false) violations.push('ID-' + r.id + ':idxOff');
                     });
                     if (violations.length > 0) return { pass: false, detail: violations.length + ' gate violations: ' + violations.join('; ') };
@@ -561,6 +566,8 @@
                 validate: function(results) {
                     var optOut = results.filter(function(r) { return r.permissions && r.permissions.ownerOptOut; });
                     if (optOut.length > 0) return { pass: false, detail: optOut.length + ' rental owner opt-out listings leaked' };
+                    var inetOff = results.filter(function(r) { return r.internetDisplayYN === false; });
+                    if (inetOff.length > 0) return { pass: false, detail: inetOff.length + ' rental internet-display-off listings leaked' };
                     var idxOff = results.filter(function(r) { return r.idxDisplayYN === false; });
                     if (idxOff.length > 0) return { pass: false, detail: idxOff.length + ' rental IDX-off listings leaked' };
                     return { pass: true, detail: results.length + ' rental results, all gates enforced' };

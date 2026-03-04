@@ -2498,8 +2498,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px] mr-1"></i>Not Activated</span>
             </div>
-            <p class="text-xs text-gray-400">RLS/RESO/IDX: VOWOptOutYN</p>
-            <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed access not applied for.</p>
+            <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+            <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
         </div>
         <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
         <div class="border rounded-lg p-4">
@@ -2524,8 +2524,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <input type="checkbox" class="w-4 h-4" id="rentalSendToAll" data-rls-field="SyndicateYN">
         <span class="text-sm font-medium">Send This Listing to All Available Sites</span>
     </label>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_IDX" class="w-4 h-4" checked data-rls-field="IDXEntireListingDisplayYN"> IDX</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_VOW" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> VOW</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Listhub</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateYN"> NY MLS</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Realtor</label>
@@ -4331,7 +4332,7 @@ var _RENTAL_VIEWER_MOCK = {
         listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
         listingAgentLicense: 'DEMO-LIC-001',
         listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false,
+        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
         distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: false, distWWW: true, distRLS: true,
         createDate: '2026-02-01', lastUpdated: '2026-02-20',
         showingInstructions: 'Call listing agent 24 hours in advance. Check in with doorman.',
@@ -4368,7 +4369,7 @@ var _RENTAL_VIEWER_MOCK = {
         listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
         listingAgentLicense: 'DEMO-LIC-001',
         listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false,
+        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
         distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: true, distWWW: true, distRLS: true,
         createDate: '2026-01-20', lastUpdated: '2026-02-18',
         showingInstructions: 'By appointment only. Board package required.',
@@ -4405,7 +4406,7 @@ var _RENTAL_VIEWER_MOCK = {
         listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
         listingAgentLicense: 'DEMO-LIC-001',
         listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false,
+        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
         distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: false, distWWW: true, distRLS: true,
         createDate: '2025-12-01', lastUpdated: '2026-01-28',
         showingInstructions: 'No longer available — lease signed.',
@@ -4574,6 +4575,7 @@ function loadRentalListingData(listingId) {
     viewerSetCheck('rentalSyndicateYN', d.syndicateYN);
     viewerSetCheck('rentalIDXEntireListingDisplayYN', d.idxDisplay);
     viewerSetCheck('rentalDist_IDX', d.distIDX);
+    viewerSetCheck('rentalDist_VOW', d.internetDisplayYN !== false);
     viewerSetCheck('rentalDist_Listhub', d.distListhub);
     viewerSetCheck('rentalDist_NYMLS', d.distNYMLS);
     viewerSetCheck('rentalDist_Realtor', d.distRealtor);
@@ -5685,6 +5687,7 @@ function collectRentalFormData() {
         internetConsumerCommentYN: checked('rentalInternetConsumerCommentYN'),
         internetAVMDisplayYN: radioVal('rentalInternetAVMDisplayYN'),
         vowOptOutYN: checked('rentalVOWOptOutYN'),
+        distVOW: checked('rentalDist_VOW'),
         syndicateYN: checked('rentalSyndicateYN'),
 
         // Team (RLS/RESO/IDX: ListTeamName, ListTeamMlsId)

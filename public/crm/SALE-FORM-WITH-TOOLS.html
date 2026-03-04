@@ -3070,8 +3070,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     </label>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px]"></i> Not Activated</span>
                 </div>
-                <p class="text-xs text-gray-400">RLS/RESO/IDX: VOWOptOutYN</p>
-                <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed access not applied for. Data is still sent to VOW via RLS — this opt-out will apply when activated.</p>
+                <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+                <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
             </div>
 
             <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
@@ -3108,9 +3108,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <input type="checkbox" class="w-4 h-4" id="saleSendToAll" data-rls-field="SyndicateYN">
             <span class="text-sm font-medium">Send This Listing to All Available Sites</span>
         </label>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             <!-- REBNY I29: IDXEntireListingDisplayYN -->
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_IDX" class="w-4 h-4" checked data-rls-field="IDXEntireListingDisplayYN"> IDX</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_VOW" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> VOW</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Listhub</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateYN"> NY MLS</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Realtor</label>
@@ -4899,7 +4900,7 @@ var _SALE_VIEWER_MOCK = {
         listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
         listingAgentLicense: 'DEMO-LIC-001',
         listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false,
+        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
         distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: false, distWWW: true, distRLS: true,
         ownerOptOut: false, participantOnly: false,
         createDate: '2026-01-15', lastUpdated: '2026-02-20',
@@ -4937,7 +4938,7 @@ var _SALE_VIEWER_MOCK = {
         listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
         listingAgentLicense: 'DEMO-LIC-001',
         listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false,
+        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
         distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: true, distWWW: true, distRLS: true,
         ownerOptOut: false, participantOnly: false,
         createDate: '2025-11-01', lastUpdated: '2026-02-18',
@@ -4975,7 +4976,7 @@ var _SALE_VIEWER_MOCK = {
         listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
         listingAgentLicense: 'DEMO-LIC-001',
         listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false,
+        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
         distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: false, distWWW: true, distRLS: true,
         ownerOptOut: false, participantOnly: false,
         createDate: '2025-09-10', lastUpdated: '2026-01-30',
@@ -5158,6 +5159,7 @@ function loadSaleListingData(listingId) {
     viewerSetCheck('saleVOWOptOutYN', d.vowOptOut);
     viewerSetCheck('saleSyndicateYN', d.syndicateYN);
     viewerSetCheck('saleDist_IDX', d.distIDX);
+    viewerSetCheck('saleDist_VOW', d.internetDisplayYN !== false);
     viewerSetCheck('saleDist_Listhub', d.distListhub);
     viewerSetCheck('saleDist_NYMLS', d.distNYMLS);
     viewerSetCheck('saleDist_Realtor', d.distRealtor);
@@ -8500,6 +8502,7 @@ function collectSalePrintData() {
         stories: getSaleFormValue('saleBldgTotalFloors'),
         // Distribution — derive from checkboxes/radios
         idxDisplay: getSaleCheckboxYN('saleDist_IDX') || 'Yes',
+        internetDisplay: getSaleCheckboxYN('saleDist_VOW') || 'Yes',
         ownerOptOut: getSaleRadioValue('saleListingType') === 'OwnerOptOut' ? 'Yes' : 'No',
         syndication: (function() { var el = document.getElementById('saleSyndicateYN'); return el ? (el.checked ? 'Yes' : 'No') : 'Yes'; })(),
         // Description

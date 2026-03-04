@@ -41,11 +41,16 @@ function getIDXConfig(): IDXConfig {
     process.env.IDX_CLIENT_ID &&
     process.env.IDX_CLIENT_SECRET
   );
+  const endpoint = process.env.TRESTLE_API_URL;
+
+  if (enabled && !endpoint && process.env.NODE_ENV === 'production') {
+    throw new Error('TRESTLE_API_URL is required when IDX is enabled in production');
+  }
 
   return {
     enabled,
     credentialsPresent,
-    endpoint: process.env.IDX_BASE_URL,
+    endpoint,
     refreshIntervalMs: parseInt(process.env.IDX_REFRESH_INTERVAL_MS || '300000', 10),
   };
 }

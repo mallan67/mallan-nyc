@@ -13,6 +13,7 @@
  * 8. [CRITICAL] Sitemap must NOT include boroughs
  * 9. [CRITICAL] Navigation must NOT link to boroughs
  * 11. [CRITICAL] No Fair Housing prohibited terms in content
+ * 12. [CRITICAL] No deprecated Trestle/CoreLogic API hosts (AR.3)
  *
  * Phase 3 work MUST live in src/templates/, src/data/, src/compliance/
  * NOT in app/ directories.
@@ -392,7 +393,53 @@ if (prohibitedTerms.length > 0) {
 }
 
 // ===========================================================================
-// 12) Private listings noindex hint (warning only)
+// 12) CRITICAL: No deprecated Trestle/CoreLogic API hosts (AR.3 compliance)
+// ===========================================================================
+const DEPRECATED_HOSTS = [
+  "api-trestle.corelogic.com",
+  "api-prod.corelogic.com",
+];
+
+const hostScanExtensions = /\.(ts|tsx|js|jsx|json|env|env\.local|env\.production)$/;
+const hostScanExcludes = [/node_modules/, /\.next/, /\.git/, /archive\//];
+
+const hostScanFiles = allFiles.filter((f) => {
+  if (!hostScanExtensions.test(f)) return false;
+  if (hostScanExcludes.some((p) => p.test(f))) return false;
+  return true;
+});
+
+for (const file of hostScanFiles) {
+  const content = readFile(file);
+  for (const host of DEPRECATED_HOSTS) {
+    if (content.includes(host)) {
+      const lines = content.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(host)) {
+          // Allow if in a comment referencing the deprecation
+          const trimmed = lines[i].trim();
+          if (
+            trimmed.startsWith("//") ||
+            trimmed.startsWith("*") ||
+            trimmed.startsWith("#")
+          ) {
+            continue;
+          }
+          fail(
+            `[TRESTLE MIGRATION] Deprecated host "${host}" found in ${file}:${i + 1}.\n` +
+            `    Old Trestle URLs ceased functioning March 31, 2026.\n` +
+            `    Use TRESTLE_API_URL env var (https://api.cotality.com/trestle) instead.\n` +
+            `    Line: ${trimmed.substring(0, 120)}`
+          );
+          break;
+        }
+      }
+    }
+  }
+}
+
+// ===========================================================================
+// 13) Private listings noindex hint (warning only)
 // ===========================================================================
 const privateCandidates = [
   "app/member-listings/page.tsx",
