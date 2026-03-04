@@ -414,6 +414,40 @@ var MallanAPI = (function () {
     },
   };
 
+  // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
+
+  var idx = {
+    /**
+     * Search listings via Trestle/REBNY RLS.
+     * Returns listings in CRM flat shape (same as mockListings).
+     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip }
+     */
+    search: function (params) {
+      params = params || {};
+      var qs = [];
+      if (params.type) qs.push('type=' + encodeURIComponent(params.type));
+      if (params.minPrice) qs.push('minPrice=' + params.minPrice);
+      if (params.maxPrice) qs.push('maxPrice=' + params.maxPrice);
+      if (params.minBeds) qs.push('minBeds=' + params.minBeds);
+      if (params.minBaths) qs.push('minBaths=' + params.minBaths);
+      if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
+      if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
+      if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
+      if (params.limit) qs.push('limit=' + params.limit);
+      if (params.skip) qs.push('skip=' + params.skip);
+      var query = qs.length ? '?' + qs.join('&') : '';
+      return _fetch('/api/idx/search' + query);
+    },
+
+    /**
+     * Check IDX/Trestle status (broker-only).
+     */
+    status: function () {
+      return _fetch('/api/idx/status');
+    },
+  };
+
   // ─── Public API ──────────────────────────────────────────────────────────
 
   return {
@@ -498,6 +532,7 @@ var MallanAPI = (function () {
     showings: showings,
     savedSearches: savedSearches,
     email: email,
+    idx: idx,
 
   };
 })();
