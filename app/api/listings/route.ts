@@ -180,15 +180,7 @@ export async function GET(request: Request) {
         );
       } catch (idxError) {
         // IDX fetch failed — fall through to local data for resilience
-        const errMsg = idxError instanceof Error ? idxError.message : String(idxError);
-        console.error('[/api/listings] IDX fetch failed, falling back to local data:', errMsg);
-        // Temporarily surface error for debugging (remove after verified working)
-        if (process.env.NODE_ENV !== 'production') {
-          return NextResponse.json(
-            { success: false, error: 'IDX fetch failed', details: errMsg },
-            { status: 502 }
-          );
-        }
+        console.error('[/api/listings] IDX fetch failed, falling back to local data:', idxError);
       }
     }
 
