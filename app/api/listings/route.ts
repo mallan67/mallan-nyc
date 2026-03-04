@@ -105,6 +105,7 @@ export async function GET(request: Request) {
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
           top: fetchTop,
+          maxTotal: fetchTop,
         });
 
         // Step 1: Distribution gates on RAW Trestle data (Option A)

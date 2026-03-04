@@ -27,6 +27,7 @@ export async function GET() {
     const result = await fetchFromTrestle({
       filter: "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
       top: 3,
+      maxTotal: 3,
     });
     records = result.records;
     diag.step1_fetch = { ok: true, count: records.length, totalFetched: result.totalFetched };
