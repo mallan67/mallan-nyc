@@ -202,12 +202,15 @@
       return; // addLayers calls rehydrateSelection at the end
     }
 
-    // Apply feature-state for all polygons
+    // Apply feature-state for all polygons using slug as stable id
     try {
       for (var i = 0; i < _geojsonData.features.length; i++) {
-        var name = _geojsonData.features[i].properties.name;
+        var f = _geojsonData.features[i];
+        var name = f.properties.name;
+        var slug = f.properties.slug;
+        if (!slug) continue;
         _map.setFeatureState(
-          { source: 'nb-source', id: i },
+          { source: 'nb-source', id: slug },
           { selected: !!_selectedNames[name] }
         );
       }
@@ -257,7 +260,7 @@
     _map.addSource('nb-source', {
       type: 'geojson',
       data: geojson,
-      generateId: true,
+      promoteId: 'slug', // stable feature id from properties.slug
     });
 
     // Fill layer — all polygons, styled via feature-state
@@ -507,14 +510,17 @@
         }
       }
 
-      // Sync map feature state immediately
+      // Sync map feature state immediately using slug id
       if (_geojsonData && _map && _loaded) {
         for (var j = 0; j < _geojsonData.features.length; j++) {
-          if (_geojsonData.features[j].properties.name === name) {
+          var f = _geojsonData.features[j];
+          if (f.properties.name === name) {
+            var slug = f.properties.slug;
+            if (!slug) break;
             try {
               if (_map.getSource('nb-source')) {
                 _map.setFeatureState(
-                  { source: 'nb-source', id: j },
+                  { source: 'nb-source', id: slug },
                   { selected: checked }
                 );
               }
@@ -545,7 +551,9 @@
       try {
         if (_map.getSource('nb-source')) {
           for (var j = 0; j < _geojsonData.features.length; j++) {
-            _map.setFeatureState({ source: 'nb-source', id: j }, { selected: false });
+            var slug = _geojsonData.features[j].properties.slug;
+            if (!slug) continue;
+            _map.setFeatureState({ source: 'nb-source', id: slug }, { selected: false });
           }
         }
       } catch (_) {}
