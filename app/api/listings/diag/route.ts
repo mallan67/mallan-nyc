@@ -22,7 +22,7 @@ export async function GET() {
   let records: Record<string, unknown>[] = [];
   try {
     const result = await fetchFromTrestle({
-      filter: "(StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract')",
+      filter: "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
       top: 3,
     });
     records = result.records;

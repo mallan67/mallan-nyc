@@ -160,7 +160,7 @@ export function buildActiveFilter(
   listingType?: "sale" | "rent"
 ): string {
   const parts = [
-    "StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract'",
+    "StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract'",
   ];
 
   if (listingType === "sale") {
