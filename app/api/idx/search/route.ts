@@ -18,7 +18,10 @@ import { checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 
-// ── Fields we actually need (not all 448) ──────────────────────────────
+// ── Fields we actually need (validated against IDX Plus feed 2026-03-04) ──
+// Fields NOT on IDX Plus removed: SourceSystemModificationTimestamp, ComingSoonDate,
+// BathroomsTotal, FloorNumber, Media, IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN
+// Use BathroomsTotalInteger instead of BathroomsTotal; photos via PhotosCount (Media needs $expand)
 const SEARCH_SELECT_FIELDS = [
   // Address
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
@@ -30,29 +33,28 @@ const SEARCH_SELECT_FIELDS = [
   "CommonInterest", "OwnershipType", "NewConstructionYN",
   // Status & Dates
   "StandardStatus", "MlsStatus", "ModificationTimestamp",
-  "SourceSystemModificationTimestamp", "ListingContractDate",
+  "ListingContractDate",
   "OnMarketDate", "CloseDate", "ClosePrice", "ActivationDate",
-  "DaysOnMarket", "CumulativeDaysOnMarket", "ComingSoonDate",
+  "DaysOnMarket", "CumulativeDaysOnMarket",
   "OriginalListPrice", "PreviousListPrice", "AvailabilityDate",
   // Pricing
   "ListPrice", "LeaseAmount", "LeaseAmountFrequency",
   // Rooms & Size
-  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotal",
+  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
   "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
   // Building
-  "BuildingName", "FloorNumber",
+  "BuildingName",
   // Financial
   "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
   // Agent/Office
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail",
   "ListAgentDirectPhone", "ListOfficeMlsId", "ListOfficeName",
-  // Media
-  "Media", "PhotosCount", "VirtualTourURLBranded",
+  // Media (Media array needs $expand, not $select — use PhotosCount for now)
+  "PhotosCount", "VirtualTourURLBranded",
   // Remarks
   "PublicRemarks",
-  // Display flags / distribution gates
-  "IDXEntireListingDisplayYN", "InternetEntireListingDisplayYN",
-  "InternetAddressDisplayYN", "ParticipantOnlyYN", "IDXParticipationYN",
+  // Display flags (IDX/VOW/Participant gates pre-filtered by Trestle on IDX Plus feed)
+  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   // Rental
   "PetsAllowed", "Furnished",
 ];
@@ -134,11 +136,11 @@ function buildODataFilter(params: URLSearchParams): string {
   // Status — default to active statuses for CRM agents
   const status = params.get("status");
   if (status) {
-    const statuses = status.split(",").map(s => `MlsStatus eq '${escapeOData(s.trim())}'`);
+    const statuses = status.split(",").map(s => `StandardStatus eq '${escapeOData(s.trim())}'`);
     parts.push(`(${statuses.join(" or ")})`);
   } else {
     parts.push(
-      "(MlsStatus eq 'Active' or MlsStatus eq 'Coming Soon' or MlsStatus eq 'Active Under Contract')"
+      "(StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract')"
     );
   }
 
@@ -226,6 +228,7 @@ function mapTrestleToCRM(
     rooms: Number(raw.RoomsTotal) || 0,
     beds: Number(raw.BedroomsTotal) || 0,
     baths:
+      raw.BathroomsTotalInteger != null ? Number(raw.BathroomsTotalInteger) :
       (Number(raw.BathroomsFull) || 0) +
       (Number(raw.BathroomsHalf) || 0) * 0.5,
     fullBaths: Number(raw.BathroomsFull) || 0,
@@ -264,22 +267,20 @@ function mapTrestleToCRM(
     latitude: raw.Latitude != null ? Number(raw.Latitude) : null,
     longitude: raw.Longitude != null ? Number(raw.Longitude) : null,
     crossStreet: String(raw.CrossStreet || ""),
-    floor: raw.FloorNumber != null ? Number(raw.FloorNumber) : null,
+    floor: null, // FloorNumber not on IDX Plus feed
     description: String(raw.PublicRemarks || ""),
     virtualTourUrl: raw.VirtualTourURLBranded
       ? String(raw.VirtualTourURLBranded)
       : null,
-    idxDisplayYN: raw.IDXEntireListingDisplayYN !== false,
+    idxDisplayYN: true, // Pre-filtered by Trestle on IDX Plus feed
     internetDisplayYN: raw.InternetEntireListingDisplayYN !== false,
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
-    comingSoonDate: raw.ComingSoonDate
-      ? new Date(String(raw.ComingSoonDate)).toLocaleDateString("en-US")
-      : null,
+    comingSoonDate: null, // ComingSoonDate not on IDX Plus feed — detect via StandardStatus
     permissions: {
-      ownerOptOut: raw.IDXEntireListingDisplayYN === false,
-      participantOnly: raw.ParticipantOnlyYN === true,
-      idxDisplay: raw.IDXEntireListingDisplayYN !== false,
+      ownerOptOut: false, // Pre-filtered by Trestle on IDX Plus feed
+      participantOnly: false, // Pre-filtered by Trestle on IDX Plus feed
+      idxDisplay: true, // Pre-filtered by Trestle on IDX Plus feed
       internetDisplay: raw.InternetEntireListingDisplayYN !== false,
       syndication: true,
     },

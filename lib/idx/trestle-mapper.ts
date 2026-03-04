@@ -322,7 +322,7 @@ const B29_OTHER = [
   "WaterfrontYN",
 ];
 
-/** All 448 RLS field names combined (for $select). Deduplicated. */
+/** All 448 RLS field names combined (full spec). Deduplicated. */
 export const ALL_RLS_FIELDS: string[] = [...new Set([
   ...B1_ADDRESS, ...B2_CLASSIFICATION, ...B3_LISTING_AGREEMENT,
   ...B4_STATUS_DATES, ...B5_PRICING, ...B6_DISPLAY_FLAGS,
@@ -334,6 +334,85 @@ export const ALL_RLS_FIELDS: string[] = [...new Set([
   ...B22_OUTDOOR_PETS, ...B23_SHOWINGS, ...B24_NEW_DEV,
   ...B25_GREEN, ...B26_MEDIA, ...B27_RENTAL, ...B29_OTHER,
 ])];
+
+// ═══════════════════════════════════════════════════════════
+// IDX PLUS FEED — FIELD EXCLUSIONS
+// These 85 fields exist in the full RLS spec but are NOT available
+// on the IDX Plus feed ("IDX Plus feed for Mallan Real Estate Inc").
+// Validated live against Trestle on 2026-03-04.
+//
+// Reasons:
+//   - IDX/VOW/Participant gate fields: pre-filtered by Trestle (the feed
+//     only returns listings that pass these gates, so the fields aren't exposed)
+//   - Media: navigation property — requires $expand=Media, not $select
+//   - Team MLS IDs, some building/rental details: not provisioned on IDX Plus
+//
+// When upgrading to Direct Data License or VOW feed, re-validate and
+// shrink this set accordingly.
+// ═══════════════════════════════════════════════════════════
+const IDX_PLUS_EXCLUDED_FIELDS = new Set([
+  // Gate fields (pre-filtered by Trestle on IDX feed)
+  "IDXEntireListingDisplayYN", "IDXAutomatedValuationDisplayYN",
+  "VOWEntireListingDisplayYN", "VOWAutomatedValuationDisplayYN",
+  "VOWConsumerCommentYN", "IDXParticipationYN", "ParticipantOnlyYN",
+  // Address alternates
+  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
+  "AlternateStreetDirPrefix", "AlternateStreetDirSuffix", "AlternateStreetSuffix",
+  // Classification
+  "NewDevelopmentYN",
+  // Listing agreement
+  "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
+  // Status & dates
+  "SourceSystemModificationTimestamp", "ActivationTimestamp",
+  "CancelationDate", "PossessionDate",
+  "ComingSoonDate", "ComingSoonTimestamp",
+  "ActiveOpenHouseCount", "LastChangeType", "LastChangeTimestamp",
+  // Pricing
+  "SaleType", "AuctionType",
+  // Agent/team
+  "ListTeamMlsId", "BuyerTeamMlsId",
+  "CoListAgent2MLSID", "CoListAgent3MLSID",
+  "CoListTeamKey", "CoListTeamName",
+  "CoBuyerTeamKey", "CoBuyerTeamName",
+  // Unit rooms
+  "BathroomsTotal", "CeilingHeightFeet", "CeilingHeightInches",
+  "NumberOfDiningAreas", "NumberOfMasterBathrooms", "TotalLegalRooms",
+  // Building
+  "ArchitectName", "BuildingKeyNumeric", "FloorNumber", "FloorNumberInBuilding",
+  "Foundation",
+  // Building amenities
+  "BuildingAccessibilityFeatures", "AttendanceType",
+  "ElevatorYN", "GymYN", "DoormanYN",
+  "StorageYN", "BicycleStorageYN",
+  "TransitScore", "BikeScore",
+  // Financial
+  "GrossRentMultiplier", "PricePerUnit", "CableTVExpense",
+  // Lot & land
+  "FrontageLengthUnits",
+  // Unit features
+  "BathroomCondition", "KitchenCondition", "AreaOverFAR", "AreaUnderFAR",
+  // Outdoor & pets
+  "GardenYN", "GardenDescription", "DeckYN", "DeckDescription",
+  "PatioYN", "PatioDescription", "PetRestrictions",
+  // Green
+  "GreenCertification",
+  // Media (navigation property — use $expand=Media instead)
+  "Media", "MediaURL", "VideoURL", "FloorPlanURL",
+  "InteractiveFloorPlanURL", "MatterportURL",
+  "ListingSocialMediaURL", "BuildingSocialMediaURL",
+  // Rental
+  "LeaseConsideredTerms", "FurnishedDescription",
+  "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
+]);
+
+/**
+ * Fields validated for the IDX Plus feed $select query.
+ * = ALL_RLS_FIELDS minus fields not available on the IDX Plus feed.
+ * Use this for $select in fetchFromTrestle() to avoid 400 errors.
+ */
+export const IDX_PLUS_SELECT_FIELDS: string[] = ALL_RLS_FIELDS.filter(
+  (f) => !IDX_PLUS_EXCLUDED_FIELDS.has(f)
+);
 
 // ═══════════════════════════════════════════════════════════
 // DISTRIBUTION PROFILES

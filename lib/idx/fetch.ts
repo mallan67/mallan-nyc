@@ -3,7 +3,7 @@
 // Handles pagination via @odata.nextLink. Selects all 448 fields.
 
 import { getAccessToken, invalidateToken } from "./auth";
-import { ALL_RLS_FIELDS } from "./trestle-mapper";
+import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 
 // Derive Trestle property endpoint from centralized TRESTLE_API_URL.
 // Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
@@ -17,7 +17,7 @@ function getPropertyEndpoint(): string {
 const MAX_PAGE_SIZE = 200;
 
 export interface TrestleFetchOptions {
-  /** OData $filter expression (e.g., "MlsStatus eq 'Active'") */
+  /** OData $filter expression (e.g., "StandardStatus eq 'Active'") */
   filter?: string;
   /** Override $select (defaults to all 448 fields) */
   select?: string[];
@@ -48,7 +48,7 @@ export async function fetchFromTrestle(
   const token = await getAccessToken();
 
   const selectFields =
-    options.select?.join(",") || ALL_RLS_FIELDS.join(",");
+    options.select?.join(",") || IDX_PLUS_SELECT_FIELDS.join(",");
 
   const params = new URLSearchParams();
   if (options.filter) params.set("$filter", options.filter);
@@ -117,7 +117,7 @@ export async function fetchSingleListing(
   listingKey: string
 ): Promise<Record<string, unknown> | null> {
   const token = await getAccessToken();
-  const selectFields = ALL_RLS_FIELDS.join(",");
+  const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
   const url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}`;
 
   const response = await fetchPage(url, token);
@@ -160,7 +160,7 @@ export function buildActiveFilter(
   listingType?: "sale" | "rent"
 ): string {
   const parts = [
-    "MlsStatus eq 'Active' or MlsStatus eq 'Coming Soon' or MlsStatus eq 'Active Under Contract'",
+    "StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract'",
   ];
 
   if (listingType === "sale") {

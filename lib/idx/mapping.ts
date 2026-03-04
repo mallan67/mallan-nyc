@@ -260,6 +260,9 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     bedroomsTotal: Number(normalized.BedroomsTotal) || 0,
     bathroomsFull: Number(normalized.BathroomsFull) || 0,
     bathroomsHalf: Number(normalized.BathroomsHalf) || 0,
+    bathroomsTotal: normalized.BathroomsTotalInteger != null
+      ? Number(normalized.BathroomsTotalInteger)
+      : (Number(normalized.BathroomsFull) || 0) + (Number(normalized.BathroomsHalf) || 0) * 0.5,
     livingArea: normalized.LivingArea != null ? Number(normalized.LivingArea) : null,
     lotSizeArea: normalized.LotSizeArea != null ? Number(normalized.LotSizeArea) : null,
     yearBuilt: normalized.YearBuilt != null ? Number(normalized.YearBuilt) : null,
