@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import type { Prisma } from "@prisma/client";
@@ -100,6 +101,8 @@ async function generateListingId(listingType: string): Promise<string> {
  * Returns the created listing ID + any validation warnings.
  */
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

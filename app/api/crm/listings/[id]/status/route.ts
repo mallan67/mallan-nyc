@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -30,6 +31,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

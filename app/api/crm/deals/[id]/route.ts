@@ -8,6 +8,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -52,6 +53,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
  * Update deal fields. Owner agent or broker.
  */
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -62,6 +63,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
  * Update a listing. Re-runs compliance validation on the merged data.
  */
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
@@ -216,6 +219,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
  * Soft-delete: sets status to "Withdrawn". Does not remove from database.
  */
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

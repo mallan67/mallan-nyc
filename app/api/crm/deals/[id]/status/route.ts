@@ -7,6 +7,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 // Deal status state machine
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -24,6 +25,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

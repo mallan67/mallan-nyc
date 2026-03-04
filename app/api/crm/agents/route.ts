@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
   const auth = await requireBroker(req);
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
  * Create a new agent. Broker-only.
  */
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 

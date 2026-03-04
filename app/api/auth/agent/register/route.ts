@@ -8,8 +8,11 @@ import {
   hashPassword,
   logAuditEvent,
 } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 

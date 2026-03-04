@@ -15,6 +15,7 @@ import {
   dealStatusEmail,
   passwordResetEmail,
 } from "@/lib/email/templates";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 // Template registry — maps template names to generator functions
 const TEMPLATE_GENERATORS: Record<
@@ -60,6 +61,8 @@ const TEMPLATE_GENERATORS: Record<
 };
 
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

@@ -9,10 +9,13 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { generatePortalToken } from "@/lib/auth/portal-token";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

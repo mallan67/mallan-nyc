@@ -8,6 +8,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
@@ -68,6 +69,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

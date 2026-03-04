@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 // Simple in-memory rate limit for bulk email (per user, per hour)
 const bulkRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -29,6 +30,8 @@ function checkBulkRateLimit(userId: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 

@@ -3,12 +3,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const VALID_ACTIONS = ["liked", "disliked", "discuss", "schedule"];
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
 
