@@ -181,7 +181,7 @@
           cb.checked = !cb.checked;
         }
         window.toggleNeighborhoodMapItem(name, cb.checked);
-      }, true); // capture phase
+      }); // bubble phase — so checkbox default behavior fires first
       listEl._delegateBound = true;
     }
 
@@ -383,8 +383,9 @@
     modal.style.display = 'block';
 
     // Prevent clicks inside modal from reaching document-level handlers
+    // MUST use bubble phase (not capture) so child onclick handlers still fire
     if (!modal._stopPropBound) {
-      modal.addEventListener('click', function (e) { e.stopPropagation(); }, true);
+      modal.addEventListener('click', function (e) { e.stopPropagation(); });
       modal._stopPropBound = true;
     }
 
