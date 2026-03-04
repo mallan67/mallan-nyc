@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getAccessToken, hasCredentials } from '@/lib/idx/auth';
-import { IDX_PLUS_SELECT_FIELDS } from '@/lib/idx/trestle-mapper';
+import { hasCredentials } from '@/lib/idx/auth';
+import { fetchFromTrestle } from '@/lib/idx/fetch';
+import { checkDistributionGates, IDX_PLUS_SELECT_FIELDS } from '@/lib/idx/trestle-mapper';
+import { mapRESOToInternal } from '@/lib/idx/mapping';
+import { toPublicDTO } from '@/lib/idx/public-dto';
 
 /**
  * GET /api/listings/diag — temporary diagnostic endpoint.
- * Tests Trestle connectivity step by step. DELETE after verified.
+ * Tests FULL Trestle pipeline step by step. DELETE after verified.
  */
 export async function GET() {
   const diag: Record<string, unknown> = {
@@ -15,42 +18,46 @@ export async function GET() {
     selectFieldCount: IDX_PLUS_SELECT_FIELDS.length,
   };
 
+  // Step 1: fetchFromTrestle (full 297-field query)
+  let records: Record<string, unknown>[] = [];
   try {
-    // Step 1: Get token
-    const token = await getAccessToken();
-    diag.tokenOk = true;
-    diag.tokenLength = token.length;
+    const result = await fetchFromTrestle({
+      filter: "(StandardStatus eq 'Active' or StandardStatus eq 'Coming Soon' or StandardStatus eq 'Active Under Contract')",
+      top: 3,
+    });
+    records = result.records;
+    diag.step1_fetch = { ok: true, count: records.length, totalFetched: result.totalFetched };
   } catch (e) {
-    diag.tokenOk = false;
-    diag.tokenError = e instanceof Error ? e.message : String(e);
+    diag.step1_fetch = { ok: false, error: e instanceof Error ? e.message : String(e) };
     return NextResponse.json(diag, { status: 500 });
   }
 
+  // Step 2: checkDistributionGates
   try {
-    // Step 2: Try a minimal query
-    const token = await getAccessToken();
-    const base = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
-    const url = `${base}/odata/Property?$filter=${encodeURIComponent("StandardStatus eq 'Active'")}&$top=1&$select=ListingId,ListPrice,StandardStatus`;
+    const gated = records.map(r => ({ id: r.ListingId, ...checkDistributionGates(r) }));
+    const displayable = records.filter(r => checkDistributionGates(r).displayable);
+    diag.step2_gates = { ok: true, results: gated, displayableCount: displayable.length };
+    records = displayable;
+  } catch (e) {
+    diag.step2_gates = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    return NextResponse.json(diag, { status: 500 });
+  }
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
-
-    diag.queryStatus = res.status;
-    if (res.ok) {
-      const data = await res.json();
-      diag.queryOk = true;
-      diag.listingsReturned = (data.value || []).length;
-      if (data.value?.[0]) {
-        diag.sampleListing = data.value[0];
-      }
-    } else {
-      diag.queryOk = false;
-      diag.queryError = (await res.text()).substring(0, 500);
+  // Step 3: mapRESOToInternal
+  try {
+    const mapped = records.map(r => mapRESOToInternal(r));
+    const valid = mapped.filter((l): l is NonNullable<typeof l> => l !== null);
+    diag.step3_map = { ok: true, mappedCount: valid.length, nullCount: mapped.length - valid.length };
+    // Step 4: toPublicDTO
+    try {
+      const dtos = valid.map(l => toPublicDTO(l));
+      diag.step4_dto = { ok: true, count: dtos.length };
+      diag.sampleDTO = dtos[0] || null;
+    } catch (e) {
+      diag.step4_dto = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
   } catch (e) {
-    diag.queryOk = false;
-    diag.queryError = e instanceof Error ? e.message : String(e);
+    diag.step3_map = { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 
   return NextResponse.json(diag, {
