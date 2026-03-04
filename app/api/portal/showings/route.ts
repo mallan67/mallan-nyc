@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -76,6 +77,8 @@ export async function GET(req: NextRequest) {
  * Client requests a showing. Agent is resolved from lead.agent_id.
  */
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
 

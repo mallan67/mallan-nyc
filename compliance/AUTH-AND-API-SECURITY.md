@@ -8,32 +8,25 @@
 
 ## 1. Cross-Origin Authentication
 
-### Problem
-GitHub Pages (`https://mallan67.github.io`) and the API (`https://mallan.nyc`) are different origins. HttpOnly cookies with `SameSite=Lax` will not be sent cross-origin. `SameSite=None` is being phased out by browsers.
-
-### Solution: Dual Auth
-Both Bearer token (cross-origin) and cookie (same-origin) are supported simultaneously.
+### Solution: Cookie-Only Auth (Sprint 10+)
+All authentication uses HttpOnly cookies only. Bearer token auth was fully removed.
 
 | Method | Storage | Transport | Use Case |
 |--------|---------|-----------|----------|
-| **Bearer token** | `localStorage` (`mallan_session_token`) | `Authorization: Bearer <token>` header | Cross-origin (GitHub Pages → mallan.nyc) |
-| **httpOnly cookie** | Browser cookie jar (`session_token`) | Automatic with `credentials: 'include'` | Same-origin (future: when mockups move to mallan.nyc) |
+| **httpOnly cookie** | Browser cookie jar (`session_token`) | Automatic with `credentials: 'include'` | Same-origin (CRM served from mallan.nyc/crm/) |
 
 ### Auth Flow
 1. User submits email + password to `POST /api/auth/login`
 2. Server validates credentials, creates DB-backed session (`crypto.randomUUID()`)
-3. Response includes both:
-   - `token` field in JSON body (for Bearer auth)
-   - `Set-Cookie: session_token=<token>; HttpOnly; Secure; SameSite=Lax` (for cookie auth)
-4. `api-client.js` stores token in `localStorage`
-5. All subsequent requests send `Authorization: Bearer <token>` header
-6. Backend checks Bearer header first, then cookie (in both edge middleware and route handlers)
+3. Response sets `Set-Cookie: session_token=<token>; HttpOnly; Secure; SameSite=Lax`
+4. All subsequent requests authenticate via cookie automatically
+5. No tokens in JSON responses, no localStorage, no Bearer headers
 
 ### Token Lifecycle
 - **Duration:** 24 hours
 - **Auto-rotate:** If within 1 hour of expiry, session is silently extended
-- **Logout:** Token deleted from localStorage + session destroyed server-side
-- **401 response:** Token cleared from localStorage, `mallan:auth:unauthorized` event dispatched
+- **Logout:** Session destroyed server-side, cookie cleared
+- **401 response:** `mallan:auth:unauthorized` event dispatched
 
 ---
 
@@ -41,7 +34,8 @@ Both Bearer token (cross-origin) and cookie (same-origin) are supported simultan
 
 ### Allowed Origins
 ```
-https://mallan67.github.io    — GitHub Pages (production mockups)
+Production: same-origin only (no cross-origin allowed)
+Development only:
 http://localhost:3000          — Next.js dev server
 http://localhost:5500          — Live Server (VS Code extension)
 http://127.0.0.1:5500         — Live Server (IP variant)

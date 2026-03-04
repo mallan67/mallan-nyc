@@ -11,8 +11,11 @@ import {
 import { generatePortalToken } from "@/lib/auth/portal-token";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { portalInviteEmail } from "@/lib/email/templates";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function POST(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

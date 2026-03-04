@@ -9,7 +9,8 @@ function SourceIntegrityTests(options) {
     // SRC-01: Required fields present in raw data (pre-render)
     (function() {
         if (typeof mockListings === 'undefined' || mockListings.length === 0) {
-            addResult('SRC-01', 'Required Fields in Raw Data', 'FAIL', 'mockListings undefined or empty');
+            addResult('SRC-01', 'Required Fields in Raw Data', 'SKIP',
+                'No listings loaded yet (waiting for API). Re-run after data loads.');
             return;
         }
         var required = ['id','address','price','status','beds','baths','neighborhood'];
@@ -27,7 +28,7 @@ function SourceIntegrityTests(options) {
 
     // SRC-02: Unknown / invalid enum tokens → FAIL
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'mockListings undefined'); return; }
+        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('SRC-02', 'Enum Token Validity', 'SKIP', 'No listings loaded yet (waiting for API). Re-run after data loads.'); return; }
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var VC = ['sale','rental','Sale','Rental'];
@@ -45,7 +46,7 @@ function SourceIntegrityTests(options) {
 
     // SRC-03: Compliance flags fail-closed (missing = FAIL, not default-to-true)
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'FAIL', 'mockListings undefined'); return; }
+        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'SKIP', 'No listings loaded yet (waiting for API). Re-run after data loads.'); return; }
         var complianceFlags = ['idxDisplayYN','internetDisplayYN','addressDisplayYN'];
         var violations = [];
         mockListings.forEach(function(l) {

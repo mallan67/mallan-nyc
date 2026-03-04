@@ -8,6 +8,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -69,6 +70,8 @@ function criteriaToPrismaWhere(criteria: Record<string, unknown>): Prisma.Listin
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 

@@ -25,7 +25,6 @@ export const config = {
  */
 const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
 const ALLOWED_ORIGINS: string[] = [
-  "https://mallan67.github.io",
   ...(isProd ? [] : [
     "http://localhost:3000",
     "http://localhost:5500",

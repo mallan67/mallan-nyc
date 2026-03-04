@@ -7,6 +7,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,8 @@ async function findAgent(id: string) {
  * Update agent fields. Broker-only.
  */
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 
@@ -109,6 +112,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
  * Sets status = "inactive" and deletes all active sessions.
  */
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 

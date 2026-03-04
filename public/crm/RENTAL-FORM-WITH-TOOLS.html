@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>Rental Listing Viewer - Mallan Real Estate CRM</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -179,6 +180,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             </button>
             <button onclick="openRentalEmailModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-envelope text-gray-900"></i> <span class="font-semibold text-gray-900">Email</span>
+            </button>
+            <button onclick="openRentalFinancialCalc()" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#B8860B]/10 hover:bg-[#B8860B]/20 rounded-lg text-xs font-medium transition border border-[#B8860B]/30">
+                <i class="fas fa-calculator text-[#B8860B]"></i> <span class="font-semibold text-[#B8860B]">Calculators</span>
             </button>
             <button onclick="window.close(); if(!window.closed) history.back();" class="px-4 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
                 <i class="fas fa-arrow-left mr-1"></i> Back to CRM
@@ -2783,12 +2787,19 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     </div>
                 </div>
             </div>
-            <div class="mt-6 pt-4 border-t">
-                <p class="text-[10px] text-gray-400 leading-relaxed">Listing information is deemed reliable but not guaranteed. Data provided by the REBNY Listing Service. Mallan Real Estate Inc. does not guarantee the accuracy of the data. The consumer is responsible for verifying all information. Equal Housing Opportunity.</p>
+            <!-- UCBA Art. III, Sec. 2(C): Per-listing "Courtesy of" attribution -->
+            <div class="mt-6 pt-4 border-t" id="rentalCourtesyAttribution" style="display:none;">
+                <p class="text-xs text-gray-500 font-medium" data-rebny-attribution>Listing Courtesy of <span id="rentalCourtesyCompany"></span></p>
+            </div>
+
+            <!-- Listing Disclaimer -->
+            <div class="mt-4 pt-3 border-t border-gray-100">
+                <p class="text-[9px] text-gray-400 leading-relaxed">Information is deemed reliable but not guaranteed. No warranty or representation is made as to the accuracy, completeness, or reliability of any listing information, including descriptions, measurements, square footage, pricing, availability, or property condition. All information should be independently verified. Mallan Real Estate Inc., its subsidiaries, affiliates, agents, and associated third parties disclaim any liability arising from reliance on this information. Photos may be virtually staged and/or digitally enhanced and may not reflect actual conditions. Offers of compensation are subject to change at the seller's discretion and are made to other RLS Participants only. No financial, legal, or tax advice is provided. Equal Housing Opportunity.</p>
+                <p class="text-[9px] text-gray-400 leading-relaxed mt-1.5">This information is not verified for authenticity or accuracy and is not guaranteed and may not reflect all real estate activity in the market. &copy;2026 The Real Estate Board of New York, Inc., All rights reserved.</p>
             </div>
         </div>
         <div class="bg-gray-100 px-6 py-3 text-center">
-            <p class="text-gray-500 text-[10px]">&copy; 2026 Mallan Real Estate Inc. | 400 E 90th St, Suite 17C, NYC</p>
+            <p class="text-gray-500 text-[10px]">&copy; 2026 Mallan Real Estate Inc. | 400 E 90th St, Suite 17C, NYC | #10991205323</p>
         </div>
     </div>
 </div>
@@ -4590,6 +4601,14 @@ function loadRentalListingData(listingId) {
     viewerSetVal('rentalUnitDisplay', d.unit || '--');
     viewerSetVal('rentalListingIdDisplay', d.listingId);
     viewerSetVal('rentalLastUpdated', d.lastUpdated);
+
+    // UCBA Art. III, Sec. 2(C): "Listing Courtesy of [Exclusive Broker/Participant]"
+    var courtesyEl = document.getElementById('rentalCourtesyAttribution');
+    var courtesyCompany = document.getElementById('rentalCourtesyCompany');
+    if (courtesyEl && courtesyCompany && d.listingCompany) {
+        courtesyCompany.textContent = d.listingCompany;
+        courtesyEl.style.display = '';
+    }
 
     return d;
 }

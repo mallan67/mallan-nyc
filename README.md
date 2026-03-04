@@ -227,11 +227,9 @@ GitHub Pages and mallan.nyc are different origins. Cookies (`SameSite=Lax`) don'
 
 **Solution:** Dual auth — cookies for same-origin (future), Bearer token for cross-origin (now).
 
-1. Login returns the session token in the JSON response body (alongside the cookie)
-2. `api-client.js` stores token in `localStorage` (`mallan_session_token`)
-3. All requests send `Authorization: Bearer <token>` header
-4. Backend checks Bearer header first, cookie second
-5. CORS allows `https://mallan67.github.io` + localhost origins
+1. Login sets an HttpOnly session cookie (`session_token`)
+2. All requests authenticate via cookie only (no Bearer tokens)
+3. CORS is same-origin in production (localhost origins allowed in dev only)
 
 ### API Endpoints (42 total)
 
@@ -297,7 +295,7 @@ GitHub Pages and mallan.nyc are different origins. Cookies (`SameSite=Lax`) don'
 
 ### Security
 
-- **CORS:** Allowlist — `https://mallan67.github.io`, `http://localhost:3000`, `http://localhost:5500`
+- **CORS:** Same-origin in production; `http://localhost:3000`, `http://localhost:5500` in dev only
 - **Rate Limiting:** 30 req/min API, 120 req/min pages (per IP)
 - **IDX Sync:** 1 call per 5 minutes
 - **Bot Blocking:** 30+ known scraper/AI bots blocked at edge
