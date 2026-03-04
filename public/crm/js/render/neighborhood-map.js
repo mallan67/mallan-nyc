@@ -315,32 +315,42 @@
         promoteId: 'slug',
       });
 
+      // Find first symbol layer so polygons render BELOW labels but ABOVE land
+      var firstSymbol = null;
+      var layers = _map.getStyle().layers;
+      if (layers) {
+        for (var li = 0; li < layers.length; li++) {
+          if (layers[li].type === 'symbol') { firstSymbol = layers[li].id; break; }
+        }
+      }
+      _dbg('Insert before: ' + (firstSymbol || 'top'));
+
       _map.addLayer({
         id: 'nb-fill', type: 'fill', source: 'nb-source',
         paint: {
           'fill-color': GOLD,
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'selected'], false], 0.30,
-            ['boolean', ['feature-state', 'hover'], false], 0.16,
-            0.08,
+            ['boolean', ['feature-state', 'selected'], false], 0.45,
+            ['boolean', ['feature-state', 'hover'], false], 0.30,
+            0.18,
           ],
         },
-      });
+      }, firstSymbol || undefined);
 
       _map.addLayer({
         id: 'nb-line', type: 'line', source: 'nb-source',
         paint: {
           'line-color': GOLD,
-          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2.5, 1],
-          'line-opacity': 0.7,
+          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
+          'line-opacity': 1,
         },
-      });
+      }, firstSymbol || undefined);
 
       _map.addLayer({
         id: 'nb-label', type: 'symbol', source: 'nb-source',
-        layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-anchor': 'center', 'text-allow-overlap': false },
-        paint: { 'text-color': '#333', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+        layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false },
+        paint: { 'text-color': '#5a3800', 'text-halo-color': '#fff', 'text-halo-width': 2 },
       });
 
       _dbg('Layers added OK (' + geojson.features.length + ' polygons)');
