@@ -150,8 +150,8 @@
         var nName = names[n];
         var escapedName = nName.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         var checked = _selectedNames[nName] ? ' checked' : '';
-        html += '<div class="nb-item nb-sidebar-item" data-name="' + escapedName + '" onclick="toggleNeighborhoodMapItemFromRow(this,event)">';
-        html += '<input type="checkbox" class="nb-sidebar-cb"' + checked + ' data-nb="' + escapedName + '" onchange="toggleNeighborhoodMapItem(\'' + escapedName.replace(/'/g, "\\'") + '\',this.checked)">';
+        html += '<div class="nb-item nb-sidebar-item" data-name="' + escapedName + '">';
+        html += '<input type="checkbox" class="nb-sidebar-cb"' + checked + ' data-nb="' + escapedName + '">';
         html += '<div class="nb-item-name">' + nName + '<div class="nb-item-borough">' + bName + '</div></div>';
         html += '<div class="nb-item-chevron">&#8250;</div>';
         html += '</div>';
@@ -164,6 +164,26 @@
     }
 
     listEl.innerHTML = html;
+
+    // Event delegation for sidebar — replaces inline onclick/onchange handlers
+    // This avoids all string escaping issues with neighborhood names
+    if (!listEl._delegateBound) {
+      listEl.addEventListener('click', function (e) {
+        e.stopPropagation(); // never let clicks escape the sidebar
+        var item = e.target.closest('.nb-sidebar-item');
+        if (!item) return;
+        var cb = item.querySelector('input[type="checkbox"]');
+        if (!cb) return;
+        var name = cb.getAttribute('data-nb');
+        if (!name) return;
+        // If the click was NOT on the checkbox itself, toggle it manually
+        if (e.target.tagName !== 'INPUT') {
+          cb.checked = !cb.checked;
+        }
+        window.toggleNeighborhoodMapItem(name, cb.checked);
+      }, true); // capture phase
+      listEl._delegateBound = true;
+    }
 
     var clearBtn = document.getElementById('nbMapClearBtn');
     if (clearBtn) {
@@ -348,6 +368,58 @@
     // Otherwise keep existing _selectedNames (persists between opens)
   }
 
+  // ── Modal visibility helpers ──
+  // Only use style.display (never Tailwind 'hidden' class) to avoid race conditions
+  var _modalOpen = false;
+
+  function showModal() {
+    var modal = document.getElementById('neighborhoodMapModal');
+    if (!modal) return;
+    _modalOpen = true;
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+
+    // Prevent clicks inside modal from reaching document-level handlers
+    if (!modal._stopPropBound) {
+      modal.addEventListener('click', function (e) { e.stopPropagation(); }, true);
+      modal._stopPropBound = true;
+    }
+
+    // MutationObserver: detect + revert unauthorized visibility changes
+    if (!modal._observer) {
+      modal._observer = new MutationObserver(function (mutations) {
+        if (!_modalOpen) return; // we're legitimately closed
+        mutations.forEach(function (m) {
+          if (m.type === 'attributes') {
+            var el = m.target;
+            // If someone set display:none while we should be open, revert it
+            if (el.style.display === 'none') {
+              console.warn('[NB-MAP] Unauthorized display:none detected — reverting');
+              console.trace();
+              el.style.display = 'block';
+            }
+            // If someone added 'hidden' class while we should be open, remove it
+            if (el.classList.contains('hidden')) {
+              console.warn('[NB-MAP] Unauthorized hidden class detected — reverting');
+              console.trace();
+              el.classList.remove('hidden');
+            }
+          }
+        });
+      });
+      modal._observer.observe(modal, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+  }
+
+  function hideModal() {
+    _modalOpen = false;
+    var modal = document.getElementById('neighborhoodMapModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+  }
+
   // ── Public API ──
 
   window.openNeighborhoodMap = function (callback) {
@@ -356,16 +428,7 @@
     // (A) Initialize selection from search state
     initSelectionFromSearchState();
 
-    var modal = document.getElementById('neighborhoodMapModal');
-    if (modal) {
-      modal.classList.remove('hidden');
-      modal.style.display = '';
-      // Prevent document-level click handlers from interfering with modal
-      if (!modal._stopPropBound) {
-        modal.addEventListener('click', function (e) { e.stopPropagation(); });
-        modal._stopPropBound = true;
-      }
-    }
+    showModal();
 
     ensureMapLibre(function () {
       loadGeoJSON(function (geojson) {
@@ -389,8 +452,9 @@
 
   // (D) Close only hides UI — does NOT clear _selectedNames
   window.closeNeighborhoodMap = function () {
-    var modal = document.getElementById('neighborhoodMapModal');
-    if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+    console.log('[NB-MAP] closeNeighborhoodMap called');
+    console.trace();
+    hideModal();
   };
 
   window.confirmNeighborhoodMapSelection = function () {
@@ -407,57 +471,67 @@
       if (typeof showToast === 'function') showToast('Error applying neighborhoods: ' + err.message, 'error');
       return;
     }
-    window.closeNeighborhoodMap();
+    hideModal();
   };
 
   window.toggleNeighborhoodMapItemFromRow = function (rowEl, evt) {
-    if (evt && evt.target && evt.target.tagName === 'INPUT') return;
-    var cb = rowEl.querySelector('input[type="checkbox"]');
-    if (!cb) return;
-    var name = cb.getAttribute('data-nb');
-    if (!name) return;
-    cb.checked = !cb.checked;
-    window.toggleNeighborhoodMapItem(name, cb.checked);
+    try {
+      // If the click was on the checkbox itself, let onchange handle it
+      if (evt && evt.target && evt.target.tagName === 'INPUT') return;
+      if (evt) evt.stopPropagation();
+      var cb = rowEl.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      var name = cb.getAttribute('data-nb');
+      if (!name) return;
+      cb.checked = !cb.checked;
+      window.toggleNeighborhoodMapItem(name, cb.checked);
+    } catch (err) {
+      console.error('[NB-MAP] toggleNeighborhoodMapItemFromRow error:', err);
+    }
   };
 
   window.toggleNeighborhoodMapItem = function (name, checked) {
-    if (checked) {
-      _selectedNames[name] = true;
-    } else {
-      delete _selectedNames[name];
-    }
-
-    // Sync checkbox in sidebar
-    var items = document.querySelectorAll('.nb-sidebar-item');
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].getAttribute('data-name') === name) {
-        var cb = items[i].querySelector('input[type="checkbox"]');
-        if (cb) cb.checked = checked;
+    try {
+      if (checked) {
+        _selectedNames[name] = true;
+      } else {
+        delete _selectedNames[name];
       }
-    }
 
-    // Sync map feature state immediately
-    if (_geojsonData && _map && _loaded) {
-      for (var j = 0; j < _geojsonData.features.length; j++) {
-        if (_geojsonData.features[j].properties.name === name) {
-          try {
-            if (_map.getSource('nb-source')) {
-              _map.setFeatureState(
-                { source: 'nb-source', id: j },
-                { selected: checked }
-              );
-            }
-          } catch (_) { /* source not ready */ }
-          break;
+      // Sync checkbox in sidebar
+      var items = document.querySelectorAll('.nb-sidebar-item');
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].getAttribute('data-name') === name) {
+          var cb = items[i].querySelector('input[type="checkbox"]');
+          if (cb) cb.checked = checked;
         }
       }
-    }
 
-    updateSelectedCount();
+      // Sync map feature state immediately
+      if (_geojsonData && _map && _loaded) {
+        for (var j = 0; j < _geojsonData.features.length; j++) {
+          if (_geojsonData.features[j].properties.name === name) {
+            try {
+              if (_map.getSource('nb-source')) {
+                _map.setFeatureState(
+                  { source: 'nb-source', id: j },
+                  { selected: checked }
+                );
+              }
+            } catch (_) { /* source not ready */ }
+            break;
+          }
+        }
+      }
 
-    var clearBtn = document.getElementById('nbMapClearBtn');
-    if (clearBtn) {
-      clearBtn.style.display = Object.keys(_selectedNames).length > 0 ? '' : 'none';
+      updateSelectedCount();
+
+      var clearBtn = document.getElementById('nbMapClearBtn');
+      if (clearBtn) {
+        clearBtn.style.display = Object.keys(_selectedNames).length > 0 ? '' : 'none';
+      }
+    } catch (err) {
+      console.error('[NB-MAP] toggleNeighborhoodMapItem error:', err);
     }
   };
 
