@@ -28,6 +28,8 @@ export interface TrestleFetchOptions {
   maxTotal?: number;
   /** Include $count=true to get total count from OData */
   count?: boolean;
+  /** Whether to try $expand=Media (default true). Set false for bulk queries to avoid slow responses. */
+  expandMedia?: boolean;
 }
 
 export interface TrestleFetchResult {
@@ -51,6 +53,8 @@ export async function fetchFromTrestle(
   const selectFields =
     options.select?.join(",") || IDX_PLUS_SELECT_FIELDS.join(",");
 
+  const tryMedia = options.expandMedia !== false;
+
   function buildUrl(withMediaExpand: boolean): string {
     const params = new URLSearchParams();
     if (options.filter) params.set("$filter", options.filter);
@@ -65,7 +69,7 @@ export async function fetchFromTrestle(
   }
 
   // Try with $expand=Media first; if Trestle rejects it (400), retry without
-  let url = buildUrl(true);
+  let url = buildUrl(tryMedia);
   const firstResponse = await fetchPage(url, token);
   if (firstResponse.status === 400) {
     console.warn("[IDX Fetch] $expand=Media not supported — retrying without");

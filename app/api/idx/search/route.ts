@@ -419,6 +419,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch from Trestle (READ-ONLY GET)
+    // Skip $expand=Media for bulk search — photos fetched separately via /api/media/batch
     const result = await fetchFromTrestle({
       filter,
       select: SEARCH_SELECT_FIELDS,
@@ -427,6 +428,7 @@ export async function GET(req: NextRequest) {
       orderby: sort || "ModificationTimestamp desc",
       maxTotal: limit,
       count: true,
+      expandMedia: false,
     });
 
     // Apply distribution gates — CRM context: agents see Participant Only + IDX opted-out

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
+import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
@@ -157,12 +158,15 @@ export async function GET(request: Request) {
         // Fetch more records to account for gate filtering + post-filters + pagination
         const fetchTop = Math.min(Math.max((limit + skip) * 3, 500), 500);
 
+        // Skip $expand=Media for bulk queries — it's extremely slow (2+ min for 500 records).
+        // Photos are batch-fetched separately below for just the page of results.
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
           top: fetchTop,
           maxTotal: fetchTop,
           orderby,
           count: true,
+          expandMedia: false,
         });
 
         // Step 1: Distribution gates on RAW Trestle data (Option A)
@@ -207,7 +211,71 @@ export async function GET(request: Request) {
         // Step 4: Apply skip + limit and convert to public DTO
         // Use OData count for true total when available; fall back to filtered.length
         const totalCount = result.odataCount ?? filtered.length;
-        const publicListings = filtered.slice(skip, skip + limit).map(toPublicDTO);
+        const pageListings = filtered.slice(skip, skip + limit);
+
+        // Step 4b: Batch-fetch primary photos for the page (much faster than $expand=Media on 500 records)
+        // Only fetch for listings that don't already have media (from $expand fallback)
+        const needsPhotos = pageListings.filter(l => l.media.length === 0);
+        if (needsPhotos.length > 0) {
+          try {
+            const token = await getAccessToken();
+            const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
+            // Fetch primary photos (Order eq 0) for all page listings in one request
+            const listingIds = needsPhotos.map(l => l.listingId);
+            const filterParts2 = listingIds.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
+            // Get first 3 photos per listing (for card display + hover preview)
+            const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 2`;
+            const mediaParams = new URLSearchParams();
+            mediaParams.set('$filter', mediaFilter);
+            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,Order');
+            mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
+            mediaParams.set('$top', String(needsPhotos.length * 3));
+
+            const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+            });
+
+            if (mediaResponse.ok) {
+              const mediaData = await mediaResponse.json();
+              const mediaRecords = mediaData.value || [];
+              // Group by listing ID
+              const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+              for (const m of mediaRecords) {
+                const lid = String(m.ResourceRecordID || '');
+                if (!lid || !m.MediaURL) continue;
+                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+                // Normalize media type: Jpeg/Png/etc → Photo, FloorPlan stays
+                const rawType = String(m.MediaType || 'Photo').toLowerCase();
+                const floorPlanNames = ['floorplan', 'floor plan'];
+                const videoNames = ['video', 'mpeg', 'mp4', 'avi'];
+                let mediaType = 'Photo';
+                if (floorPlanNames.includes(rawType)) mediaType = 'FloorPlan';
+                else if (videoNames.includes(rawType)) mediaType = 'Video';
+                mediaByListing.get(lid)!.push({
+                  url: String(m.MediaURL),
+                  mediaType,
+                  order: Number(m.Order ?? 0),
+                });
+              }
+              // Inject media into listings, sorted: Photos first, FloorPlans last
+              for (const listing of needsPhotos) {
+                const photos = mediaByListing.get(listing.listingId);
+                if (photos && photos.length > 0) {
+                  listing.media = photos.sort((a, b) => {
+                    const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
+                    const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+                    return rankDiff !== 0 ? rankDiff : a.order - b.order;
+                  }) as typeof listing.media;
+                }
+              }
+            }
+          } catch (mediaErr) {
+            // Non-fatal — listings display without photos
+            console.warn('[/api/listings] Photo batch fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
+          }
+        }
+
+        const publicListings = pageListings.map(toPublicDTO);
 
         return NextResponse.json(
           {

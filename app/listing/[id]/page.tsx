@@ -212,12 +212,20 @@ export default async function ListingPage({ params, searchParams }: Props) {
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
-  // Trestle returns mediaType as "Jpeg", "Png", etc. — accept all image types
+  // Separate media by type: photos, floorplans, videos
   const videoTypes = new Set(['video', 'mpeg', 'mp4', 'avi']);
+  const floorPlanTypes = new Set(['floorplan', 'floor plan']);
   const images = listing.media
-    .filter((m) => !videoTypes.has((m.mediaType || '').toLowerCase()))
+    .filter((m) => {
+      const type = (m.mediaType || '').toLowerCase();
+      return !videoTypes.has(type) && !floorPlanTypes.has(type);
+    })
     .sort((a, b) => a.order - b.order)
     .map((m) => ({ url: m.url }));
+  const floorPlanMedia = listing.media.find((m) =>
+    floorPlanTypes.has((m.mediaType || '').toLowerCase())
+  );
+  const floorPlanUrl = floorPlanMedia?.url || null;
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -249,7 +257,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       {/* Media Gallery */}
       <ListingMediaGallery
         images={images}
-        floorPlanUrl={null}
+        floorPlanUrl={floorPlanUrl}
         videoUrl={null}
         virtualTourUrl={listing.virtualTourURL || null}
         alt={fullAddress}
@@ -464,14 +472,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <div className="glass-card rounded-3xl p-6">
                   <h3 className="text-lg font-display font-semibold mb-4">Interested in this property?</h3>
 
-                  <div className="mb-6">
-                    <p className="text-sm text-brand-dark/50 mb-1">Listed by</p>
-                    <p className="font-display font-semibold text-lg">{listing.listAgentFullName || listing.listOfficeName}</p>
-                    <p className="text-brand-dark/60">{listing.listOfficeName}</p>
-                    {/* REBNY COMPLIANCE: Agent PII (email, phone) is NOT in PublicListingDTO.
-                       Contact goes through Mallan Real Estate inquiry form below. */}
-                  </div>
-
                   <div className="space-y-3">
                     <a
                       href="tel:646-258-4460"
@@ -533,6 +533,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
           </div>
         </div>
       </main>
+
+      {/* Listing Courtesy Attribution (REBNY compliance) */}
+      <section className="border-t border-black/5 py-6 px-4">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-sm text-brand-dark/50">
+            Courtesy of {listing.listAgentFullName || 'Listing Agent'}, {listing.listOfficeName || 'Listing Office'}
+          </p>
+        </div>
+      </section>
 
       {/* REBNY RLS Disclaimer */}
       <section className="bg-gray-50/50 border-t border-black/5 py-6 px-4">
