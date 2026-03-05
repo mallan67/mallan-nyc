@@ -5,13 +5,13 @@
 // SECURITY:
 // - Only proxies URLs from allowed Trestle/Cotality domains
 // - Adds Bearer token server-side (never exposed to client)
-// - Caches responses for 24 hours (CDN + browser)
-// - Rate limited by upstream /api rate limiting in next.config.js
+// - Caches responses for 7 days (CDN + browser)
+// - Concurrency-limited to avoid Trestle throttling
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/idx/auth";
 
-// Only allow proxying from Trestle/Cotality media domain (migrated to api.cotality.com)
+// Only allow proxying from Trestle/Cotality media domain
 const ALLOWED_HOSTS = new Set([
   "api.cotality.com",
 ]);
@@ -25,6 +25,31 @@ function isAllowedUrl(url: string): boolean {
   }
 }
 
+// Semaphore: limit concurrent outbound requests to Trestle.
+// Prevents connection pool exhaustion that causes alternating photo failures.
+const MAX_CONCURRENT = 6;
+let inFlight = 0;
+const waitQueue: (() => void)[] = [];
+
+function acquireSlot(): Promise<void> {
+  if (inFlight < MAX_CONCURRENT) {
+    inFlight++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    waitQueue.push(resolve);
+  });
+}
+
+function releaseSlot(): void {
+  if (waitQueue.length > 0) {
+    const next = waitQueue.shift()!;
+    next();
+  } else {
+    inFlight--;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const mediaUrl = req.nextUrl.searchParams.get("url");
 
@@ -35,6 +60,8 @@ export async function GET(req: NextRequest) {
   if (!isAllowedUrl(mediaUrl)) {
     return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
   }
+
+  await acquireSlot();
 
   try {
     const token = await getAccessToken();
@@ -51,9 +78,11 @@ export async function GET(req: NextRequest) {
     }
 
     const contentType = response.headers.get("content-type") || "image/jpeg";
-    const buffer = await response.arrayBuffer();
 
-    return new NextResponse(buffer, {
+    // Stream the response instead of buffering the full image in memory
+    const body = response.body;
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": contentType,
@@ -65,5 +94,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("[Media Proxy] Error:", err instanceof Error ? err.message : err);
     return new NextResponse(null, { status: 502 });
+  } finally {
+    releaseSlot();
   }
 }

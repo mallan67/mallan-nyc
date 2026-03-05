@@ -458,6 +458,7 @@ var MallanAPI = (function () {
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
+      if (params.address) qs.push('address=' + encodeURIComponent(params.address));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
       var query = qs.length ? '?' + qs.join('&') : '';
