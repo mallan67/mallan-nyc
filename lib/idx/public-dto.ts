@@ -12,6 +12,7 @@
  */
 
 import type { IDXListing } from './types';
+import { generateListingSlug } from '@/lib/listing-slug';
 
 /** Trestle media URLs require Bearer auth — proxy through our API */
 const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
@@ -34,6 +35,8 @@ function proxyMediaUrl(url: string): string {
 export interface PublicListingDTO {
   id: string;
   mlsId: string;
+  /** URL slug — address-based when allowed, MLS-ID-based when address is suppressed */
+  slug: string;
   status: string;
   listingType: 'sale' | 'rent';
   address: {
@@ -136,9 +139,25 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
 
   const isComingSoon = listing.standardStatus === 'Coming Soon';
 
+  // Generate address-based slug — respects InternetAddressDisplayYN gate
+  const slug = generateListingSlug({
+    address: {
+      streetNumber: listing.address.streetNumber,
+      streetName: listing.address.streetName,
+      unitNumber: listing.address.unitNumber,
+      city: listing.address.city,
+      stateOrProvince: listing.address.stateOrProvince,
+      postalCode: listing.address.postalCode,
+    },
+    id: listing.listingId,
+    mlsId: listing.mlsId,
+    internetAddressDisplayYN: listing.internetAddressDisplayYN,
+  });
+
   return {
     id: listing.listingId,
     mlsId: listing.mlsId,
+    slug,
     status: listing.standardStatus,
     listingType: listing.listingType,
     address,
