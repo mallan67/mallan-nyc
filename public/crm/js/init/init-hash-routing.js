@@ -6,15 +6,8 @@
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
 
-        // On refresh, always go back to the search form.
-        // Results are transient — user re-searches after refresh.
-        // This prevents the freeze/blank screen caused by trying to restore
-        // results before API data has loaded.
-        if (route === 'results') {
-            try { sessionStorage.removeItem('_searchState'); } catch(e) {}
-            route = 'main';
-            history.replaceState(null, '', '#main');
-        }
+        // On refresh with #results: keep the route — we'll restore search state
+        // after API data loads via MallanAPI.onReady() in the results handler below.
 
         // ── IMMEDIATE: hide the search form if we're restoring detail ──
         if (route === 'detail') {
@@ -194,8 +187,59 @@
             _showResultsSkeleton();
         }
 
-        // Try to restore saved search state from sessionStorage
-        // Use requestAnimationFrame to let the skeleton paint first
+        // On initial page load (refresh), wait for API data before rendering
+        if (isInitialLoad) {
+            // Try restoring saved state first
+            var restored = false;
+            if (typeof _restoreSearchState === 'function') {
+                restored = _restoreSearchState();
+            }
+
+            if (restored && typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
+                // We have cached results — render them immediately
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+                if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
+            } else {
+                // No cached results — wait for MallanAPI data to load, then re-run search
+                if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+                    MallanAPI.onReady(function() {
+                        // API is ready, data loaded — now re-run search with saved criteria
+                        if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
+                            // Re-run server search with saved criteria
+                            var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
+                            var localResults = hasLocalData && typeof filterListings === 'function' ? filterListings(mockListings, activeSearchCriteria) : [];
+                            searchResultsState.filteredListings = localResults;
+                            searchResultsState.currentPage = 1;
+                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                            if (typeof updateResultsCount === 'function') updateResultsCount();
+                            if (typeof _serverSearch === 'function') _serverSearch(activeSearchCriteria, localResults);
+                        } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                            // No saved criteria — show all loaded listings
+                            searchResultsState.filteredListings = mockListings.slice();
+                            searchResultsState.currentPage = 1;
+                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                            if (typeof updateResultsCount === 'function') updateResultsCount();
+                        } else {
+                            // No data at all — go to search form
+                            if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                            if (searchFormContainer) searchFormContainer.style.display = 'block';
+                            if (searchResultsSection) searchResultsSection.style.display = 'none';
+                            history.replaceState(null, '', '#main');
+                        }
+                    });
+                } else {
+                    // No MallanAPI — fall back to search form
+                    if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                    if (searchFormContainer) searchFormContainer.style.display = 'block';
+                    if (searchResultsSection) searchResultsSection.style.display = 'none';
+                    history.replaceState(null, '', '#main');
+                }
+            }
+            return;
+        }
+
+        // Non-initial (hashchange): restore state immediately
         requestAnimationFrame(function() {
             var restored = false;
             if (typeof _restoreSearchState === 'function') {
@@ -203,12 +247,10 @@
             }
 
             if (restored) {
-                // Render results (this hides the skeleton automatically)
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
             } else {
-                // No saved state — fall back to search form
                 if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
                 if (searchFormContainer) searchFormContainer.style.display = 'block';
                 if (searchResultsSection) searchResultsSection.style.display = 'none';

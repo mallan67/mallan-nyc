@@ -213,13 +213,12 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Server-side search: query Trestle API with criteria, merge with local results
+        // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
         function _serverSearch(criteria, localResults) {
             var params = {};
             if (criteria.searchTab === 'rent') params.type = 'rental';
             else if (criteria.searchTab === 'sale') params.type = 'sale';
             if (criteria.address) params.address = criteria.address;
-            if (criteria.zip) params.neighborhood = undefined; // zip handled separately
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
             if (criteria.priceMax) params.maxPrice = criteria.priceMax;
             if (criteria.bedsMin) params.minBeds = criteria.bedsMin;
@@ -227,26 +226,34 @@
             if (criteria.neighborhoods && criteria.neighborhoods.length === 1) {
                 params.neighborhood = criteria.neighborhoods[0];
             }
-            params.limit = 50;
+            if (criteria.borough) params.borough = criteria.borough;
+            if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
+            // Pass status filters to server (map CRM uppercase back to RESO PascalCase)
+            if (criteria.statuses && criteria.statuses.length > 0) {
+                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Cancelled', 'EXPIRED': 'Expired' };
+                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
+                params.status = resoStatuses.join(',');
+            }
+            params.limit = 200;
 
-            console.log('[Search] Server search params:', JSON.stringify(params));
+            console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             MallanAPI.idx.search(params).then(function(result) {
-                console.log('[Search] Server response:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
+                console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
+                    // Server returned nothing — keep local results but notify user
                     if (localResults.length === 0) {
                         showToast('No listings found. Try broadening your search criteria.', 'warning');
                     }
                     return;
                 }
 
-                // Use server results directly (they're already in CRM flat shape)
-                var allListings = result.listings;
+                // Server results are the primary data — they're already in CRM flat shape
+                var serverListings = result.listings;
 
-                // Apply neighborhood resolution
-                allListings.forEach(function(l) {
+                // Apply neighborhood resolution and defaults
+                serverListings.forEach(function(l) {
                     if (!l.borough) l.borough = 'Manhattan';
                     if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
-                    // Ensure required fields have defaults
                     if (l.totalMonthly == null) l.totalMonthly = 0;
                     if (l.price == null) l.price = 0;
                     if (l.beds == null) l.beds = 0;
@@ -256,29 +263,19 @@
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
 
-                // Also add to mockListings so detail view works
+                // Add server results to mockListings (for detail view navigation)
                 var existingIds = {};
                 mockListings.forEach(function(l) { existingIds[l.id] = true; });
-                allListings.forEach(function(l) {
+                serverListings.forEach(function(l) {
                     if (!existingIds[l.id]) {
                         mockListings.push(l);
                         existingIds[l.id] = true;
                     }
                 });
 
-                // Merge with any local results (dedup)
-                var merged = localResults.slice();
-                var mergedIds = {};
-                merged.forEach(function(l) { mergedIds[l.id] = true; });
-                allListings.forEach(function(l) {
-                    if (!mergedIds[l.id]) {
-                        merged.push(l);
-                        mergedIds[l.id] = true;
-                    }
-                });
-
-                // Update results and re-render
-                searchResultsState.filteredListings = merged;
+                // USE SERVER RESULTS AS PRIMARY — replace local results entirely
+                // Server results are fresh from Trestle and match the search criteria
+                searchResultsState.filteredListings = serverListings;
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
@@ -287,11 +284,12 @@
                     console.error('[Search] Render after server search failed:', renderErr);
                 }
                 _saveSearchState();
-                console.log('[Search] Rendered ' + merged.length + ' total listings');
+                console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
             }).catch(function(err) {
-                console.error('[Search] Server search failed:', err);
+                console.error('[Search] Trestle search failed:', err);
+                // Keep local results visible — they're already rendered
                 if (localResults.length === 0) {
-                    showToast('Search failed: ' + (err && err.message || 'Unknown error'), 'error');
+                    showToast('Search temporarily unavailable. Please try again.', 'error');
                 }
             });
         }
@@ -406,15 +404,15 @@
                 });
             }
 
-            // Show local results immediately
+            // Show local results immediately (or "Searching..." if none)
             _renderAddressResults(matches, resultsDiv, resultsDivId);
 
-            // If few local results and query is 3+ chars, search server-side (debounced)
-            if (matches.length < 3 && query.length >= 3 && typeof MallanAPI !== 'undefined') {
+            // Always query server for more results (debounced) — local data is limited
+            if (query.length >= 3 && typeof MallanAPI !== 'undefined') {
                 if (_addrSearchTimer) clearTimeout(_addrSearchTimer);
                 _addrSearchTimer = setTimeout(function() {
                     _serverAddressSearch(query, resultsDivId, matches);
-                }, 350);
+                }, 300);
             }
         }
 
