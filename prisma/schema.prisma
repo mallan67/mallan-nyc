@@ -89,6 +89,9 @@ model Lead {
   actions         ClientListingAction[]
   showings        Showing[]
   saved_searches  SavedSearch[]
+  comments        Comment[]
+  family_members  FamilyMember[]
+  family_of       FamilyMember[] @relation("FamilyOf")
   created_at      DateTime @default(now()) @map("created_at")
   updated_at      DateTime @updatedAt @map("updated_at")
 
@@ -141,6 +144,7 @@ model Listing {
   // --- Relations ---
   actions                 ClientListingAction[]
   showings                Showing[]
+  comments                Comment[]
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at           DateTime? @map("status_changed_at")
@@ -301,4 +305,44 @@ model SavedSearch {
   @@index([lead_id])
   @@index([agent_id])
   @@map("saved_searches")
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMENT — Threaded comments on listings (clients + family)
+// ═══════════════════════════════════════════════════════════
+model Comment {
+  id          BigInt    @id @default(autoincrement())
+  listing_id  BigInt    @map("listing_id")
+  listing     Listing   @relation(fields: [listing_id], references: [id])
+  lead_id     BigInt    @map("lead_id")
+  lead        Lead      @relation(fields: [lead_id], references: [id])
+  parent_id   BigInt?   @map("parent_id")             // null = top-level, set = reply
+  parent      Comment?  @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+  body        String    @db.Text
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+
+  @@index([listing_id])
+  @@index([lead_id])
+  @@index([parent_id])
+  @@map("comments")
+}
+
+// ═══════════════════════════════════════════════════════════
+// FAMILY MEMBER — Client invites family to follow along
+// ═══════════════════════════════════════════════════════════
+model FamilyMember {
+  id              BigInt    @id @default(autoincrement())
+  lead_id         BigInt    @map("lead_id")             // The primary client
+  lead            Lead      @relation(fields: [lead_id], references: [id])
+  member_lead_id  BigInt    @map("member_lead_id")      // The family member (also a Lead)
+  member          Lead      @relation("FamilyOf", fields: [member_lead_id], references: [id])
+  relationship    String?                                // "spouse" | "parent" | "sibling" | "other"
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@unique([lead_id, member_lead_id])
+  @@index([lead_id])
+  @@index([member_lead_id])
+  @@map("family_members")
 }

@@ -50,6 +50,7 @@ export default function SignUpPage() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -84,6 +85,7 @@ export default function SignUpPage() {
           lastName,
           email,
           phone,
+          password,
           roles: selectedRoles,
           website: (document.getElementById('website') as HTMLInputElement)?.value || '',
         }),
@@ -240,6 +242,8 @@ export default function SignUpPage() {
                   id="password"
                   required
                   minLength={8}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   placeholder="Create a password (min 8 characters)"
                 />
