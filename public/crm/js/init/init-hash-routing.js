@@ -6,9 +6,16 @@
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
 
-        // ── IMMEDIATE: hide the search form if we're restoring results/detail ──
-        // This prevents the flash of the basic search form before results load.
-        if (route === 'results' || route === 'detail') {
+        // On page load (hard refresh), don't restore stale results — go to search form.
+        // Results are only restored via hashchange (browser back/forward).
+        if (route === 'results') {
+            try { sessionStorage.removeItem('_searchState'); } catch(e) {}
+            route = 'main';
+            history.replaceState(null, '', '#main');
+        }
+
+        // ── IMMEDIATE: hide the search form if we're restoring detail ──
+        if (route === 'detail') {
             var sf = document.getElementById('searchFormContainer');
             if (sf) sf.style.display = 'none';
         }
@@ -23,13 +30,24 @@
         window._suppressHashUpdate = true;
 
         if (route === 'main') {
-            // ── BASIC SEARCH PAGE ──
-            // Just show the form. Do NOT call performSearch — that would flash
-            // results and pollute sessionStorage. Results load when user clicks Search.
+            // ── SEARCH PAGE ──
+            // Show the form. Restore search mode (basic/advanced) and tab (sale/rent/building) from session.
             var searchFormContainer = document.getElementById('searchFormContainer');
             var searchResultsSection = document.getElementById('searchResultsSection');
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
+
+            // Restore saved search tab + mode on refresh
+            try {
+                var savedTab = sessionStorage.getItem('searchTab');
+                var savedMode = sessionStorage.getItem('searchMode');
+                if (savedTab && typeof toggleSearchTab === 'function') {
+                    toggleSearchTab(savedTab);
+                }
+                if (savedMode && typeof toggleSearchMode === 'function') {
+                    toggleSearchMode(savedMode);
+                }
+            } catch(e) {}
 
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
@@ -69,9 +87,11 @@
 
         window._suppressHashUpdate = false;
 
-        // Remove the render-blocking style now that routing is resolved
+        // Remove the render-blocking styles now that routing is resolved
         var routeBlock = document.getElementById('routeBlock');
         if (routeBlock) routeBlock.remove();
+        var modeBlock = document.getElementById('modeBlock');
+        if (modeBlock) modeBlock.remove();
 
         // ── Handle browser back/forward buttons ──
         window.addEventListener('hashchange', function() {
@@ -113,6 +133,9 @@
 
         if (detailPage) detailPage.classList.add('hidden');
 
+        // Clear saved results state so refresh returns to search form, not stale results
+        try { sessionStorage.removeItem('_searchState'); } catch(e) {}
+
         // Fade out results, fade in form
         if (searchResultsSection) {
             searchResultsSection.style.opacity = '0';
@@ -133,6 +156,14 @@
             setTimeout(function() {
                 searchFormContainer.style.transition = '';
             }, 200);
+
+            // Restore saved search mode on back-navigation
+            try {
+                var savedTab = sessionStorage.getItem('searchTab');
+                var savedMode = sessionStorage.getItem('searchMode');
+                if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
+                if (savedMode && typeof toggleSearchMode === 'function') toggleSearchMode(savedMode);
+            } catch(e) {}
         }
     }
 

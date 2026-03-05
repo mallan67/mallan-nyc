@@ -411,7 +411,7 @@
                         <!-- Quick Search -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
-                            <!-- RLS ID + Zip -->
+                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
                             <div class="flex items-end gap-2 mb-2">
                                 <div class="flex-1">
                                     <input type="text" id="saleQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
@@ -420,90 +420,98 @@
                                     <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
                                 </div>
                             </div>
-                            <!-- Address -->
+                            <!-- 2. Neighborhood + Map icon + Transit icon -->
+                            <div class="mb-2">
+                                <div class="flex gap-1.5 items-center">
+                                    <div class="relative flex-1">
+                                        <input type="text" id="saleNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags')" autocomplete="off">
+                                        <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
+                                        <div id="saleNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                    </div>
+                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
+                                        <i class="fas fa-map-marked-alt text-sm"></i>
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('saleTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
+                                        <i class="fas fa-subway text-sm"></i>
+                                    </button>
+                                </div>
+                                <div id="saleNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
+                                <!-- Transit expandable (slides down below neighborhood row) -->
+                                <div id="saleTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
+                                    <div class="flex flex-wrap gap-1 mb-2">
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
+                                    </div>
+                                    <div class="flex gap-2 flex-wrap">
+                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:8px"></i> LIRR
+                                        </label>
+                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:8px"></i> Ferry
+                                        </label>
+                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:8px"></i> Bus
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 3. Address -->
                             <div class="mb-1.5 relative">
                                 <input type="text" id="saleSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'saleSearchAddrResults')" autocomplete="off">
                                 <div id="saleSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                             </div>
-                            <!-- Unit (optional) -->
+                            <!-- 4. Unit (optional) -->
                             <div class="mb-2">
                                 <input type="text" id="saleQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
                             </div>
-                            <!-- Search -->
+                            <!-- 5. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                                 <i class="fas fa-search mr-1"></i> Search
                             </button>
-                            <!-- Extra fields -->
-                            <div class="mt-2 space-y-1.5">
-                                <input type="text" placeholder="Exclusive Listing Company" class="w-full border rounded px-2 py-1.5 text-xs">
-                            </div>
                             <!-- Open House Date Range -->
                             <div class="mt-2 pt-2 border-t border-gray-200">
                                 <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-xs text-gray-500">Open House Date Range</span>
-                                    <button class="text-gray-400 text-xs hover:text-red-400">&#10005;</button>
+                                    <span class="text-xs font-semibold text-gray-700"><i class="fas fa-door-open text-blue-500 mr-1"></i>Open House</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1 mb-1.5">
+                                    <button type="button" onclick="setOpenHouseDatePreset('today','saleOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="saleOpenHouse">Today</button>
+                                    <button type="button" onclick="setOpenHouseDatePreset('weekend','saleOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="saleOpenHouse">This Weekend</button>
+                                    <button type="button" onclick="setOpenHouseDatePreset('7days','saleOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="saleOpenHouse">Next 7 Days</button>
+                                    <button type="button" onclick="setOpenHouseDatePreset('30days','saleOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="saleOpenHouse">Next 30 Days</button>
+                                </div>
+                                <div class="flex gap-1 items-center">
+                                    <span class="text-xs text-gray-500 flex-shrink-0 w-[80px]">Date Range</span>
+                                    <div class="drp-wrapper flex-1 min-w-0" data-drp="saleOpenHouse">
+                                        <div class="drp-trigger" onclick="openDateRangePicker(this)">
+                                            <span class="drp-text">Select Date Range</span>
+                                            <span class="drp-clear" onclick="event.stopPropagation(); clearDateRange(this); clearOpenHousePreset('saleOpenHouse')" style="display:none;">&#10005;</span>
+                                            <i class="fas fa-info-circle drp-info" title="Click to select a date range"></i>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Nearby Transit -->
-                    <div class="border rounded-lg p-3 mb-5">
-                        <p class="text-xs font-semibold text-gray-700 mb-2">Nearby Transit</p>
-                        <div class="flex flex-wrap gap-1 mb-2">
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
-                            <span class="mx-1 text-gray-300">|</span>
-                            <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:9px"></i> LIRR
-                            </label>
-                            <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
-                                <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:9px"></i> Ferry
-                            </label>
-                            <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-amber-50 hover:border-amber-300 transition">
-                                <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-amber-600" style="font-size:9px"></i> Bus
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Area / Neighborhood (Sale Basic) -->
-                    <div class="border rounded-lg p-3 mb-5">
-                        <p class="text-xs font-semibold text-gray-700 mb-2">Area / Neighborhood</p>
-                        <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
-                            <i class="fas fa-map-marked-alt"></i> Open Neighborhood Map
-                        </button>
-                        <div class="border rounded-lg p-3 max-h-48 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
-                            <details>
-                                <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> NYC</summary>
-                                <div class="ml-3 space-y-0.5">
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Bronx</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Brooklyn</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Manhattan</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Queens</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Staten Island</label>
-                                </div>
-                            </details>
                         </div>
                     </div>
 
@@ -1213,10 +1221,10 @@
                             </div>
                         </div>
 
-                        <!-- Search by Listing ID / Zip / Address -->
+                        <!-- Quick Search (Rental) -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Search by Listing ID / Zip / Address</p>
-                            <!-- RLS ID + Zip -->
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
+                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
                             <div class="flex items-end gap-2 mb-2">
                                 <div class="flex-1">
                                     <input type="text" id="rentalQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
@@ -1225,91 +1233,98 @@
                                     <input type="text" id="rentalQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
                                 </div>
                             </div>
-                            <!-- Address -->
+                            <!-- 2. Neighborhood + Map icon + Transit icon -->
+                            <div class="mb-2">
+                                <div class="flex gap-1.5 items-center">
+                                    <div class="relative flex-1">
+                                        <input type="text" id="rentalNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'rentalNeighborhoodDropdown', 'rentalNeighborhoodTags')" autocomplete="off">
+                                        <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
+                                        <div id="rentalNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                    </div>
+                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
+                                        <i class="fas fa-map-marked-alt text-sm"></i>
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('rentalTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
+                                        <i class="fas fa-subway text-sm"></i>
+                                    </button>
+                                </div>
+                                <div id="rentalNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
+                                <!-- Transit expandable -->
+                                <div id="rentalTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
+                                    <div class="flex flex-wrap gap-1 mb-2">
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
+                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
+                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
+                                    </div>
+                                    <div class="flex gap-2 flex-wrap">
+                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:8px"></i> LIRR
+                                        </label>
+                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:8px"></i> Ferry
+                                        </label>
+                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:8px"></i> Bus
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 3. Address -->
                             <div class="mb-1.5 relative">
                                 <input type="text" id="rentalSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'rentalSearchAddrResults')" autocomplete="off">
                                 <div id="rentalSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                             </div>
-                            <!-- Unit (optional) -->
+                            <!-- 4. Unit (optional) -->
                             <div class="mb-2">
                                 <input type="text" id="rentalQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
                             </div>
-                            <!-- Search -->
+                            <!-- 5. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                                 <i class="fas fa-search mr-1"></i> Search
                             </button>
-                            <!-- Extra fields -->
-                            <div class="mt-2 space-y-1.5">
-                                <input type="text" placeholder="Exclusive Listing Company" class="w-full border rounded px-2 py-1.5 text-xs">
-                                <input type="text" placeholder="Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
-                            </div>
                             <!-- Open House Date Range -->
                             <div class="mt-2 pt-2 border-t border-gray-200">
                                 <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-xs text-gray-500">Open House Date Range</span>
-                                    <button class="text-gray-400 text-xs hover:text-red-400">&#10005;</button>
+                                    <span class="text-xs font-semibold text-gray-700"><i class="fas fa-door-open text-blue-500 mr-1"></i>Open House</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1 mb-1.5">
+                                    <button type="button" onclick="setOpenHouseDatePreset('today','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">Today</button>
+                                    <button type="button" onclick="setOpenHouseDatePreset('weekend','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">This Weekend</button>
+                                    <button type="button" onclick="setOpenHouseDatePreset('7days','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">Next 7 Days</button>
+                                    <button type="button" onclick="setOpenHouseDatePreset('30days','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">Next 30 Days</button>
+                                </div>
+                                <div class="flex gap-1 items-center">
+                                    <span class="text-xs text-gray-500 flex-shrink-0 w-[80px]">Date Range</span>
+                                    <div class="drp-wrapper flex-1 min-w-0" data-drp="rentalOpenHouse">
+                                        <div class="drp-trigger" onclick="openDateRangePicker(this)">
+                                            <span class="drp-text">Select Date Range</span>
+                                            <span class="drp-clear" onclick="event.stopPropagation(); clearDateRange(this); clearOpenHousePreset('rentalOpenHouse')" style="display:none;">&#10005;</span>
+                                            <i class="fas fa-info-circle drp-info" title="Click to select a date range"></i>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Nearby Transit -->
-                    <div class="border rounded-lg p-3 mb-5">
-                        <p class="text-xs font-semibold text-gray-700 mb-2">Nearby Transit</p>
-                        <div class="flex flex-wrap gap-1 mb-2">
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
-                            <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
-                            <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
-                            <span class="mx-1 text-gray-300">|</span>
-                            <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:9px"></i> LIRR
-                            </label>
-                            <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
-                                <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:9px"></i> Ferry
-                            </label>
-                            <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-amber-50 hover:border-amber-300 transition">
-                                <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-amber-600" style="font-size:9px"></i> Bus
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Area / Neighborhood (Rental Basic) -->
-                    <div class="border rounded-lg p-3 mb-5">
-                        <p class="text-xs font-semibold text-gray-700 mb-2">Area / Neighborhood</p>
-                        <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
-                            <i class="fas fa-map-marked-alt"></i> Open Neighborhood Map
-                        </button>
-                        <div class="border rounded-lg p-3 max-h-48 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
-                            <details>
-                                <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> NYC</summary>
-                                <div class="ml-3 space-y-0.5">
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Bronx</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Brooklyn</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Manhattan</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Queens</label>
-                                    <label class="flex items-center gap-1 p-0.5 hover:bg-blue-50 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Staten Island</label>
-                                </div>
-                            </details>
                         </div>
                     </div>
 
@@ -1728,328 +1743,113 @@
                 <!-- ============================================== -->
                 <div id="searchBasicModeBuilding" class="bg-white rounded-xl shadow-sm border p-5" style="display: none;">
 
-                    <!-- Row 1: Address Search + Area/Neighborhood -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-                        <!-- Left Column: Quick Search + Address + Manhattan Grid + Transit + Map -->
-                        <div class="lg:col-span-2 space-y-3">
-                            <!-- Quick Search Card -->
-                            <div class="border rounded-lg p-3">
-                                <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
-                                <!-- RLS ID / Zip -->
-                                <div class="flex items-end gap-2 mb-2">
-                                    <div class="flex-1">
-                                        <input type="text" id="buildingQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                                    </div>
-                                    <div class="w-[72px]">
-                                        <input type="text" id="buildingQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                                    </div>
-                                </div>
-                                <!-- Address -->
-                                <div class="mb-1.5 relative">
-                                    <input type="text" id="buildingSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'buildingSearchAddrResults')" autocomplete="off">
-                                    <div id="buildingSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                                </div>
-                                <!-- Unit (optional) -->
-                                <div class="mb-2">
-                                    <input type="text" id="buildingQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
-                                </div>
-                                <!-- Search -->
-                                <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
-                                    <i class="fas fa-search mr-1"></i> Search
-                                </button>
+                    <!-- Quick Search -->
+                    <div class="border rounded-lg p-3 overflow-hidden min-w-0 mb-5">
+                        <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
+                        <!-- 1. RLS ID / Web ID / Listing # + Zip -->
+                        <div class="flex items-end gap-2 mb-2">
+                            <div class="flex-1">
+                                <input type="text" id="buildingQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
                             </div>
-
-                            <!-- Manhattan Grid Selections -->
-                            <div class="border rounded-lg p-3">
-                                <div class="flex items-center justify-between mb-3">
-                                    <p class="text-xs font-semibold text-gray-700">Manhattan Grid Selections above 14th Street</p>
-                                    <button class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="space-y-2">
-                                        <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                            <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
-                                        </div>
-                                        <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
-                                    </div>
-                                    <div class="space-y-2">
-                                        <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                            <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
-                                        </div>
-                                        <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
-                                    </div>
-                                </div>
+                            <div class="w-[72px]">
+                                <input type="text" id="buildingQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
                             </div>
-
-                            <!-- Nearby Transit -->
-                            <div class="border rounded-lg p-3">
-                                <p class="text-xs font-semibold text-gray-700 mb-2">Nearby Transit</p>
-                                <!-- Subway -->
-                                <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Subway</p>
-                                <div class="flex flex-wrap gap-1 mb-2">
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
-                                    <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
-                                    <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
-                                    <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
-                                    <button class="w-6 h-6 rounded-full text-xs font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
-                                    <button class="w-6 h-6 rounded-full text-white text-xs font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
-                                </div>
-                                <!-- LIRR, Ferry, Bus -->
-                                <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Other Transit</p>
-                                <div class="flex gap-1.5 flex-wrap">
-                                    <label class="flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:9px"></i> LIRR
-                                    </label>
-                                    <label class="flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:9px"></i> Ferry
-                                    </label>
-                                    <label class="flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-amber-50 hover:border-amber-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-amber-600" style="font-size:9px"></i> Bus
-                                    </label>
-                                </div>
-                            </div>
-
                         </div>
-
-                        <!-- Right Column: Area/Neighborhood + Zip + School -->
-                        <div class="space-y-3">
-                            <div class="border rounded-lg p-3">
-                                <p class="text-xs font-semibold text-gray-700 mb-2">Area / Neighborhood</p>
-                                <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2 mb-2 rounded-lg bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
-                                    <i class="fas fa-map-marked-alt"></i> Open Neighborhood Map
+                        <!-- 2. Neighborhood + Map icon + Transit icon -->
+                        <div class="mb-2">
+                            <div class="flex gap-1.5 items-center">
+                                <div class="relative flex-1">
+                                    <input type="text" id="buildingNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'buildingNeighborhoodDropdown', 'buildingNeighborhoodTags')" autocomplete="off">
+                                    <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
+                                    <div id="buildingNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                </div>
+                                <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
+                                    <i class="fas fa-map-marked-alt text-sm"></i>
                                 </button>
-                                <div class="border rounded-lg p-3 max-h-96 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
-                                    <details open>
-                                        <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> NYC</summary>
-
-                                        <!-- BRONX -->
-                                        <details class="ml-3">
-                                            <summary class="font-bold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Bronx</summary>
-                                            <div class="ml-3 text-xs">
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Allerton</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Baychester</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bedford Park</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Belmont</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> City Island</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Co-op City</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Fordham</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Kingsbridge</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Morris Park</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Pelham Bay</label></div>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Riverdale <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Central Riverdale</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Fieldston</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> North Riverdale</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Spuyten Duyvil</label></div>
-                                                    </div>
-                                                </details>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Throgs Neck</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Woodlawn</label></div>
-                                            </div>
-                                        </details>
-
-                                        <!-- BROOKLYN -->
-                                        <details class="ml-3">
-                                            <summary class="font-bold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Brooklyn</summary>
-                                            <div class="ml-3 text-xs">
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bath Beach</label></div>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Bay Ridge <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bay Ridge</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Fort Hamilton</label></div>
-                                                    </div>
-                                                </details>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Bedford - Stuyvesant <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bedford - Stuyvesant</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Ocean Hill</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Stuyvesant Heights</label></div>
-                                                    </div>
-                                                </details>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bensonhurst</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Boerum Hill</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Borough Park</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Brighton Beach</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Brooklyn Heights</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bushwick</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Carroll Gardens</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Cobble Hill</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Coney Island</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Crown Heights</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Ditmas Park</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Downtown Brooklyn</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Dumbo</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Dyker Heights</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Flatbush</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Fort Greene</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Gowanus</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Greenpoint</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Park Slope</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Prospect Heights</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Red Hook</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Sheepshead Bay</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Sunset Park</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Williamsburg</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Windsor Terrace</label></div>
-                                            </div>
-                                        </details>
-
-                                        <!-- MANHATTAN -->
-                                        <details class="ml-3">
-                                            <summary class="font-bold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Manhattan</summary>
-                                            <div class="ml-3 text-xs">
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Upper Manhattan <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Central Harlem</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> East Harlem</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Hamilton Heights</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Inwood</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Manhattanville</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Marble Hill</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Morningside Heights</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Sugar Hill</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Washington Heights</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> West Harlem</label></div>
-                                                    </div>
-                                                </details>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Upper West Side <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Lincoln Square</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Manhattan Valley</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Upper West Side</label></div>
-                                                    </div>
-                                                </details>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Upper East Side <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Carnegie Hill</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Lenox Hill</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Upper East Side</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Yorkville</label></div>
-                                                    </div>
-                                                </details>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Roosevelt Island</label></div>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> All Midtown <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Hell's Kitchen</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Hudson Yards</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Midtown</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Midtown East</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Midtown West</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Murray Hill</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> NoMad</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Sutton Place</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Times Square</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Tudor City</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Turtle Bay</label></div>
-                                                    </div>
-                                                </details>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Downtown <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Battery Park City</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Chelsea</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Chinatown</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Civic Center</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> East Village</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Financial District</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Flatiron</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Gramercy Park</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Greenwich Village</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Hudson Square</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Kips Bay</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Little Italy</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Lower East Side</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Meatpacking District</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> NoHo</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Nolita</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Peter Cooper Village</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> SoHo</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Stuyvesant Town</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Tribeca</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Two Bridges</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Union Square</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> West Village</label></div>
-                                                    </div>
-                                                </details>
-                                            </div>
-                                        </details>
-
-                                        <!-- QUEENS -->
-                                        <details class="ml-3">
-                                            <summary class="font-bold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Queens</summary>
-                                            <div class="ml-3 text-xs">
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Astoria</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Bayside</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Corona</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Elmhurst</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Flushing</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Forest Hills</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Jackson Heights</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Jamaica</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Kew Gardens</label></div>
-                                                <details class="ml-2">
-                                                    <summary class="text-xs cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Long Island City (LIC) <i class="fas fa-chevron-right text-[9px] text-gray-400 ml-1"></i></summary>
-                                                    <div class="ml-2">
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Hunters Point</label></div>
-                                                        <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Long Island City (LIC)</label></div>
-                                                    </div>
-                                                </details>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Rego Park</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Ridgewood</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Sunnyside</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Whitestone</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Woodside</label></div>
-                                            </div>
-                                        </details>
-
-                                        <!-- STATEN ISLAND -->
-                                        <details class="ml-3">
-                                            <summary class="font-bold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> Staten Island</summary>
-                                            <div class="ml-3 text-xs">
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Annadale</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Arden Heights</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Dongan Hills</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Great Kills</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> New Dorp</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> St. George</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Stapleton</label></div>
-                                                <div class="p-1 hover:bg-blue-50"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1"> Todt Hill</label></div>
-                                            </div>
-                                        </details>
-                                    </details>
+                                <button type="button" onclick="document.getElementById('buildingTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
+                                    <i class="fas fa-subway text-sm"></i>
+                                </button>
+                            </div>
+                            <div id="buildingNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
+                            <!-- Transit expandable -->
+                            <div id="buildingTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
+                                <div class="flex flex-wrap gap-1 mb-2">
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
+                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
+                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
+                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
+                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
+                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
+                                </div>
+                                <div class="flex gap-2 flex-wrap">
+                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:8px"></i> LIRR
+                                    </label>
+                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
+                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:8px"></i> Ferry
+                                    </label>
+                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:8px"></i> Bus
+                                    </label>
                                 </div>
                             </div>
-                            <input type="text" placeholder="Zip Code" class="w-full border rounded-lg px-3 py-2 text-sm">
-                            <input type="text" placeholder="School Name" class="w-full border rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <!-- 3. Address -->
+                        <div class="mb-1.5 relative">
+                            <input type="text" id="buildingSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'buildingSearchAddrResults')" autocomplete="off">
+                            <div id="buildingSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                        </div>
+                        <!-- 4. Unit (optional) -->
+                        <div class="mb-2">
+                            <input type="text" id="buildingQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
+                        </div>
+                        <!-- 5. Search -->
+                        <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
+                            <i class="fas fa-search mr-1"></i> Search
+                        </button>
+                    </div>
+
+                    <!-- Manhattan Grid Selections -->
+                    <div class="border rounded-lg p-3 mb-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs font-semibold text-gray-700">Manhattan Grid Selections above 14th Street</p>
+                            <button class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
+                                    <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
+                                </div>
+                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
+                            </div>
+                            <div class="space-y-2">
+                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
+                                    <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
+                                </div>
+                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
+                            </div>
                         </div>
                     </div>
 
@@ -2367,32 +2167,88 @@
                             <h3 class="font-semibold">Listing ID / Zip / Address</h3>
                         </div>
                         <div class="section-content">
-                            <!-- Row: Listing ID + Zip + Address + Unit -->
-                            <div class="grid grid-cols-1 md:grid-cols-[1fr_120px] lg:grid-cols-[1.5fr_120px_2fr_100px_36px] gap-3 items-end">
-                                <!-- Listing ID -->
+                            <!-- Row 1: Listing ID + Zip -->
+                            <div class="grid grid-cols-1 lg:grid-cols-[1fr_120px] gap-3 items-end mb-3">
                                 <div>
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">RLS ID / Web ID / Listing #</label>
                                     <input type="text" placeholder="e.g. RLS-12345, WEB-67890 (comma-separated)"
                                            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-mono"
                                            oninput="detectIDType(this)">
                                 </div>
-                                <!-- Zip -->
                                 <div>
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">Zip Code</label>
                                     <input type="text" inputmode="numeric" pattern="[0-9]{5}" placeholder="10001" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" maxlength="5">
                                 </div>
-                                <!-- Address -->
+                            </div>
+                            <!-- Row 2: Neighborhood autocomplete + Map + Transit -->
+                            <div class="mb-3">
+                                <label class="text-xs font-medium text-gray-600 mb-1 block">Neighborhood</label>
+                                <div class="flex gap-2 items-center">
+                                    <div class="relative flex-1">
+                                        <input type="text" id="advancedNeighborhoodInput" placeholder="Type borough or neighborhood (e.g. Manhattan, Lenox Hill, SoHo)..." class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm pr-8" oninput="neighborhoodAutocomplete(this.value, 'advancedNeighborhoodDropdown', 'advancedNeighborhoodTags')" autocomplete="off">
+                                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
+                                        <div id="advancedNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-64 overflow-y-auto text-sm"></div>
+                                    </div>
+                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-10 h-10 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors flex-shrink-0" title="Neighborhood Map">
+                                        <i class="fas fa-map-marked-alt text-base"></i>
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('advancedTransitExpand').classList.toggle('hidden')" class="w-10 h-10 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors flex-shrink-0" title="Nearby Transit">
+                                        <i class="fas fa-subway text-base"></i>
+                                    </button>
+                                </div>
+                                <div id="advancedNeighborhoodTags" class="flex flex-wrap gap-1.5 mt-2"></div>
+                                <!-- Transit expandable -->
+                                <div id="advancedTransitExpand" class="hidden mt-3 pt-3 border-t border-gray-100">
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Subway Lines</p>
+                                    <div class="flex flex-wrap gap-1.5 mb-2">
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
+                                        <button class="w-6 h-6 rounded-full text-[11px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
+                                        <button class="w-6 h-6 rounded-full text-[11px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
+                                        <button class="w-6 h-6 rounded-full text-[11px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
+                                        <button class="w-6 h-6 rounded-full text-[11px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
+                                        <button class="w-6 h-6 rounded-full text-white text-[11px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
+                                    </div>
+                                    <div class="flex gap-2 flex-wrap">
+                                        <label class="flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:9px"></i> LIRR
+                                        </label>
+                                        <label class="flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:9px"></i> Ferry
+                                        </label>
+                                        <label class="flex items-center gap-1 px-2 py-1 border border-gray-300 rounded text-[11px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:9px"></i> Bus
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Row 3: Address + Unit + Add -->
+                            <div class="grid grid-cols-1 lg:grid-cols-[1fr_100px_36px] gap-3 items-end">
                                 <div class="relative">
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">Address or Building Name</label>
                                     <input type="text" id="advancedSearchAddress" placeholder="Enter Address or Building Name" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" oninput="searchAddressAutocomplete(this.value, 'advancedSearchAddrResults')" autocomplete="off">
                                     <div id="advancedSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-sm"></div>
                                 </div>
-                                <!-- Unit -->
                                 <div>
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">Unit #</label>
                                     <input type="text" placeholder="Unit #" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm">
                                 </div>
-                                <!-- Add row -->
                                 <div>
                                     <button type="button" onclick="addAdvancedSearchRow()" class="w-9 h-[42px] bg-gray-700 text-white rounded-lg hover:bg-gray-800 flex items-center justify-center text-xs flex-shrink-0" title="Add another row" aria-label="Add another row"><i class="fas fa-plus"></i></button>
                                 </div>
@@ -2939,8 +2795,8 @@
                                     <label class="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
                                         <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600"></i> Ferry
                                     </label>
-                                    <label class="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs cursor-pointer hover:bg-amber-50 hover:border-amber-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-amber-600"></i> Bus Lines
+                                    <label class="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
+                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600"></i> Bus Lines
                                     </label>
                                 </div>
                             </div>
@@ -2949,7 +2805,7 @@
                             <!-- Neighborhoods -->
                             <div class="mb-4">
                                 <p class="text-xs font-semibold text-gray-600 mb-2">Area / Neighborhood</p>
-                                <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
+                                <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-blue-50 hover:bg-blue-100 border-2 border-blue-300 text-blue-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
                                     <i class="fas fa-map-marked-alt"></i> Open Neighborhood Map
                                 </button>
                                 <div class="border rounded-lg p-3 max-h-96 overflow-y-auto neighborhood-tree" style="font-size: 12px;">
@@ -3934,7 +3790,7 @@
                             </div>
 
                             <!-- NYC Closing Costs Calculator -->
-                            <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                 <div class="flex items-center justify-between mb-3">
                                     <p class="text-sm font-bold text-green-800"><i class="fas fa-file-invoice-dollar mr-2"></i>NYC Closing Costs Estimator</p>
                                     <label class="flex items-center gap-1.5 text-xs font-medium text-green-700">
@@ -4059,7 +3915,7 @@
                                         <span class="text-gray-600">Typical Range for $2M Condo:</span>
                                         <span class="font-bold text-green-800">$45,000 - $85,000 (2-4%)</span>
                                     </div>
-                                    <button onclick="calculateClosingCosts()" class="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700">
+                                    <button onclick="calculateClosingCosts()" class="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700">
                                         <i class="fas fa-calculator mr-1"></i> Calculate Estimate
                                     </button>
                                 </div>
@@ -4315,14 +4171,14 @@
                         </div>
                     </div>
 
-                    <!-- Listing Type & Ownership Section -->
+                    <!-- Listing Type & Building Section -->
                     <div class="collapsible-section">
                         <div class="section-header" onclick="toggleSection(this)">
                             <i class="fas fa-minus text-xs text-gray-500"></i>
-                            <h3 class="font-semibold">Listing Type & Ownership</h3>
+                            <h3 class="font-semibold">Listing Type & Building</h3>
                         </div>
                         <div class="section-content">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <!-- Listing Type -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Type</p>
@@ -4334,17 +4190,6 @@
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="CoExclusive"> Co-Exclusive</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="InternetEntireListingDisplayYN" data-value="false"> RLS: Private Owner Opt-Out</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> RLS: Private Participant Only</label>
-                                    </div>
-                                </div>
-                                <!-- Ownership -->
-                                <div class="bg-white p-3 rounded-lg border border-gray-100">
-                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Ownership</p>
-                                    <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="StockCooperative"> Co-op</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condominium"> Condo</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condop"> Condop</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="SingleFamilyTownhouse,MultiFamilyTownhouse"> Townhouse</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="RentalBuilding"> Rental Building</label>
                                     </div>
                                 </div>
                                 <!-- Attended Lobby -->
@@ -5203,8 +5048,8 @@
                                 </div>
                             </div>
                             <!-- Luxury Building Services -->
-                            <div class="mt-4 bg-gradient-to-r from-amber-50 to-yellow-50 p-3 rounded-lg border border-amber-200">
-                                <p class="font-semibold text-amber-800 mb-2 text-xs flex items-center gap-2">
+                            <div class="mt-4 bg-gradient-to-r from-blue-50 to-slate-50 p-3 rounded-lg border border-blue-200">
+                                <p class="font-semibold text-blue-800 mb-2 text-xs flex items-center gap-2">
                                     <i class="fas fa-concierge-bell"></i> White-Glove Services (Luxury)
                                 </p>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
@@ -5753,7 +5598,7 @@
                                 <!-- Search Comparables Using General Criteria -->
                                 <button onclick="openCompPage('general')" class="w-full bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg hover:border-green-500 transition-all text-left group">
                                     <div class="flex items-start gap-4">
-                                        <div class="w-16 h-16 bg-green-50 rounded-lg flex items-center justify-center group-hover:bg-green-100 transition-colors flex-shrink-0">
+                                        <div class="w-16 h-16 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors flex-shrink-0">
                                             <i class="fas fa-clipboard-list text-3xl text-green-600"></i>
                                         </div>
                                         <div class="flex-1">
@@ -6267,7 +6112,7 @@
                                 <!-- Neighborhoods -->
                                 <div class="mb-4">
                                     <label class="block text-sm font-semibold text-gray-700 mb-2">Neighborhoods</label>
-                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-amber-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
+                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-blue-50 hover:bg-blue-100 border-2 border-blue-300 text-blue-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
                                         <i class="fas fa-map-marked-alt"></i> Open Neighborhood Map
                                     </button>
                                     <div class="border rounded-lg p-3 max-h-64 overflow-y-auto neighborhood-tree">
@@ -6304,9 +6149,9 @@
                                         <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs cursor-pointer">1</span>
                                         <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs cursor-pointer">2</span>
                                         <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs cursor-pointer">3</span>
-                                        <span class="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs cursor-pointer">4</span>
-                                        <span class="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs cursor-pointer">5</span>
-                                        <span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs cursor-pointer">6</span>
+                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">4</span>
+                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">5</span>
+                                        <span class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs cursor-pointer">6</span>
                                         <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs cursor-pointer">7</span>
                                         <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">A</span>
                                         <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">C</span>
@@ -6739,14 +6584,14 @@
                                 <i class="fas fa-sliders-h mr-1"></i> Sales Advanced
                             </button>
                             <span class="text-gray-300 mx-1">|</span>
-                            <button onclick="jumpToSearch('rent','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-green-500 text-green-600 hover:bg-green-600 hover:text-white transition">
+                            <button onclick="jumpToSearch('rent','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
                                 <i class="fas fa-building mr-1"></i> Rentals Basic
                             </button>
-                            <button onclick="jumpToSearch('rent','advanced')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-green-500 text-green-600 hover:bg-green-600 hover:text-white transition">
+                            <button onclick="jumpToSearch('rent','advanced')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
                                 <i class="fas fa-sliders-h mr-1"></i> Rentals Advanced
                             </button>
                             <span class="text-gray-300 mx-1">|</span>
-                            <button onclick="jumpToSearch('building','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-amber-500 text-amber-600 hover:bg-amber-600 hover:text-white transition">
+                            <button onclick="jumpToSearch('building','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
                                 <i class="fas fa-city mr-1"></i> Buildings
                             </button>
                             <span class="text-gray-300 mx-1">|</span>
@@ -6770,14 +6615,14 @@
                         <span>Commission rates are not set by law and are fully negotiable. Compensation offered to cooperating brokers is determined by the listing broker and is subject to change. Buyer's broker compensation, if any, is specified in the buyer-broker agreement.</span>
                     </div>
                     <!-- Working with Client Banner (hidden by default) -->
-                    <div id="workingWithClientBanner" class="hidden bg-amber-50 border border-amber-200 rounded-xl mb-4 px-4 py-3 flex items-center justify-between">
+                    <div id="workingWithClientBanner" class="hidden bg-blue-50 border border-blue-200 rounded-xl mb-4 px-4 py-3 flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <i class="fas fa-user-check text-amber-600"></i>
-                            <span class="text-sm font-medium text-amber-800">Working with: <span id="workingClientLabel" class="font-bold"></span></span>
+                            <i class="fas fa-user-check text-blue-600"></i>
+                            <span class="text-sm font-medium text-blue-800">Working with: <span id="workingClientLabel" class="font-bold"></span></span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-amber-600" id="workingClientInfo"></span>
-                            <button onclick="clearWorkingClient()" class="px-2 py-1 text-xs border border-amber-300 rounded hover:bg-amber-100 text-amber-700"><i class="fas fa-times mr-1"></i>Clear</button>
+                            <span class="text-xs text-blue-600" id="workingClientInfo"></span>
+                            <button onclick="clearWorkingClient()" class="px-2 py-1 text-xs border border-blue-300 rounded hover:bg-blue-100 text-blue-700"><i class="fas fa-times mr-1"></i>Clear</button>
                         </div>
                     </div>
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
@@ -6873,7 +6718,7 @@
                                 <button onclick="openFilterModal()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Filter Results">
                                     <i class="fas fa-filter"></i>
                                 </button>
-                                <button onclick="openNeighborhoodMapForSearch()" class="p-2 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors" title="Neighborhood Map">
+                                <button onclick="openNeighborhoodMapForSearch()" class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors" title="Neighborhood Map">
                                     <i class="fas fa-map-marked-alt"></i>
                                 </button>
                             </div>
@@ -6906,7 +6751,7 @@
                                 <div class="w-px h-4 bg-gray-200"></div>
                                 <!-- Flag action buttons — compact icon-only with color coding -->
                                 <div class="flex items-center gap-0.5">
-                                    <button id="filterBtn_picked" onclick="togglePickedFilter()" class="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors" title="Picked">
+                                    <button id="filterBtn_picked" onclick="togglePickedFilter()" class="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Picked">
                                         <i class="fas fa-check-circle text-sm"></i>
                                     </button>
                                     <button id="filterBtn_liked" onclick="toggleLikedFilter()" class="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Liked">
@@ -6964,7 +6809,7 @@
                                     </span>
                                     <div class="w-px h-5 bg-blue-200"></div>
                                     <div class="flex items-center gap-1">
-                                        <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors">
+                                        <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
                                             <i class="fas fa-check-circle"></i> Work With
                                         </button>
                                         <button onclick="printListingSheet()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
@@ -7256,7 +7101,7 @@
                             <div class="p-4">
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="text-xl font-bold text-gray-900">$85,000<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">Active</span>
+                                    <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">Active</span>
                                 </div>
                                 <p class="font-semibold text-gray-800 mb-1">432 Park Avenue, PH92</p>
                                 <p class="text-sm text-gray-500 mb-2">Midtown East, Manhattan</p>
@@ -7317,22 +7162,22 @@
                                     <div class="absolute inset-0">
                                         <div class="absolute bottom-0 left-0 right-0 h-3/5">
                                             <div class="absolute bottom-0 left-[3%] w-[7%] h-[50%] bg-white/8 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 left-[12%] w-[10%] h-[80%] bg-white/6 rounded-t-sm"><div class="mt-[10%] mx-[12%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-amber-400/8"></div><div class="w-full aspect-square bg-amber-400/5"></div><div class="w-full aspect-square bg-amber-400/5"></div><div class="w-full aspect-square bg-amber-400/8"></div></div></div>
-                                            <div class="absolute bottom-0 left-[25%] w-[9%] h-[92%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-amber-400/8"></div><div class="w-full aspect-square bg-amber-400/5"></div><div class="w-full aspect-square bg-amber-400/5"></div><div class="w-full aspect-square bg-amber-400/8"></div><div class="w-full aspect-square bg-amber-400/8"></div><div class="w-full aspect-square bg-amber-400/5"></div></div></div>
+                                            <div class="absolute bottom-0 left-[12%] w-[10%] h-[80%] bg-white/6 rounded-t-sm"><div class="mt-[10%] mx-[12%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/8"></div></div></div>
+                                            <div class="absolute bottom-0 left-[25%] w-[9%] h-[92%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div></div></div>
                                             <div class="absolute bottom-0 left-[37%] w-[6%] h-[40%] bg-white/8 rounded-t-sm"></div>
                                             <div class="absolute bottom-0 right-[35%] w-[8%] h-[65%] bg-white/7 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 right-[20%] w-[11%] h-[85%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-amber-400/8"></div><div class="w-full aspect-square bg-amber-400/5"></div><div class="w-full aspect-square bg-amber-400/5"></div><div class="w-full aspect-square bg-amber-400/8"></div></div></div>
+                                            <div class="absolute bottom-0 right-[20%] w-[11%] h-[85%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/8"></div></div></div>
                                             <div class="absolute bottom-0 right-[7%] w-[9%] h-[55%] bg-white/7 rounded-t-sm"></div>
                                         </div>
                                         <div class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/30 to-transparent"></div>
                                     </div>
                                     <div class="text-center z-10 relative">
-                                        <i class="fas fa-camera text-4xl text-amber-400/30 mb-2"></i>
-                                        <p class="text-amber-200/80 text-xs font-medium tracking-widest">432 PARK AVENUE</p>
-                                        <p class="text-amber-400/60 text-[10px] tracking-wider mt-1">PENTHOUSE 92</p>
+                                        <i class="fas fa-camera text-4xl text-slate-400/30 mb-2"></i>
+                                        <p class="text-slate-300/80 text-xs font-medium tracking-widest">432 PARK AVENUE</p>
+                                        <p class="text-slate-400/60 text-[10px] tracking-wider mt-1">PENTHOUSE 92</p>
                                     </div>
                                     <div class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded flex items-center gap-1 z-10">
-                                        <i class="fas fa-lock text-amber-400"></i> <span class="text-amber-200">NDA Required</span>
+                                        <i class="fas fa-lock text-slate-400"></i> <span class="text-slate-300">NDA Required</span>
                                     </div>
                                     <div class="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded z-10">
                                         <i class="fas fa-camera mr-1"></i> 48 Photos
@@ -7364,7 +7209,7 @@
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
                                         <i class="fas fa-question text-yellow-500 text-lg"></i>
                                     </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
+                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
                                         <i class="fas fa-heart text-green-500 text-lg"></i>
                                     </button>
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
@@ -7380,7 +7225,7 @@
                                     </div>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-78921</span>
-                                        <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">Active</span>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
                                     </div>
                                 </div>
                                 <p class="font-semibold text-gray-800 mb-1">432 Park Avenue, PH92</p>
@@ -7403,7 +7248,7 @@
                                         <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-bookmark"></i> Save
                                         </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-green-50 hover:border-green-200 hover:text-green-600 transition-colors flex items-center gap-1">
+                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-heart"></i> Love
                                         </button>
                                     </div>
@@ -7469,7 +7314,7 @@
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
                                         <i class="fas fa-question text-yellow-500 text-lg"></i>
                                     </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
+                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
                                         <i class="fas fa-heart text-green-500 text-lg"></i>
                                     </button>
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
@@ -7506,7 +7351,7 @@
                                         <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-bookmark"></i> Save
                                         </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-green-50 hover:border-green-200 hover:text-green-600 transition-colors flex items-center gap-1">
+                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-heart"></i> Love
                                         </button>
                                     </div>
@@ -7559,7 +7404,7 @@
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
                                         <i class="fas fa-question text-yellow-500 text-lg"></i>
                                     </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
+                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
                                         <i class="fas fa-heart text-green-500 text-lg"></i>
                                     </button>
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
@@ -7573,7 +7418,7 @@
                                     <span class="text-xl font-bold text-gray-900">$18,500<span class="text-sm font-normal text-gray-500">/mo</span></span>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-65432</span>
-                                        <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">Active</span>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
                                     </div>
                                 </div>
                                 <p class="font-semibold text-gray-800 mb-1">15 Central Park West, 14D</p>
@@ -7596,7 +7441,7 @@
                                         <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-bookmark"></i> Save
                                         </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-green-50 hover:border-green-200 hover:text-green-600 transition-colors flex items-center gap-1">
+                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-heart"></i> Love
                                         </button>
                                     </div>
@@ -7618,8 +7463,8 @@
                                         </svg>
                                     </div>
                                     <div class="text-center z-10">
-                                        <i class="fas fa-city text-4xl text-amber-300/60 mb-2"></i>
-                                        <p class="text-amber-200/80 text-xs font-medium tracking-wide">100 BARCLAY STREET</p>
+                                        <i class="fas fa-city text-4xl text-slate-400/60 mb-2"></i>
+                                        <p class="text-slate-300/80 text-xs font-medium tracking-wide">100 BARCLAY STREET</p>
                                     </div>
                                     <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
                                         <i class="fas fa-camera mr-1"></i> 18 Photos
@@ -7649,7 +7494,7 @@
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
                                         <i class="fas fa-question text-yellow-500 text-lg"></i>
                                     </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
+                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
                                         <i class="fas fa-heart text-green-500 text-lg"></i>
                                     </button>
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
@@ -7664,7 +7509,7 @@
                                     <div class="flex items-center gap-1">
                                         <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-54321</span>
                                         <span class="text-xs px-2 py-1 bg-emerald-500 text-white rounded font-semibold">NEW</span>
-                                        <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">Active</span>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
                                     </div>
                                 </div>
                                 <p class="font-semibold text-gray-800 mb-1">100 Barclay Street, 22F</p>
@@ -7687,7 +7532,7 @@
                                         <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-bookmark"></i> Save
                                         </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-green-50 hover:border-green-200 hover:text-green-600 transition-colors flex items-center gap-1">
+                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-heart"></i> Love
                                         </button>
                                     </div>
@@ -7736,7 +7581,7 @@
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
                                         <i class="fas fa-question text-yellow-500 text-lg"></i>
                                     </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
+                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
                                         <i class="fas fa-heart text-green-500 text-lg"></i>
                                     </button>
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
@@ -7750,7 +7595,7 @@
                                     <span class="text-xl font-bold text-gray-900">$4,500<span class="text-sm font-normal text-gray-500">/mo</span></span>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-43210</span>
-                                        <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">Active</span>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
                                     </div>
                                 </div>
                                 <p class="font-semibold text-gray-800 mb-1">301 East 79th Street, 4B</p>
@@ -7773,7 +7618,7 @@
                                         <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-bookmark"></i> Save
                                         </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-green-50 hover:border-green-200 hover:text-green-600 transition-colors flex items-center gap-1">
+                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-heart"></i> Love
                                         </button>
                                     </div>
@@ -7831,7 +7676,7 @@
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
                                         <i class="fas fa-question text-yellow-500 text-lg"></i>
                                     </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
+                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
                                         <i class="fas fa-heart text-green-500 text-lg"></i>
                                     </button>
                                     <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
@@ -7845,7 +7690,7 @@
                                     <span class="text-xl font-bold text-gray-900">$55,000<span class="text-sm font-normal text-gray-500">/mo</span></span>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-91234</span>
-                                        <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-semibold">Active</span>
+                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
                                     </div>
                                 </div>
                                 <p class="font-semibold text-gray-800 mb-1">220 Central Park South, 45A</p>
@@ -7868,7 +7713,7 @@
                                         <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-bookmark"></i> Save
                                         </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-green-50 hover:border-green-200 hover:text-green-600 transition-colors flex items-center gap-1">
+                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
                                             <i class="fas fa-heart"></i> Love
                                         </button>
                                     </div>

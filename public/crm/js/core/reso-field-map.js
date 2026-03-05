@@ -166,9 +166,11 @@
         function getListingPhoto(listing) {
             if (listing.images && listing.images.length > 0) {
                 var primary = listing.images.find(function(img) { return img.isPrimary; });
-                return (primary || listing.images[0]).url;
+                var url = (primary || listing.images[0]).url;
+                if (url) return url;
             }
-            return '';
+            // SVG placeholder — matches frontend aesthetic
+            return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%23f1f5f9' width='400' height='300'/%3E%3Cg transform='translate(160,110)'%3E%3Cpath d='M40 0L80 80H0z' fill='%23cbd5e1'/%3E%3Crect x='5' y='30' width='30' height='50' rx='2' fill='%23cbd5e1'/%3E%3Ccircle cx='60' cy='20' r='10' fill='%23e2e8f0'/%3E%3C/g%3E%3Ctext x='200' y='220' text-anchor='middle' fill='%2394a3b8' font-family='Inter,system-ui,sans-serif' font-size='13' font-weight='300'%3ENo Photo Available%3C/text%3E%3C/svg%3E";
         }
         function getListingPhotoThumb(listing) {
             var url = getListingPhoto(listing);
