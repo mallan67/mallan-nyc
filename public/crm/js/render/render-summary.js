@@ -8,13 +8,13 @@
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
                         <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
-                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'">
+                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">

@@ -434,11 +434,23 @@
          * IDX response is already in CRM flat shape — push directly.
          */
         function _loadFromIDX() {
-            return MallanAPI.idx.search({ limit: 500 }).then(function(result) {
+            // Respect saved search tab — load sales or rentals on refresh
+            var _savedTab;
+            try { _savedTab = sessionStorage.getItem('searchTab'); } catch(e) {}
+            var _searchType = _savedTab === 'rent' ? 'rental' : 'sale';
+            // Sync the search tab global so refine panel / filters know the active type
+            if (typeof currentSearchTab !== 'undefined') {
+                currentSearchTab = _savedTab === 'rent' ? 'rent' : 'sale';
+            }
+            return MallanAPI.idx.search({ limit: 500, type: _searchType }).then(function(result) {
                 if (result.listings && result.listings.length > 0) {
                     _replaceListings(result.listings, 'IDX/Trestle');
                     // Show REBNY attribution
                     if (result.attribution) _showAttribution(result.attribution);
+                    // Set initial activeSearchCriteria so refine panel works
+                    if (typeof activeSearchCriteria !== 'undefined' && !activeSearchCriteria) {
+                        activeSearchCriteria = { searchTab: _savedTab === 'rent' ? 'rent' : 'sale' };
+                    }
                     return result;
                 }
                 return Promise.reject(new Error('IDX returned 0 listings'));

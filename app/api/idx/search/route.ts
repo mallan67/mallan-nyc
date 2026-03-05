@@ -425,6 +425,7 @@ export async function GET(req: NextRequest) {
       skip,
       orderby: "ModificationTimestamp desc",
       maxTotal: limit,
+      count: true,
     });
 
     // Apply distribution gates — CRM context: agents see Participant Only + IDX opted-out
@@ -453,6 +454,7 @@ export async function GET(req: NextRequest) {
     const response = {
       listings,
       total: listings.length,
+      totalCount: result.odataCount ?? listings.length,
       hasMore: result.hasMore,
       skip,
       limit,
@@ -462,6 +464,7 @@ export async function GET(req: NextRequest) {
         fetchedAt: new Date().toISOString(),
         filter,
         totalFromAPI: result.totalFetched,
+        odataCount: result.odataCount,
         gatedOut: result.totalFetched - displayable.length,
       },
     };

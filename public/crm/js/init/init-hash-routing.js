@@ -47,6 +47,7 @@
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
             // Opened in a new tab — show only the listing detail
+            // Must wait for data to load before showing detail (mockListings starts empty)
             var detailId = parseInt(routeParam, 10);
             if (!isNaN(detailId) && typeof showListingDetail === 'function') {
                 // Hide search UI entirely
@@ -55,24 +56,66 @@
                 if (searchFormContainer) searchFormContainer.style.display = 'none';
                 if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-                // Show the detail
-                showListingDetail(detailId);
-
-                // Adjust header for standalone mode:
-                // - Change "Back to Results" to "Close"
-                // - Hide prev/next nav (no results context)
-                var backBtn = document.getElementById('detailBackBtn');
-                var navSep = document.getElementById('detailNavSep');
-                var prevBtn = document.getElementById('detailPrevBtn');
-                var nextBtn = document.getElementById('detailNextBtn');
-                if (backBtn) {
-                    backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
-                    backBtn.onclick = function() { window.close(); };
+                // Show a loading indicator
+                var detailPage = document.getElementById('listingDetailPage');
+                if (detailPage) {
+                    detailPage.classList.remove('hidden');
+                    detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><div class="animate-spin w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full mx-auto mb-4"></div><p class="text-gray-500 text-sm">Loading listing...</p></div></div>';
                 }
-                if (navSep) navSep.style.display = 'none';
-                if (prevBtn) prevBtn.style.display = 'none';
-                if (nextBtn) nextBtn.style.display = 'none';
-            }
+
+                function _tryShowDetail() {
+                    // Check if data is available
+                    if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                        var listing = mockListings.find(function(l) { return l.id === detailId; });
+                        if (listing) {
+                            showListingDetail(detailId);
+                            _setupStandaloneDetail();
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                function _setupStandaloneDetail() {
+                    // Adjust header for standalone mode
+                    var backBtn = document.getElementById('detailBackBtn');
+                    var navSep = document.getElementById('detailNavSep');
+                    var prevBtn = document.getElementById('detailPrevBtn');
+                    var nextBtn = document.getElementById('detailNextBtn');
+                    if (backBtn) {
+                        backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
+                        backBtn.onclick = function() { window.close(); };
+                    }
+                    if (navSep) navSep.style.display = 'none';
+                    if (prevBtn) prevBtn.style.display = 'none';
+                    if (nextBtn) nextBtn.style.display = 'none';
+                }
+
+                // Try immediately (data might already be loaded)
+                if (!_tryShowDetail()) {
+                    // Wait for data:ready event
+                    var _detailDataHandler = function() {
+                        window.removeEventListener('mallan:data:ready', _detailDataHandler);
+                        // Small delay to ensure mockListings is fully populated
+                        setTimeout(function() {
+                            if (!_tryShowDetail()) {
+                                // Still not found — show error
+                                if (detailPage) {
+                                    detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Listing not found. It may no longer be active.</p><button onclick="window.close()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Close</button></div></div>';
+                                }
+                            }
+                        }, 100);
+                    };
+                    window.addEventListener('mallan:data:ready', _detailDataHandler);
+
+                    // Safety timeout — 15 seconds
+                    setTimeout(function() {
+                        window.removeEventListener('mallan:data:ready', _detailDataHandler);
+                        if (!_tryShowDetail() && detailPage) {
+                            detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Unable to load listing. Please try again.</p><button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Retry</button></div></div>';
+                        }
+                    }, 15000);
+                }
 
         } else if (route === 'results') {
             // ── RESULTS PAGE ──

@@ -1169,7 +1169,7 @@
         }
 
         function populateRefinePanel() {
-            var c = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : {};
+            var c = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : {};
 
             // Search type label
             var typeLabel = document.getElementById('refineSearchType');
@@ -1292,7 +1292,7 @@
 
         function applyRefinedSearch() {
             // Build criteria from refine panel controls
-            var c = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : {};
+            var c = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : {};
             c.searchTab = c.searchTab || currentSearchTab || 'sale';
 
             // Price
@@ -1375,48 +1375,44 @@
             applyRefinedSearch();
         }
 
-        // Highlight the active search type/mode on the sticky nav bar
+        // Highlight the active search type/mode on the sticky dark nav bar
         function updateStickyNavActive() {
-            var nav = document.getElementById('stickySearchNav');
-            if (!nav) return;
-            var btns = nav.querySelectorAll('button');
-            var btnBasic = document.getElementById('btnSearchBasic');
-            var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
-            var activeMode = isBasic ? 'basic' : 'advanced';
+            // Update active label
+            var label = document.getElementById('stickyNavActiveLabel');
+            if (label) {
+                var tab = currentSearchTab || 'sale';
+                var btnBasic = document.getElementById('btnSearchBasic');
+                var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
+                var mode = isBasic ? 'Basic' : 'Advanced';
+                var tabLabel = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
+                label.textContent = tabLabel + ' · ' + mode;
+            }
 
-            // Reset all buttons to outline style
-            btns.forEach(function(btn) {
-                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-amber-600', 'bg-purple-600', 'text-white',
-                    'border-blue-600', 'border-green-600', 'border-amber-600', 'border-purple-600');
-                var oc = btn.getAttribute('onclick') || '';
-                if (oc.indexOf('Comparables') !== -1) {
-                    btn.classList.add('border-purple-500', 'text-purple-600');
-                } else if (oc.indexOf("'building'") !== -1) {
-                    btn.classList.add('border-amber-500', 'text-amber-600');
-                } else if (oc.indexOf("'rent'") !== -1) {
-                    btn.classList.add('border-green-500', 'text-green-600');
-                } else {
-                    btn.classList.add('border-blue-500', 'text-blue-600');
-                }
+            // Highlight the matching nav button
+            var ids = ['stickyNavSaleBasic','stickyNavSaleAdv','stickyNavRentBasic','stickyNavRentAdv'];
+            ids.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove('bg-white/15', 'text-white');
+                el.classList.add('text-gray-400');
             });
+            var btnBasic2 = document.getElementById('btnSearchBasic');
+            var basic = btnBasic2 && btnBasic2.classList.contains('bg-gray-900');
+            var activeId = null;
+            if (currentSearchTab === 'sale') activeId = basic ? 'stickyNavSaleBasic' : 'stickyNavSaleAdv';
+            else if (currentSearchTab === 'rent') activeId = basic ? 'stickyNavRentBasic' : 'stickyNavRentAdv';
+            var activeBtn = activeId ? document.getElementById(activeId) : null;
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-400');
+                activeBtn.classList.add('bg-white/15', 'text-white');
+            }
 
-            // Highlight active button
-            btns.forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var isMatch = false;
-                if (currentSearchTab === 'sale' && activeMode === 'basic' && oc.indexOf("'sale'") !== -1 && oc.indexOf("'basic'") !== -1) isMatch = true;
-                if (currentSearchTab === 'sale' && activeMode === 'advanced' && oc.indexOf("'sale'") !== -1 && oc.indexOf("'advanced'") !== -1) isMatch = true;
-                if (currentSearchTab === 'rent' && activeMode === 'basic' && oc.indexOf("'rent'") !== -1 && oc.indexOf("'basic'") !== -1) isMatch = true;
-                if (currentSearchTab === 'rent' && activeMode === 'advanced' && oc.indexOf("'rent'") !== -1 && oc.indexOf("'advanced'") !== -1) isMatch = true;
-                if (currentSearchTab === 'building' && oc.indexOf("'building'") !== -1) isMatch = true;
-
-                if (isMatch) {
-                    btn.classList.remove('text-blue-600', 'text-green-600', 'text-amber-600', 'border-blue-500', 'border-green-500', 'border-amber-500');
-                    if (currentSearchTab === 'sale') btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-                    else if (currentSearchTab === 'rent') btn.classList.add('bg-green-600', 'text-white', 'border-green-600');
-                    else btn.classList.add('bg-amber-600', 'text-white', 'border-amber-600');
-                }
-            });
+            // Update results count in nav
+            var countEl = document.getElementById('stickyNavResultCount');
+            if (countEl) {
+                var total = getFilteredListings(true).length;
+                countEl.textContent = total.toLocaleString() + ' results';
+            }
         }
 
         // Jump to a specific search form from results sticky nav
@@ -1985,4 +1981,64 @@
                 resultsTypeSpan.textContent = isSaleMode ? 'Comps for Sale' : 'Comps for Rental';
             }
         }
+
+        // ═══════════════════════════════════════════════════════
+        // CUSTOM VALUE HANDLER — Converts select to text input when "Custom" is chosen
+        // Works for price, beds, baths, rooms, sqft selects
+        // ═══════════════════════════════════════════════════════
+        (function() {
+            document.addEventListener('change', function(e) {
+                var sel = e.target;
+                if (sel.tagName !== 'SELECT' || sel.value !== 'custom') return;
+
+                // Determine what kind of field this is (for placeholder and formatting)
+                var id = sel.id || '';
+                var isPrice = id.toLowerCase().indexOf('price') !== -1 || id.toLowerCase().indexOf('rent') !== -1;
+                var isSqft = id.toLowerCase().indexOf('sqft') !== -1;
+                var placeholder = isPrice ? 'Enter price (e.g. 1500000)' : isSqft ? 'Enter sqft' : 'Enter value';
+
+                // Create text input to replace the select
+                var input = document.createElement('input');
+                input.type = 'number';
+                input.id = sel.id;
+                input.className = sel.className;
+                input.placeholder = placeholder;
+                input.style.cssText = sel.style.cssText;
+                input.setAttribute('data-was-select', 'true');
+
+                // Store the original select's options for restoration
+                var optionsHTML = sel.innerHTML;
+                input.setAttribute('data-original-options', optionsHTML);
+
+                // Add a clear/restore button
+                var wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center gap-1 flex-1 min-w-0';
+                wrapper.innerHTML = '';
+                var clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'text-red-400 hover:text-red-600 text-xs flex-shrink-0';
+                clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+                clearBtn.title = 'Back to dropdown';
+                clearBtn.onclick = function() {
+                    // Restore the original select
+                    var restoredSelect = document.createElement('select');
+                    restoredSelect.id = input.id;
+                    restoredSelect.className = input.className;
+                    restoredSelect.innerHTML = input.getAttribute('data-original-options');
+                    wrapper.parentNode.replaceChild(restoredSelect, wrapper);
+                    // Trigger tracker update
+                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+                };
+
+                sel.parentNode.replaceChild(wrapper, sel);
+                wrapper.appendChild(input);
+                wrapper.appendChild(clearBtn);
+                input.focus();
+
+                // Trigger tracker update on input
+                input.addEventListener('input', function() {
+                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+                });
+            });
+        })();
 

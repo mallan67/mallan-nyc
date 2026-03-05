@@ -17,6 +17,7 @@
                 }
             } catch(e) { console.warn('[Search] Selection cleanup error:', e); }
             try { renderSearchResults(); } catch(e) { console.error('[Search] renderSearchResults FAILED:', e); }
+            try { if (typeof initPhotoObserver === 'function') initPhotoObserver(); } catch(e) { console.warn('[Search] Photo observer init failed:', e); }
             try { updateSelectionActionBar(); } catch(e) { /* ok */ }
             try { populateClientList(); } catch(e) { /* ok */ }
             try { populateSavedSearchList(); } catch(e) { /* ok */ }

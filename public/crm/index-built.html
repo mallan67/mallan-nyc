@@ -313,6 +313,42 @@ input::placeholder {
     font-size: 12px;
 }
 
+/* ── Text Darkness Override — make ALL light text more readable ── */
+/* Tailwind gray-400 (#9ca3af) → gray-600 (#4b5563) */
+#searchFormContainer .text-gray-400,
+#searchAdvancedMode .text-gray-400 {
+    color: #6b7280 !important; /* gray-500 */
+}
+/* Tailwind gray-500 (#6b7280) → gray-700 (#374151) */
+#searchFormContainer .text-gray-500,
+#searchAdvancedMode .text-gray-500 {
+    color: #4b5563 !important; /* gray-600 */
+}
+/* Tailwind gray-300 (#d1d5db) → gray-500 (#6b7280) */
+#searchFormContainer .text-gray-300,
+#searchAdvancedMode .text-gray-300 {
+    color: #9ca3af !important; /* gray-400 */
+}
+/* Placeholder text — darker */
+#searchFormContainer input::placeholder,
+#searchFormContainer select::placeholder,
+#searchAdvancedMode input::placeholder,
+#searchAdvancedMode select::placeholder {
+    color: #6b7280 !important; /* gray-500 instead of gray-400 */
+}
+/* Section headers in advanced mode */
+#searchAdvancedMode .font-bold,
+#searchAdvancedMode .font-semibold {
+    color: #111827; /* gray-900 */
+}
+/* Results section text — also darker */
+#searchResultsSection .text-gray-400 {
+    color: #6b7280 !important;
+}
+#searchResultsSection .text-gray-300 {
+    color: #9ca3af !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    DATE RANGE PICKER — Dual-Month Calendar Popup
    ═══════════════════════════════════════════════════════ */
@@ -3047,9 +3083,10 @@ input[type="range"] {
    SCROLLBAR — Minimal
    ═══════════════════════════════════════ */
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.25); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.04); }
 
 /* ═══════════════════════════════════════
    NEIGHBORHOOD MAP — Premium polygons
@@ -9852,34 +9889,41 @@ function toggleSection(header) {
                 <!-- SEARCH RESULTS SECTION - REBNY-Style Client Delivery System -->
                 <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                 <div id="searchResultsSection" class="mt-6" style="display: none;">
-                    <!-- Sticky Search Navigation Bar -->
-                    <div id="stickySearchNav" class="sticky top-0 z-40 bg-white border border-blue-200 rounded-lg shadow-md mb-3 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-search text-blue-500"></i>
-                            <span class="font-semibold text-gray-700">Jump to Search:</span>
+                    <!-- Sticky Search Navigation Bar — Dark Banner -->
+                    <div id="stickySearchNav" class="sticky top-0 z-40 bg-[#1a1a1a] shadow-lg mb-3 px-4 py-2 flex items-center justify-between flex-wrap gap-2" style="border-radius:0;">
+                        <!-- Left: Back + New Search -->
+                        <div class="flex items-center gap-2">
+                            <button onclick="jumpToSearch(currentSearchTab||'sale', (document.getElementById('btnSearchBasic')&&document.getElementById('btnSearchBasic').classList.contains('bg-gray-900'))?'basic':'advanced')" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white transition flex items-center gap-1.5" title="Back to search form">
+                                <i class="fas fa-arrow-left text-[10px]"></i>
+                                <span class="hidden sm:inline">Back</span>
+                            </button>
+                            <div class="w-px h-5 bg-gray-600 hidden sm:block"></div>
+                            <button onclick="jumpToSearch('sale','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition" id="stickyNavSaleBasic">
+                                <i class="fas fa-home mr-1 text-[10px]"></i>Sales
+                            </button>
+                            <button onclick="jumpToSearch('sale','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition hidden sm:inline-flex" id="stickyNavSaleAdv">
+                                <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Sales Adv
+                            </button>
+                            <div class="w-px h-4 bg-gray-600"></div>
+                            <button onclick="jumpToSearch('rent','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition" id="stickyNavRentBasic">
+                                <i class="fas fa-building mr-1 text-[10px]"></i>Rentals
+                            </button>
+                            <button onclick="jumpToSearch('rent','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition hidden sm:inline-flex" id="stickyNavRentAdv">
+                                <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Rentals Adv
+                            </button>
+                            <div class="w-px h-4 bg-gray-600"></div>
+                            <button onclick="jumpToSearch('building','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition">
+                                <i class="fas fa-city mr-1 text-[10px]"></i>Buildings
+                            </button>
+                            <div class="w-px h-4 bg-gray-600"></div>
+                            <button onclick="jumpToComparables()" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-400/80 hover:bg-amber-500/20 hover:text-amber-300 transition">
+                                <i class="fas fa-chart-bar mr-1 text-[10px]"></i>Comps
+                            </button>
                         </div>
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <button onclick="jumpToSearch('sale','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
-                                <i class="fas fa-home mr-1"></i> Sales Basic
-                            </button>
-                            <button onclick="jumpToSearch('sale','advanced')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
-                                <i class="fas fa-sliders-h mr-1"></i> Sales Advanced
-                            </button>
-                            <span class="text-gray-300 mx-1">|</span>
-                            <button onclick="jumpToSearch('rent','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
-                                <i class="fas fa-building mr-1"></i> Rentals Basic
-                            </button>
-                            <button onclick="jumpToSearch('rent','advanced')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
-                                <i class="fas fa-sliders-h mr-1"></i> Rentals Advanced
-                            </button>
-                            <span class="text-gray-300 mx-1">|</span>
-                            <button onclick="jumpToSearch('building','basic')" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-blue-500 text-blue-600 hover:bg-blue-600 hover:text-white transition">
-                                <i class="fas fa-city mr-1"></i> Buildings
-                            </button>
-                            <span class="text-gray-300 mx-1">|</span>
-                            <button onclick="jumpToComparables()" class="px-3 py-1.5 text-xs font-semibold rounded-full border border-purple-500 text-purple-600 hover:bg-purple-600 hover:text-white transition">
-                                <i class="fas fa-chart-bar mr-1"></i> Comparables
-                            </button>
+                        <!-- Right: Active search type indicator -->
+                        <div class="flex items-center gap-2">
+                            <span id="stickyNavActiveLabel" class="text-[10px] font-bold text-gray-500 uppercase tracking-wider hidden sm:inline">Sales</span>
+                            <span id="stickyNavResultCount" class="text-xs font-bold text-white"></span>
                         </div>
                     </div>
                     <!-- REBNY RLS Attribution Bar -->
@@ -16825,7 +16869,7 @@ function manageShowToast(msg) {
         }
 
         function populateRefinePanel() {
-            var c = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : {};
+            var c = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : {};
 
             // Search type label
             var typeLabel = document.getElementById('refineSearchType');
@@ -16948,7 +16992,7 @@ function manageShowToast(msg) {
 
         function applyRefinedSearch() {
             // Build criteria from refine panel controls
-            var c = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : {};
+            var c = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : {};
             c.searchTab = c.searchTab || currentSearchTab || 'sale';
 
             // Price
@@ -17031,48 +17075,44 @@ function manageShowToast(msg) {
             applyRefinedSearch();
         }
 
-        // Highlight the active search type/mode on the sticky nav bar
+        // Highlight the active search type/mode on the sticky dark nav bar
         function updateStickyNavActive() {
-            var nav = document.getElementById('stickySearchNav');
-            if (!nav) return;
-            var btns = nav.querySelectorAll('button');
-            var btnBasic = document.getElementById('btnSearchBasic');
-            var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
-            var activeMode = isBasic ? 'basic' : 'advanced';
+            // Update active label
+            var label = document.getElementById('stickyNavActiveLabel');
+            if (label) {
+                var tab = currentSearchTab || 'sale';
+                var btnBasic = document.getElementById('btnSearchBasic');
+                var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
+                var mode = isBasic ? 'Basic' : 'Advanced';
+                var tabLabel = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
+                label.textContent = tabLabel + ' · ' + mode;
+            }
 
-            // Reset all buttons to outline style
-            btns.forEach(function(btn) {
-                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-amber-600', 'bg-purple-600', 'text-white',
-                    'border-blue-600', 'border-green-600', 'border-amber-600', 'border-purple-600');
-                var oc = btn.getAttribute('onclick') || '';
-                if (oc.indexOf('Comparables') !== -1) {
-                    btn.classList.add('border-purple-500', 'text-purple-600');
-                } else if (oc.indexOf("'building'") !== -1) {
-                    btn.classList.add('border-amber-500', 'text-amber-600');
-                } else if (oc.indexOf("'rent'") !== -1) {
-                    btn.classList.add('border-green-500', 'text-green-600');
-                } else {
-                    btn.classList.add('border-blue-500', 'text-blue-600');
-                }
+            // Highlight the matching nav button
+            var ids = ['stickyNavSaleBasic','stickyNavSaleAdv','stickyNavRentBasic','stickyNavRentAdv'];
+            ids.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove('bg-white/15', 'text-white');
+                el.classList.add('text-gray-400');
             });
+            var btnBasic2 = document.getElementById('btnSearchBasic');
+            var basic = btnBasic2 && btnBasic2.classList.contains('bg-gray-900');
+            var activeId = null;
+            if (currentSearchTab === 'sale') activeId = basic ? 'stickyNavSaleBasic' : 'stickyNavSaleAdv';
+            else if (currentSearchTab === 'rent') activeId = basic ? 'stickyNavRentBasic' : 'stickyNavRentAdv';
+            var activeBtn = activeId ? document.getElementById(activeId) : null;
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-400');
+                activeBtn.classList.add('bg-white/15', 'text-white');
+            }
 
-            // Highlight active button
-            btns.forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var isMatch = false;
-                if (currentSearchTab === 'sale' && activeMode === 'basic' && oc.indexOf("'sale'") !== -1 && oc.indexOf("'basic'") !== -1) isMatch = true;
-                if (currentSearchTab === 'sale' && activeMode === 'advanced' && oc.indexOf("'sale'") !== -1 && oc.indexOf("'advanced'") !== -1) isMatch = true;
-                if (currentSearchTab === 'rent' && activeMode === 'basic' && oc.indexOf("'rent'") !== -1 && oc.indexOf("'basic'") !== -1) isMatch = true;
-                if (currentSearchTab === 'rent' && activeMode === 'advanced' && oc.indexOf("'rent'") !== -1 && oc.indexOf("'advanced'") !== -1) isMatch = true;
-                if (currentSearchTab === 'building' && oc.indexOf("'building'") !== -1) isMatch = true;
-
-                if (isMatch) {
-                    btn.classList.remove('text-blue-600', 'text-green-600', 'text-amber-600', 'border-blue-500', 'border-green-500', 'border-amber-500');
-                    if (currentSearchTab === 'sale') btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-                    else if (currentSearchTab === 'rent') btn.classList.add('bg-green-600', 'text-white', 'border-green-600');
-                    else btn.classList.add('bg-amber-600', 'text-white', 'border-amber-600');
-                }
-            });
+            // Update results count in nav
+            var countEl = document.getElementById('stickyNavResultCount');
+            if (countEl) {
+                var total = getFilteredListings(true).length;
+                countEl.textContent = total.toLocaleString() + ' results';
+            }
         }
 
         // Jump to a specific search form from results sticky nav
@@ -17641,6 +17681,66 @@ function manageShowToast(msg) {
                 resultsTypeSpan.textContent = isSaleMode ? 'Comps for Sale' : 'Comps for Rental';
             }
         }
+
+        // ═══════════════════════════════════════════════════════
+        // CUSTOM VALUE HANDLER — Converts select to text input when "Custom" is chosen
+        // Works for price, beds, baths, rooms, sqft selects
+        // ═══════════════════════════════════════════════════════
+        (function() {
+            document.addEventListener('change', function(e) {
+                var sel = e.target;
+                if (sel.tagName !== 'SELECT' || sel.value !== 'custom') return;
+
+                // Determine what kind of field this is (for placeholder and formatting)
+                var id = sel.id || '';
+                var isPrice = id.toLowerCase().indexOf('price') !== -1 || id.toLowerCase().indexOf('rent') !== -1;
+                var isSqft = id.toLowerCase().indexOf('sqft') !== -1;
+                var placeholder = isPrice ? 'Enter price (e.g. 1500000)' : isSqft ? 'Enter sqft' : 'Enter value';
+
+                // Create text input to replace the select
+                var input = document.createElement('input');
+                input.type = 'number';
+                input.id = sel.id;
+                input.className = sel.className;
+                input.placeholder = placeholder;
+                input.style.cssText = sel.style.cssText;
+                input.setAttribute('data-was-select', 'true');
+
+                // Store the original select's options for restoration
+                var optionsHTML = sel.innerHTML;
+                input.setAttribute('data-original-options', optionsHTML);
+
+                // Add a clear/restore button
+                var wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center gap-1 flex-1 min-w-0';
+                wrapper.innerHTML = '';
+                var clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'text-red-400 hover:text-red-600 text-xs flex-shrink-0';
+                clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+                clearBtn.title = 'Back to dropdown';
+                clearBtn.onclick = function() {
+                    // Restore the original select
+                    var restoredSelect = document.createElement('select');
+                    restoredSelect.id = input.id;
+                    restoredSelect.className = input.className;
+                    restoredSelect.innerHTML = input.getAttribute('data-original-options');
+                    wrapper.parentNode.replaceChild(restoredSelect, wrapper);
+                    // Trigger tracker update
+                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+                };
+
+                sel.parentNode.replaceChild(wrapper, sel);
+                wrapper.appendChild(input);
+                wrapper.appendChild(clearBtn);
+                input.focus();
+
+                // Trigger tracker update on input
+                input.addEventListener('input', function() {
+                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+                });
+            });
+        })();
 
 
 </script>
@@ -18769,11 +18869,23 @@ function manageShowToast(msg) {
          * IDX response is already in CRM flat shape — push directly.
          */
         function _loadFromIDX() {
-            return MallanAPI.idx.search({ limit: 500 }).then(function(result) {
+            // Respect saved search tab — load sales or rentals on refresh
+            var _savedTab;
+            try { _savedTab = sessionStorage.getItem('searchTab'); } catch(e) {}
+            var _searchType = _savedTab === 'rent' ? 'rental' : 'sale';
+            // Sync the search tab global so refine panel / filters know the active type
+            if (typeof currentSearchTab !== 'undefined') {
+                currentSearchTab = _savedTab === 'rent' ? 'rent' : 'sale';
+            }
+            return MallanAPI.idx.search({ limit: 500, type: _searchType }).then(function(result) {
                 if (result.listings && result.listings.length > 0) {
                     _replaceListings(result.listings, 'IDX/Trestle');
                     // Show REBNY attribution
                     if (result.attribution) _showAttribution(result.attribution);
+                    // Set initial activeSearchCriteria so refine panel works
+                    if (typeof activeSearchCriteria !== 'undefined' && !activeSearchCriteria) {
+                        activeSearchCriteria = { searchTab: _savedTab === 'rent' ? 'rent' : 'sale' };
+                    }
                     return result;
                 }
                 return Promise.reject(new Error('IDX returned 0 listings'));
@@ -19942,6 +20054,7 @@ function parseBudgetValue(td) {
                 }
             } catch(e) { console.warn('[Search] Selection cleanup error:', e); }
             try { renderSearchResults(); } catch(e) { console.error('[Search] renderSearchResults FAILED:', e); }
+            try { if (typeof initPhotoObserver === 'function') initPhotoObserver(); } catch(e) { console.warn('[Search] Photo observer init failed:', e); }
             try { updateSelectionActionBar(); } catch(e) { /* ok */ }
             try { populateClientList(); } catch(e) { /* ok */ }
             try { populateSavedSearchList(); } catch(e) { /* ok */ }
@@ -20574,11 +20687,11 @@ function parseBudgetValue(td) {
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '') + '</div>' : '';
                 return `
-                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${listing.wid || listing.lid || listing.id}" data-listing-id="${listing.id}" data-source="REBNY-RLS">
+                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${listing.wid || listing.lid || listing.id}" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" data-source="REBNY-RLS">
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
                         <div class="cm-photo-wrap cm-card-photo">
-                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'">
+                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
                         </div>
                         <!-- Checkbox -->
                         <div class="absolute top-3 left-3 z-10">
@@ -20730,13 +20843,13 @@ function parseBudgetValue(td) {
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
                         <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
-                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'">
+                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">
@@ -21050,6 +21163,157 @@ function parseBudgetValue(td) {
             `;
         }
 
+
+</script>
+<script>
+// ═══ js/render/photo-loader.js ═══
+        // ═══════════════════════════════════════════════════════════════════
+        // LAZY PHOTO LOADER — Fetches listing photos from Trestle Media
+        //
+        // Trestle's $expand=Media fails for bulk queries (>50 listings).
+        // This module batch-fetches primary photos for visible listing cards
+        // using the /api/media/batch endpoint and IntersectionObserver.
+        // ═══════════════════════════════════════════════════════════════════
+
+        var _photoCache = {};       // listingId → photoUrl (or null)
+        var _photoPending = {};     // listingId → true (in-flight)
+        var _photoBatchQueue = [];  // listing IDs waiting to be fetched
+        var _photoBatchTimer = null;
+        var _photoObserver = null;
+
+        // Batch size and debounce
+        var PHOTO_BATCH_SIZE = 20;
+        var PHOTO_BATCH_DELAY = 150; // ms — wait for more cards to scroll into view
+
+        /**
+         * Queue a listing for photo loading.
+         * Called when a card becomes visible via IntersectionObserver.
+         */
+        function queuePhotoLoad(listingId) {
+            if (!listingId) return;
+            var lid = String(listingId);
+            if (_photoCache[lid] !== undefined || _photoPending[lid]) return;
+            _photoPending[lid] = true;
+            _photoBatchQueue.push(lid);
+            _scheduleBatchFetch();
+        }
+
+        function _scheduleBatchFetch() {
+            if (_photoBatchTimer) clearTimeout(_photoBatchTimer);
+            _photoBatchTimer = setTimeout(function() {
+                _fetchPhotoBatch();
+            }, PHOTO_BATCH_DELAY);
+        }
+
+        function _fetchPhotoBatch() {
+            if (_photoBatchQueue.length === 0) return;
+
+            // Take up to BATCH_SIZE
+            var batch = _photoBatchQueue.splice(0, PHOTO_BATCH_SIZE);
+
+            // If more remain, schedule next batch
+            if (_photoBatchQueue.length > 0) _scheduleBatchFetch();
+
+            var idsParam = batch.join(',');
+            if (typeof MallanAPI === 'undefined') return;
+
+            fetch('/api/media/batch?ids=' + encodeURIComponent(idsParam), {
+                credentials: 'same-origin'
+            }).then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            }).then(function(data) {
+                var photos = data.photos || {};
+                batch.forEach(function(lid) {
+                    _photoCache[lid] = photos[lid] || null;
+                    delete _photoPending[lid];
+                    _applyPhotoToCards(lid, photos[lid]);
+                });
+            }).catch(function(err) {
+                console.warn('[PhotoLoader] Batch fetch failed:', err.message);
+                batch.forEach(function(lid) {
+                    _photoCache[lid] = null;
+                    delete _photoPending[lid];
+                });
+            });
+        }
+
+        /**
+         * Apply a loaded photo URL to all cards displaying this listing.
+         */
+        function _applyPhotoToCards(listingId, photoUrl) {
+            if (!photoUrl) return;
+            // Find all img elements inside cards for this listing
+            var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
+            cards.forEach(function(img) {
+                if (img.tagName === 'IMG' && img.src && img.src.indexOf('data:image/svg') !== -1) {
+                    img.src = photoUrl;
+                    img.style.display = '';
+                }
+            });
+            // Also try by data-photo-lid attribute (set by renderers)
+            var imgs = document.querySelectorAll('img[data-photo-lid="' + listingId + '"]');
+            imgs.forEach(function(img) {
+                if (img.src && img.src.indexOf('data:image/svg') !== -1) {
+                    img.src = photoUrl;
+                    img.style.display = '';
+                }
+            });
+        }
+
+        /**
+         * Initialize the IntersectionObserver for lazy photo loading.
+         * Call after rendering search results.
+         */
+        function initPhotoObserver() {
+            // Clean up old observer
+            if (_photoObserver) _photoObserver.disconnect();
+
+            if (!('IntersectionObserver' in window)) {
+                // Fallback: load all visible photos immediately
+                _loadAllVisiblePhotos();
+                return;
+            }
+
+            _photoObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        var card = entry.target;
+                        var lid = card.getAttribute('data-listing-lid');
+                        if (lid) queuePhotoLoad(lid);
+                        _photoObserver.unobserve(card);
+                    }
+                });
+            }, {
+                rootMargin: '200px 0px', // Start loading 200px before card is visible
+                threshold: 0
+            });
+
+            // Observe all listing cards with an LID
+            var cards = document.querySelectorAll('[data-listing-lid]');
+            cards.forEach(function(card) {
+                var lid = card.getAttribute('data-listing-lid');
+                // Only observe if this listing doesn't already have a real photo
+                if (lid && !_photoCache[lid]) {
+                    _photoObserver.observe(card);
+                }
+            });
+        }
+
+        function _loadAllVisiblePhotos() {
+            var cards = document.querySelectorAll('[data-listing-lid]');
+            cards.forEach(function(card) {
+                var lid = card.getAttribute('data-listing-lid');
+                if (lid) queuePhotoLoad(lid);
+            });
+        }
+
+        /**
+         * Get cached photo URL for a listing (returns url, null, or undefined if not fetched yet).
+         */
+        function getCachedPhoto(listingId) {
+            return _photoCache[String(listingId)];
+        }
 
 </script>
 
@@ -29286,12 +29550,15 @@ function emailCurrentCalc() {
         function _initListingTracker() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                // Fetch sale count
+                // Fetch sale count — use totalCount (@odata.count) for real total
                 MallanAPI.idx.search({ type: 'sale', limit: 1 }).then(function(result) {
-                    var count = (result && result.total) || 0;
-                    // If server returned only 1 but total metadata exists, use it
-                    if (result && result._meta && result._meta.totalFromAPI) {
-                        count = result._meta.totalFromAPI;
+                    var count = 0;
+                    if (result && result.totalCount) {
+                        count = result.totalCount;
+                    } else if (result && result._meta && result._meta.odataCount) {
+                        count = result._meta.odataCount;
+                    } else {
+                        count = (result && result.total) || 0;
                     }
                     _trackerCounts.sale = count;
                     var el = document.getElementById('trackerSaleCount');
@@ -29301,9 +29568,13 @@ function emailCurrentCalc() {
 
                 // Fetch rental count
                 MallanAPI.idx.search({ type: 'rental', limit: 1 }).then(function(result) {
-                    var count = (result && result.total) || 0;
-                    if (result && result._meta && result._meta.totalFromAPI) {
-                        count = result._meta.totalFromAPI;
+                    var count = 0;
+                    if (result && result.totalCount) {
+                        count = result.totalCount;
+                    } else if (result && result._meta && result._meta.odataCount) {
+                        count = result._meta.odataCount;
+                    } else {
+                        count = (result && result.total) || 0;
                     }
                     _trackerCounts.rental = count;
                     var el = document.getElementById('trackerRentalCount');
@@ -29458,6 +29729,7 @@ function emailCurrentCalc() {
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
             // Opened in a new tab — show only the listing detail
+            // Must wait for data to load before showing detail (mockListings starts empty)
             var detailId = parseInt(routeParam, 10);
             if (!isNaN(detailId) && typeof showListingDetail === 'function') {
                 // Hide search UI entirely
@@ -29466,24 +29738,66 @@ function emailCurrentCalc() {
                 if (searchFormContainer) searchFormContainer.style.display = 'none';
                 if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-                // Show the detail
-                showListingDetail(detailId);
-
-                // Adjust header for standalone mode:
-                // - Change "Back to Results" to "Close"
-                // - Hide prev/next nav (no results context)
-                var backBtn = document.getElementById('detailBackBtn');
-                var navSep = document.getElementById('detailNavSep');
-                var prevBtn = document.getElementById('detailPrevBtn');
-                var nextBtn = document.getElementById('detailNextBtn');
-                if (backBtn) {
-                    backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
-                    backBtn.onclick = function() { window.close(); };
+                // Show a loading indicator
+                var detailPage = document.getElementById('listingDetailPage');
+                if (detailPage) {
+                    detailPage.classList.remove('hidden');
+                    detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><div class="animate-spin w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full mx-auto mb-4"></div><p class="text-gray-500 text-sm">Loading listing...</p></div></div>';
                 }
-                if (navSep) navSep.style.display = 'none';
-                if (prevBtn) prevBtn.style.display = 'none';
-                if (nextBtn) nextBtn.style.display = 'none';
-            }
+
+                function _tryShowDetail() {
+                    // Check if data is available
+                    if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                        var listing = mockListings.find(function(l) { return l.id === detailId; });
+                        if (listing) {
+                            showListingDetail(detailId);
+                            _setupStandaloneDetail();
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                function _setupStandaloneDetail() {
+                    // Adjust header for standalone mode
+                    var backBtn = document.getElementById('detailBackBtn');
+                    var navSep = document.getElementById('detailNavSep');
+                    var prevBtn = document.getElementById('detailPrevBtn');
+                    var nextBtn = document.getElementById('detailNextBtn');
+                    if (backBtn) {
+                        backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
+                        backBtn.onclick = function() { window.close(); };
+                    }
+                    if (navSep) navSep.style.display = 'none';
+                    if (prevBtn) prevBtn.style.display = 'none';
+                    if (nextBtn) nextBtn.style.display = 'none';
+                }
+
+                // Try immediately (data might already be loaded)
+                if (!_tryShowDetail()) {
+                    // Wait for data:ready event
+                    var _detailDataHandler = function() {
+                        window.removeEventListener('mallan:data:ready', _detailDataHandler);
+                        // Small delay to ensure mockListings is fully populated
+                        setTimeout(function() {
+                            if (!_tryShowDetail()) {
+                                // Still not found — show error
+                                if (detailPage) {
+                                    detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Listing not found. It may no longer be active.</p><button onclick="window.close()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Close</button></div></div>';
+                                }
+                            }
+                        }, 100);
+                    };
+                    window.addEventListener('mallan:data:ready', _detailDataHandler);
+
+                    // Safety timeout — 15 seconds
+                    setTimeout(function() {
+                        window.removeEventListener('mallan:data:ready', _detailDataHandler);
+                        if (!_tryShowDetail() && detailPage) {
+                            detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Unable to load listing. Please try again.</p><button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Retry</button></div></div>';
+                        }
+                    }, 15000);
+                }
 
         } else if (route === 'results') {
             // ── RESULTS PAGE ──
