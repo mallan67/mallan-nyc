@@ -284,18 +284,19 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     listOfficeName: String(normalized.ListOfficeName || ''),
     media: Array.isArray(normalized.Media) ? normalized.Media.map((m: unknown, i: number) => {
       const item = m as Record<string, unknown>;
-      // Normalize Trestle MediaType: "Jpeg","Png","Gif","Photo" → "Photo", "FloorPlan" stays, etc.
-      const rawType = String(item.MediaType || 'Photo');
-      const photoFormats = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'tiff', 'bmp', 'photo'];
-      const floorPlanNames = ['floorplan', 'floor plan'];
-      const videoNames = ['video', 'mpeg', 'mp4', 'avi'];
-      const tourNames = ['virtualtour', 'virtual tour', '3d', 'matterport'];
-      const lower = rawType.toLowerCase();
+      // Detect floorplans via MediaType + ShortDescription + URL patterns
+      const rawType = String(item.MediaType || 'Photo').toLowerCase();
+      const desc = String(item.ShortDescription || '').toLowerCase();
+      const url = String(item.MediaURL || '').toLowerCase();
+      const isFloorPlan = rawType === 'floorplan' || rawType === 'floor plan'
+        || desc.includes('floor plan') || desc.includes('floorplan') || desc.includes('layout')
+        || url.includes('floorplan') || url.includes('floor-plan') || url.includes('floor_plan');
+      const isVideo = ['video', 'mpeg', 'mp4', 'avi'].includes(rawType);
+      const isTour = ['virtualtour', 'virtual tour', '3d', 'matterport'].includes(rawType);
       let mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan' = 'Photo';
-      if (floorPlanNames.includes(lower)) mediaType = 'FloorPlan';
-      else if (videoNames.includes(lower)) mediaType = 'Video';
-      else if (tourNames.includes(lower)) mediaType = 'VirtualTour';
-      else if (photoFormats.includes(lower) || !['video', 'virtualtour', 'floorplan'].includes(lower)) mediaType = 'Photo';
+      if (isFloorPlan) mediaType = 'FloorPlan';
+      else if (isVideo) mediaType = 'Video';
+      else if (isTour) mediaType = 'VirtualTour';
       return {
         url: String(item.MediaURL || ''),
         mediaType,
@@ -303,7 +304,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
         shortDescription: item.ShortDescription ? String(item.ShortDescription) : undefined,
       };
     }).filter((m: { url: string }) => m.url).sort((a: { mediaType: string; order: number }, b: { mediaType: string; order: number }) => {
-      // Photos first, then videos/tours, then floorplans last — within each group sort by order
+      // Photos first, then videos/tours, then floorplans last
       const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
       const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
       return rankDiff !== 0 ? rankDiff : a.order - b.order;

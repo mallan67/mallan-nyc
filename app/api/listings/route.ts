@@ -220,16 +220,15 @@ export async function GET(request: Request) {
           try {
             const token = await getAccessToken();
             const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
-            // Fetch primary photos (Order eq 0) for all page listings in one request
             const listingIds = needsPhotos.map(l => l.listingId);
             const filterParts2 = listingIds.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
-            // Get first 3 photos per listing (for card display + hover preview)
-            const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 2`;
+            // Fetch first 8 media items per listing — enough to find a real photo even if floorplans are first
+            const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 7`;
             const mediaParams = new URLSearchParams();
             mediaParams.set('$filter', mediaFilter);
-            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,Order');
+            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,Order,ShortDescription');
             mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-            mediaParams.set('$top', String(needsPhotos.length * 3));
+            mediaParams.set('$top', String(needsPhotos.length * 8));
 
             const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
               headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -238,34 +237,44 @@ export async function GET(request: Request) {
             if (mediaResponse.ok) {
               const mediaData = await mediaResponse.json();
               const mediaRecords = mediaData.value || [];
-              // Group by listing ID
-              const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+
+              // Detect floorplans via MediaType, ShortDescription, and URL patterns
+              function isFloorPlan(m: Record<string, unknown>): boolean {
+                const type = String(m.MediaType || '').toLowerCase();
+                if (type === 'floorplan' || type === 'floor plan') return true;
+                const desc = String(m.ShortDescription || '').toLowerCase();
+                if (desc.includes('floor plan') || desc.includes('floorplan') || desc.includes('floor-plan') || desc.includes('layout')) return true;
+                const url = String(m.MediaURL || '').toLowerCase();
+                if (url.includes('floorplan') || url.includes('floor-plan') || url.includes('floor_plan') || url.includes('/fp/') || url.includes('/fp_')) return true;
+                return false;
+              }
+
+              // Group by listing ID — separate photos from floorplans
+              const photosByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+              const floorplansByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
               for (const m of mediaRecords) {
                 const lid = String(m.ResourceRecordID || '');
                 if (!lid || !m.MediaURL) continue;
-                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-                // Normalize media type: Jpeg/Png/etc → Photo, FloorPlan stays
-                const rawType = String(m.MediaType || 'Photo').toLowerCase();
-                const floorPlanNames = ['floorplan', 'floor plan'];
-                const videoNames = ['video', 'mpeg', 'mp4', 'avi'];
-                let mediaType = 'Photo';
-                if (floorPlanNames.includes(rawType)) mediaType = 'FloorPlan';
-                else if (videoNames.includes(rawType)) mediaType = 'Video';
-                mediaByListing.get(lid)!.push({
+                const entry = {
                   url: String(m.MediaURL),
-                  mediaType,
+                  mediaType: isFloorPlan(m) ? 'FloorPlan' : 'Photo',
                   order: Number(m.Order ?? 0),
-                });
+                };
+                if (entry.mediaType === 'FloorPlan') {
+                  if (!floorplansByListing.has(lid)) floorplansByListing.set(lid, []);
+                  floorplansByListing.get(lid)!.push(entry);
+                } else {
+                  if (!photosByListing.has(lid)) photosByListing.set(lid, []);
+                  photosByListing.get(lid)!.push(entry);
+                }
               }
-              // Inject media into listings, sorted: Photos first, FloorPlans last
+              // Inject: photos first, then floorplans at the end
               for (const listing of needsPhotos) {
-                const photos = mediaByListing.get(listing.listingId);
-                if (photos && photos.length > 0) {
-                  listing.media = photos.sort((a, b) => {
-                    const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
-                    const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
-                    return rankDiff !== 0 ? rankDiff : a.order - b.order;
-                  }) as typeof listing.media;
+                const photos = photosByListing.get(listing.listingId) || [];
+                const floorplans = floorplansByListing.get(listing.listingId) || [];
+                const combined = [...photos.sort((a, b) => a.order - b.order), ...floorplans.sort((a, b) => a.order - b.order)];
+                if (combined.length > 0) {
+                  listing.media = combined as typeof listing.media;
                 }
               }
             }
