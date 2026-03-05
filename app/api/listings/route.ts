@@ -122,7 +122,27 @@ export async function GET(request: Request) {
         if (maxSqft) filterParts.push(`LivingArea le ${parseInt(maxSqft, 10)}`);
 
         if (propertyTypeFilter) {
-          filterParts.push(`PropertySubType eq '${propertyTypeFilter.replace(/'/g, "''")}'`);
+          // Map user-friendly names to Trestle fields
+          // Condo/Co-op/Condop are CommonInterest, not PropertySubType
+          const commonInterestMap: Record<string, string> = {
+            'Condo': 'Condominium',
+            'Co-op': 'StockCooperative',
+            'Condop': 'Condop',
+          };
+          const propertySubTypeMap: Record<string, string> = {
+            'Townhouse': 'SingleFamilyTownhouse',
+            'Multi-Family': 'MultiFamily',
+            'Single Family': 'SingleFamilyResidence',
+          };
+          const safe = propertyTypeFilter.replace(/'/g, "''");
+          if (commonInterestMap[safe]) {
+            filterParts.push(`CommonInterest eq '${commonInterestMap[safe]}'`);
+          } else if (propertySubTypeMap[safe]) {
+            filterParts.push(`PropertySubType eq '${propertySubTypeMap[safe]}'`);
+          } else {
+            // Try both fields for unknown values
+            filterParts.push(`(PropertySubType eq '${safe}' or CommonInterest eq '${safe}')`);
+          }
         }
 
         // Build OData $orderby for sort
@@ -134,8 +154,8 @@ export async function GET(request: Request) {
           case 'newest': default: orderby = 'ModificationTimestamp desc'; break;
         }
 
-        // Fetch extra records to account for gate filtering + pagination
-        const fetchTop = Math.min((limit + skip) * 2, 500);
+        // Fetch more records to account for gate filtering + post-filters + pagination
+        const fetchTop = Math.min(Math.max((limit + skip) * 3, 500), 500);
 
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
@@ -181,14 +201,7 @@ export async function GET(request: Request) {
           );
         }
 
-        if (propertyTypeFilter) {
-          const ptLower = propertyTypeFilter.toLowerCase();
-          filtered = filtered.filter(
-            (l) =>
-              l.propertyType.toLowerCase() === ptLower ||
-              (l.propertySubType && l.propertySubType.toLowerCase() === ptLower)
-          );
-        }
+        // propertyType filter already pushed to OData — no post-fetch filtering needed
 
         // Step 4: Apply skip + limit and convert to public DTO
         const totalCount = filtered.length;
