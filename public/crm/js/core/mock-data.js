@@ -470,10 +470,22 @@
             mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
             mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[MockData] Loaded ' + listings.length + ' listings from ' + source);
-            // Refresh the current view ONLY if user is already viewing results
+            // If user is viewing results, re-filter with existing criteria and re-render
+            // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
             var resultsSection = document.getElementById('searchResultsSection');
             var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
-            if (isViewingResults && typeof performSearch === 'function') performSearch();
+            if (isViewingResults && typeof searchResultsState !== 'undefined') {
+                // Re-filter with current criteria (or show all if no criteria)
+                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
+                    searchResultsState.filteredListings = typeof filterListings === 'function'
+                        ? filterListings(mockListings, activeSearchCriteria)
+                        : mockListings.slice();
+                } else {
+                    searchResultsState.filteredListings = mockListings.slice();
+                }
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+            }
         }
 
         /**
