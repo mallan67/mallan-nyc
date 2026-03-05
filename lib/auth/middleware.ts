@@ -52,7 +52,8 @@ export async function requireRole(
   const result = await requireAuth(req);
   if (result instanceof NextResponse) return result;
 
-  if (!allowedRoles.includes(result.role)) {
+  const normalizedRole = result.role.toUpperCase();
+  if (!allowedRoles.map(r => r.toUpperCase()).includes(normalizedRole)) {
     return NextResponse.json(
       { error: "Insufficient permissions" },
       { status: 403 }
