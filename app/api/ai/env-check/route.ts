@@ -11,5 +11,5 @@ export async function GET(request: Request) {
   }
 
   const val = process.env.OPENAI_API_KEY || "";
-  return NextResponse.json({ hasKey: Boolean(val), length: val.length });
+  return NextResponse.json({ hasKey: Boolean(val) });
 }
