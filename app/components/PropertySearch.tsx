@@ -443,7 +443,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                 {sortedListings.map((listing) => (
                   <Link
                     key={listing.id}
-                    href={`/listing/${listing.slug}`}
+                    href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`}
                     className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group"
                   >
                     {/* IDXImage: native <img> for IDX photos */}

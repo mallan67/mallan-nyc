@@ -124,7 +124,7 @@ function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: 
     internetAddressDisplayYN: true,
   });
   return (
-    <Link href={`/listing/${slug}`} className="group block">
+    <Link href={`/listing/${slug}?key=${encodeURIComponent(listing.id)}`} className="group block">
       <div className="relative aspect-[4/3] overflow-hidden rounded bg-gray-100 mb-2">
         <Image
           src={
