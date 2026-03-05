@@ -48,8 +48,11 @@
             // ── STANDALONE DETAIL PAGE ──
             // Opened in a new tab — show only the listing detail
             // Must wait for data to load before showing detail (mockListings starts empty)
-            var detailId = parseInt(routeParam, 10);
-            if (!isNaN(detailId) && typeof showListingDetail === 'function') {
+            // routeParam can be: sequential id (legacy: "107") or lid (stable: "RLS20059088")
+            var detailId = routeParam;
+            var detailIdInt = parseInt(routeParam, 10);
+            var isLegacyId = !isNaN(detailIdInt) && String(detailIdInt) === routeParam;
+            if (typeof showListingDetail === 'function') {
                 // Hide search UI entirely
                 var searchFormContainer = document.getElementById('searchFormContainer');
                 var searchResultsSection = document.getElementById('searchResultsSection');
@@ -66,9 +69,13 @@
                 function _tryShowDetail() {
                     // Check if data is available
                     if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
-                        var listing = mockListings.find(function(l) { return l.id === detailId; });
+                        // Try lid first (stable across sessions), fall back to sequential id
+                        var listing = mockListings.find(function(l) { return l.lid === detailId; });
+                        if (!listing && isLegacyId) {
+                            listing = mockListings.find(function(l) { return l.id === detailIdInt; });
+                        }
                         if (listing) {
-                            showListingDetail(detailId);
+                            showListingDetail(listing.id);
                             _setupStandaloneDetail();
                             return true;
                         }
@@ -152,11 +159,18 @@
             } else if (newRoute === 'results') {
                 _navigateToResults(false);
             } else if (newRoute === 'detail' && newParam) {
-                var detailId = parseInt(newParam, 10);
-                if (!isNaN(detailId) && typeof showListingDetail === 'function') {
-                    window._suppressHashUpdate = true;
-                    showListingDetail(detailId);
-                    window._suppressHashUpdate = false;
+                if (typeof showListingDetail === 'function' && typeof mockListings !== 'undefined') {
+                    // Try lid first (stable), then sequential id (legacy)
+                    var listing = mockListings.find(function(l) { return l.lid === newParam; });
+                    if (!listing) {
+                        var numId = parseInt(newParam, 10);
+                        if (!isNaN(numId)) listing = mockListings.find(function(l) { return l.id === numId; });
+                    }
+                    if (listing) {
+                        window._suppressHashUpdate = true;
+                        showListingDetail(listing.id);
+                        window._suppressHashUpdate = false;
+                    }
                 }
             }
         });
