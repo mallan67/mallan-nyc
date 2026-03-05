@@ -403,6 +403,7 @@ export async function GET(req: NextRequest) {
     const params = req.nextUrl.searchParams;
     const limit = Math.min(Number(params.get("limit")) || 50, 500);
     const skip = Number(params.get("skip")) || 0;
+    const sort = params.get("sort"); // OData $orderby value (e.g. "ListPrice desc")
 
     // Build OData filter
     const filter = buildODataFilter(params);
@@ -423,7 +424,7 @@ export async function GET(req: NextRequest) {
       select: SEARCH_SELECT_FIELDS,
       top: limit,
       skip,
-      orderby: "ModificationTimestamp desc",
+      orderby: sort || "ModificationTimestamp desc",
       maxTotal: limit,
       count: true,
     });
