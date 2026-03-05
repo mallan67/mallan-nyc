@@ -237,7 +237,9 @@
             params.limit = 500;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
+            if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
                     // Server returned nothing — keep local results but notify user
@@ -301,6 +303,7 @@
                 _saveSearchState();
                 console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
             }).catch(function(err) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.error('[Search] Trestle search failed:', err);
                 // Keep local results visible — they're already rendered
                 if (localResults.length === 0) {

@@ -3248,6 +3248,42 @@ function toggleSection(header) {
 <!-- Modals extracted to html/modals/ directory -->
 <div id="section-main" class="p-6">
                 <div id="searchFormContainer">
+                    <!-- RLS Listing Tracker — total active listings from REBNY RLS -->
+                    <div id="rlsListingTracker" class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl shadow-md mb-4 px-5 py-3.5 flex items-center justify-between flex-wrap gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">REBNY RLS Live</span>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fas fa-home text-blue-400 text-xs"></i>
+                                    <span class="text-white font-bold text-sm" id="trackerSaleCount">--</span>
+                                    <span class="text-gray-400 text-xs">Sales</span>
+                                </div>
+                                <div class="w-px h-4 bg-gray-600"></div>
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fas fa-building text-green-400 text-xs"></i>
+                                    <span class="text-white font-bold text-sm" id="trackerRentalCount">--</span>
+                                    <span class="text-gray-400 text-xs">Rentals</span>
+                                </div>
+                                <div class="w-px h-4 bg-gray-600"></div>
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fas fa-database text-yellow-400 text-xs"></i>
+                                    <span class="text-white font-bold text-sm" id="trackerTotalCount">--</span>
+                                    <span class="text-gray-400 text-xs">Total</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div id="trackerMatchEstimate" class="hidden items-center gap-1.5 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-1">
+                                <i class="fas fa-filter text-blue-400 text-[10px]"></i>
+                                <span class="text-blue-300 text-xs font-semibold">~<span id="trackerMatchCount">0</span> match</span>
+                            </div>
+                            <span class="text-gray-500 text-[10px]" id="trackerUpdatedAt"></span>
+                        </div>
+                    </div>
+
                     <!-- General Search / Comparable Reports Tabs -->
                     <div id="searchTypeTabs" class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
                         <div class="flex">
@@ -15857,7 +15893,9 @@ function manageShowToast(msg) {
             params.limit = 500;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
+            if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
                     // Server returned nothing — keep local results but notify user
@@ -15921,6 +15959,7 @@ function manageShowToast(msg) {
                 _saveSearchState();
                 console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
             }).catch(function(err) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.error('[Search] Trestle search failed:', err);
                 // Keep local results visible — they're already rendered
                 if (localResults.length === 0) {
@@ -18759,6 +18798,9 @@ function manageShowToast(msg) {
         /**
          * Replace mockListings in-place and refresh view if visible.
          */
+        // Flag to prevent _replaceListings from overwriting active server search results
+        var _serverSearchActive = false;
+
         function _replaceListings(listings, source) {
             mockListings.length = 0;
             listings.forEach(function(l) { mockListings.push(l); });
@@ -18770,6 +18812,11 @@ function manageShowToast(msg) {
             window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
             // If user is viewing results, re-filter with existing criteria and re-render
             // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
+            // Do NOT overwrite if a server search is actively running (it will re-render when complete)
+            if (_serverSearchActive) {
+                console.log('[MockData] Skipping re-render — server search is active');
+                return;
+            }
             var resultsSection = document.getElementById('searchResultsSection');
             var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
             if (isViewingResults && typeof searchResultsState !== 'undefined') {
@@ -29220,6 +29267,142 @@ function emailCurrentCalc() {
 
 
         // ═══════════════════════════════════════════════════════════════
+
+</script>
+
+<!-- RLS Listing Tracker -->
+<script>
+// ═══ js/init/init-tracker.js ═══
+        // ═══════════════════════════════════════════════════════════════════
+        // RLS LISTING TRACKER — Shows total active listings + live match count
+        // Fetches total counts from Trestle API on load.
+        // Updates live match estimate as user changes search criteria.
+        // ═══════════════════════════════════════════════════════════════════
+
+        var _trackerCounts = { sale: 0, rental: 0, total: 0 };
+        var _trackerMatchDebounce = null;
+
+        // Fetch total listing counts from Trestle on page load
+        function _initListingTracker() {
+            if (typeof MallanAPI === 'undefined') return;
+            MallanAPI.onReady(function() {
+                // Fetch sale count
+                MallanAPI.idx.search({ type: 'sale', limit: 1 }).then(function(result) {
+                    var count = (result && result.total) || 0;
+                    // If server returned only 1 but total metadata exists, use it
+                    if (result && result._meta && result._meta.totalFromAPI) {
+                        count = result._meta.totalFromAPI;
+                    }
+                    _trackerCounts.sale = count;
+                    var el = document.getElementById('trackerSaleCount');
+                    if (el) el.textContent = count.toLocaleString();
+                    _updateTrackerTotal();
+                }).catch(function() {});
+
+                // Fetch rental count
+                MallanAPI.idx.search({ type: 'rental', limit: 1 }).then(function(result) {
+                    var count = (result && result.total) || 0;
+                    if (result && result._meta && result._meta.totalFromAPI) {
+                        count = result._meta.totalFromAPI;
+                    }
+                    _trackerCounts.rental = count;
+                    var el = document.getElementById('trackerRentalCount');
+                    if (el) el.textContent = count.toLocaleString();
+                    _updateTrackerTotal();
+                }).catch(function() {});
+            });
+        }
+
+        function _updateTrackerTotal() {
+            _trackerCounts.total = _trackerCounts.sale + _trackerCounts.rental;
+            var el = document.getElementById('trackerTotalCount');
+            if (el) el.textContent = _trackerCounts.total.toLocaleString();
+            var ts = document.getElementById('trackerUpdatedAt');
+            if (ts) ts.textContent = 'Updated ' + new Date().toLocaleTimeString();
+        }
+
+        // Live match estimate — count locally loaded listings matching current criteria
+        function updateTrackerMatchEstimate() {
+            if (_trackerMatchDebounce) clearTimeout(_trackerMatchDebounce);
+            _trackerMatchDebounce = setTimeout(function() {
+                _computeMatchEstimate();
+            }, 200);
+        }
+
+        function _computeMatchEstimate() {
+            if (typeof mockListings === 'undefined' || !mockListings || mockListings.length === 0) return;
+            if (typeof collectSearchCriteria !== 'function') return;
+            if (typeof filterListings !== 'function') return;
+
+            try {
+                var criteria = collectSearchCriteria();
+                // Check if any criteria is actually set (beyond defaults)
+                var hasCriteria = criteria.address || criteria.priceMin || criteria.priceMax ||
+                    criteria.bedsMin || criteria.bedsMax || criteria.bathsMin || criteria.bathsMax ||
+                    criteria.sqftMin || criteria.sqftMax || criteria.rlsId || criteria.zip ||
+                    (criteria.neighborhoods && criteria.neighborhoods.length > 0) ||
+                    criteria.borough || criteria.propertySubType ||
+                    (criteria.ownership && criteria.ownership.length > 0);
+
+                var wrapper = document.getElementById('trackerMatchEstimate');
+                var countEl = document.getElementById('trackerMatchCount');
+                if (!wrapper || !countEl) return;
+
+                if (!hasCriteria) {
+                    wrapper.classList.add('hidden');
+                    wrapper.classList.remove('flex');
+                    return;
+                }
+
+                var matched = filterListings(mockListings, criteria);
+                countEl.textContent = matched.length.toLocaleString();
+                wrapper.classList.remove('hidden');
+                wrapper.classList.add('flex');
+            } catch(e) {
+                // Silently ignore — criteria collection can fail if form not ready
+            }
+        }
+
+        // Attach listeners to all search form inputs for live match updates
+        function _attachTrackerListeners() {
+            var formContainer = document.getElementById('searchFormContainer');
+            if (!formContainer) return;
+
+            // Listen for input/change on all form elements
+            formContainer.addEventListener('input', function(e) {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                    updateTrackerMatchEstimate();
+                }
+            });
+            formContainer.addEventListener('change', function(e) {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'SELECT') {
+                    updateTrackerMatchEstimate();
+                }
+            });
+        }
+
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                _initListingTracker();
+                _attachTrackerListeners();
+            });
+        } else {
+            _initListingTracker();
+            _attachTrackerListeners();
+        }
+
+        // Also update tracker when data loads
+        window.addEventListener('mallan:data:ready', function(e) {
+            var detail = e.detail || {};
+            // Update tracker with loaded count if we haven't fetched totals yet
+            if (_trackerCounts.total === 0 && detail.count > 0) {
+                var el = document.getElementById('trackerTotalCount');
+                if (el) el.textContent = detail.count.toLocaleString() + '+';
+            }
+        });
 
 </script>
 
