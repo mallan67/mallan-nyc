@@ -53,6 +53,8 @@ export async function fetchFromTrestle(
   const params = new URLSearchParams();
   if (options.filter) params.set("$filter", options.filter);
   params.set("$select", selectFields);
+  // Media is a navigation property — must use $expand, not $select
+  params.set("$expand", "Media");
   params.set("$top", String(options.top || MAX_PAGE_SIZE));
   if (options.skip) params.set("$skip", String(options.skip));
   params.set("$orderby", options.orderby || "ModificationTimestamp desc");
@@ -118,7 +120,7 @@ export async function fetchSingleListing(
 ): Promise<Record<string, unknown> | null> {
   const token = await getAccessToken();
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
-  const url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}`;
+  const url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}&$expand=Media`;
 
   const response = await fetchPage(url, token);
 
