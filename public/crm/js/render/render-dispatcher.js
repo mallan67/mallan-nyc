@@ -165,10 +165,35 @@
             return listings;
         }
 
+        // ── All view container IDs for visibility management ──
+        var _viewContainerIds = [
+            'gridViewContainer',
+            'galleryViewContainer',
+            'shortSummaryViewContainer',
+            'summaryViewContainer',
+            'masterDetailViewContainer'
+        ];
+
+        // ── Show loading skeleton ──
+        function _showResultsSkeleton() {
+            var skeleton = document.getElementById('resultsLoadingSkeleton');
+            if (skeleton) skeleton.style.display = 'block';
+            _viewContainerIds.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+        }
+
+        // ── Hide loading skeleton ──
+        function _hideResultsSkeleton() {
+            var skeleton = document.getElementById('resultsLoadingSkeleton');
+            if (skeleton) skeleton.style.display = 'none';
+        }
+
         function renderSearchResults() {
             var mode = searchResultsState.viewMode;
 
-            // Container display types: masterDetail and map use flex layout, others use block
+            // Container display types: masterDetail uses flex layout, others use block
             var containerDisplay = {
                 gridViewContainer: 'block',
                 galleryViewContainer: 'block',
@@ -177,11 +202,18 @@
                 masterDetailViewContainer: 'flex'
             };
 
-            // Hide all containers using style.display (more reliable than class toggling with Tailwind CDN)
-            Object.keys(containerDisplay).forEach(function(id) {
+            // Hide all containers using style.display (NOT class toggling — avoids Tailwind !important conflicts)
+            _viewContainerIds.forEach(function(id) {
                 var el = document.getElementById(id);
-                if (el) el.style.display = 'none';
+                if (el) {
+                    el.style.display = 'none';
+                    // Also remove any Tailwind 'hidden' class that could override style.display
+                    el.classList.remove('hidden');
+                }
             });
+
+            // Hide loading skeleton
+            _hideResultsSkeleton();
 
             // Hide static grid column headers (replaced by dynamic <thead> in grid mode)
             var staticHeaders = document.getElementById('gridColumnHeaders');
