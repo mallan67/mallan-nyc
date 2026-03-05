@@ -284,14 +284,26 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     listOfficeName: String(normalized.ListOfficeName || ''),
     media: Array.isArray(normalized.Media) ? normalized.Media.map((m: unknown, i: number) => {
       const item = m as Record<string, unknown>;
+      // Normalize Trestle MediaType: "Jpeg","Png","Gif","Photo" → "Photo", "FloorPlan" stays, etc.
+      const rawType = String(item.MediaType || 'Photo');
+      const photoFormats = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'tiff', 'bmp', 'photo'];
+      const floorPlanNames = ['floorplan', 'floor plan'];
+      const videoNames = ['video', 'mpeg', 'mp4', 'avi'];
+      const tourNames = ['virtualtour', 'virtual tour', '3d', 'matterport'];
+      const lower = rawType.toLowerCase();
+      let mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan' = 'Photo';
+      if (floorPlanNames.includes(lower)) mediaType = 'FloorPlan';
+      else if (videoNames.includes(lower)) mediaType = 'Video';
+      else if (tourNames.includes(lower)) mediaType = 'VirtualTour';
+      else if (photoFormats.includes(lower) || !['video', 'virtualtour', 'floorplan'].includes(lower)) mediaType = 'Photo';
       return {
         url: String(item.MediaURL || ''),
-        mediaType: (String(item.MediaType || 'Photo')) as 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan',
+        mediaType,
         order: Number(item.Order ?? i),
         shortDescription: item.ShortDescription ? String(item.ShortDescription) : undefined,
       };
     }).filter((m: { url: string }) => m.url).sort((a: { mediaType: string; order: number }, b: { mediaType: string; order: number }) => {
-      // Photos first, then floorplans, then others — within each group sort by order
+      // Photos first, then videos/tours, then floorplans last — within each group sort by order
       const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
       const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
       return rankDiff !== 0 ? rankDiff : a.order - b.order;
