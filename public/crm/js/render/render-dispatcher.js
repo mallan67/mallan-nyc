@@ -15,13 +15,13 @@
                     var source = searchResultsState.filteredListings || mockListings.slice();
                     searchResultsState.filteredListings = source.filter(function(l) { return !removedSet[l.id]; });
                 }
-            } catch(e) { /* silent */ }
-            try { renderSearchResults(); } catch(e) { /* silent */ }
-            try { updateSelectionActionBar(); } catch(e) { /* silent */ }
-            try { populateClientList(); } catch(e) { /* silent */ }
-            try { populateSavedSearchList(); } catch(e) { /* silent */ }
-            try { populateFieldSelectionGrid(); } catch(e) { /* silent */ }
-            try { populateSavedLayoutsList(); } catch(e) { /* silent */ }
+            } catch(e) { console.warn('[Search] Selection cleanup error:', e); }
+            try { renderSearchResults(); } catch(e) { console.error('[Search] renderSearchResults FAILED:', e); }
+            try { updateSelectionActionBar(); } catch(e) { /* ok */ }
+            try { populateClientList(); } catch(e) { /* ok */ }
+            try { populateSavedSearchList(); } catch(e) { /* ok */ }
+            try { populateFieldSelectionGrid(); } catch(e) { /* ok */ }
+            try { populateSavedLayoutsList(); } catch(e) { /* ok */ }
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════

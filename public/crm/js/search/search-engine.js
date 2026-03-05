@@ -151,31 +151,22 @@
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
 
-                // Filter mockListings based on criteria
-                if (typeof mockListings === 'undefined' || !mockListings) {
-                    showToast('Error: Listing data not loaded. Please refresh the page.', 'error');
-                    return;
-                }
                 if (typeof searchResultsState === 'undefined' || !searchResultsState) {
                     showToast('Error: Search state not initialized. Please refresh the page.', 'error');
                     return;
                 }
 
-                var localResults = filterListings(mockListings, activeSearchCriteria);
+                // Filter locally loaded listings
+                var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
+                var localResults = hasLocalData ? filterListings(mockListings, activeSearchCriteria) : [];
 
-                // If local results are sparse and we have criteria that can be sent to server,
-                // also query Trestle API for broader results
-                var hasServerCriteria = activeSearchCriteria.address || activeSearchCriteria.zip ||
-                    (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length > 0);
-                var shouldSearchServer = localResults.length < 5 && hasServerCriteria && typeof MallanAPI !== 'undefined';
-
-                // Show local results immediately
+                // Show results section (with local results or empty while server loads)
                 searchResultsState.filteredListings = localResults;
                 searchResultsState.currentPage = 1;
                 _showSearchResults();
 
-                // If we should also search server, do it in background
-                if (shouldSearchServer) {
+                // Always also query the server for fresh results
+                if (typeof MallanAPI !== 'undefined') {
                     _serverSearch(activeSearchCriteria, localResults);
                 }
             } catch (err) {
@@ -238,42 +229,70 @@
             }
             params.limit = 50;
 
+            console.log('[Search] Server search params:', JSON.stringify(params));
             MallanAPI.idx.search(params).then(function(result) {
-                if (!result || !result.listings || result.listings.length === 0) return;
+                console.log('[Search] Server response:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
+                if (!result || !result.listings || result.listings.length === 0) {
+                    if (localResults.length === 0) {
+                        showToast('No listings found. Try broadening your search criteria.', 'warning');
+                    }
+                    return;
+                }
 
-                // Merge server results with local (dedup by address+unit)
-                var existingKeys = {};
-                localResults.forEach(function(l) {
-                    existingKeys[(l.address || '') + '|' + (l.unit || '')] = true;
+                // Use server results directly (they're already in CRM flat shape)
+                var allListings = result.listings;
+
+                // Apply neighborhood resolution
+                allListings.forEach(function(l) {
+                    if (!l.borough) l.borough = 'Manhattan';
+                    if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
+                    // Ensure required fields have defaults
+                    if (l.totalMonthly == null) l.totalMonthly = 0;
+                    if (l.price == null) l.price = 0;
+                    if (l.beds == null) l.beds = 0;
+                    if (l.baths == null) l.baths = 0;
+                    if (!l.status) l.status = 'ACTIVE';
+                    if (!l.address) l.address = 'Address Unavailable';
+                    if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
-                var newListings = [];
-                result.listings.forEach(function(l) {
-                    var key = (l.address || '') + '|' + (l.unit || '');
-                    if (!existingKeys[key]) {
-                        existingKeys[key] = true;
-                        // Also add to mockListings so detail view works
+
+                // Also add to mockListings so detail view works
+                var existingIds = {};
+                mockListings.forEach(function(l) { existingIds[l.id] = true; });
+                allListings.forEach(function(l) {
+                    if (!existingIds[l.id]) {
                         mockListings.push(l);
-                        newListings.push(l);
+                        existingIds[l.id] = true;
                     }
                 });
 
-                if (newListings.length > 0) {
-                    // Apply neighborhood resolution to new listings
-                    newListings.forEach(function(l) {
-                        if (!l.borough) l.borough = 'Manhattan';
-                        if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
-                    });
+                // Merge with any local results (dedup)
+                var merged = localResults.slice();
+                var mergedIds = {};
+                merged.forEach(function(l) { mergedIds[l.id] = true; });
+                allListings.forEach(function(l) {
+                    if (!mergedIds[l.id]) {
+                        merged.push(l);
+                        mergedIds[l.id] = true;
+                    }
+                });
 
-                    // Merge and re-render
-                    searchResultsState.filteredListings = localResults.concat(newListings);
-                    searchResultsState.currentPage = 1;
+                // Update results and re-render
+                searchResultsState.filteredListings = merged;
+                searchResultsState.currentPage = 1;
+                try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
-                    _saveSearchState();
-                    showToast(newListings.length + ' additional listings found from REBNY RLS', 'success');
+                } catch(renderErr) {
+                    console.error('[Search] Render after server search failed:', renderErr);
                 }
+                _saveSearchState();
+                console.log('[Search] Rendered ' + merged.length + ' total listings');
             }).catch(function(err) {
-                console.warn('[Search] Server search failed:', err && err.message);
+                console.error('[Search] Server search failed:', err);
+                if (localResults.length === 0) {
+                    showToast('Search failed: ' + (err && err.message || 'Unknown error'), 'error');
+                }
             });
         }
 
