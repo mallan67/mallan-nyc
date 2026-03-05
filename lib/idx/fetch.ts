@@ -135,33 +135,54 @@ export async function fetchFromTrestle(
 }
 
 /**
- * Fetch a single listing by ListingKey from Trestle.
+ * Fetch a single listing by ListingId from Trestle.
+ * Uses $filter (not OData key syntax) since ListingId != entity key.
+ * Tries $expand=Media for photos; falls back without if rejected.
  */
 export async function fetchSingleListing(
-  listingKey: string
+  listingId: string
 ): Promise<Record<string, unknown> | null> {
   const token = await getAccessToken();
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
-  // Try with $expand=Media for photos; fall back without if rejected
-  let url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}&$expand=Media`;
+  const escapedId = listingId.replace(/'/g, "''");
+
+  function buildUrl(withMedia: boolean): string {
+    const params = new URLSearchParams();
+    params.set("$filter", `ListingId eq '${escapedId}'`);
+    params.set("$select", selectFields);
+    if (withMedia) params.set("$expand", "Media");
+    params.set("$top", "1");
+    return `${getPropertyEndpoint()}?${params.toString()}`;
+  }
+
+  // Try with $expand=Media first
+  let url = buildUrl(true);
   let response = await fetchPage(url, token);
 
   if (response.status === 400) {
     // $expand=Media not supported — retry without
-    url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}`;
+    url = buildUrl(false);
     response = await fetchPage(url, token);
   }
 
-  if (response.status === 404) return null;
-
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown");
-    throw new Error(
-      `[IDX Fetch] Single listing error (${response.status}): ${errorText}`
-    );
+    if (response.status === 401) {
+      // Token expired — refresh and retry
+      invalidateToken();
+      const newToken = await getAccessToken();
+      response = await fetchPage(url, newToken);
+      if (!response.ok) return null;
+    } else {
+      const errorText = await response.text().catch(() => "Unknown");
+      throw new Error(
+        `[IDX Fetch] Single listing error (${response.status}): ${errorText}`
+      );
+    }
   }
 
-  return response.json();
+  const data = await response.json();
+  const records = data.value || [];
+  return records.length > 0 ? records[0] : null;
 }
 
 /**

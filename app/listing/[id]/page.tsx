@@ -27,6 +27,7 @@ export const revalidate = 0;
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ key?: string }>;
 };
 
 /** County → Borough mapping for NYC */
@@ -67,9 +68,10 @@ async function fetchListing(id: string): Promise<PublicListingDTO | null> {
   }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
-  const listing = await fetchListing(id);
+  const { key } = await searchParams;
+  const listing = await fetchListing(key || id);
 
   if (!listing) {
     return { title: 'Listing Not Found | Mallan Real Estate' };
@@ -117,9 +119,10 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-export default async function ListingPage({ params }: Props) {
+export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const listing = await fetchListing(id);
+  const { key } = await searchParams;
+  const listing = await fetchListing(key || id);
 
   if (!listing) {
     notFound();
