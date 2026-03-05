@@ -28,19 +28,10 @@ const nextConfig = {
     ],
   },
 
-  // Keep ESLint/TypeScript build-time checks enabled so the baseline verification
-  // workflow catches issues during CI/build.
-  eslint: {
-    // don't skip ESLint during builds
-    ignoreDuringBuilds: false,
-    // optional: restrict linted dirs if your repo uses the app/ dir
-    dirs: ['app', 'pages', 'components', 'lib'],
-  },
+  // ESLint config moved to .eslintrc.json (eslint key removed — not supported in Next.js 16)
+  // TypeScript strict checking is enforced by tsconfig.json
 
-  typescript: {
-    // do not ignore type errors during build — keep CI strict
-    ignoreBuildErrors: false,
-  },
+
 
   // Restrict CORS on API routes to same-origin
   async headers() {
