@@ -53,14 +53,12 @@ export async function fetchFromTrestle(
   const selectFields =
     options.select?.join(",") || IDX_PLUS_SELECT_FIELDS.join(",");
 
-  const tryMedia = options.expandMedia !== false;
-
-  function buildUrl(withMediaExpand: boolean): string {
+  function buildUrl(): string {
     const params = new URLSearchParams();
     if (options.filter) params.set("$filter", options.filter);
     params.set("$select", selectFields);
-    // Media is a navigation property — try $expand=Media for photo URLs
-    if (withMediaExpand) params.set("$expand", "Media");
+    // Never use $expand=Media on bulk queries — Trestle rejects it (400) for large result sets.
+    // Photos are batch-fetched separately via the Media OData endpoint.
     if (options.count) params.set("$count", "true");
     params.set("$top", String(options.top || MAX_PAGE_SIZE));
     if (options.skip) params.set("$skip", String(options.skip));
@@ -68,20 +66,8 @@ export async function fetchFromTrestle(
     return `${getPropertyEndpoint()}?${params.toString()}`;
   }
 
-  // Try with $expand=Media first; if Trestle rejects it (400), retry without
-  let url = buildUrl(tryMedia);
+  let url = buildUrl();
   const firstResponse = await fetchPage(url, token);
-  if (firstResponse.status === 400) {
-    console.warn("[IDX Fetch] $expand=Media not supported — retrying without");
-    url = buildUrl(false);
-  } else if (firstResponse.status === 401) {
-    // Token expired — will be handled in the pagination loop
-    url = buildUrl(true);
-  } else if (!firstResponse.ok) {
-    // Other error with expand — try without
-    console.warn(`[IDX Fetch] Error ${firstResponse.status} with $expand=Media — retrying without`);
-    url = buildUrl(false);
-  }
 
   const maxTotal = options.maxTotal || 1000;
   const allRecords: Record<string, unknown>[] = [];
@@ -153,7 +139,7 @@ export async function fetchFromTrestle(
 /**
  * Fetch a single listing by ListingId from Trestle.
  * Uses $filter (not OData key syntax) since ListingId != entity key.
- * Tries $expand=Media for photos; falls back without if rejected.
+ * Media is fetched separately via fetchListingMedia().
  */
 export async function fetchSingleListing(
   listingId: string
@@ -162,24 +148,18 @@ export async function fetchSingleListing(
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
   const escapedId = listingId.replace(/'/g, "''");
 
-  function buildUrl(withMedia: boolean): string {
+  function buildUrl(): string {
     const params = new URLSearchParams();
     params.set("$filter", `ListingId eq '${escapedId}'`);
     params.set("$select", selectFields);
-    if (withMedia) params.set("$expand", "Media");
+    // Skip $expand=Media — fetch photos separately via fetchListingMedia() to avoid
+    // the extra 400→retry round trip that Trestle consistently rejects.
     params.set("$top", "1");
     return `${getPropertyEndpoint()}?${params.toString()}`;
   }
 
-  // Try with $expand=Media first
-  let url = buildUrl(true);
+  let url = buildUrl();
   let response = await fetchPage(url, token);
-
-  if (response.status === 400) {
-    // $expand=Media not supported — retry without
-    url = buildUrl(false);
-    response = await fetchPage(url, token);
-  }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -249,23 +229,18 @@ export async function fetchListingByAddress(address: {
   // Only active listings
   filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
 
-  function buildUrl(withMedia: boolean): string {
+  function buildUrl(): string {
     const params = new URLSearchParams();
     params.set("$filter", filterParts.join(" and "));
     params.set("$select", selectFields);
-    if (withMedia) params.set("$expand", "Media");
+    // Skip $expand=Media — photos fetched separately.
     params.set("$top", "1");
     params.set("$orderby", "ModificationTimestamp desc");
     return `${getPropertyEndpoint()}?${params.toString()}`;
   }
 
-  let url = buildUrl(true);
+  let url = buildUrl();
   let response = await fetchPage(url, token);
-
-  if (response.status === 400) {
-    url = buildUrl(false);
-    response = await fetchPage(url, token);
-  }
 
   if (!response.ok) {
     if (response.status === 401) {

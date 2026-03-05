@@ -10,6 +10,8 @@ import { useListings } from '@/lib/hooks/useListings';
 import { type DisplayListing, listingHref } from '@/lib/idx/display-adapter';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import SearchAutocomplete from '@/app/components/SearchAutocomplete';
+import FavoriteButton from '@/app/components/FavoriteButton';
+import SaveSearchButton from '@/app/components/SaveSearchButton';
 import nextDynamic from 'next/dynamic';
 
 export const dynamic = 'force-dynamic';
@@ -414,6 +416,20 @@ function SearchClient() {
               {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'} found`}
             </p>
             <div className="flex items-center gap-2">
+              <SaveSearchButton
+                type={activeTab === 'rent' ? 'rent' : 'buy'}
+                filters={{
+                  minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+                  maxPrice: priceRange[1] < (isRental ? 99999 : 99999999) ? priceRange[1] : undefined,
+                  beds: beds ?? undefined,
+                  baths: baths ?? undefined,
+                  propertyType: propertyType || undefined,
+                  status: statusFilter || undefined,
+                  neighborhood: neighborhoodParam || undefined,
+                  minSqft: minSqft ?? undefined,
+                  maxSqft: maxSqft ?? undefined,
+                }}
+              />
               {/* View Mode Toggles */}
               <div className="flex bg-gray-100/60 rounded-xl p-0.5">
                 {([
@@ -556,10 +572,14 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
         />
-        {formatComingSoonBadge(listing) && (
+        {formatComingSoonBadge(listing) ? (
           <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl z-10">
             {formatComingSoonBadge(listing)}
           </span>
+        ) : (
+          <div className="absolute top-3 left-3 z-10">
+            <FavoriteButton listing={listing} />
+          </div>
         )}
         {/* Photo count badge — top right */}
         {listing.media.length > 0 && (
@@ -637,10 +657,14 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
         />
-        {formatComingSoonBadge(listing) && (
+        {formatComingSoonBadge(listing) ? (
           <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-lg z-10">
             {formatComingSoonBadge(listing)}
           </span>
+        ) : (
+          <div className="absolute top-2 left-2 z-10">
+            <FavoriteButton listing={listing} />
+          </div>
         )}
       </div>
 

@@ -8,6 +8,8 @@ import { useListings } from '@/lib/hooks/useListings';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
+import FavoriteButton from '@/app/components/FavoriteButton';
+import SaveSearchButton from '@/app/components/SaveSearchButton';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -393,7 +395,21 @@ export default function PropertySearch({ type }: PropertySearchProps) {
             <p className="text-brand-dark/60" aria-live="polite" aria-atomic="true">
               {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'} found`}
             </p>
-            <IDXSearchDisclaimer />
+            <div className="flex items-center gap-2">
+              <SaveSearchButton
+                type={type}
+                filters={{
+                  minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+                  maxPrice: priceRange[1] < (isRental ? 99999 : 99999999) ? priceRange[1] : undefined,
+                  beds: beds ?? undefined,
+                  baths: baths ?? undefined,
+                  propertyType: propertyType || undefined,
+                  neighborhood: neighborhoodFilter || undefined,
+                  borough: boroughFilter || undefined,
+                }}
+              />
+              <IDXSearchDisclaimer />
+            </div>
           </div>
 
           {/* Error State */}
@@ -459,6 +475,10 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                           {formatComingSoonBadge(listing)}
                         </span>
                       )}
+                      {/* Favorite button — top left */}
+                      <div className="absolute top-3 left-3 z-10">
+                        <FavoriteButton listing={listing} />
+                      </div>
                       {/* Photo count + tour badges — top right */}
                       <div className="absolute top-3 right-3 flex gap-1.5 z-10">
                         {listing.media.length > 0 && (
