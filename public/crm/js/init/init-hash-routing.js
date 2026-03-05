@@ -6,13 +6,9 @@
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
 
-        // On page load (hard refresh), don't restore stale results — go to search form.
-        // Results are only restored via hashchange (browser back/forward).
-        if (route === 'results') {
-            try { sessionStorage.removeItem('_searchState'); } catch(e) {}
-            route = 'main';
-            history.replaceState(null, '', '#main');
-        }
+        // On page load (hard refresh), try to restore saved results.
+        // If no saved state or state expired, fall back to search form.
+        // (Staleness is handled by the 5-minute TTL in _restoreSearchState.)
 
         // ── IMMEDIATE: hide the search form if we're restoring detail ──
         if (route === 'detail') {

@@ -239,11 +239,15 @@
         // ADDRESS AUTOCOMPLETE — Search forms (Sale, Rental, Building, Advanced)
         // Searches both buildingDatabase (object) and listingBuildingDB (array)
         // ══════════════════════════════════════════════════════
+        // Debounce timer for server-side address search
+        var _addrSearchTimer = null;
+
         function searchAddressAutocomplete(query, resultsDivId) {
             var resultsDiv = document.getElementById(resultsDivId);
             if (!resultsDiv) return;
             if (!query || query.length < 2) {
                 resultsDiv.classList.add('hidden');
+                if (_addrSearchTimer) { clearTimeout(_addrSearchTimer); _addrSearchTimer = null; }
                 return;
             }
 
@@ -310,8 +314,21 @@
                 });
             }
 
+            // Show local results immediately
+            _renderAddressResults(matches, resultsDiv, resultsDivId);
+
+            // If few local results and query is 3+ chars, search server-side (debounced)
+            if (matches.length < 3 && query.length >= 3 && typeof MallanAPI !== 'undefined') {
+                if (_addrSearchTimer) clearTimeout(_addrSearchTimer);
+                _addrSearchTimer = setTimeout(function() {
+                    _serverAddressSearch(query, resultsDivId, matches);
+                }, 350);
+            }
+        }
+
+        function _renderAddressResults(matches, resultsDiv, resultsDivId) {
             if (matches.length === 0) {
-                resultsDiv.innerHTML = '<div class="px-3 py-2 text-gray-400">No matches found</div>';
+                resultsDiv.innerHTML = '<div class="px-3 py-2 text-gray-400">Searching...</div>';
                 resultsDiv.classList.remove('hidden');
                 return;
             }
@@ -335,6 +352,36 @@
                     '</div></div>';
             }).join('');
             resultsDiv.classList.remove('hidden');
+        }
+
+        // Server-side address search via Trestle API
+        function _serverAddressSearch(query, resultsDivId, localMatches) {
+            var resultsDiv = document.getElementById(resultsDivId);
+            if (!resultsDiv) return;
+            // Call our search API with address filter
+            MallanAPI.idx.search({ address: query, limit: 10 }).then(function(result) {
+                if (!result || !result.listings) return;
+                var serverMatches = localMatches.slice(); // start with local
+                var existingAddrs = {};
+                serverMatches.forEach(function(m) { existingAddrs[m.address] = true; });
+                result.listings.forEach(function(l) {
+                    if (existingAddrs[l.address]) return;
+                    existingAddrs[l.address] = true;
+                    serverMatches.push({
+                        address: l.address,
+                        name: l.buildingName || '',
+                        neighborhood: l.neighborhood || '',
+                        borough: l.borough || 'Manhattan',
+                        zip: l.zip || '',
+                        type: ownershipLabel(l.ownership) || '',
+                        yearBuilt: ''
+                    });
+                });
+                // Re-render with merged results (only if dropdown still visible)
+                if (!resultsDiv.classList.contains('hidden')) {
+                    _renderAddressResults(serverMatches, resultsDiv, resultsDivId);
+                }
+            }).catch(function() { /* ignore server errors — local results already shown */ });
         }
 
         // Select an address from autocomplete results
@@ -558,6 +605,45 @@
             if (rlsInput && rlsInput.value.trim()) criteria.rlsId = rlsInput.value.trim();
             if (zipInput && zipInput.value.trim()) criteria.zip = zipInput.value.trim();
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
+
+            // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
+            var drpPrefix = currentSearchTab === 'rent' ? 'rental' : 'sale';
+
+            // Listed/Updated date range
+            var activityTypeEl = document.getElementById(drpPrefix === 'rental' ? 'rentalListingActivityType' : 'saleListingActivityType');
+            var activityType = activityTypeEl ? activityTypeEl.value : '';
+            var listedDrp = document.querySelector('[data-drp="' + drpPrefix + 'ListedUpdated"]');
+            if (listedDrp && activityType) {
+                var fromStr = listedDrp.getAttribute('data-from');
+                var toStr = listedDrp.getAttribute('data-to');
+                if (fromStr) {
+                    criteria.dateActivityType = activityType; // 'Listed', 'Updated', or 'ListedAndUpdated'
+                    criteria.dateFrom = fromStr;
+                    criteria.dateTo = toStr || fromStr;
+                }
+            }
+
+            // Contract/Lease Signed date range
+            var signedDrp = document.querySelector('[data-drp="' + drpPrefix + (drpPrefix === 'rental' ? 'LeaseSigned' : 'ContractSigned') + '"]');
+            if (signedDrp) {
+                var sFrom = signedDrp.getAttribute('data-from');
+                var sTo = signedDrp.getAttribute('data-to');
+                if (sFrom) {
+                    criteria.contractDateFrom = sFrom;
+                    criteria.contractDateTo = sTo || sFrom;
+                }
+            }
+
+            // Sold/Rented date range
+            var soldDrp = document.querySelector('[data-drp="' + drpPrefix + (drpPrefix === 'rental' ? 'RentedDate' : 'SoldDate') + '"]');
+            if (soldDrp) {
+                var sdFrom = soldDrp.getAttribute('data-from');
+                var sdTo = soldDrp.getAttribute('data-to');
+                if (sdFrom) {
+                    criteria.soldDateFrom = sdFrom;
+                    criteria.soldDateTo = sdTo || sdFrom;
+                }
+            }
 
             return criteria;
         }
@@ -840,6 +926,43 @@
 
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
+
+                // Date range filters
+                if (criteria.dateFrom) {
+                    var from = new Date(criteria.dateFrom);
+                    var to = new Date(criteria.dateTo || criteria.dateFrom);
+                    to.setHours(23, 59, 59); // include end date
+                    var type = criteria.dateActivityType;
+                    if (type === 'Listed' || type === 'ListedAndUpdated') {
+                        var listed = listing.listedDate ? new Date(listing.listedDate) : null;
+                        if (type === 'Listed') {
+                            if (!listed || listed < from || listed > to) return false;
+                        } else {
+                            // ListedAndUpdated: either listed or updated must be in range
+                            var updated = listing.updatedDate ? new Date(listing.updatedDate) : null;
+                            var listedOk = listed && listed >= from && listed <= to;
+                            var updatedOk = updated && updated >= from && updated <= to;
+                            if (!listedOk && !updatedOk) return false;
+                        }
+                    } else if (type === 'Updated') {
+                        var updated = listing.updatedDate ? new Date(listing.updatedDate) : null;
+                        if (!updated || updated < from || updated > to) return false;
+                    }
+                }
+                if (criteria.contractDateFrom) {
+                    var cFrom = new Date(criteria.contractDateFrom);
+                    var cTo = new Date(criteria.contractDateTo || criteria.contractDateFrom);
+                    cTo.setHours(23, 59, 59);
+                    var contractDate = listing.contractDate ? new Date(listing.contractDate) : null;
+                    if (!contractDate || contractDate < cFrom || contractDate > cTo) return false;
+                }
+                if (criteria.soldDateFrom) {
+                    var sFrom = new Date(criteria.soldDateFrom);
+                    var sTo = new Date(criteria.soldDateTo || criteria.soldDateFrom);
+                    sTo.setHours(23, 59, 59);
+                    var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
+                    if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
+                }
 
                 return true;
             });
@@ -1258,8 +1381,8 @@
                 var state = JSON.parse(raw);
                 if (!state || !state.filteredIds || !Array.isArray(state.filteredIds)) return false;
 
-                // Expire saved state after 60 seconds (back/forward is instant; manual refresh is slower)
-                if (state.ts && (Date.now() - state.ts) > 60000) {
+                // Expire saved state after 5 minutes
+                if (state.ts && (Date.now() - state.ts) > 300000) {
                     sessionStorage.removeItem('_searchState');
                     return false;
                 }

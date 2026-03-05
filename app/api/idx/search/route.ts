@@ -148,6 +148,16 @@ function buildODataFilter(params: URLSearchParams): string {
     );
   }
 
+  // Address search (partial match via OData contains)
+  const address = params.get("address");
+  if (address) {
+    // Search StreetNumber + StreetName combined via contains on multiple fields
+    const escaped = escapeOData(address);
+    parts.push(
+      `(contains(StreetName,'${escaped}') or contains(BuildingName,'${escaped}'))`
+    );
+  }
+
   // Property sub-type
   const subType = params.get("propertySubType");
   if (subType) {

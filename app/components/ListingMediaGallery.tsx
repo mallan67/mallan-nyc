@@ -34,6 +34,7 @@ export default function ListingMediaGallery({
   const [activeTab, setActiveTab] = useState<MediaTab>('photos');
   const [photoIdx, setPhotoIdx] = useState(0);
   const [failed, setFailed] = useState<Set<number>>(new Set());
+  const [retryCount, setRetryCount] = useState<Record<number, number>>({});
 
   const sortedImages = [...images].sort((a, b) => (a.order || 0) - (b.order || 0));
   const hasImages = sortedImages.length > 0;
@@ -69,8 +70,14 @@ export default function ListingMediaGallery({
   }, [sortedImages.length]);
 
   const handleImageError = useCallback((idx: number) => {
-    setFailed(prev => new Set(prev).add(idx));
-  }, []);
+    const attempts = retryCount[idx] || 0;
+    if (attempts < 2) {
+      // Retry after a short delay — Trestle throttling is transient
+      setRetryCount(prev => ({ ...prev, [idx]: attempts + 1 }));
+    } else {
+      setFailed(prev => new Set(prev).add(idx));
+    }
+  }, [retryCount]);
 
   const showPlaceholder = !hasImages || (failed.size === sortedImages.length);
 
@@ -113,11 +120,11 @@ export default function ListingMediaGallery({
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  key={photoIdx}
+                  key={`${photoIdx}-${retryCount[photoIdx] || 0}`}
                   src={failed.has(photoIdx) ? PLACEHOLDER : currentImage.url}
                   alt={currentImage.caption || alt}
                   loading="eager"
-                  decoding="sync"
+                  decoding="async"
                   onError={() => handleImageError(photoIdx)}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -184,10 +191,12 @@ export default function ListingMediaGallery({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={img.url}
+                      key={`thumb-${i}-${retryCount[i] || 0}`}
+                      src={failed.has(i) ? PLACEHOLDER : img.url}
                       alt={img.caption || `Photo ${i + 1}`}
                       className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"
+                      onError={() => handleImageError(i)}
                     />
                   </button>
                 ))}
