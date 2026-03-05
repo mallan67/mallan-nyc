@@ -330,13 +330,13 @@ Vercel (mallan.nyc)
 ```
 
 - **CRM Mockups:** `https://mallan.nyc/crm/` (same-origin static files)
-- **API:** `https://mallan.nyc/api/` (Vercel, Next.js 14 App Router)
+- **API:** `https://mallan.nyc/api/` (Vercel, Next.js 16.1.6 App Router)
 - **Database:** PostgreSQL on Neon (Prisma ORM)
 - **Auth:** httpOnly cookie only (`session_token`, SameSite=Lax, Secure)
 
-### Auth (Sprint 10 — Cookie Only)
+### Auth (Cookie Only)
 
-Bearer token auth fully removed (Sprint 10). All auth is cookie-only.
+All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 1. Login sets an HttpOnly session cookie (`session_token`)
 2. All requests authenticate via cookie only
@@ -347,9 +347,9 @@ Bearer token auth fully removed (Sprint 10). All auth is cookie-only.
 #### Auth (7)
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/auth/login` | POST | Login, sets cookie + returns Bearer token |
+| `/api/auth/login` | POST | Login, sets httpOnly session cookie |
 | `/api/auth/logout` | POST | Destroy session, clear cookie |
-| `/api/auth/me` | GET | Current user from session (Bearer or cookie) |
+| `/api/auth/me` | GET | Current user from session cookie |
 | `/api/auth/agent/register` | POST | Broker creates agent |
 | `/api/auth/invite` | POST | Generate portal invite (sends email) |
 | `/api/auth/invite/[token]` | GET/POST | Client accepts portal invite |
@@ -398,27 +398,46 @@ Bearer token auth fully removed (Sprint 10). All auth is cookie-only.
 | `/api/portal/showings` | GET/POST | List + request showings |
 | `/api/portal/offers` | GET | Incoming offers (seller/landlord) |
 
-#### IDX/Trestle (2)
+#### Media (2)
 | Route | Method | Purpose |
 |-------|--------|---------|
+| `/api/media/proxy` | GET | Server-side proxy for Trestle media URLs (Bearer auth added server-side, 7-day CDN cache) |
+| `/api/crm/listings/[id]/media/upload` | POST | Agent photo upload (Sharp optimization → R2, EXIF/GPS stripped, 3 WebP variants) |
+
+#### IDX/Trestle (3)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/idx/search` | GET | CRM search — agent/broker only, full listing data with proxied media URLs |
 | `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
 | `/api/idx/status` | GET | IDX connection status + sync stats |
+
+### Media Pipeline
+
+- **Trestle photos** require Bearer auth — browser `<img>` tags cannot send auth headers
+- **Server-side proxy** (`/api/media/proxy`): fetches from Trestle with Bearer token, serves to browser
+- **CDN cache:** 7 days + `immutable` flag (first load proxied, subsequent loads instant from CDN)
+- **Allowlist:** Only `api.cotality.com`, `api-trestle.corelogic.com`, `api-prod.corelogic.com` domains
+- **Agent uploads:** Multipart form → Sharp (EXIF/GPS stripped, WebP, 3 variants: hero 1600px, card 800px, thumb 400px) → Cloudflare R2
+- **Rate limit exemption:** `/api/media/proxy` is exempt from the 30/min API rate limit (50+ images per page load is normal)
 
 ### Security
 
 - **CORS:** Same-origin in production; `http://localhost:3000`, `http://localhost:5500` in dev only
-- **Rate Limiting:** 30 req/min API, 120 req/min pages (per IP)
+- **Rate Limiting:** 30 req/min API, 120 req/min pages, 5/min login attempts (per IP)
 - **IDX Sync:** 1 call per 5 minutes
 - **Bot Blocking:** 30+ known scraper/AI bots blocked at edge
 - **Session:** DB-backed, 24hr expiry, auto-rotate within 1hr of expiry
 - **Audit:** All mutations logged to AuditEvent table
 - **CSP:** Content Security Policy via `vercel.json`
+- **Vulnerabilities:** 0 (npm audit clean as of 2026-03-05)
 
 ---
 
 ## Last Work Completed
 
-- **Sprint 10 (2026-03-01):** Moved CRM mockups to `public/crm/` for same-origin serving on Vercel. Redesigned login page. Fixed `DATABASE_URL` env var (was pointing to wrong Neon project). Removed exposed Google Maps API key from source — now served via `/api/config/maps-key` endpoint. Added `/crm/*` CSP headers and noindex directives.
+- **2026-03-05:** Upgraded Next.js 14 → 16.1.6. Created server-side media proxy for Trestle photos (Bearer auth). Added agent photo upload pipeline (Sharp → R2). Security audit: removed env exposure from `/api/health` and `/api/ai/env-check`, removed hardcoded seed passwords, removed vulnerable `xlsx` package. npm audit: 0 vulnerabilities.
+- **Sprint 10 (2026-03-02):** Security hardening — Bearer auth fully removed (cookie-only), RLS enforcement on all write paths, DOM tracking (UCBA 2026), portal DTO centralized.
+- **Sprint 10 (2026-03-01):** Moved CRM mockups to `public/crm/` for same-origin serving on Vercel. Redesigned login page. Fixed `DATABASE_URL` env var. Removed exposed Google Maps API key from source. Added `/crm/*` CSP headers and noindex directives.
 
 ---
 
@@ -426,19 +445,11 @@ Bearer token auth fully removed (Sprint 10). All auth is cookie-only.
 
 ### Sprint 9 — Wire Mockups to Live Backend (2026-03-01)
 
-**Goal:** Make the CRM a real working backend — data from API, login is real, no mock fallback.
-
 **Completed:**
-- CORS + dual auth (Bearer token + httpOnly cookie) on all API routes
-- Login returns token in response body; stored in localStorage
-- `requireAuth()` checks Bearer header first, then cookie
-- `/api/auth/me` accepts both auth methods
-- `api-client.js` rewritten: Bearer token, no write stubs, fail-fast
+- Cookie-only auth on all API routes (Bearer removed in Sprint 10)
 - `login.html` created: email/password, auto-redirect if already logged in
 - Auth gates on CRM, both viewers, and search (redirect to login if unauthenticated)
-- `MallanAPI.configure({ baseUrl: 'https://mallan.nyc' })` on all cross-origin files
-- Mock data removed from production paths (`mockListings`, `VIEWER_MOCK_LISTINGS`, `CLIENT_DATA`)
-- Dev escape hatch: `?mock=true` on localhost loads hardcoded mock data
+- Mock data removed from production paths
 - RLS validator: 0 UNKNOWN, 10/10 sections pass
 - TypeScript: 0 errors
 
@@ -510,6 +521,11 @@ npm run dev
 | `TRESTLE_API_URL` | No | Trestle API base URL (`https://api.cotality.com/trestle`) |
 | `IDX_CLIENT_ID` | No | Trestle OAuth client ID |
 | `IDX_CLIENT_SECRET` | No | Trestle OAuth client secret |
+| `R2_ACCOUNT_ID` | No | Cloudflare R2 account ID (for photo uploads) |
+| `R2_ACCESS_KEY_ID` | No | Cloudflare R2 access key |
+| `R2_SECRET_ACCESS_KEY` | No | Cloudflare R2 secret key |
+| `R2_BUCKET_NAME` | No | Cloudflare R2 bucket name |
+| `R2_PUBLIC_URL` | No | Cloudflare R2 public URL for serving images |
 
 ### Compliance Validation
 
