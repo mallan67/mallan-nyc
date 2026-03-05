@@ -17,10 +17,7 @@ let cachedToken: TrestleAuthToken | null = null;
 // Derive token endpoint from centralized TRESTLE_API_URL per compliance requirement.
 // Env validation is deferred to getAccessToken() — no top-level throws (Vercel serverless safety).
 function getTrestleTokenEndpoint(): string {
-  const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  if (process.env.NODE_ENV === "production" && !process.env.TRESTLE_API_URL) {
-    throw new Error("Missing TRESTLE_API_URL environment variable");
-  }
+  const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
   return `${base}/oidc/connect/token`;
 }
 
@@ -40,8 +37,9 @@ export async function getAccessToken(): Promise<string> {
     return cachedToken.access_token;
   }
 
-  const clientId = process.env.IDX_CLIENT_ID;
-  const clientSecret = process.env.IDX_CLIENT_SECRET;
+  // Accept both naming conventions (IDX_CLIENT_ID or legacy IDX_API_KEY)
+  const clientId = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY;
+  const clientSecret = process.env.IDX_CLIENT_SECRET || process.env.IDX_API_SECRET;
 
   if (!clientId || !clientSecret) {
     throw new Error(
@@ -90,7 +88,9 @@ export async function getAccessToken(): Promise<string> {
  * Check if credentials are configured (without making a request).
  */
 export function hasCredentials(): boolean {
-  return Boolean(process.env.IDX_CLIENT_ID && process.env.IDX_CLIENT_SECRET);
+  const id = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY;
+  const secret = process.env.IDX_CLIENT_SECRET || process.env.IDX_API_SECRET;
+  return Boolean(id && secret);
 }
 
 /**
