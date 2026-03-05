@@ -1,0 +1,1317 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   LIQUID DESIGN SYSTEM — CRM Search Theme Override
+   Matches frontend (mallan.nyc) visual language:
+   Glass cards, float shadows, gold accents, liquid motion, Inter+Urbanist
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Design Tokens (mirrored from globals.css) ── */
+:root {
+  --ink: #0A0A0A;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --bg: #FAFBFC;
+  --bg-soft: #ffffff;
+  --gold: #C4A052;
+  --gold-deep: #B8860B;
+  --dark: #0A0A0A;
+  --slate: #3d4556;
+
+  --liquid: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.3);
+
+  --float-shadow: 0 40px 100px rgba(0,0,0,0.03), 0 8px 32px rgba(0,0,0,0.02);
+  --float-shadow-hover: 0 40px 100px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.04);
+  --float-shadow-sm: 0 4px 20px rgba(0,0,0,0.04), 0 1px 6px rgba(0,0,0,0.02);
+  --float-shadow-lg: 0 25px 60px rgba(0,0,0,0.06), 0 10px 24px rgba(0,0,0,0.04);
+
+  --gold-glow: 0 0 40px rgba(184,134,11,0.12), 0 0 80px rgba(184,134,11,0.06);
+  --gold-glow-sm: 0 0 20px rgba(184,134,11,0.1);
+}
+
+/* ── Base Overrides ── */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 300;
+  color: var(--ink);
+  background: var(--bg) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--gold-deep); color: white; }
+
+/* ── Liquid Motion Animations ── */
+@keyframes liquidMotion {
+  0%   { transform: scale(1.03) translate(0, 0); }
+  50%  { transform: scale(1.10) translate(-1%, -0.8%); }
+  100% { transform: scale(1.03) translate(0, 0); }
+}
+@keyframes liquidMotionDeep {
+  0%   { transform: scale(1.05) translate(-0.5%, -0.5%); }
+  50%  { transform: scale(1.14) translate(0.6%, -1.2%); }
+  100% { transform: scale(1.05) translate(-0.5%, -0.5%); }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 30px rgba(184,134,11,0.08); }
+  50% { box-shadow: 0 0 50px rgba(184,134,11,0.18); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: fadeInUp 0.4s var(--liquid) both; }
+.animate-slide-down { animation: slideDown 0.3s var(--liquid) both; }
+
+/* ═══════════════════════════════════════
+   HEADER — Dark glass nav
+   ═══════════════════════════════════════ */
+header, .luxury-header {
+  background: linear-gradient(180deg,
+    rgba(20, 27, 45, 0.94) 0%,
+    rgba(15, 23, 42, 0.88) 100%
+  ) !important;
+  backdrop-filter: blur(20px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.5) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    0 4px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+#generalNavBar > div:first-child {
+  font-family: 'Urbanist', 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* Nav buttons */
+#generalNavBar > nav > button {
+  font-weight: 400;
+  padding: 10px 20px;
+  border-radius: 12px;
+  transition: all 0.5s var(--liquid);
+  letter-spacing: 0.02em;
+  font-size: 13px;
+}
+#generalNavBar > nav > button:hover {
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-1px);
+}
+#generalNavBar > nav > button.bg-gray-800,
+#generalNavBar > nav > button.text-white.bg-gray-800 {
+  background: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+/* ═══════════════════════════════════════
+   SEARCH FORM — Glass card panels
+   ═══════════════════════════════════════ */
+
+/* Main search container background */
+#searchFormContainer {
+  background: transparent !important;
+}
+
+/* Search type tabs (General Search / Comparables) */
+#searchTypeTabs {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--float-shadow-sm);
+  background: white;
+}
+#searchTypeTabs button {
+  padding: 16px 28px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  transition: all 0.5s var(--liquid);
+}
+#searchTypeTabs button.bg-blue-600,
+#searchTypeTabs button[class*="bg-blue"] {
+  background: var(--dark) !important;
+  color: white !important;
+}
+
+/* Sale/Rental/Building tab pills */
+#btnSale, #btnRent, #btnBuilding {
+  padding: 8px 20px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  border-radius: 10px !important;
+  transition: all 0.5s var(--liquid) !important;
+  letter-spacing: 0.01em;
+}
+#btnSale.bg-blue-600, #btnRent.bg-blue-600, #btnBuilding.bg-blue-600,
+#btnSale[class*="bg-blue"], #btnRent[class*="bg-blue"], #btnBuilding[class*="bg-blue"] {
+  background: var(--dark) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+}
+
+/* Basic/Advanced mode toggle */
+#btnSearchBasic, #btnSearchAdvanced {
+  padding: 8px 20px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  border-radius: 10px !important;
+  transition: all 0.5s var(--liquid) !important;
+}
+
+/* Search form cards — glass card aesthetic */
+#searchBasicMode,
+#searchBasicModeRental,
+#searchBasicModeBuilding {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-radius: 20px !important;
+  padding: 24px !important;
+  box-shadow: var(--float-shadow) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Section cards inside search form */
+#searchBasicMode > div > .border.rounded-lg,
+#searchBasicModeRental > div > .border.rounded-lg,
+#searchBasicModeBuilding .border.rounded-lg,
+#searchBasicMode > .border.rounded-lg,
+#searchBasicModeRental > .border.rounded-lg,
+#searchBasicModeBuilding > .border.rounded-lg {
+  border: none !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  background: white !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  transition: box-shadow 0.8s var(--liquid), transform 0.8s var(--liquid) !important;
+}
+#searchBasicMode > div > .border.rounded-lg:hover,
+#searchBasicModeRental > div > .border.rounded-lg:hover {
+  box-shadow: var(--float-shadow-hover) !important;
+  transform: translateY(-2px);
+}
+
+/* Section headers — refined */
+#searchBasicMode p.text-xs.font-semibold.text-gray-700,
+#searchBasicModeRental p.text-xs.font-semibold.text-gray-700,
+#searchBasicModeBuilding p.text-xs.font-semibold.text-gray-700 {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--muted) !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid rgba(0,0,0,0.04) !important;
+  margin-bottom: 14px !important;
+}
+
+/* ═══════════════════════════════════════
+   FORM CONTROLS — Rounded, gold focus
+   ═══════════════════════════════════════ */
+
+#section-main select,
+#section-my select,
+#section-last select {
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  padding: 9px 12px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  background: white !important;
+  color: var(--ink) !important;
+  transition: all 0.3s var(--liquid) !important;
+  min-height: 38px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+#section-main input[type="text"],
+#section-main input[type="number"],
+#section-main input[type="tel"],
+#section-main input[type="email"],
+#section-main input[type="url"] {
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  padding: 9px 12px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  min-height: 38px !important;
+  transition: all 0.3s var(--liquid) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+}
+
+/* Gold focus ring */
+#section-main select:focus,
+#section-main input[type="text"]:focus,
+#section-main input[type="number"]:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(196, 160, 82, 0.12), 0 1px 3px rgba(0,0,0,0.02) !important;
+  outline: none !important;
+}
+
+/* Placeholder text — lighter */
+#section-main input::placeholder {
+  color: #9ca3af !important;
+  font-weight: 300 !important;
+}
+
+/* Checkboxes — gold accent */
+#searchBasicMode input[type="checkbox"],
+#searchBasicModeRental input[type="checkbox"],
+#searchBasicModeBuilding input[type="checkbox"],
+#searchAdvancedMode input[type="checkbox"] {
+  accent-color: var(--gold-deep) !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 4px !important;
+}
+
+/* Labels — lighter weight */
+#searchBasicMode label,
+#searchBasicModeRental label,
+#searchBasicModeBuilding label,
+#searchAdvancedMode label {
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  color: var(--ink) !important;
+  cursor: pointer;
+}
+
+/* ═══════════════════════════════════════
+   PRIMARY SEARCH BUTTON — Gold accent
+   ═══════════════════════════════════════ */
+
+#generalSearchSection button.bg-blue-600,
+button.bg-blue-600[onclick*="performSearch"] {
+  background: var(--dark) !important;
+  color: white !important;
+  padding: 10px 32px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important;
+  letter-spacing: 0.02em;
+  transition: all 0.5s var(--liquid) !important;
+  border: none !important;
+}
+#generalSearchSection button.bg-blue-600:hover,
+button.bg-blue-600[onclick*="performSearch"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18) !important;
+  background: #1a1a1a !important;
+}
+
+/* Reset button */
+button[onclick*="resetSearch"],
+button[onclick*="clearSearch"] {
+  border-radius: 14px !important;
+  font-weight: 400 !important;
+  transition: all 0.5s var(--liquid) !important;
+}
+
+/* ═══════════════════════════════════════
+   TRANSIT LINE BUTTONS — Polished
+   ═══════════════════════════════════════ */
+
+#searchBasicMode button[style*="background:#"],
+#searchBasicModeRental button[style*="background:#"],
+#searchBasicModeBuilding button[style*="background:#"] {
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  transition: all 0.3s var(--liquid) !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important;
+}
+#searchBasicMode button[style*="background:#"]:hover,
+#searchBasicModeRental button[style*="background:#"]:hover {
+  transform: scale(1.15) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+/* ═══════════════════════════════════════
+   ADVANCED SEARCH — Glass collapsible sections
+   ═══════════════════════════════════════ */
+
+#searchAdvancedMode .collapsible-section {
+  border: none !important;
+  border-radius: 16px !important;
+  margin-bottom: 12px !important;
+  background: white !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  overflow: hidden;
+  transition: box-shadow 0.8s var(--liquid) !important;
+}
+#searchAdvancedMode .collapsible-section:hover {
+  box-shadow: var(--float-shadow) !important;
+}
+
+#searchAdvancedMode .section-header {
+  padding: 16px 20px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  background: white !important;
+  border-radius: 16px !important;
+  transition: background 0.3s var(--liquid) !important;
+}
+#searchAdvancedMode .section-header:hover {
+  background: rgba(0,0,0,0.01) !important;
+}
+
+#searchAdvancedMode .section-content {
+  padding: 20px !important;
+  background: white !important;
+  border-top: 1px solid rgba(0,0,0,0.03) !important;
+}
+
+/* ═══════════════════════════════════════
+   RESULTS SECTION — Premium cards
+   ═══════════════════════════════════════ */
+
+#searchResultsSection {
+  border-top: none !important;
+  padding-top: 8px !important;
+}
+
+/* Results toolbar — glass */
+#searchResultsSection > div:first-child,
+.results-toolbar {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-radius: 16px !important;
+  border: none !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  padding: 12px 16px !important;
+}
+
+/* Toolbar buttons — refined */
+.results-toolbar button,
+#searchResultsSection button {
+  border-radius: 10px !important;
+  transition: all 0.3s var(--liquid) !important;
+  font-weight: 400 !important;
+}
+
+/* Flag filter buttons */
+button[id^="filterBtn_"] {
+  border-radius: 10px !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+button[id^="filterBtn_"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+}
+button[id^="filterBtn_"].active,
+button[id^="filterBtn_"][aria-pressed="true"] {
+  box-shadow: var(--gold-glow-sm) !important;
+}
+
+/* Selection action bar */
+#selectionActionBar {
+  background: var(--dark) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+  padding: 10px 18px !important;
+}
+
+/* ═══════════════════════════════════════
+   LISTING CARDS — Prop-card style
+   ═══════════════════════════════════════ */
+
+/* Gallery view cards */
+.listing-card,
+[id^="listing-card-"],
+.gallery-card {
+  border: none !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  background: white !important;
+  box-shadow: var(--float-shadow) !important;
+  transition: transform 0.8s var(--liquid), box-shadow 0.8s var(--liquid) !important;
+}
+.listing-card:hover,
+[id^="listing-card-"]:hover,
+.gallery-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--float-shadow-hover) !important;
+}
+
+/* Card photos — liquid motion Ken Burns */
+.listing-card img,
+[id^="listing-card-"] img,
+.gallery-card img,
+.cm-photo {
+  transform-origin: 50% 60%;
+  animation: liquidMotion 10s ease-in-out infinite;
+}
+.listing-card:nth-child(2n) img,
+.gallery-card:nth-child(2n) img {
+  animation-duration: 12s;
+  animation-delay: -3s;
+}
+.listing-card:nth-child(3n) img,
+.gallery-card:nth-child(3n) img {
+  animation-duration: 9s;
+  animation-delay: -5s;
+}
+
+/* On hover: deeper zoom */
+@media (hover: hover) {
+  .listing-card:hover img,
+  .gallery-card:hover img {
+    animation-name: liquidMotionDeep !important;
+    animation-duration: 4s !important;
+    filter: brightness(1.02);
+  }
+}
+
+/* Touch devices: no hover effects */
+@media (hover: none) {
+  .listing-card:hover,
+  .gallery-card:hover {
+    transform: none !important;
+  }
+}
+
+/* Card photo aspect ratio */
+.cm-card-photo {
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  position: relative;
+  background: #f1f5f9;
+  border-radius: 20px 20px 0 0;
+}
+
+/* Card badges — glass pills */
+.listing-card .badge,
+.gallery-card .badge,
+.cm-card-photo .badge {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding: 4px 12px !important;
+  color: var(--ink) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+/* Photo count overlay */
+.cm-card-photo .photo-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(8px);
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 10px;
+  z-index: 5;
+}
+
+/* Card body typography */
+.listing-card .card-body,
+.gallery-card .card-body {
+  padding: 18px 20px !important;
+}
+
+/* Price — display font */
+.listing-card .card-price,
+.gallery-card .card-price {
+  font-family: 'Urbanist', 'Inter', system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 18px !important;
+  color: var(--ink) !important;
+}
+
+/* Address text */
+.listing-card .card-address {
+  font-weight: 300 !important;
+  color: rgba(10, 10, 10, 0.6) !important;
+  font-size: 13px !important;
+}
+
+/* Details row (beds, baths, sqft) */
+.listing-card .card-details {
+  font-weight: 300 !important;
+  color: rgba(10, 10, 10, 0.5) !important;
+  font-size: 13px !important;
+  padding-top: 10px !important;
+  margin-top: 10px !important;
+  border-top: 1px solid rgba(0,0,0,0.04) !important;
+}
+
+/* RLS attribution at card bottom */
+.listing-card .card-attribution,
+.gallery-card .card-attribution {
+  font-size: 10px !important;
+  color: rgba(10, 10, 10, 0.3) !important;
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(0,0,0,0.04) !important;
+  font-weight: 300 !important;
+}
+
+/* ═══════════════════════════════════════
+   LIST/GRID VIEW — Refined rows
+   ═══════════════════════════════════════ */
+
+/* Grid (list) view rows */
+.grid-row,
+.list-view-row {
+  border-radius: 12px !important;
+  border: none !important;
+  background: white !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
+  transition: all 0.3s var(--liquid) !important;
+  margin-bottom: 4px !important;
+}
+.grid-row:hover,
+.list-view-row:hover {
+  box-shadow: var(--float-shadow-sm) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Selected row highlight — gold accent */
+.grid-row.selected,
+.list-view-row.selected {
+  background: rgba(196, 160, 82, 0.05) !important;
+  box-shadow: 0 0 0 1px rgba(196, 160, 82, 0.2), var(--float-shadow-sm) !important;
+}
+
+/* ═══════════════════════════════════════
+   MASTER DETAIL VIEW — Split layout
+   ═══════════════════════════════════════ */
+
+.master-detail-container {
+  gap: 16px !important;
+}
+
+/* Detail panel — glass card */
+.detail-panel,
+#listingDetailPage {
+  background: white !important;
+  border-radius: 20px !important;
+  box-shadow: var(--float-shadow) !important;
+  border: none !important;
+  overflow: hidden;
+}
+
+/* Detail photo grid */
+.detail-photo-grid {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+/* Detail tab navigation */
+.detail-tab {
+  font-weight: 400 !important;
+  transition: all 0.5s var(--liquid) !important;
+  border-radius: 8px 8px 0 0 !important;
+}
+.detail-tab.active {
+  color: var(--ink) !important;
+  border-bottom-color: var(--gold-deep) !important;
+}
+
+/* Stat bar — glass */
+.lux-stat-bar {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  background: white !important;
+}
+
+/* Luxury cards */
+.lux-card {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  padding: 18px 20px !important;
+}
+
+/* Agent info sidebar card */
+.sidebar-card-luxury {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  padding: 18px 20px !important;
+}
+
+/* Section label — gold accent */
+.sidebar-section-label {
+  color: var(--gold-deep) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* Action buttons — liquid hover */
+.sidebar-action-primary {
+  background: var(--dark) !important;
+  border-radius: 14px !important;
+  transition: all 0.5s var(--liquid) !important;
+  font-weight: 500 !important;
+}
+.sidebar-action-primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+}
+
+/* Tool buttons — soft gold hover */
+.sidebar-tool-btn {
+  border: 1px solid rgba(0,0,0,0.04) !important;
+  border-radius: 12px !important;
+  background: rgba(0,0,0,0.01) !important;
+  transition: all 0.5s var(--liquid) !important;
+  font-weight: 400 !important;
+}
+.sidebar-tool-btn:hover {
+  border-color: rgba(196, 160, 82, 0.3) !important;
+  background: rgba(196, 160, 82, 0.04) !important;
+  box-shadow: var(--gold-glow-sm) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ═══════════════════════════════════════
+   MAP VIEW — Premium pins + glass popup
+   ═══════════════════════════════════════ */
+
+.map-pin-price {
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+  transition: all 0.3s var(--liquid) !important;
+  border: 2px solid rgba(255,255,255,0.95) !important;
+}
+.map-pin-price:hover,
+.map-pin-price.active {
+  transform: scale(1.12) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3) !important;
+}
+.map-pin-price.sale { background: var(--dark) !important; }
+.map-pin-price.rental { background: #16a34a !important; }
+.map-pin-price.coming-soon { background: var(--gold-deep) !important; }
+
+.map-popup-card {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: var(--float-shadow-lg) !important;
+}
+
+/* Map list sidebar items */
+.map-list-item {
+  border-left: 3px solid transparent !important;
+  border-radius: 8px !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+.map-list-item:hover,
+.map-list-item.map-hover {
+  background: rgba(196, 160, 82, 0.04) !important;
+  border-left-color: var(--gold) !important;
+}
+.map-list-item.map-selected {
+  background: rgba(196, 160, 82, 0.08) !important;
+  border-left-color: var(--gold-deep) !important;
+}
+
+/* ═══════════════════════════════════════
+   PHOTO LIGHTBOX — Cinematic glass
+   ═══════════════════════════════════════ */
+
+.photo-lightbox-backdrop {
+  background: rgba(10, 10, 10, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.photo-lightbox-img {
+  border-radius: 12px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5) !important;
+}
+
+.photo-lightbox-close,
+.photo-lightbox-nav {
+  background: rgba(255,255,255,0.1) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  backdrop-filter: blur(8px) !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+.photo-lightbox-close:hover,
+.photo-lightbox-nav:hover {
+  background: rgba(255,255,255,0.2) !important;
+}
+
+.photo-lightbox-thumb {
+  border-radius: 6px !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+.photo-lightbox-thumb.active {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 12px rgba(196, 160, 82, 0.3) !important;
+}
+
+/* ═══════════════════════════════════════
+   MODALS — Glass overlay, premium cards
+   ═══════════════════════════════════════ */
+
+/* Modal backdrop */
+.modal-overlay,
+[id$="Modal"] .fixed.inset-0,
+.send-modal-overlay {
+  background: rgba(10, 10, 10, 0.4) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Modal content cards */
+.modal-content,
+[id$="Modal"] .bg-white,
+.send-modal-content {
+  border-radius: 24px !important;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.15) !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+/* Modal headers */
+.modal-header,
+.send-modal-header {
+  border-bottom: 1px solid rgba(0,0,0,0.04) !important;
+  padding: 20px 28px !important;
+}
+
+/* ═══════════════════════════════════════
+   REPORTS — Premium client-facing design
+   ═══════════════════════════════════════ */
+
+/* Report modal */
+#reportsModal .bg-white,
+#reportPreviewModal .bg-white {
+  border-radius: 24px !important;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.15) !important;
+}
+
+/* Report format cards */
+.report-format-card,
+.send-format-option {
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  border-radius: 16px !important;
+  padding: 16px 20px !important;
+  transition: all 0.5s var(--liquid) !important;
+  cursor: pointer;
+}
+.report-format-card:hover,
+.send-format-option:hover {
+  border-color: rgba(196, 160, 82, 0.3) !important;
+  background: rgba(196, 160, 82, 0.03) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--gold-glow-sm) !important;
+}
+.report-format-card.selected,
+.send-format-option.selected {
+  border-color: var(--gold-deep) !important;
+  background: rgba(196, 160, 82, 0.06) !important;
+  box-shadow: var(--gold-glow) !important;
+}
+
+/* Report output buttons */
+.output-action-btn {
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  border-radius: 12px !important;
+  font-weight: 400 !important;
+  transition: all 0.5s var(--liquid) !important;
+}
+.output-action-btn:hover {
+  border-color: var(--dark) !important;
+  background: rgba(0,0,0,0.01) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
+}
+
+/* Report preview — clean, client-ready */
+.report-preview {
+  background: white !important;
+  border-radius: 16px !important;
+  box-shadow: var(--float-shadow) !important;
+  padding: 32px !important;
+}
+
+/* Report header branding */
+.report-header {
+  border-bottom: 2px solid var(--gold) !important;
+  padding-bottom: 16px !important;
+  margin-bottom: 24px !important;
+}
+.report-header .company-name {
+  font-family: 'Urbanist', 'Inter', system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  color: var(--ink) !important;
+}
+
+/* Report listing cards (inside reports) */
+.report-listing-card {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  overflow: hidden !important;
+  break-inside: avoid;
+}
+.report-listing-card img {
+  border-radius: 16px 16px 0 0 !important;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+}
+
+/* CMA Report — premium tables */
+.cma-table {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: var(--float-shadow-sm) !important;
+}
+.cma-table th {
+  background: var(--dark) !important;
+  color: white !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  padding: 12px 16px !important;
+}
+.cma-table td {
+  padding: 10px 16px !important;
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  border-bottom: 1px solid rgba(0,0,0,0.03) !important;
+}
+.cma-table tr:hover td {
+  background: rgba(196, 160, 82, 0.03) !important;
+}
+
+/* Fact Sheet — polished layout */
+.fact-sheet {
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+.fact-sheet .fact-header {
+  background: var(--dark) !important;
+  color: white !important;
+  padding: 24px 28px !important;
+  border-radius: 16px 16px 0 0 !important;
+}
+.fact-sheet .fact-body {
+  padding: 24px 28px !important;
+}
+.fact-sheet .fact-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+  font-size: 13px;
+  font-weight: 300;
+}
+.fact-sheet .fact-row .label {
+  color: var(--muted);
+}
+.fact-sheet .fact-row .value {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ═══════════════════════════════════════
+   CLIENT PORTAL — Premium experience
+   ═══════════════════════════════════════ */
+
+/* Client workspace tabs */
+.ws-tab,
+button[onclick*="switchWsContentTab"],
+button[onclick*="switchClientTab"] {
+  border-radius: 10px !important;
+  font-weight: 400 !important;
+  transition: all 0.5s var(--liquid) !important;
+}
+.ws-tab.active,
+button[onclick*="switchWsContentTab"].active,
+button[onclick*="switchClientTab"].active {
+  background: var(--dark) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+
+/* Deal pipeline kanban */
+.kanban-column {
+  background: rgba(0,0,0,0.01) !important;
+  border-radius: 16px !important;
+  padding: 12px !important;
+}
+.kanban-card {
+  background: white !important;
+  border: none !important;
+  border-radius: 14px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  padding: 14px 16px !important;
+  transition: all 0.5s var(--liquid) !important;
+  cursor: grab !important;
+}
+.kanban-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--float-shadow) !important;
+}
+.kanban-card:active {
+  cursor: grabbing !important;
+}
+
+/* Collection cards */
+.collection-card {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+  transition: all 0.5s var(--liquid) !important;
+}
+.collection-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--float-shadow) !important;
+}
+
+/* Activity feed */
+.activity-item {
+  border-radius: 12px !important;
+  transition: background 0.3s var(--liquid) !important;
+}
+.activity-item:hover {
+  background: rgba(0,0,0,0.01) !important;
+}
+
+/* ═══════════════════════════════════════
+   FINANCIAL CALCULATORS — Glass panels
+   ═══════════════════════════════════════ */
+
+#financialCalculatorModal .bg-white {
+  border-radius: 24px !important;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.15) !important;
+}
+
+/* Calculator tabs */
+.calc-tab {
+  border-radius: 10px !important;
+  font-weight: 400 !important;
+  transition: all 0.5s var(--liquid) !important;
+}
+.calc-tab.active {
+  background: var(--dark) !important;
+  color: white !important;
+}
+
+/* Calculator result panels */
+.calc-result {
+  background: rgba(196, 160, 82, 0.06) !important;
+  border-radius: 16px !important;
+  padding: 16px 20px !important;
+  border: none !important;
+}
+.calc-result .calc-value {
+  font-family: 'Urbanist', 'Inter', system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 22px !important;
+  color: var(--ink) !important;
+}
+
+/* Range sliders — gold accent */
+input[type="range"] {
+  accent-color: var(--gold-deep) !important;
+  height: 2px !important;
+}
+
+/* ═══════════════════════════════════════
+   SIDEBAR — Refined navigation
+   ═══════════════════════════════════════ */
+
+.luxury-sidebar {
+  background: white !important;
+  border-right: 1px solid rgba(0,0,0,0.04) !important;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.02) !important;
+}
+
+.sidebar-link {
+  border-radius: 10px !important;
+  font-weight: 400 !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+.sidebar-link:hover {
+  background: rgba(0,0,0,0.02) !important;
+}
+.sidebar-link.active {
+  background: rgba(196, 160, 82, 0.06) !important;
+  color: var(--gold-deep) !important;
+  font-weight: 500 !important;
+}
+
+.sidebar-section-header {
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+}
+
+/* ═══════════════════════════════════════
+   CUSTOM DROPDOWNS — Glass panels
+   ═══════════════════════════════════════ */
+
+/* Custom Select Dropdown */
+.csd-btn {
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  min-height: 38px !important;
+  font-weight: 300 !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+.csd-btn:hover {
+  border-color: rgba(0,0,0,0.12) !important;
+}
+
+.csd-panel {
+  border-radius: 14px !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.12) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.csd-item {
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  transition: background 0.2s var(--liquid) !important;
+}
+.csd-item:hover {
+  background: rgba(196, 160, 82, 0.06) !important;
+}
+.csd-item.active {
+  background: var(--dark) !important;
+  color: white !important;
+}
+
+/* Date Range Picker */
+.drp-popup {
+  border-radius: 16px !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.12) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.drp-trigger {
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  min-height: 38px !important;
+  font-weight: 300 !important;
+  transition: all 0.3s var(--liquid) !important;
+}
+
+.drp-actions .drp-apply {
+  background: var(--dark) !important;
+  border-color: var(--dark) !important;
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+}
+.drp-actions .drp-apply:hover {
+  background: #1a1a1a !important;
+}
+
+.drp-grid .drp-day.selected {
+  background: var(--dark) !important;
+}
+.drp-grid .drp-day.in-range {
+  background: rgba(196, 160, 82, 0.1) !important;
+}
+.drp-grid .drp-day.today {
+  background: var(--gold-deep) !important;
+}
+
+/* ═══════════════════════════════════════
+   TOAST NOTIFICATIONS — Glass
+   ═══════════════════════════════════════ */
+
+.toast-notification {
+  background: var(--dark) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18) !important;
+  font-weight: 400 !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+/* ═══════════════════════════════════════
+   LOADING SKELETON — Smooth pulse
+   ═══════════════════════════════════════ */
+
+#resultsLoadingSkeleton .animate-pulse {
+  animation: skeletonPulse 2s ease-in-out infinite !important;
+}
+
+/* Skeleton cards match prop-card shape */
+#resultsLoadingSkeleton .rounded-lg,
+#resultsLoadingSkeleton .rounded-xl {
+  border-radius: 20px !important;
+  box-shadow: var(--float-shadow-sm) !important;
+}
+
+/* ═══════════════════════════════════════
+   SCROLLBAR — Minimal
+   ═══════════════════════════════════════ */
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ═══════════════════════════════════════
+   NEIGHBORHOOD MAP — Premium polygons
+   ═══════════════════════════════════════ */
+
+#neighborhoodMap {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: var(--float-shadow) !important;
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE — Mobile-first
+   ═══════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  #searchBasicMode,
+  #searchBasicModeRental,
+  #searchBasicModeBuilding {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .listing-card,
+  .gallery-card {
+    border-radius: 16px !important;
+  }
+
+  .cm-card-photo {
+    border-radius: 16px 16px 0 0 !important;
+  }
+
+  .lux-stat-bar {
+    border-radius: 12px !important;
+  }
+
+  .sidebar-action-primary {
+    border-radius: 10px !important;
+    padding: 8px 6px !important;
+  }
+
+  .detail-photo-grid {
+    border-radius: 12px !important;
+  }
+
+  /* Stack search form cards on mobile */
+  #searchBasicMode > div > .border.rounded-lg,
+  #searchBasicModeRental > div > .border.rounded-lg {
+    border-radius: 12px !important;
+    padding: 14px !important;
+  }
+
+  /* Modal sizing */
+  .modal-content,
+  [id$="Modal"] .bg-white,
+  .send-modal-content {
+    border-radius: 20px !important;
+    max-width: 95vw !important;
+  }
+
+  /* Report preview */
+  .report-preview {
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #generalNavBar {
+    padding: 10px 12px !important;
+  }
+
+  #searchBasicMode,
+  #searchBasicModeRental,
+  #searchBasicModeBuilding {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .listing-card,
+  .gallery-card {
+    border-radius: 14px !important;
+  }
+
+  .lux-card {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  .kanban-card {
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+  }
+}
+
+/* ═══════════════════════════════════════
+   PRINT — Clean, professional
+   ═══════════════════════════════════════ */
+
+@media print {
+  body {
+    font-weight: 400 !important;
+    background: white !important;
+  }
+
+  .listing-card,
+  .gallery-card,
+  .report-listing-card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    break-inside: avoid;
+  }
+
+  .listing-card img,
+  .gallery-card img {
+    animation: none !important;
+  }
+
+  .report-header {
+    border-bottom-color: var(--gold-deep) !important;
+  }
+
+  /* Hide interactive elements */
+  .sidebar-action-primary,
+  .sidebar-tool-btn,
+  .lux-btn-gold,
+  .output-action-btn,
+  button[id^="filterBtn_"],
+  #selectionActionBar {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

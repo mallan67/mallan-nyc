@@ -48,61 +48,87 @@
         }
 
         /**
-         * openNeighborhoodMapForSearch() — bridge between map modal and search.
-         * Opens the map, receives canonical polygon names, expands to variants,
-         * and runs the search.
+         * openNeighborhoodMapForSearch() — bridge between map modal and search form.
+         * Opens the map, receives selected neighborhoods, and populates
+         * the active search form's neighborhood tags (does NOT auto-search).
          */
         window.openNeighborhoodMapForSearch = function() {
             if (typeof openNeighborhoodMap !== 'function') {
                 showToast('Neighborhood map not loaded', 'error');
                 return;
             }
+
+            // Pre-populate the map with currently selected neighborhood tags
+            if (typeof getSelectedNeighborhoods === 'function') {
+                var tagsId = _resolveActiveNeighborhoodTagsId();
+                var existing = getSelectedNeighborhoods(tagsId);
+                if (existing.length > 0) {
+                    if (typeof activeSearchCriteria === 'undefined' || !activeSearchCriteria) {
+                        activeSearchCriteria = {};
+                    }
+                    activeSearchCriteria._neighborhoodCanonicals = existing;
+                }
+            }
+
             openNeighborhoodMap(function(result) {
                 if (!result.selectedNeighborhoods || result.selectedNeighborhoods.length === 0) return;
 
-                // Canonical names from map → expand to all RLS variants for filtering
                 var canonicals = result.selectedNeighborhoods;
-                var allVariants = expandCanonicalToVariants(canonicals);
 
-                if (!activeSearchCriteria) activeSearchCriteria = collectSearchCriteria();
-                activeSearchCriteria.neighborhoods = allVariants;
-                activeSearchCriteria._neighborhoodCanonicals = canonicals; // for pills display
+                // Determine which tags container is active based on current search mode/tab
+                var tagsId = _resolveActiveNeighborhoodTagsId();
 
-                searchResultsState.filteredListings = filterListings(mockListings, activeSearchCriteria);
-                searchResultsState.currentPage = 1;
-
-                // Transition to results view (same as performSearch) if not already there
-                var searchFormContainer = document.getElementById('searchFormContainer');
-                var searchResultsSection = document.getElementById('searchResultsSection');
-                if (searchFormContainer && searchFormContainer.style.display !== 'none') {
-                    searchFormContainer.style.display = 'none';
-                }
-                if (searchResultsSection) {
-                    searchResultsSection.style.display = 'block';
-                    searchResultsSection.classList.remove('hidden');
+                // Add each selected neighborhood as a tag (skip duplicates)
+                if (typeof selectNeighborhood === 'function') {
+                    for (var i = 0; i < canonicals.length; i++) {
+                        var name = canonicals[i];
+                        // Find the borough for this neighborhood from the autocomplete data
+                        var borough = _findBoroughForNeighborhood(name);
+                        selectNeighborhood(name, borough, !borough, '', tagsId);
+                    }
                 }
 
-                if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                if (typeof updateResultsCount === 'function') updateResultsCount();
-                if (typeof buildRefineFilterPills === 'function') buildRefineFilterPills(activeSearchCriteria);
-                if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
-                if (typeof _saveSearchState === 'function') _saveSearchState();
-                if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
-
-                // Update hash and scroll
-                if (!window._suppressHashUpdate) {
-                    history.replaceState(null, '', '#results');
-                }
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-
-                // User feedback
-                var count = searchResultsState.filteredListings ? searchResultsState.filteredListings.length : 0;
                 var label = canonicals.length === 1 ? canonicals[0] : canonicals.length + ' neighborhoods';
                 if (typeof showToast === 'function') {
-                    showToast(label + ' — ' + count + ' result' + (count !== 1 ? 's' : '') + ' found', count > 0 ? 'success' : 'info');
+                    showToast(label + ' added to search', 'success');
                 }
             });
         };
+
+        /**
+         * Resolve which neighborhood tags container is currently active.
+         */
+        function _resolveActiveNeighborhoodTagsId() {
+            // Check which search mode is visible
+            var advMode = document.getElementById('searchAdvancedMode');
+            if (advMode && advMode.style.display !== 'none' && !advMode.classList.contains('hidden')) {
+                return 'advancedNeighborhoodTags';
+            }
+            // Basic mode — check which tab
+            var saleBasic = document.getElementById('searchBasicMode');
+            var rentalBasic = document.getElementById('searchBasicModeRental');
+            var buildingBasic = document.getElementById('searchBasicModeBuilding');
+            if (buildingBasic && buildingBasic.style.display !== 'none') return 'buildingNeighborhoodTags';
+            if (rentalBasic && rentalBasic.style.display !== 'none') return 'rentalNeighborhoodTags';
+            return 'saleNeighborhoodTags';
+        }
+
+        /**
+         * Look up borough name for a neighborhood from the autocomplete's known data.
+         */
+        function _findBoroughForNeighborhood(name) {
+            var boroughs = {
+                'Bronx': ['Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City','Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale','Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'],
+                'Brooklyn': ['Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill','Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach','Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island','Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','DUMBO','Dyker Heights','Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights','Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace','South Slope'],
+                'Manhattan': ['Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown','Civic Center','East Harlem','East Village','Financial District','Flatiron','Gramercy Park','Gramercy','Greenwich Village','Hamilton Heights','Harlem','Hell\'s Kitchen','Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square','Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill','Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights','Mott Haven','Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island','SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca','Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side','Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'],
+                'Queens': ['Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills','Hunters Point','Jackson Heights','Jamaica','Kew Gardens','Long Island City','Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'],
+                'Staten Island': ['Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp','New Brighton','South Beach','St. George','Stapleton','Todt Hill']
+            };
+            for (var b in boroughs) {
+                if (boroughs[b].indexOf(name) !== -1) return b;
+            }
+            return '';
+        }
 
         function normalizeAddress(str) {
             if (!str) return '';
@@ -180,72 +206,33 @@
 
         // Quick Search — search by RLS ID, Zip, Address, or Unit from the Quick Search cards
         function quickSearch(btn) {
-            var card = btn.closest('.border.rounded-lg') || btn.closest('.border.rounded-lg.p-3');
-            if (!card) { showToast('Quick Search: could not find parent card.', 'error'); return; }
+            // Quick Search now uses the full performSearch() pipeline.
+            // Validate that at least one criterion exists (RLS ID, Zip, Address, or Neighborhoods).
+            var rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
+                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
+            var zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
+                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
+            var addrInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
+                              currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
 
-            var inputs = card.querySelectorAll('input[type="text"]');
-            var rlsId = '', zip = '', address = '', unit = '';
-            inputs.forEach(function(inp) {
-                var ph = (inp.placeholder || '').toLowerCase();
-                var val = inp.value.trim();
-                if (!val) return;
-                if (ph.indexOf('rls') !== -1 || ph.indexOf('listing') !== -1) rlsId = val;
-                else if (ph.indexOf('zip') !== -1) zip = val;
-                else if (ph.indexOf('address') !== -1 || ph.indexOf('building') !== -1) address = val;
-                else if (ph.indexOf('unit') !== -1) unit = val;
-            });
+            var rlsVal = (document.getElementById(rlsInputId) || {}).value || '';
+            var zipVal = (document.getElementById(zipInputId) || {}).value || '';
+            var addrVal = (document.getElementById(addrInputId) || {}).value || '';
 
-            if (!rlsId && !zip && !address) {
-                showToast('Please enter at least one search criterion (RLS ID, Zip, or Address).', 'warning');
+            // Check neighborhood tags
+            var hasNeighborhoods = false;
+            if (typeof getSelectedNeighborhoods === 'function') {
+                var tagsId = _resolveActiveNeighborhoodTagsId();
+                hasNeighborhoods = getSelectedNeighborhoods(tagsId).length > 0;
+            }
+
+            if (!rlsVal.trim() && !zipVal.trim() && !addrVal.trim() && !hasNeighborhoods) {
+                showToast('Please enter at least one search criterion (RLS ID, Zip, Address, or Neighborhood).', 'warning');
                 return;
             }
 
-            // Filter mockListings by quick search fields
-            var results = mockListings.filter(function(listing) {
-                // RLS ID match (comma-separated, check lid and wid)
-                if (rlsId) {
-                    var ids = rlsId.split(',').map(function(s) { return s.trim().toLowerCase(); });
-                    var matchId = ids.some(function(id) {
-                        return (listing.lid && listing.lid.toLowerCase() === id) ||
-                               (listing.wid && listing.wid.toLowerCase() === id) ||
-                               (String(listing.id) === id);
-                    });
-                    if (!matchId) return false;
-                }
-                // Zip match
-                if (zip && listing.zip !== zip) return false;
-                // Address match (partial)
-                if (address && listing.address.toLowerCase().indexOf(address.toLowerCase()) === -1 &&
-                    (!listing.buildingName || listing.buildingName.toLowerCase().indexOf(address.toLowerCase()) === -1)) return false;
-                // Unit match
-                if (unit && listing.unit && listing.unit.toLowerCase() !== unit.toLowerCase()) return false;
-                return true;
-            });
-
-            searchResultsState.filteredListings = results;
-            searchResultsState.currentPage = 1;
-
-            var searchFormContainer = document.getElementById('searchFormContainer');
-            if (searchFormContainer) searchFormContainer.style.display = 'none';
-
-            var searchResultsSection = document.getElementById('searchResultsSection');
-            if (searchResultsSection) {
-                searchResultsSection.style.display = 'block';
-                searchResultsSection.classList.remove('hidden');
-                initializeSearchResults();
-            }
-            updateResultsCount();
-            updateStickyNavActive();
-
-            // Save search state for refresh persistence
-            _saveSearchState();
-
-            // Update hash to reflect results view
-            if (!window._suppressHashUpdate) {
-                history.replaceState(null, '', '#results');
-            }
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Delegate to the full search pipeline
+            performSearch();
         }
 
         // ══════════════════════════════════════════════════════
@@ -549,30 +536,28 @@
                 criteria.address = addressInput.value.trim();
             }
 
-            // Neighborhood tree — collect from building search or advanced search
-            var neighborhoodTree = null;
-            if (currentSearchTab === 'building') {
-                neighborhoodTree = document.querySelector('#searchBasicModeBuilding .neighborhood-tree');
-            }
-            // Also check advanced mode if visible
-            var advancedMode = document.getElementById('searchAdvancedMode');
-            if (advancedMode && advancedMode.style.display !== 'none') {
-                neighborhoodTree = advancedMode.querySelector('.neighborhood-tree');
-            }
-            if (neighborhoodTree) {
-                var checkedNeighborhoods = [];
-                // Get all checked leaf checkboxes (inside labels, not in summary elements)
-                neighborhoodTree.querySelectorAll('label input[type="checkbox"]:checked').forEach(function(cb) {
-                    var label = cb.closest('label');
-                    if (label) {
-                        var text = label.textContent.trim();
-                        if (text) checkedNeighborhoods.push(text);
-                    }
-                });
-                if (checkedNeighborhoods.length > 0) {
-                    criteria.neighborhoods = checkedNeighborhoods;
+            // Neighborhood autocomplete tags — read from active tags container
+            if (typeof getSelectedNeighborhoods === 'function') {
+                var tagsId = _resolveActiveNeighborhoodTagsId();
+                var selectedNeighborhoods = getSelectedNeighborhoods(tagsId);
+                if (selectedNeighborhoods.length > 0) {
+                    criteria.neighborhoods = selectedNeighborhoods;
                 }
             }
+
+            // Quick Search fields — RLS ID, Zip, Unit
+            var rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
+                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
+            var zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
+                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
+            var unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
+                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+            var rlsInput = document.getElementById(rlsInputId);
+            var zipInput = document.getElementById(zipInputId);
+            var unitInput = document.getElementById(unitInputId);
+            if (rlsInput && rlsInput.value.trim()) criteria.rlsId = rlsInput.value.trim();
+            if (zipInput && zipInput.value.trim()) criteria.zip = zipInput.value.trim();
+            if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             return criteria;
         }
@@ -838,6 +823,23 @@
                     });
                     if (!statusMatch) return false;
                 }
+
+                // RLS ID filter (comma-separated, check lid, wid, and id)
+                if (criteria.rlsId) {
+                    var ids = criteria.rlsId.split(',').map(function(s) { return s.trim().toLowerCase(); });
+                    var idMatch = ids.some(function(id) {
+                        return (listing.lid && listing.lid.toLowerCase() === id) ||
+                               (listing.wid && listing.wid.toLowerCase() === id) ||
+                               (String(listing.id) === id);
+                    });
+                    if (!idMatch) return false;
+                }
+
+                // Zip filter
+                if (criteria.zip && listing.zip !== criteria.zip) return false;
+
+                // Unit filter
+                if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
 
                 return true;
             });
@@ -1239,7 +1241,8 @@
                     filteredIds: ids,
                     tab: currentSearchTab,
                     page: searchResultsState.currentPage || 1,
-                    address: addr
+                    address: addr,
+                    ts: Date.now()
                 }));
             } catch (e) { /* sessionStorage full or unavailable */ }
         }
@@ -1254,6 +1257,12 @@
                 if (!raw) return false;
                 var state = JSON.parse(raw);
                 if (!state || !state.filteredIds || !Array.isArray(state.filteredIds)) return false;
+
+                // Expire saved state after 60 seconds (back/forward is instant; manual refresh is slower)
+                if (state.ts && (Date.now() - state.ts) > 60000) {
+                    sessionStorage.removeItem('_searchState');
+                    return false;
+                }
 
                 // Restore the search tab
                 if (state.tab) {
@@ -1281,6 +1290,7 @@
         // New unified function for switching between Sales, Rentals, and Buildings tabs
         function toggleSearchTab(tab) {
             currentSearchTab = tab;
+            try { sessionStorage.setItem('searchTab', tab); } catch(e) {}
             var btnSale = document.getElementById('btnSale');
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
@@ -1473,6 +1483,9 @@
             var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
             var advancedMode = document.getElementById('searchAdvancedMode');
             var expandControls = document.getElementById('expandCollapseControls');
+
+            // Persist search mode + tab so refresh restores state
+            try { sessionStorage.setItem('searchMode', mode); } catch(e) {}
 
             if (mode === 'basic') {
                 btnBasic.classList.remove('text-gray-500');

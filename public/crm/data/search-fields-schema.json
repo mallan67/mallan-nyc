@@ -1,0 +1,964 @@
+{
+  "_meta": {
+    "extractedFrom": "public/crm/ (html + js + css)",
+    "extractedAt": "2026-03-05",
+    "purpose": "Complete search field definitions for interface rebuild — ALL fields are RLS-mapped",
+    "compliance": "REBNY RLS via Trestle (Cotality) — RLS TRUMPS ALL. RESO/IDX fills gaps only.",
+    "trestleApi": "api.cotality.com/trestle (deadline: March 31, 2026)",
+    "totalFields": 450,
+    "searchModes": ["sale", "rental", "building", "comparables"],
+    "comparableLayers": ["subjectProperty", "subjectBuildings", "generalCriteria"],
+    "fieldAuthority": "1. UCBA → 2. RLS fields → 3. RESO/IDX fills gaps → 4. INTERNAL-ONLY → 5. Fail closed (non-display)"
+  },
+
+  "searchTabs": {
+    "sale": { "label": "Sales", "formId": "searchBasicMode", "icon": "fa-home" },
+    "rental": { "label": "Rentals", "formId": "searchBasicModeRental", "icon": "fa-key" },
+    "building": { "label": "Buildings", "formId": "searchBasicModeBuilding", "icon": "fa-building" },
+    "comparables": { "label": "Comparable Reports", "sectionId": "comparablesSection", "icon": "fa-chart-bar" }
+  },
+
+  "fields": {
+
+    "price": {
+      "sale": {
+        "min": { "id": "saleMinPrice", "label": "Min Price", "type": "select", "rlsField": "ListPrice",
+          "options": [
+            {"value":"","label":"Min Price"},{"value":"custom","label":"Custom"},
+            {"value":"100000","label":"$100K"},{"value":"200000","label":"$200K"},{"value":"300000","label":"$300K"},
+            {"value":"400000","label":"$400K"},{"value":"500000","label":"$500K"},{"value":"600000","label":"$600K"},
+            {"value":"700000","label":"$700K"},{"value":"800000","label":"$800K"},{"value":"900000","label":"$900K"},
+            {"value":"1000000","label":"$1M"},{"value":"1250000","label":"$1.25M"},{"value":"1500000","label":"$1.5M"},
+            {"value":"2000000","label":"$2M"},{"value":"2500000","label":"$2.5M"},{"value":"3000000","label":"$3M"},
+            {"value":"4000000","label":"$4M"},{"value":"5000000","label":"$5M"},{"value":"7500000","label":"$7.5M"},
+            {"value":"10000000","label":"$10M"},{"value":"15000000","label":"$15M"},{"value":"20000000","label":"$20M"},
+            {"value":"30000000","label":"$30M"},{"value":"50000000","label":"$50M"}
+          ]
+        },
+        "max": { "id": "saleMaxPrice", "label": "Max Price", "type": "select", "rlsField": "ListPrice",
+          "options": [
+            {"value":"","label":"Max Price"},{"value":"custom","label":"Custom"},
+            {"value":"250000","label":"$250K"},{"value":"500000","label":"$500K"},{"value":"750000","label":"$750K"},
+            {"value":"1000000","label":"$1M"},{"value":"1250000","label":"$1.25M"},{"value":"1500000","label":"$1.5M"},
+            {"value":"2000000","label":"$2M"},{"value":"2500000","label":"$2.5M"},{"value":"3000000","label":"$3M"},
+            {"value":"4000000","label":"$4M"},{"value":"5000000","label":"$5M"},{"value":"7500000","label":"$7.5M"},
+            {"value":"10000000","label":"$10M"},{"value":"15000000","label":"$15M"},{"value":"20000000","label":"$20M"},
+            {"value":"30000000","label":"$30M"},{"value":"50000000","label":"$50M"},{"value":"100000000","label":"$100M+"}
+          ]
+        }
+      },
+      "rental": {
+        "min": { "id": "rentalMinRent", "label": "Min Rent", "type": "select", "rlsField": "LeaseAmount",
+          "options": [
+            {"value":"","label":"Min Rent"},{"value":"custom","label":"Custom"},
+            {"value":"1000","label":"$1K"},{"value":"1500","label":"$1.5K"},{"value":"2000","label":"$2K"},
+            {"value":"2500","label":"$2.5K"},{"value":"3000","label":"$3K"},{"value":"3500","label":"$3.5K"},
+            {"value":"4000","label":"$4K"},{"value":"5000","label":"$5K"},{"value":"6000","label":"$6K"},
+            {"value":"7500","label":"$7.5K"},{"value":"10000","label":"$10K"},{"value":"15000","label":"$15K"},
+            {"value":"20000","label":"$20K"},{"value":"30000","label":"$30K"},{"value":"50000","label":"$50K"}
+          ]
+        },
+        "max": { "id": "rentalMaxRent", "label": "Max Rent", "type": "select", "rlsField": "LeaseAmount",
+          "options": [
+            {"value":"","label":"Max Rent"},{"value":"custom","label":"Custom"},
+            {"value":"1500","label":"$1.5K"},{"value":"2000","label":"$2K"},{"value":"2500","label":"$2.5K"},
+            {"value":"3000","label":"$3K"},{"value":"3500","label":"$3.5K"},{"value":"4000","label":"$4K"},
+            {"value":"5000","label":"$5K"},{"value":"6000","label":"$6K"},{"value":"7500","label":"$7.5K"},
+            {"value":"10000","label":"$10K"},{"value":"15000","label":"$15K"},{"value":"20000","label":"$20K"},
+            {"value":"30000","label":"$30K"},{"value":"50000","label":"$50K"},{"value":"100000","label":"$100K+"}
+          ]
+        }
+      }
+    },
+
+    "bedrooms": {
+      "min": { "label": "Min Beds", "type": "select", "rlsField": "BedroomsTotal",
+        "saleId": "saleMinBeds", "rentalId": "rentalMinBeds",
+        "options": [
+          {"value":"","label":"Min Beds"},{"value":"custom","label":"Custom"},
+          {"value":"0","label":"Studio"},{"value":"1","label":"1 BR"},{"value":"2","label":"2 BR"},
+          {"value":"3","label":"3 BR"},{"value":"4","label":"4 BR"},{"value":"5","label":"5 BR"},
+          {"value":"6","label":"6 BR"},{"value":"7","label":"7 BR"},{"value":"8","label":"8+ BR"}
+        ]
+      },
+      "max": { "label": "Max Beds", "type": "select", "rlsField": "BedroomsTotal",
+        "saleId": "saleMaxBeds", "rentalId": "rentalMaxBeds",
+        "options": [
+          {"value":"","label":"Max Beds"},{"value":"custom","label":"Custom"},
+          {"value":"0","label":"Studio"},{"value":"1","label":"1 BR"},{"value":"2","label":"2 BR"},
+          {"value":"3","label":"3 BR"},{"value":"4","label":"4 BR"},{"value":"5","label":"5 BR"},
+          {"value":"6","label":"6+ BR"}
+        ]
+      }
+    },
+
+    "bathrooms": {
+      "min": { "label": "Min Baths", "type": "select", "rlsField": "BathroomsTotalInteger",
+        "saleId": "saleMinBaths", "rentalId": "rentalMinBaths",
+        "options": [
+          {"value":"","label":"Min Baths"},{"value":"custom","label":"Custom"},
+          {"value":"1","label":"1 BA"},{"value":"1.5","label":"1.5 BA"},{"value":"2","label":"2 BA"},
+          {"value":"2.5","label":"2.5 BA"},{"value":"3","label":"3 BA"},{"value":"4","label":"4 BA"},
+          {"value":"5","label":"5 BA"},{"value":"6","label":"6+ BA"}
+        ]
+      },
+      "max": { "label": "Max Baths", "type": "select", "rlsField": "BathroomsTotalInteger",
+        "saleId": "saleMaxBaths", "rentalId": "rentalMaxBaths",
+        "options": [
+          {"value":"","label":"Max Baths"},{"value":"custom","label":"Custom"},
+          {"value":"1","label":"1 BA"},{"value":"1.5","label":"1.5 BA"},{"value":"2","label":"2 BA"},
+          {"value":"2.5","label":"2.5 BA"},{"value":"3","label":"3 BA"},{"value":"4","label":"4 BA"},
+          {"value":"5","label":"5 BA"},{"value":"6","label":"6+ BA"}
+        ]
+      }
+    },
+
+    "rooms": {
+      "min": { "label": "Min Rooms", "type": "select", "rlsField": "RoomsTotal",
+        "saleId": "saleMinRooms", "rentalId": "rentalMinRooms",
+        "options": [
+          {"value":"","label":"Min Rooms"},{"value":"custom","label":"Custom"},
+          {"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3"},
+          {"value":"4","label":"4"},{"value":"5","label":"5"},{"value":"6","label":"6"},
+          {"value":"7","label":"7"},{"value":"8","label":"8"},{"value":"9","label":"9"},
+          {"value":"10","label":"10"},{"value":"12","label":"12+"}
+        ]
+      },
+      "max": { "label": "Max Rooms", "type": "select", "rlsField": "RoomsTotal",
+        "saleId": "saleMaxRooms", "rentalId": "rentalMaxRooms",
+        "options": [
+          {"value":"","label":"Max Rooms"},{"value":"custom","label":"Custom"},
+          {"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3"},
+          {"value":"4","label":"4"},{"value":"5","label":"5"},{"value":"6","label":"6"},
+          {"value":"7","label":"7"},{"value":"8","label":"8"},{"value":"9","label":"9"},
+          {"value":"10","label":"10"},{"value":"12","label":"12+"}
+        ]
+      }
+    },
+
+    "sqft": {
+      "min": { "label": "Min SqFt", "type": "select", "rlsField": "LivingArea",
+        "saleId": "saleMinSqft", "rentalId": "rentalMinSqft",
+        "options": [
+          {"value":"","label":"Min SqFt"},{"value":"custom","label":"Custom"},
+          {"value":"300","label":"300 SF"},{"value":"400","label":"400 SF"},{"value":"500","label":"500 SF"},
+          {"value":"600","label":"600 SF"},{"value":"750","label":"750 SF"},{"value":"1000","label":"1,000 SF"},
+          {"value":"1250","label":"1,250 SF"},{"value":"1500","label":"1,500 SF"},{"value":"2000","label":"2,000 SF"},
+          {"value":"2500","label":"2,500 SF"},{"value":"3000","label":"3,000 SF"},{"value":"5000","label":"5,000 SF"},
+          {"value":"10000","label":"10,000+ SF"}
+        ]
+      },
+      "max": { "label": "Max SqFt", "type": "select", "rlsField": "LivingArea",
+        "saleId": "saleMaxSqft", "rentalId": "rentalMaxSqft",
+        "options": [
+          {"value":"","label":"Max SqFt"},{"value":"custom","label":"Custom"},
+          {"value":"500","label":"500 SF"},{"value":"750","label":"750 SF"},{"value":"1000","label":"1,000 SF"},
+          {"value":"1250","label":"1,250 SF"},{"value":"1500","label":"1,500 SF"},{"value":"2000","label":"2,000 SF"},
+          {"value":"2500","label":"2,500 SF"},{"value":"3000","label":"3,000 SF"},{"value":"5000","label":"5,000 SF"},
+          {"value":"10000","label":"10,000 SF"},{"value":"20000","label":"20,000+ SF"}
+        ]
+      }
+    },
+
+    "quickSearch": {
+      "rlsId": { "label": "RLS ID, Web ID, Listing #", "type": "text",
+        "saleId": "saleQuickRls", "rentalId": "rentalQuickRls", "buildingId": "buildingQuickRls",
+        "rlsField": "ListingId", "note": "Comma-separated" },
+      "zip": { "label": "Zip", "type": "text", "maxLength": 5,
+        "saleId": "saleQuickZip", "rentalId": "rentalQuickZip", "buildingId": "buildingQuickZip",
+        "rlsField": "PostalCode" },
+      "address": { "label": "Address or Building Name", "type": "text",
+        "saleId": "saleSearchAddress", "rentalId": "rentalSearchAddress", "buildingId": "buildingSearchAddress",
+        "rlsField": "UnparsedAddress", "autocomplete": true },
+      "unit": { "label": "Unit # (optional)", "type": "text",
+        "saleId": "saleQuickUnit", "rentalId": "rentalQuickUnit", "buildingId": "buildingQuickUnit",
+        "rlsField": "UnitNumber" }
+    },
+
+    "listingActivity": {
+      "type": { "label": "Activity Type", "type": "select",
+        "saleId": "saleListingActivityType", "rentalId": "rentalListingActivityType",
+        "rlsField": "ModificationTimestamp",
+        "options": [
+          {"value":"","label":"Select Activity"},
+          {"value":"listed","label":"Listed","rlsField":"OnMarketDate"},
+          {"value":"updated","label":"Updated","rlsField":"ModificationTimestamp"},
+          {"value":"listedAndUpdated","label":"Listed and Updated"}
+        ]
+      },
+      "dateRange": { "label": "Date Range", "type": "dateRange",
+        "saleId": "saleListedUpdated", "rentalId": "rentalListedUpdated",
+        "rlsField": "OnMarketDate" },
+      "contractSigned": { "label": "Contract Signed", "type": "dateRange",
+        "saleId": "saleContractSigned", "rentalId": "rentalLeaseSigned",
+        "rlsField": "ContractDate" },
+      "soldDate": { "label": "Sold/Rented Date", "type": "dateRange",
+        "saleId": "saleSoldDate", "rentalId": "rentalRentedDate",
+        "rlsField": "CloseDate" }
+    },
+
+    "ownership": {
+      "type": "checkboxGroup", "rlsField": "CommonInterest",
+      "options": [
+        {"value":"StockCooperative","label":"Co-op"},
+        {"value":"Condominium","label":"Condo"},
+        {"value":"Condop","label":"Condop"},
+        {"value":"SingleFamilyTownhouse,MultiFamilyTownhouse","label":"Townhouse","multi":true}
+      ],
+      "landLease": [
+        {"value":"true","label":"Land-Lease: Include Only","rlsField":"LandLeaseYN"},
+        {"value":"false","label":"Land-Lease: Exclude","rlsField":"LandLeaseYN"}
+      ]
+    },
+
+    "listingType": {
+      "type": "checkboxGroup", "rlsField": "ListingAgreement",
+      "options": [
+        {"value":"ExclusiveRightToSell","label":"Exclusive Right to Sell"},
+        {"value":"ExclusiveAgency","label":"Exclusive Agency"},
+        {"value":"ExclusiveRightWithException","label":"Exclusive w/ Exception"},
+        {"value":"CoExclusive","label":"Co-Exclusive"}
+      ],
+      "specialFilters": [
+        {"value":"OwnOffice","label":"In-House (Company)","rlsField":"ListOfficeMlsId"},
+        {"value":"false","label":"RLS: Private Owner Opt-Out","rlsField":"InternetEntireListingDisplayYN"},
+        {"value":"true","label":"RLS: Private Participant Only","rlsField":"RLSParticipantOnly"}
+      ]
+    },
+
+    "status": {
+      "rlsField": "StandardStatus",
+      "subStatusField": "MlsStatus",
+      "sale": [
+        {"value":"Active","label":"Active","color":"blue","default":true},
+        {"value":"Active","subStatus":"BackOnMarket","label":"Back On Market"},
+        {"value":"ComingSoon","label":"Coming Soon"},
+        {"value":"Incomplete","subStatus":"Future","label":"Future"},
+        {"value":"Pending","label":"Offer","expandable":true,"children":[
+          {"value":"Pending","subStatus":"OfferOut","label":"Offer Out"},
+          {"value":"Pending","subStatus":"OfferThruUs","label":"Offer Thru Us"},
+          {"value":"Pending","subStatus":"OfferAccepted","label":"Offer Accepted"},
+          {"value":"Pending","subStatus":"OfferAcceptedThruUs","label":"Offer Accepted Thru Us"}
+        ]},
+        {"value":"Pending","label":"Contract","color":"purple","expandable":true,"children":[
+          {"value":"Pending","subStatus":"ContractOut","label":"Contract Out"},
+          {"value":"Pending","subStatus":"ContractOutThruUs","label":"Contract Out Thru Us"},
+          {"value":"Pending","subStatus":"AllContractSigned","label":"All Contract Signed"},
+          {"value":"Pending","subStatus":"ContractSigned","label":"Contract Signed"},
+          {"value":"Pending","subStatus":"ContractSignedThruUs","label":"Contract Signed Thru Us"}
+        ]},
+        {"value":"Pending","subStatus":"BoardApproved","label":"Board Approved"},
+        {"value":"Closed","label":"Sold","color":"green","expandable":true,"children":[
+          {"value":"Closed","label":"All Sold"},
+          {"value":"Closed","subStatus":"Sold","label":"Sold"},
+          {"value":"Closed","subStatus":"SoldThruUs","label":"Sold Thru Us"},
+          {"value":"Closed","subStatus":"ACRISVerified","label":"ACRIS Verified"},
+          {"value":"Closed","subStatus":"Financed","label":"Financed"},
+          {"value":"Closed","subStatus":"NoFinancing","label":"No Financing"},
+          {"value":"Closed","subStatus":"NominalSales","label":"Nominal Sales"},
+          {"value":"Closed","subStatus":"OtherACRIS","label":"Other ACRIS"}
+        ]},
+        {"value":"Withdrawn,Canceled,Expired,Hold","label":"Not Active","expandable":true,"children":[
+          {"value":"Withdrawn,Canceled,Expired,Hold","label":"All Not Active"},
+          {"value":"Withdrawn","label":"Permanently Off"},
+          {"value":"Hold","label":"Temporarily Off"},
+          {"value":"Expired","label":"Expired"}
+        ]},
+        {"value":"ListedForRent","label":"Listed for Rent","separator":true}
+      ],
+      "rental": [
+        {"value":"Active","label":"All Active","default":true},
+        {"value":"Active","label":"Active"},
+        {"value":"Active","subStatus":"BackOnMarket","label":"Back On Market"},
+        {"value":"Pending","subStatus":"ApplicationIn","label":"Application In","color":"orange"},
+        {"value":"Pending","subStatus":"ApplicationAccepted","label":"Application Accepted"},
+        {"value":"Pending","subStatus":"LeaseOut","label":"Lease Out"},
+        {"value":"Pending","subStatus":"LeaseOutThruUs","label":"Lease Out Thru Us"},
+        {"value":"Pending","subStatus":"AppAcceptedThruUs","label":"App Accepted Thru Us"},
+        {"value":"Pending","subStatus":"AppInThruUs","label":"App In Thru Us"},
+        {"value":"Pending","subStatus":"AllLeaseSigned","label":"All Lease Signed","color":"purple"},
+        {"value":"Pending","subStatus":"LeaseSigned","label":"Lease Signed"},
+        {"value":"Pending","subStatus":"LeaseSignedThruUs","label":"Lease Signed Thru Us"},
+        {"value":"Pending","subStatus":"BoardApproved","label":"Board Approved"},
+        {"value":"Closed","label":"All Rented","color":"green"},
+        {"value":"Closed","subStatus":"Rented","label":"Rented"},
+        {"value":"Closed","subStatus":"RentedThruUs","label":"Rented Thru Us"},
+        {"value":"Withdrawn,Canceled,Expired,Hold","label":"All Not Active"},
+        {"value":"Withdrawn","label":"Withdrawn"},
+        {"value":"Hold","label":"Hold"},
+        {"value":"Expired","label":"Expired"},
+        {"value":"Incomplete","subStatus":"Future","label":"Future"},
+        {"value":"AlsoForSale","label":"Include Also for Sale","separator":true}
+      ]
+    },
+
+    "attendedLobby": {
+      "type": "checkboxGroup", "rlsField": "AttendanceType", "logicToggle": true,
+      "options": [
+        {"value":"Any","label":"Any Attended"},
+        {"value":"DoormanYes","label":"Doorman (Any)","indent":1,"children":[
+          {"value":"DoormanFullTime","label":"Full-Time","indent":2},
+          {"value":"DoormanPartTime","label":"Part-Time","indent":2}
+        ]},
+        {"value":"VideoDoormanYes","label":"Video Doorman"},
+        {"value":"ConciergeYes","label":"Concierge (Any)","children":[
+          {"value":"ConciergeFullTime","label":"Full-Time","indent":2},
+          {"value":"ConciergePartTime","label":"Part-Time","indent":2}
+        ]},
+        {"value":"ElevatorAttendanceYes","label":"Elevator Attendant"},
+        {"value":"LobbyAttendantYes","label":"Lobby Attendant"},
+        {"value":"None","label":"Unattended"}
+      ]
+    },
+
+    "buildingFeatures": {
+      "type": "checkboxGroup", "rlsField": "BuildingFeatures",
+      "options": [
+        {"value":"true","label":"Cooling","rlsField":"CoolingYN"},
+        {"value":"Storage","label":"Storage","rlsField":"BuildingFeatures"},
+        {"value":"FitnessCenter,HealthClub","label":"Health Club/Fitness","rlsField":"BuildingFeatures"},
+        {"value":"WheelchairAccessible","label":"Wheelchair Accessible","rlsField":"AccessibilityFeatures"},
+        {"value":"Any","label":"Laundry Facilities","rlsField":"BuildingLaundryFeatures"},
+        {"value":"Elevators","label":"Elevator","rlsField":"BuildingFeatures"}
+      ]
+    },
+
+    "buildingPeriod": {
+      "type": "checkboxGroup", "rlsField": "YearBuilt",
+      "options": [
+        {"value":"lte:1946","label":"Pre-War"},
+        {"value":"gte:1947","label":"Post-War"}
+      ]
+    },
+
+    "buildingInfo": {
+      "yearBuilt": {
+        "min": { "label": "Min Year Built", "type": "select", "rlsField": "YearBuilt",
+          "saleId": "saleBuildingMinYear", "rentalId": "rentalBuildingMinYear", "buildingId": "buildingMinYear" },
+        "max": { "label": "Max Year Built", "type": "select", "rlsField": "YearBuilt",
+          "saleId": "saleBuildingMaxYear", "rentalId": "rentalBuildingMaxYear", "buildingId": "buildingMaxYear" }
+      },
+      "units": {
+        "min": { "label": "Min Units", "type": "select", "rlsField": "NumUnits",
+          "saleId": "saleBuildingMinUnits", "rentalId": "rentalBuildingMinUnits", "buildingId": "buildingMinUnits" },
+        "max": { "label": "Max Units", "type": "select", "rlsField": "NumUnits",
+          "saleId": "saleBuildingMaxUnits", "rentalId": "rentalBuildingMaxUnits", "buildingId": "buildingMaxUnits" }
+      },
+      "floors": {
+        "min": { "label": "Min Floors", "type": "select", "rlsField": "NumFloors",
+          "saleId": "saleBuildingMinFloors", "rentalId": "rentalBuildingMinFloors", "buildingId": "buildingMinFloors" },
+        "max": { "label": "Max Floors", "type": "select", "rlsField": "NumFloors",
+          "saleId": "saleBuildingMaxFloors", "rentalId": "rentalBuildingMaxFloors", "buildingId": "buildingMaxFloors" }
+      },
+      "financing": {
+        "min": { "label": "Min % Financing", "type": "text", "rlsField": "FinancingAvailablePercent",
+          "saleId": "saleBuildingFinancingMin", "rentalId": "rentalBuildingFinancingMin" },
+        "max": { "label": "Max % Financing", "type": "text", "rlsField": "FinancingAvailablePercent",
+          "saleId": "saleBuildingFinancingMax", "rentalId": "rentalBuildingFinancingMax" }
+      }
+    },
+
+    "keywords": {
+      "label": "Keywords", "type": "text", "rlsField": "PublicRemarks",
+      "saleId": "saleKeywordSearch", "rentalId": "rentalKeywordSearch"
+    },
+
+    "managementCompany": {
+      "label": "Management Company / Owner / Landlord", "type": "text",
+      "rlsField": "ManagingAgentCompanyName",
+      "saleId": "saleManagementCompany", "rentalId": "rentalManagementCompany"
+    },
+
+    "transit": {
+      "type": "buttonGroup",
+      "subwayLines": [
+        {"line":"1","color":"#EE352E","group":"IRT"},{"line":"2","color":"#EE352E","group":"IRT"},{"line":"3","color":"#EE352E","group":"IRT"},
+        {"line":"4","color":"#00933C","group":"IRT"},{"line":"5","color":"#00933C","group":"IRT"},{"line":"6","color":"#00933C","group":"IRT"},
+        {"line":"7","color":"#B933AD","group":"IRT"},
+        {"line":"A","color":"#2850AD","group":"IND"},{"line":"C","color":"#2850AD","group":"IND"},{"line":"E","color":"#2850AD","group":"IND"},
+        {"line":"B","color":"#FF6319","group":"IND"},{"line":"D","color":"#FF6319","group":"IND"},{"line":"F","color":"#FF6319","group":"IND"},{"line":"M","color":"#FF6319","group":"IND"},
+        {"line":"N","color":"#FCCC0A","group":"BMT","textColor":"#000"},{"line":"Q","color":"#FCCC0A","group":"BMT","textColor":"#000"},{"line":"R","color":"#FCCC0A","group":"BMT","textColor":"#000"},{"line":"W","color":"#FCCC0A","group":"BMT","textColor":"#000"},
+        {"line":"G","color":"#6CBE45","group":"IND"},
+        {"line":"J","color":"#996633","group":"BMT"},{"line":"Z","color":"#996633","group":"BMT"},
+        {"line":"L","color":"#A7A9AC","group":"BMT"},
+        {"line":"S","color":"#808183","group":"Shuttle"}
+      ],
+      "otherTransit": [
+        {"value":"LIRR","label":"LIRR"},
+        {"value":"Ferry","label":"Ferry"},
+        {"value":"Bus","label":"Bus"}
+      ]
+    },
+
+    "neighborhoods": {
+      "type": "hierarchicalCheckboxTree",
+      "rlsField": "CityRegion",
+      "boroughs": {
+        "Manhattan": { "count": 33, "neighborhoods": [
+          "Battery Park City","Chelsea","Chinatown","Civic Center","East Harlem","East Village",
+          "Financial District","Flatiron","Fort George","Gramercy","Greenwich Village","Hamilton Heights",
+          "Harlem","Hell's Kitchen","Hudson Yards","Inwood","Kips Bay","Lenox Hill","Lincoln Square",
+          "Little Italy","Lower East Side","Manhattan Valley","Midtown","Morningside Heights","Murray Hill",
+          "NoHo","Nolita","Roosevelt Island","SoHo","Sugar Hill","Tribeca","Upper East Side","Upper West Side",
+          "Washington Heights","West Village","Yorkville"
+        ]},
+        "Brooklyn": { "count": 10, "neighborhoods": [
+          "Bay Ridge","Bushwick","Carroll Gardens","Clinton Hill","Cobble Hill","DUMBO",
+          "Fort Greene","Greenpoint","Park Slope","Williamsburg"
+        ]},
+        "Queens": { "count": 7, "neighborhoods": [
+          "Astoria","Forest Hills","Jackson Heights","Long Island City","Rego Park","Ridgewood","Sunnyside"
+        ]},
+        "Bronx": { "count": 5, "neighborhoods": [
+          "Pelham Bay","Riverdale","Throggs Neck","University Heights","Woodlawn"
+        ]},
+        "Staten Island": { "count": 4, "neighborhoods": [
+          "Great Kills","New Dorp","St. George","Tottenville"
+        ]}
+      }
+    },
+
+    "outdoorSpace": {
+      "type": "checkboxGroup", "logicToggle": true, "rlsField": "PatioAndPorchFeatures",
+      "options": [
+        {"value":"Any","label":"Any"},{"value":"None","label":"None"},
+        {"value":"Balcony","label":"Balcony"},{"value":"Deck","label":"Deck"},
+        {"value":"Garden","label":"Garden"},{"value":"Greenhouse","label":"Greenhouse"},
+        {"value":"Patio","label":"Patio"},{"value":"PrivateRoofAccess","label":"Private Roof Access"},
+        {"value":"RoofDeck","label":"Roof Deck"},{"value":"RoofRights","label":"Roof Rights"},
+        {"value":"Terrace","label":"Terrace"}
+      ]
+    }
+  },
+
+  "advancedSearch": {
+    "sections": [
+      {
+        "id": "listingIdZipAddress",
+        "label": "Listing ID / Zip / Address",
+        "icon": "fa-search",
+        "defaultExpanded": true,
+        "fields": ["quickSearch.rlsId", "quickSearch.zip", "quickSearch.address", "quickSearch.unit"],
+        "note": "Supports multi-row (add rows) for multiple addresses"
+      },
+      {
+        "id": "location",
+        "label": "Location",
+        "icon": "fa-map-marker-alt",
+        "fields": ["neighborhoods"],
+        "mapButton": { "handler": "openNeighborhoodMap()", "label": "Select on Map" },
+        "manhattanGrid": {
+          "rlsField": "UnparsedAddress",
+          "streets": {
+            "north": { "label": "North Street", "type": "select", "options": ["110th","96th","86th","79th","72nd","59th","42nd","34th","23rd","14th","Houston"] },
+            "south": { "label": "South Street", "type": "select", "options": ["96th","86th","79th","72nd","59th","42nd","34th","23rd","14th","Houston","Canal"] },
+            "east": { "label": "East of", "type": "select", "options": ["5th Ave","Park Ave","Lexington Ave","3rd Ave","2nd Ave","1st Ave","FDR Drive"] },
+            "west": { "label": "West of", "type": "select", "options": ["5th Ave","Broadway","7th Ave","8th Ave","9th Ave","10th Ave","West Side Highway"] }
+          }
+        }
+      },
+      {
+        "id": "priceRooms",
+        "label": "Price / Rooms",
+        "icon": "fa-dollar-sign",
+        "fields": ["price", "bedrooms", "bathrooms", "rooms", "sqft"]
+      },
+      {
+        "id": "statusActivity",
+        "label": "Status / Activity",
+        "icon": "fa-clipboard-list",
+        "fields": ["status", "listingActivity"]
+      },
+      {
+        "id": "ownershipListingType",
+        "label": "Ownership / Listing Type",
+        "icon": "fa-file-contract",
+        "fields": ["ownership", "listingType"]
+      },
+      {
+        "id": "unitInteriorFeatures",
+        "label": "Unit / Interior Features",
+        "icon": "fa-couch",
+        "rlsField": "InteriorFeatures",
+        "fields": [
+          {"value":"Fireplace","label":"Fireplace","rlsField":"FireplacesTotal"},
+          {"value":"WasherDryer","label":"Washer/Dryer","rlsField":"LaundryFeatures"},
+          {"value":"WasherDryerHookup","label":"W/D Hookup","rlsField":"LaundryFeatures"},
+          {"value":"Dishwasher","label":"Dishwasher","rlsField":"Appliances"},
+          {"value":"CentralAir","label":"Central Air","rlsField":"CoolingYN"},
+          {"value":"HardwoodFloors","label":"Hardwood Floors","rlsField":"Flooring"},
+          {"value":"HighCeilings","label":"High Ceilings","rlsField":"InteriorFeatures"},
+          {"value":"ExposedBrick","label":"Exposed Brick","rlsField":"InteriorFeatures"},
+          {"value":"OpenKitchen","label":"Open Kitchen","rlsField":"InteriorFeatures"},
+          {"value":"WalkInCloset","label":"Walk-In Closet","rlsField":"InteriorFeatures"},
+          {"value":"HomeOffice","label":"Home Office","rlsField":"InteriorFeatures"},
+          {"value":"Loft","label":"Loft","rlsField":"InteriorFeatures"},
+          {"value":"Duplex","label":"Duplex","rlsField":"InteriorFeatures"},
+          {"value":"WetBar","label":"Wet Bar","rlsField":"InteriorFeatures"}
+        ]
+      },
+      {
+        "id": "buildingAmenities",
+        "label": "Building Amenities",
+        "icon": "fa-building",
+        "fields": [
+          {"value":"Pool","label":"Pool","rlsField":"PoolFeatures"},
+          {"value":"Gym","label":"Gym/Fitness Center","rlsField":"BuildingFeatures"},
+          {"value":"Garage","label":"Garage/Parking","rlsField":"ParkingFeatures"},
+          {"value":"BikeRoom","label":"Bike Room","rlsField":"BuildingFeatures"},
+          {"value":"PackageRoom","label":"Package Room","rlsField":"BuildingFeatures"},
+          {"value":"Storage","label":"Storage","rlsField":"BuildingFeatures"},
+          {"value":"Laundry","label":"Laundry in Building","rlsField":"BuildingLaundryFeatures"},
+          {"value":"RoofDeck","label":"Roof Deck","rlsField":"BuildingFeatures"},
+          {"value":"Garden","label":"Garden/Courtyard","rlsField":"BuildingFeatures"},
+          {"value":"Playground","label":"Playground","rlsField":"BuildingFeatures"},
+          {"value":"ConciergeService","label":"Concierge Service","rlsField":"AttendanceType"},
+          {"value":"LiveInSuper","label":"Live-In Super","rlsField":"BuildingFeatures"},
+          {"value":"ColdStorage","label":"Cold Storage","rlsField":"BuildingFeatures"},
+          {"value":"PetGrooming","label":"Pet Grooming","rlsField":"BuildingFeatures"},
+          {"value":"ChildrensPlayroom","label":"Children's Playroom","rlsField":"BuildingFeatures"}
+        ]
+      },
+      {
+        "id": "attendedLobby",
+        "label": "Attended Lobby / Doorman",
+        "icon": "fa-concierge-bell",
+        "fields": ["attendedLobby"]
+      },
+      {
+        "id": "outdoorSpaceViews",
+        "label": "Outdoor Space / Views",
+        "icon": "fa-tree",
+        "fields": [
+          "outdoorSpace",
+          {"type":"checkboxGroup","label":"Views","rlsField":"View",
+            "options": [
+              {"value":"CityView","label":"City"},{"value":"ParkView","label":"Park"},
+              {"value":"WaterView","label":"Water"},{"value":"BridgeView","label":"Bridge"},
+              {"value":"SkylineView","label":"Skyline"},{"value":"GardenView","label":"Garden"},
+              {"value":"OpenView","label":"Open"}
+            ]
+          }
+        ]
+      },
+      {
+        "id": "townhouseFeatures",
+        "label": "Townhouse Features",
+        "icon": "fa-home",
+        "showWhen": "ownershipIncludesTownhouse",
+        "fields": [
+          {"value":"GardenLevel","label":"Garden Level","rlsField":"InteriorFeatures"},
+          {"value":"PrivateGarage","label":"Private Garage","rlsField":"ParkingFeatures"},
+          {"value":"PrivateGarden","label":"Private Garden","rlsField":"PatioAndPorchFeatures"},
+          {"value":"RoofDeck","label":"Roof Deck","rlsField":"PatioAndPorchFeatures"},
+          {"value":"Brownstone","label":"Brownstone","rlsField":"ArchitecturalStyle"},
+          {"value":"Limestone","label":"Limestone","rlsField":"ArchitecturalStyle"},
+          {"value":"TownhouseWithBasement","label":"Finished Basement","rlsField":"Basement"}
+        ]
+      },
+      {
+        "id": "petPolicy",
+        "label": "Pet Policy",
+        "icon": "fa-paw",
+        "rlsField": "PetsAllowed",
+        "fields": [
+          {"value":"true","label":"Pets Allowed"},
+          {"value":"Dogs","label":"Dogs Allowed"},
+          {"value":"Cats","label":"Cats Allowed"},
+          {"value":"SmallPets","label":"Small Pets Only"},
+          {"value":"NoPets","label":"No Pets"},
+          {"value":"CaseByCase","label":"Case by Case"}
+        ]
+      },
+      {
+        "id": "floorLevel",
+        "label": "Floor Level",
+        "icon": "fa-layer-group",
+        "fields": {
+          "min": {"label":"Min Floor","type":"select","rlsField":"ListingFloorNumber",
+            "options": [{"value":"","label":"Any"},{"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3+"},{"value":"5","label":"5+"},{"value":"10","label":"10+"},{"value":"20","label":"20+"},{"value":"30","label":"30+"},{"value":"40","label":"40+"},{"value":"50","label":"50+"}]},
+          "max": {"label":"Max Floor","type":"select","rlsField":"ListingFloorNumber",
+            "options": [{"value":"","label":"Any"},{"value":"5","label":"5"},{"value":"10","label":"10"},{"value":"20","label":"20"},{"value":"30","label":"30"},{"value":"40","label":"40"},{"value":"50","label":"50"},{"value":"100","label":"100+"}]}
+        }
+      },
+      {
+        "id": "financialDetails",
+        "label": "Financial Details",
+        "icon": "fa-calculator",
+        "saleOnly": true,
+        "fields": {
+          "maintenance": {
+            "min": {"label":"Min Maintenance/CC","type":"text","rlsField":"AssociationFee"},
+            "max": {"label":"Max Maintenance/CC","type":"text","rlsField":"AssociationFee"}
+          },
+          "taxes": {
+            "min": {"label":"Min Taxes","type":"text","rlsField":"TaxAnnualAmount"},
+            "max": {"label":"Max Taxes","type":"text","rlsField":"TaxAnnualAmount"}
+          },
+          "ppsf": {
+            "min": {"label":"Min $/SF","type":"text","rlsField":"ListPrice","computed":"ListPrice/LivingArea"},
+            "max": {"label":"Max $/SF","type":"text","rlsField":"ListPrice","computed":"ListPrice/LivingArea"}
+          },
+          "taxAbatement": {"label":"Tax Abatement","type":"checkbox","rlsField":"TaxAbatement"},
+          "starExemption": {"label":"STAR Exemption","type":"checkbox","rlsField":"TaxExemptions"}
+        }
+      },
+      {
+        "id": "listingHistoryDOM",
+        "label": "Listing History / Days on Market",
+        "icon": "fa-history",
+        "fields": {
+          "dom": {
+            "min": {"label":"Min DOM","type":"text","rlsField":"DaysOnMarket"},
+            "max": {"label":"Max DOM","type":"text","rlsField":"DaysOnMarket"}
+          },
+          "cdom": {
+            "min": {"label":"Min Cumulative DOM","type":"text","rlsField":"CumulativeDaysOnMarket"},
+            "max": {"label":"Max Cumulative DOM","type":"text","rlsField":"CumulativeDaysOnMarket"}
+          },
+          "priceChange": {"label":"Price Changed","type":"checkbox","rlsField":"PriceChangeTimestamp"},
+          "priceReduced": {"label":"Price Reduced","type":"checkbox","rlsField":"ListPrice"},
+          "newDevelopment": {"label":"New Development","type":"checkbox","rlsField":"NewDevelopmentYN"}
+        }
+      },
+      {
+        "id": "openHouses",
+        "label": "Open Houses",
+        "icon": "fa-door-open",
+        "fields": {
+          "hasOpenHouse": {"label":"Has Scheduled Open House","type":"checkbox","rlsField":"OpenHouseCount"},
+          "openHouseDateRange": {"label":"Open House Date Range","type":"dateRange","rlsField":"OpenHouseDate"},
+          "virtualOpenHouse": {"label":"Virtual Open House","type":"checkbox","rlsField":"OpenHouseType"}
+        }
+      },
+      {
+        "id": "brokerageAgent",
+        "label": "Brokerage / Agent",
+        "icon": "fa-user-tie",
+        "fields": {
+          "listingOfficeName": {"label":"Listing Office","type":"text","rlsField":"ListOfficeName"},
+          "listingAgentName": {"label":"Listing Agent","type":"text","rlsField":"ListAgentFullName"},
+          "coListOfficeName": {"label":"Co-List Office","type":"text","rlsField":"CoListOfficeName"},
+          "coListAgentName": {"label":"Co-List Agent","type":"text","rlsField":"CoListAgentFullName"}
+        }
+      },
+      {
+        "id": "furnishedOptions",
+        "label": "Furnished Options",
+        "icon": "fa-chair",
+        "showWhen": "rentalMode",
+        "rlsField": "Furnished",
+        "fields": [
+          {"value":"Furnished","label":"Furnished"},
+          {"value":"Unfurnished","label":"Unfurnished"},
+          {"value":"PartiallyFurnished","label":"Partially Furnished"},
+          {"value":"FurnishedOrUnfurnished","label":"Either (Furnished or Not)"}
+        ]
+      },
+      {
+        "id": "leaseDetails",
+        "label": "Lease Details",
+        "icon": "fa-file-signature",
+        "showWhen": "rentalMode",
+        "fields": {
+          "leaseTermMin": {"label":"Min Lease Term (months)","type":"select","rlsField":"LeaseTerm",
+            "options": [{"value":"","label":"Any"},{"value":"1","label":"1"},{"value":"3","label":"3"},{"value":"6","label":"6"},{"value":"12","label":"12"},{"value":"24","label":"24"}]},
+          "availableDate": {"label":"Available From","type":"dateRange","rlsField":"AvailabilityDate"},
+          "moveInCosts": {"label":"Move-In Costs","type":"text","rlsField":"MoveInCosts","note":"FARE Act fee fields not yet live in RLS — interim via MoveInCosts + PublicRemarks"}
+        }
+      },
+      {
+        "id": "buildingInfoAdvanced",
+        "label": "Building Information",
+        "icon": "fa-building",
+        "fields": ["buildingInfo", "buildingPeriod", "buildingFeatures"]
+      },
+      {
+        "id": "keywordsManagement",
+        "label": "Keywords / Management Company",
+        "icon": "fa-search",
+        "fields": ["keywords", "managementCompany"]
+      }
+    ]
+  },
+
+  "map": {
+    "provider": "MapLibre GL",
+    "version": "4.7.1",
+    "tileSource": "OpenFreeMap",
+    "styles": {
+      "positron": "https://tiles.openfreemap.org/styles/positron",
+      "bright": "https://tiles.openfreemap.org/styles/bright",
+      "liberty": "https://tiles.openfreemap.org/styles/liberty"
+    },
+    "defaultCenter": [-73.97, 40.78],
+    "defaultZoom": 11,
+    "geoData": {
+      "polygons": "geo/rls-neighborhoods.v1.min.geojson",
+      "centroids": "geo/rls-neighborhood-centroids.v1.json",
+      "aliases": "geo/neighborhood-aliases.json"
+    },
+    "neighborhoods": {
+      "totalPolygons": 59,
+      "totalAliases": 593,
+      "boroughs": ["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island"],
+      "aliasExamples": {
+        "FiDi": "Financial District",
+        "UES": "Upper East Side",
+        "LIC": "Long Island City",
+        "Bed-Stuy": "Bedford-Stuyvesant",
+        "Clinton": "Hell's Kitchen"
+      }
+    },
+    "layers": {
+      "fill": { "color": "rgba(184,134,11,0.15)", "hoverColor": "rgba(184,134,11,0.35)", "selectedColor": "rgba(184,134,11,0.50)" },
+      "stroke": { "color": "rgba(184,134,11,0.6)", "width": 1.5 },
+      "labels": { "field": "name", "size": 12, "haloColor": "white", "haloWidth": 1 }
+    },
+    "interaction": {
+      "click": "toggleNeighborhoodSelection",
+      "hover": "highlightPolygon",
+      "featureState": "selected (boolean)"
+    },
+    "listingPins": {
+      "sale": { "color": "#0A0A0A", "labelField": "ListPrice" },
+      "rental": { "color": "#16a34a", "labelField": "LeaseAmount" },
+      "comingSoon": { "color": "#B8860B", "labelField": "ListPrice" }
+    },
+    "controls": ["NavigationControl", "GeolocateControl", "StyleSwitcher"]
+  },
+
+  "comparables": {
+    "layers": {
+      "subjectProperty": {
+        "pageId": "subjectPropertyPage",
+        "label": "Subject Property",
+        "description": "Search comps based on a single specific property",
+        "fields": ["address"],
+        "resultsId": "compPropertyResults"
+      },
+      "subjectBuildings": {
+        "pageId": "subjectBuildingsPage",
+        "label": "Subject Buildings",
+        "description": "Search comps based on entire building with unit-level filtering",
+        "fields": ["address","price","bedrooms","bathrooms","sqft","status","dateRanges"],
+        "resultsId": "compBuildingResults",
+        "specialFlags": [
+          {"value":"includeNoSqft","label":"Include listings with no SqFt","rlsField":"LivingArea"},
+          {"value":"acrisVerifiedOnly","label":"Verified ACRIS Sales Only","rlsField":"MlsStatus"},
+          {"value":"financedDeals","label":"Financed Deals","rlsField":"MlsStatus"},
+          {"value":"noFinancing","label":"Deals Without Financing","rlsField":"MlsStatus"},
+          {"value":"nominalSales","label":"Include Nominal Sales","rlsField":"MlsStatus"},
+          {"value":"otherAcris","label":"Include Other ACRIS Records","rlsField":"MlsStatus"}
+        ]
+      },
+      "generalCriteria": {
+        "pageId": "generalCriteriaPage",
+        "label": "General Criteria",
+        "description": "Freeform search using custom criteria",
+        "fields": ["neighborhoods","transit","price","ownership","bedrooms","bathrooms","sqft","apartmentType","status","outdoorSpace","dateRanges"],
+        "resultsId": "compGeneralResults",
+        "apartmentType": [
+          {"value":"Residential","label":"Residential","rlsField":"PropertyType"},
+          {"value":"Commercial","label":"Commercial","rlsField":"PropertyType"},
+          {"value":"Professional","label":"Professional","rlsField":"PropertyType"},
+          {"value":"Investment","label":"Investment","rlsField":"PropertyType"}
+        ]
+      }
+    },
+    "dateRanges": {
+      "sale": [
+        {"id":"onMarket","label":"On Market","defaultDays":90,"rlsField":"OnMarketDate"},
+        {"id":"inContract","label":"In Contract","defaultDays":90,"rlsField":"ContractDate"},
+        {"id":"sold","label":"Sold","defaultDays":60,"rlsField":"CloseDate"}
+      ],
+      "rental": [
+        {"id":"onMarket","label":"On Market","defaultDays":90,"rlsField":"OnMarketDate"},
+        {"id":"leased","label":"Leased","defaultDays":90,"rlsField":"ContractDate"},
+        {"id":"rented","label":"Rented","defaultDays":90,"rlsField":"CloseDate"}
+      ]
+    }
+  },
+
+  "viewModes": [
+    {"id":"gallery","label":"Grid","icon":"fa-th-large","description":"Card grid with photos"},
+    {"id":"grid","label":"List","icon":"fa-list","description":"Compact row list"},
+    {"id":"shortSummary","label":"Short Summary","icon":"fa-align-left","description":"Single-line summaries"},
+    {"id":"summary","label":"Summary","icon":"fa-bars","description":"Multi-line property info"},
+    {"id":"masterDetail","label":"Master Details","icon":"fa-columns","description":"Split view with detail panel"}
+  ],
+
+  "toolbar": {
+    "flagFilters": [
+      {"id":"filterBtn_picked","label":"Picked","icon":"fa-check-circle","color":"green","handler":"togglePickedFilter()"},
+      {"id":"filterBtn_liked","label":"Liked","icon":"fa-thumbs-up","color":"blue","handler":"toggleLikedFilter()"},
+      {"id":"filterBtn_disliked","label":"Disliked","icon":"fa-thumbs-down","color":"red","handler":"toggleDislikedFilter()"},
+      {"id":"filterBtn_shown","label":"Shown","icon":"fa-eye","color":"orange","handler":"toggleShownFilter()"},
+      {"id":"filterBtn_emailed","label":"Emailed","icon":"fa-envelope","color":"purple","handler":"toggleEmailedFilter()"}
+    ],
+    "flagBehavior": "If listings selected: toggle flag on ALL selected. If no selection: toggle filter view.",
+    "flagStorage": "localStorage: listingFlags_{LOGGED_IN_AGENT.id}",
+    "sort": {
+      "handler": "setSortField(field)",
+      "fields": [
+        {"id":"price","label":"Price","rlsField":"ListPrice"},
+        {"id":"address","label":"Address","rlsField":"UnparsedAddress"},
+        {"id":"dom","label":"Days on Market","rlsField":"DaysOnMarket"},
+        {"id":"listedDate","label":"Listed Date","rlsField":"OnMarketDate"},
+        {"id":"beds","label":"Bedrooms","rlsField":"BedroomsTotal"},
+        {"id":"intSqft","label":"Square Feet","rlsField":"LivingArea"}
+      ]
+    },
+    "utility": [
+      {"handler":"openGridLayoutsModal()","icon":"fa-sliders-h","label":"Grid Layouts"},
+      {"handler":"openReportsModal()","icon":"fa-file-alt","label":"Reports"},
+      {"handler":"openSaveSearchModal()","icon":"fa-bookmark","label":"Save Search"},
+      {"handler":"openFilterModal()","icon":"fa-filter","label":"Filter Results"},
+      {"handler":"openNeighborhoodMapForSearch()","icon":"fa-map-marked-alt","label":"Neighborhood Map"}
+    ],
+    "pagination": {
+      "perPageOptions": [25, 50, 100, 250],
+      "defaultPerPage": 25,
+      "handlers": {
+        "first": "goToFirstPage()",
+        "prev": "goToPrevPage()",
+        "next": "goToNextPage()",
+        "last": "goToLastPage()",
+        "changePerPage": "changePerPage()"
+      }
+    }
+  },
+
+  "selectionActions": {
+    "barId": "selectionActionBar",
+    "countBadgeId": "selectedCount",
+    "actions": [
+      {"handler":"openWorkWithSelected()","label":"Work With","icon":"fa-check-circle","color":"green"},
+      {"handler":"printListingSheet()","label":"Print","icon":"fa-print","color":"gray"},
+      {"handler":"emailListingSheet()","label":"Email","icon":"fa-envelope","color":"blue"},
+      {"handler":"removeFromResults()","label":"Remove","icon":"fa-times","color":"red"}
+    ]
+  },
+
+  "clientAssignment": {
+    "flow": "openWorkWithSelected() → selectClient(clientId) → saveSelectedToClient()",
+    "complianceGates": [
+      {"gate":"ownerOptOut","rlsField":"InternetEntireListingDisplayYN","rule":"BLOCK — never display"},
+      {"gate":"internetDisplay","rlsField":"IDXEntireListingDisplayYN","rule":"BLOCK — not displayable in IDX"}
+    ],
+    "portfolioStorage": "localStorage: clientPortfolio_{agentId}_{clientId}",
+    "clientFeedback": {
+      "statuses": ["new", "liked", "disliked", "viewed"],
+      "handler": "markClientFeedback(listingId, feedback)"
+    }
+  },
+
+  "dealPipeline": {
+    "handler": "updateDealStage(clientId, stage)",
+    "groups": [
+      {"name":"Discovery","color":"#3b82f6","stages":["new_lead","qualified","requirements_confirmed"]},
+      {"name":"Active Search","color":"#8b5cf6","stages":["searching","touring","shortlist"]},
+      {"name":"Deal Making","color":"#f59e0b","stages":["offer_prep","offer_submitted","negotiation"]},
+      {"name":"Closing","color":"#10b981","stages":["contract_signed","board_approval","closing"]}
+    ],
+    "stages": [
+      {"id":"new_lead","label":"New Lead"},
+      {"id":"qualified","label":"Qualified"},
+      {"id":"requirements_confirmed","label":"Req. Confirmed"},
+      {"id":"searching","label":"Searching"},
+      {"id":"touring","label":"Touring"},
+      {"id":"shortlist","label":"Shortlist"},
+      {"id":"offer_prep","label":"Offer Prep"},
+      {"id":"offer_submitted","label":"Offer Submitted"},
+      {"id":"negotiation","label":"Negotiation"},
+      {"id":"contract_signed","label":"Contract Signed"},
+      {"id":"board_approval","label":"Board Approval"},
+      {"id":"closing","label":"Closing"}
+    ]
+  },
+
+  "reports": {
+    "formats": [
+      {"id":"grid","label":"Grid","description":"Tabular data view with sortable columns"},
+      {"id":"summary","label":"Summary","description":"Key details per listing with photo"},
+      {"id":"detail","label":"Detail Sheet","description":"Full single-listing fact sheet"},
+      {"id":"comparison","label":"Comparison","description":"Side-by-side property comparison (max 6)"},
+      {"id":"factSheet","label":"Fact Sheet","description":"Print-ready one-pager with branding"},
+      {"id":"cma","label":"CMA","description":"Comparative Market Analysis with comps"},
+      {"id":"openHouse","label":"Open House","description":"Open house sign-in + property details"},
+      {"id":"images","label":"Images","description":"Photo gallery layout for printing"}
+    ],
+    "outputs": [
+      {"id":"print","label":"Print","icon":"fa-print"},
+      {"id":"email","label":"Email","icon":"fa-envelope"},
+      {"id":"csv","label":"CSV","icon":"fa-file-csv"},
+      {"id":"excel","label":"Excel","icon":"fa-file-excel"},
+      {"id":"share","label":"Share Link","icon":"fa-share-alt"}
+    ],
+    "compliance": {
+      "rebnyAttribution": "Required on all IDX/VOW displayed listings",
+      "updateTimestamp": "Required on all displayed data",
+      "fairHousing": "All report text scanned by Fair Housing compliance engine",
+      "addressSuppression": "InternetAddressDisplayYN=false → 'Address Upon Request'",
+      "agentPiiMasking": "Buyer/Tenant portal reports mask listing agent PII"
+    },
+    "branding": {
+      "companyName": "Mallan Real Estate Inc.",
+      "license": "#10991205323",
+      "address": "400 East 90th Street, Suite 17C, New York, NY 10128",
+      "phone": "646-258-4460",
+      "website": "mallan.nyc"
+    }
+  },
+
+  "collections": {
+    "storageKeys": {
+      "collections": "mallan_mock_collections_v1",
+      "activities": "mallan_mock_activities_v1",
+      "showings": "mallan_mock_showings_v1",
+      "threads": "mallan_mock_threads_v1",
+      "messages": "mallan_mock_messages_v1"
+    },
+    "activityTypes": [
+      "COLLECTION_CREATED","COLLECTION_SENT","COLLECTION_OPEN",
+      "LISTING_VIEW","LISTING_LIKE","LISTING_DISLIKE",
+      "REQUEST_INFO","REQUEST_SHOWING","MESSAGE_SENT","SHOWING_SCHEDULED"
+    ],
+    "clientFeedbackStatuses": ["UNDECIDED","LIKED","DISLIKED"],
+    "sanitizedFields": ["id","address","price","beds","baths","sqft","status","photo","propertyType","neighborhood","borough","listOfficeName"]
+  },
+
+  "distributionGates": [
+    {"gate":1,"name":"Owner Opt-Out","rlsField":"InternetEntireListingDisplayYN","rule":"NEVER display if false","severity":"critical"},
+    {"gate":2,"name":"Participant Only","rlsField":"RLSParticipantOnly","rule":"CRM only, NOT IDX/public","severity":"high"},
+    {"gate":3,"name":"IDX Display","rlsField":"IDXEntireListingDisplayYN","rule":"Context-aware: IDX vs VOW vs CRM","severity":"high"},
+    {"gate":4,"name":"Syndication","rlsField":"SyndicationOptOut","rule":"Badge only, no filter","severity":"low"},
+    {"gate":5,"name":"Coming Soon","rlsField":"StandardStatus","statusValue":"ComingSoon","rule":"Badge + disable showings","severity":"medium"},
+    {"gate":6,"name":"Closed Status","rlsField":"StandardStatus","statusValue":"Closed","rule":"Suppress after 24 hours per REBNY","severity":"medium"}
+  ],
+
+  "financialCalculators": [
+    {"id":"mortgage","label":"Mortgage","fields":["ListPrice","AssociationFee"]},
+    {"id":"closingCosts","label":"Closing Costs","fields":["ListPrice","CommonInterest"]},
+    {"id":"cashOnCash","label":"Cash on Cash","fields":["ListPrice","LeaseAmount"]},
+    {"id":"roi","label":"ROI","fields":["ListPrice","ClosePrice"]},
+    {"id":"rentVsBuy","label":"Rent vs Buy","fields":["ListPrice","LeaseAmount"]},
+    {"id":"buyVsSell","label":"Buy vs Sell","fields":["ListPrice","ClosePrice","TaxAnnualAmount"]}
+  ],
+
+  "trestleCompliance": {
+    "apiUrl": "api.cotality.com/trestle",
+    "oldUrls": ["api-trestle.corelogic.com", "api-prod.corelogic.com"],
+    "migrationDeadline": "2026-03-31",
+    "dataStandard": "RESO DD 2.0",
+    "lmp": "RealPlus",
+    "compensationFieldsRemoved": "2025-08-01",
+    "fareActFeeFields": "NOT LIVE — use MoveInCosts + PublicRemarks interim",
+    "cacheTTL": 300,
+    "mediaExpand": "$expand=Media",
+    "requiredFields": 41,
+    "conditionalFields": 86,
+    "totalFields": 448,
+    "picklistValues": 2066
+  }
+}

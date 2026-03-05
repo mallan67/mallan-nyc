@@ -55,3 +55,64 @@
                 if (hint) hint.textContent = '(Click to expand)';
             }
         }
+
+        // ═══ Open House Date Preset Buttons ═══
+        function setOpenHouseDatePreset(preset, drpId) {
+            var wrapper = document.querySelector('.drp-wrapper[data-drp="' + drpId + '"]');
+            if (!wrapper) return;
+
+            var today = new Date();
+            today.setHours(0,0,0,0);
+            var from = new Date(today);
+            var to = new Date(today);
+
+            if (preset === 'today') {
+                // from = to = today (already set)
+            } else if (preset === 'weekend') {
+                // Find next Saturday
+                var day = today.getDay();
+                var daysToSat = (6 - day + 7) % 7;
+                if (daysToSat === 0 && day === 0) daysToSat = 6; // Sunday → next Sat
+                if (day === 6) daysToSat = 0; // Already Saturday
+                from = new Date(today);
+                from.setDate(today.getDate() + daysToSat);
+                to = new Date(from);
+                to.setDate(from.getDate() + 1); // Sunday
+            } else if (preset === '7days') {
+                to.setDate(today.getDate() + 7);
+            } else if (preset === '30days') {
+                to.setDate(today.getDate() + 30);
+            }
+
+            // Store on wrapper
+            var fromStr = formatDateMDY(from);
+            var toStr = formatDateMDY(to);
+            wrapper.setAttribute('data-from', fromStr);
+            wrapper.setAttribute('data-to', toStr);
+
+            // Update trigger display
+            var textEl = wrapper.querySelector('.drp-text');
+            var clearBtn = wrapper.querySelector('.drp-clear');
+            if (textEl) {
+                textEl.textContent = fromStr + ' - ' + toStr;
+                textEl.classList.add('has-value');
+            }
+            if (clearBtn) clearBtn.style.display = '';
+
+            // Highlight the active preset button
+            var allBtns = document.querySelectorAll('.oh-preset[data-oh="' + drpId + '"]');
+            allBtns.forEach(function(b) {
+                b.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-700');
+            });
+            var clicked = event && event.target ? event.target.closest('.oh-preset') : null;
+            if (clicked) {
+                clicked.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-700');
+            }
+        }
+
+        function clearOpenHousePreset(drpId) {
+            var allBtns = document.querySelectorAll('.oh-preset[data-oh="' + drpId + '"]');
+            allBtns.forEach(function(b) {
+                b.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-700');
+            });
+        }

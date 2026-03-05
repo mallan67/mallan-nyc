@@ -30,7 +30,14 @@
   }
 
   function resolveGeoBase() {
-    var base = window.location.pathname.replace(/\/[^/]*$/, '');
+    var loc = window.location;
+    // file:// protocol: resolve relative to the HTML file's directory
+    if (loc.protocol === 'file:') {
+      var dir = loc.pathname.replace(/\/[^/]*$/, '');
+      // HTML is in public/crm/, geo is in public/geo/
+      return dir.replace(/\/crm\/?$/, '') + '/geo/';
+    }
+    var base = loc.pathname.replace(/\/[^/]*$/, '');
     return base.endsWith('/crm') ? '/geo/' : '../geo/';
   }
 
@@ -40,7 +47,7 @@
     liberty:  'https://tiles.openfreemap.org/styles/liberty',
   };
 
-  var GOLD = '#B8860B';
+  var GOLD = '#2563EB'; // blue-600 (was gold #B8860B)
 
   // ── Load MapLibre ──
 
@@ -86,6 +93,15 @@
 
   function loadGeoJSON(cb) {
     if (_geojsonData) { _dbg('GeoJSON cached (' + _geojsonData.features.length + ' features)'); return cb(_geojsonData); }
+
+    // Use embedded GeoJSON if available (works on file:// protocol)
+    if (window._EMBEDDED_GEOJSON && window._EMBEDDED_GEOJSON.features) {
+      _dbg('Using embedded GeoJSON (' + window._EMBEDDED_GEOJSON.features.length + ' features)');
+      _geojsonData = window._EMBEDDED_GEOJSON;
+      loadAliases(function () { cb(_geojsonData); });
+      return;
+    }
+
     var url = resolveGeoBase() + 'rls-neighborhoods.v1.min.geojson';
     _dbg('Fetching GeoJSON: ' + url);
     fetch(url)
@@ -247,9 +263,10 @@
 
   function initMap(geojson) {
     if (_map) {
-      _dbg('Map reused (already exists)');
-      rehydrateSelection();
-      return;
+      _dbg('Destroying old map for clean re-init');
+      try { _map.remove(); } catch (_) {}
+      _map = null;
+      _loaded = false;
     }
 
     var container = document.getElementById('nbMapContainer');
@@ -292,12 +309,20 @@
       addLayers(geojson);
     });
     _map.once('idle', function () {
-      if (!_loaded) {
+      if (!_map.getSource('nb-source')) {
         _dbg('Map idle (fallback) — adding layers');
         _loaded = true;
         addLayers(geojson);
       }
     });
+    // Extra fallback: if layers still missing after 3 seconds, force-add them
+    setTimeout(function () {
+      if (_map && !_map.getSource('nb-source')) {
+        _dbg('Timeout fallback — forcing layers');
+        _loaded = true;
+        addLayers(geojson);
+      }
+    }, 3000);
   }
 
   function addLayers(geojson) {
@@ -350,7 +375,7 @@
       _map.addLayer({
         id: 'nb-label', type: 'symbol', source: 'nb-source',
         layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false },
-        paint: { 'text-color': '#5a3800', 'text-halo-color': '#fff', 'text-halo-width': 2 },
+        paint: { 'text-color': '#1e3a5f', 'text-halo-color': '#fff', 'text-halo-width': 2 },
       });
 
       _dbg('Layers added OK (' + geojson.features.length + ' polygons)');

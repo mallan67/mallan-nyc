@@ -28,9 +28,18 @@
     // when restoring results/detail view on refresh. Prevents flash of search form.
     (function() {
         var h = location.hash.replace('#','').split('/')[0];
-        if (h === 'results' || h === 'detail') {
+        if (h === 'detail') {
             var s = document.createElement('style'); s.id = 'routeBlock'; s.textContent = '#searchFormContainer{display:none!important}'; document.head.appendChild(s);
         }
+        // Prevent flash of basic mode when user was in advanced mode
+        try {
+            var sm = sessionStorage.getItem('searchMode');
+            if (sm === 'advanced') {
+                var s2 = document.createElement('style'); s2.id = 'modeBlock';
+                s2.textContent = '#searchBasicMode,#searchBasicModeRental,#searchBasicModeBuilding{display:none!important}#searchAdvancedMode{display:block!important}#btnSearchBasic{background:transparent!important;color:rgb(107,114,128)!important}#btnSearchAdvanced{background:rgb(17,24,39)!important;color:white!important}#expandCollapseControls{display:flex!important}';
+                document.head.appendChild(s2);
+            }
+        } catch(e) {}
     })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
@@ -43,7 +52,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=Urbanist:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -55,6 +64,7 @@
     <link rel="stylesheet" href="css/modals.css">
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="stylesheet" href="css/print.css">
+    <link rel="stylesheet" href="css/liquid-theme.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
 
@@ -134,6 +144,7 @@ function toggleSection(header) {
 <script src="js/render/grid-layouts.js"></script>
 
 <!-- Neighborhood Map -->
+<script src="js/render/neighborhood-geodata.js"></script>
 <script src="js/render/neighborhood-map.js"></script>
 
 <!-- Print Helper (CSP-safe Blob URL) -->
@@ -148,6 +159,7 @@ function toggleSection(header) {
 <script src="js/search/pagination.js"></script>
 <script src="js/search/rent-vs-buy.js"></script>
 <script src="js/search/filter-modal.js"></script>
+<script src="js/search/neighborhood-autocomplete.js"></script>
 
 <!-- Listing: Flags, Toolbar -->
 <script src="js/listing/listing-flags.js"></script>

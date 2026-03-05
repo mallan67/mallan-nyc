@@ -4,6 +4,35 @@
    ═══════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════
+   FORM READABILITY — Increase font weight & darkness
+   ═══════════════════════════════════════════════════════ */
+
+/* Section headers (Quick Search, Price / Rooms, Status, etc.) */
+#searchFormContainer .border.rounded-lg > p:first-child {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+}
+
+/* Form labels inside search cards */
+#searchFormContainer label {
+    font-weight: 500;
+}
+
+/* Select dropdowns — slightly bolder */
+#searchFormContainer select,
+#searchFormContainer input[type="text"],
+#searchFormContainer input[type="number"] {
+    font-weight: 500;
+    color: #111827;
+}
+
+/* Status checkbox labels */
+#searchFormContainer .border.rounded-lg label {
+    font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════
    DATE RANGE PICKER — Dual-Month Calendar Popup
    ═══════════════════════════════════════════════════════ */
 .drp-wrapper { position: relative; display: inline-block; width: 100%; }
