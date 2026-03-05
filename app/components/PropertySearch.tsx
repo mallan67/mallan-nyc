@@ -65,7 +65,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     neighborhood: neighborhoodFilter || undefined,
     pets: petsAllowed === true ? true : undefined,
     sort: sortBy,
-    limit: 50,
+    limit: 100,
   });
 
   // Derive filter options from results

@@ -434,7 +434,7 @@
          * IDX response is already in CRM flat shape — push directly.
          */
         function _loadFromIDX() {
-            return MallanAPI.idx.search({ limit: 200 }).then(function(result) {
+            return MallanAPI.idx.search({ limit: 500 }).then(function(result) {
                 if (result.listings && result.listings.length > 0) {
                     _replaceListings(result.listings, 'IDX/Trestle');
                     // Show REBNY attribution

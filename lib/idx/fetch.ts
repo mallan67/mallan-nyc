@@ -11,7 +11,7 @@ function getPropertyEndpoint(): string {
   const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
   return `${base}/odata/Property`;
 }
-const MAX_PAGE_SIZE = 200;
+const MAX_PAGE_SIZE = 500;
 
 export interface TrestleFetchOptions {
   /** OData $filter expression (e.g., "StandardStatus eq 'Active'") */

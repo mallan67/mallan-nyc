@@ -15854,7 +15854,7 @@ function manageShowToast(msg) {
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            params.limit = 200;
+            params.limit = 500;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             MallanAPI.idx.search(params).then(function(result) {
@@ -18730,7 +18730,7 @@ function manageShowToast(msg) {
          * IDX response is already in CRM flat shape — push directly.
          */
         function _loadFromIDX() {
-            return MallanAPI.idx.search({ limit: 200 }).then(function(result) {
+            return MallanAPI.idx.search({ limit: 500 }).then(function(result) {
                 if (result.listings && result.listings.length > 0) {
                     _replaceListings(result.listings, 'IDX/Trestle');
                     // Show REBNY attribution
