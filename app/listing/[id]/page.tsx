@@ -201,8 +201,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
   // This handles old MLS-ID URLs and normalizes address slugs.
   // COMPLIANCE: The canonical slug already respects InternetAddressDisplayYN —
   // suppressed addresses get MLS-ID slugs, so no address leaks in redirects.
+  // Include ?key= so the target URL resolves via direct ListingId lookup (Strategy 1),
+  // avoiding fragile address-slug parsing on the destination.
   if (id !== listing.slug && !key) {
-    redirect(`/listing/${listing.slug}`);
+    redirect(`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`);
   }
 
   const isRental = listing.listingType === 'rent';
