@@ -7,8 +7,8 @@
 | | |
 |---|---|
 | **Status** | Active Development |
-| **Stage** | **MOCKUP / PROTOTYPE** |
-| **Type** | **Backend CRM** (internal broker/agent tool, NOT public-facing) |
+| **Stage** | **Live Production** (Next.js 16.1.6 on Vercel, real Trestle/IDX data) |
+| **Type** | **Full-Stack Platform** — public frontend (mallan.nyc) + backend CRM + API |
 | **Jurisdiction** | New York State / NYC |
 | **License Holder** | Mallan Real Estate Inc. |
 | **Brokerage License** | #10991205323 (Mallan Real Estate Inc. - company) |
@@ -49,27 +49,25 @@ The backend CRM supports 6 portal types, each with different access levels:
 
 ---
 
-## ⚠️ THIS IS A MOCKUP ONLY
+## Architecture
 
-> **THIS IS ONLY A MOCKUP/PROTOTYPE. NOT PRODUCTION CODE.**
+> **Live production site at mallan.nyc (Vercel, Next.js 16.1.6)**
 >
-> **Architecture:**
-> - **THIS FILE = BACKEND CRM** (internal broker/agent/client tool)
-> - **SEPARATE FRONT END exists** (public-facing website) - NOT in this file
-> - The backend CRM will connect to the front end when both are complete
+> **Components:**
+> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about)
+> - **Backend CRM** — `public/crm/` (static HTML files served same-origin on Vercel)
+> - **API layer** — `app/api/` (45+ endpoints: auth, CRM, portal, IDX, media)
+> - **Database** — PostgreSQL on Neon (Prisma ORM)
+> - **Media** — Trestle photos via server-side proxy + Cloudflare R2 for agent uploads
+>
+> **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Bearer fully removed.
+>
+> **Media proxy:** Trestle media URLs require Bearer auth. `/api/media/proxy` fetches server-side, CDN-cached 7 days.
 >
 > **Do NOT:**
-> - Treat this as a production application
-> - Begin backend/API development until the mockup is complete and approved
-> - Confuse this backend CRM with the public-facing front end
-> - Make changes outside the mockup file unless explicitly asked
-
-### Current Focus
-- Complete all UI components in HTML/Tailwind CSS
-- Ensure all interactions work (toggles, collapsibles, calculations)
-- Test responsive design across all breakpoints
-- Validate against compliance requirements
-- Fix all errors identified in evaluation before moving to production
+> - Confuse the public frontend with the backend CRM — they are different products for different users
+> - Expose Trestle/IDX credentials or tokens to the browser
+> - Make client-side calls to MLS/IDX APIs
 
 ---
 
@@ -161,7 +159,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 ## Data Source & RLS Feed
 
 - **Primary Feed:** REBNY RLS via Trestle (Cotality, formerly CoreLogic) — migrated Feb 2025 from Perchwell
-- **Trestle API:** `api.cotality.com/trestle` — hard deadline March 31, 2026 (old URLs deprecated)
+- **Trestle API:** `api.cotality.com/trestle` — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated, hard deadline March 31, 2026. Media proxy allowlists all 3 domains during transition.
 - **LMP:** RealPlus
 - **Total Fields:** 448 Property fields
 - **Picklist Values:** 2,066 lookup values
