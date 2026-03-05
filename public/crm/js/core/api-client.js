@@ -459,6 +459,7 @@ var MallanAPI = (function () {
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
       if (params.address) qs.push('address=' + encodeURIComponent(params.address));
+      if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);

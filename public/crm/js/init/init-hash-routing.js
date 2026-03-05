@@ -100,28 +100,68 @@
 
                 // Try immediately (data might already be loaded)
                 if (!_tryShowDetail()) {
-                    // Wait for data:ready event
-                    var _detailDataHandler = function() {
+                    // Strategy: try 3 paths in parallel
+                    // 1) Wait for bulk data:ready event (normal flow)
+                    // 2) Direct API fetch by lid (fast path for refresh)
+                    // 3) Safety timeout (fallback)
+                    var _detailResolved = false;
+
+                    function _markResolved() {
+                        if (_detailResolved) return true;
+                        _detailResolved = true;
                         window.removeEventListener('mallan:data:ready', _detailDataHandler);
-                        // Small delay to ensure mockListings is fully populated
+                        return false;
+                    }
+
+                    // Path 1: bulk data loads (search results arrive)
+                    var _detailDataHandler = function() {
+                        if (_detailResolved) return;
+                        window.removeEventListener('mallan:data:ready', _detailDataHandler);
                         setTimeout(function() {
-                            if (!_tryShowDetail()) {
-                                // Still not found — show error
-                                if (detailPage) {
-                                    detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Listing not found. It may no longer be active.</p><button onclick="window.close()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Close</button></div></div>';
-                                }
+                            if (!_detailResolved && _tryShowDetail()) {
+                                _detailResolved = true;
                             }
                         }, 100);
                     };
                     window.addEventListener('mallan:data:ready', _detailDataHandler);
 
-                    // Safety timeout — 15 seconds
+                    // Path 2: direct API fetch by lid (doesn't need bulk search)
+                    if (!isLegacyId && typeof MallanAPI !== 'undefined') {
+                        // lid-based URL — fetch this single listing directly
+                        MallanAPI.onReady(function() {
+                            if (_detailResolved) return;
+                            MallanAPI.idx.search({ listingId: detailId, limit: 1 }).then(function(result) {
+                                if (_detailResolved) return;
+                                if (result.listings && result.listings.length > 0) {
+                                    var fetched = result.listings[0];
+                                    // Add to mockListings so showListingDetail can find it
+                                    if (typeof mockListings !== 'undefined') {
+                                        // Assign a sequential id if missing
+                                        if (!fetched.id) fetched.id = mockListings.length + 1;
+                                        mockListings.push(fetched);
+                                    }
+                                    _markResolved();
+                                    showListingDetail(fetched.id);
+                                    _setupStandaloneDetail();
+                                }
+                            }).catch(function() { /* let other paths handle it */ });
+                        });
+                    } else if (isLegacyId && typeof MallanAPI !== 'undefined') {
+                        // Legacy sequential ID — we need to wait for bulk data
+                        // But also trigger the bulk load if it hasn't started
+                        MallanAPI.onReady(function() {
+                            // Bulk load will be triggered by mock-data.js MallanAPI.onReady
+                            // Just wait for mallan:data:ready event (Path 1)
+                        });
+                    }
+
+                    // Path 3: safety timeout — 10 seconds
                     setTimeout(function() {
-                        window.removeEventListener('mallan:data:ready', _detailDataHandler);
-                        if (!_tryShowDetail() && detailPage) {
+                        if (_markResolved()) return;
+                        if (detailPage) {
                             detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Unable to load listing. Please try again.</p><button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Retry</button></div></div>';
                         }
-                    }, 15000);
+                    }, 10000);
                 }
             }
 

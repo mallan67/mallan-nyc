@@ -223,6 +223,12 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`PropertySubType eq '${escapeOData(subType)}'`);
   }
 
+  // Single listing by ListingId (for detail page direct fetch)
+  const listingId = params.get("listingId");
+  if (listingId) {
+    parts.push(`ListingId eq '${escapeOData(listingId)}'`);
+  }
+
   return parts.join(" and ");
 }
 
