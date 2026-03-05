@@ -136,7 +136,9 @@ export default function middleware(req: NextRequest) {
   }
 
   // ── 3b. General rate limiting ──
-  const isApi = pathname.startsWith("/api");
+  // Exempt media proxy from API rate limit (50+ images per page load is normal)
+  const isMediaProxy = pathname === "/api/media/proxy";
+  const isApi = pathname.startsWith("/api") && !isMediaProxy;
   const limit = isApi ? API_RATE_LIMIT : GENERAL_RATE_LIMIT;
   const rateLimitKey = `${ip}:${isApi ? "api" : "page"}`;
 

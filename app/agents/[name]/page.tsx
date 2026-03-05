@@ -7,6 +7,7 @@ import Footer from '@/app/components/Footer';
 import listingsData from '@/data/listings.json';
 import agentsData from '@/data/agents.json';
 import type { Listing } from '@/lib/types/listing';
+import { generateListingSlug } from '@/lib/listing-slug';
 
 type Props = {
   params: Promise<{ name: string }>;
@@ -108,8 +109,22 @@ function ClosedListingCard({ listing, isRental }: { listing: Listing; isRental: 
 
 // Active listing card (larger)
 function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: boolean }) {
+  // COMPLIANCE: Local exclusive listings always have address display allowed.
+  // Explicitly set to true to prevent accidental suppression.
+  const slug = generateListingSlug({
+    address: {
+      streetNumber: listing.address.streetNumber,
+      streetName: listing.address.streetName,
+      unitNumber: listing.address.unit || null,
+      city: listing.address.city,
+      stateOrProvince: listing.address.state,
+      postalCode: listing.address.zip,
+    },
+    id: listing.id,
+    internetAddressDisplayYN: true,
+  });
   return (
-    <Link href={`/listing/${listing.id}`} className="group block">
+    <Link href={`/listing/${slug}`} className="group block">
       <div className="relative aspect-[4/3] overflow-hidden rounded bg-gray-100 mb-2">
         <Image
           src={

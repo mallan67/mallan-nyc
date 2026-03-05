@@ -186,6 +186,88 @@ export async function fetchSingleListing(
 }
 
 /**
+ * Fetch a single listing by address components from Trestle.
+ * Used for address-based slug resolution.
+ * Searches by StreetNumber + StreetName (contains) + City + PostalCode.
+ * Returns the first active match or null.
+ */
+export async function fetchListingByAddress(address: {
+  streetNumber: string;
+  streetName: string;
+  city: string;
+  postalCode: string;
+  unitNumber?: string;
+}): Promise<Record<string, unknown> | null> {
+  const token = await getAccessToken();
+  const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
+
+  // SECURITY: Strict allowlist sanitization to prevent OData injection.
+  // Address components from slug parsing could contain attacker-controlled input.
+  // Only allow alphanumeric, spaces, hyphens, periods (covers all NYC addresses).
+  function sanitizeOData(value: string, maxLength: number): string {
+    return value
+      .replace(/[^a-zA-Z0-9 .\-]/g, '')
+      .slice(0, maxLength);
+  }
+
+  // Build OData filter from address components
+  const filterParts: string[] = [];
+
+  if (address.streetNumber) {
+    const safe = sanitizeOData(address.streetNumber, 10);
+    if (safe) filterParts.push(`StreetNumber eq '${safe}'`);
+  }
+  if (address.streetName) {
+    const safe = sanitizeOData(address.streetName, 100);
+    if (safe) filterParts.push(`contains(StreetName, '${safe}')`);
+  }
+  if (address.postalCode) {
+    const safe = sanitizeOData(address.postalCode, 10);
+    if (safe) filterParts.push(`PostalCode eq '${safe}'`);
+  }
+  if (address.unitNumber) {
+    const safe = sanitizeOData(address.unitNumber, 20);
+    if (safe) filterParts.push(`UnitNumber eq '${safe}'`);
+  }
+
+  // Only active listings
+  filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+
+  function buildUrl(withMedia: boolean): string {
+    const params = new URLSearchParams();
+    params.set("$filter", filterParts.join(" and "));
+    params.set("$select", selectFields);
+    if (withMedia) params.set("$expand", "Media");
+    params.set("$top", "1");
+    params.set("$orderby", "ModificationTimestamp desc");
+    return `${getPropertyEndpoint()}?${params.toString()}`;
+  }
+
+  let url = buildUrl(true);
+  let response = await fetchPage(url, token);
+
+  if (response.status === 400) {
+    url = buildUrl(false);
+    response = await fetchPage(url, token);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      invalidateToken();
+      const newToken = await getAccessToken();
+      response = await fetchPage(url, newToken);
+      if (!response.ok) return null;
+    } else {
+      return null;
+    }
+  }
+
+  const data = await response.json();
+  const records = data.value || [];
+  return records.length > 0 ? records[0] : null;
+}
+
+/**
  * Build an OData $filter for incremental sync based on modification timestamp.
  */
 export function buildIncrementalFilter(

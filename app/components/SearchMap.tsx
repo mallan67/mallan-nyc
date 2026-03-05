@@ -87,7 +87,7 @@ export default function SearchMap({ listings }: SearchMapProps) {
                   Courtesy of {listing.listOfficeName}
                 </p>
                 <a
-                  href={`/listing/${listing.id}`}
+                  href={`/listing/${listing.slug}`}
                   className="text-xs text-blue-600 hover:underline mt-1 block"
                 >
                   View Details

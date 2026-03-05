@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import InquiryForm from '@/app/components/InquiryForm';
@@ -16,10 +16,11 @@ import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
-import { fetchSingleListing, fetchListingMedia } from '@/lib/idx/fetch';
+import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 
 // Dynamic — listings come from IDX, not static JSON
 export const dynamic = 'force-dynamic';
@@ -44,48 +45,93 @@ function countyToBorough(county: string): string {
 }
 
 /**
- * Fetch a single listing from IDX (Trestle).
- * Returns PublicListingDTO or null if not found / fails gates.
+ * Resolve a raw Trestle record → PublicListingDTO with media.
  */
-async function fetchListing(id: string): Promise<PublicListingDTO | null> {
+async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<PublicListingDTO | null> {
+  const gateResult = checkDistributionGates(raw);
+  if (!gateResult.displayable) return null;
+
+  const listing = mapRESOToInternal(raw);
+  if (!listing) return null;
+
+  const dto = toPublicDTO(listing);
+
+  // If no media from $expand=Media, fetch from Trestle Media resource
+  if (dto.media.length === 0) {
+    const listingKey = String(raw.SourceSystemKey || raw.ListingId || debugId);
+    try {
+      const mediaItems = await fetchListingMedia(listingKey);
+      if (mediaItems.length > 0) {
+        dto.media = mediaItems.map(m => ({
+          ...m,
+          url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
+            ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+            : m.url,
+        }));
+        dto.photosCount = mediaItems.length;
+      }
+    } catch (mediaErr) {
+      console.warn(`[/listing/${debugId}] Media fetch failed:`, mediaErr);
+    }
+  }
+
+  return dto;
+}
+
+/**
+ * Fetch a single listing from IDX (Trestle).
+ * Supports three resolution strategies:
+ *   1. Direct ListingId/key (via ?key= param or MLS-ID slug)
+ *   2. Address slug → parsed → Trestle address search
+ *   3. Raw [id] segment treated as ListingId
+ *
+ * COMPLIANCE: Address slugs are NEVER generated for listings where
+ * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
+ * preventing address leakage through URLs.
+ */
+async function fetchListing(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
   const useIDX = process.env.IDX_ENABLED === 'true';
   if (!useIDX) return null;
 
   try {
-    const raw = await fetchSingleListing(id);
-    if (!raw) return null;
+    // Strategy 1: Explicit key override (?key= param)
+    if (keyOverride) {
+      const raw = await fetchSingleListing(keyOverride);
+      if (raw) return rawToDTO(raw, keyOverride);
+    }
 
-    const gateResult = checkDistributionGates(raw);
-    if (!gateResult.displayable) return null;
+    // Strategy 2: MLS-ID slug (e.g., "listing-RBNY-12345678")
+    if (isMlsIdSlug(slug)) {
+      const mlsId = extractMlsIdFromSlug(slug);
+      if (mlsId) {
+        const raw = await fetchSingleListing(mlsId);
+        if (raw) return rawToDTO(raw, mlsId);
+      }
+      return null;
+    }
 
-    const listing = mapRESOToInternal(raw);
-    if (!listing) return null;
+    // Strategy 3: Address slug → parse and search by address components
+    const parsed = parseAddressSlug(slug);
+    if (parsed && parsed.streetNumber && parsed.postalCode) {
+      const raw = await fetchListingByAddress(parsed);
+      if (raw) {
+        // COMPLIANCE: If the resolved listing has address suppressed, reject.
+        // An address-based URL for a suppressed listing means someone is trying
+        // to access it by guessing the address — return null (404).
+        if (raw.InternetAddressDisplayYN === false) return null;
 
-    const dto = toPublicDTO(listing);
-
-    // If no media from $expand=Media, fetch from Trestle Media resource
-    if (dto.media.length === 0) {
-      const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
-      try {
-        const mediaItems = await fetchListingMedia(listingKey);
-        if (mediaItems.length > 0) {
-          // Proxy Trestle URLs (they require Bearer auth, browser can't load directly)
-          dto.media = mediaItems.map(m => ({
-            ...m,
-            url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
-              ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
-              : m.url,
-          }));
-          dto.photosCount = mediaItems.length;
-        }
-      } catch (mediaErr) {
-        console.warn(`[/listing/${id}] Media fetch failed:`, mediaErr);
+        const dto = await rawToDTO(raw, slug);
+        if (dto) return dto;
       }
     }
 
-    return dto;
+    // Strategy 4: Treat slug as raw ListingId (backwards compatibility)
+    const raw = await fetchSingleListing(slug);
+    if (raw) return rawToDTO(raw, slug);
+
+    return null;
   } catch (err) {
-    console.error(`[/listing/${id}] IDX fetch error:`, err);
+    console.error(`[/listing/${slug}] IDX fetch error:`, err);
     return null;
   }
 }
@@ -93,7 +139,7 @@ async function fetchListing(id: string): Promise<PublicListingDTO | null> {
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const { key } = await searchParams;
-  const listing = await fetchListing(key || id);
+  const listing = await fetchListing(id, key);
 
   if (!listing) {
     return { title: 'Listing Not Found | Mallan Real Estate' };
@@ -106,18 +152,19 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`;
-  const url = `https://mallan.nyc/listing/${id}`;
+  // Canonical URL uses the address slug (or MLS-ID slug if address suppressed)
+  const canonicalUrl = `https://mallan.nyc/listing/${listing.slug}`;
   const ogImage = listing.media[0]?.url || '/images/og-default.png';
   const borough = countyToBorough(listing.address.county);
 
   return {
     title: `${fullAddress} | ${priceDisplay} | Mallan Real Estate`,
     description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
-    alternates: { canonical: url },
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: `${fullAddress} | ${priceDisplay}`,
       description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}.`,
-      url,
+      url: canonicalUrl,
       type: 'article',
       images: [{ url: ogImage, width: 1200, height: 630, alt: fullAddress }],
     },
@@ -144,10 +191,18 @@ function formatPrice(price: number, isRental: boolean): string {
 export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { key } = await searchParams;
-  const listing = await fetchListing(key || id);
+  const listing = await fetchListing(id, key);
 
   if (!listing) {
     notFound();
+  }
+
+  // SEO: If the URL slug doesn't match the canonical slug, 301 redirect.
+  // This handles old MLS-ID URLs and normalizes address slugs.
+  // COMPLIANCE: The canonical slug already respects InternetAddressDisplayYN —
+  // suppressed addresses get MLS-ID slugs, so no address leaks in redirects.
+  if (id !== listing.slug && !key) {
+    redirect(`/listing/${listing.slug}`);
   }
 
   const isRental = listing.listingType === 'rent';

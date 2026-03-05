@@ -11,6 +11,7 @@
  */
 
 import type { PublicListingDTO } from './public-dto';
+import { generateListingSlug } from '@/lib/listing-slug';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -25,33 +26,32 @@ function countyToBorough(county: string): string {
   return COUNTY_TO_BOROUGH[county.toLowerCase()] || county;
 }
 
-/** Generate a URL-safe address slug: "409-ave-c-3b-brooklyn-ny-10009" (unit last) */
+/**
+ * Get the URL slug for a listing.
+ * COMPLIANCE: The slug is pre-computed by toPublicDTO() and respects
+ * InternetAddressDisplayYN — suppressed addresses get MLS-ID slugs.
+ */
 export function listingSlug(listing: DisplayListing): string {
-  const parts = [
-    listing.address.streetNumber,
-    listing.address.streetName,
-    listing.address.unitNumber,
-    listing.address.borough || listing.address.city,
-    'ny',
-    listing.address.postalCode,
-  ].filter(Boolean);
-  return parts
-    .join('-')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+  return listing.slug;
 }
 
-/** Build the listing detail URL with address slug + key param for lookup */
+/**
+ * Build the listing detail URL.
+ * Uses the pre-computed address slug (or MLS-ID fallback).
+ * Appends ?key= for MLS-ID slugs to help server-side resolution.
+ */
 export function listingHref(listing: DisplayListing): string {
-  const slug = listingSlug(listing);
-  return `/listing/${slug}?key=${encodeURIComponent(listing.id)}`;
+  // If the slug is address-based, no ?key= needed — server parses the address.
+  // If the slug is an MLS-ID fallback, also no ?key= needed — server extracts the ID.
+  return `/listing/${listing.slug}`;
 }
 
 /** Slim listing type for frontend cards — no 414-line monster */
 export interface DisplayListing {
   id: string;
   mlsId: string;
+  /** URL slug — address-based when allowed, MLS-ID fallback when address suppressed */
+  slug: string;
   status: string;
   listingType: 'sale' | 'rent';
   address: {
@@ -95,6 +95,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
   return {
     id: dto.id,
     mlsId: dto.mlsId,
+    slug: dto.slug,
     status: dto.status,
     listingType: dto.listingType,
     address: {
@@ -144,9 +145,24 @@ export function toDisplayListing(raw: any): DisplayListing {
   }
 
   // Local fallback: Listing shape (deeply nested)
+  const localSlug = generateListingSlug({
+    address: {
+      streetNumber: raw.address?.streetNumber || '',
+      streetName: raw.address?.streetName || '',
+      unitNumber: raw.address?.unit || null,
+      city: raw.address?.city || '',
+      stateOrProvince: 'NY',
+      postalCode: raw.address?.zip || '',
+    },
+    id: raw.id,
+    mlsId: raw.mlsId || raw.id,
+    // Local listings don't have this flag — default to true (address allowed)
+    internetAddressDisplayYN: true,
+  });
   return {
     id: raw.id,
     mlsId: raw.mlsId || raw.id,
+    slug: localSlug,
     status: raw.status,
     listingType: raw.listingType,
     address: {
