@@ -148,63 +148,62 @@ function buildODataFilter(params: URLSearchParams): string {
     );
   }
 
-  // Address search (partial match via OData contains)
+  // Address search
+  // Trestle stores addresses as: StreetNumber="400", StreetDirPrefix="E", StreetName="90th", StreetSuffix="Street"
+  // So "400 e 90" needs to search: StreetNumber starts with "400" AND StreetName contains "90"
+  // Direction (E/W/N/S) is in StreetDirPrefix, NOT in StreetName.
   const address = params.get("address");
   if (address) {
-    const raw = address.trim();
-    // Expand common NYC direction abbreviations BEFORE escaping
-    // "400 e 90" → "400 EAST 90", "200 w 72" → "200 WEST 72"
-    const dirMap: Record<string, string> = {
-      ' e ': ' EAST ', ' w ': ' WEST ', ' n ': ' NORTH ', ' s ': ' SOUTH ',
-      ' e. ': ' EAST ', ' w. ': ' WEST ', ' n. ': ' NORTH ', ' s. ': ' SOUTH ',
-    };
-    let expanded = ' ' + raw.toLowerCase() + ' ';
-    for (const [abbr, full] of Object.entries(dirMap)) {
-      expanded = expanded.replace(abbr, full);
-    }
-    expanded = expanded.trim().toUpperCase();
-    // Strip ordinal suffixes: "90TH" → "90", "72ND" → "72", "1ST" → "1", "3RD" → "3"
-    const stripped = expanded.replace(/(\d+)(ST|ND|RD|TH)\b/gi, '$1');
+    const raw = address.trim().toUpperCase();
 
-    const escaped = escapeOData(expanded);
-    const escapedStripped = escapeOData(stripped);
+    // Extract direction if present: "400 E 90TH" → num="400", dir="E", street="90TH"
+    const dirPattern = /^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i;
+    const numOnlyPattern = /^(\d+)\s+(.*)/;
+    const dirMatch = raw.match(dirPattern);
 
-    // Parse: "400 EAST 90" → number="400", street="EAST 90"
-    const numMatch = escaped.match(/^(\d+)\s*(.*)/);
-    if (numMatch && numMatch[1]) {
-      const streetNum = numMatch[1];
-      const streetPart = numMatch[2] || "";
-      const strippedMatch = escapedStripped.match(/^(\d+)\s*(.*)/);
-      const streetPartStripped = strippedMatch ? (strippedMatch[2] || "") : streetPart;
-      if (streetPart) {
-        // Both number and street: try expanded name, stripped name, and original
-        // e.g., "400 EAST 90" matches "EAST 90TH" via contains
-        const originalStreet = escapeOData(raw.replace(/^\d+\s*/, '').toUpperCase());
-        const streetFilters = [
-          `contains(StreetName,'${escapeOData(streetPart)}')`,
-        ];
-        // Add stripped version if different (e.g., "90" matches "90TH STREET")
-        if (streetPartStripped !== streetPart) {
-          streetFilters.push(`contains(StreetName,'${escapeOData(streetPartStripped)}')`);
-        }
-        // Add original user input if different from expanded
-        if (originalStreet !== streetPart && originalStreet !== streetPartStripped) {
-          streetFilters.push(`contains(StreetName,'${escapeOData(originalStreet)}')`);
-        }
-        parts.push(
-          `(startswith(StreetNumber,'${streetNum}') and (${streetFilters.join(' or ')}))`
-        );
-      } else {
-        // Number only: match StreetNumber OR BuildingName
-        parts.push(
-          `(startswith(StreetNumber,'${streetNum}') or contains(BuildingName,'${escaped}'))`
-        );
+    if (dirMatch) {
+      // "400 E 90" → streetNum=400, direction=E, streetPart=90
+      const streetNum = dirMatch[1];
+      const direction = dirMatch[2].charAt(0); // Normalize to single letter (E, W, N, S)
+      const streetPart = dirMatch[3].replace(/(ST|ND|RD|TH)\b/gi, '').trim(); // Strip ordinals
+      const streetPartFull = escapeOData(dirMatch[3]); // Keep original too
+
+      const conditions = [
+        `startswith(StreetNumber,'${streetNum}')`,
+      ];
+      // Match direction prefix
+      conditions.push(`StreetDirPrefix eq '${direction}'`);
+      // Match street name (try with and without ordinal suffix)
+      if (streetPart && streetPart !== streetPartFull) {
+        conditions.push(`(contains(StreetName,'${escapeOData(streetPart)}') or contains(StreetName,'${streetPartFull}'))`);
+      } else if (streetPart) {
+        conditions.push(`contains(StreetName,'${escapeOData(streetPart)}')`);
       }
+      parts.push(`(${conditions.join(' and ')})`);
     } else {
-      // No leading number: search StreetName and BuildingName
-      parts.push(
-        `(contains(StreetName,'${escaped}') or contains(BuildingName,'${escaped}'))`
-      );
+      const numMatch = raw.match(numOnlyPattern);
+      if (numMatch && numMatch[1]) {
+        const streetNum = numMatch[1];
+        const streetPart = numMatch[2] || "";
+        if (streetPart) {
+          // "400 Park" or "400 90th" — no direction
+          const stripped = streetPart.replace(/(ST|ND|RD|TH)\b/gi, '').trim();
+          const nameFilters = [`contains(StreetName,'${escapeOData(streetPart)}')`];
+          if (stripped !== streetPart) {
+            nameFilters.push(`contains(StreetName,'${escapeOData(stripped)}')`);
+          }
+          parts.push(`(startswith(StreetNumber,'${streetNum}') and (${nameFilters.join(' or ')}))`);
+        } else {
+          // Number only
+          parts.push(`(startswith(StreetNumber,'${streetNum}') or contains(BuildingName,'${escapeOData(raw)}'))`);
+        }
+      } else if (/^\d+$/.test(raw)) {
+        // Pure number (could be street number or listing ID)
+        parts.push(`(startswith(StreetNumber,'${escapeOData(raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);
+      } else {
+        // Text only — search street name and building name
+        parts.push(`(contains(StreetName,'${escapeOData(raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);
+      }
     }
   }
 
