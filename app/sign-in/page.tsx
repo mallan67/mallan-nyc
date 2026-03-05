@@ -7,28 +7,28 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 const portalTypes = [
+  { id: 'agent', label: 'Agent', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2', color: 'amber' },
   { id: 'buyer', label: 'Buyer', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', color: 'blue' },
   { id: 'renter', label: 'Renter', icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z', color: 'purple' },
   { id: 'seller', label: 'Seller', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: 'green' },
   { id: 'landlord', label: 'Landlord', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', color: 'teal' },
-  { id: 'agent', label: 'Agent', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2', color: 'amber' },
 ];
 
 const colorMap: Record<string, { bg: string; text: string; border: string; activeBg: string; activeBorder: string }> = {
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-gray-200', activeBg: 'bg-amber-100', activeBorder: 'border-amber-500' },
   blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-gray-200', activeBg: 'bg-blue-100', activeBorder: 'border-blue-500' },
   purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-gray-200', activeBg: 'bg-purple-100', activeBorder: 'border-purple-500' },
   green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-gray-200', activeBg: 'bg-green-100', activeBorder: 'border-green-500' },
   teal: { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-gray-200', activeBg: 'bg-teal-100', activeBorder: 'border-teal-500' },
-  amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-gray-200', activeBg: 'bg-amber-100', activeBorder: 'border-amber-500' },
 };
 
 // Map UI labels to the portalType the login API expects
 const portalApiMap: Record<string, string> = {
+  agent: 'agent',
   buyer: 'buyer',
   renter: 'tenant',
   seller: 'seller',
   landlord: 'landlord',
-  agent: 'agent',
 };
 
 export default function SignInPage() {
@@ -281,16 +281,16 @@ export default function SignInPage() {
               <p className="text-xs font-medium text-brand-dark/70 mb-2">After sign in you&apos;ll see your portal:</p>
               <div className="space-y-1.5 text-xs text-brand-dark/60">
                 <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                  <span><strong>Agent</strong> — Dashboard, clients, listings, pipeline</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                   <span><strong>Buyer / Renter</strong> — Saved searches, tours, applications</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                   <span><strong>Seller / Landlord</strong> — Listing performance, showings, offers</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-                  <span><strong>Agent</strong> — Dashboard, clients, listings, pipeline</span>
                 </div>
               </div>
             </div>
