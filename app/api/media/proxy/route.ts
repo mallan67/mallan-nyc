@@ -27,7 +27,7 @@ function isAllowedUrl(url: string): boolean {
 
 // Semaphore: limit concurrent outbound requests to Trestle.
 // Prevents connection pool exhaustion that causes alternating photo failures.
-const MAX_CONCURRENT = 6;
+const MAX_CONCURRENT = 15;
 let inFlight = 0;
 const waitQueue: (() => void)[] = [];
 
