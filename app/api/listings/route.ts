@@ -309,7 +309,6 @@ export async function GET(request: Request) {
               disclaimer:
                 'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
               totalFetched: result.totalFetched,
-              gateFiltered: result.records.length - displayable.length,
             },
           },
           {

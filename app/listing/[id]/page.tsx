@@ -12,6 +12,7 @@ import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
 import BackButton from '@/app/components/BackButton';
 import ShareButton from '@/app/components/ShareButton';
+import DetailFavoriteButton from '@/app/components/DetailFavoriteButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
@@ -47,6 +48,7 @@ function countyToBorough(county: string): string {
 
 /**
  * Resolve a raw Trestle record → PublicListingDTO with media.
+ * Always fetches media separately (we no longer use $expand=Media).
  */
 async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<PublicListingDTO | null> {
   const gateResult = checkDistributionGates(raw);
@@ -57,34 +59,95 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
 
   const dto = toPublicDTO(listing);
 
-  // If no media from $expand=Media, fetch from Trestle Media resource
-  if (dto.media.length === 0) {
-    const listingKey = String(raw.SourceSystemKey || raw.ListingId || debugId);
-    try {
-      const mediaItems = await fetchListingMedia(listingKey);
-      if (mediaItems.length > 0) {
-        dto.media = mediaItems.map(m => ({
-          ...m,
-          url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
-            ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
-            : m.url,
-        }));
-        dto.photosCount = mediaItems.length;
-      }
-    } catch (mediaErr) {
-      console.warn(`[/listing/${debugId}] Media fetch failed:`, mediaErr);
+  // Always fetch media from Trestle Media resource ($expand=Media removed)
+  const listingKey = String(raw.SourceSystemKey || raw.ListingId || debugId);
+  try {
+    const mediaItems = await fetchListingMedia(listingKey);
+    if (mediaItems.length > 0) {
+      dto.media = mediaItems.map(m => ({
+        ...m,
+        url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
+          ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+          : m.url,
+      }));
+      dto.photosCount = mediaItems.length;
     }
+  } catch (mediaErr) {
+    console.warn(`[/listing/${debugId}] Media fetch failed:`, mediaErr);
+    // Non-fatal — listing displays without photos
   }
 
   return dto;
 }
 
 /**
- * Fetch a single listing from IDX (Trestle).
- * Supports three resolution strategies:
- *   1. Direct ListingId/key (via ?key= param or MLS-ID slug)
- *   2. Address slug → parsed → Trestle address search
- *   3. Raw [id] segment treated as ListingId
+ * Fetch from Trestle directly (server-side). Returns null on any failure.
+ */
+async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
+  // Strategy 1: Explicit key override (?key= param)
+  if (keyOverride) {
+    const raw = await fetchSingleListing(keyOverride);
+    if (raw) return rawToDTO(raw, keyOverride);
+  }
+
+  // Strategy 2: MLS-ID slug (e.g., "listing-RBNY-12345678")
+  if (isMlsIdSlug(slug)) {
+    const mlsId = extractMlsIdFromSlug(slug);
+    if (mlsId) {
+      const raw = await fetchSingleListing(mlsId);
+      if (raw) return rawToDTO(raw, mlsId);
+    }
+    return null;
+  }
+
+  // Strategy 3: Address slug → parse and search by address components
+  const parsed = parseAddressSlug(slug);
+  if (parsed && parsed.streetNumber && parsed.postalCode) {
+    const raw = await fetchListingByAddress(parsed);
+    if (raw) {
+      // COMPLIANCE: If the resolved listing has address suppressed, reject.
+      if (raw.InternetAddressDisplayYN === false) return null;
+      const dto = await rawToDTO(raw, slug);
+      if (dto) return dto;
+    }
+  }
+
+  // Strategy 4: Treat slug as raw ListingId (backwards compatibility)
+  const raw = await fetchSingleListing(slug);
+  if (raw) return rawToDTO(raw, slug);
+
+  return null;
+}
+
+/**
+ * Fallback: fetch from our own /api/listings/:id endpoint.
+ * This has its own local JSON fallback and won't fail if Trestle is down.
+ */
+async function fetchFromApiEndpoint(listingId: string): Promise<PublicListingDTO | null> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/listings/${encodeURIComponent(listingId)}`, {
+      headers: { 'Accept': 'application/json' },
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.success || !data.listing) return null;
+    // The API endpoint returns either PublicListingDTO or sanitized local listing
+    return data.listing as PublicListingDTO;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a single listing from IDX (Trestle) with fallback resilience.
+ *
+ * Resolution order:
+ *   1. Direct Trestle fetch (fastest, freshest data)
+ *   2. Fallback to /api/listings/:id (has local JSON fallback)
  *
  * COMPLIANCE: Address slugs are NEVER generated for listings where
  * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
@@ -92,49 +155,23 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
  */
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
   const useIDX = process.env.IDX_ENABLED === 'true';
-  if (!useIDX) return null;
 
-  try {
-    // Strategy 1: Explicit key override (?key= param)
-    if (keyOverride) {
-      const raw = await fetchSingleListing(keyOverride);
-      if (raw) return rawToDTO(raw, keyOverride);
+  // Primary: direct Trestle fetch
+  if (useIDX) {
+    try {
+      const dto = await fetchFromTrestleDirect(slug, keyOverride);
+      if (dto) return dto;
+    } catch (err) {
+      console.error(`[/listing/${slug}] Trestle fetch failed, trying API fallback:`, err);
     }
-
-    // Strategy 2: MLS-ID slug (e.g., "listing-RBNY-12345678")
-    if (isMlsIdSlug(slug)) {
-      const mlsId = extractMlsIdFromSlug(slug);
-      if (mlsId) {
-        const raw = await fetchSingleListing(mlsId);
-        if (raw) return rawToDTO(raw, mlsId);
-      }
-      return null;
-    }
-
-    // Strategy 3: Address slug → parse and search by address components
-    const parsed = parseAddressSlug(slug);
-    if (parsed && parsed.streetNumber && parsed.postalCode) {
-      const raw = await fetchListingByAddress(parsed);
-      if (raw) {
-        // COMPLIANCE: If the resolved listing has address suppressed, reject.
-        // An address-based URL for a suppressed listing means someone is trying
-        // to access it by guessing the address — return null (404).
-        if (raw.InternetAddressDisplayYN === false) return null;
-
-        const dto = await rawToDTO(raw, slug);
-        if (dto) return dto;
-      }
-    }
-
-    // Strategy 4: Treat slug as raw ListingId (backwards compatibility)
-    const raw = await fetchSingleListing(slug);
-    if (raw) return rawToDTO(raw, slug);
-
-    return null;
-  } catch (err) {
-    console.error(`[/listing/${slug}] IDX fetch error:`, err);
-    return null;
   }
+
+  // Fallback: our own API endpoint (has local JSON fallback)
+  const fallbackId = keyOverride || slug;
+  const apiResult = await fetchFromApiEndpoint(fallbackId);
+  if (apiResult) return apiResult;
+
+  return null;
 });
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -301,6 +338,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         Price Reduced
                       </span>
                     )}
+                    <DetailFavoriteButton
+                      id={listing.id}
+                      slug={listing.slug}
+                      address={fullAddress}
+                      price={listing.listPrice}
+                      listingType={isRental ? 'rent' : 'sale'}
+                      beds={listing.bedroomsTotal}
+                      baths={listing.bathroomsFull}
+                      photoUrl={listing.media[0]?.url}
+                    />
                     <ShareButton title={`${fullAddress} | ${formatPrice(listing.listPrice, isRental)}`} />
                   </div>
                 </div>
