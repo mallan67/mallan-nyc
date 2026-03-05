@@ -24,16 +24,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const endpoint = process.env.TRESTLE_API_URL;
-    if (!endpoint && process.env.NODE_ENV === "production") {
-      console.error("[IDX Status] TRESTLE_API_URL not set in production");
-    }
+    const endpointConfigured = Boolean(
+      process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT
+    );
 
     return NextResponse.json({
       enabled,
       credentialsPresent,
-      ready,
-      endpoint: endpoint || "NOT_SET",
+      endpointConfigured,
+      ready: ready && endpointConfigured,
       stats,
     });
   } catch (err) {

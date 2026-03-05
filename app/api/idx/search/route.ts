@@ -413,7 +413,7 @@ export async function GET(req: NextRequest) {
     console.error("[IDX Search] Error:", message);
 
     return NextResponse.json(
-      { error: "Search failed", details: message },
+      { error: "Search failed. Please try again later." },
       {
         status: 502,
         headers: { "Cache-Control": "private, no-store" },

@@ -128,6 +128,7 @@ export interface IDXListing {
   // Agent/Office
   listAgentMlsId: string;
   listAgentFullName: string;
+  /** VIEW-ONLY: visible to agents viewing listings. NEVER exposed to clients or public. Stripped by toPublicDTO(). */
   listAgentEmail?: string;
   listOfficeMlsId: string;
   listOfficeName: string;
@@ -144,6 +145,7 @@ export interface IDXListing {
 
   // Remarks
   publicRemarks?: string;
+  /** INTERNAL-ONLY: broker/company access only. NEVER exposed to clients, agents outside company, or public. Stripped by toPublicDTO(). */
   privateRemarks?: string;
 
   // Distribution gates
