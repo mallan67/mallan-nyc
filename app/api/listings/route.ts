@@ -135,7 +135,7 @@ export async function GET(request: Request) {
         }
 
         // Fetch extra records to account for gate filtering + pagination
-        const fetchTop = Math.min((limit + skip) * 2, 200);
+        const fetchTop = Math.min((limit + skip) * 2, 500);
 
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
@@ -215,7 +215,7 @@ export async function GET(request: Request) {
           },
           {
             headers: {
-              'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+              'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
             },
           }
         );

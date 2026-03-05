@@ -234,7 +234,7 @@
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            params.limit = 200;
+            params.limit = 500;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             MallanAPI.idx.search(params).then(function(result) {

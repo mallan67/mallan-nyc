@@ -360,7 +360,7 @@ export async function GET(req: NextRequest) {
 
     // Parse query params
     const params = req.nextUrl.searchParams;
-    const limit = Math.min(Number(params.get("limit")) || 50, 200);
+    const limit = Math.min(Number(params.get("limit")) || 50, 500);
     const skip = Number(params.get("skip")) || 0;
 
     // Build OData filter
