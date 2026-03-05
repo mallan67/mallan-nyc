@@ -14,6 +14,16 @@
 import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
 
+/** Map Trestle CommonInterest to user-friendly property type */
+function mapCommonInterestToDisplay(commonInterest?: string, fallback?: string): string {
+  switch (commonInterest) {
+    case 'Condominium': return 'Condo';
+    case 'StockCooperative': return 'Co-op';
+    case 'Condop': return 'Condop';
+    default: return fallback || 'Residential';
+  }
+}
+
 /** Trestle media URLs require Bearer auth — proxy through our API */
 const TRESTLE_HOSTS = ['api.cotality.com'];
 
@@ -165,7 +175,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     originalListPrice: listing.originalListPrice,
     previousListPrice: listing.previousListPrice,
     closePrice: listing.closePrice,
-    propertyType: listing.propertyType,
+    propertyType: mapCommonInterestToDisplay(listing.commonInterest, listing.propertyType),
     propertySubType: listing.propertySubType,
     bedroomsTotal: listing.bedroomsTotal,
     bathroomsFull: listing.bathroomsFull,
