@@ -40,6 +40,29 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [userName, setUserName] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotMessage('');
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      setForgotMessage(data.message || 'If an account exists, a reset link has been sent.');
+    } catch {
+      setForgotMessage('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,7 +95,7 @@ export default function SignInPage() {
       const role = data.user?.role || selectedPortal;
       const isAgent = role === 'broker' || role === 'agent';
       setTimeout(() => {
-        router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/');
+        router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
       }, 1500);
     } catch {
       setError('Network error. Please check your connection and try again.');
@@ -204,7 +227,54 @@ export default function SignInPage() {
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
+
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  className="text-sm text-brand-gold hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
             </form>
+
+            {showForgot && (
+              <div className="mt-4 p-4 bg-gray-50/50 rounded-2xl">
+                <p className="text-sm font-medium mb-3">Reset your password</p>
+                <form onSubmit={handleForgotPassword} className="space-y-3">
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    className="w-full rounded-2xl px-4 py-2.5 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                    placeholder="Enter your email address"
+                  />
+                  {forgotMessage && (
+                    <p className={`text-sm ${forgotMessage.includes('error') ? 'text-red-600' : 'text-green-600'}`}>
+                      {forgotMessage}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={forgotLoading}
+                      className="flex-1 bg-brand-gold text-white py-2.5 rounded-2xl hover:bg-brand-gold/90 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgot(false); setForgotMessage(''); }}
+                      className="px-4 py-2.5 text-sm text-brand-dark/60 hover:text-brand-dark rounded-2xl ring-1 ring-black/5"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
             {/* Portal Routing Info */}
             <div className="mt-6 p-4 bg-gray-50/50 rounded-2xl">
