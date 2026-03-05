@@ -1,4 +1,25 @@
 // ============================================
+// GLOBAL TOAST NOTIFICATION
+// ============================================
+function showToast(message, type) {
+    var colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-blue-600', warning: 'bg-amber-600' };
+    var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
+    var existing = document.getElementById('globalToast');
+    if (existing) existing.remove();
+    var toast = document.createElement('div');
+    toast.id = 'globalToast';
+    toast.className = 'fixed bottom-20 lg:bottom-6 right-6 ' + (colors[type] || 'bg-gray-800') + ' text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 text-sm transition-opacity';
+    toast.innerHTML = '<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + message;
+    toast.style.opacity = '0';
+    document.body.appendChild(toast);
+    requestAnimationFrame(function() { toast.style.opacity = '1'; });
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 4000);
+}
+
+// ============================================
 // TAB NAVIGATION
 // ============================================
 function showSearchSection(section) {

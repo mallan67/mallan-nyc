@@ -230,9 +230,19 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
   const listingId = String(normalized.ListingId || normalized.ListingKey || '');
   if (!listingId) return null;
 
+  // Compose full street name from RESO address components:
+  // StreetDirPrefix (e.g. "East") + StreetName (e.g. "83rd") + StreetSuffix (e.g. "Street") + StreetDirSuffix
+  const streetNameParts = [
+    normalized.StreetDirPrefix,
+    normalized.StreetName,
+    normalized.StreetSuffix,
+    normalized.StreetDirSuffix,
+  ].filter(Boolean).map(String);
+  const fullStreetName = streetNameParts.join(' ') || '';
+
   const addr = {
     streetNumber: String(normalized.StreetNumber || ''),
-    streetName: String(normalized.StreetName || ''),
+    streetName: fullStreetName,
     unitNumber: normalized.UnitNumber ? String(normalized.UnitNumber) : null,
     city: String(normalized.City || ''),
     cityRegion: normalized.CityRegion ? String(normalized.CityRegion) : undefined,

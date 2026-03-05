@@ -676,7 +676,7 @@ function renderClientListingCard(listing) {
     html += '</div>';
 
     // Attribution
-    html += '<div class="text-[8px] text-gray-300 mt-1.5" data-rebny-attribution>Listing courtesy of ' + (safe.company || 'REBNY RLS') + '</div>';
+    // Per-listing "Courtesy of" — only on online viewers, not client reports/print/email
     html += '</div>';
     return html;
 }

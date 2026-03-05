@@ -124,10 +124,9 @@
                 return photos;
             }
 
-            // ── RLS Compliance: Per-listing attribution (Art. III Sec. 2C) ──
+            // Per-listing "Courtesy of" — only on online viewers, not client reports
             function _listingAttribution(l) {
-                if (!l.company) return '';
-                return '<p style="font-size:10px;color:' + B.muted + ';margin:4px 0 0;font-family:' + B.fontBody + ';font-weight:300">Listing Courtesy of ' + l.company + '</p>';
+                return '';
             }
 
             // ── RLS Compliance: Statistical data disclaimer ──
