@@ -60,7 +60,9 @@
 
                 table.innerHTML = theadHTML + tbodyHTML;
             } catch(e) {
-                // Silent error handling
+                console.error('[Render] Grid view FAILED:', e);
+                var table = document.getElementById('resultsTable');
+                if (table) table.innerHTML = '<tbody><tr><td class="p-4 text-red-500">Render error: ' + e.message + '</td></tr></tbody>';
             }
         }
 
