@@ -1,7 +1,4 @@
 import { NextResponse } from 'next/server';
-import listingsData from '@/data/listings.json';
-import type { Listing } from '@/lib/types/listing';
-import { isDisplayableInIDX, sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
@@ -37,7 +34,8 @@ function checkRateLimit(ip: string): boolean {
  *   toPublicDTO(listing) → PublicListingDTO (strips private data, suppresses address)
  *
  * When IDX_ENABLED=true: fetches from Trestle/REBNY RLS via OData v4.
- * When IDX_ENABLED=false (or Trestle fails): falls back to data/listings.json.
+ * When IDX_ENABLED=false: returns empty with clear indicator.
+ * When Trestle fails: returns error (does NOT silently fall through).
  *
  * Query parameters:
  * - type: 'sale' | 'rent' | 'buy' - Filter by listing type
@@ -86,9 +84,6 @@ export async function GET(request: Request) {
     const maxSqft = searchParams.get('maxSqft');
     const sortParam = searchParams.get('sort');
     const skipParam = searchParams.get('skip');
-    const petsOnly = searchParams.get('pets') === 'true';
-    const featuredOnly = searchParams.get('featured') === 'true';
-    const exclusiveOnly = searchParams.get('exclusive') === 'true';
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
 
@@ -225,100 +220,61 @@ export async function GET(request: Request) {
           }
         );
       } catch (idxError) {
-        // IDX fetch failed — fall through to local data for resilience
-        console.error('[/api/listings] IDX fetch failed, falling back to local data:', idxError);
+        // IDX fetch failed — return error to frontend (do NOT silently fall through to empty data)
+        const message = idxError instanceof Error ? idxError.message : 'Unknown error';
+        console.error('[/api/listings] IDX fetch failed:', message);
+
+        // Surface a safe error to the frontend — no internal details leaked
+        const isRateLimit = message.includes('429') || message.includes('rate limit');
+        const isAuth = message.includes('401') || message.includes('Missing IDX_CLIENT');
+        const statusCode = isRateLimit ? 503 : isAuth ? 503 : 502;
+        const userMessage = isRateLimit
+          ? 'Search temporarily unavailable. Please try again shortly.'
+          : 'Unable to load listings. Please try again later.';
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: userMessage,
+            count: 0,
+            total: 0,
+            listings: [],
+            _compliance: {
+              source: 'idx',
+              idxEnabled: true,
+              disclaimer: 'Information deemed reliable but not guaranteed.',
+            },
+          },
+          {
+            status: statusCode,
+            headers: {
+              'Cache-Control': 'private, no-store',
+              ...(isRateLimit ? { 'Retry-After': '30' } : {}),
+            },
+          }
+        );
       }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // LOCAL PATH: Serve from data/listings.json (fallback)
-    // ═══════════════════════════════════════════════════════════
-    let listings = listingsData.listings as unknown as Listing[];
-
-    // Apply filters — REBNY RLS: Enforce all 6 distribution gates
-    listings = listings.filter((listing) => {
-      // Centralized IDX display gate (all 6 REBNY distribution gates)
-      if (!isDisplayableInIDX(listing)) return false;
-
-      // Type filter
-      if (listingType) {
-        const typeMap: Record<string, string> = { sale: 'sale', rent: 'rent', buy: 'sale' };
-        if (listing.listingType !== typeMap[listingType]) return false;
-      }
-
-      // Borough filter
-      if (borough && listing.address.borough !== borough) return false;
-
-      // Neighborhood filter
-      if (neighborhood && listing.address.neighborhood !== neighborhood) return false;
-
-      // Price filter (using REBNY-compliant nested structure)
-      if (minPrice && listing.price.listPrice < parseInt(minPrice, 10)) return false;
-      if (maxPrice && listing.price.listPrice > parseInt(maxPrice, 10)) return false;
-
-      // Beds filter
-      if (minBeds && listing.propertyInfo.bedroomsTotal < parseInt(minBeds, 10)) return false;
-
-      // Baths filter
-      if (minBaths && listing.propertyInfo.bathroomsFull < parseInt(minBaths, 10)) return false;
-
-      // Sqft filter
-      if (minSqft && (listing.propertyInfo.aboveGradeFinishedArea || 0) < parseInt(minSqft, 10)) return false;
-      if (maxSqft && listing.propertyInfo.aboveGradeFinishedArea && listing.propertyInfo.aboveGradeFinishedArea > parseInt(maxSqft, 10)) return false;
-
-      // Property type filter
-      if (propertyTypeFilter && listing.propertyInfo.propertyType !== propertyTypeFilter) return false;
-
-      // Pets filter
-      if (petsOnly && !listing.features.pets.allowed) return false;
-
-      // Featured filter
-      if (featuredOnly && !listing.flags.isFeatured) return false;
-
-      // Exclusive filter
-      if (exclusiveOnly && !listing.flags.isExclusive) return false;
-
-      return true;
-    });
-
-    // Sort based on param, with featured/exclusive priority
-    listings.sort((a, b) => {
-      if (a.flags.isFeatured !== b.flags.isFeatured) return b.flags.isFeatured ? 1 : -1;
-      if (a.flags.isExclusive !== b.flags.isExclusive) return b.flags.isExclusive ? 1 : -1;
-      switch (sortParam) {
-        case 'price-asc': return a.price.listPrice - b.price.listPrice;
-        case 'price-desc': return b.price.listPrice - a.price.listPrice;
-        case 'sqft-desc': return (b.propertyInfo.aboveGradeFinishedArea || 0) - (a.propertyInfo.aboveGradeFinishedArea || 0);
-        case 'newest': default:
-          return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
-      }
-    });
-
-    // Apply skip + limit
-    const totalLocalCount = listings.length;
-    listings = listings.slice(skip, skip + limit);
-
-    // REBNY COMPLIANCE: Sanitize listings for public display — strip private data
-    const sanitizedListings = listings.map(sanitizeForPublicDisplay);
-
+    // IDX not enabled — return empty with clear indicator (no silent fallback to stale data)
     return NextResponse.json(
       {
         success: true,
-        count: sanitizedListings.length,
-        total: totalLocalCount,
-        skip,
+        count: 0,
+        total: 0,
+        skip: 0,
         limit,
-        hasMore: skip + limit < totalLocalCount,
-        listings: sanitizedListings,
+        hasMore: false,
+        listings: [],
         _compliance: {
-          source: 'exclusive',
-          idxEnabled: useIDX,
-          disclaimer: 'Information deemed reliable but not guaranteed.',
+          source: 'none',
+          idxEnabled: false,
+          disclaimer: 'IDX search is not enabled. Contact administrator.',
         },
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800',
+          'Cache-Control': 'private, no-store',
         },
       }
     );

@@ -8,10 +8,7 @@ import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 // Derive Trestle property endpoint from centralized TRESTLE_API_URL.
 // Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
 function getPropertyEndpoint(): string {
-  const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  if (process.env.NODE_ENV === "production" && !process.env.TRESTLE_API_URL) {
-    throw new Error("Missing TRESTLE_API_URL environment variable");
-  }
+  const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
   return `${base}/odata/Property`;
 }
 const MAX_PAGE_SIZE = 200;
