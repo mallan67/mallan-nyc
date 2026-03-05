@@ -15,7 +15,7 @@ import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
 
 /** Trestle media URLs require Bearer auth — proxy through our API */
-const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
+const TRESTLE_HOSTS = ['api.cotality.com'];
 
 function proxyMediaUrl(url: string): string {
   if (!url) return url;
