@@ -11,6 +11,10 @@ export default function BrokerLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +55,25 @@ export default function BrokerLoginPage() {
       setError('Network error.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotMessage('');
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      setForgotMessage(data.message || 'If an account exists, a reset link has been sent.');
+    } catch {
+      setForgotMessage('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
     }
   }
 
@@ -123,8 +146,55 @@ export default function BrokerLoginPage() {
               >
                 {loading ? 'Authenticating...' : 'Sign In'}
               </button>
+
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(!showForgot)}
+                  className="text-xs text-[#C4A052]/60 hover:text-[#C4A052] transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
             </div>
           </form>
+        )}
+
+        {showForgot && !success && (
+          <div className="mt-3 bg-white/5 backdrop-blur rounded-2xl p-5 ring-1 ring-white/10">
+            <p className="text-xs text-white/50 mb-3">Reset your password</p>
+            <form onSubmit={handleForgotPassword} className="space-y-3">
+              <input
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                className="w-full rounded-xl px-4 py-2.5 bg-white/5 ring-1 ring-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/40"
+                placeholder="Enter your email"
+              />
+              {forgotMessage && (
+                <p className={`text-xs ${forgotMessage.includes('error') ? 'text-red-400' : 'text-green-400'}`}>
+                  {forgotMessage}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="flex-1 bg-[#C4A052] text-black py-2.5 rounded-xl text-xs font-medium hover:bg-[#C4A052]/90 transition-colors disabled:opacity-50"
+                >
+                  {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgot(false); setForgotMessage(''); }}
+                  className="px-4 py-2.5 text-xs text-white/40 hover:text-white/60 rounded-xl ring-1 ring-white/10"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         )}
 
         <p className="text-center text-white/10 text-[10px] mt-8">
