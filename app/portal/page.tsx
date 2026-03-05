@@ -57,7 +57,32 @@ interface FamilyMember {
   created_at: string;
 }
 
-type Tab = 'listings' | 'showings' | 'family' | 'profile';
+interface Offer {
+  id: string;
+  listing_id: string;
+  listing_address: string | null;
+  list_price: string | null;
+  comment: string | null;
+  created_at: string;
+  from: { id: string; name: string } | null;
+}
+
+interface Preferences {
+  property_types: string[];
+  neighborhoods: string[];
+  boroughs: string[];
+  min_beds: number | null;
+  max_beds: number | null;
+  min_baths: number | null;
+  min_price: string | null;
+  max_price: string | null;
+  min_sqft: number | null;
+  must_haves: string[];
+  deal_breakers: string[];
+  notes: string | null;
+}
+
+type Tab = 'listings' | 'showings' | 'family' | 'preferences' | 'offers' | 'profile';
 
 export default function PortalPage() {
   const router = useRouter();
@@ -69,9 +94,13 @@ export default function PortalPage() {
   const [listings, setListings] = useState<PortalListing[]>([]);
   const [showings, setShowings] = useState<PortalShowing[]>([]);
   const [family, setFamily] = useState<FamilyMember[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [preferences, setPreferences] = useState<Preferences | null>(null);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [showingsLoading, setShowingsLoading] = useState(false);
   const [familyLoading, setFamilyLoading] = useState(false);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [prefsLoading, setPrefsLoading] = useState(false);
   const [reactLoading, setReactLoading] = useState<string | null>(null);
 
   // Comments state
@@ -98,6 +127,24 @@ export default function PortalPage() {
   const [inviteRelationship, setInviteRelationship] = useState('other');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState('');
+
+  // Showing request state
+  const [showingListingId, setShowingListingId] = useState<string | null>(null);
+  const [showingDate, setShowingDate] = useState('');
+  const [showingTime, setShowingTime] = useState('');
+  const [showingNotes, setShowingNotes] = useState('');
+  const [showingSubmitting, setShowingSubmitting] = useState(false);
+  const [showingMessage, setShowingMessage] = useState('');
+
+  // Preferences edit state
+  const [editingPrefs, setEditingPrefs] = useState(false);
+  const [prefForm, setPrefForm] = useState<Preferences>({
+    property_types: [], neighborhoods: [], boroughs: [],
+    min_beds: null, max_beds: null, min_baths: null,
+    min_price: null, max_price: null, min_sqft: null,
+    must_haves: [], deal_breakers: [], notes: null,
+  });
+  const [prefsSaving, setPrefsSaving] = useState(false);
 
   // Check auth on mount
   useEffect(() => {
@@ -142,15 +189,37 @@ export default function PortalPage() {
       .finally(() => setFamilyLoading(false));
   }, []);
 
+  const fetchOffers = useCallback(() => {
+    setOffersLoading(true);
+    fetch('/api/portal/offers')
+      .then((r) => r.json())
+      .then((data) => setOffers(data.offers || []))
+      .catch(() => {})
+      .finally(() => setOffersLoading(false));
+  }, []);
+
+  const fetchPreferences = useCallback(() => {
+    setPrefsLoading(true);
+    fetch('/api/portal/preferences')
+      .then((r) => r.json())
+      .then((data) => {
+        setPreferences(data.preferences || null);
+        if (data.preferences) setPrefForm(data.preferences);
+      })
+      .catch(() => {})
+      .finally(() => setPrefsLoading(false));
+  }, []);
+
   useEffect(() => {
     if (!loading && user) {
       fetchListings();
       fetchShowings();
       fetchFamily();
+      if (role === 'seller' || role === 'landlord') fetchOffers();
+      if (role === 'buyer' || role === 'tenant') fetchPreferences();
     }
-  }, [loading, user, fetchListings, fetchShowings, fetchFamily]);
+  }, [loading, user, role, fetchListings, fetchShowings, fetchFamily, fetchOffers, fetchPreferences]);
 
-  // Fetch comments for a listing
   async function fetchComments(listingId: string) {
     setCommentsLoading(true);
     try {
@@ -181,10 +250,7 @@ export default function PortalPage() {
       const res = await fetch(`/api/portal/listings/${listingId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          body: newComment.trim(),
-          parent_id: replyTo,
-        }),
+        body: JSON.stringify({ body: newComment.trim(), parent_id: replyTo }),
       });
       if (res.ok) {
         setNewComment('');
@@ -228,10 +294,7 @@ export default function PortalPage() {
         setRequestUrl('');
         setRequestAddress('');
         setRequestNotes('');
-        setTimeout(() => {
-          setShowRequestForm(false);
-          setRequestMessage('');
-        }, 2000);
+        setTimeout(() => { setShowRequestForm(false); setRequestMessage(''); }, 2000);
       } else {
         setRequestMessage(data.error || 'Failed to send request.');
       }
@@ -250,24 +313,16 @@ export default function PortalPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          first_name: inviteFirst,
-          last_name: inviteLast,
-          email: inviteEmail,
-          relationship: inviteRelationship,
+          first_name: inviteFirst, last_name: inviteLast,
+          email: inviteEmail, relationship: inviteRelationship,
         }),
       });
       const data = await res.json();
       if (res.ok) {
         setInviteMessage(`${data.member.name} has been invited!`);
-        setInviteFirst('');
-        setInviteLast('');
-        setInviteEmail('');
-        setInviteRelationship('other');
+        setInviteFirst(''); setInviteLast(''); setInviteEmail(''); setInviteRelationship('other');
         fetchFamily();
-        setTimeout(() => {
-          setShowInviteForm(false);
-          setInviteMessage('');
-        }, 2000);
+        setTimeout(() => { setShowInviteForm(false); setInviteMessage(''); }, 2000);
       } else {
         setInviteMessage(data.error || 'Failed to send invite.');
       }
@@ -275,6 +330,55 @@ export default function PortalPage() {
       setInviteMessage('Network error. Please try again.');
     }
     setInviteSubmitting(false);
+  }
+
+  async function handleShowingRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!showingListingId || !showingDate) return;
+    setShowingSubmitting(true);
+    setShowingMessage('');
+    try {
+      const res = await fetch('/api/portal/showings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listing_id: showingListingId,
+          date: showingDate,
+          time: showingTime || undefined,
+          notes: showingNotes || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowingMessage('Showing requested! Your agent will confirm.');
+        setShowingDate(''); setShowingTime(''); setShowingNotes('');
+        fetchShowings();
+        setTimeout(() => { setShowingListingId(null); setShowingMessage(''); }, 2000);
+      } else {
+        setShowingMessage(data.error || 'Failed to request showing.');
+      }
+    } catch {
+      setShowingMessage('Network error. Please try again.');
+    }
+    setShowingSubmitting(false);
+  }
+
+  async function savePreferences(e: React.FormEvent) {
+    e.preventDefault();
+    setPrefsSaving(true);
+    try {
+      const res = await fetch('/api/portal/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPreferences(data.preferences);
+        setEditingPrefs(false);
+      }
+    } catch {}
+    setPrefsSaving(false);
   }
 
   async function handleLogout() {
@@ -305,10 +409,13 @@ export default function PortalPage() {
     role === 'landlord' ? 'Landlord' : 'Client';
 
   const isBuyerOrTenant = role === 'buyer' || role === 'tenant';
+  const isSellerOrLandlord = role === 'seller' || role === 'landlord';
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'listings', label: isBuyerOrTenant ? 'Listings' : 'My Properties' },
     { id: 'showings', label: 'Showings' },
+    ...(isSellerOrLandlord ? [{ id: 'offers' as Tab, label: 'Offers' }] : []),
+    ...(isBuyerOrTenant ? [{ id: 'preferences' as Tab, label: 'Preferences' }] : []),
     { id: 'family', label: 'Family' },
     { id: 'profile', label: 'Profile' },
   ];
@@ -327,9 +434,10 @@ export default function PortalPage() {
     cancelled: 'bg-red-50 text-red-700',
   };
 
-  // Build threaded comment structure
   const topComments = comments.filter((c) => !c.parent_id);
   const getReplies = (parentId: string) => comments.filter((c) => c.parent_id === parentId);
+
+  const inputClass = "w-full rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30";
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -346,10 +454,7 @@ export default function PortalPage() {
                 {roleLabel} Portal — Mallan Real Estate
               </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-brand-dark/50 hover:text-brand-dark transition-colors"
-            >
+            <button onClick={handleLogout} className="text-sm text-brand-dark/50 hover:text-brand-dark transition-colors">
               Sign Out
             </button>
           </div>
@@ -368,9 +473,10 @@ export default function PortalPage() {
               >
                 {tab.label}
                 {tab.id === 'family' && family.length > 0 && (
-                  <span className="ml-1.5 text-xs bg-brand-gold/10 text-brand-gold px-1.5 py-0.5 rounded-full">
-                    {family.length}
-                  </span>
+                  <span className="ml-1.5 text-xs bg-brand-gold/10 text-brand-gold px-1.5 py-0.5 rounded-full">{family.length}</span>
+                )}
+                {tab.id === 'offers' && offers.length > 0 && (
+                  <span className="ml-1.5 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">{offers.length}</span>
                 )}
               </button>
             ))}
@@ -379,75 +485,42 @@ export default function PortalPage() {
           {/* ── LISTINGS TAB ── */}
           {activeTab === 'listings' && (
             <div>
-              {/* Request a Listing button for buyers/tenants */}
               {isBuyerOrTenant && (
                 <div className="mb-4 flex gap-2">
-                  <button
-                    onClick={() => setShowRequestForm(!showRequestForm)}
-                    className="px-4 py-2 text-sm font-medium bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors"
-                  >
+                  <button onClick={() => setShowRequestForm(!showRequestForm)}
+                    className="px-4 py-2 text-sm font-medium bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors">
                     Send Listing to Agent
                   </button>
                 </div>
               )}
 
-              {/* Request Form */}
               {showRequestForm && (
                 <div className="mb-4 bg-white rounded-2xl ring-1 ring-black/5 p-5">
                   <p className="text-sm font-medium mb-3">Send a listing to your agent for review</p>
                   <form onSubmit={handleListingRequest} className="space-y-3">
-                    <input
-                      type="url"
-                      value={requestUrl}
-                      onChange={(e) => setRequestUrl(e.target.value)}
-                      className="w-full rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                      placeholder="Listing URL (StreetEasy, Zillow, etc.)"
-                    />
-                    <input
-                      type="text"
-                      value={requestAddress}
-                      onChange={(e) => setRequestAddress(e.target.value)}
-                      className="w-full rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                      placeholder="Or property address"
-                    />
-                    <textarea
-                      value={requestNotes}
-                      onChange={(e) => setRequestNotes(e.target.value)}
-                      rows={2}
-                      className="w-full rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 resize-none"
-                      placeholder="Any notes for your agent (optional)"
-                    />
+                    <input type="url" value={requestUrl} onChange={(e) => setRequestUrl(e.target.value)}
+                      className={inputClass} placeholder="Listing URL (StreetEasy, Zillow, etc.)" />
+                    <input type="text" value={requestAddress} onChange={(e) => setRequestAddress(e.target.value)}
+                      className={inputClass} placeholder="Or property address" />
+                    <textarea value={requestNotes} onChange={(e) => setRequestNotes(e.target.value)} rows={2}
+                      className={`${inputClass} resize-none`} placeholder="Any notes for your agent (optional)" />
                     {requestMessage && (
-                      <p className={`text-sm ${requestMessage.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>
-                        {requestMessage}
-                      </p>
+                      <p className={`text-sm ${requestMessage.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>{requestMessage}</p>
                     )}
                     <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={requestSubmitting || (!requestUrl && !requestAddress)}
-                        className="px-4 py-2 text-sm font-medium bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 transition-colors disabled:opacity-50"
-                      >
+                      <button type="submit" disabled={requestSubmitting || (!requestUrl && !requestAddress)}
+                        className="px-4 py-2 text-sm font-medium bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 transition-colors disabled:opacity-50">
                         {requestSubmitting ? 'Sending...' : 'Send Request'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowRequestForm(false); setRequestMessage(''); }}
-                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl"
-                      >
-                        Cancel
-                      </button>
+                      <button type="button" onClick={() => { setShowRequestForm(false); setRequestMessage(''); }}
+                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
                     </div>
                   </form>
                 </div>
               )}
 
               {listingsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-24" />
-                  ))}
-                </div>
+                <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-24" />)}</div>
               ) : listings.length === 0 ? (
                 <div className="text-center py-16">
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -455,9 +528,7 @@ export default function PortalPage() {
                   </svg>
                   <p className="text-brand-dark/40 mb-2">No listings yet</p>
                   <p className="text-brand-dark/30 text-sm">
-                    {isBuyerOrTenant
-                      ? 'Your agent will share listings with you here.'
-                      : 'Your property details will appear here once your agent adds them.'}
+                    {isBuyerOrTenant ? 'Your agent will share listings with you here.' : 'Your property details will appear here once your agent adds them.'}
                   </p>
                 </div>
               ) : (
@@ -466,53 +537,66 @@ export default function PortalPage() {
                     <div key={listing.id} className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
                       <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">
-                            {listing.address || 'Address Undisclosed'}
-                          </p>
+                          <p className="font-medium text-sm truncate">{listing.address || 'Address Undisclosed'}</p>
                           <p className="text-brand-dark/50 text-xs mt-1">
-                            ${Number(listing.list_price).toLocaleString()}
-                            {listing.listing_type === 'rent' ? '/mo' : ''} — {listing.listing_type === 'rent' ? 'Rental' : 'Sale'}
-                            {listing.status && listing.status !== 'Active' && (
-                              <span className="ml-2 text-brand-dark/40">({listing.status})</span>
-                            )}
+                            ${Number(listing.list_price).toLocaleString()}{listing.listing_type === 'rent' ? '/mo' : ''} — {listing.listing_type === 'rent' ? 'Rental' : 'Sale'}
+                            {listing.status && listing.status !== 'Active' && <span className="ml-2 text-brand-dark/40">({listing.status})</span>}
                           </p>
                         </div>
-
                         <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                          {isBuyerOrTenant && (Object.keys(reactionConfig) as Array<keyof typeof reactionConfig>).map((action) => {
+                            const active = listing.reactions[action];
+                            const isLoading = reactLoading === `${listing.id}-${action}`;
+                            const cfg = reactionConfig[action];
+                            return (
+                              <button key={action} onClick={() => handleReaction(listing.id, action)} disabled={isLoading}
+                                className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${active ? cfg.activeClass : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'} ${isLoading ? 'opacity-50' : ''}`}
+                                title={active ? `Remove ${cfg.label}` : cfg.label}>
+                                {cfg.icon} {cfg.label}
+                              </button>
+                            );
+                          })}
                           {isBuyerOrTenant && (
-                            <>
-                              {(Object.keys(reactionConfig) as Array<keyof typeof reactionConfig>).map((action) => {
-                                const active = listing.reactions[action];
-                                const isLoading = reactLoading === `${listing.id}-${action}`;
-                                const cfg = reactionConfig[action];
-                                return (
-                                  <button
-                                    key={action}
-                                    onClick={() => handleReaction(listing.id, action)}
-                                    disabled={isLoading}
-                                    className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${
-                                      active ? cfg.activeClass : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'
-                                    } ${isLoading ? 'opacity-50' : ''}`}
-                                    title={active ? `Remove ${cfg.label}` : cfg.label}
-                                  >
-                                    {cfg.icon} {cfg.label}
-                                  </button>
-                                );
-                              })}
-                            </>
+                            <button onClick={() => setShowingListingId(showingListingId === listing.id ? null : listing.id)}
+                              className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${showingListingId === listing.id ? 'bg-purple-50 ring-purple-200 text-purple-600' : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'}`}>
+                              Schedule
+                            </button>
                           )}
-                          <button
-                            onClick={() => toggleComments(listing.id)}
-                            className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${
-                              expandedListing === listing.id
-                                ? 'bg-blue-50 ring-blue-200 text-blue-600'
-                                : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'
-                            }`}
-                          >
+                          <button onClick={() => toggleComments(listing.id)}
+                            className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${expandedListing === listing.id ? 'bg-blue-50 ring-blue-200 text-blue-600' : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'}`}>
                             Comments
                           </button>
                         </div>
                       </div>
+
+                      {/* Showing Request Form */}
+                      {showingListingId === listing.id && (
+                        <div className="border-t border-black/5 bg-purple-50/30 p-4">
+                          <p className="text-sm font-medium mb-3">Request a Showing</p>
+                          <form onSubmit={handleShowingRequest} className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <input type="date" required value={showingDate} onChange={(e) => setShowingDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className={inputClass} />
+                              <input type="text" value={showingTime} onChange={(e) => setShowingTime(e.target.value)}
+                                className={inputClass} placeholder="Preferred time (e.g. 2:00 PM)" />
+                            </div>
+                            <input type="text" value={showingNotes} onChange={(e) => setShowingNotes(e.target.value)}
+                              className={inputClass} placeholder="Any notes (optional)" />
+                            {showingMessage && (
+                              <p className={`text-sm ${showingMessage.includes('requested') ? 'text-green-600' : 'text-red-600'}`}>{showingMessage}</p>
+                            )}
+                            <div className="flex gap-2">
+                              <button type="submit" disabled={showingSubmitting || !showingDate}
+                                className="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50">
+                                {showingSubmitting ? 'Requesting...' : 'Request Showing'}
+                              </button>
+                              <button type="button" onClick={() => { setShowingListingId(null); setShowingMessage(''); }}
+                                className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
 
                       {/* Comments Section */}
                       {expandedListing === listing.id && (
@@ -525,107 +609,60 @@ export default function PortalPage() {
                           ) : (
                             <>
                               {topComments.length === 0 && (
-                                <p className="text-brand-dark/30 text-xs mb-3">
-                                  No comments yet. Be the first to share your thoughts!
-                                </p>
+                                <p className="text-brand-dark/30 text-xs mb-3">No comments yet. Be the first to share your thoughts!</p>
                               )}
                               <div className="space-y-3 max-h-64 overflow-y-auto mb-3">
                                 {topComments.map((comment) => (
                                   <div key={comment.id}>
                                     <div className="flex gap-2">
                                       <div className="w-7 h-7 rounded-full bg-brand-gold/10 flex items-center justify-center flex-shrink-0">
-                                        <span className="text-xs font-medium text-brand-gold">
-                                          {comment.author.name.charAt(0)}
-                                        </span>
+                                        <span className="text-xs font-medium text-brand-gold">{comment.author.name.charAt(0)}</span>
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2">
-                                          <span className="text-xs font-medium">
-                                            {comment.author.isMe ? 'You' : comment.author.name}
-                                          </span>
-                                          <span className="text-[10px] text-brand-dark/30">
-                                            {new Date(comment.created_at).toLocaleDateString()}
-                                          </span>
+                                          <span className="text-xs font-medium">{comment.author.isMe ? 'You' : comment.author.name}</span>
+                                          <span className="text-[10px] text-brand-dark/30">{new Date(comment.created_at).toLocaleDateString()}</span>
                                         </div>
                                         <p className="text-sm text-brand-dark/70 mt-0.5">{comment.body}</p>
-                                        <button
-                                          onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
-                                          className="text-[10px] text-brand-gold hover:underline mt-1"
-                                        >
-                                          Reply
-                                        </button>
+                                        <button onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+                                          className="text-[10px] text-brand-gold hover:underline mt-1">Reply</button>
                                       </div>
                                     </div>
-                                    {/* Replies */}
                                     {getReplies(comment.id).map((reply) => (
                                       <div key={reply.id} className="ml-9 mt-2 flex gap-2">
                                         <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                          <span className="text-[10px] font-medium text-brand-dark/40">
-                                            {reply.author.name.charAt(0)}
-                                          </span>
+                                          <span className="text-[10px] font-medium text-brand-dark/40">{reply.author.name.charAt(0)}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-baseline gap-2">
-                                            <span className="text-xs font-medium">
-                                              {reply.author.isMe ? 'You' : reply.author.name}
-                                            </span>
-                                            <span className="text-[10px] text-brand-dark/30">
-                                              {new Date(reply.created_at).toLocaleDateString()}
-                                            </span>
+                                            <span className="text-xs font-medium">{reply.author.isMe ? 'You' : reply.author.name}</span>
+                                            <span className="text-[10px] text-brand-dark/30">{new Date(reply.created_at).toLocaleDateString()}</span>
                                           </div>
                                           <p className="text-xs text-brand-dark/60 mt-0.5">{reply.body}</p>
                                         </div>
                                       </div>
                                     ))}
-                                    {/* Reply form */}
                                     {replyTo === comment.id && (
                                       <div className="ml-9 mt-2 flex gap-2">
-                                        <input
-                                          type="text"
-                                          value={newComment}
-                                          onChange={(e) => setNewComment(e.target.value)}
+                                        <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)}
                                           placeholder={`Reply to ${comment.author.name}...`}
                                           className="flex-1 rounded-lg px-3 py-1.5 bg-white ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                              e.preventDefault();
-                                              submitComment(listing.id);
-                                            }
-                                          }}
-                                        />
-                                        <button
-                                          onClick={() => submitComment(listing.id)}
-                                          disabled={commentSubmitting || !newComment.trim()}
-                                          className="px-3 py-1.5 text-xs bg-brand-gold text-white rounded-lg hover:bg-brand-gold/90 disabled:opacity-50"
-                                        >
-                                          Send
-                                        </button>
+                                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(listing.id); } }} />
+                                        <button onClick={() => submitComment(listing.id)} disabled={commentSubmitting || !newComment.trim()}
+                                          className="px-3 py-1.5 text-xs bg-brand-gold text-white rounded-lg hover:bg-brand-gold/90 disabled:opacity-50">Send</button>
                                       </div>
                                     )}
                                   </div>
                                 ))}
                               </div>
-                              {/* New top-level comment */}
                               {!replyTo && (
                                 <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
+                                  <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)}
                                     placeholder="Add a comment..."
                                     className="flex-1 rounded-xl px-3 py-2 bg-white ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        submitComment(listing.id);
-                                      }
-                                    }}
-                                  />
-                                  <button
-                                    onClick={() => submitComment(listing.id)}
-                                    disabled={commentSubmitting || !newComment.trim()}
-                                    className="px-4 py-2 text-sm bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 disabled:opacity-50"
-                                  >
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(listing.id); } }} />
+                                  <button onClick={() => submitComment(listing.id)} disabled={commentSubmitting || !newComment.trim()}
+                                    className="px-4 py-2 text-sm bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 disabled:opacity-50">
                                     {commentSubmitting ? '...' : 'Send'}
                                   </button>
                                 </div>
@@ -645,11 +682,7 @@ export default function PortalPage() {
           {activeTab === 'showings' && (
             <div>
               {showingsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-20" />
-                  ))}
-                </div>
+                <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-20" />)}</div>
               ) : showings.length === 0 ? (
                 <div className="text-center py-16">
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -657,33 +690,19 @@ export default function PortalPage() {
                   </svg>
                   <p className="text-brand-dark/40 mb-2">No showings scheduled</p>
                   <p className="text-brand-dark/30 text-sm">
-                    {isBuyerOrTenant
-                      ? 'Click "Tour" on a listing to request a showing.'
-                      : 'Upcoming showings for your property will appear here.'}
+                    {isBuyerOrTenant ? 'Click "Schedule" on a listing to request a showing.' : 'Upcoming showings for your property will appear here.'}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {showings.map((showing) => (
-                    <div
-                      key={showing.id}
-                      className="bg-white rounded-2xl ring-1 ring-black/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-                    >
+                    <div key={showing.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {showing.listing?.address || 'Address Undisclosed'}
-                        </p>
+                        <p className="font-medium text-sm truncate">{showing.listing?.address || 'Address Undisclosed'}</p>
                         <p className="text-brand-dark/50 text-xs mt-1">
-                          {new Date(showing.date).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                          {showing.time ? ` at ${showing.time}` : ''}
-                          {' — '}
-                          {showing.type === 'openhouse' ? 'Open House' :
-                           showing.type === 'virtual' ? 'Virtual' : 'Private'}
+                          {new Date(showing.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          {showing.time ? ` at ${showing.time}` : ''}{' — '}
+                          {showing.type === 'openhouse' ? 'Open House' : showing.type === 'virtual' ? 'Virtual' : 'Private'}
                         </p>
                       </div>
                       <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${statusColors[showing.status] || 'bg-gray-50 text-gray-700'}`}>
@@ -696,134 +715,271 @@ export default function PortalPage() {
             </div>
           )}
 
+          {/* ── OFFERS TAB (Seller/Landlord only) ── */}
+          {activeTab === 'offers' && isSellerOrLandlord && (
+            <div>
+              {offersLoading ? (
+                <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-20" />)}</div>
+              ) : offers.length === 0 ? (
+                <div className="text-center py-16">
+                  <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-brand-dark/40 mb-2">No offers yet</p>
+                  <p className="text-brand-dark/30 text-sm">
+                    When buyers express interest or submit offers on your property, they will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {offers.map((offer) => (
+                    <div key={offer.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{offer.listing_address || 'Address Undisclosed'}</p>
+                          {offer.list_price && (
+                            <p className="text-brand-dark/50 text-xs mt-0.5">List Price: ${Number(offer.list_price).toLocaleString()}</p>
+                          )}
+                          {offer.from && (
+                            <p className="text-brand-dark/40 text-xs mt-0.5">From: {offer.from.name}</p>
+                          )}
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="inline-flex px-3 py-1 text-xs font-medium rounded-full bg-orange-50 text-orange-700">Offer</span>
+                          <p className="text-[10px] text-brand-dark/30 mt-1">
+                            {new Date(offer.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      {offer.comment && (
+                        <p className="mt-2 text-sm text-brand-dark/60 bg-gray-50 rounded-xl px-3 py-2">{offer.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── PREFERENCES TAB (Buyer/Tenant only) ── */}
+          {activeTab === 'preferences' && isBuyerOrTenant && (
+            <div className="max-w-lg">
+              {prefsLoading ? (
+                <div className="animate-pulse space-y-3">
+                  <div className="h-8 bg-gray-100 rounded w-48" />
+                  <div className="h-32 bg-gray-100 rounded-2xl" />
+                </div>
+              ) : !editingPrefs ? (
+                <div className="bg-white rounded-2xl ring-1 ring-black/5 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold">Your Search Preferences</h3>
+                    <button onClick={() => { setEditingPrefs(true); if (preferences) setPrefForm(preferences); }}
+                      className="text-sm text-brand-gold hover:underline">Edit</button>
+                  </div>
+                  {!preferences ? (
+                    <p className="text-brand-dark/40 text-sm">
+                      No preferences set yet. Click Edit to tell your agent what you are looking for.
+                    </p>
+                  ) : (
+                    <div className="space-y-3 text-sm">
+                      {preferences.boroughs.length > 0 && (
+                        <div><span className="text-brand-dark/40 text-xs">Boroughs:</span> <span>{preferences.boroughs.join(', ')}</span></div>
+                      )}
+                      {preferences.neighborhoods.length > 0 && (
+                        <div><span className="text-brand-dark/40 text-xs">Neighborhoods:</span> <span>{preferences.neighborhoods.join(', ')}</span></div>
+                      )}
+                      {preferences.property_types.length > 0 && (
+                        <div><span className="text-brand-dark/40 text-xs">Property Types:</span> <span>{preferences.property_types.join(', ')}</span></div>
+                      )}
+                      {(preferences.min_price || preferences.max_price) && (
+                        <div><span className="text-brand-dark/40 text-xs">Price:</span>{' '}
+                          <span>
+                            {preferences.min_price ? `$${Number(preferences.min_price).toLocaleString()}` : 'Any'}
+                            {' — '}
+                            {preferences.max_price ? `$${Number(preferences.max_price).toLocaleString()}` : 'Any'}
+                          </span>
+                        </div>
+                      )}
+                      {(preferences.min_beds || preferences.max_beds) && (
+                        <div><span className="text-brand-dark/40 text-xs">Bedrooms:</span>{' '}
+                          <span>{preferences.min_beds ?? 'Any'} — {preferences.max_beds ?? 'Any'}</span>
+                        </div>
+                      )}
+                      {preferences.min_baths && (
+                        <div><span className="text-brand-dark/40 text-xs">Min Bathrooms:</span> <span>{preferences.min_baths}+</span></div>
+                      )}
+                      {preferences.must_haves.length > 0 && (
+                        <div><span className="text-brand-dark/40 text-xs">Must Haves:</span> <span>{preferences.must_haves.join(', ')}</span></div>
+                      )}
+                      {preferences.deal_breakers.length > 0 && (
+                        <div><span className="text-brand-dark/40 text-xs">Deal Breakers:</span> <span className="text-red-600">{preferences.deal_breakers.join(', ')}</span></div>
+                      )}
+                      {preferences.notes && (
+                        <div><span className="text-brand-dark/40 text-xs">Notes:</span> <p className="text-brand-dark/60 mt-0.5">{preferences.notes}</p></div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl ring-1 ring-black/5 p-6">
+                  <h3 className="text-sm font-semibold mb-4">Edit Preferences</h3>
+                  <form onSubmit={savePreferences} className="space-y-4">
+                    <div>
+                      <label className="text-xs text-brand-dark/50 font-medium">Boroughs (comma-separated)</label>
+                      <input value={prefForm.boroughs.join(', ')}
+                        onChange={(e) => setPrefForm({ ...prefForm, boroughs: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        className={inputClass} placeholder="Manhattan, Brooklyn, Queens" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-brand-dark/50 font-medium">Neighborhoods (comma-separated)</label>
+                      <input value={prefForm.neighborhoods.join(', ')}
+                        onChange={(e) => setPrefForm({ ...prefForm, neighborhoods: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        className={inputClass} placeholder="Upper East Side, Williamsburg" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-brand-dark/50 font-medium">Property Types (comma-separated)</label>
+                      <input value={prefForm.property_types.join(', ')}
+                        onChange={(e) => setPrefForm({ ...prefForm, property_types: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        className={inputClass} placeholder="Condo, Co-op, Townhouse" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-brand-dark/50 font-medium">Min Price</label>
+                        <input type="number" value={prefForm.min_price ?? ''}
+                          onChange={(e) => setPrefForm({ ...prefForm, min_price: e.target.value || null })}
+                          className={inputClass} placeholder="500000" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-brand-dark/50 font-medium">Max Price</label>
+                        <input type="number" value={prefForm.max_price ?? ''}
+                          onChange={(e) => setPrefForm({ ...prefForm, max_price: e.target.value || null })}
+                          className={inputClass} placeholder="1500000" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-brand-dark/50 font-medium">Min Beds</label>
+                        <input type="number" value={prefForm.min_beds ?? ''}
+                          onChange={(e) => setPrefForm({ ...prefForm, min_beds: e.target.value ? Number(e.target.value) : null })}
+                          className={inputClass} placeholder="1" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-brand-dark/50 font-medium">Max Beds</label>
+                        <input type="number" value={prefForm.max_beds ?? ''}
+                          onChange={(e) => setPrefForm({ ...prefForm, max_beds: e.target.value ? Number(e.target.value) : null })}
+                          className={inputClass} placeholder="3" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-brand-dark/50 font-medium">Min Baths</label>
+                        <input type="number" value={prefForm.min_baths ?? ''}
+                          onChange={(e) => setPrefForm({ ...prefForm, min_baths: e.target.value ? Number(e.target.value) : null })}
+                          className={inputClass} placeholder="1" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-brand-dark/50 font-medium">Must Haves (comma-separated)</label>
+                      <input value={prefForm.must_haves.join(', ')}
+                        onChange={(e) => setPrefForm({ ...prefForm, must_haves: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        className={inputClass} placeholder="Doorman, Laundry in unit, Outdoor space" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-brand-dark/50 font-medium">Deal Breakers (comma-separated)</label>
+                      <input value={prefForm.deal_breakers.join(', ')}
+                        onChange={(e) => setPrefForm({ ...prefForm, deal_breakers: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        className={inputClass} placeholder="Walk-up, No pets" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-brand-dark/50 font-medium">Notes</label>
+                      <textarea value={prefForm.notes ?? ''} rows={3}
+                        onChange={(e) => setPrefForm({ ...prefForm, notes: e.target.value || null })}
+                        className={`${inputClass} resize-none`} placeholder="Anything else your agent should know..." />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="submit" disabled={prefsSaving}
+                        className="px-4 py-2 text-sm font-medium bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 transition-colors disabled:opacity-50">
+                        {prefsSaving ? 'Saving...' : 'Save Preferences'}
+                      </button>
+                      <button type="button" onClick={() => setEditingPrefs(false)}
+                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── FAMILY TAB ── */}
           {activeTab === 'family' && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-brand-dark/50">
-                  Invite family members to view listings and comment together.
-                </p>
+                <p className="text-sm text-brand-dark/50">Invite family members to view listings and comment together.</p>
                 {family.length < 5 && (
-                  <button
-                    onClick={() => setShowInviteForm(!showInviteForm)}
-                    className="px-4 py-2 text-sm font-medium bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors"
-                  >
-                    Invite
-                  </button>
+                  <button onClick={() => setShowInviteForm(!showInviteForm)}
+                    className="px-4 py-2 text-sm font-medium bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors">Invite</button>
                 )}
               </div>
 
-              {/* Invite Form */}
               {showInviteForm && (
                 <div className="mb-4 bg-white rounded-2xl ring-1 ring-black/5 p-5">
                   <p className="text-sm font-medium mb-3">Invite a family member</p>
                   <form onSubmit={handleFamilyInvite} className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        required
-                        value={inviteFirst}
-                        onChange={(e) => setInviteFirst(e.target.value)}
-                        className="rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                        placeholder="First name"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={inviteLast}
-                        onChange={(e) => setInviteLast(e.target.value)}
-                        className="rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                        placeholder="Last name"
-                      />
+                      <input type="text" required value={inviteFirst} onChange={(e) => setInviteFirst(e.target.value)}
+                        className={inputClass} placeholder="First name" />
+                      <input type="text" required value={inviteLast} onChange={(e) => setInviteLast(e.target.value)}
+                        className={inputClass} placeholder="Last name" />
                     </div>
-                    <input
-                      type="email"
-                      required
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      className="w-full rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                      placeholder="Email address"
-                    />
-                    <select
-                      value={inviteRelationship}
-                      onChange={(e) => setInviteRelationship(e.target.value)}
-                      className="w-full rounded-xl px-4 py-2.5 bg-gray-50 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                    >
+                    <input type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+                      className={inputClass} placeholder="Email address" />
+                    <select value={inviteRelationship} onChange={(e) => setInviteRelationship(e.target.value)} className={inputClass}>
                       <option value="spouse">Spouse / Partner</option>
                       <option value="parent">Parent</option>
                       <option value="sibling">Sibling</option>
                       <option value="other">Other</option>
                     </select>
                     {inviteMessage && (
-                      <p className={`text-sm ${inviteMessage.includes('invited') ? 'text-green-600' : 'text-red-600'}`}>
-                        {inviteMessage}
-                      </p>
+                      <p className={`text-sm ${inviteMessage.includes('invited') ? 'text-green-600' : 'text-red-600'}`}>{inviteMessage}</p>
                     )}
                     <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={inviteSubmitting}
-                        className="px-4 py-2 text-sm font-medium bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 transition-colors disabled:opacity-50"
-                      >
+                      <button type="submit" disabled={inviteSubmitting}
+                        className="px-4 py-2 text-sm font-medium bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 transition-colors disabled:opacity-50">
                         {inviteSubmitting ? 'Sending...' : 'Send Invite'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowInviteForm(false); setInviteMessage(''); }}
-                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl"
-                      >
-                        Cancel
-                      </button>
+                      <button type="button" onClick={() => { setShowInviteForm(false); setInviteMessage(''); }}
+                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
                     </div>
                   </form>
                 </div>
               )}
 
               {familyLoading ? (
-                <div className="space-y-3">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-16" />
-                  ))}
-                </div>
+                <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-16" />)}</div>
               ) : family.length === 0 ? (
                 <div className="text-center py-16">
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                   <p className="text-brand-dark/40 mb-2">No family members yet</p>
-                  <p className="text-brand-dark/30 text-sm">
-                    Invite your spouse, parents, or family to view and comment on listings together.
-                  </p>
+                  <p className="text-brand-dark/30 text-sm">Invite your spouse, parents, or family to view and comment on listings together.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {family.map((fm) => (
-                    <div
-                      key={fm.id}
-                      className="bg-white rounded-2xl ring-1 ring-black/5 p-4 flex items-center gap-4"
-                    >
+                    <div key={fm.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4 flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-brand-gold">
-                          {fm.member.name.charAt(0)}
-                        </span>
+                        <span className="text-sm font-medium text-brand-gold">{fm.member.name.charAt(0)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{fm.member.name}</p>
                         <p className="text-brand-dark/40 text-xs">{fm.member.email}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-brand-dark/40 capitalize">
-                          {fm.relationship || 'Family'}
-                        </span>
+                        <span className="text-xs text-brand-dark/40 capitalize">{fm.relationship || 'Family'}</span>
                         <span className={`w-2 h-2 rounded-full ${fm.member.active ? 'bg-green-400' : 'bg-gray-300'}`} />
                       </div>
                     </div>
                   ))}
-                  {family.length >= 5 && (
-                    <p className="text-xs text-brand-dark/30 text-center mt-2">
-                      Maximum of 5 family members reached.
-                    </p>
-                  )}
+                  {family.length >= 5 && <p className="text-xs text-brand-dark/30 text-center mt-2">Maximum of 5 family members reached.</p>}
                 </div>
               )}
             </div>
@@ -851,14 +1007,8 @@ export default function PortalPage() {
                   <label className="text-xs text-brand-dark/40 font-medium">Portal Type</label>
                   <p className="text-sm mt-0.5">{roleLabel}</p>
                 </div>
-
                 <div className="pt-4 border-t border-black/5">
-                  <Link
-                    href="/reset-password"
-                    className="text-sm text-brand-gold hover:underline"
-                  >
-                    Change Password
-                  </Link>
+                  <Link href="/reset-password" className="text-sm text-brand-gold hover:underline">Change Password</Link>
                 </div>
               </div>
             </div>
