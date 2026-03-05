@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import IDXImage from '@/app/components/IDXImage';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import { useListings } from '@/lib/hooks/useListings';
@@ -549,18 +549,41 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
       className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group"
     >
       {/* Image */}
-      <div className="relative aspect-[4/3] bg-gray-100">
-        <Image
+      <div className="relative overflow-hidden">
+        <IDXImage
           src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-700"
+          aspect="card"
+          className="group-hover:scale-105 transition-transform duration-700"
         />
         {formatComingSoonBadge(listing) && (
-          <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl">
+          <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl z-10">
             {formatComingSoonBadge(listing)}
           </span>
         )}
+        {/* Photo count badge — top right */}
+        {listing.media.length > 0 && (
+          <div className="absolute top-3 right-3 flex gap-1.5 z-10">
+            <span className="flex items-center gap-1 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              {listing.photosCount || listing.media.length}
+            </span>
+          </div>
+        )}
+        {/* REBNY RLS logo — bottom of photo with gradient */}
+        <div className="absolute bottom-0 left-0 right-0 z-10">
+          <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent pt-6 pb-2 px-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/rebny-logo.png" alt="REBNY RLS" className="h-[14px] w-auto brightness-0 invert opacity-70" />
+              </div>
+              <span className="text-[10px] text-white/60">
+                {listing.listOfficeName}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Content */}
@@ -600,11 +623,11 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
           </p>
         )}
 
-        {/* REBNY RLS Per-Card Attribution */}
-        <p className="text-[10px] text-brand-dark/40 mt-2 pt-2 border-t border-black/5">
+        {/* Per-card attribution text */}
+        <p className="text-[10px] text-brand-dark/30 mt-2 pt-2 border-t border-black/5">
           Courtesy of {listing.listOfficeName}
           {listing.modificationTimestamp && (
-            <> &middot; Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
+            <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
           )}
         </p>
       </div>
@@ -620,18 +643,23 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
       className="glass-card rounded-2xl overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 flex group"
     >
       {/* Image */}
-      <div className="relative w-48 sm:w-64 flex-shrink-0 bg-gray-100">
-        <Image
+      <div className="relative w-48 sm:w-64 flex-shrink-0">
+        <IDXImage
           src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-700"
+          aspect="card"
+          className="group-hover:scale-105 transition-transform duration-700"
         />
         {formatComingSoonBadge(listing) && (
-          <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-lg">
+          <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-lg z-10">
             {formatComingSoonBadge(listing)}
           </span>
         )}
+        {/* REBNY RLS logo — bottom of photo */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/50 to-transparent pt-5 pb-1.5 px-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/rebny-logo.png" alt="REBNY RLS" className="h-[12px] w-auto brightness-0 invert opacity-60" />
+        </div>
       </div>
 
       {/* Content */}
@@ -671,10 +699,9 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
           )}
         </div>
 
-        {/* REBNY Attribution */}
-        <p className="text-[10px] text-brand-dark/40 mt-2">
+        <p className="text-[10px] text-brand-dark/30 mt-2">
           Courtesy of {listing.listOfficeName}
-          {listing.modificationTimestamp && <> &middot; Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
+          {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
         </p>
       </div>
     </Link>
