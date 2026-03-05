@@ -13,6 +13,20 @@
 
 import type { IDXListing } from './types';
 
+/** Trestle media URLs require Bearer auth — proxy through our API */
+const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
+
+function proxyMediaUrl(url: string): string {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    if (TRESTLE_HOSTS.includes(parsed.hostname)) {
+      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+    }
+  } catch { /* not a valid URL — return as-is */ }
+  return url;
+}
+
 /**
  * Public listing shape returned by GET /api/listings and GET /api/listings/:id.
  * No private remarks, no agent PII, address suppressed when required.
@@ -145,8 +159,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     // Agent: office name + agent name only — NO email, phone, or MLS IDs
     listOfficeName: listing.listOfficeName,
     listAgentFullName: listing.listAgentFullName,
-    // Media
-    media: listing.media,
+    // Media — proxy Trestle URLs through our API (they require Bearer auth)
+    media: listing.media.map(m => ({ ...m, url: proxyMediaUrl(m.url) })),
     photosCount: listing.photosCount,
     virtualTourURL: listing.virtualTourURLUnbranded || undefined,
     // Public remarks only — private remarks are NEVER on IDXListing

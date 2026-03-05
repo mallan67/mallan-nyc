@@ -33,7 +33,10 @@ async function main() {
   // AGENTS
   // ═══════════════════════════════════════════════════════════
 
-  const mayaHash = await hashPassword(process.env.SEED_BROKER_PASSWORD || "ChangeMe_Broker_2026!");
+  if (!process.env.SEED_BROKER_PASSWORD || !process.env.SEED_AGENT_PASSWORD) {
+    throw new Error("SEED_BROKER_PASSWORD and SEED_AGENT_PASSWORD must be set in .env.local before seeding.");
+  }
+  const mayaHash = await hashPassword(process.env.SEED_BROKER_PASSWORD);
 
   const maya = await prisma.agent.upsert({
     where: { email: "maya@mallan.nyc" },
@@ -69,7 +72,7 @@ async function main() {
   });
   console.log("  Agent: Maya Allan (BROKER) id=" + maya.id);
 
-  const agentAHash = await hashPassword(process.env.SEED_AGENT_PASSWORD || "ChangeMe_Agent_2026!");
+  const agentAHash = await hashPassword(process.env.SEED_AGENT_PASSWORD!);
 
   const agentA = await prisma.agent.upsert({
     where: { email: "alex@mallan.nyc" },
@@ -105,7 +108,7 @@ async function main() {
   });
   console.log("  Agent: Alex Rivera (AGENT) id=" + agentA.id);
 
-  const agentBHash = await hashPassword(process.env.SEED_AGENT_PASSWORD || "ChangeMe_Agent_2026!");
+  const agentBHash = await hashPassword(process.env.SEED_AGENT_PASSWORD!);
 
   const agentB = await prisma.agent.upsert({
     where: { email: "jamie@mallan.nyc" },
