@@ -62,11 +62,13 @@ export async function GET(req: NextRequest) {
       const filterParts = uncached.map(
         (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
       );
-      const filter = `(${filterParts.join(" or ")}) and Order eq 0`;
+      // RESO DD: MediaCategory='Photo' for actual photos, 'Floor Plan' for floorplans
+      // Fetch photos only (not floorplans) — prefer PreferredPhotoYN, then lowest Order
+      const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
 
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordID,MediaURL,Order,MediaType");
+      params.set("$select", "ResourceRecordID,MediaURL,Order,MediaType,MediaCategory,PreferredPhotoYN");
       params.set("$orderby", "Order asc");
       params.set("$top", String(uncached.length * 2)); // Allow some extras
 
