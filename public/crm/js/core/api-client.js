@@ -173,6 +173,30 @@ var MallanAPI = (function () {
       });
     },
 
+    /**
+     * Upload a photo file for a listing.
+     * @param {string} id - Listing ID
+     * @param {File} file - Image file (JPEG, PNG, WebP, HEIC)
+     * @param {string} [caption] - Optional caption
+     * @param {number} [order] - Optional sort order
+     * @returns {Promise} Upload result with URLs
+     */
+    uploadPhoto: function (id, file, caption, order) {
+      var formData = new FormData();
+      formData.append('file', file);
+      if (caption) formData.append('caption', caption);
+      if (order != null) formData.append('order', String(order));
+      // Use raw fetch (not _fetch) to send multipart/form-data without JSON Content-Type
+      return fetch('/api/crm/listings/' + encodeURIComponent(id) + '/media/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      }).then(function(res) {
+        if (!res.ok) return res.json().then(function(err) { return Promise.reject(err); });
+        return res.json();
+      });
+    },
+
     remove: function (id) {
       return _fetch('/api/crm/listings/' + encodeURIComponent(id), {
         method: 'DELETE',

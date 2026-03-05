@@ -16,7 +16,7 @@ import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
-import { fetchSingleListing } from '@/lib/idx/fetch';
+import { fetchSingleListing, fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
@@ -61,7 +61,23 @@ async function fetchListing(id: string): Promise<PublicListingDTO | null> {
     const listing = mapRESOToInternal(raw);
     if (!listing) return null;
 
-    return toPublicDTO(listing);
+    const dto = toPublicDTO(listing);
+
+    // If no media from $expand=Media, fetch from Trestle Media resource
+    if (dto.media.length === 0 && (dto.photosCount ?? 0) > 0) {
+      const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
+      try {
+        const mediaItems = await fetchListingMedia(listingKey);
+        if (mediaItems.length > 0) {
+          dto.media = mediaItems;
+          dto.photosCount = mediaItems.length;
+        }
+      } catch (mediaErr) {
+        console.warn(`[/listing/${id}] Media fetch failed:`, mediaErr);
+      }
+    }
+
+    return dto;
   } catch (err) {
     console.error(`[/listing/${id}] IDX fetch error:`, err);
     return null;

@@ -223,6 +223,51 @@ export function buildActiveFilter(
   return parts.map((p) => `(${p})`).join(" and ");
 }
 
+/**
+ * Fetch media/photos for a single listing from Trestle's Media resource.
+ * Uses ResourceRecordKeyNumeric (SourceSystemKey) to query.
+ * Falls back to ListingId-based ResourceRecordID if key is not numeric.
+ */
+export async function fetchListingMedia(
+  listingKey: string
+): Promise<{ url: string; mediaType: string; order: number }[]> {
+  const token = await getAccessToken();
+  const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
+
+  // Try numeric key first, then string-based ResourceRecordID
+  const isNumeric = /^\d+$/.test(listingKey);
+  const filterField = isNumeric ? "ResourceRecordKeyNumeric" : "ResourceRecordID";
+  const filterValue = isNumeric ? listingKey : `'${listingKey.replace(/'/g, "''")}'`;
+
+  const params = new URLSearchParams();
+  params.set("$filter", `${filterField} eq ${filterValue}`);
+  params.set("$select", "MediaURL,MediaType,Order,ShortDescription");
+  params.set("$orderby", "Order asc");
+  params.set("$top", "50");
+
+  const url = `${base}/odata/Media?${params.toString()}`;
+  let response = await fetchPage(url, token);
+
+  if (response.status === 401) {
+    invalidateToken();
+    const newToken = await getAccessToken();
+    response = await fetchPage(url, newToken);
+  }
+
+  if (!response.ok) {
+    console.warn(`[IDX Fetch] Media fetch failed (${response.status}) for key ${listingKey}`);
+    return [];
+  }
+
+  const data = await response.json();
+  const records = data.value || [];
+  return records.map((m: Record<string, unknown>, i: number) => ({
+    url: String(m.MediaURL || ""),
+    mediaType: String(m.MediaType || "Photo"),
+    order: Number(m.Order || i),
+  })).filter((m: { url: string }) => m.url);
+}
+
 /** Internal: make a single HTTP request to Trestle. */
 async function fetchPage(
   url: string,

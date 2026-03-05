@@ -190,9 +190,16 @@ function mapTrestleToCRM(
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
 
-  // Media
+  // Media — $expand=Media returns 400 on IDX Plus feed for bulk queries,
+  // so raw.Media is typically empty. Map it when available (detail views).
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const photoCount = Number(raw.PhotosCount) || media.length;
+  const images = media.map((m: Record<string, unknown>, i: number) => ({
+    url: String(m.MediaURL || ""),
+    isPrimary: i === 0,
+    order: Number(m.Order || i),
+    mediaType: String(m.MediaType || "Photo"),
+  })).filter((img: { url: string }) => img.url);
 
   // Price change detection
   const originalPrice = Number(raw.OriginalListPrice) || 0;
@@ -268,6 +275,7 @@ function mapTrestleToCRM(
     priceChange,
     originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
     photoCount,
+    images,
     latitude: raw.Latitude != null ? Number(raw.Latitude) : null,
     longitude: raw.Longitude != null ? Number(raw.Longitude) : null,
     crossStreet: String(raw.CrossStreet || ""),

@@ -73,6 +73,7 @@ export {
 export {
   fetchFromTrestle,
   fetchSingleListing,
+  fetchListingMedia,
   buildIncrementalFilter,
   buildActiveFilter,
 } from './fetch';
