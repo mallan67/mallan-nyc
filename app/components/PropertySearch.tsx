@@ -473,15 +473,12 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                           </span>
                         )}
                       </div>
-                      {/* REBNY RLS logo — bottom of photo with gradient overlay */}
+                      {/* RLS attribution — bottom of photo with gradient */}
                       <div className="absolute bottom-0 left-0 right-0 z-10">
-                        <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent pt-6 pb-2 px-3">
+                        <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent pt-6 pb-1.5 px-3">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src="/images/rebny-logo.png" alt="REBNY RLS" className="h-[14px] w-auto brightness-0 invert opacity-70" />
-                            </div>
-                            <span className="text-[10px] text-white/60">
+                            <span className="text-[10px] font-semibold text-white/80 tracking-wide">RLS</span>
+                            <span className="text-[10px] text-white/60 truncate ml-2">
                               {listing.listOfficeName}
                             </span>
                           </div>
@@ -549,13 +546,11 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                         );
                       })()}
 
-                      {/* REBNY RLS Per-Card Attribution */}
-                      <p className="text-[10px] text-brand-dark/40 mt-2 pt-2 border-t border-black/5">
-                        Courtesy of {listing.listOfficeName}
-                        {listing.modificationTimestamp && (
-                          <> &middot; Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
-                        )}
-                      </p>
+                      {listing.modificationTimestamp && (
+                        <p className="text-[10px] text-brand-dark/30 mt-2">
+                          Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                   </Link>
                 ))}

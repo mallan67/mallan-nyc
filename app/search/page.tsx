@@ -570,15 +570,12 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
             </span>
           </div>
         )}
-        {/* REBNY RLS logo — bottom of photo with gradient */}
+        {/* RLS attribution — bottom of photo with gradient */}
         <div className="absolute bottom-0 left-0 right-0 z-10">
-          <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent pt-6 pb-2 px-3">
+          <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent pt-6 pb-1.5 px-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/rebny-logo.png" alt="REBNY RLS" className="h-[14px] w-auto brightness-0 invert opacity-70" />
-              </div>
-              <span className="text-[10px] text-white/60">
+              <span className="text-[10px] font-semibold text-white/80 tracking-wide">RLS</span>
+              <span className="text-[10px] text-white/60 truncate ml-2">
                 {listing.listOfficeName}
               </span>
             </div>
@@ -623,13 +620,11 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
           </p>
         )}
 
-        {/* Per-card attribution text */}
-        <p className="text-[10px] text-brand-dark/30 mt-2 pt-2 border-t border-black/5">
-          Courtesy of {listing.listOfficeName}
-          {listing.modificationTimestamp && (
-            <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
-          )}
-        </p>
+        {listing.modificationTimestamp && (
+          <p className="text-[10px] text-brand-dark/30 mt-2">
+            Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -655,10 +650,9 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
             {formatComingSoonBadge(listing)}
           </span>
         )}
-        {/* REBNY RLS logo — bottom of photo */}
+        {/* RLS attribution — bottom of photo */}
         <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/50 to-transparent pt-5 pb-1.5 px-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/rebny-logo.png" alt="REBNY RLS" className="h-[12px] w-auto brightness-0 invert opacity-60" />
+          <span className="text-[9px] font-semibold text-white/80 tracking-wide">RLS</span>
         </div>
       </div>
 
@@ -700,7 +694,7 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
         </div>
 
         <p className="text-[10px] text-brand-dark/30 mt-2">
-          Courtesy of {listing.listOfficeName}
+          {listing.listOfficeName}
           {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
         </p>
       </div>
