@@ -161,12 +161,20 @@ function buildODataFilter(params: URLSearchParams): string {
     const numOnlyPattern = /^(\d+)\s+(.*)/;
     const dirMatch = raw.match(dirPattern);
 
+    // Strip street suffixes — Trestle stores suffix separately in StreetSuffix
+    // e.g. "90TH STREET" → "90TH", "PARK AVENUE" → "PARK", "BROADWAY" stays "BROADWAY"
+    function stripStreetSuffix(s: string): string {
+      return s.replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|COURT|CT|WAY|TERRACE|TER|CIRCLE|CIR|PARKWAY|PKWY|PLAZA)\s*$/i, '').trim();
+    }
+
     if (dirMatch) {
       // "400 E 90" → streetNum=400, direction=E, streetPart=90
       const streetNum = dirMatch[1];
       const direction = dirMatch[2].charAt(0); // Normalize to single letter (E, W, N, S)
-      const streetPart = dirMatch[3].replace(/(ST|ND|RD|TH)\b/gi, '').trim(); // Strip ordinals
-      const streetPartFull = escapeOData(dirMatch[3]); // Keep original too
+      // Strip street suffix first, then ordinals
+      const rawStreet = stripStreetSuffix(dirMatch[3]);
+      const streetPart = rawStreet.replace(/(ST|ND|RD|TH)\b/gi, '').trim(); // Strip ordinals
+      const streetPartFull = escapeOData(rawStreet); // Keep original without suffix
 
       const conditions = [
         `startswith(StreetNumber,'${streetNum}')`,
@@ -184,7 +192,8 @@ function buildODataFilter(params: URLSearchParams): string {
       const numMatch = raw.match(numOnlyPattern);
       if (numMatch && numMatch[1]) {
         const streetNum = numMatch[1];
-        const streetPart = numMatch[2] || "";
+        const rawStreet = numMatch[2] || "";
+        const streetPart = stripStreetSuffix(rawStreet);
         if (streetPart) {
           // "400 Park" or "400 90th" — no direction
           const stripped = streetPart.replace(/(ST|ND|RD|TH)\b/gi, '').trim();
@@ -201,8 +210,9 @@ function buildODataFilter(params: URLSearchParams): string {
         // Pure number (could be street number or listing ID)
         parts.push(`(startswith(StreetNumber,'${escapeOData(raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);
       } else {
-        // Text only — search street name and building name
-        parts.push(`(contains(StreetName,'${escapeOData(raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);
+        // Text only — search street name and building name, strip suffix
+        const cleaned = stripStreetSuffix(raw);
+        parts.push(`(contains(StreetName,'${escapeOData(cleaned || raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);
       }
     }
   }

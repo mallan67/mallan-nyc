@@ -463,6 +463,9 @@
         /**
          * Replace mockListings in-place and refresh view if visible.
          */
+        // Flag to prevent _replaceListings from overwriting active server search results
+        var _serverSearchActive = false;
+
         function _replaceListings(listings, source) {
             mockListings.length = 0;
             listings.forEach(function(l) { mockListings.push(l); });
@@ -474,6 +477,11 @@
             window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
             // If user is viewing results, re-filter with existing criteria and re-render
             // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
+            // Do NOT overwrite if a server search is actively running (it will re-render when complete)
+            if (_serverSearchActive) {
+                console.log('[MockData] Skipping re-render — server search is active');
+                return;
+            }
             var resultsSection = document.getElementById('searchResultsSection');
             var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
             if (isViewingResults && typeof searchResultsState !== 'undefined') {
