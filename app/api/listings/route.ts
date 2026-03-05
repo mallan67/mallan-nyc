@@ -226,7 +226,7 @@ export async function GET(request: Request) {
             const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 7`;
             const mediaParams = new URLSearchParams();
             mediaParams.set('$filter', mediaFilter);
-            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,Order,ShortDescription');
+            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
             mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
             mediaParams.set('$top', String(needsPhotos.length * 8));
 
@@ -238,15 +238,20 @@ export async function GET(request: Request) {
               const mediaData = await mediaResponse.json();
               const mediaRecords = mediaData.value || [];
 
-              // Detect floorplans via MediaType, ShortDescription, and URL patterns
-              function isFloorPlan(m: Record<string, unknown>): boolean {
-                const type = String(m.MediaType || '').toLowerCase();
-                if (type === 'floorplan' || type === 'floor plan') return true;
+              // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, etc.)
+              //          MediaType = file format (jpeg, png, gif, etc.)
+              // Use MediaCategory to distinguish photos from floorplans.
+              // PreferredPhotoYN marks the listing's primary/hero photo.
+              function classifyMedia(m: Record<string, unknown>): 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' {
+                const cat = String(m.MediaCategory || '').toLowerCase();
+                if (cat.includes('floor plan')) return 'FloorPlan';
+                if (cat.includes('video')) return 'Video';
+                if (cat.includes('virtual tour')) return 'VirtualTour';
+                if (cat === 'photo' || cat === '') return 'Photo'; // Default to photo
+                // Fallback: check ShortDescription
                 const desc = String(m.ShortDescription || '').toLowerCase();
-                if (desc.includes('floor plan') || desc.includes('floorplan') || desc.includes('floor-plan') || desc.includes('layout')) return true;
-                const url = String(m.MediaURL || '').toLowerCase();
-                if (url.includes('floorplan') || url.includes('floor-plan') || url.includes('floor_plan') || url.includes('/fp/') || url.includes('/fp_')) return true;
-                return false;
+                if (desc.includes('floor plan') || desc.includes('floorplan')) return 'FloorPlan';
+                return 'Photo';
               }
 
               // Group by listing ID — separate photos from floorplans
@@ -255,12 +260,14 @@ export async function GET(request: Request) {
               for (const m of mediaRecords) {
                 const lid = String(m.ResourceRecordID || '');
                 if (!lid || !m.MediaURL) continue;
+                const mediaType = classifyMedia(m);
+                const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
                 const entry = {
                   url: String(m.MediaURL),
-                  mediaType: isFloorPlan(m) ? 'FloorPlan' : 'Photo',
-                  order: Number(m.Order ?? 0),
+                  mediaType,
+                  order: isPreferred ? -1 : Number(m.Order ?? 0), // Preferred photo sorts first
                 };
-                if (entry.mediaType === 'FloorPlan') {
+                if (mediaType === 'FloorPlan') {
                   if (!floorplansByListing.has(lid)) floorplansByListing.set(lid, []);
                   floorplansByListing.get(lid)!.push(entry);
                 } else {
@@ -268,7 +275,7 @@ export async function GET(request: Request) {
                   photosByListing.get(lid)!.push(entry);
                 }
               }
-              // Inject: photos first, then floorplans at the end
+              // Inject: photos first (preferred photo at top), then floorplans at the end
               for (const listing of needsPhotos) {
                 const photos = photosByListing.get(listing.listingId) || [];
                 const floorplans = floorplansByListing.get(listing.listingId) || [];

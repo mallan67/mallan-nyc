@@ -284,27 +284,23 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     listOfficeName: String(normalized.ListOfficeName || ''),
     media: Array.isArray(normalized.Media) ? normalized.Media.map((m: unknown, i: number) => {
       const item = m as Record<string, unknown>;
-      // Detect floorplans via MediaType + ShortDescription + URL patterns
-      const rawType = String(item.MediaType || 'Photo').toLowerCase();
+      // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video)
+      //          MediaType = file format (jpeg, png, gif) — NOT content type
+      const cat = String(item.MediaCategory || '').toLowerCase();
       const desc = String(item.ShortDescription || '').toLowerCase();
-      const url = String(item.MediaURL || '').toLowerCase();
-      const isFloorPlan = rawType === 'floorplan' || rawType === 'floor plan'
-        || desc.includes('floor plan') || desc.includes('floorplan') || desc.includes('layout')
-        || url.includes('floorplan') || url.includes('floor-plan') || url.includes('floor_plan');
-      const isVideo = ['video', 'mpeg', 'mp4', 'avi'].includes(rawType);
-      const isTour = ['virtualtour', 'virtual tour', '3d', 'matterport'].includes(rawType);
+      const isPreferred = item.PreferredPhotoYN === true || item.PreferredPhotoYN === 'true';
       let mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan' = 'Photo';
-      if (isFloorPlan) mediaType = 'FloorPlan';
-      else if (isVideo) mediaType = 'Video';
-      else if (isTour) mediaType = 'VirtualTour';
+      if (cat.includes('floor plan') || desc.includes('floor plan') || desc.includes('floorplan')) mediaType = 'FloorPlan';
+      else if (cat.includes('video')) mediaType = 'Video';
+      else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
       return {
         url: String(item.MediaURL || ''),
         mediaType,
-        order: Number(item.Order ?? i),
+        order: isPreferred ? -1 : Number(item.Order ?? i),
         shortDescription: item.ShortDescription ? String(item.ShortDescription) : undefined,
       };
     }).filter((m: { url: string }) => m.url).sort((a: { mediaType: string; order: number }, b: { mediaType: string; order: number }) => {
-      // Photos first, then videos/tours, then floorplans last
+      // Photos first (preferred photo has order -1), then videos/tours, then floorplans last
       const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
       const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
       return rankDiff !== 0 ? rankDiff : a.order - b.order;
