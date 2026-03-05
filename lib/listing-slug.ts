@@ -137,7 +137,19 @@ export function parseAddressSlug(slug: string): {
 
   // Remaining parts = street name + city
   // Heuristic: try to identify NYC city names at the end
-  const NYC_CITIES = ['new-york', 'manhattan', 'brooklyn', 'queens', 'bronx', 'staten-island'];
+  // Trestle returns City as "New York City", "New York", borough names, or neighborhood names.
+  // Longer names MUST come first so "new-york-city" matches before "new-york".
+  const NYC_CITIES = [
+    'new-york-city', 'long-island-city', 'staten-island',
+    'new-york', 'manhattan', 'brooklyn', 'queens', 'bronx',
+    // Common Trestle city values for outer boroughs / sub-areas
+    'forest-hills', 'jamaica', 'flushing', 'astoria', 'bayside',
+    'rego-park', 'jackson-heights', 'woodside', 'sunnyside',
+    'kew-gardens', 'fresh-meadows', 'bay-ridge', 'park-slope',
+    'williamsburg', 'greenpoint', 'bushwick', 'bed-stuy',
+    'crown-heights', 'flatbush', 'bensonhurst', 'sunset-park',
+    'riverdale', 'pelham-bay', 'throggs-neck', 'morris-park',
+  ];
   const remaining = parts.join('-');
 
   let streetName = '';
