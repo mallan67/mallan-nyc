@@ -26,6 +26,8 @@ export interface TrestleFetchOptions {
   orderby?: string;
   /** Max total records to fetch across all pages (default 1000) */
   maxTotal?: number;
+  /** Include $count=true to get total count from OData */
+  count?: boolean;
 }
 
 export interface TrestleFetchResult {
@@ -33,6 +35,8 @@ export interface TrestleFetchResult {
   totalFetched: number;
   hasMore: boolean;
   nextLink?: string;
+  /** Total count from @odata.count (only when count=true) */
+  odataCount?: number;
 }
 
 /**
@@ -53,6 +57,7 @@ export async function fetchFromTrestle(
     params.set("$select", selectFields);
     // Media is a navigation property — try $expand=Media for photo URLs
     if (withMediaExpand) params.set("$expand", "Media");
+    if (options.count) params.set("$count", "true");
     params.set("$top", String(options.top || MAX_PAGE_SIZE));
     if (options.skip) params.set("$skip", String(options.skip));
     params.set("$orderby", options.orderby || "ModificationTimestamp desc");
@@ -79,6 +84,7 @@ export async function fetchFromTrestle(
   let currentUrl: string | null = url;
   let hasMore = false;
   let isFirstRequest = true;
+  let odataCount: number | undefined;
 
   while (currentUrl && allRecords.length < maxTotal) {
     // Reuse the first response if we haven't retried
@@ -118,6 +124,11 @@ export async function fetchFromTrestle(
     const records = data.value || [];
     allRecords.push(...records);
 
+    // Capture @odata.count from first response
+    if (odataCount === undefined && data["@odata.count"] != null) {
+      odataCount = Number(data["@odata.count"]);
+    }
+
     // Check for next page
     currentUrl = data["@odata.nextLink"] || null;
     hasMore = currentUrl !== null;
@@ -131,6 +142,7 @@ export async function fetchFromTrestle(
     totalFetched: allRecords.length,
     hasMore: hasMore || allRecords.length >= maxTotal,
     nextLink: currentUrl || undefined,
+    odataCount,
   };
 }
 

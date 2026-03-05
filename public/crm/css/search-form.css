@@ -32,6 +32,42 @@
     font-size: 12px;
 }
 
+/* ── Text Darkness Override — make ALL light text more readable ── */
+/* Tailwind gray-400 (#9ca3af) → gray-600 (#4b5563) */
+#searchFormContainer .text-gray-400,
+#searchAdvancedMode .text-gray-400 {
+    color: #6b7280 !important; /* gray-500 */
+}
+/* Tailwind gray-500 (#6b7280) → gray-700 (#374151) */
+#searchFormContainer .text-gray-500,
+#searchAdvancedMode .text-gray-500 {
+    color: #4b5563 !important; /* gray-600 */
+}
+/* Tailwind gray-300 (#d1d5db) → gray-500 (#6b7280) */
+#searchFormContainer .text-gray-300,
+#searchAdvancedMode .text-gray-300 {
+    color: #9ca3af !important; /* gray-400 */
+}
+/* Placeholder text — darker */
+#searchFormContainer input::placeholder,
+#searchFormContainer select::placeholder,
+#searchAdvancedMode input::placeholder,
+#searchAdvancedMode select::placeholder {
+    color: #6b7280 !important; /* gray-500 instead of gray-400 */
+}
+/* Section headers in advanced mode */
+#searchAdvancedMode .font-bold,
+#searchAdvancedMode .font-semibold {
+    color: #111827; /* gray-900 */
+}
+/* Results section text — also darker */
+#searchResultsSection .text-gray-400 {
+    color: #6b7280 !important;
+}
+#searchResultsSection .text-gray-300 {
+    color: #9ca3af !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    DATE RANGE PICKER — Dual-Month Calendar Popup
    ═══════════════════════════════════════════════════════ */

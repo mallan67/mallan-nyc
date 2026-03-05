@@ -11,12 +11,15 @@
         function _initListingTracker() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                // Fetch sale count
+                // Fetch sale count — use totalCount (@odata.count) for real total
                 MallanAPI.idx.search({ type: 'sale', limit: 1 }).then(function(result) {
-                    var count = (result && result.total) || 0;
-                    // If server returned only 1 but total metadata exists, use it
-                    if (result && result._meta && result._meta.totalFromAPI) {
-                        count = result._meta.totalFromAPI;
+                    var count = 0;
+                    if (result && result.totalCount) {
+                        count = result.totalCount;
+                    } else if (result && result._meta && result._meta.odataCount) {
+                        count = result._meta.odataCount;
+                    } else {
+                        count = (result && result.total) || 0;
                     }
                     _trackerCounts.sale = count;
                     var el = document.getElementById('trackerSaleCount');
@@ -26,9 +29,13 @@
 
                 // Fetch rental count
                 MallanAPI.idx.search({ type: 'rental', limit: 1 }).then(function(result) {
-                    var count = (result && result.total) || 0;
-                    if (result && result._meta && result._meta.totalFromAPI) {
-                        count = result._meta.totalFromAPI;
+                    var count = 0;
+                    if (result && result.totalCount) {
+                        count = result.totalCount;
+                    } else if (result && result._meta && result._meta.odataCount) {
+                        count = result._meta.odataCount;
+                    } else {
+                        count = (result && result.total) || 0;
                     }
                     _trackerCounts.rental = count;
                     var el = document.getElementById('trackerRentalCount');
