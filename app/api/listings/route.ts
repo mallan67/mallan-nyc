@@ -162,6 +162,7 @@ export async function GET(request: Request) {
           top: fetchTop,
           maxTotal: fetchTop,
           orderby,
+          count: true,
         });
 
         // Step 1: Distribution gates on RAW Trestle data (Option A)
@@ -204,7 +205,8 @@ export async function GET(request: Request) {
         // propertyType filter already pushed to OData — no post-fetch filtering needed
 
         // Step 4: Apply skip + limit and convert to public DTO
-        const totalCount = filtered.length;
+        // Use OData count for true total when available; fall back to filtered.length
+        const totalCount = result.odataCount ?? filtered.length;
         const publicListings = filtered.slice(skip, skip + limit).map(toPublicDTO);
 
         return NextResponse.json(
@@ -214,7 +216,7 @@ export async function GET(request: Request) {
             total: totalCount,
             skip,
             limit,
-            hasMore: skip + limit < totalCount,
+            hasMore: skip + limit < totalCount || result.hasMore,
             listings: publicListings,
             _compliance: {
               source: 'idx',
