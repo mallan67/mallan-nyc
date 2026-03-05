@@ -151,19 +151,51 @@ function buildODataFilter(params: URLSearchParams): string {
   // Address search (partial match via OData contains)
   const address = params.get("address");
   if (address) {
-    const escaped = escapeOData(address.trim());
-    // Parse: "400 East 90th" → number="400", street="East 90th"
+    const raw = address.trim();
+    // Expand common NYC direction abbreviations BEFORE escaping
+    // "400 e 90" → "400 EAST 90", "200 w 72" → "200 WEST 72"
+    const dirMap: Record<string, string> = {
+      ' e ': ' EAST ', ' w ': ' WEST ', ' n ': ' NORTH ', ' s ': ' SOUTH ',
+      ' e. ': ' EAST ', ' w. ': ' WEST ', ' n. ': ' NORTH ', ' s. ': ' SOUTH ',
+    };
+    let expanded = ' ' + raw.toLowerCase() + ' ';
+    for (const [abbr, full] of Object.entries(dirMap)) {
+      expanded = expanded.replace(abbr, full);
+    }
+    expanded = expanded.trim().toUpperCase();
+    // Strip ordinal suffixes: "90TH" → "90", "72ND" → "72", "1ST" → "1", "3RD" → "3"
+    const stripped = expanded.replace(/(\d+)(ST|ND|RD|TH)\b/gi, '$1');
+
+    const escaped = escapeOData(expanded);
+    const escapedStripped = escapeOData(stripped);
+
+    // Parse: "400 EAST 90" → number="400", street="EAST 90"
     const numMatch = escaped.match(/^(\d+)\s*(.*)/);
     if (numMatch && numMatch[1]) {
       const streetNum = numMatch[1];
-      const streetName = numMatch[2] || "";
-      if (streetName) {
-        // Both number and name: StreetNumber starts with X AND StreetName contains Y
+      const streetPart = numMatch[2] || "";
+      const strippedMatch = escapedStripped.match(/^(\d+)\s*(.*)/);
+      const streetPartStripped = strippedMatch ? (strippedMatch[2] || "") : streetPart;
+      if (streetPart) {
+        // Both number and street: try expanded name, stripped name, and original
+        // e.g., "400 EAST 90" matches "EAST 90TH" via contains
+        const originalStreet = escapeOData(raw.replace(/^\d+\s*/, '').toUpperCase());
+        const streetFilters = [
+          `contains(StreetName,'${escapeOData(streetPart)}')`,
+        ];
+        // Add stripped version if different (e.g., "90" matches "90TH STREET")
+        if (streetPartStripped !== streetPart) {
+          streetFilters.push(`contains(StreetName,'${escapeOData(streetPartStripped)}')`);
+        }
+        // Add original user input if different from expanded
+        if (originalStreet !== streetPart && originalStreet !== streetPartStripped) {
+          streetFilters.push(`contains(StreetName,'${escapeOData(originalStreet)}')`);
+        }
         parts.push(
-          `(startswith(StreetNumber,'${streetNum}') and contains(StreetName,'${escapeOData(streetName)}'))`
+          `(startswith(StreetNumber,'${streetNum}') and (${streetFilters.join(' or ')}))`
         );
       } else {
-        // Number only: match StreetNumber OR BuildingName containing the number
+        // Number only: match StreetNumber OR BuildingName
         parts.push(
           `(startswith(StreetNumber,'${streetNum}') or contains(BuildingName,'${escaped}'))`
         );
