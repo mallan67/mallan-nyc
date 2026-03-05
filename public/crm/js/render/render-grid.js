@@ -28,29 +28,48 @@
                 // Build <tbody>
                 var listings = getFilteredListings();
                 var tbodyHTML = '<tbody class="divide-y divide-gray-100">';
+                console.log('[Render] Grid: ' + listings.length + ' listings to render, viewMode=' + searchResultsState.viewMode);
                 if (listings.length === 0) {
-                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found</td></tr>';
+                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (mockListings.length || 0) + ' listings loaded.</td></tr>';
                 } else {
                     listings.forEach(function(listing) {
-                        var selected = searchResultsState.selectedListings.includes(listing.id);
-                        tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
-                        tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
-                        tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
-                        if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
-                        if (listing.newListing) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-600 rounded text-[9px] font-bold">NL</span>';
-                        if (listing.permissions && listing.permissions.participantOnly) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded text-[7px] font-bold" title="Participant Only — restricted distribution">PO</span>';
-                        tbodyHTML += syndicationBadgeCompact(listing);
-                        tbodyHTML += comingSoonBadgeCompact(listing);
-                        tbodyHTML += '</td>';
-                        cols.forEach(function(colId) {
-                            tbodyHTML += '<td class="px-2 py-1.5 whitespace-nowrap text-xs">' + gridColumnDefs[colId].render(listing) + '</td>';
-                        });
-                        tbodyHTML += '<td class="px-1.5 py-1.5"><div class="flex items-center gap-0.5">';
-                        tbodyHTML += clientFeedbackIcons(listing);
-                        tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Info" onclick="event.stopPropagation();"><i class="fas fa-info-circle text-[11px]"></i></button>';
-                        tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Add to set" onclick="event.stopPropagation();"><i class="fas fa-folder-plus text-[11px]"></i></button>';
-                        tbodyHTML += '</div></td>';
-                        tbodyHTML += '</tr>';
+                        try {
+                            // Ensure required fields have safe defaults
+                            if (listing.price == null) listing.price = 0;
+                            if (listing.totalMonthly == null) listing.totalMonthly = 0;
+                            if (listing.beds == null) listing.beds = 0;
+                            if (listing.baths == null) listing.baths = 0;
+                            if (!listing.address) listing.address = 'Address Unavailable';
+                            if (!listing.status) listing.status = 'ACTIVE';
+                            if (!listing.permissions) listing.permissions = {};
+
+                            var selected = searchResultsState.selectedListings.includes(listing.id);
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
+                            tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
+                            tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
+                            if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
+                            if (listing.newListing) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-600 rounded text-[9px] font-bold">NL</span>';
+                            if (listing.permissions && listing.permissions.participantOnly) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded text-[7px] font-bold" title="Participant Only — restricted distribution">PO</span>';
+                            tbodyHTML += (typeof syndicationBadgeCompact === 'function') ? syndicationBadgeCompact(listing) : '';
+                            tbodyHTML += (typeof comingSoonBadgeCompact === 'function') ? comingSoonBadgeCompact(listing) : '';
+                            tbodyHTML += '</td>';
+                            cols.forEach(function(colId) {
+                                try {
+                                    tbodyHTML += '<td class="px-2 py-1.5 whitespace-nowrap text-xs">' + gridColumnDefs[colId].render(listing) + '</td>';
+                                } catch(colErr) {
+                                    tbodyHTML += '<td class="px-2 py-1.5 whitespace-nowrap text-xs text-red-400">--</td>';
+                                }
+                            });
+                            tbodyHTML += '<td class="px-1.5 py-1.5"><div class="flex items-center gap-0.5">';
+                            tbodyHTML += (typeof clientFeedbackIcons === 'function') ? clientFeedbackIcons(listing) : '';
+                            tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Info" onclick="event.stopPropagation();"><i class="fas fa-info-circle text-[11px]"></i></button>';
+                            tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Add to set" onclick="event.stopPropagation();"><i class="fas fa-folder-plus text-[11px]"></i></button>';
+                            tbodyHTML += '</div></td>';
+                            tbodyHTML += '</tr>';
+                        } catch(rowErr) {
+                            console.error('[Render] Row failed for listing ' + listing.id + ':', rowErr);
+                            tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-2 py-1 text-red-400 text-xs">Error rendering listing ' + (listing.id || '?') + ': ' + rowErr.message + '</td></tr>';
+                        }
                     });
                 }
                 tbodyHTML += '</tbody>';

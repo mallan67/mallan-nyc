@@ -15833,13 +15833,12 @@ function manageShowToast(msg) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Server-side search: query Trestle API with criteria, merge with local results
+        // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
         function _serverSearch(criteria, localResults) {
             var params = {};
             if (criteria.searchTab === 'rent') params.type = 'rental';
             else if (criteria.searchTab === 'sale') params.type = 'sale';
             if (criteria.address) params.address = criteria.address;
-            if (criteria.zip) params.neighborhood = undefined; // zip handled separately
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
             if (criteria.priceMax) params.maxPrice = criteria.priceMax;
             if (criteria.bedsMin) params.minBeds = criteria.bedsMin;
@@ -15847,26 +15846,34 @@ function manageShowToast(msg) {
             if (criteria.neighborhoods && criteria.neighborhoods.length === 1) {
                 params.neighborhood = criteria.neighborhoods[0];
             }
-            params.limit = 50;
+            if (criteria.borough) params.borough = criteria.borough;
+            if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
+            // Pass status filters to server (map CRM uppercase back to RESO PascalCase)
+            if (criteria.statuses && criteria.statuses.length > 0) {
+                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Cancelled', 'EXPIRED': 'Expired' };
+                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
+                params.status = resoStatuses.join(',');
+            }
+            params.limit = 200;
 
-            console.log('[Search] Server search params:', JSON.stringify(params));
+            console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             MallanAPI.idx.search(params).then(function(result) {
-                console.log('[Search] Server response:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
+                console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
+                    // Server returned nothing — keep local results but notify user
                     if (localResults.length === 0) {
                         showToast('No listings found. Try broadening your search criteria.', 'warning');
                     }
                     return;
                 }
 
-                // Use server results directly (they're already in CRM flat shape)
-                var allListings = result.listings;
+                // Server results are the primary data — they're already in CRM flat shape
+                var serverListings = result.listings;
 
-                // Apply neighborhood resolution
-                allListings.forEach(function(l) {
+                // Apply neighborhood resolution and defaults
+                serverListings.forEach(function(l) {
                     if (!l.borough) l.borough = 'Manhattan';
                     if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
-                    // Ensure required fields have defaults
                     if (l.totalMonthly == null) l.totalMonthly = 0;
                     if (l.price == null) l.price = 0;
                     if (l.beds == null) l.beds = 0;
@@ -15876,29 +15883,19 @@ function manageShowToast(msg) {
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
 
-                // Also add to mockListings so detail view works
+                // Add server results to mockListings (for detail view navigation)
                 var existingIds = {};
                 mockListings.forEach(function(l) { existingIds[l.id] = true; });
-                allListings.forEach(function(l) {
+                serverListings.forEach(function(l) {
                     if (!existingIds[l.id]) {
                         mockListings.push(l);
                         existingIds[l.id] = true;
                     }
                 });
 
-                // Merge with any local results (dedup)
-                var merged = localResults.slice();
-                var mergedIds = {};
-                merged.forEach(function(l) { mergedIds[l.id] = true; });
-                allListings.forEach(function(l) {
-                    if (!mergedIds[l.id]) {
-                        merged.push(l);
-                        mergedIds[l.id] = true;
-                    }
-                });
-
-                // Update results and re-render
-                searchResultsState.filteredListings = merged;
+                // USE SERVER RESULTS AS PRIMARY — replace local results entirely
+                // Server results are fresh from Trestle and match the search criteria
+                searchResultsState.filteredListings = serverListings;
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
@@ -15907,11 +15904,12 @@ function manageShowToast(msg) {
                     console.error('[Search] Render after server search failed:', renderErr);
                 }
                 _saveSearchState();
-                console.log('[Search] Rendered ' + merged.length + ' total listings');
+                console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
             }).catch(function(err) {
-                console.error('[Search] Server search failed:', err);
+                console.error('[Search] Trestle search failed:', err);
+                // Keep local results visible — they're already rendered
                 if (localResults.length === 0) {
-                    showToast('Search failed: ' + (err && err.message || 'Unknown error'), 'error');
+                    showToast('Search temporarily unavailable. Please try again.', 'error');
                 }
             });
         }
@@ -16026,15 +16024,15 @@ function manageShowToast(msg) {
                 });
             }
 
-            // Show local results immediately
+            // Show local results immediately (or "Searching..." if none)
             _renderAddressResults(matches, resultsDiv, resultsDivId);
 
-            // If few local results and query is 3+ chars, search server-side (debounced)
-            if (matches.length < 3 && query.length >= 3 && typeof MallanAPI !== 'undefined') {
+            // Always query server for more results (debounced) — local data is limited
+            if (query.length >= 3 && typeof MallanAPI !== 'undefined') {
                 if (_addrSearchTimer) clearTimeout(_addrSearchTimer);
                 _addrSearchTimer = setTimeout(function() {
                     _serverAddressSearch(query, resultsDivId, matches);
-                }, 350);
+                }, 300);
             }
         }
 
@@ -20247,29 +20245,48 @@ function parseBudgetValue(td) {
                 // Build <tbody>
                 var listings = getFilteredListings();
                 var tbodyHTML = '<tbody class="divide-y divide-gray-100">';
+                console.log('[Render] Grid: ' + listings.length + ' listings to render, viewMode=' + searchResultsState.viewMode);
                 if (listings.length === 0) {
-                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found</td></tr>';
+                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (mockListings.length || 0) + ' listings loaded.</td></tr>';
                 } else {
                     listings.forEach(function(listing) {
-                        var selected = searchResultsState.selectedListings.includes(listing.id);
-                        tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
-                        tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
-                        tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
-                        if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
-                        if (listing.newListing) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-600 rounded text-[9px] font-bold">NL</span>';
-                        if (listing.permissions && listing.permissions.participantOnly) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded text-[7px] font-bold" title="Participant Only — restricted distribution">PO</span>';
-                        tbodyHTML += syndicationBadgeCompact(listing);
-                        tbodyHTML += comingSoonBadgeCompact(listing);
-                        tbodyHTML += '</td>';
-                        cols.forEach(function(colId) {
-                            tbodyHTML += '<td class="px-2 py-1.5 whitespace-nowrap text-xs">' + gridColumnDefs[colId].render(listing) + '</td>';
-                        });
-                        tbodyHTML += '<td class="px-1.5 py-1.5"><div class="flex items-center gap-0.5">';
-                        tbodyHTML += clientFeedbackIcons(listing);
-                        tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Info" onclick="event.stopPropagation();"><i class="fas fa-info-circle text-[11px]"></i></button>';
-                        tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Add to set" onclick="event.stopPropagation();"><i class="fas fa-folder-plus text-[11px]"></i></button>';
-                        tbodyHTML += '</div></td>';
-                        tbodyHTML += '</tr>';
+                        try {
+                            // Ensure required fields have safe defaults
+                            if (listing.price == null) listing.price = 0;
+                            if (listing.totalMonthly == null) listing.totalMonthly = 0;
+                            if (listing.beds == null) listing.beds = 0;
+                            if (listing.baths == null) listing.baths = 0;
+                            if (!listing.address) listing.address = 'Address Unavailable';
+                            if (!listing.status) listing.status = 'ACTIVE';
+                            if (!listing.permissions) listing.permissions = {};
+
+                            var selected = searchResultsState.selectedListings.includes(listing.id);
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
+                            tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
+                            tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
+                            if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
+                            if (listing.newListing) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-600 rounded text-[9px] font-bold">NL</span>';
+                            if (listing.permissions && listing.permissions.participantOnly) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded text-[7px] font-bold" title="Participant Only — restricted distribution">PO</span>';
+                            tbodyHTML += (typeof syndicationBadgeCompact === 'function') ? syndicationBadgeCompact(listing) : '';
+                            tbodyHTML += (typeof comingSoonBadgeCompact === 'function') ? comingSoonBadgeCompact(listing) : '';
+                            tbodyHTML += '</td>';
+                            cols.forEach(function(colId) {
+                                try {
+                                    tbodyHTML += '<td class="px-2 py-1.5 whitespace-nowrap text-xs">' + gridColumnDefs[colId].render(listing) + '</td>';
+                                } catch(colErr) {
+                                    tbodyHTML += '<td class="px-2 py-1.5 whitespace-nowrap text-xs text-red-400">--</td>';
+                                }
+                            });
+                            tbodyHTML += '<td class="px-1.5 py-1.5"><div class="flex items-center gap-0.5">';
+                            tbodyHTML += (typeof clientFeedbackIcons === 'function') ? clientFeedbackIcons(listing) : '';
+                            tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Info" onclick="event.stopPropagation();"><i class="fas fa-info-circle text-[11px]"></i></button>';
+                            tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Add to set" onclick="event.stopPropagation();"><i class="fas fa-folder-plus text-[11px]"></i></button>';
+                            tbodyHTML += '</div></td>';
+                            tbodyHTML += '</tr>';
+                        } catch(rowErr) {
+                            console.error('[Render] Row failed for listing ' + listing.id + ':', rowErr);
+                            tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-2 py-1 text-red-400 text-xs">Error rendering listing ' + (listing.id || '?') + ': ' + rowErr.message + '</td></tr>';
+                        }
                     });
                 }
                 tbodyHTML += '</tbody>';
@@ -29200,15 +29217,8 @@ function emailCurrentCalc() {
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
 
-        // On refresh, always go back to the search form.
-        // Results are transient — user re-searches after refresh.
-        // This prevents the freeze/blank screen caused by trying to restore
-        // results before API data has loaded.
-        if (route === 'results') {
-            try { sessionStorage.removeItem('_searchState'); } catch(e) {}
-            route = 'main';
-            history.replaceState(null, '', '#main');
-        }
+        // On refresh with #results: keep the route — we'll restore search state
+        // after API data loads via MallanAPI.onReady() in the results handler below.
 
         // ── IMMEDIATE: hide the search form if we're restoring detail ──
         if (route === 'detail') {
@@ -29388,8 +29398,59 @@ function emailCurrentCalc() {
             _showResultsSkeleton();
         }
 
-        // Try to restore saved search state from sessionStorage
-        // Use requestAnimationFrame to let the skeleton paint first
+        // On initial page load (refresh), wait for API data before rendering
+        if (isInitialLoad) {
+            // Try restoring saved state first
+            var restored = false;
+            if (typeof _restoreSearchState === 'function') {
+                restored = _restoreSearchState();
+            }
+
+            if (restored && typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
+                // We have cached results — render them immediately
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+                if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
+            } else {
+                // No cached results — wait for MallanAPI data to load, then re-run search
+                if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+                    MallanAPI.onReady(function() {
+                        // API is ready, data loaded — now re-run search with saved criteria
+                        if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
+                            // Re-run server search with saved criteria
+                            var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
+                            var localResults = hasLocalData && typeof filterListings === 'function' ? filterListings(mockListings, activeSearchCriteria) : [];
+                            searchResultsState.filteredListings = localResults;
+                            searchResultsState.currentPage = 1;
+                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                            if (typeof updateResultsCount === 'function') updateResultsCount();
+                            if (typeof _serverSearch === 'function') _serverSearch(activeSearchCriteria, localResults);
+                        } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                            // No saved criteria — show all loaded listings
+                            searchResultsState.filteredListings = mockListings.slice();
+                            searchResultsState.currentPage = 1;
+                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                            if (typeof updateResultsCount === 'function') updateResultsCount();
+                        } else {
+                            // No data at all — go to search form
+                            if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                            if (searchFormContainer) searchFormContainer.style.display = 'block';
+                            if (searchResultsSection) searchResultsSection.style.display = 'none';
+                            history.replaceState(null, '', '#main');
+                        }
+                    });
+                } else {
+                    // No MallanAPI — fall back to search form
+                    if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                    if (searchFormContainer) searchFormContainer.style.display = 'block';
+                    if (searchResultsSection) searchResultsSection.style.display = 'none';
+                    history.replaceState(null, '', '#main');
+                }
+            }
+            return;
+        }
+
+        // Non-initial (hashchange): restore state immediately
         requestAnimationFrame(function() {
             var restored = false;
             if (typeof _restoreSearchState === 'function') {
@@ -29397,12 +29458,10 @@ function emailCurrentCalc() {
             }
 
             if (restored) {
-                // Render results (this hides the skeleton automatically)
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
             } else {
-                // No saved state — fall back to search form
                 if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
                 if (searchFormContainer) searchFormContainer.style.display = 'block';
                 if (searchResultsSection) searchResultsSection.style.display = 'none';
