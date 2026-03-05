@@ -116,6 +116,7 @@
                         }
                     }, 15000);
                 }
+            }
 
         } else if (route === 'results') {
             // ── RESULTS PAGE ──
