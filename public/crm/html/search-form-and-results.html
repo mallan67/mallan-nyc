@@ -6761,7 +6761,7 @@
                                 <button onclick="openFilterModal()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Filter Results">
                                     <i class="fas fa-filter"></i>
                                 </button>
-                                <button onclick="openNeighborhoodMapForSearch()" class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors" title="Neighborhood Map">
+                                <button id="resultsMapToggleBtn" onclick="toggleResultsMap()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Toggle Map View">
                                     <i class="fas fa-map-marked-alt"></i>
                                 </button>
                             </div>
@@ -7019,6 +7019,8 @@
                     </div>
                     <!-- END REFINE PANEL -->
 
+                    <!-- Results + Map Split Wrapper -->
+                    <div id="resultsSplitWrapper">
                     <!-- Results Container - Changes based on view mode -->
                     <div id="resultsContainer" class="bg-white rounded-xl shadow-sm border overflow-hidden">
                         <!-- Grid View Container -->
@@ -7109,6 +7111,11 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Split-View Results Map (hidden by default, toggled via toolbar) -->
+                    <div id="resultsMapWrapper" style="display:none; width:45%; min-width:360px; flex-shrink:0; position:relative; border-left:1px solid #e5e7eb;">
+                        <div id="resultsMapContainer" style="position:absolute; inset:0; min-height:500px;"></div>
+                    </div>
+                    </div><!-- end resultsSplitWrapper -->
 
                     <!-- Legacy Results Grid (hidden, kept for backwards compatibility) -->
                     <div id="resultsGridLegacy" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
