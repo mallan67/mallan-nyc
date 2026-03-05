@@ -13,8 +13,8 @@
         var _photoObserver = null;
 
         // Batch size and debounce
-        var PHOTO_BATCH_SIZE = 20;
-        var PHOTO_BATCH_DELAY = 150; // ms — wait for more cards to scroll into view
+        var PHOTO_BATCH_SIZE = 50;
+        var PHOTO_BATCH_DELAY = 100; // ms — wait for more cards to scroll into view
 
         /**
          * Queue a listing for photo loading.

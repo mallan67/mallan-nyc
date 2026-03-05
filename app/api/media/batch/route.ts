@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
-    .slice(0, 20); // Max 20 per request
+    .slice(0, 50); // Max 50 per request
 
   if (ids.length === 0) {
     return NextResponse.json({ photos: {} });
