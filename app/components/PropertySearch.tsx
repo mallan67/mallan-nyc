@@ -48,7 +48,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
   const [propertyType, setPropertyType] = useState<string>('');
   const [neighborhoodFilter, setNeighborhoodFilter] = useState(initialNeighborhood);
   const [boroughFilter, setBoroughFilter] = useState(initialBorough);
-  const [maintenanceRange, setMaintenanceRange] = useState<[number, number]>([0, 10000]);
+  const [maintenanceRange, setMaintenanceRange] = useState<[number, number]>([0, 100000]);
   const [petsAllowed, setPetsAllowed] = useState<boolean | null>(null);
   const [sortBy, setSortBy] = useState<string>('newest');
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -140,7 +140,7 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     setPropertyType('');
     setNeighborhoodFilter('');
     setBoroughFilter('');
-    setMaintenanceRange([0, 10000]);
+    setMaintenanceRange([0, 100000]);
     setPetsAllowed(null);
   };
 
