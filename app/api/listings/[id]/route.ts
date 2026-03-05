@@ -98,7 +98,7 @@ export async function GET(request: Request, { params }: Props) {
     // ═══════════════════════════════════════════════════════════
     // LOCAL PATH: Serve from data/listings.json (fallback)
     // ═══════════════════════════════════════════════════════════
-    const listing = listingsData.listings.find((l) => l.id === id);
+    const listing = (listingsData.listings as unknown as import('@/lib/types/listing').Listing[]).find((l) => l.id === id);
 
     if (!listing) {
       return NextResponse.json(
