@@ -21,6 +21,7 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
+import { cache } from 'react';
 
 // Dynamic — listings come from IDX, not static JSON
 export const dynamic = 'force-dynamic';
@@ -89,7 +90,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
  * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
  * preventing address leakage through URLs.
  */
-async function fetchListing(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
+const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
   const useIDX = process.env.IDX_ENABLED === 'true';
   if (!useIDX) return null;
 
@@ -134,7 +135,7 @@ async function fetchListing(slug: string, keyOverride?: string): Promise<PublicL
     console.error(`[/listing/${slug}] IDX fetch error:`, err);
     return null;
   }
-}
+});
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
