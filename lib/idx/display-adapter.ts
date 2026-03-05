@@ -25,6 +25,29 @@ function countyToBorough(county: string): string {
   return COUNTY_TO_BOROUGH[county.toLowerCase()] || county;
 }
 
+/** Generate a URL-safe address slug: "409-ave-c-3b-brooklyn-ny-10009" (unit last) */
+export function listingSlug(listing: DisplayListing): string {
+  const parts = [
+    listing.address.streetNumber,
+    listing.address.streetName,
+    listing.address.unitNumber,
+    listing.address.borough || listing.address.city,
+    'ny',
+    listing.address.postalCode,
+  ].filter(Boolean);
+  return parts
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/** Build the listing detail URL with address slug + key param for lookup */
+export function listingHref(listing: DisplayListing): string {
+  const slug = listingSlug(listing);
+  return `/listing/${slug}?key=${encodeURIComponent(listing.id)}`;
+}
+
 /** Slim listing type for frontend cards — no 414-line monster */
 export interface DisplayListing {
   id: string;

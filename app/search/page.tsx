@@ -7,7 +7,7 @@ import IDXImage from '@/app/components/IDXImage';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import { useListings } from '@/lib/hooks/useListings';
-import type { DisplayListing } from '@/lib/idx/display-adapter';
+import { type DisplayListing, listingHref } from '@/lib/idx/display-adapter';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import SearchAutocomplete from '@/app/components/SearchAutocomplete';
 import nextDynamic from 'next/dynamic';
@@ -545,7 +545,7 @@ function SearchClient() {
 function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: boolean }) {
   return (
     <Link
-      href={`/listing/${listing.id}`}
+      href={listingHref(listing)}
       className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group"
     >
       {/* Image */}
@@ -626,7 +626,7 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
 function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: boolean }) {
   return (
     <Link
-      href={`/listing/${listing.id}`}
+      href={listingHref(listing)}
       className="glass-card rounded-2xl overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 flex group"
     >
       {/* Image */}
