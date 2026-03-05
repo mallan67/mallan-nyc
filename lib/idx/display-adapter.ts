@@ -38,12 +38,10 @@ export function listingSlug(listing: DisplayListing): string {
 /**
  * Build the listing detail URL.
  * Uses the pre-computed address slug (or MLS-ID fallback).
- * Appends ?key= for MLS-ID slugs to help server-side resolution.
+ * Always includes ?key= for reliable server-side resolution via direct ListingId lookup.
  */
 export function listingHref(listing: DisplayListing): string {
-  // If the slug is address-based, no ?key= needed — server parses the address.
-  // If the slug is an MLS-ID fallback, also no ?key= needed — server extracts the ID.
-  return `/listing/${listing.slug}`;
+  return `/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`;
 }
 
 /** Slim listing type for frontend cards — no 414-line monster */

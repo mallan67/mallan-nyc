@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import InquiryForm from '@/app/components/InquiryForm';
@@ -197,15 +197,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
     notFound();
   }
 
-  // SEO: If the URL slug doesn't match the canonical slug, 301 redirect.
-  // This handles old MLS-ID URLs and normalizes address slugs.
-  // COMPLIANCE: The canonical slug already respects InternetAddressDisplayYN —
-  // suppressed addresses get MLS-ID slugs, so no address leaks in redirects.
-  // Include ?key= so the target URL resolves via direct ListingId lookup (Strategy 1),
-  // avoiding fragile address-slug parsing on the destination.
-  if (id !== listing.slug && !key) {
-    redirect(`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`);
-  }
+  // SEO: The canonical URL (set in generateMetadata) uses the address slug.
+  // Google will index the correct URL via <link rel="canonical">.
+  // No runtime redirect needed — both MLS ID and address slug URLs serve the listing.
 
   const isRental = listing.listingType === 'rent';
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
