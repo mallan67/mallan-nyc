@@ -64,7 +64,7 @@ async function fetchListing(id: string): Promise<PublicListingDTO | null> {
     const dto = toPublicDTO(listing);
 
     // If no media from $expand=Media, fetch from Trestle Media resource
-    if (dto.media.length === 0 && (dto.photosCount ?? 0) > 0) {
+    if (dto.media.length === 0) {
       const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
       try {
         const mediaItems = await fetchListingMedia(listingKey);
@@ -154,8 +154,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
+  // Trestle returns mediaType as "Jpeg", "Png", etc. — accept all image types
+  const videoTypes = new Set(['video', 'mpeg', 'mp4', 'avi']);
   const images = listing.media
-    .filter((m) => m.mediaType === 'image')
+    .filter((m) => !videoTypes.has((m.mediaType || '').toLowerCase()))
     .sort((a, b) => a.order - b.order)
     .map((m) => ({ url: m.url }));
 
