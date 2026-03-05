@@ -151,11 +151,29 @@ function buildODataFilter(params: URLSearchParams): string {
   // Address search (partial match via OData contains)
   const address = params.get("address");
   if (address) {
-    // Search StreetNumber + StreetName combined via contains on multiple fields
-    const escaped = escapeOData(address);
-    parts.push(
-      `(contains(StreetName,'${escaped}') or contains(BuildingName,'${escaped}'))`
-    );
+    const escaped = escapeOData(address.trim());
+    // Parse: "400 East 90th" → number="400", street="East 90th"
+    const numMatch = escaped.match(/^(\d+)\s*(.*)/);
+    if (numMatch && numMatch[1]) {
+      const streetNum = numMatch[1];
+      const streetName = numMatch[2] || "";
+      if (streetName) {
+        // Both number and name: StreetNumber starts with X AND StreetName contains Y
+        parts.push(
+          `(startswith(StreetNumber,'${streetNum}') and contains(StreetName,'${escapeOData(streetName)}'))`
+        );
+      } else {
+        // Number only: match StreetNumber OR BuildingName containing the number
+        parts.push(
+          `(startswith(StreetNumber,'${streetNum}') or contains(BuildingName,'${escaped}'))`
+        );
+      }
+    } else {
+      // No leading number: search StreetName and BuildingName
+      parts.push(
+        `(contains(StreetName,'${escaped}') or contains(BuildingName,'${escaped}'))`
+      );
+    }
   }
 
   // Property sub-type

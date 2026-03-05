@@ -161,47 +161,120 @@
                     return;
                 }
 
-                searchResultsState.filteredListings = filterListings(mockListings, activeSearchCriteria);
+                var localResults = filterListings(mockListings, activeSearchCriteria);
+
+                // If local results are sparse and we have criteria that can be sent to server,
+                // also query Trestle API for broader results
+                var hasServerCriteria = activeSearchCriteria.address || activeSearchCriteria.zip ||
+                    (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length > 0);
+                var shouldSearchServer = localResults.length < 5 && hasServerCriteria && typeof MallanAPI !== 'undefined';
+
+                // Show local results immediately
+                searchResultsState.filteredListings = localResults;
                 searchResultsState.currentPage = 1;
+                _showSearchResults();
 
-                // Save for "Last Search" recall
-                if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
-
-                // Hide the entire search form container
-                var searchFormContainer = document.getElementById('searchFormContainer');
-                if (searchFormContainer) searchFormContainer.style.display = 'none';
-
-                // Show search results section
-                var searchResultsSection = document.getElementById('searchResultsSection');
-                if (searchResultsSection) {
-                    searchResultsSection.style.display = 'block';
-                    searchResultsSection.classList.remove('hidden');
-                    initializeSearchResults();
+                // If we should also search server, do it in background
+                if (shouldSearchServer) {
+                    _serverSearch(activeSearchCriteria, localResults);
                 }
-
-                // Update results count
-                updateResultsCount();
-
-                // Highlight active search type on sticky nav
-                updateStickyNavActive();
-
-                // Close refine panel if open (fresh search resets it)
-                var refinePanel = document.getElementById('refinePanel');
-                if (refinePanel) { refinePanel.style.display = 'none'; _refinePanelOpen = false; }
-
-                // Save search state for refresh persistence
-                _saveSearchState();
-
-                // Update hash to reflect results view
-                if (!window._suppressHashUpdate) {
-                    history.replaceState(null, '', '#results');
-                }
-
-                // Scroll to top of results
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (err) {
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
+        }
+
+        // Show search results UI (extracted for reuse by server search)
+        function _showSearchResults() {
+            // Save for "Last Search" recall
+            if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
+
+            // Hide the entire search form container
+            var searchFormContainer = document.getElementById('searchFormContainer');
+            if (searchFormContainer) searchFormContainer.style.display = 'none';
+
+            // Show search results section
+            var searchResultsSection = document.getElementById('searchResultsSection');
+            if (searchResultsSection) {
+                searchResultsSection.style.display = 'block';
+                searchResultsSection.classList.remove('hidden');
+                initializeSearchResults();
+            }
+
+            // Update results count
+            updateResultsCount();
+
+            // Highlight active search type on sticky nav
+            updateStickyNavActive();
+
+            // Close refine panel if open (fresh search resets it)
+            var refinePanel = document.getElementById('refinePanel');
+            if (refinePanel) { refinePanel.style.display = 'none'; _refinePanelOpen = false; }
+
+            // Save search state for refresh persistence
+            _saveSearchState();
+
+            // Update hash to reflect results view
+            if (!window._suppressHashUpdate) {
+                history.replaceState(null, '', '#results');
+            }
+
+            // Scroll to top of results
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Server-side search: query Trestle API with criteria, merge with local results
+        function _serverSearch(criteria, localResults) {
+            var params = {};
+            if (criteria.searchTab === 'rent') params.type = 'rental';
+            else if (criteria.searchTab === 'sale') params.type = 'sale';
+            if (criteria.address) params.address = criteria.address;
+            if (criteria.zip) params.neighborhood = undefined; // zip handled separately
+            if (criteria.priceMin) params.minPrice = criteria.priceMin;
+            if (criteria.priceMax) params.maxPrice = criteria.priceMax;
+            if (criteria.bedsMin) params.minBeds = criteria.bedsMin;
+            if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
+            if (criteria.neighborhoods && criteria.neighborhoods.length === 1) {
+                params.neighborhood = criteria.neighborhoods[0];
+            }
+            params.limit = 50;
+
+            MallanAPI.idx.search(params).then(function(result) {
+                if (!result || !result.listings || result.listings.length === 0) return;
+
+                // Merge server results with local (dedup by address+unit)
+                var existingKeys = {};
+                localResults.forEach(function(l) {
+                    existingKeys[(l.address || '') + '|' + (l.unit || '')] = true;
+                });
+                var newListings = [];
+                result.listings.forEach(function(l) {
+                    var key = (l.address || '') + '|' + (l.unit || '');
+                    if (!existingKeys[key]) {
+                        existingKeys[key] = true;
+                        // Also add to mockListings so detail view works
+                        mockListings.push(l);
+                        newListings.push(l);
+                    }
+                });
+
+                if (newListings.length > 0) {
+                    // Apply neighborhood resolution to new listings
+                    newListings.forEach(function(l) {
+                        if (!l.borough) l.borough = 'Manhattan';
+                        if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
+                    });
+
+                    // Merge and re-render
+                    searchResultsState.filteredListings = localResults.concat(newListings);
+                    searchResultsState.currentPage = 1;
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                    _saveSearchState();
+                    showToast(newListings.length + ' additional listings found from REBNY RLS', 'success');
+                }
+            }).catch(function(err) {
+                console.warn('[Search] Server search failed:', err && err.message);
+            });
         }
 
         // Quick Search — search by RLS ID, Zip, Address, or Unit from the Quick Search cards
