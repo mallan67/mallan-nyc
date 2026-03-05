@@ -15883,19 +15883,34 @@ function manageShowToast(msg) {
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
 
-                // Add server results to mockListings (for detail view navigation)
-                var existingIds = {};
-                mockListings.forEach(function(l) { existingIds[l.id] = true; });
+                // Merge server results into mockListings (preserving existing data with photos)
+                var existingById = {};
+                mockListings.forEach(function(l) { existingById[l.id] = l; });
+                var existingByLid = {};
+                mockListings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
                 serverListings.forEach(function(l) {
-                    if (!existingIds[l.id]) {
+                    var existing = existingById[l.id] || (l.lid ? existingByLid[l.lid] : null);
+                    if (existing) {
+                        // Update existing listing but preserve images if server has none
+                        if ((!l.images || l.images.length === 0) && existing.images && existing.images.length > 0) {
+                            l.images = existing.images;
+                        }
+                    } else {
                         mockListings.push(l);
-                        existingIds[l.id] = true;
                     }
                 });
 
-                // USE SERVER RESULTS AS PRIMARY — replace local results entirely
-                // Server results are fresh from Trestle and match the search criteria
-                searchResultsState.filteredListings = serverListings;
+                // Merge: start with local filtered results, add new server results
+                var merged = localResults.slice();
+                var mergedIds = {};
+                merged.forEach(function(l) { mergedIds[l.id] = true; if (l.lid) mergedIds[l.lid] = true; });
+                serverListings.forEach(function(l) {
+                    if (!mergedIds[l.id] && !(l.lid && mergedIds[l.lid])) {
+                        merged.push(l);
+                        mergedIds[l.id] = true;
+                    }
+                });
+                searchResultsState.filteredListings = merged;
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
@@ -18751,6 +18766,8 @@ function manageShowToast(msg) {
             mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
             mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[MockData] Loaded ' + listings.length + ' listings from ' + source);
+            // Dispatch event so other modules (e.g. hash routing) know data is ready
+            window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
             // If user is viewing results, re-filter with existing criteria and re-render
             // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
             var resultsSection = document.getElementById('searchResultsSection');
@@ -29412,40 +29429,38 @@ function emailCurrentCalc() {
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
             } else {
-                // No cached results — wait for MallanAPI data to load, then re-run search
-                if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
-                    MallanAPI.onReady(function() {
-                        // API is ready, data loaded — now re-run search with saved criteria
-                        if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                            // Re-run server search with saved criteria
-                            var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
-                            var localResults = hasLocalData && typeof filterListings === 'function' ? filterListings(mockListings, activeSearchCriteria) : [];
-                            searchResultsState.filteredListings = localResults;
-                            searchResultsState.currentPage = 1;
-                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                            if (typeof updateResultsCount === 'function') updateResultsCount();
-                            if (typeof _serverSearch === 'function') _serverSearch(activeSearchCriteria, localResults);
-                        } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
-                            // No saved criteria — show all loaded listings
-                            searchResultsState.filteredListings = mockListings.slice();
-                            searchResultsState.currentPage = 1;
-                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                            if (typeof updateResultsCount === 'function') updateResultsCount();
-                        } else {
-                            // No data at all — go to search form
-                            if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
-                            if (searchFormContainer) searchFormContainer.style.display = 'block';
-                            if (searchResultsSection) searchResultsSection.style.display = 'none';
-                            history.replaceState(null, '', '#main');
-                        }
-                    });
-                } else {
-                    // No MallanAPI — fall back to search form
-                    if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
-                    if (searchFormContainer) searchFormContainer.style.display = 'block';
-                    if (searchResultsSection) searchResultsSection.style.display = 'none';
-                    history.replaceState(null, '', '#main');
-                }
+                // No cached results — wait for listing data to load (from Trestle API)
+                // _replaceListings dispatches 'mallan:data:ready' when data arrives
+                window.addEventListener('mallan:data:ready', function onDataReady() {
+                    window.removeEventListener('mallan:data:ready', onDataReady);
+                    // Data loaded — restore search state now that mockListings is populated
+                    if (typeof _restoreSearchState === 'function') {
+                        _restoreSearchState();
+                    }
+                    if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                    } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                        searchResultsState.filteredListings = mockListings.slice();
+                        searchResultsState.currentPage = 1;
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                    } else {
+                        if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                        if (searchFormContainer) searchFormContainer.style.display = 'block';
+                        if (searchResultsSection) searchResultsSection.style.display = 'none';
+                        history.replaceState(null, '', '#main');
+                    }
+                });
+                // Safety timeout: if data doesn't load in 10s, go to search form
+                setTimeout(function() {
+                    if (typeof mockListings === 'undefined' || mockListings.length === 0) {
+                        if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                        if (searchFormContainer) searchFormContainer.style.display = 'block';
+                        if (searchResultsSection) searchResultsSection.style.display = 'none';
+                        history.replaceState(null, '', '#main');
+                    }
+                }, 10000);
             }
             return;
         }

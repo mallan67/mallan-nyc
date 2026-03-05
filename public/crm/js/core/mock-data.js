@@ -470,6 +470,8 @@
             mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
             mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[MockData] Loaded ' + listings.length + ' listings from ' + source);
+            // Dispatch event so other modules (e.g. hash routing) know data is ready
+            window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
             // If user is viewing results, re-filter with existing criteria and re-render
             // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
             var resultsSection = document.getElementById('searchResultsSection');

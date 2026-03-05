@@ -263,19 +263,34 @@
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
 
-                // Add server results to mockListings (for detail view navigation)
-                var existingIds = {};
-                mockListings.forEach(function(l) { existingIds[l.id] = true; });
+                // Merge server results into mockListings (preserving existing data with photos)
+                var existingById = {};
+                mockListings.forEach(function(l) { existingById[l.id] = l; });
+                var existingByLid = {};
+                mockListings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
                 serverListings.forEach(function(l) {
-                    if (!existingIds[l.id]) {
+                    var existing = existingById[l.id] || (l.lid ? existingByLid[l.lid] : null);
+                    if (existing) {
+                        // Update existing listing but preserve images if server has none
+                        if ((!l.images || l.images.length === 0) && existing.images && existing.images.length > 0) {
+                            l.images = existing.images;
+                        }
+                    } else {
                         mockListings.push(l);
-                        existingIds[l.id] = true;
                     }
                 });
 
-                // USE SERVER RESULTS AS PRIMARY — replace local results entirely
-                // Server results are fresh from Trestle and match the search criteria
-                searchResultsState.filteredListings = serverListings;
+                // Merge: start with local filtered results, add new server results
+                var merged = localResults.slice();
+                var mergedIds = {};
+                merged.forEach(function(l) { mergedIds[l.id] = true; if (l.lid) mergedIds[l.lid] = true; });
+                serverListings.forEach(function(l) {
+                    if (!mergedIds[l.id] && !(l.lid && mergedIds[l.lid])) {
+                        merged.push(l);
+                        mergedIds[l.id] = true;
+                    }
+                });
+                searchResultsState.filteredListings = merged;
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();

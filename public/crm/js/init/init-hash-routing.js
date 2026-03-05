@@ -201,40 +201,38 @@
                 if (typeof updateResultsCount === 'function') updateResultsCount();
                 if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
             } else {
-                // No cached results — wait for MallanAPI data to load, then re-run search
-                if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
-                    MallanAPI.onReady(function() {
-                        // API is ready, data loaded — now re-run search with saved criteria
-                        if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                            // Re-run server search with saved criteria
-                            var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
-                            var localResults = hasLocalData && typeof filterListings === 'function' ? filterListings(mockListings, activeSearchCriteria) : [];
-                            searchResultsState.filteredListings = localResults;
-                            searchResultsState.currentPage = 1;
-                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                            if (typeof updateResultsCount === 'function') updateResultsCount();
-                            if (typeof _serverSearch === 'function') _serverSearch(activeSearchCriteria, localResults);
-                        } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
-                            // No saved criteria — show all loaded listings
-                            searchResultsState.filteredListings = mockListings.slice();
-                            searchResultsState.currentPage = 1;
-                            if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                            if (typeof updateResultsCount === 'function') updateResultsCount();
-                        } else {
-                            // No data at all — go to search form
-                            if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
-                            if (searchFormContainer) searchFormContainer.style.display = 'block';
-                            if (searchResultsSection) searchResultsSection.style.display = 'none';
-                            history.replaceState(null, '', '#main');
-                        }
-                    });
-                } else {
-                    // No MallanAPI — fall back to search form
-                    if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
-                    if (searchFormContainer) searchFormContainer.style.display = 'block';
-                    if (searchResultsSection) searchResultsSection.style.display = 'none';
-                    history.replaceState(null, '', '#main');
-                }
+                // No cached results — wait for listing data to load (from Trestle API)
+                // _replaceListings dispatches 'mallan:data:ready' when data arrives
+                window.addEventListener('mallan:data:ready', function onDataReady() {
+                    window.removeEventListener('mallan:data:ready', onDataReady);
+                    // Data loaded — restore search state now that mockListings is populated
+                    if (typeof _restoreSearchState === 'function') {
+                        _restoreSearchState();
+                    }
+                    if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                    } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                        searchResultsState.filteredListings = mockListings.slice();
+                        searchResultsState.currentPage = 1;
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                    } else {
+                        if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                        if (searchFormContainer) searchFormContainer.style.display = 'block';
+                        if (searchResultsSection) searchResultsSection.style.display = 'none';
+                        history.replaceState(null, '', '#main');
+                    }
+                });
+                // Safety timeout: if data doesn't load in 10s, go to search form
+                setTimeout(function() {
+                    if (typeof mockListings === 'undefined' || mockListings.length === 0) {
+                        if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                        if (searchFormContainer) searchFormContainer.style.display = 'block';
+                        if (searchResultsSection) searchResultsSection.style.display = 'none';
+                        history.replaceState(null, '', '#main');
+                    }
+                }, 10000);
             }
             return;
         }
