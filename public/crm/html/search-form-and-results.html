@@ -7142,29 +7142,39 @@
                             </table>
                         </div>
 
+                        <!-- Loading Skeleton (shown during transitions) -->
+                        <div id="resultsLoadingSkeleton" style="display:none" class="p-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse"><div class="bg-gray-200" style="aspect-ratio:4/3"></div><div class="p-3"><div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div><div class="h-3 bg-gray-100 rounded w-1/2 mb-2"></div><div class="h-3 bg-gray-100 rounded w-2/3"></div></div></div>
+                                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse"><div class="bg-gray-200" style="aspect-ratio:4/3"></div><div class="p-3"><div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div><div class="h-3 bg-gray-100 rounded w-1/2 mb-2"></div><div class="h-3 bg-gray-100 rounded w-2/3"></div></div></div>
+                                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse hidden lg:block"><div class="bg-gray-200" style="aspect-ratio:4/3"></div><div class="p-3"><div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div><div class="h-3 bg-gray-100 rounded w-1/2 mb-2"></div><div class="h-3 bg-gray-100 rounded w-2/3"></div></div></div>
+                                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse hidden xl:block"><div class="bg-gray-200" style="aspect-ratio:4/3"></div><div class="p-3"><div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div><div class="h-3 bg-gray-100 rounded w-1/2 mb-2"></div><div class="h-3 bg-gray-100 rounded w-2/3"></div></div></div>
+                            </div>
+                        </div>
+
                         <!-- Gallery View Container -->
-                        <div id="galleryViewContainer" class="hidden p-4">
+                        <div id="galleryViewContainer" style="display:none" class="p-4">
                             <div id="galleryResults" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 <!-- Gallery cards populated by JS -->
                             </div>
                         </div>
 
                         <!-- Short Summary View Container -->
-                        <div id="shortSummaryViewContainer" class="hidden">
+                        <div id="shortSummaryViewContainer" style="display:none">
                             <div id="shortSummaryResults">
                                 <!-- Short summary rows populated by JS -->
                             </div>
                         </div>
 
                         <!-- Summary View Container -->
-                        <div id="summaryViewContainer" class="hidden">
+                        <div id="summaryViewContainer" style="display:none">
                             <div id="summaryResults">
                                 <!-- Summary cards populated by JS -->
                             </div>
                         </div>
 
                         <!-- Master Detail View Container -->
-                        <div id="masterDetailViewContainer" class="hidden flex">
+                        <div id="masterDetailViewContainer" style="display:none">
                             <div id="masterListPanel" class="w-1/3 border-r overflow-y-auto" style="max-height: 80vh; max-height: 80dvh;">
                                 <!-- Master list populated by JS -->
                             </div>

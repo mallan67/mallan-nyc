@@ -63,32 +63,8 @@
 
         } else if (route === 'results') {
             // ── RESULTS PAGE ──
-            // Try to restore saved search state from sessionStorage
-            var restored = false;
-            if (typeof _restoreSearchState === 'function') {
-                restored = _restoreSearchState();
-            }
-
-            if (restored) {
-                // Show results directly from saved state
-                var searchFormContainer = document.getElementById('searchFormContainer');
-                var searchResultsSection = document.getElementById('searchResultsSection');
-                if (searchFormContainer) searchFormContainer.style.display = 'none';
-                if (searchResultsSection) {
-                    searchResultsSection.style.display = 'block';
-                    searchResultsSection.classList.remove('hidden');
-                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                }
-                if (typeof updateResultsCount === 'function') updateResultsCount();
-                if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
-            } else {
-                // No saved state — fall back to search form (NOT all listings)
-                var searchFormContainer = document.getElementById('searchFormContainer');
-                var searchResultsSection = document.getElementById('searchResultsSection');
-                if (searchFormContainer) searchFormContainer.style.display = 'block';
-                if (searchResultsSection) searchResultsSection.style.display = 'none';
-                history.replaceState(null, '', '#main');
-            }
+            // Show skeleton immediately while restoring state
+            _navigateToResults(true);
         }
 
         window._suppressHashUpdate = false;
@@ -113,22 +89,9 @@
             showSearchSection('main');
 
             if (newRoute === 'main') {
-                var searchFormContainer = document.getElementById('searchFormContainer');
-                var searchResultsSection = document.getElementById('searchResultsSection');
-                var detailPage = document.getElementById('listingDetailPage');
-                if (searchFormContainer) searchFormContainer.style.display = 'block';
-                if (searchResultsSection) searchResultsSection.style.display = 'none';
-                if (detailPage) detailPage.classList.add('hidden');
+                _navigateToSearch();
             } else if (newRoute === 'results') {
-                var searchFormContainer = document.getElementById('searchFormContainer');
-                var searchResultsSection = document.getElementById('searchResultsSection');
-                var detailPage = document.getElementById('listingDetailPage');
-                if (searchFormContainer) searchFormContainer.style.display = 'none';
-                if (searchResultsSection) {
-                    searchResultsSection.style.display = 'block';
-                    searchResultsSection.classList.remove('hidden');
-                }
-                if (detailPage) detailPage.classList.add('hidden');
+                _navigateToResults(false);
             } else if (newRoute === 'detail' && newParam) {
                 var detailId = parseInt(newParam, 10);
                 if (!isNaN(detailId) && typeof showListingDetail === 'function') {
@@ -139,3 +102,84 @@
             }
         });
     });
+
+    /**
+     * Navigate to search form — clean transition, no blank screen
+     */
+    function _navigateToSearch() {
+        var searchFormContainer = document.getElementById('searchFormContainer');
+        var searchResultsSection = document.getElementById('searchResultsSection');
+        var detailPage = document.getElementById('listingDetailPage');
+
+        if (detailPage) detailPage.classList.add('hidden');
+
+        // Fade out results, fade in form
+        if (searchResultsSection) {
+            searchResultsSection.style.opacity = '0';
+            searchResultsSection.style.transition = 'opacity 0.15s ease';
+            setTimeout(function() {
+                searchResultsSection.style.display = 'none';
+                searchResultsSection.style.opacity = '';
+                searchResultsSection.style.transition = '';
+            }, 150);
+        }
+        if (searchFormContainer) {
+            searchFormContainer.style.display = 'block';
+            searchFormContainer.style.opacity = '0';
+            searchFormContainer.style.transition = 'opacity 0.2s ease';
+            // Force reflow before setting opacity to 1
+            searchFormContainer.offsetHeight;
+            searchFormContainer.style.opacity = '1';
+            setTimeout(function() {
+                searchFormContainer.style.transition = '';
+            }, 200);
+        }
+    }
+
+    /**
+     * Navigate to results — shows skeleton immediately, renders async
+     * @param {boolean} isInitialLoad - true on page load (from hash), false on hashchange
+     */
+    function _navigateToResults(isInitialLoad) {
+        var searchFormContainer = document.getElementById('searchFormContainer');
+        var searchResultsSection = document.getElementById('searchResultsSection');
+        var detailPage = document.getElementById('listingDetailPage');
+
+        if (detailPage) detailPage.classList.add('hidden');
+
+        // Hide search form immediately
+        if (searchFormContainer) searchFormContainer.style.display = 'none';
+
+        // Show results section with skeleton
+        if (searchResultsSection) {
+            searchResultsSection.style.display = 'block';
+            searchResultsSection.classList.remove('hidden');
+        }
+
+        // Show loading skeleton while we restore state
+        if (typeof _showResultsSkeleton === 'function') {
+            _showResultsSkeleton();
+        }
+
+        // Try to restore saved search state from sessionStorage
+        // Use requestAnimationFrame to let the skeleton paint first
+        requestAnimationFrame(function() {
+            var restored = false;
+            if (typeof _restoreSearchState === 'function') {
+                restored = _restoreSearchState();
+            }
+
+            if (restored) {
+                // Render results (this hides the skeleton automatically)
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+                if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
+            } else {
+                // No saved state — fall back to search form
+                if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
+                if (searchFormContainer) searchFormContainer.style.display = 'block';
+                if (searchResultsSection) searchResultsSection.style.display = 'none';
+                history.replaceState(null, '', '#main');
+            }
+        });
+    }
