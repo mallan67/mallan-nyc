@@ -50,24 +50,49 @@ export async function fetchFromTrestle(
   const selectFields =
     options.select?.join(",") || IDX_PLUS_SELECT_FIELDS.join(",");
 
-  const params = new URLSearchParams();
-  if (options.filter) params.set("$filter", options.filter);
-  params.set("$select", selectFields);
-  // Media is a navigation property — must use $expand, not $select
-  params.set("$expand", "Media");
-  params.set("$top", String(options.top || MAX_PAGE_SIZE));
-  if (options.skip) params.set("$skip", String(options.skip));
-  params.set("$orderby", options.orderby || "ModificationTimestamp desc");
+  function buildUrl(withMediaExpand: boolean): string {
+    const params = new URLSearchParams();
+    if (options.filter) params.set("$filter", options.filter);
+    params.set("$select", selectFields);
+    // Media is a navigation property — try $expand=Media for photo URLs
+    if (withMediaExpand) params.set("$expand", "Media");
+    params.set("$top", String(options.top || MAX_PAGE_SIZE));
+    if (options.skip) params.set("$skip", String(options.skip));
+    params.set("$orderby", options.orderby || "ModificationTimestamp desc");
+    return `${getPropertyEndpoint()}?${params.toString()}`;
+  }
 
-  const url = `${getPropertyEndpoint()}?${params.toString()}`;
+  // Try with $expand=Media first; if Trestle rejects it (400), retry without
+  let url = buildUrl(true);
+  const firstResponse = await fetchPage(url, token);
+  if (firstResponse.status === 400) {
+    console.warn("[IDX Fetch] $expand=Media not supported — retrying without");
+    url = buildUrl(false);
+  } else if (firstResponse.status === 401) {
+    // Token expired — will be handled in the pagination loop
+    url = buildUrl(true);
+  } else if (!firstResponse.ok) {
+    // Other error with expand — try without
+    console.warn(`[IDX Fetch] Error ${firstResponse.status} with $expand=Media — retrying without`);
+    url = buildUrl(false);
+  }
+
   const maxTotal = options.maxTotal || 1000;
-
   const allRecords: Record<string, unknown>[] = [];
   let currentUrl: string | null = url;
   let hasMore = false;
+  let isFirstRequest = true;
 
   while (currentUrl && allRecords.length < maxTotal) {
-    const response = await fetchPage(currentUrl, token);
+    // Reuse the first response if we haven't retried
+    let response: Response;
+    if (isFirstRequest && firstResponse.ok) {
+      response = firstResponse;
+      isFirstRequest = false;
+    } else {
+      response = await fetchPage(currentUrl, token);
+      isFirstRequest = false;
+    }
 
     if (response.status === 401) {
       // Token expired — invalidate and retry once
@@ -120,9 +145,15 @@ export async function fetchSingleListing(
 ): Promise<Record<string, unknown> | null> {
   const token = await getAccessToken();
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
-  const url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}&$expand=Media`;
+  // Try with $expand=Media for photos; fall back without if rejected
+  let url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}&$expand=Media`;
+  let response = await fetchPage(url, token);
 
-  const response = await fetchPage(url, token);
+  if (response.status === 400) {
+    // $expand=Media not supported — retry without
+    url = `${getPropertyEndpoint()}('${encodeURIComponent(listingKey)}')?$select=${selectFields}`;
+    response = await fetchPage(url, token);
+  }
 
   if (response.status === 404) return null;
 

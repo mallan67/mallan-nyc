@@ -473,17 +473,6 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                           </span>
                         )}
                       </div>
-                      {/* RLS attribution — bottom of photo with gradient */}
-                      <div className="absolute bottom-0 left-0 right-0 z-10">
-                        <div className="bg-gradient-to-t from-black/50 via-black/20 to-transparent pt-6 pb-1.5 px-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-semibold text-white/80 tracking-wide">RLS</span>
-                            <span className="text-[10px] text-white/60 truncate ml-2">
-                              {listing.listOfficeName}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
                     {/* Content */}
@@ -546,11 +535,14 @@ export default function PropertySearch({ type }: PropertySearchProps) {
                         );
                       })()}
 
-                      {listing.modificationTimestamp && (
-                        <p className="text-[10px] text-brand-dark/30 mt-2">
-                          Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}
-                        </p>
-                      )}
+                      {/* RLS attribution — bottom of card */}
+                      <p className="text-[10px] text-brand-dark/30 mt-2 pt-2 border-t border-black/5">
+                        <span className="font-semibold tracking-wide">RLS</span>
+                        {' '}&middot;{' '}{listing.listOfficeName}
+                        {listing.modificationTimestamp && (
+                          <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
+                        )}
+                      </p>
                     </div>
                   </Link>
                 ))}
