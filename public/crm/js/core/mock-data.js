@@ -405,20 +405,28 @@
         // On production, mockListings starts empty — API populates it.
         if (typeof MallanAPI !== 'undefined' && !_isDevMock) {
             MallanAPI.onReady(function() {
-                _loadFromIDX().catch(function() {
+                _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
-                    console.warn('[MockData] IDX unavailable, falling back to local DB');
+                    console.warn('[MockData] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
+                    _showDataLoadBanner('IDX unavailable — trying local database...', 'warn');
                     return _loadFromPrisma();
-                }).catch(function() {
+                }).catch(function(err) {
                     // All API sources failed
+                    var reason = err && err.message ? err.message : 'Unknown error';
+                    console.error('[MockData] All data sources failed:', reason);
                     if (_isLocalhost) {
                         // On localhost, mock data is already loaded — just log it
                         console.warn('[MockData] API unavailable on localhost — using mock data');
+                        _showDataLoadBanner('Using mock data (API unavailable: ' + reason + ')', 'warn');
                     } else {
                         _showNoListingsMessage('Unable to load listings. Check your connection.');
+                        _showDataLoadBanner('Data load failed: ' + reason, 'error');
                     }
                 });
             });
+        } else if (typeof MallanAPI === 'undefined' && !_isDevMock && !_isLocalhost) {
+            // MallanAPI not loaded — likely auth/script issue
+            _showDataLoadBanner('MallanAPI not loaded — please log in or check your session.', 'error');
         }
 
         /**
@@ -481,6 +489,28 @@
             attrDiv.style.cssText = 'text-align:center;padding:12px 20px;color:#9ca3af;font-size:11px;border-top:1px solid #e5e7eb;margin-top:16px;';
             attrDiv.textContent = text;
             resultsEl.parentNode.insertBefore(attrDiv, resultsEl.nextSibling);
+        }
+
+        /**
+         * Show a dismissible banner at the top of the search area explaining data load status.
+         * @param {string} msg - Message to display
+         * @param {'warn'|'error'} level - 'warn' = amber, 'error' = red
+         */
+        function _showDataLoadBanner(msg, level) {
+            var existing = document.getElementById('dataLoadBanner');
+            if (existing) existing.remove();
+            var colors = level === 'error'
+                ? 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b;'
+                : 'background:#fffbeb;border:1px solid #fde68a;color:#92400e;';
+            var banner = document.createElement('div');
+            banner.id = 'dataLoadBanner';
+            banner.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;padding:10px 20px;border-radius:8px;font-size:13px;max-width:600px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);' + colors;
+            banner.innerHTML = '<i class="fas ' + (level === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle') + '"></i>' +
+                '<span style="flex:1;">' + msg + '</span>' +
+                '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:0.6;padding:0 4px;">&times;</button>';
+            document.body.appendChild(banner);
+            // Auto-dismiss warnings after 8 seconds
+            if (level === 'warn') setTimeout(function() { if (banner.parentNode) banner.remove(); }, 8000);
         }
 
         function _showNoListingsMessage(msg) {

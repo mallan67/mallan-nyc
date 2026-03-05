@@ -607,10 +607,9 @@
                 return photos;
             }
 
-            // ── RLS Compliance: Per-listing "Courtesy of" attribution (Art. III Sec. 2C) ──
+            // Per-listing "Courtesy of" — only on online viewers (UCBA Art. III Sec. 2C applies to IDX/VOW display, not client reports)
             function listingAttribution(l) {
-                if (!l.company) return '';
-                return '<p style="font-size:10px;color:#9ca3af;margin:4px 0 0;font-family:Inter,system-ui,sans-serif;font-weight:300">Listing Courtesy of ' + l.company + '</p>';
+                return '';
             }
 
             // ── RLS Compliance: Statistical data disclaimer (REBNY required) ──
@@ -927,9 +926,9 @@
                     li += '<p style="font-size:12px;color:#4b5563;line-height:1.5;margin:0 0 8px">' + snippet + '</p>';
                 }
 
-                // Row 4: Attribution + agent info (table)
+                // Row 4: Agent info (table) — "Courtesy of" only on online viewers per user preference
                 li += '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding-top:6px;border-top:1px solid #f3f4f6"><tr>';
-                li += '<td style="font-size:11px;color:#9ca3af">' + (l.company ? 'Courtesy of ' + l.company : '') + '</td>';
+                li += '<td></td>';
                 if (!isCustomer && optContent.listingContact && l.agentName) li += '<td style="text-align:right;font-size:11px;color:#9ca3af">' + l.agentName + '</td>';
                 li += '</tr></table>';
 
@@ -2040,10 +2039,7 @@
                     h += '<p style="margin:6px 0 0 0;font-size:11px;color:#9ca3af;">' + extras.join(' &middot; ') + '</p>';
                 }
 
-                // Listing company attribution
-                if (l.company) {
-                    h += '<p style="margin:6px 0 0 0;font-size:10px;color:#b0b0b0;">Courtesy of ' + l.company + '</p>';
-                }
+                // Per-listing "Courtesy of" — only on online viewers, not client reports
 
                 // View Listing link — links to the property page on mallan.nyc
                 var listingSlug = (displayAddr || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -2549,7 +2545,6 @@
             html += '<div style="padding:12px 32px;border-top:2px solid #C4A052;background:#FEFEFE;margin-top:16px">' +
                 '<div style="text-align:center;font-size:10px;color:#64748b;line-height:1.5">' +
                 '<p style="margin:0">Listing courtesy of the REBNY Listing Service (RLS)</p>' +
-                (l.company ? '<p style="margin:1px 0 0">Listing Courtesy of ' + l.company + '</p>' : '') +
                 '<p style="margin:1px 0 0">Data provided by REBNY RLS via Trestle &middot; ' + shortDate + '</p>' +
                 '<p style="margin:2px 0 0;font-style:italic">Information deemed reliable but not guaranteed.</p>' +
                 '<p style="margin:2px 0 0">Equal Housing Opportunity</p>' +

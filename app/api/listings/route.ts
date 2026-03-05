@@ -46,7 +46,13 @@ function checkRateLimit(ip: string): boolean {
  * - minPrice: number - Minimum price
  * - maxPrice: number - Maximum price
  * - beds: number - Minimum number of bedrooms
+ * - minBaths: number - Minimum full bathrooms
  * - propertyType: string - Property sub-type (Condo, Co-op, etc.)
+ * - status: string - StandardStatus filter (Active, ComingSoon, ActiveUnderContract)
+ * - minSqft: number - Minimum living area in sqft
+ * - maxSqft: number - Maximum living area in sqft
+ * - sort: string - Sort order (price-asc, price-desc, newest, sqft-desc)
+ * - skip: number - Pagination offset
  * - pets: boolean - Only show pet-friendly listings (local path only)
  * - featured: boolean - Only show featured listings (local path only)
  * - exclusive: boolean - Only show exclusive listings (local path only)
@@ -73,11 +79,18 @@ export async function GET(request: Request) {
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const minBeds = searchParams.get('beds');
+    const minBaths = searchParams.get('minBaths');
     const propertyTypeFilter = searchParams.get('propertyType');
+    const statusFilter = searchParams.get('status');
+    const minSqft = searchParams.get('minSqft');
+    const maxSqft = searchParams.get('maxSqft');
+    const sortParam = searchParams.get('sort');
+    const skipParam = searchParams.get('skip');
     const petsOnly = searchParams.get('pets') === 'true';
     const featuredOnly = searchParams.get('featured') === 'true';
     const exclusiveOnly = searchParams.get('exclusive') === 'true';
     const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
 
     // ═══════════════════════════════════════════════════════════
     // IDX PATH: Fetch from Trestle/REBNY RLS
@@ -85,9 +98,20 @@ export async function GET(request: Request) {
     if (useIDX) {
       try {
         // Build OData $filter — push what we can to the server
-        const filterParts: string[] = [
-          "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
-        ];
+        const filterParts: string[] = [];
+
+        // Status filter — default to active statuses
+        if (statusFilter) {
+          // Validate against allowed RESO enum tokens
+          const allowedStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+          if (allowedStatuses.includes(statusFilter)) {
+            filterParts.push(`StandardStatus eq '${statusFilter}'`);
+          } else {
+            filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+          }
+        } else {
+          filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+        }
 
         if (listingType === 'sale' || listingType === 'buy') {
           filterParts.push("PropertyType ne 'ResidentialLease'");
@@ -98,14 +122,31 @@ export async function GET(request: Request) {
         if (minPrice) filterParts.push(`ListPrice ge ${parseInt(minPrice, 10)}`);
         if (maxPrice) filterParts.push(`ListPrice le ${parseInt(maxPrice, 10)}`);
         if (minBeds) filterParts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
+        if (minBaths) filterParts.push(`BathroomsFull ge ${parseInt(minBaths, 10)}`);
+        if (minSqft) filterParts.push(`LivingArea ge ${parseInt(minSqft, 10)}`);
+        if (maxSqft) filterParts.push(`LivingArea le ${parseInt(maxSqft, 10)}`);
 
-        // Fetch extra records to account for gate filtering
-        const fetchTop = Math.min(limit * 2, 200);
+        if (propertyTypeFilter) {
+          filterParts.push(`PropertySubType eq '${propertyTypeFilter.replace(/'/g, "''")}'`);
+        }
+
+        // Build OData $orderby for sort
+        let orderby: string | undefined;
+        switch (sortParam) {
+          case 'price-asc': orderby = 'ListPrice asc'; break;
+          case 'price-desc': orderby = 'ListPrice desc'; break;
+          case 'sqft-desc': orderby = 'LivingArea desc'; break;
+          case 'newest': default: orderby = 'ModificationTimestamp desc'; break;
+        }
+
+        // Fetch extra records to account for gate filtering + pagination
+        const fetchTop = Math.min((limit + skip) * 2, 200);
 
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
           top: fetchTop,
           maxTotal: fetchTop,
+          orderby,
         });
 
         // Step 1: Distribution gates on RAW Trestle data (Option A)
@@ -154,13 +195,18 @@ export async function GET(request: Request) {
           );
         }
 
-        // Step 4: Apply limit and convert to public DTO
-        const publicListings = filtered.slice(0, limit).map(toPublicDTO);
+        // Step 4: Apply skip + limit and convert to public DTO
+        const totalCount = filtered.length;
+        const publicListings = filtered.slice(skip, skip + limit).map(toPublicDTO);
 
         return NextResponse.json(
           {
             success: true,
             count: publicListings.length,
+            total: totalCount,
+            skip,
+            limit,
+            hasMore: skip + limit < totalCount,
             listings: publicListings,
             _compliance: {
               source: 'idx',
@@ -213,6 +259,13 @@ export async function GET(request: Request) {
       // Beds filter
       if (minBeds && listing.propertyInfo.bedroomsTotal < parseInt(minBeds, 10)) return false;
 
+      // Baths filter
+      if (minBaths && listing.propertyInfo.bathroomsFull < parseInt(minBaths, 10)) return false;
+
+      // Sqft filter
+      if (minSqft && (listing.propertyInfo.aboveGradeFinishedArea || 0) < parseInt(minSqft, 10)) return false;
+      if (maxSqft && listing.propertyInfo.aboveGradeFinishedArea && listing.propertyInfo.aboveGradeFinishedArea > parseInt(maxSqft, 10)) return false;
+
       // Property type filter
       if (propertyTypeFilter && listing.propertyInfo.propertyType !== propertyTypeFilter) return false;
 
@@ -228,15 +281,22 @@ export async function GET(request: Request) {
       return true;
     });
 
-    // Sort: featured first, then exclusives, then by date
+    // Sort based on param, with featured/exclusive priority
     listings.sort((a, b) => {
       if (a.flags.isFeatured !== b.flags.isFeatured) return b.flags.isFeatured ? 1 : -1;
       if (a.flags.isExclusive !== b.flags.isExclusive) return b.flags.isExclusive ? 1 : -1;
-      return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
+      switch (sortParam) {
+        case 'price-asc': return a.price.listPrice - b.price.listPrice;
+        case 'price-desc': return b.price.listPrice - a.price.listPrice;
+        case 'sqft-desc': return (b.propertyInfo.aboveGradeFinishedArea || 0) - (a.propertyInfo.aboveGradeFinishedArea || 0);
+        case 'newest': default:
+          return new Date(b.listing.listingDate).getTime() - new Date(a.listing.listingDate).getTime();
+      }
     });
 
-    // Apply limit
-    listings = listings.slice(0, limit);
+    // Apply skip + limit
+    const totalLocalCount = listings.length;
+    listings = listings.slice(skip, skip + limit);
 
     // REBNY COMPLIANCE: Sanitize listings for public display — strip private data
     const sanitizedListings = listings.map(sanitizeForPublicDisplay);
@@ -245,6 +305,10 @@ export async function GET(request: Request) {
       {
         success: true,
         count: sanitizedListings.length,
+        total: totalLocalCount,
+        skip,
+        limit,
+        hasMore: skip + limit < totalLocalCount,
         listings: sanitizedListings,
         _compliance: {
           source: 'exclusive',
