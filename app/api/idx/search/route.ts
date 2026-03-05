@@ -194,12 +194,19 @@ function mapTrestleToCRM(
   // so raw.Media is typically empty. Map it when available (detail views).
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const photoCount = Number(raw.PhotosCount) || media.length;
-  const images = media.map((m: Record<string, unknown>, i: number) => ({
-    url: String(m.MediaURL || ""),
-    isPrimary: i === 0,
-    order: Number(m.Order || i),
-    mediaType: String(m.MediaType || "Photo"),
-  })).filter((img: { url: string }) => img.url);
+  const images = media.map((m: Record<string, unknown>, i: number) => {
+    const rawUrl = String(m.MediaURL || "");
+    // Proxy Trestle URLs (require Bearer auth, browser can't load directly)
+    const url = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+      ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
+      : rawUrl;
+    return {
+      url,
+      isPrimary: i === 0,
+      order: Number(m.Order || i),
+      mediaType: String(m.MediaType || "Photo"),
+    };
+  }).filter((img: { url: string }) => img.url);
 
   // Price change detection
   const originalPrice = Number(raw.OriginalListPrice) || 0;

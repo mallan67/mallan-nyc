@@ -69,7 +69,13 @@ async function fetchListing(id: string): Promise<PublicListingDTO | null> {
       try {
         const mediaItems = await fetchListingMedia(listingKey);
         if (mediaItems.length > 0) {
-          dto.media = mediaItems;
+          // Proxy Trestle URLs (they require Bearer auth, browser can't load directly)
+          dto.media = mediaItems.map(m => ({
+            ...m,
+            url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
+              ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+              : m.url,
+          }));
           dto.photosCount = mediaItems.length;
         }
       } catch (mediaErr) {
