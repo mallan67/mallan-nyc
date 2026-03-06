@@ -4,16 +4,17 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
-import listingsData from '@/data/listings.json';
-import agentsData from '@/data/agents.json';
-import type { Listing } from '@/lib/types/listing';
-import { generateListingSlug } from '@/lib/listing-slug';
+import type { PublicListingDTO } from '@/lib/idx/public-dto';
+import prisma from '@/lib/prisma';
+import agentsJson from '@/data/agents.json';
+import PastDealsSection from './PastDealsSection';
+import { getPastDeals } from './past-deals-loader';
 
 type Props = {
   params: Promise<{ name: string }>;
 };
 
-interface Agent {
+interface AgentProfile {
   id: string;
   name: string;
   title: string;
@@ -26,6 +27,82 @@ interface Agent {
   featured: boolean;
 }
 
+async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
+  const nameFromSlug = slug.replace(/-/g, ' ');
+
+  // Try DB first
+  try {
+    const agent = await prisma.agent.findFirst({
+      where: {
+        OR: [
+          { public_slug: slug },
+          { full_name: { equals: nameFromSlug, mode: 'insensitive' } },
+        ],
+        status: 'active',
+      },
+      select: {
+        public_slug: true,
+        full_name: true,
+        first_name: true,
+        last_name: true,
+        title: true,
+        photo: true,
+        phone: true,
+        email: true,
+        bio: true,
+        specialties: true,
+        languages: true,
+        featured: true,
+      },
+    });
+    if (agent) {
+      return {
+        id: agent.public_slug || slug,
+        name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
+        title: agent.title || 'Licensed Real Estate Salesperson',
+        photo: agent.photo || '/images/agent-placeholder.svg',
+        phone: agent.phone || '',
+        email: agent.email,
+        bio: agent.bio || '',
+        specialties: agent.specialties,
+        languages: agent.languages,
+        featured: agent.featured,
+      };
+    }
+  } catch {
+    // DB unavailable — fall through to static JSON
+  }
+
+  // Fallback to static agents.json
+  const staticAgent = agentsJson.agents.find(
+    (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug
+  );
+  return staticAgent || null;
+}
+
+interface AgentListingsData {
+  activeSales: PublicListingDTO[];
+  activeRentals: PublicListingDTO[];
+  closedSales: PublicListingDTO[];
+  closedRentals: PublicListingDTO[];
+}
+
+async function getAgentListings(slug: string): Promise<AgentListingsData> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const res = await fetch(`${baseUrl}/api/agents/${slug}/listings`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    return await res.json();
+  } catch {
+    return { activeSales: [], activeRentals: [], closedSales: [], closedRentals: [] };
+  }
+}
+
+// PastDealDTO and getPastDeals imported from ./past-deals-loader
+
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
     return `$${price.toLocaleString()}/mo`;
@@ -37,121 +114,39 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function getAgentBySlug(slug: string): Agent | null {
-  const agentName = slug.replace(/-/g, ' ');
-  const agent = agentsData.agents.find(
-    (a) => a.name.toLowerCase() === agentName.toLowerCase()
-  );
-  return agent || null;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
-  const agent = getAgentBySlug(name);
-
-  if (!agent) {
-    return { title: 'Agent Not Found | Mallan Real Estate' };
-  }
-
+  const agent = await getAgentBySlug(name);
+  if (!agent) return { title: 'Agent Not Found | Mallan Real Estate' };
   return {
     title: `${agent.name} | ${agent.title} | Mallan Real Estate`,
     description: `${agent.name}, ${agent.title} at Mallan Real Estate. ${agent.bio.substring(0, 155)}...`,
   };
 }
 
-export async function generateStaticParams() {
-  return agentsData.agents.map((agent) => ({
-    name: agent.name.toLowerCase().replace(/\s+/g, '-'),
-  }));
-}
-
-// Compact listing card for closed transactions
-function ClosedListingCard({ listing, isRental }: { listing: Listing; isRental: boolean }) {
-  const price = listing.price.closePrice || listing.price.listPrice;
+function ActiveListingCard({ listing, isRental }: { listing: PublicListingDTO; isRental: boolean }) {
+  const photoUrl = listing.media?.[0]?.url || '/images/listing-placeholder.svg';
 
   return (
-    <div className="group glass-card rounded-2xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all">
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-        <Image
-          src={
-            listing.media.images.find((img) => img.isPrimary)?.url ||
-            listing.media.images[0]?.url ||
-            '/images/listing-placeholder.svg'
-          }
-          alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-      </div>
-      <div className="p-3">
-        <p className="font-semibold text-sm text-brand-dark">
-          {formatPrice(price, isRental)}
-        </p>
-        <p className="text-xs text-brand-dark/60 truncate mt-0.5">
-          {listing.address.streetNumber} {listing.address.streetName}
-          {listing.address.unit && ` #${listing.address.unit}`}
-        </p>
-        <div className="flex items-center gap-1.5 text-[11px] text-brand-dark/50 mt-1">
-          <span>{listing.propertyInfo.propertyType}</span>
-          <span className="text-brand-dark/20">|</span>
-          <span>{listing.propertyInfo.bedroomsTotal}BR/{listing.propertyInfo.bathroomsFull}BA</span>
-          {listing.propertyInfo.aboveGradeFinishedArea > 0 && (
-            <>
-              <span className="text-brand-dark/20">|</span>
-              <span>{listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf</span>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Active listing card (larger)
-function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: boolean }) {
-  // COMPLIANCE: Local exclusive listings always have address display allowed.
-  // Explicitly set to true to prevent accidental suppression.
-  const slug = generateListingSlug({
-    address: {
-      streetNumber: listing.address.streetNumber,
-      streetName: listing.address.streetName,
-      unitNumber: listing.address.unit || null,
-      city: listing.address.city,
-      stateOrProvince: listing.address.state,
-      postalCode: listing.address.zip,
-    },
-    id: listing.id,
-    internetAddressDisplayYN: true,
-  });
-  return (
-    <Link href={`/listing/${slug}?key=${encodeURIComponent(listing.id)}`} className="group block">
+    <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`} className="group block">
       <div className="relative aspect-[4/3] overflow-hidden rounded bg-gray-100 mb-2">
         <Image
-          src={
-            listing.media.images.find((img) => img.isPrimary)?.url ||
-            listing.media.images[0]?.url ||
-            '/images/listing-placeholder.svg'
-          }
-          alt={`${listing.propertyInfo.propertyType} in ${listing.address.neighborhoodDisplay}`}
+          src={photoUrl}
+          alt={`${listing.propertyType} in ${listing.address.neighborhood || listing.address.city}`}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
-        {listing.flags?.isNewListing && (
-          <span className="absolute top-2 left-2 px-2 py-0.5 bg-brand-gold text-white text-[10px] uppercase tracking-wide rounded">
-            New
-          </span>
-        )}
       </div>
       <p className="font-display font-semibold text-base text-brand-dark">
-        {formatPrice(listing.price.listPrice, isRental)}
+        {formatPrice(listing.listPrice, isRental)}
       </p>
-      <p className="text-sm text-brand-dark/60 truncate">
+      <p className="text-sm text-brand-dark/80 truncate">
         {listing.address.streetNumber} {listing.address.streetName}
-        {listing.address.unit && ` #${listing.address.unit}`}
+        {listing.address.unitNumber && ` #${listing.address.unitNumber}`}
       </p>
-      <p className="text-xs text-brand-dark/50 mt-0.5">
-        {listing.propertyInfo.propertyType} · {listing.propertyInfo.bedroomsTotal} bed · {listing.propertyInfo.bathroomsFull} bath
-        {listing.propertyInfo.aboveGradeFinishedArea > 0 && ` · ${listing.propertyInfo.aboveGradeFinishedArea.toLocaleString()} sf`}
+      <p className="text-xs text-brand-dark/70 mt-0.5">
+        {listing.propertyType} · {listing.bedroomsTotal} bed · {listing.bathroomsFull} bath
+        {listing.livingArea && listing.livingArea > 0 && ` · ${listing.livingArea.toLocaleString()} sf`}
       </p>
     </Link>
   );
@@ -159,30 +154,23 @@ function ActiveListingCard({ listing, isRental }: { listing: Listing; isRental: 
 
 export default async function AgentPage({ params }: Props) {
   const { name } = await params;
-  const agent = getAgentBySlug(name);
+  const agent = await getAgentBySlug(name);
 
   if (!agent) {
     notFound();
   }
 
-  const allListings = listingsData.listings as unknown as Listing[];
-  const agentListings = allListings.filter(
-    (listing) =>
-      listing.agent.listAgentName === agent.name ||
-      listing.agent.coListAgentName === agent.name
-  );
+  const { activeSales, activeRentals } = await getAgentListings(name);
 
-  const activeListings = agentListings.filter((l) => l.status === 'active' && l.listingType === 'sale');
-  const activeRentals = agentListings.filter((l) => l.status === 'active' && l.listingType === 'rent');
-  const pastSales = agentListings.filter((l) => l.status === 'sold');
-  const pastRentals = agentListings.filter((l) => l.status === 'rented');
+  // Load past deals (Trestle + manual Excel records merged and deduped)
+  const { sales: pastSales, rentals: pastRentals } = await getPastDeals(name);
 
+  const hasPastDeals = pastSales.length > 0 || pastRentals.length > 0;
   const navItems = [
-    { id: 'active-sales', label: 'Active Sales', count: activeListings.length },
-    { id: 'active-rentals', label: 'Active Rentals', count: activeRentals.length },
-    { id: 'closed-sales', label: 'Closed Sales', count: pastSales.length },
-    { id: 'closed-rentals', label: 'Closed Rentals', count: pastRentals.length },
-  ].filter((item) => item.count > 0);
+    ...(activeSales.length > 0 ? [{ id: 'active-sales', label: 'Active Sales' }] : []),
+    ...(activeRentals.length > 0 ? [{ id: 'active-rentals', label: 'Active Rentals' }] : []),
+    ...(hasPastDeals ? [{ id: 'past-deals', label: 'Past Deals' }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -209,7 +197,7 @@ export default async function AgentPage({ params }: Props) {
                     src={agent.photo || '/images/agent-placeholder.svg'}
                     alt={agent.name}
                     fill
-                    className="object-cover"
+                    className="object-cover object-top scale-150 origin-top"
                     priority
                   />
                 </div>
@@ -222,11 +210,6 @@ export default async function AgentPage({ params }: Props) {
                     {agent.name}<span className="text-brand-dark/40">,</span>{' '}
                     <span className="text-base sm:text-lg text-brand-dark/50">{agent.title}</span>
                   </h1>
-                  {agent.featured && (
-                    <span className="px-2 py-0.5 bg-brand-gold/10 text-brand-gold text-[10px] uppercase tracking-wider rounded">
-                      Featured
-                    </span>
-                  )}
                 </div>
 
                 {/* Contact */}
@@ -290,7 +273,6 @@ export default async function AgentPage({ params }: Props) {
                     className="flex-shrink-0 px-4 py-2 text-xs uppercase tracking-wide text-brand-dark/60 hover:text-brand-gold hover:bg-white/40 rounded transition-colors"
                   >
                     {item.label}
-                    <span className="ml-1.5 text-brand-dark/40">({item.count})</span>
                   </a>
                 ))}
               </div>
@@ -299,15 +281,14 @@ export default async function AgentPage({ params }: Props) {
         )}
 
         {/* Active Sales */}
-        {activeListings.length > 0 && (
+        {activeSales.length > 0 && (
           <section id="active-sales" className="py-10 scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
               <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
                 Active Sales
-                <span className="ml-2 text-sm text-brand-dark/40">({activeListings.length})</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeListings.map((listing) => (
+                {activeSales.map((listing) => (
                   <ActiveListingCard key={listing.id} listing={listing} isRental={false} />
                 ))}
               </div>
@@ -321,7 +302,6 @@ export default async function AgentPage({ params }: Props) {
             <div className="max-w-6xl mx-auto px-4">
               <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
                 Active Rentals
-                <span className="ml-2 text-sm text-brand-dark/40">({activeRentals.length})</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeRentals.map((listing) => (
@@ -332,42 +312,13 @@ export default async function AgentPage({ params }: Props) {
           </section>
         )}
 
-        {/* Closed Sales */}
-        {pastSales.length > 0 && (
-          <section id="closed-sales" className="py-10 scroll-mt-32">
-            <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
-                Closed Sales
-                <span className="ml-2 text-sm text-brand-dark/40">({pastSales.length})</span>
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                {pastSales.map((listing) => (
-                  <ClosedListingCard key={listing.id} listing={listing} isRental={false} />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Closed Rentals */}
-        {pastRentals.length > 0 && (
-          <section id="closed-rentals" className="py-10 scroll-mt-32">
-            <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
-                Closed Rentals
-                <span className="ml-2 text-sm text-brand-dark/40">({pastRentals.length})</span>
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                {pastRentals.map((listing) => (
-                  <ClosedListingCard key={listing.id} listing={listing} isRental={true} />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+        {/* Past Deals — tabbed: Sales / Rentals with pagination */}
+        <div id="past-deals">
+          <PastDealsSection sales={pastSales} rentals={pastRentals} />
+        </div>
 
         {/* No listings */}
-        {activeListings.length === 0 && activeRentals.length === 0 && pastSales.length === 0 && pastRentals.length === 0 && (
+        {activeSales.length === 0 && activeRentals.length === 0 && pastSales.length === 0 && pastRentals.length === 0 && (
           <section className="py-16">
             <div className="max-w-6xl mx-auto px-4 text-center">
               <p className="text-brand-dark/50">

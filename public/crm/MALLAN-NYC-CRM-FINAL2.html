@@ -1491,23 +1491,23 @@
                 <!-- ── Stats Strip ── -->
                 <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
                     <div onclick="showTab('clients')" class="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md transition text-center">
-                        <p class="text-xl font-bold text-gray-900" id="agentStatClients">12</p>
+                        <p class="text-xl font-bold text-gray-900" id="agentStatClients">–</p>
                         <p class="text-[10px] text-gray-500 font-medium">Clients</p>
                     </div>
                     <div onclick="openSearch('manage')" class="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md transition text-center">
-                        <p class="text-xl font-bold text-gray-900" id="agentStatListings">6</p>
+                        <p class="text-xl font-bold text-gray-900" id="agentStatListings">–</p>
                         <p class="text-[10px] text-gray-500 font-medium">Active Listings</p>
                     </div>
-                    <div onclick="showTab('commissions')" class="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md transition text-center">
-                        <p class="text-xl font-bold text-gray-900" id="agentStatDeals">3</p>
+                    <div onclick="showTab('deal-pipeline')" class="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md transition text-center">
+                        <p class="text-xl font-bold text-gray-900" id="agentStatDeals">–</p>
                         <p class="text-[10px] text-gray-500 font-medium">Active Deals</p>
                     </div>
                     <div onclick="showTab('commissions')" class="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md transition text-center">
-                        <p class="text-xl font-bold text-green-700" id="agentStatCommission">$142K</p>
-                        <p class="text-[10px] text-gray-500 font-medium">YTD Earned</p>
+                        <p class="text-xl font-bold text-green-700" id="agentStatCommission">–</p>
+                        <p class="text-[10px] text-gray-500 font-medium">GCI Pipeline</p>
                     </div>
                     <div class="bg-white border rounded-xl p-3 cursor-pointer hover:shadow-md transition text-center">
-                        <p class="text-xl font-bold text-amber-600" id="agentStatLeads">8</p>
+                        <p class="text-xl font-bold text-amber-600" id="agentStatLeads">–</p>
                         <p class="text-[10px] text-gray-500 font-medium">Leads</p>
                     </div>
                 </div>
@@ -1604,43 +1604,37 @@
                 <div class="bg-white rounded-xl shadow-sm border p-5 mb-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-sm font-bold text-gray-800"><i class="fas fa-stream text-purple-500 mr-2"></i>My Deal Pipeline</h3>
-                        <button onclick="showTab('listing-pipeline')" class="text-xs text-blue-600 font-semibold hover:underline">Full Pipeline <i class="fas fa-arrow-right ml-1"></i></button>
+                        <button onclick="showTab('deal-pipeline')" class="text-xs text-blue-600 font-semibold hover:underline">Full Pipeline <i class="fas fa-arrow-right ml-1"></i></button>
                     </div>
                     <div class="flex gap-2 overflow-x-auto pb-2">
                         <div class="flex-1 min-w-[100px] bg-gray-50 rounded-lg p-3 text-center border">
-                            <p class="text-lg font-bold text-gray-600">2</p>
+                            <p class="text-lg font-bold text-gray-600" id="dashDealDraft">0</p>
                             <p class="text-[10px] font-semibold text-gray-400">DRAFT</p>
                         </div>
                         <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
-                        <div class="flex-1 min-w-[100px] bg-yellow-50 rounded-lg p-3 text-center border border-yellow-200">
-                            <p class="text-lg font-bold text-yellow-600">1</p>
-                            <p class="text-[10px] font-semibold text-yellow-500">COMING SOON</p>
-                        </div>
-                        <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
                         <div class="flex-1 min-w-[100px] bg-blue-50 rounded-lg p-3 text-center border border-blue-200">
-                            <p class="text-lg font-bold text-blue-600">4</p>
-                            <p class="text-[10px] font-semibold text-blue-500">ACTIVE</p>
-                        </div>
-                        <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
-                        <div class="flex-1 min-w-[100px] bg-orange-50 rounded-lg p-3 text-center border border-orange-200">
-                            <p class="text-lg font-bold text-orange-600">1</p>
-                            <p class="text-[10px] font-semibold text-orange-500">OFFER</p>
-                        </div>
-                        <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
-                        <div class="flex-1 min-w-[100px] bg-purple-50 rounded-lg p-3 text-center border border-purple-200">
-                            <p class="text-lg font-bold text-purple-600">1</p>
-                            <p class="text-[10px] font-semibold text-purple-500">CONTRACT</p>
+                            <p class="text-lg font-bold text-blue-600" id="dashDealSubmitted">0</p>
+                            <p class="text-[10px] font-semibold text-blue-500">SUBMITTED</p>
                         </div>
                         <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
                         <div class="flex-1 min-w-[100px] bg-green-50 rounded-lg p-3 text-center border border-green-200">
-                            <p class="text-lg font-bold text-green-600">3</p>
-                            <p class="text-[10px] font-semibold text-green-500">CLOSED YTD</p>
+                            <p class="text-lg font-bold text-green-600" id="dashDealApproved">0</p>
+                            <p class="text-[10px] font-semibold text-green-500">APPROVED</p>
+                        </div>
+                        <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
+                        <div class="flex-1 min-w-[100px] bg-purple-50 rounded-lg p-3 text-center border border-purple-200">
+                            <p class="text-lg font-bold text-purple-600" id="dashDealClosed">0</p>
+                            <p class="text-[10px] font-semibold text-purple-500">CLOSED</p>
+                        </div>
+                        <div class="flex-shrink-0 flex items-center"><i class="fas fa-chevron-right text-gray-300 text-[10px]"></i></div>
+                        <div class="flex-1 min-w-[100px] bg-red-50 rounded-lg p-3 text-center border border-red-200">
+                            <p class="text-lg font-bold text-red-600" id="dashDealRejected">0</p>
+                            <p class="text-[10px] font-semibold text-red-500">REJECTED</p>
                         </div>
                     </div>
                     <div class="mt-3 flex items-center gap-4 text-[11px] text-gray-500">
-                        <span><i class="fas fa-chart-line text-green-500 mr-1"></i> Avg DOM: <strong>22 days</strong></span>
-                        <span><i class="fas fa-percentage text-blue-500 mr-1"></i> Close rate: <strong>68%</strong></span>
-                        <span><i class="fas fa-dollar-sign text-amber-500 mr-1"></i> Total volume: <strong>$8.2M YTD</strong></span>
+                        <span><i class="fas fa-stream text-purple-500 mr-1"></i> Total deals: <strong id="dashDealTotal">0</strong></span>
+                        <span><i class="fas fa-dollar-sign text-amber-500 mr-1"></i> GCI pipeline: <strong id="dashDealGCI">$0</strong></span>
                     </div>
                 </div>
 
@@ -2262,7 +2256,12 @@
                         <h2 class="text-lg font-bold text-gray-900">Listing Manager</h2>
                         <p class="text-xs text-gray-400">Performance, syndication &amp; marketing at a glance</p>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-3">
+                        <!-- Active / Sold toggle -->
+                        <div class="flex bg-gray-100 rounded-lg p-0.5">
+                            <button onclick="switchListingView('active')" id="lmTabActive" class="px-4 py-1.5 text-xs font-semibold rounded-md bg-gray-900 text-white transition">Active</button>
+                            <button onclick="switchListingView('sold')" id="lmTabSold" class="px-4 py-1.5 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-700 transition">Sold</button>
+                        </div>
                         <button onclick="openListingForm('sale')" class="px-3.5 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition">
                             <i class="fas fa-plus mr-1.5"></i> New Sale
                         </button>
@@ -2272,6 +2271,9 @@
                     </div>
                 </div>
 
+                <!-- ══════ ACTIVE VIEW ══════ -->
+                <div id="lmActiveView">
+
                 <!-- ── Portfolio Overview ── -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                     <div class="bg-white border rounded-xl p-4">
@@ -2279,66 +2281,46 @@
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Total Volume</p>
                             <span class="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-chart-bar text-gray-400 text-xs"></i></span>
                         </div>
-                        <p class="text-xl font-bold text-gray-900">$28.3M</p>
-                        <p class="text-[10px] text-gray-400">15 listings &middot; 10 sale / 5 rental</p>
+                        <p class="text-xl font-bold text-gray-900">$0</p>
+                        <p class="text-[10px] text-gray-400">0 listings</p>
                     </div>
                     <div class="bg-white border rounded-xl p-4">
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Avg Days on Market</p>
                             <span class="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-clock text-gray-400 text-xs"></i></span>
                         </div>
-                        <p class="text-xl font-bold text-gray-900">23 <span class="text-sm font-normal text-gray-400">days</span></p>
-                        <div class="flex items-center gap-1 mt-0.5">
-                            <span class="text-[10px] text-emerald-600 font-medium"><i class="fas fa-arrow-down mr-0.5"></i>12%</span>
-                            <span class="text-[10px] text-gray-400">vs last month</span>
-                        </div>
+                        <p class="text-xl font-bold text-gray-900">— <span class="text-sm font-normal text-gray-400">days</span></p>
                     </div>
                     <div class="bg-white border rounded-xl p-4">
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Total Showings</p>
                             <span class="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-eye text-gray-400 text-xs"></i></span>
                         </div>
-                        <p class="text-xl font-bold text-gray-900">104</p>
-                        <div class="flex items-center gap-1 mt-0.5">
-                            <span class="text-[10px] text-emerald-600 font-medium"><i class="fas fa-arrow-up mr-0.5"></i>8%</span>
-                            <span class="text-[10px] text-gray-400">this week</span>
-                        </div>
+                        <p class="text-xl font-bold text-gray-900">0</p>
                     </div>
                     <div class="bg-white border rounded-xl p-4">
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Inquiries (30d)</p>
                             <span class="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-envelope text-gray-400 text-xs"></i></span>
                         </div>
-                        <p class="text-xl font-bold text-gray-900">47</p>
-                        <p class="text-[10px] text-gray-400">32 email &middot; 10 call &middot; 5 text</p>
+                        <p class="text-xl font-bold text-gray-900">0</p>
                     </div>
                 </div>
 
                 <!-- ── Alerts Banner ── -->
-                <div class="flex items-center gap-3 mb-5 overflow-x-auto">
-                    <div class="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg whitespace-nowrap">
-                        <i class="fas fa-exclamation-circle text-red-500 text-xs"></i>
-                        <span class="text-[11px] text-red-700 font-medium">1 draft missing photos</span>
-                    </div>
-                    <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg whitespace-nowrap">
-                        <i class="fas fa-info-circle text-blue-500 text-xs"></i>
-                        <span class="text-[11px] text-blue-700 font-medium">350 E 62nd — 32 DOM, consider price adjustment</span>
-                    </div>
-                    <div class="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg whitespace-nowrap">
-                        <i class="fas fa-gavel text-purple-500 text-xs"></i>
-                        <span class="text-[11px] text-purple-700 font-medium">15 CPW — closing in 10 days</span>
-                    </div>
+                <div class="flex items-center gap-3 mb-5 overflow-x-auto" id="listingAlertsBanner">
+                    <!-- Alerts populated dynamically when listings exist -->
                 </div>
 
                 <!-- ── Filters + Search ── -->
                 <div class="bg-white border rounded-xl mb-4">
                     <div class="flex items-center justify-between px-4 py-3">
                         <div class="flex items-center gap-1.5">
-                            <button onclick="filterListings('all')" class="px-3 py-1.5 bg-gray-900 text-white rounded-md text-[11px] font-semibold">All (15)</button>
-                            <button onclick="filterListings('sale')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Sale (10)</button>
-                            <button onclick="filterListings('rent')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Rental (5)</button>
-                            <button onclick="filterListings('contract')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Contract (3)</button>
-                            <button onclick="filterListings('draft')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Draft (2)</button>
+                            <button onclick="filterListings('all')" class="px-3 py-1.5 bg-gray-900 text-white rounded-md text-[11px] font-semibold">All (0)</button>
+                            <button onclick="filterListings('sale')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Sale (0)</button>
+                            <button onclick="filterListings('rent')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Rental (0)</button>
+                            <button onclick="filterListings('contract')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Contract (0)</button>
+                            <button onclick="filterListings('draft')" class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Draft (0)</button>
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="relative">
@@ -2361,320 +2343,131 @@
                 <!-- ── Listing Cards — aspect-[4/3] matching public frontend ── -->
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="listingCardGrid">
 
-                    <!-- CARD 1 — Active Sale, good performance -->
-                    <div class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300 group listing-card" data-type="sale" data-status="active" data-listing-id="SL-1001">
-                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 cursor-pointer" onclick="openListingViewer('sale','SL-1001')">
-                            <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=450&q=80&fit=crop" class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" alt="450 W 42nd St">
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 bg-white/90 text-gray-900 text-[10px] font-bold rounded backdrop-blur-sm shadow-sm">EXCLUSIVE</span>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded shadow-sm"><span class="w-1.5 h-1.5 bg-white rounded-full"></span>Active</span>
-                            </div>
-                            <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-camera text-[9px]"></i> 24</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-ruler-combined text-[9px]"></i> FP</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-video text-[9px]"></i></span>
-                            </div>
-                            <div class="absolute top-2.5 right-2.5">
-                                <span class="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded shadow-sm">SALE</span>
-                            </div>
+                    <!-- Empty state — no listings yet -->
+                    <div class="col-span-full py-16 text-center" id="noListingsState">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-home text-2xl text-gray-300"></i>
                         </div>
-                        <!-- Price + address — same hierarchy as public frontend -->
-                        <div class="px-4 pt-3 pb-0">
-                            <p class="text-xl font-bold text-gray-900">$2,450,000</p>
-                            <p class="text-sm font-medium text-gray-800 mt-0.5">450 W 42nd St, #28B</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Hell's Kitchen &middot; Condo &middot; 2 bed &middot; 2 bath &middot; 1,200 SF</p>
-                        </div>
-                        <!-- CRM data strip -->
-                        <div class="px-4 pt-3 pb-4 mt-2 border-t border-gray-100 space-y-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold text-gray-400 w-7 shrink-0">DOM</span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div class="h-1.5 rounded-full bg-emerald-500" style="width:30%"></div></div>
-                                <span class="text-[11px] font-bold text-emerald-600 w-5 text-right shrink-0">18</span>
-                                <span class="text-[10px] text-gray-400 ml-1 shrink-0">Exp <span class="font-semibold text-amber-600">Apr 17</span></span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3 text-[11px]">
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-eye text-gray-400 text-[9px]"></i> <strong>247</strong> views</span>
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-heart text-rose-400 text-[9px]"></i> <strong>31</strong> saved</span>
-                                    <span class="flex items-center gap-1 text-amber-600 font-semibold"><i class="fas fa-redo text-[9px]"></i> <strong>12</strong> return</span>
-                                </div>
-                                <button class="text-[10px] text-blue-600 font-semibold hover:underline">Leads &rarr;</button>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-1.5 text-[11px] text-gray-600"><i class="fas fa-door-open text-indigo-400 text-[9px]"></i>Sun Feb 22 &middot; 12–2pm &middot; Public</span>
-                                <button class="text-[10px] text-gray-400 hover:text-gray-600">+ OH</button>
-                            </div>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
-                                <button onclick="openEditModal('sale','450 W 42nd St, #28B','$2,450,000')" class="flex-1 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-semibold rounded-lg hover:bg-gray-700 transition"><i class="fas fa-pen text-[9px] mr-1"></i>Edit</button>
-                                <button onclick="openListingViewer('sale','SL-1001')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition" title="View Listing"><i class="fas fa-eye text-[10px]"></i></button>
-                                <button onclick="alert('Price History: 450 W 42nd St, #28B\n\nOriginal: $2,595,000 (Jan 31)\nReduced: $2,450,000 (Feb 2) — -5.6%\n\n18 DOM · Market median: 34 DOM')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Price History"><i class="fas fa-chart-line text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Syndication"><i class="fas fa-broadcast-tower text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="More"><i class="fas fa-ellipsis-h text-[10px]"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- CARD 2 — Active Rental -->
-                    <div class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300 group listing-card" data-type="rent" data-status="active" data-listing-id="RL-2001">
-                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 cursor-pointer" onclick="openListingViewer('rental','RL-2001')">
-                            <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&h=450&q=80&fit=crop" class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" alt="225 W 83rd St">
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 bg-white/90 text-gray-900 text-[10px] font-bold rounded backdrop-blur-sm shadow-sm">EXCLUSIVE</span>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded shadow-sm"><span class="w-1.5 h-1.5 bg-white rounded-full"></span>Active</span>
-                            </div>
-                            <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-camera text-[9px]"></i> 18</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-ruler-combined text-[9px]"></i> FP</span>
-                            </div>
-                            <div class="absolute top-2.5 right-2.5">
-                                <span class="px-2 py-0.5 bg-teal-600 text-white text-[10px] font-bold rounded shadow-sm">RENTAL</span>
-                            </div>
-                        </div>
-                        <div class="px-4 pt-3 pb-0">
-                            <p class="text-xl font-bold text-gray-900">$5,800<span class="text-sm font-normal text-gray-400">/mo</span></p>
-                            <p class="text-sm font-medium text-gray-800 mt-0.5">225 W 83rd St, #4F</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Upper West Side &middot; Co-op &middot; 2 bed &middot; 1 bath &middot; 850 SF</p>
-                        </div>
-                        <div class="px-4 pt-3 pb-4 mt-2 border-t border-gray-100 space-y-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold text-gray-400 w-7 shrink-0">DOM</span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div class="h-1.5 rounded-full bg-emerald-500" style="width:8%"></div></div>
-                                <span class="text-[11px] font-bold text-emerald-600 w-5 text-right shrink-0">5</span>
-                                <span class="text-[10px] text-gray-400 ml-1 shrink-0">Exp <span class="font-semibold text-gray-600">Aug 13</span></span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3 text-[11px]">
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-eye text-gray-400 text-[9px]"></i> <strong>183</strong> views</span>
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-heart text-rose-400 text-[9px]"></i> <strong>24</strong> saved</span>
-                                    <span class="flex items-center gap-1 text-amber-600 font-semibold"><i class="fas fa-redo text-[9px]"></i> <strong>8</strong> return</span>
-                                </div>
-                                <button class="text-[10px] text-blue-600 font-semibold hover:underline">Leads &rarr;</button>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-1.5 text-[11px] text-gray-400 italic"><i class="fas fa-door-open text-[9px]"></i>No open house scheduled</span>
-                                <button class="text-[10px] text-indigo-500 font-semibold hover:underline">+ Schedule</button>
-                            </div>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
-                                <button onclick="openEditModal('rent','225 W 83rd St, #4F','$5,800/mo')" class="flex-1 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-semibold rounded-lg hover:bg-gray-700 transition"><i class="fas fa-pen text-[9px] mr-1"></i>Edit</button>
-                                <button onclick="openListingViewer('rental','RL-2001')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition" title="View Listing"><i class="fas fa-eye text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Price History"><i class="fas fa-chart-line text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Syndication"><i class="fas fa-broadcast-tower text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="More"><i class="fas fa-ellipsis-h text-[10px]"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- CARD 3 — Contract (15 CPW) -->
-                    <div class="bg-white rounded-xl overflow-hidden border border-purple-200 hover:shadow-lg transition-shadow duration-300 group listing-card" data-type="sale" data-status="contract" data-listing-id="SL-1002">
-                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 cursor-pointer" onclick="openListingViewer('sale','SL-1002')">
-                            <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&h=450&q=80&fit=crop" class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" alt="15 CPW">
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded shadow-sm">CONTRACT</span>
-                                <span class="px-2 py-0.5 bg-white/90 text-purple-700 text-[10px] font-bold rounded backdrop-blur-sm shadow-sm"><i class="fas fa-gavel text-[9px] mr-0.5"></i>Closing Feb 28</span>
-                            </div>
-                            <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-camera text-[9px]"></i> 32</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-ruler-combined text-[9px]"></i> FP</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-cube text-[9px]"></i> 3D</span>
-                            </div>
-                            <div class="absolute top-2.5 right-2.5">
-                                <span class="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded shadow-sm">SALE</span>
-                            </div>
-                        </div>
-                        <div class="px-4 pt-3 pb-0">
-                            <p class="text-xl font-bold text-gray-900">$3,800,000</p>
-                            <p class="text-sm font-medium text-gray-800 mt-0.5">15 Central Park West, #24D</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Lincoln Square &middot; Condo &middot; 3 bed &middot; 3.5 bath &middot; 2,650 SF</p>
-                        </div>
-                        <div class="px-4 pt-3 pb-4 mt-2 border-t border-gray-100 space-y-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold text-gray-400 w-7 shrink-0">DOM</span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div class="h-1.5 rounded-full bg-amber-400" style="width:75%"></div></div>
-                                <span class="text-[11px] font-bold text-amber-500 w-5 text-right shrink-0">45</span>
-                                <span class="text-[10px] text-purple-600 font-semibold ml-1 shrink-0"><i class="fas fa-gavel text-[9px] mr-0.5"></i>Feb 28</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3 text-[11px]">
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-eye text-gray-400 text-[9px]"></i> <strong>512</strong> views</span>
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-heart text-rose-400 text-[9px]"></i> <strong>67</strong> saved</span>
-                                    <span class="flex items-center gap-1 text-amber-600 font-semibold"><i class="fas fa-redo text-[9px]"></i> <strong>29</strong> return</span>
-                                </div>
-                                <button class="text-[10px] text-blue-600 font-semibold hover:underline">Leads &rarr;</button>
-                            </div>
-                            <div class="flex items-center gap-1.5 text-[11px] text-purple-600 font-medium">
-                                <i class="fas fa-file-contract text-[9px]"></i>
-                                <span>Contract signed &middot; Board approval pending</span>
-                            </div>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
-                                <button onclick="openEditModal('sale','15 Central Park West, #24D','$3,800,000')" class="flex-1 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-semibold rounded-lg hover:bg-gray-700 transition"><i class="fas fa-pen text-[9px] mr-1"></i>Edit</button>
-                                <button onclick="openListingViewer('sale','SL-1002')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition" title="View Listing"><i class="fas fa-eye text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Deal Tracker"><i class="fas fa-file-signature text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Syndication"><i class="fas fa-broadcast-tower text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="More"><i class="fas fa-ellipsis-h text-[10px]"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- CARD 4 — Active Sale, high DOM (needs attention) -->
-                    <div class="bg-white rounded-xl overflow-hidden border border-amber-200 hover:shadow-lg transition-shadow duration-300 group listing-card" data-type="sale" data-status="active" data-listing-id="SL-1003">
-                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 cursor-pointer" onclick="openListingViewer('sale','SL-1003')">
-                            <img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=450&q=80&fit=crop" class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" alt="350 E 62nd St">
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded shadow-sm"><i class="fas fa-exclamation-triangle text-[9px] mr-0.5"></i>Price Adj</span>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded shadow-sm"><span class="w-1.5 h-1.5 bg-white rounded-full"></span>Active</span>
-                            </div>
-                            <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-camera text-[9px]"></i> 15</span>
-                            </div>
-                            <div class="absolute top-2.5 right-2.5">
-                                <span class="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded shadow-sm">SALE</span>
-                            </div>
-                        </div>
-                        <div class="px-4 pt-3 pb-0">
-                            <p class="text-xl font-bold text-gray-900">$1,295,000</p>
-                            <p class="text-sm font-medium text-gray-800 mt-0.5">350 E 62nd St, #2B</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Lenox Hill &middot; Condo &middot; 2 bed &middot; 1 bath &middot; 875 SF</p>
-                        </div>
-                        <div class="px-4 pt-3 pb-4 mt-2 border-t border-gray-100 space-y-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold text-gray-400 w-7 shrink-0">DOM</span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div class="h-1.5 rounded-full bg-red-500" style="width:53%"></div></div>
-                                <span class="text-[11px] font-bold text-red-500 w-5 text-right shrink-0">32</span>
-                                <span class="text-[10px] text-gray-400 ml-1 shrink-0">Exp <span class="font-semibold text-amber-600">Apr 17</span></span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3 text-[11px]">
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-eye text-gray-400 text-[9px]"></i> <strong>89</strong> views</span>
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-heart text-rose-400 text-[9px]"></i> <strong>7</strong> saved</span>
-                                    <span class="flex items-center gap-1 text-gray-400"><i class="fas fa-redo text-[9px]"></i> <strong>2</strong> return</span>
-                                </div>
-                                <button class="text-[10px] text-blue-600 font-semibold hover:underline">Leads &rarr;</button>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-1.5 text-[11px] text-gray-400 italic"><i class="fas fa-door-open text-[9px]"></i>No open house scheduled</span>
-                                <button class="text-[10px] text-indigo-500 font-semibold hover:underline">+ Schedule</button>
-                            </div>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
-                                <button onclick="openEditModal('sale','350 E 62nd St, #2B','$1,295,000')" class="flex-1 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-semibold rounded-lg hover:bg-gray-700 transition"><i class="fas fa-pen text-[9px] mr-1"></i>Edit</button>
-                                <button onclick="openListingViewer('sale','SL-1003')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition" title="View Listing"><i class="fas fa-eye text-[10px]"></i></button>
-                                <button onclick="alert('Price Adjustment Suggestion\n\n350 E 62nd St, #2B — $1,295,000\nDOM: 32 | Views: 89 | Saves: 7 | Returns: 2\n\nComps suggest $1,195,000–$1,250,000\n\nRecommendation: 5-8% reduction to $1,195,000')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-amber-300 text-amber-500 hover:bg-amber-50 transition" title="Price Suggestion"><i class="fas fa-dollar-sign text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Syndication"><i class="fas fa-broadcast-tower text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="More"><i class="fas fa-ellipsis-h text-[10px]"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- CARD 5 — Active Rental, luxury -->
-                    <div class="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300 group listing-card" data-type="rent" data-status="active" data-listing-id="RL-2002">
-                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-100 cursor-pointer" onclick="openListingViewer('rental','RL-2002')">
-                            <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=450&q=80&fit=crop" class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" alt="111 Murray St">
-                            <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="px-2 py-0.5 bg-white/90 text-gray-900 text-[10px] font-bold rounded backdrop-blur-sm shadow-sm">EXCLUSIVE</span>
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded shadow-sm"><span class="w-1.5 h-1.5 bg-white rounded-full"></span>Active</span>
-                            </div>
-                            <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5">
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-camera text-[9px]"></i> 28</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-ruler-combined text-[9px]"></i> FP</span>
-                                <span class="flex items-center gap-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur-sm"><i class="fas fa-video text-[9px]"></i></span>
-                            </div>
-                            <div class="absolute top-2.5 right-2.5">
-                                <span class="px-2 py-0.5 bg-teal-600 text-white text-[10px] font-bold rounded shadow-sm">RENTAL</span>
-                            </div>
-                        </div>
-                        <div class="px-4 pt-3 pb-0">
-                            <p class="text-xl font-bold text-gray-900">$12,500<span class="text-sm font-normal text-gray-400">/mo</span></p>
-                            <p class="text-sm font-medium text-gray-800 mt-0.5">111 Murray St, #30F</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Tribeca &middot; Condo &middot; 4 bed &middot; 4.5 bath &middot; 3,200 SF</p>
-                        </div>
-                        <div class="px-4 pt-3 pb-4 mt-2 border-t border-gray-100 space-y-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold text-gray-400 w-7 shrink-0">DOM</span>
-                                <div class="flex-1 bg-gray-100 rounded-full h-1.5"><div class="h-1.5 rounded-full bg-emerald-500" style="width:20%"></div></div>
-                                <span class="text-[11px] font-bold text-emerald-600 w-5 text-right shrink-0">12</span>
-                                <span class="text-[10px] text-gray-400 ml-1 shrink-0">Exp <span class="font-semibold text-gray-600">Aug 6</span></span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3 text-[11px]">
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-eye text-gray-400 text-[9px]"></i> <strong>328</strong> views</span>
-                                    <span class="flex items-center gap-1 text-gray-600"><i class="fas fa-heart text-rose-400 text-[9px]"></i> <strong>44</strong> saved</span>
-                                    <span class="flex items-center gap-1 text-amber-600 font-semibold"><i class="fas fa-redo text-[9px]"></i> <strong>19</strong> return</span>
-                                </div>
-                                <button class="text-[10px] text-blue-600 font-semibold hover:underline">Leads &rarr;</button>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="flex items-center gap-1.5 text-[11px] text-gray-600"><i class="fas fa-door-open text-indigo-400 text-[9px]"></i>Sat Feb 21 &middot; 11am–1pm &middot; Broker Only</span>
-                                <button class="text-[10px] text-gray-400 hover:text-gray-600">+ OH</button>
-                            </div>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
-                                <button onclick="openEditModal('rent','111 Murray St, #30F','$12,500/mo')" class="flex-1 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-semibold rounded-lg hover:bg-gray-700 transition"><i class="fas fa-pen text-[9px] mr-1"></i>Edit</button>
-                                <button onclick="openListingViewer('rental','RL-2002')" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition" title="View Listing"><i class="fas fa-eye text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Price History"><i class="fas fa-chart-line text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="Syndication"><i class="fas fa-broadcast-tower text-[10px]"></i></button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition" title="More"><i class="fas fa-ellipsis-h text-[10px]"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- CARD 6 — Draft (missing photos) -->
-                    <div class="bg-white rounded-xl overflow-hidden border-2 border-dashed border-gray-300 hover:shadow-lg transition-shadow duration-300 group listing-card" data-type="sale" data-status="draft">
-                        <div class="relative aspect-[4/3] overflow-hidden bg-gray-50 flex items-center justify-center">
-                            <div class="text-center">
-                                <div class="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                    <i class="fas fa-camera text-gray-400 text-lg"></i>
-                                </div>
-                                <p class="text-[11px] font-semibold text-gray-400 mb-0.5">No Photos Uploaded</p>
-                                <p class="text-[10px] text-gray-300">Min 1 required for RLS</p>
-                                <button class="mt-2 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-semibold rounded-lg hover:bg-blue-700 transition"><i class="fas fa-upload mr-1"></i>Upload</button>
-                            </div>
-                            <div class="absolute top-2.5 left-2.5">
-                                <span class="px-2 py-0.5 bg-gray-500 text-white text-[10px] font-bold rounded shadow-sm">DRAFT</span>
-                            </div>
-                        </div>
-                        <div class="px-4 pt-3 pb-0">
-                            <p class="text-xl font-bold text-gray-900">$4,500,000</p>
-                            <p class="text-sm font-medium text-gray-800 mt-0.5">200 E 66th St, #A1202</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Upper East Side &middot; Co-op &middot; 3 bed &middot; 2.5 bath &middot; 1,800 SF</p>
-                        </div>
-                        <div class="px-4 pt-3 pb-4 mt-2 border-t border-gray-100 space-y-2.5">
-                            <div>
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-[10px] font-semibold text-gray-500">Draft Completion</span>
-                                    <span class="text-[10px] font-bold text-gray-700">4 / 6 sections</span>
-                                </div>
-                                <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1.5">
-                                    <div class="bg-blue-500 h-1.5 rounded-full" style="width:67%"></div>
-                                </div>
-                                <div class="flex gap-2 flex-wrap text-[9px]">
-                                    <span class="text-emerald-500"><i class="fas fa-check mr-0.5"></i>Info</span>
-                                    <span class="text-emerald-500"><i class="fas fa-check mr-0.5"></i>Unit</span>
-                                    <span class="text-emerald-500"><i class="fas fa-check mr-0.5"></i>Price</span>
-                                    <span class="text-emerald-500"><i class="fas fa-check mr-0.5"></i>Dist</span>
-                                    <span class="text-red-500 font-semibold"><i class="fas fa-times mr-0.5"></i>Photos</span>
-                                    <span class="text-red-500 font-semibold"><i class="fas fa-times mr-0.5"></i>Desc</span>
-                                </div>
-                            </div>
-                            <p class="text-[10px] text-gray-400">Created Feb 14 &middot; Last edited Feb 16</p>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
-                                <button onclick="openEditModal('sale','200 E 66th St, #A1202','$4,500,000')" class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-[10px] font-semibold rounded-lg hover:bg-blue-700 transition"><i class="fas fa-pen text-[9px] mr-1"></i>Complete Draft</button>
-                                <span class="text-[10px] text-gray-400 italic flex items-center gap-1"><i class="fas fa-eye-slash text-[9px]"></i> Draft</span>
-                                <button onclick="if(confirm('Delete draft: 200 E 66th St, #A1202?')) { this.closest('.listing-card').remove(); }" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 transition" title="Delete"><i class="fas fa-trash text-[10px]"></i></button>
-                            </div>
+                        <h3 class="text-lg font-semibold text-gray-700 mb-1">No listings yet</h3>
+                        <p class="text-sm text-gray-400 mb-4">Create your first exclusive listing to get started.</p>
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="openListingForm('sale')" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition">
+                                <i class="fas fa-plus mr-1.5"></i> New Sale
+                            </button>
+                            <button onclick="openListingForm('rental')" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition">
+                                <i class="fas fa-plus mr-1.5"></i> New Rental
+                            </button>
                         </div>
                     </div>
 
                 </div>
 
+                </div><!-- /lmActiveView -->
+
+                <!-- ══════ SOLD VIEW ══════ -->
+                <div id="lmSoldView" style="display:none">
+
+                    <!-- Sold Stats -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                        <div class="bg-white border rounded-xl p-4">
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Total Closed</p>
+                            <p class="text-xl font-bold text-gray-900" id="soldStatTotal">0</p>
+                            <p class="text-[10px] text-gray-400" id="soldStatBreakdown">0 sales · 0 rentals</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4">
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Total Volume</p>
+                            <p class="text-xl font-bold text-gray-900" id="soldStatVolume">$0</p>
+                            <p class="text-[10px] text-gray-400">Closed deals with prices</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4">
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Missing Prices</p>
+                            <p class="text-xl font-bold text-red-500" id="soldStatMissing">0</p>
+                            <p class="text-[10px] text-gray-400">Click price to edit</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4">
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Date Range</p>
+                            <p class="text-sm font-bold text-gray-900" id="soldStatRange">&mdash;</p>
+                        </div>
+                    </div>
+
+                    <!-- Sales / Rentals sub-tabs + search -->
+                    <div class="bg-white border rounded-xl mb-4">
+                        <div class="flex items-center justify-between px-4 py-3 flex-wrap gap-2">
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="switchSoldSubTab('sales')" id="soldSubSales" class="px-4 py-1.5 bg-gray-900 text-white rounded-md text-[11px] font-semibold transition">Sales (<span id="soldSalesCount">0</span>)</button>
+                                <button onclick="switchSoldSubTab('rentals')" id="soldSubRentals" class="px-4 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition">Rentals (<span id="soldRentalsCount">0</span>)</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="relative">
+                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-xs"></i>
+                                    <input type="text" id="soldSearchInput" placeholder="Search address..." oninput="filterSoldDeals()" class="border rounded-lg pl-8 pr-3 py-1.5 text-xs w-52 focus:ring-2 focus:ring-gray-200 outline-none">
+                                </div>
+                                <button onclick="loadPastDeals()" class="px-2.5 py-1.5 border rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sold Sales Table -->
+                    <div id="soldSalesSection">
+                        <div class="bg-white border rounded-xl overflow-x-auto">
+                            <table class="w-full text-left min-w-[800px]">
+                                <thead>
+                                    <tr class="bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                        <th class="px-4 py-2.5">Address</th>
+                                        <th class="px-3 py-2.5">Neighborhood</th>
+                                        <th class="px-3 py-2.5">Type</th>
+                                        <th class="px-3 py-2.5 text-center">Beds</th>
+                                        <th class="px-3 py-2.5 text-center">Baths</th>
+                                        <th class="px-3 py-2.5 text-right">SqFt</th>
+                                        <th class="px-3 py-2.5">Close Date</th>
+                                        <th class="px-3 py-2.5 text-right">Close Price</th>
+                                        <th class="px-3 py-2.5 text-center w-20">Save</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="soldSalesBody" class="divide-y divide-gray-100 text-sm">
+                                    <tr><td colspan="9" class="px-4 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Sold Rentals Table -->
+                    <div id="soldRentalsSection" style="display:none">
+                        <div class="bg-white border rounded-xl overflow-x-auto">
+                            <table class="w-full text-left min-w-[800px]">
+                                <thead>
+                                    <tr class="bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                        <th class="px-4 py-2.5">Address</th>
+                                        <th class="px-3 py-2.5">Neighborhood</th>
+                                        <th class="px-3 py-2.5">Type</th>
+                                        <th class="px-3 py-2.5 text-center">Beds</th>
+                                        <th class="px-3 py-2.5 text-center">Baths</th>
+                                        <th class="px-3 py-2.5">Close Date</th>
+                                        <th class="px-3 py-2.5 text-right">Close Price</th>
+                                        <th class="px-3 py-2.5 text-center w-20">Save</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="soldRentalsBody" class="divide-y divide-gray-100 text-sm">
+                                    <tr><td colspan="8" class="px-4 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="soldEmptyState" style="display:none" class="py-16 text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-trophy text-2xl text-gray-300"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-700 mb-1">No closed deals yet</h3>
+                        <p class="text-sm text-gray-400">Closed deals will appear here automatically.</p>
+                    </div>
+
+                </div><!-- /lmSoldView -->
+
                 <!-- ── Footer ── -->
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-[10px] text-gray-400"><i class="fas fa-database mr-1"></i> REBNY RLS via Trestle &middot; Updated <span class="data-timestamp">Feb 18, 2026 9:15 AM</span></p>
-                    <div class="flex items-center gap-1">
-                        <span class="text-[11px] text-gray-400 mr-2">1–6 of 15</span>
-                        <button class="w-7 h-7 flex items-center justify-center rounded border text-gray-300" disabled><i class="fas fa-chevron-left text-[10px]"></i></button>
-                        <button class="w-7 h-7 flex items-center justify-center rounded bg-gray-900 text-white text-[11px] font-semibold">1</button>
-                        <button class="w-7 h-7 flex items-center justify-center rounded border text-gray-500 hover:bg-gray-50 text-[11px]">2</button>
-                        <button class="w-7 h-7 flex items-center justify-center rounded border text-gray-500 hover:bg-gray-50 text-[11px]">3</button>
-                        <button class="w-7 h-7 flex items-center justify-center rounded border text-gray-500 hover:bg-gray-50"><i class="fas fa-chevron-right text-[10px]"></i></button>
-                    </div>
+                    <p class="text-[10px] text-gray-400"><i class="fas fa-database mr-1"></i> REBNY RLS via Trestle</p>
                 </div>
             </div>
 
@@ -2684,7 +2477,7 @@
                     <div class="p-6 border-b flex items-center justify-between sticky top-0 bg-white">
                         <div>
                             <h3 class="text-xl font-bold text-gray-900">Update Listing</h3>
-                            <p id="editModalAddress" class="text-sm text-gray-600">450 W 42nd St, #28B</p>
+                            <p id="editModalAddress" class="text-sm text-gray-600"></p>
                         </div>
                         <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600" aria-label="Close">
                             <i class="fas fa-times text-xl"></i>
@@ -2705,7 +2498,7 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Price / Rent <span class="text-red-500">*</span></label>
-                                    <input type="text" id="editPrice" value="$2,450,000" class="w-full border rounded-lg px-4 py-3 text-lg font-bold" data-rls-ignore="true">
+                                    <input type="text" id="editPrice" value="" class="w-full border rounded-lg px-4 py-3 text-lg font-bold" data-rls-ignore="true">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Price Type</label>
@@ -2719,15 +2512,15 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Maintenance/CC</label>
-                                    <input type="text" value="$1,850" class="w-full border rounded-lg px-4 py-2 text-sm">
+                                    <input type="text" value="" class="w-full border rounded-lg px-4 py-2 text-sm">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">RE Taxes (Monthly)</label>
-                                    <input type="text" value="$1,200" class="w-full border rounded-lg px-4 py-2 text-sm">
+                                    <input type="text" value="" class="w-full border rounded-lg px-4 py-2 text-sm">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Total Monthly</label>
-                                    <input type="text" value="$3,050" class="w-full border rounded-lg px-4 py-2 text-sm bg-gray-50" readonly>
+                                    <input type="text" value="" class="w-full border rounded-lg px-4 py-2 text-sm bg-gray-50" readonly>
                                 </div>
                             </div>
                             <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -2803,10 +2596,10 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                                     <select class="w-full border rounded-lg px-4 py-2 text-sm">
-                                        <option value="custom">Custom</option>
+                                        <option value="">—</option>
                                         <option>Studio</option>
                                         <option>1</option>
-                                        <option selected>2</option>
+                                        <option>2</option>
                                         <option>3</option>
                                         <option>4</option>
                                         <option>5+</option>
@@ -2815,10 +2608,10 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
                                     <select class="w-full border rounded-lg px-4 py-2 text-sm">
-                                        <option value="custom">Custom</option>
+                                        <option value="">—</option>
                                         <option>1</option>
                                         <option>1.5</option>
-                                        <option selected>2</option>
+                                        <option>2</option>
                                         <option>2.5</option>
                                         <option>3</option>
                                         <option>3.5</option>
@@ -2827,18 +2620,19 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Rooms</label>
-                                    <input type="number" value="5" class="w-full border rounded-lg px-4 py-2 text-sm">
+                                    <input type="number" value="" class="w-full border rounded-lg px-4 py-2 text-sm">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Approx Sq Ft</label>
-                                    <input type="number" value="1200" class="w-full border rounded-lg px-4 py-2 text-sm">
+                                    <input type="number" value="" class="w-full border rounded-lg px-4 py-2 text-sm">
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Property Type</label>
                                     <select class="w-full border rounded-lg px-4 py-2 text-sm">
-                                        <option selected>Condo</option>
+                                        <option value="">—</option>
+                                        <option>Condo</option>
                                         <option>Coop</option>
                                         <option>Condop</option>
                                         <option>Townhouse</option>
@@ -2846,18 +2640,18 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Floor</label>
-                                    <input type="text" value="28" class="w-full border rounded-lg px-4 py-2 text-sm">
+                                    <input type="text" value="" class="w-full border rounded-lg px-4 py-2 text-sm">
                                 </div>
                             </div>
                             <div class="mt-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Features</label>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked> Doorman</label>
-                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked> Elevator</label>
-                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked> Gym</label>
+                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Doorman</label>
+                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Elevator</label>
+                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Gym</label>
                                     <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Pool</label>
-                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked> Laundry</label>
-                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked> Storage</label>
+                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Laundry</label>
+                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Storage</label>
                                     <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Outdoor Space</label>
                                     <label class="flex items-center gap-2 text-sm"><input type="checkbox"> Pets Allowed</label>
                                 </div>
@@ -2867,19 +2661,6 @@
                         <!-- Photos Tab -->
                         <div id="editPhotosSection" class="edit-section hidden">
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                <div class="relative group">
-                                    <img src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=200" class="w-full h-24 object-cover rounded-lg border-2 border-blue-500" alt="NYC luxury apartment listing photo">
-                                    <span class="absolute top-1 left-1 px-2 py-0.5 bg-blue-600 text-white text-xs rounded">Primary</span>
-                                    <button class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition" aria-label="Close"><i class="fas fa-times"></i></button>
-                                </div>
-                                <div class="relative group">
-                                    <img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=200" class="w-full h-24 object-cover rounded-lg" alt="NYC luxury apartment listing photo">
-                                    <button class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition" aria-label="Close"><i class="fas fa-times"></i></button>
-                                </div>
-                                <div class="relative group">
-                                    <img src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=200" class="w-full h-24 object-cover rounded-lg" alt="NYC luxury apartment listing photo">
-                                    <button class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition" aria-label="Close"><i class="fas fa-times"></i></button>
-                                </div>
                                 <div class="border-2 border-dashed rounded-lg h-24 flex items-center justify-center cursor-pointer hover:bg-gray-50">
                                     <div class="text-center">
                                         <i class="fas fa-plus text-gray-400 text-xl"></i>
@@ -2894,13 +2675,11 @@
                         <div id="editDescriptionSection" class="edit-section hidden">
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Web Headline</label>
-                                <input type="text" value="Stunning 2BR with City Views in Prime Hell's Kitchen" class="w-full border rounded-lg px-4 py-2 text-sm">
+                                <input type="text" value="" class="w-full border rounded-lg px-4 py-2 text-sm" placeholder="Enter headline...">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Full Description</label>
-                                <textarea rows="8" class="w-full border rounded-lg px-4 py-2 text-sm">Welcome to this stunning 2-bedroom, 2-bathroom residence in one of Hell's Kitchen's premier luxury buildings. This corner unit features floor-to-ceiling windows offering breathtaking city views, hardwood floors throughout, and a chef's kitchen with top-of-the-line appliances.
-
-The spacious living/dining area is perfect for entertaining, while the master suite includes a generous walk-in closet and spa-like bathroom. Building amenities include 24-hour doorman, fitness center, residents' lounge, and rooftop terrace with panoramic views.</textarea>
+                                <textarea rows="8" class="w-full border rounded-lg px-4 py-2 text-sm" placeholder="Enter listing description..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -2909,7 +2688,7 @@ The spacious living/dining area is perfect for entertaining, while the master su
                     <div class="p-6 border-t bg-gray-50 flex items-center justify-between sticky bottom-0">
                         <div class="flex items-center gap-2 text-sm text-gray-500">
                             <i class="fas fa-clock"></i>
-                            <span>Last updated: Jan 28, 2026 at 3:45 PM</span>
+                            <span id="editModalLastUpdated">—</span>
                         </div>
                         <div class="flex gap-3">
                             <button onclick="closeEditModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancel</button>
@@ -2921,34 +2700,34 @@ The spacious living/dining area is perfect for entertaining, while the master su
                 </div>
             </div>
 
-            <!-- DEAL PIPELINE TAB -->
+            <!-- DEAL PIPELINE TAB (Broker View) -->
             <div id="pipeline" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
                     <h2 class="text-2xl font-bold text-gray-900">Deal Pipeline</h2>
-                    <p class="text-gray-600">Track deals from showing to closing</p>
+                    <p class="text-gray-600">Track deals from submission to closing</p>
                 </div>
 
                 <!-- Pipeline Overview -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
-                        <p class="text-sm text-gray-600">Showing</p>
-                        <p class="text-2xl font-bold text-gray-900">12</p>
-                        <p class="text-xs text-gray-500 mt-1">$18.4M total value</p>
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6" id="brokerPipelineStats">
                     <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
-                        <p class="text-sm text-gray-600">Offer Stage</p>
-                        <p class="text-2xl font-bold text-gray-900">5</p>
-                        <p class="text-xs text-gray-500 mt-1">$7.2M total value</p>
-                    </div>
-                    <div class="bg-purple-50 border-l-4 border-purple-500 rounded-lg p-4">
-                        <p class="text-sm text-gray-600">In Contract</p>
-                        <p class="text-2xl font-bold text-gray-900">3</p>
-                        <p class="text-xs text-gray-500 mt-1">$5.4M total value</p>
+                        <p class="text-sm text-gray-600">Submitted</p>
+                        <p class="text-2xl font-bold text-gray-900" id="bpStatSubmitted">0</p>
+                        <p class="text-xs text-gray-500 mt-1" id="bpStatSubmittedVal">$0 total value</p>
                     </div>
                     <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
-                        <p class="text-sm text-gray-600">Closing Soon</p>
-                        <p class="text-2xl font-bold text-gray-900">2</p>
-                        <p class="text-xs text-gray-500 mt-1">$3.8M total value</p>
+                        <p class="text-sm text-gray-600">Approved</p>
+                        <p class="text-2xl font-bold text-gray-900" id="bpStatApproved">0</p>
+                        <p class="text-xs text-gray-500 mt-1" id="bpStatApprovedVal">$0 total value</p>
+                    </div>
+                    <div class="bg-purple-50 border-l-4 border-purple-500 rounded-lg p-4">
+                        <p class="text-sm text-gray-600">Closed</p>
+                        <p class="text-2xl font-bold text-gray-900" id="bpStatClosed">0</p>
+                        <p class="text-xs text-gray-500 mt-1" id="bpStatClosedVal">$0 total value</p>
+                    </div>
+                    <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
+                        <p class="text-sm text-gray-600">Rejected</p>
+                        <p class="text-2xl font-bold text-gray-900" id="bpStatRejected">0</p>
+                        <p class="text-xs text-gray-500 mt-1" id="bpStatRejectedVal">$0 total value</p>
                     </div>
                 </div>
 
@@ -2956,49 +2735,25 @@ The spacious living/dining area is perfect for entertaining, while the master su
                 <div class="bg-white rounded-xl shadow-sm border">
                     <div class="p-4 border-b">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-semibold">Active Deals</h3>
-                            <select class="border rounded px-3 py-1 text-sm" aria-label="Filter by deal stage">
-                                <option>All Stages</option>
-                                <option>Showing</option>
-                                <option>Offer</option>
-                                <option>Contract</option>
-                                <option>Closing</option>
-                            </select>
+                            <h3 class="font-semibold">All Deals</h3>
+                            <div class="flex items-center gap-2">
+                                <select id="brokerPipelineFilter" class="border rounded px-3 py-1 text-sm" aria-label="Filter by deal status" onchange="loadBrokerPipeline()">
+                                    <option value="">All Statuses</option>
+                                    <option value="submitted">Submitted</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                                <button onclick="loadBrokerPipeline()" class="px-2 py-1 border rounded text-sm hover:bg-gray-50"><i class="fas fa-sync-alt"></i></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="divide-y">
-                        <div class="p-4 hover:bg-gray-50">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#4F46E5">JM</div>
-                                    <div>
-                                        <p class="font-medium">John & Sarah Miller</p>
-                                        <p class="text-sm text-gray-600">245 E 63rd St, #12A • $1,850,000</p>
-                                    </div>
-                                </div>
-                                <span class="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">Showing Scheduled</span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs text-gray-500">
-                                <span>Showing: Today at 10:00 AM</span>
-                                <span>Est. Commission: $27,750</span>
-                            </div>
-                        </div>
-                        <div class="p-4 hover:bg-gray-50">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#DC2626">DC</div>
-                                    <div>
-                                        <p class="font-medium">David Chen</p>
-                                        <p class="text-sm text-gray-600">450 W 42nd St, #28B • $3,800,000</p>
-                                    </div>
-                                </div>
-                                <span class="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">In Contract</span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs text-gray-500">
-                                <span>Expected Closing: Feb 28, 2026</span>
-                                <span>Est. Commission: $57,000</span>
-                            </div>
-                        </div>
+                    <div class="divide-y" id="brokerPipelineList">
+                        <!-- Rendered by loadBrokerPipeline() -->
+                    </div>
+                    <div id="brokerPipelineEmpty" class="hidden p-8 text-center">
+                        <i class="fas fa-handshake text-gray-300 text-3xl mb-3"></i>
+                        <p class="text-gray-500">No deals found</p>
                     </div>
                 </div>
             </div>
@@ -3386,12 +3141,8 @@ The spacious living/dining area is perfect for entertaining, while the master su
                             <!-- Deal Selection -->
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Select Closed Deal <span class="text-red-500">*</span></label>
-                                <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="autoFillCommissionRequest(this)">
-                                    <option value="">— Select a closed deal —</option>
-                                    <option value="deal1">200 E 66th St #A1506 — Emily Rodriguez — Sale (Listing Agent) — Closed Jan 15, 2026</option>
-                                    <option value="deal2">45 W 34th St #12B — James Chen — Sale (Buyer's Agent) — Closed Jan 28, 2026</option>
-                                    <option value="deal3">180 E 88th St #4A — Sarah Kim — Rental (Tenant's Agent) — Closed Feb 1, 2026</option>
-                                    <option value="deal4">320 E 72nd St #8D — Michael Park — Rental (Landlord's Agent) — Closed Feb 3, 2026</option>
+                                <select id="commReqDeal" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="autoFillCommissionRequest(this)" onfocus="if(this.options.length<=1) loadCommReqDeals()">
+                                    <option value="">— Select a deal —</option>
                                 </select>
                             </div>
 
@@ -4551,24 +4302,9 @@ The spacious living/dining area is perfect for entertaining, while the master su
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-t hover:bg-blue-50 cursor-pointer mgmt-listing" data-status="active">
-                                    <td class="px-3 py-3"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Exclusive</span></td>
-                                    <td class="px-3 py-3"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Active</span></td>
-                                    <td class="px-3 py-3 font-medium">400 E 90th St</td>
-                                    <td class="px-3 py-3 text-gray-500">17C</td>
-                                    <td class="px-3 py-3 font-semibold">$4,250,000</td>
-                                    <td class="px-3 py-3 text-gray-500">6</td>
-                                    <td class="px-3 py-3 text-gray-500">3</td>
-                                    <td class="px-3 py-3 text-gray-500">2.5</td>
-                                    <td class="px-3 py-3 text-gray-500">01/15/26</td>
-                                    <td class="px-3 py-3 text-gray-500">01/28/26</td>
-                                    <td class="px-3 py-3 text-gray-400">—</td>
-                                    <td class="px-3 py-3 text-gray-400">—</td>
-                                    <td class="px-3 py-3 text-gray-500">07/15/26</td>
-                                    <td class="px-3 py-3"><button onclick="showTab('add-sales-listing')" class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700" aria-label="View listing"><i class="fas fa-chevron-right text-xs"></i></button></td>
+                                <tr>
+                                    <td colspan="14" class="px-3 py-12 text-center text-gray-400 text-sm">No sale listings yet. Click "Create Listing" to add your first exclusive.</td>
                                 </tr>
-                                <!-- Rows 2-8 trimmed — 1 example row kept -->
-                                
                             </tbody>
                         </table>
                     </div>
@@ -4633,24 +4369,9 @@ The spacious living/dining area is perfect for entertaining, while the master su
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-t hover:bg-blue-50 cursor-pointer mgmt-listing" data-status="active">
-                                    <td class="px-3 py-3"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Exclusive</span></td>
-                                    <td class="px-3 py-3"><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Active</span></td>
-                                    <td class="px-3 py-3 font-medium">220 Central Park S</td>
-                                    <td class="px-3 py-3 text-gray-500">28F</td>
-                                    <td class="px-3 py-3 font-semibold">$18,500</td>
-                                    <td class="px-3 py-3 text-gray-500">6</td>
-                                    <td class="px-3 py-3 text-gray-500">3</td>
-                                    <td class="px-3 py-3 text-gray-500">2.5</td>
-                                    <td class="px-3 py-3 text-gray-500">02/01/26</td>
-                                    <td class="px-3 py-3 text-gray-500">02/01/26</td>
-                                    <td class="px-3 py-3 text-gray-400">—</td>
-                                    <td class="px-3 py-3 text-gray-400">—</td>
-                                    <td class="px-3 py-3 text-gray-500">08/01/26</td>
-                                    <td class="px-3 py-3"><button onclick="showTab('add-listing')" class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700" aria-label="View listing"><i class="fas fa-chevron-right text-xs"></i></button></td>
+                                <tr>
+                                    <td colspan="14" class="px-3 py-12 text-center text-gray-400 text-sm">No rental listings yet. Click "Create Listing" to add your first exclusive.</td>
                                 </tr>
-                                <!-- Rental rows 2-6 trimmed — 1 example kept -->
-
                             </tbody>
                         </table>
                     </div>
@@ -12171,28 +11892,28 @@ The spacious living/dining area is perfect for entertaining, while the master su
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
                     <div onclick="showTab('agent-management'); showAgentSectionFromSidebar('agent-roster');" class="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-4 text-white cursor-pointer hover:shadow-lg transition">
                         <p class="text-xs opacity-80">Total Agents</p>
-                        <p class="text-2xl font-bold" id="statTotalAgents">24</p>
-                        <p class="text-xs opacity-70 mt-1">Updates when agents are added</p>
+                        <p class="text-2xl font-bold" id="statTotalAgents">–</p>
+                        <p class="text-xs opacity-70 mt-1">Licensed agents on roster</p>
                     </div>
                     <div onclick="showTab('all-listings')" class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 text-white cursor-pointer hover:shadow-lg transition">
                         <p class="text-xs opacity-80">Company Listings</p>
-                        <p class="text-2xl font-bold" id="statTotalListings">187</p>
+                        <p class="text-2xl font-bold" id="statTotalListings">–</p>
                         <p class="text-xs opacity-70 mt-1">Sales + Rentals combined</p>
                     </div>
                     <div onclick="showTab('lead-distribution')" class="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-4 text-white cursor-pointer hover:shadow-lg transition">
                         <p class="text-xs opacity-80">Total Leads</p>
-                        <p class="text-2xl font-bold" id="statTotalLeads">342</p>
+                        <p class="text-2xl font-bold" id="statTotalLeads">–</p>
                         <p class="text-xs opacity-70 mt-1">Buyers, Renters, Sellers, Landlords</p>
                     </div>
-                    <div onclick="showTab('revenue')" class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white cursor-pointer hover:shadow-lg transition">
-                        <p class="text-xs opacity-80">YTD Revenue</p>
-                        <p class="text-2xl font-bold" id="statYTDRevenue">$4.2M</p>
-                        <p class="text-xs opacity-70 mt-1">+18% vs last year</p>
+                    <div onclick="showTab('all-deals')" class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white cursor-pointer hover:shadow-lg transition">
+                        <p class="text-xs opacity-80">Active Deals</p>
+                        <p class="text-2xl font-bold" id="statActiveDeals">–</p>
+                        <p class="text-xs opacity-70 mt-1">Submitted + Approved</p>
                     </div>
                     <div onclick="showTab('compliance')" class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white cursor-pointer hover:shadow-lg transition">
-                        <p class="text-xs opacity-80">Compliance</p>
-                        <p class="text-2xl font-bold" id="statCompliance">98%</p>
-                        <p class="text-xs opacity-70 mt-1">2 items need attention</p>
+                        <p class="text-xs opacity-80">GCI Pipeline</p>
+                        <p class="text-2xl font-bold" id="statGCIPipeline">–</p>
+                        <p class="text-xs opacity-70 mt-1">Total gross commission</p>
                     </div>
                 </div>
 
@@ -22528,19 +22249,12 @@ The spacious living/dining area is perfect for entertaining, while the master su
                             <p class="text-gray-600">Track buyer and tenant deals from lead to closing</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <select class="border rounded-lg px-3 py-2 text-sm" onchange="filterDealPipeline(this.value)">
-                                <option>All Agents</option>
-                                <option>--</option>
-                                <option>Jane Doe</option>
-                                <option>Michael Smith</option>
-                                <option>Sarah Chen</option>
+                            <select id="dealPipelineTypeFilter" class="border rounded-lg px-3 py-2 text-sm" onchange="loadDealPipeline()">
+                                <option value="">Buyers + Tenants</option>
+                                <option value="buyer">Buyers Only</option>
+                                <option value="tenant">Tenants Only</option>
                             </select>
-                            <select class="border rounded-lg px-3 py-2 text-sm">
-                                <option>Buyers + Tenants</option>
-                                <option>Buyers Only</option>
-                                <option>Tenants Only</option>
-                            </select>
-                            <button onclick="showTab('clients')" class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"><i class="fas fa-users mr-1"></i> Client List</button>
+                            <button onclick="loadDealPipeline()" class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"><i class="fas fa-sync-alt mr-1"></i> Refresh</button>
                         </div>
                     </div>
                 </div>
@@ -22549,214 +22263,43 @@ The spacious living/dining area is perfect for entertaining, while the master su
                 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                     <div class="bg-white rounded-lg border p-3 text-center">
                         <p class="text-xs text-gray-500 font-semibold">Total Deals</p>
-                        <p class="text-xl font-bold">14</p>
+                        <p class="text-xl font-bold" id="dpStatTotal">0</p>
                     </div>
                     <div class="bg-white rounded-lg border p-3 text-center">
                         <p class="text-xs text-gray-500 font-semibold">Active Value</p>
-                        <p class="text-xl font-bold text-blue-600">$18.2M</p>
+                        <p class="text-xl font-bold text-blue-600" id="dpStatActiveValue">$0</p>
                     </div>
                     <div class="bg-white rounded-lg border p-3 text-center">
                         <p class="text-xs text-gray-500 font-semibold">Avg Days</p>
-                        <p class="text-xl font-bold">34</p>
+                        <p class="text-xl font-bold" id="dpStatAvgDays">0</p>
                     </div>
                     <div class="bg-white rounded-lg border p-3 text-center">
-                        <p class="text-xs text-gray-500 font-semibold">Win Rate</p>
-                        <p class="text-xl font-bold text-green-600">42%</p>
+                        <p class="text-xs text-gray-500 font-semibold">Submitted</p>
+                        <p class="text-xl font-bold text-blue-600" id="dpStatSubmitted">0</p>
                     </div>
                     <div class="bg-white rounded-lg border p-3 text-center">
-                        <p class="text-xs text-gray-500 font-semibold">Closed YTD</p>
-                        <p class="text-xl font-bold text-green-700">6</p>
+                        <p class="text-xs text-gray-500 font-semibold">Approved</p>
+                        <p class="text-xl font-bold text-green-600" id="dpStatApproved">0</p>
                     </div>
                     <div class="bg-white rounded-lg border p-3 text-center">
-                        <p class="text-xs text-gray-500 font-semibold">Lost</p>
-                        <p class="text-xl font-bold text-red-600">3</p>
+                        <p class="text-xs text-gray-500 font-semibold">Rejected</p>
+                        <p class="text-xl font-bold text-red-600" id="dpStatRejected">0</p>
                     </div>
                     <div class="bg-white rounded-lg border p-3 text-center">
                         <p class="text-xs text-gray-500 font-semibold">GCI Pipeline</p>
-                        <p class="text-xl font-bold text-amber-600">$485K</p>
+                        <p class="text-xl font-bold text-amber-600" id="dpStatGCI">$0</p>
                     </div>
                 </div>
 
                 <div class="deal-board" id="dealBoard">
-                    <!-- Lead -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#9CA3AF;color:#6B7280"><span><i class="fas fa-user-plus mr-1"></i> Lead</span><span class="text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">3</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" onclick="openClientProfile('lisa-park')">
-                                <p class="font-semibold text-gray-900">Lisa Park</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Buyer &middot; $2M-$3.5M</p>
-                                <p class="text-[11px] text-gray-500">Tribeca, SoHo &middot; 2bd+</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Added 2 days ago</span>
-                                    <span class="w-5 h-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-[9px] font-bold">SC</span>
-                                </div>
-                            </div>
-                            <div class="deal-card" onclick="openClientProfile('tom-wilson')">
-                                <p class="font-semibold text-gray-900">Tom Wilson</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Renter &middot; $4K-$6K/mo</p>
-                                <p class="text-[11px] text-gray-500">Chelsea, W Village &middot; 1bd</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Added 5 days ago</span>
-                                    <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-[9px] font-bold">MA</span>
-                                </div>
-                            </div>
-                            <div class="deal-card">
-                                <p class="font-semibold text-gray-900">Amy Chen</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Buyer &middot; $800K-$1.2M</p>
-                                <p class="text-[11px] text-gray-500">UES, Yorkville &middot; 1bd</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Added 1 week ago</span>
-                                    <span class="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-[9px] font-bold">JD</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Qualified -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#6366F1;color:#4338CA"><span><i class="fas fa-clipboard-check mr-1"></i> Qualified</span><span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">2</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" onclick="openClientProfile('david-chen')">
-                                <p class="font-semibold text-gray-900">David Chen</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Buyer &middot; $3M-$5M</p>
-                                <p class="text-[11px] text-gray-500">Tribeca &middot; 3bd &middot; Investor</p>
-                                <p class="text-[10px] text-green-600 mt-1"><i class="fas fa-check-circle mr-0.5"></i> Pre-approved $4.5M</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">12 days in stage</span>
-                                    <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-[9px] font-bold">MA</span>
-                                </div>
-                            </div>
-                            <div class="deal-card">
-                                <p class="font-semibold text-gray-900">Rachel &amp; Ben Kim</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Renter &middot; $8K-$12K/mo</p>
-                                <p class="text-[11px] text-gray-500">UWS, Lincoln Sq &middot; 3bd</p>
-                                <p class="text-[10px] text-green-600 mt-1"><i class="fas fa-check-circle mr-0.5"></i> Income verified</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">5 days in stage</span>
-                                    <span class="w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-[9px] font-bold">MS</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Searching -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#3B82F6;color:#1D4ED8"><span><i class="fas fa-search mr-1"></i> Searching</span><span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">3</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" onclick="openClientProfile('john-miller')">
-                                <p class="font-semibold text-gray-900">John &amp; Sarah Miller</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Buyer &middot; $1.5M-$2.2M</p>
-                                <p class="text-[11px] text-gray-500">UES &middot; 2bd+ &middot; Pre-war</p>
-                                <p class="text-[10px] text-blue-600 mt-1"><i class="fas fa-home mr-0.5"></i> 47 sent &middot; 8 toured</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">28 days in stage</span>
-                                    <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-[9px] font-bold">MA</span>
-                                </div>
-                            </div>
-                            <div class="deal-card">
-                                <p class="font-semibold text-gray-900">James Wright</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Renter &middot; $3K-$4.5K/mo</p>
-                                <p class="text-[11px] text-gray-500">Midtown, Hell's Kitchen &middot; Studio/1bd</p>
-                                <p class="text-[10px] text-blue-600 mt-1"><i class="fas fa-home mr-0.5"></i> 12 sent &middot; 3 toured</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">15 days in stage</span>
-                                    <span class="w-5 h-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-[9px] font-bold">SC</span>
-                                </div>
-                            </div>
-                            <div class="deal-card">
-                                <p class="font-semibold text-gray-900">Natasha Volkov</p>
-                                <p class="text-[11px] text-gray-500 mt-1">Buyer &middot; $5M-$10M</p>
-                                <p class="text-[11px] text-gray-500">Tribeca, Hudson Yards &middot; 3bd+ &middot; New Dev</p>
-                                <p class="text-[10px] text-blue-600 mt-1"><i class="fas fa-home mr-0.5"></i> 22 sent &middot; 5 toured</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">21 days in stage</span>
-                                    <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-[9px] font-bold">MA</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Offer Submitted -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#F97316;color:#C2410C"><span><i class="fas fa-file-signature mr-1"></i> Offer</span><span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">2</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" style="border-left:3px solid #F97316">
-                                <p class="font-semibold text-gray-900">John &amp; Sarah Miller</p>
-                                <p class="text-[11px] text-gray-500 mt-1">245 E 63rd St #12A &middot; $1,850K</p>
-                                <p class="text-[11px] font-semibold text-orange-700 mt-1">Offered $1,775,000</p>
-                                <p class="text-[10px] text-orange-600 mt-1"><i class="fas fa-clock mr-0.5"></i> Awaiting seller response</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Submitted Feb 25</span>
-                                    <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-[9px] font-bold">MA</span>
-                                </div>
-                            </div>
-                            <div class="deal-card" style="border-left:3px solid #F97316">
-                                <p class="font-semibold text-gray-900">Rachel &amp; Ben Kim</p>
-                                <p class="text-[11px] text-gray-500 mt-1">225 W 83rd St #4F &middot; $5,800/mo</p>
-                                <p class="text-[11px] font-semibold text-orange-700 mt-1">Applied &middot; $5,800/mo</p>
-                                <p class="text-[10px] text-green-600 mt-1"><i class="fas fa-check mr-0.5"></i> Application approved</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Applied Feb 22</span>
-                                    <span class="w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-[9px] font-bold">MS</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- In Contract -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#8B5CF6;color:#6D28D9"><span><i class="fas fa-file-contract mr-1"></i> Contract</span><span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">2</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" style="border-left:3px solid #8B5CF6">
-                                <p class="font-semibold text-gray-900">David Chen</p>
-                                <p class="text-[11px] text-gray-500 mt-1">15 Central Park West #24D &middot; $3,800K</p>
-                                <p class="text-[11px] text-purple-700 mt-1">Contract signed Feb 14</p>
-                                <p class="text-[10px] text-purple-600 mt-1"><i class="fas fa-gavel mr-0.5"></i> Board review in progress</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Closing est. Mar 28</span>
-                                    <span class="w-5 h-5 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-[9px] font-bold">MA</span>
-                                </div>
-                            </div>
-                            <div class="deal-card" style="border-left:3px solid #8B5CF6">
-                                <p class="font-semibold text-gray-900">James Wright</p>
-                                <p class="text-[11px] text-gray-500 mt-1">555 W 23rd St #12D &middot; $5,200/mo</p>
-                                <p class="text-[11px] text-purple-700 mt-1">Lease signed Feb 20</p>
-                                <p class="text-[10px] text-purple-600 mt-1"><i class="fas fa-key mr-0.5"></i> Move-in Mar 1</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">4 days to move-in</span>
-                                    <span class="w-5 h-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-[9px] font-bold">SC</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Closing -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#0EA5E9;color:#0369A1"><span><i class="fas fa-stamp mr-1"></i> Closing</span><span class="text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">1</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" style="border-left:3px solid #0EA5E9">
-                                <p class="font-semibold text-gray-900">Emma Rodriguez</p>
-                                <p class="text-[11px] text-gray-500 mt-1">432 Park Ave #45A &middot; $8,750K</p>
-                                <p class="text-[11px] text-sky-700 mt-1">Final walkthrough scheduled</p>
-                                <p class="text-[10px] text-green-600 mt-1"><i class="fas fa-check-circle mr-0.5"></i> Title clear &middot; Funds ready</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">Closing Mar 5</span>
-                                    <span class="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-[9px] font-bold">JD</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Closed Won -->
-                    <div class="deal-column">
-                        <div class="deal-col-header" style="border-bottom-color:#10B981;color:#047857"><span><i class="fas fa-trophy mr-1"></i> Closed</span><span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">1</span></div>
-                        <div style="padding:4px;">
-                            <div class="deal-card" style="border-left:3px solid #10B981; opacity:0.75">
-                                <p class="font-semibold text-gray-900">Mark Johnson</p>
-                                <p class="text-[11px] text-gray-500 mt-1">One57 #72B &middot; $12,000K</p>
-                                <p class="text-[11px] text-green-700 mt-1">Closed Sep 25, 2025</p>
-                                <p class="text-[10px] text-green-600 mt-1"><i class="fas fa-dollar-sign mr-0.5"></i> GCI: $180,000</p>
-                                <div class="flex items-center justify-between mt-2">
-                                    <span class="text-[10px] text-gray-400">68 days total</span>
-                                    <span class="w-5 h-5 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-[9px] font-bold">MS</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Columns rendered by loadDealPipeline() -->
+                </div>
+
+                <!-- Empty state -->
+                <div id="dealPipelineEmpty" class="hidden text-center py-16">
+                    <i class="fas fa-handshake text-gray-300 text-5xl mb-4"></i>
+                    <p class="text-gray-500 text-lg font-semibold">No deals yet</p>
+                    <p class="text-gray-400 text-sm mt-1">Submit a commission request from a Buyer or Tenant deal form to get started.</p>
                 </div>
             </div>
 
@@ -24073,30 +23616,38 @@ The spacious living/dining area is perfect for entertaining, while the master su
             <!-- ALL DEALS -->
             <div id="all-deals" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">All Deals</h2>
-                    <p class="text-gray-600">Company-wide transaction tracking</p>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">All Deals</h2>
+                            <p class="text-gray-600">Company-wide transaction tracking</p>
+                        </div>
+                        <button onclick="loadAllDealsTab()" class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"><i class="fas fa-sync-alt mr-1"></i> Refresh</button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div class="bg-white rounded-xl shadow-sm border p-6">
                         <p class="text-gray-500 text-sm">Active Deals</p>
-                        <p class="text-3xl font-bold text-gray-900">23</p>
+                        <p class="text-3xl font-bold text-gray-900" id="allDealsActive">0</p>
                     </div>
                     <div class="bg-white rounded-xl shadow-sm border p-6">
-                        <p class="text-gray-500 text-sm">In Contract</p>
-                        <p class="text-3xl font-bold text-blue-600">18</p>
+                        <p class="text-gray-500 text-sm">Submitted</p>
+                        <p class="text-3xl font-bold text-blue-600" id="allDealsSubmitted">0</p>
                     </div>
                     <div class="bg-white rounded-xl shadow-sm border p-6">
-                        <p class="text-gray-500 text-sm">Closed This Month</p>
-                        <p class="text-3xl font-bold text-green-600">7</p>
+                        <p class="text-gray-500 text-sm">Closed</p>
+                        <p class="text-3xl font-bold text-green-600" id="allDealsClosed">0</p>
                     </div>
                     <div class="bg-white rounded-xl shadow-sm border p-6">
-                        <p class="text-gray-500 text-sm">Total Volume YTD</p>
-                        <p class="text-3xl font-bold text-gray-900">$124M</p>
+                        <p class="text-gray-500 text-sm">Total Volume</p>
+                        <p class="text-3xl font-bold text-gray-900" id="allDealsVolume">$0</p>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border p-6 text-center">
-                    <i class="fas fa-handshake text-4xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-500">Deal pipeline will be displayed here</p>
+                <div class="bg-white rounded-xl shadow-sm border">
+                    <div class="divide-y" id="allDealsList"></div>
+                    <div id="allDealsEmpty" class="hidden p-8 text-center">
+                        <i class="fas fa-handshake text-4xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">No deals found</p>
+                    </div>
                 </div>
             </div>
 
@@ -29436,15 +28987,21 @@ Equal Housing Opportunity
                         companyName: u.companyName || '--',
                         role: (data.role || '').toLowerCase()
                     };
+                    // Load dashboard data (deferred — functions defined later in file)
+                    setTimeout(function() {
+                        if (typeof loadDealPipeline === 'function') loadDealPipeline();
+                        if (typeof loadAgentDashboardStats === 'function') loadAgentDashboardStats();
+                        if (typeof loadBrokerDashboardStats === 'function') loadBrokerDashboardStats();
+                    }, 500);
                 } else {
                     // Not authenticated — redirect to login
-                    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+                    window.location.href = '/sign-in?redirect=' + encodeURIComponent(window.location.href);
                 }
             });
         }
         // Handle 401 events from API calls
         window.addEventListener('mallan:auth:unauthorized', function() {
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/sign-in?redirect=' + encodeURIComponent(window.location.href);
         });
 
         // ══════════════════════════════════════════════════════
@@ -35250,27 +34807,45 @@ Equal Housing Opportunity
         // brokerage operational fields only.
         // ═══════════════════════════════════════════════════════════
 
-        var COMM_MOCK_DEALS = {
-            'deal1': { address: '200 E 66th St #A1506', client: 'Emily Rodriguez', clientEmail: 'emily.rodriguez@email.com', clientPhone: '(212) 555-0101', type: 'sale', role: 'listing', closeDate: '2026-01-15', price: 1850000 },
-            'deal2': { address: '45 W 34th St #12B', client: 'James Chen', clientEmail: 'james.chen@email.com', clientPhone: '(212) 555-0202', type: 'sale', role: 'buyer', closeDate: '2026-01-28', price: 2280000 },
-            'deal3': { address: '180 E 88th St #4A', client: 'Sarah Kim', clientEmail: 'sarah.kim@email.com', clientPhone: '(212) 555-0303', type: 'rental', role: 'tenant', closeDate: '2026-02-01', price: 48000 },
-            'deal4': { address: '320 E 72nd St #8D', client: 'Michael Park', clientEmail: 'michael.park@email.com', clientPhone: '(212) 555-0404', type: 'rental', role: 'landlord', closeDate: '2026-02-03', price: 36000 }
-        };
+        // Commission deal cache (loaded from API)
+        var _commReqDealsCache2 = null;
+
+        function loadCommReqDeals() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.deals) return;
+            if (_commReqDealsCache2) return; // already loaded
+            MallanAPI.deals.list({ limit: 50 }).then(function(res) {
+                _commReqDealsCache2 = res.deals || [];
+                var selectEl = document.getElementById('commReqDeal');
+                if (!selectEl) return;
+                selectEl.innerHTML = '<option value="">— Select a deal —</option>';
+                _commReqDealsCache2.forEach(function(d) {
+                    var opt = document.createElement('option');
+                    opt.value = d.id;
+                    var label = (d.property_address || 'No address') + ' — ' + (d.representation_code === 'tenant' ? 'Rental' : 'Sale') + ' (' + (d.status || 'draft') + ')';
+                    opt.textContent = label;
+                    selectEl.appendChild(opt);
+                });
+            }).catch(function() {});
+        }
 
         function autoFillCommissionRequest(selectEl) {
             var dealId = selectEl.value;
-            var deal = COMM_MOCK_DEALS[dealId];
+            if (!dealId || !_commReqDealsCache2) return;
+            var deal = null;
+            for (var i = 0; i < _commReqDealsCache2.length; i++) {
+                if (_commReqDealsCache2[i].id === dealId) { deal = _commReqDealsCache2[i]; break; }
+            }
             if (!deal) return;
-            document.getElementById('commReqAddress').value = deal.address;
-            document.getElementById('commReqClient').value = deal.client;
-            document.getElementById('commReqClientEmail').value = deal.clientEmail || '';
-            document.getElementById('commReqClientPhone').value = deal.clientPhone || '';
-            document.getElementById('commReqDealType').value = deal.type;
-            document.getElementById('commReqCloseDate').value = deal.closeDate;
-            document.getElementById('commReqPrice').value = deal.price.toLocaleString();
-            // Set role
+            var addrEl = document.getElementById('commReqAddress');
+            var typeEl = document.getElementById('commReqDealType');
+            var dateEl = document.getElementById('commReqCloseDate');
+            var priceEl = document.getElementById('commReqPrice');
             var roleEl = document.getElementById('commReqRole');
-            if (roleEl && deal.role) roleEl.value = deal.role;
+            if (addrEl) addrEl.value = deal.property_address || '';
+            if (typeEl) typeEl.value = deal.representation_code === 'tenant' ? 'rental' : 'sale';
+            if (dateEl) dateEl.value = deal.contract_signed ? deal.contract_signed.split('T')[0] : '';
+            if (priceEl) priceEl.value = deal.price_usd ? parseFloat(deal.price_usd).toLocaleString() : '';
+            if (roleEl) roleEl.value = deal.representation_code || 'buyer';
             updateCommReqFields();
             calcCommissionRequest();
         }
@@ -38661,11 +38236,633 @@ Equal Housing Opportunity
         };
 
         // ──────────────────────────────────────
-        // F1: DEAL PIPELINE FILTER
+        // F1: DEAL PIPELINE — API-DRIVEN
         // ──────────────────────────────────────
-        window.filterDealPipeline = function(agent) {
-            showToast('Filtering deals by: ' + agent, 'info');
+        var _dealPipelineData = [];
+        var _dealPipelineLoaded = false;
+
+        // Deal status → kanban column config
+        var DEAL_COLUMNS = [
+            { status: 'draft',     label: 'Draft',     icon: 'fa-pencil-alt', borderColor: '#9CA3AF', textColor: '#6B7280', bgClass: 'bg-gray-200 text-gray-700' },
+            { status: 'submitted', label: 'Submitted', icon: 'fa-paper-plane', borderColor: '#3B82F6', textColor: '#1D4ED8', bgClass: 'bg-blue-100 text-blue-700' },
+            { status: 'approved',  label: 'Approved',  icon: 'fa-check-circle', borderColor: '#10B981', textColor: '#047857', bgClass: 'bg-green-100 text-green-700' },
+            { status: 'rejected',  label: 'Rejected',  icon: 'fa-times-circle', borderColor: '#EF4444', textColor: '#B91C1C', bgClass: 'bg-red-100 text-red-700' },
+            { status: 'closed',    label: 'Closed',    icon: 'fa-trophy', borderColor: '#8B5CF6', textColor: '#6D28D9', bgClass: 'bg-purple-100 text-purple-700' }
+        ];
+
+        function _fmtDealPrice(v) {
+            var n = parseFloat(v) || 0;
+            if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return '$' + (n / 1000).toFixed(0) + 'K';
+            return '$' + n.toLocaleString();
+        }
+
+        function _fmtDealDate(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            return (d.getMonth()+1) + '/' + d.getDate() + '/' + (d.getFullYear()+'').slice(2);
+        }
+
+        function _daysSince(iso) {
+            if (!iso) return 0;
+            return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+        }
+
+        // Broker dashboard stats — load from API (broker sees all agents' data)
+        window.loadBrokerDashboardStats = function() {
+            if (typeof MallanAPI === 'undefined') return;
+            var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+
+            // Listings count (broker sees all)
+            if (MallanAPI.listings) {
+                MallanAPI.listings.list({ limit: 1 }).then(function(res) {
+                    setText('statTotalListings', res.total || 0);
+                }).catch(function() {});
+            }
+
+            // Deals stats
+            if (MallanAPI.deals) {
+                MallanAPI.deals.list({ limit: 200 }).then(function(res) {
+                    var deals = res.deals || [];
+                    var active = 0;
+                    var gci = 0;
+                    deals.forEach(function(d) {
+                        var s = (d.status || '').toLowerCase();
+                        if (s === 'submitted' || s === 'approved') active++;
+                        gci += parseFloat(d.gross_commission_usd) || 0;
+                    });
+                    setText('statActiveDeals', active);
+                    setText('statGCIPipeline', _fmtDealPrice(gci));
+                }).catch(function() {});
+            }
+
+            // Leads count (broker sees all)
+            if (MallanAPI.clients) {
+                MallanAPI.clients.list({ limit: 1 }).then(function(res) {
+                    setText('statTotalLeads', res.total || 0);
+                }).catch(function() {});
+            }
+
+            // Agents count (broker-only endpoint — fails silently for agents)
+            if (MallanAPI.agents) {
+                MallanAPI.agents.list().then(function(res) {
+                    var list = res.agents || [];
+                    setText('statTotalAgents', list.length);
+                }).catch(function() {});
+            }
         };
+
+        // Agent dashboard stats — load from API
+        window.loadAgentDashboardStats = function() {
+            if (typeof MallanAPI === 'undefined') return;
+            var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+
+            // Listings count
+            if (MallanAPI.listings) {
+                MallanAPI.listings.list({ limit: 1 }).then(function(res) {
+                    setText('agentStatListings', res.total || 0);
+                }).catch(function() {});
+            }
+
+            // Deals count + GCI
+            if (MallanAPI.deals) {
+                MallanAPI.deals.list({ limit: 200 }).then(function(res) {
+                    var deals = res.deals || [];
+                    var active = 0;
+                    var gci = 0;
+                    deals.forEach(function(d) {
+                        var s = (d.status || '').toLowerCase();
+                        if (s === 'submitted' || s === 'approved') active++;
+                        gci += parseFloat(d.gross_commission_usd) || 0;
+                    });
+                    setText('agentStatDeals', active);
+                    setText('agentStatCommission', _fmtDealPrice(gci));
+                }).catch(function() {});
+            }
+
+            // Clients + Leads from API
+            if (MallanAPI.clients) {
+                MallanAPI.clients.list({ limit: 1 }).then(function(res) {
+                    setText('agentStatClients', res.total || 0);
+                    setText('agentStatLeads', res.total || 0);
+                }).catch(function() {});
+            }
+        };
+
+        window.loadDealPipeline = function() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.deals) return;
+            MallanAPI.deals.list({ limit: 200 }).then(function(res) {
+                _dealPipelineData = res.deals || [];
+                _dealPipelineLoaded = true;
+                _renderDealPipeline();
+                _updateDashboardDealMini();
+            }).catch(function(err) {
+                console.error('[DealPipeline] Load failed:', err);
+                showToast('Failed to load deals', 'error');
+            });
+        };
+
+        function _renderDealPipeline() {
+            var board = document.getElementById('dealBoard');
+            var emptyEl = document.getElementById('dealPipelineEmpty');
+            if (!board) return;
+
+            // Apply type filter
+            var typeFilter = '';
+            var typeEl = document.getElementById('dealPipelineTypeFilter');
+            if (typeEl) typeFilter = typeEl.value;
+
+            var deals = _dealPipelineData;
+            if (typeFilter) {
+                deals = deals.filter(function(d) { return d.representation_code === typeFilter; });
+            }
+
+            if (deals.length === 0) {
+                board.innerHTML = '';
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                _updateDealPipelineStats([]);
+                return;
+            }
+            if (emptyEl) emptyEl.classList.add('hidden');
+
+            // Group by status
+            var grouped = {};
+            DEAL_COLUMNS.forEach(function(c) { grouped[c.status] = []; });
+            deals.forEach(function(d) {
+                var s = (d.status || 'draft').toLowerCase();
+                if (grouped[s]) grouped[s].push(d);
+                else grouped['draft'].push(d);
+            });
+
+            var html = '';
+            DEAL_COLUMNS.forEach(function(col) {
+                var items = grouped[col.status] || [];
+                html += '<div class="deal-column">';
+                html += '<div class="deal-col-header" style="border-bottom-color:' + col.borderColor + ';color:' + col.textColor + '">';
+                html += '<span><i class="fas ' + col.icon + ' mr-1"></i> ' + col.label + '</span>';
+                html += '<span class="text-xs ' + col.bgClass + ' px-1.5 py-0.5 rounded">' + items.length + '</span>';
+                html += '</div>';
+                html += '<div style="padding:4px;">';
+                if (items.length === 0) {
+                    html += '<p class="text-[10px] text-gray-400 text-center py-4">No deals</p>';
+                }
+                items.forEach(function(deal) {
+                    var borderStyle = col.status !== 'draft' ? ' style="border-left:3px solid ' + col.borderColor + '"' : '';
+                    var opacity = col.status === 'closed' ? ' style="border-left:3px solid ' + col.borderColor + ';opacity:0.75"' : borderStyle;
+                    html += '<div class="deal-card"' + opacity + '>';
+                    html += '<p class="font-semibold text-gray-900">' + (deal.property_address || 'No address') + '</p>';
+                    html += '<p class="text-[11px] text-gray-500 mt-1">' + (deal.representation_code === 'tenant' ? 'Tenant' : 'Buyer') + ' &middot; ' + _fmtDealPrice(deal.price_usd) + '</p>';
+                    if (deal.agent && deal.agent.full_name) {
+                        html += '<p class="text-[10px] text-gray-500 mt-1"><i class="fas fa-user mr-0.5"></i> ' + deal.agent.full_name + '</p>';
+                    }
+                    if (deal.gross_commission_usd && parseFloat(deal.gross_commission_usd) > 0) {
+                        html += '<p class="text-[10px] text-green-600 mt-1"><i class="fas fa-dollar-sign mr-0.5"></i> GCI: ' + _fmtDealPrice(deal.gross_commission_usd) + '</p>';
+                    }
+                    if (deal.contract_signed) {
+                        html += '<p class="text-[10px] text-purple-600 mt-1"><i class="fas fa-file-contract mr-0.5"></i> ' + (deal.representation_code === 'tenant' ? 'Lease' : 'Contract') + ': ' + _fmtDealDate(deal.contract_signed) + '</p>';
+                    }
+                    html += '<div class="flex items-center justify-between mt-2">';
+                    html += '<span class="text-[10px] text-gray-400">' + _daysSince(deal.created_at) + ' days ago</span>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+                html += '</div></div>';
+            });
+
+            board.innerHTML = html;
+            _updateDealPipelineStats(deals);
+        }
+
+        function _updateDealPipelineStats(deals) {
+            var total = deals.length;
+            var activeValue = 0;
+            var totalDays = 0;
+            var submitted = 0, approved = 0, rejected = 0, closed = 0;
+            var gci = 0;
+
+            deals.forEach(function(d) {
+                var price = parseFloat(d.price_usd) || 0;
+                var gc = parseFloat(d.gross_commission_usd) || 0;
+                var s = (d.status || '').toLowerCase();
+                if (s === 'submitted') { submitted++; activeValue += price; }
+                else if (s === 'approved') { approved++; activeValue += price; }
+                else if (s === 'rejected') rejected++;
+                else if (s === 'closed') closed++;
+                gci += gc;
+                totalDays += _daysSince(d.created_at);
+            });
+
+            var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+            setText('dpStatTotal', total);
+            setText('dpStatActiveValue', _fmtDealPrice(activeValue));
+            setText('dpStatAvgDays', total > 0 ? Math.round(totalDays / total) : 0);
+            setText('dpStatSubmitted', submitted);
+            setText('dpStatApproved', approved);
+            setText('dpStatRejected', rejected);
+            setText('dpStatGCI', _fmtDealPrice(gci));
+        }
+
+        // Dashboard mini pipeline
+        function _updateDashboardDealMini() {
+            var counts = { draft: 0, submitted: 0, approved: 0, closed: 0, rejected: 0 };
+            var gci = 0;
+            _dealPipelineData.forEach(function(d) {
+                var s = (d.status || 'draft').toLowerCase();
+                if (counts[s] !== undefined) counts[s]++;
+                gci += parseFloat(d.gross_commission_usd) || 0;
+            });
+            var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+            setText('dashDealDraft', counts.draft);
+            setText('dashDealSubmitted', counts.submitted);
+            setText('dashDealApproved', counts.approved);
+            setText('dashDealClosed', counts.closed);
+            setText('dashDealRejected', counts.rejected);
+            setText('dashDealTotal', _dealPipelineData.length);
+            setText('dashDealGCI', _fmtDealPrice(gci));
+        }
+
+        // Broker pipeline (all agents' deals)
+        window.loadBrokerPipeline = function() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.deals) return;
+            var filterEl = document.getElementById('brokerPipelineFilter');
+            var params = { limit: 200 };
+            if (filterEl && filterEl.value) params.status = filterEl.value;
+
+            MallanAPI.deals.list(params).then(function(res) {
+                var deals = res.deals || [];
+                _renderBrokerPipeline(deals);
+            }).catch(function(err) {
+                console.error('[BrokerPipeline] Load failed:', err);
+            });
+        };
+
+        function _renderBrokerPipeline(deals) {
+            var list = document.getElementById('brokerPipelineList');
+            var emptyEl = document.getElementById('brokerPipelineEmpty');
+            if (!list) return;
+
+            // Update stats
+            var statCounts = { submitted: { n: 0, v: 0 }, approved: { n: 0, v: 0 }, closed: { n: 0, v: 0 }, rejected: { n: 0, v: 0 } };
+            deals.forEach(function(d) {
+                var s = (d.status || '').toLowerCase();
+                var price = parseFloat(d.price_usd) || 0;
+                if (statCounts[s]) { statCounts[s].n++; statCounts[s].v += price; }
+            });
+            var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+            setText('bpStatSubmitted', statCounts.submitted.n);
+            setText('bpStatSubmittedVal', _fmtDealPrice(statCounts.submitted.v) + ' total value');
+            setText('bpStatApproved', statCounts.approved.n);
+            setText('bpStatApprovedVal', _fmtDealPrice(statCounts.approved.v) + ' total value');
+            setText('bpStatClosed', statCounts.closed.n);
+            setText('bpStatClosedVal', _fmtDealPrice(statCounts.closed.v) + ' total value');
+            setText('bpStatRejected', statCounts.rejected.n);
+            setText('bpStatRejectedVal', _fmtDealPrice(statCounts.rejected.v) + ' total value');
+
+            if (deals.length === 0) {
+                list.innerHTML = '';
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                return;
+            }
+            if (emptyEl) emptyEl.classList.add('hidden');
+            _renderBrokerPipelineInto(list, deals);
+        }
+
+        // All Deals tab (broker view — same data as broker pipeline but different layout)
+        window.loadAllDealsTab = function() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.deals) return;
+            MallanAPI.deals.list({ limit: 200 }).then(function(res) {
+                var deals = res.deals || [];
+                var active = 0, submitted = 0, closed = 0, volume = 0;
+                deals.forEach(function(d) {
+                    var s = (d.status || '').toLowerCase();
+                    var price = parseFloat(d.price_usd) || 0;
+                    volume += price;
+                    if (s === 'submitted' || s === 'approved') active++;
+                    if (s === 'submitted') submitted++;
+                    if (s === 'closed') closed++;
+                });
+                var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+                setText('allDealsActive', active);
+                setText('allDealsSubmitted', submitted);
+                setText('allDealsClosed', closed);
+                setText('allDealsVolume', _fmtDealPrice(volume));
+
+                var list = document.getElementById('allDealsList');
+                var emptyEl = document.getElementById('allDealsEmpty');
+                if (!list) return;
+                if (deals.length === 0) {
+                    list.innerHTML = '';
+                    if (emptyEl) emptyEl.classList.remove('hidden');
+                    return;
+                }
+                if (emptyEl) emptyEl.classList.add('hidden');
+                _renderBrokerPipelineInto(list, deals);
+            }).catch(function(err) {
+                console.error('[AllDeals] Load failed:', err);
+            });
+        };
+
+        // Shared renderer for broker-style deal list
+        function _renderBrokerPipelineInto(container, deals) {
+            var statusColors = {
+                submitted: { bg: 'bg-blue-100', text: 'text-blue-700' },
+                approved: { bg: 'bg-green-100', text: 'text-green-700' },
+                rejected: { bg: 'bg-red-100', text: 'text-red-700' },
+                closed: { bg: 'bg-purple-100', text: 'text-purple-700' },
+                draft: { bg: 'bg-gray-100', text: 'text-gray-700' }
+            };
+            var html = '';
+            deals.forEach(function(deal) {
+                var s = (deal.status || 'draft').toLowerCase();
+                var colors = statusColors[s] || statusColors.draft;
+                var initials = '--';
+                if (deal.agent && deal.agent.full_name) {
+                    var parts = deal.agent.full_name.split(' ');
+                    initials = (parts[0] || '').charAt(0).toUpperCase() + (parts[parts.length - 1] || '').charAt(0).toUpperCase();
+                }
+                var bgHue = s === 'submitted' ? '#3B82F6' : s === 'approved' ? '#10B981' : s === 'rejected' ? '#EF4444' : s === 'closed' ? '#8B5CF6' : '#9CA3AF';
+                html += '<div class="p-4 hover:bg-gray-50">';
+                html += '<div class="flex items-center justify-between mb-2">';
+                html += '<div class="flex items-center gap-3">';
+                html += '<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:' + bgHue + '">' + initials + '</div>';
+                html += '<div>';
+                html += '<p class="font-medium">' + (deal.property_address || 'No address') + '</p>';
+                html += '<p class="text-sm text-gray-600">' + (deal.representation_code === 'tenant' ? 'Tenant' : 'Buyer') + ' &middot; ' + _fmtDealPrice(deal.price_usd);
+                if (deal.agent && deal.agent.full_name) html += ' &middot; ' + deal.agent.full_name;
+                html += '</p></div></div>';
+                html += '<span class="px-3 py-1 ' + colors.bg + ' ' + colors.text + ' text-xs rounded-full font-medium">' + (s.charAt(0).toUpperCase() + s.slice(1)) + '</span>';
+                html += '</div>';
+                html += '<div class="flex items-center justify-between text-xs text-gray-500">';
+                html += '<span>' + _fmtDealDate(deal.created_at) + '</span>';
+                if (deal.gross_commission_usd && parseFloat(deal.gross_commission_usd) > 0) {
+                    html += '<span>GCI: ' + _fmtDealPrice(deal.gross_commission_usd) + '</span>';
+                }
+                html += '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        // Auto-load when deal tabs are shown
+        var _origShowTab2 = window.showTab;
+        if (_origShowTab2) {
+            window.showTab = function(tabId) {
+                _origShowTab2(tabId);
+                if (tabId === 'deal-pipeline' && !_dealPipelineLoaded) loadDealPipeline();
+                if (tabId === 'pipeline') loadBrokerPipeline();
+                if (tabId === 'all-deals') loadAllDealsTab();
+            };
+        }
+
+        window.filterDealPipeline = function() { _renderDealPipeline(); };
+
+        // ──────────────────────────────────────
+        // SOLD / PAST DEALS (Listing Manager)
+        // ──────────────────────────────────────
+        var _pastDealsData = { sales: [], rentals: [] };
+        var _pastDealsLoaded = false;
+        var _soldSubTab = 'sales';
+
+        window.switchListingView = function(view) {
+            var activeView = document.getElementById('lmActiveView');
+            var soldView = document.getElementById('lmSoldView');
+            var tabActive = document.getElementById('lmTabActive');
+            var tabSold = document.getElementById('lmTabSold');
+            if (!activeView || !soldView) return;
+
+            if (view === 'sold') {
+                activeView.style.display = 'none';
+                soldView.style.display = '';
+                tabActive.className = 'px-4 py-1.5 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-700 transition';
+                tabSold.className = 'px-4 py-1.5 text-xs font-semibold rounded-md bg-gray-900 text-white transition';
+                if (!_pastDealsLoaded) loadPastDeals();
+            } else {
+                activeView.style.display = '';
+                soldView.style.display = 'none';
+                tabActive.className = 'px-4 py-1.5 text-xs font-semibold rounded-md bg-gray-900 text-white transition';
+                tabSold.className = 'px-4 py-1.5 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-700 transition';
+            }
+        };
+
+        window.switchSoldSubTab = function(tab) {
+            _soldSubTab = tab;
+            var salesBtn = document.getElementById('soldSubSales');
+            var rentalsBtn = document.getElementById('soldSubRentals');
+            var salesSec = document.getElementById('soldSalesSection');
+            var rentalsSec = document.getElementById('soldRentalsSection');
+            if (tab === 'sales') {
+                salesBtn.className = 'px-4 py-1.5 bg-gray-900 text-white rounded-md text-[11px] font-semibold transition';
+                rentalsBtn.className = 'px-4 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition';
+                salesSec.style.display = '';
+                rentalsSec.style.display = 'none';
+            } else {
+                rentalsBtn.className = 'px-4 py-1.5 bg-gray-900 text-white rounded-md text-[11px] font-semibold transition';
+                salesBtn.className = 'px-4 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md text-[11px] font-medium transition';
+                salesSec.style.display = 'none';
+                rentalsSec.style.display = '';
+            }
+            filterSoldDeals();
+        };
+
+        window.loadPastDeals = function() {
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+            fetch(baseUrl + '/api/crm/past-deals', { credentials: 'include' })
+                .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+                .then(function(data) {
+                    var deals = data.deals || [];
+                    _pastDealsData.sales = deals.filter(function(d) { return d.deal_type === 'sale'; });
+                    _pastDealsData.rentals = deals.filter(function(d) { return d.deal_type === 'rent'; });
+                    _pastDealsLoaded = true;
+                    _renderSoldStats();
+                    _renderSoldTable('sales');
+                    _renderSoldTable('rentals');
+                })
+                .catch(function(err) {
+                    console.error('[PastDeals] Load failed:', err);
+                    document.getElementById('soldSalesBody').innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Failed to load. Check connection.</td></tr>';
+                    document.getElementById('soldRentalsBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Failed to load. Check connection.</td></tr>';
+                });
+        };
+
+        function _renderSoldStats() {
+            var sales = _pastDealsData.sales;
+            var rentals = _pastDealsData.rentals;
+            var total = sales.length + rentals.length;
+            var volume = 0;
+            var missing = 0;
+            var dates = [];
+            sales.concat(rentals).forEach(function(d) {
+                var p = parseFloat(d.close_price);
+                if (p && p > 1) volume += p; else missing++;
+                if (d.close_date) dates.push(d.close_date);
+            });
+            dates.sort();
+
+            var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+            var setHtml = function(id, v) { var el = document.getElementById(id); if (el) el.innerHTML = v; };
+            setText('soldStatTotal', total);
+            setText('soldStatBreakdown', sales.length + ' sales · ' + rentals.length + ' rentals');
+            setText('soldStatVolume', '$' + volume.toLocaleString('en-US', { maximumFractionDigits: 0 }));
+            setText('soldStatMissing', missing);
+            setText('soldSalesCount', sales.length);
+            setText('soldRentalsCount', rentals.length);
+
+            if (dates.length > 0) {
+                var oldest = dates[0].substring(0, 7);
+                var newest = dates[dates.length - 1].substring(0, 7);
+                setHtml('soldStatRange', oldest + ' &rarr; ' + newest);
+            }
+
+            var emptyEl = document.getElementById('soldEmptyState');
+            var salesSec = document.getElementById('soldSalesSection');
+            var rentalsSec = document.getElementById('soldRentalsSection');
+            if (total === 0) {
+                if (emptyEl) emptyEl.style.display = '';
+                if (salesSec) salesSec.style.display = 'none';
+                if (rentalsSec) rentalsSec.style.display = 'none';
+            } else {
+                if (emptyEl) emptyEl.style.display = 'none';
+            }
+        }
+
+        function _renderSoldTable(type) {
+            var deals = type === 'sales' ? _pastDealsData.sales : _pastDealsData.rentals;
+            var bodyId = type === 'sales' ? 'soldSalesBody' : 'soldRentalsBody';
+            var body = document.getElementById(bodyId);
+            if (!body) return;
+
+            var search = (document.getElementById('soldSearchInput') || {}).value || '';
+            search = search.toLowerCase().trim();
+
+            var filtered = deals;
+            if (search) {
+                filtered = deals.filter(function(d) {
+                    return (d.street || '').toLowerCase().indexOf(search) !== -1
+                        || (d.neighborhood || '').toLowerCase().indexOf(search) !== -1
+                        || (d.unit || '').toLowerCase().indexOf(search) !== -1;
+                });
+            }
+
+            if (filtered.length === 0) {
+                var cols = type === 'sales' ? 9 : 8;
+                body.innerHTML = '<tr><td colspan="' + cols + '" class="px-4 py-12 text-center text-gray-400">' +
+                    '<i class="fas fa-inbox text-2xl mb-2 block text-gray-300"></i>' +
+                    (search ? 'No matches for "' + search + '"' : 'No ' + type + ' found') + '</td></tr>';
+                return;
+            }
+
+            var html = '';
+            filtered.forEach(function(deal) {
+                var price = parseFloat(deal.close_price);
+                var hasPrice = price && price > 1;
+                var isRent = deal.deal_type === 'rent';
+                var priceDisplay = hasPrice ? (isRent ? '$' + price.toLocaleString() + '/mo' : '$' + price.toLocaleString()) : '';
+                var totalBaths = (deal.baths_full || 0) + (deal.baths_half || 0) * 0.5;
+                var addr = deal.street + (deal.unit ? ' #' + deal.unit : '');
+
+                html += '<tr class="hover:bg-gray-50 transition" data-deal-id="' + deal.id + '">';
+                html += '<td class="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">' + addr + '</td>';
+                html += '<td class="px-3 py-2.5 text-gray-600 text-xs">' + (deal.neighborhood || '—') + '</td>';
+                html += '<td class="px-3 py-2.5 text-gray-600 text-xs">' + (deal.property_type || '—') + '</td>';
+                html += '<td class="px-3 py-2.5 text-gray-600 text-xs text-center">' + (deal.beds != null ? (deal.beds === 0 ? 'Studio' : deal.beds) : '—') + '</td>';
+                html += '<td class="px-3 py-2.5 text-gray-600 text-xs text-center">' + (totalBaths > 0 ? totalBaths : '—') + '</td>';
+
+                if (type === 'sales') {
+                    html += '<td class="px-3 py-2.5 text-gray-600 text-xs text-right">' + (deal.sqft ? deal.sqft.toLocaleString() : '—') + '</td>';
+                }
+
+                html += '<td class="px-3 py-2.5 text-gray-600 text-xs">' + (deal.close_date || '—') + '</td>';
+
+                // Editable price cell
+                html += '<td class="px-3 py-2.5 text-right">';
+                html += '<input type="text" data-deal-id="' + deal.id + '" data-original="' + (hasPrice ? price : '') + '"';
+                html += ' value="' + priceDisplay + '"';
+                html += ' onfocus="this.value=this.dataset.original; this.select();"';
+                html += ' onblur="_formatPriceInput(this, ' + (isRent ? 'true' : 'false') + ')"';
+                html += ' onkeydown="if(event.key===\'Enter\'){this.blur(); _saveDealPrice(this)}"';
+                html += ' class="w-28 text-right text-xs font-semibold border rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-200 ' + (hasPrice ? 'text-gray-900 border-gray-200' : 'text-red-400 border-red-200 bg-red-50') + '"';
+                html += ' placeholder="Enter price">';
+                html += '</td>';
+
+                // Save button
+                html += '<td class="px-3 py-2.5 text-center">';
+                html += '<button onclick="_saveDealPrice(this.closest(\'tr\').querySelector(\'input[data-deal-id]\'))" class="px-2.5 py-1 bg-blue-600 text-white rounded text-[10px] font-semibold hover:bg-blue-700 transition">Save</button>';
+                html += '</td>';
+
+                html += '</tr>';
+            });
+            body.innerHTML = html;
+        }
+
+        window.filterSoldDeals = function() {
+            _renderSoldTable('sales');
+            _renderSoldTable('rentals');
+        };
+
+        window._formatPriceInput = function(input, isRent) {
+            var raw = input.value.replace(/[^0-9.]/g, '');
+            var num = parseFloat(raw);
+            if (!num || isNaN(num)) {
+                input.value = input.dataset.original ? (isRent ? '$' + parseFloat(input.dataset.original).toLocaleString() + '/mo' : '$' + parseFloat(input.dataset.original).toLocaleString()) : '';
+                return;
+            }
+            input.dataset.original = num.toString();
+            input.value = isRent ? '$' + num.toLocaleString() + '/mo' : '$' + num.toLocaleString();
+            // Mark changed
+            input.classList.remove('text-red-400', 'border-red-200', 'bg-red-50');
+            input.classList.add('text-gray-900', 'border-blue-300', 'bg-blue-50');
+        };
+
+        window._saveDealPrice = function(input) {
+            if (!input) return;
+            var dealId = input.dataset.dealId;
+            var raw = input.dataset.original;
+            var num = parseFloat(raw);
+            if (!dealId || isNaN(num) || num <= 0) return;
+
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+            var btn = input.closest('tr').querySelector('button');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+            fetch(baseUrl + '/api/crm/past-deals/' + dealId, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ close_price: num })
+            })
+            .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function() {
+                input.classList.remove('border-blue-300', 'bg-blue-50');
+                input.classList.add('border-green-300', 'bg-green-50', 'text-green-700');
+                if (btn) { btn.innerHTML = '<i class="fas fa-check text-green-600"></i>'; btn.disabled = false; }
+                // Update local data
+                var allDeals = _pastDealsData.sales.concat(_pastDealsData.rentals);
+                var deal = allDeals.find(function(d) { return d.id === dealId; });
+                if (deal) deal.close_price = num.toString();
+                _renderSoldStats();
+                setTimeout(function() {
+                    input.classList.remove('border-green-300', 'bg-green-50', 'text-green-700');
+                    input.classList.add('text-gray-900', 'border-gray-200');
+                    if (btn) btn.innerHTML = 'Save';
+                }, 1500);
+            })
+            .catch(function(err) {
+                console.error('[PastDeals] Save failed:', err);
+                input.classList.add('border-red-300', 'bg-red-50');
+                if (btn) { btn.innerHTML = 'Error'; btn.disabled = false; }
+                setTimeout(function() { if (btn) btn.innerHTML = 'Save'; }, 2000);
+            });
+        };
+
+        // Auto-load sold tab when my-listings is shown and sold is active
+        var _origShowTab3 = window.showTab;
+        if (_origShowTab3) {
+            window.showTab = function(tabId) {
+                _origShowTab3(tabId);
+                if (tabId === 'my-listings' && document.getElementById('lmSoldView') && document.getElementById('lmSoldView').style.display !== 'none' && !_pastDealsLoaded) {
+                    loadPastDeals();
+                }
+            };
+        }
 
         // ──────────────────────────────────────
         // B2: COLLECTIONS
