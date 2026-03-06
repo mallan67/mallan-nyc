@@ -258,14 +258,40 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </Link>
               </li>
 
-              <li>
-                <Link
-                  href={authHref}
-                  className="btn-liquid text-[13px] font-medium border border-white/40 text-white px-5 py-2 rounded-full hover:bg-white hover:text-brand-dark transition-colors"
-                >
-                  {authLabel}
-                </Link>
-              </li>
+              {isLoggedIn ? (
+                <li className="relative group">
+                  <Link
+                    href={authHref}
+                    className="btn-liquid text-[13px] font-medium border border-brand-gold text-white px-5 py-2 rounded-full hover:bg-brand-gold hover:text-brand-dark transition-colors"
+                  >
+                    {authLabel}
+                  </Link>
+                  <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-xl shadow-lg ring-1 ring-black/5 z-50 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                    <Link href={authHref} className="block px-4 py-2.5 text-sm text-brand-dark/60 hover:bg-black/[0.03] hover:text-brand-dark transition-colors whitespace-nowrap">
+                      {authLabel}
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                        setAuth({ authenticated: false });
+                        router.push('/sign-in');
+                      }}
+                      className="block w-full text-left px-4 py-2.5 text-sm text-red-500/70 hover:bg-red-50/50 hover:text-red-600 transition-colors whitespace-nowrap"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </li>
+              ) : (
+                <li>
+                  <Link
+                    href="/sign-in"
+                    className="btn-liquid text-[13px] font-medium border border-white/40 text-white px-5 py-2 rounded-full hover:bg-white hover:text-brand-dark transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                </li>
+              )}
             </ul>
           </nav>
 
