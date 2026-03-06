@@ -4,6 +4,8 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
+import prisma from '@/lib/prisma';
+import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
 /**
  * Simple in-memory rate limiter (60 requests per minute per IP)
@@ -293,17 +295,31 @@ export async function GET(request: Request) {
 
         const publicListings = pageListings.map(toPublicDTO);
 
+        // ── Merge local exclusive listings from DB ──
+        // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings
+        // that are Active (already on RLS). Drafts are NOT displayed publicly.
+        // Dedup by listing_id to avoid showing the same listing twice.
+        const mergedListings = await mergeExclusiveListings(
+          publicListings,
+          listingType,
+          borough,
+          neighborhood,
+          minPrice ? parseInt(minPrice, 10) : undefined,
+          maxPrice ? parseInt(maxPrice, 10) : undefined,
+          minBeds ? parseInt(minBeds, 10) : undefined,
+        );
+
         return NextResponse.json(
           {
             success: true,
-            count: publicListings.length,
-            total: totalCount,
+            count: mergedListings.length,
+            total: totalCount + mergedListings.length - publicListings.length,
             skip,
             limit,
             hasMore: skip + limit < totalCount || result.hasMore,
-            listings: publicListings,
+            listings: mergedListings,
             _compliance: {
-              source: 'idx',
+              source: 'idx+exclusive',
               idxEnabled: true,
               attribution: generateAttributionText(),
               disclaimer:
@@ -354,20 +370,31 @@ export async function GET(request: Request) {
       }
     }
 
-    // IDX not enabled — return empty with clear indicator (no silent fallback to stale data)
+    // IDX not enabled — still show local exclusive listings if any
+    const exclusiveListings = await fetchExclusiveListings(
+      listingType,
+      borough,
+      neighborhood,
+      minPrice ? parseInt(minPrice, 10) : undefined,
+      maxPrice ? parseInt(maxPrice, 10) : undefined,
+      minBeds ? parseInt(minBeds, 10) : undefined,
+    );
+
     return NextResponse.json(
       {
         success: true,
-        count: 0,
-        total: 0,
+        count: exclusiveListings.length,
+        total: exclusiveListings.length,
         skip: 0,
         limit,
         hasMore: false,
-        listings: [],
+        listings: exclusiveListings,
         _compliance: {
-          source: 'none',
+          source: exclusiveListings.length > 0 ? 'exclusive' : 'none',
           idxEnabled: false,
-          disclaimer: 'IDX search is not enabled. Contact administrator.',
+          disclaimer: exclusiveListings.length > 0
+            ? 'Exclusive listings by Mallan Real Estate Inc.'
+            : 'IDX search is not enabled. Contact administrator.',
         },
       },
       {
@@ -383,4 +410,129 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// ── Local Exclusive Listings from Database ──
+// UCBA Art. I, Sec. 5: Only Active listings that have been submitted to RLS
+// may be displayed publicly. Draft/Incomplete listings are NOT shown.
+
+import type { PublicListingDTO } from '@/lib/idx/public-dto';
+import type { Prisma } from '@prisma/client';
+
+async function fetchExclusiveListings(
+  listingType?: string | null,
+  borough?: string | null,
+  neighborhood?: string | null,
+  minPrice?: number,
+  maxPrice?: number,
+  minBeds?: number,
+): Promise<PublicListingDTO[]> {
+  try {
+    const where: Prisma.ListingWhereInput = {
+      // Only Active statuses — Draft/Incomplete NEVER shown publicly
+      status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
+      // Distribution gates
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      owner_opt_out: false,
+      participant_only: false,
+    };
+
+    if (listingType === 'sale' || listingType === 'buy') where.listing_type = 'sale';
+    else if (listingType === 'rent') where.listing_type = 'rent';
+
+    if (minPrice || maxPrice) {
+      where.list_price = {};
+      if (minPrice) (where.list_price as Prisma.DecimalFilter).gte = minPrice;
+      if (maxPrice) (where.list_price as Prisma.DecimalFilter).lte = maxPrice;
+    }
+
+    if (minBeds) where.bedrooms_total = { gte: minBeds };
+
+    if (borough) {
+      where.borough = { contains: borough, mode: 'insensitive' };
+    }
+
+    if (neighborhood) {
+      where.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+    }
+
+    const dbListings = await prisma.listing.findMany({
+      where,
+      orderBy: { updated_at: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        listing_id: true,
+        status: true,
+        listing_type: true,
+        property_type: true,
+        property_sub_type: true,
+        list_price: true,
+        bedrooms_total: true,
+        bathrooms_full: true,
+        bathrooms_half: true,
+        living_area: true,
+        borough: true,
+        neighborhood: true,
+        address: true,
+        features: true,
+        media: true,
+        agent_info: true,
+        idx_display_yn: true,
+        internet_entire_listing_display_yn: true,
+        internet_address_display_yn: true,
+        owner_opt_out: true,
+        participant_only: true,
+        listing_contract_date: true,
+        modification_timestamp: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    // Serialize BigInt + Decimal for the mapper
+    const serialized: DbListing[] = dbListings.map((l) => ({
+      ...l,
+      id: l.id.toString(),
+      list_price: l.list_price.toString(),
+      living_area: l.living_area?.toString() ?? null,
+    }));
+
+    const displayable = filterDisplayableDbListings(serialized);
+    return displayable.map(dbListingToPublicDTO);
+  } catch (err) {
+    console.warn('[/api/listings] Exclusive listings fetch failed:', err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/**
+ * Merge local exclusive listings with Trestle IDX results.
+ * Deduplicates by listing_id — if a listing exists in both Trestle and local DB,
+ * the Trestle version takes precedence (it has more complete data from RLS).
+ */
+async function mergeExclusiveListings(
+  trestleListings: PublicListingDTO[],
+  listingType?: string | null,
+  borough?: string | null,
+  neighborhood?: string | null,
+  minPrice?: number,
+  maxPrice?: number,
+  minBeds?: number,
+): Promise<PublicListingDTO[]> {
+  const exclusives = await fetchExclusiveListings(listingType, borough, neighborhood, minPrice, maxPrice, minBeds);
+
+  if (exclusives.length === 0) return trestleListings;
+
+  // Build set of IDs already in Trestle results
+  const trestleIds = new Set(trestleListings.map((l) => l.id));
+
+  // Only add exclusives that aren't already in Trestle results
+  const newExclusives = exclusives.filter((e) => !trestleIds.has(e.id));
+
+  if (newExclusives.length === 0) return trestleListings;
+
+  // Prepend exclusives (your own listings first)
+  return [...newExclusives, ...trestleListings];
 }
