@@ -14076,76 +14076,139 @@ var manageExpandedRow = null;
 var manageActiveListingId = null;
 var currentOHTypeFilter = 'All';
 var ohEditId = null;
+var _manageListingsLoaded = false;
+var _manageListingsLoading = false;
 
 var manageSaleStatuses = ['All','Active','Back On Market','Coming Soon','Offer Out','Contract Signed','Board Approval','Sold','Temp Off Market','Perm Off Market','Expired'];
 var manageRentalStatuses = ['All','Active','Back On Market','Coming Soon','Offer Out','Lease Signed','Board Approval','Leased','Temp Off Market','Perm Off Market','Expired'];
 
-var myManagementListings = [
-    // SALES (~8)
-    { id: 'ML-S001', category: 'sales', dealType: 'Exclusive', status: 'Active', address: '400 E 90th St', unit: '17C', price: 4250000, rooms: 6, beds: 3, baths: 2.5, listed: '01/15/26', update: '01/28/26', contractSigned: null, sold: null, expiration: '07/15/26', coListed: false },
-    { id: 'ML-S002', category: 'sales', dealType: 'Exclusive', status: 'Active', address: '200 W 86th St', unit: '12A', price: 1850000, rooms: 4, beds: 2, baths: 2, listed: '02/01/26', update: '02/10/26', contractSigned: null, sold: null, expiration: '08/01/26', coListed: false },
-    { id: 'ML-S003', category: 'sales', dealType: 'Exclusive', status: 'Sold', address: '88 Greenwich St', unit: '22H', price: 1200000, rooms: 3, beds: 1, baths: 1, listed: '09/01/25', update: '12/15/25', contractSigned: '11/20/25', sold: '01/10/26', expiration: null, coListed: false },
-    { id: 'ML-S004', category: 'sales', dealType: 'Exclusive', status: 'Contract Signed', address: '315 W 57th St', unit: '28B', price: 2100000, rooms: 5, beds: 2, baths: 2, listed: '11/15/25', update: '01/30/26', contractSigned: '01/28/26', sold: null, expiration: '06/30/26', coListed: false },
-    { id: 'ML-S005', category: 'sales', dealType: 'Exclusive', status: 'Offer Out', address: '140 Hillside Ave', unit: '5D', price: 525000, rooms: 3, beds: 1, baths: 1, listed: '12/01/25', update: '02/05/26', contractSigned: null, sold: null, expiration: '05/15/26', coListed: false },
-    { id: 'ML-S006', category: 'sales', dealType: 'Co-Exclusive', status: 'Coming Soon', address: '45 E 89th St', unit: '10A', price: 3400000, rooms: 7, beds: 3, baths: 3, listed: '02/10/26', update: '02/10/26', contractSigned: null, sold: null, expiration: '03/10/26', coListed: true, comingSoonStartDate: '02/10/26' },
-    { id: 'ML-S007', category: 'sales', dealType: 'Exclusive', status: 'Expired', address: '221 W 77th St', unit: '4C', price: 1975000, rooms: 5, beds: 2, baths: 2, listed: '07/15/25', update: '01/10/26', contractSigned: null, sold: null, expiration: '01/15/26', coListed: false },
-    { id: 'ML-S008', category: 'sales', dealType: 'Exclusive', status: 'Back On Market', address: '88 Leonard St', unit: 'PH', price: 5500000, rooms: 8, beds: 4, baths: 3.5, listed: '10/01/25', update: '02/12/26', contractSigned: null, sold: null, expiration: '09/01/26', coListed: false },
-    // RENTALS (~7)
-    { id: 'ML-R001', category: 'rentals', dealType: 'Exclusive', status: 'Active', address: '220 Central Park S', unit: '28F', price: 18500, rooms: 5, beds: 2, baths: 2, listed: '02/01/26', update: '02/12/26', leaseSigned: null, rented: null, expiration: '08/01/26', coListed: false },
-    { id: 'ML-R002', category: 'rentals', dealType: 'Exclusive', status: 'Active', address: '301 E 79th St', unit: '5A', price: 3500, rooms: 3, beds: 1, baths: 1, listed: '01/20/26', update: '02/08/26', leaseSigned: null, rented: null, expiration: '07/01/26', coListed: false },
-    { id: 'ML-R003', category: 'rentals', dealType: 'Exclusive', status: 'Active', address: '555 W 23rd St', unit: '12D', price: 5200, rooms: 4, beds: 2, baths: 2, listed: '01/10/26', update: '02/05/26', leaseSigned: null, rented: null, expiration: '06/15/26', coListed: false },
-    { id: 'ML-R004', category: 'rentals', dealType: 'Exclusive', status: 'Lease Signed', address: '420 E 72nd St', unit: '8B', price: 4800, rooms: 4, beds: 2, baths: 1.5, listed: '11/01/25', update: '01/25/26', leaseSigned: '01/20/26', rented: '02/01/26', expiration: null, coListed: false },
-    { id: 'ML-R005', category: 'rentals', dealType: 'Exclusive', status: 'Offer Out', address: '180 E 88th St', unit: '3A', price: 3200, rooms: 3, beds: 1, baths: 1, listed: '01/05/26', update: '02/10/26', leaseSigned: null, rented: null, expiration: '05/01/26', coListed: false },
-    { id: 'ML-R006', category: 'rentals', dealType: 'Exclusive', status: 'Active', address: '400 E 90th St', unit: '2B', price: 2800, rooms: 2, beds: 1, baths: 1, listed: '12/15/25', update: '02/01/26', leaseSigned: null, rented: null, expiration: '03/05/26', coListed: false },
-    { id: 'ML-R007', category: 'rentals', dealType: 'Exclusive', status: 'Temp Off Market', address: '77 Hudson St', unit: '6D', price: 7200, rooms: 4, beds: 2, baths: 2, listed: '10/20/25', update: '01/15/26', leaseSigned: null, rented: null, expiration: '04/15/26', coListed: false }
-];
+// Start empty — populated by loadMyListingsFromAPI()
+var myManagementListings = [];
 
-// Mock open house data — types is an array (multi-select), virtualTour is separate
-var myOpenHouses = [
-    { id: 'OH-1', listingId: 'ML-S001', types: ['Public','By Appointment'], virtualTour: true, date: '2026-02-22', start: '12:00', end: '14:00', notes: 'Doorman will direct visitors', link: 'https://zoom.us/j/example1', repeat: 'none' },
-    { id: 'OH-2', listingId: 'ML-S001', types: ['Broker Only'], virtualTour: false, date: '2026-02-18', start: '10:00', end: '11:30', notes: 'Agents must RSVP', link: '', repeat: 'none' },
-    { id: 'OH-3', listingId: 'ML-S002', types: ['Public'], virtualTour: false, date: '2026-02-23', start: '13:00', end: '15:00', notes: '', link: '', repeat: 'weekly' },
-    { id: 'OH-4', listingId: 'ML-S006', types: ['By Appointment'], virtualTour: false, date: '2026-03-05', start: '10:00', end: '17:00', notes: 'Appointment required — contact listing agent to schedule', link: '', repeat: 'none' },
-    { id: 'OH-5', listingId: 'ML-R001', types: ['Public','By Appointment'], virtualTour: true, date: '2026-02-20', start: '18:00', end: '19:00', notes: 'In-person or virtual walkthrough', link: 'https://zoom.us/j/example2', repeat: 'none' },
-    { id: 'OH-6', listingId: 'ML-R002', types: ['Public'], virtualTour: false, date: '2026-02-23', start: '11:00', end: '13:00', notes: '', link: '', repeat: 'none' },
-    { id: 'OH-7', listingId: 'ML-R003', types: ['By Appointment','Broker Only'], virtualTour: true, date: '2026-02-25', start: '09:00', end: '12:00', notes: 'Contact agent to schedule', link: 'https://facetime.apple.com/join#v=1', repeat: 'none' }
-];
-var ohNextId = 8;
+// ── API → Manage Listings Shape Mapper ──
+function _formatManageDate(isoStr) {
+    if (!isoStr) return null;
+    var d = new Date(isoStr);
+    if (isNaN(d.getTime())) return null;
+    return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getFullYear()).slice(-2);
+}
 
-// ── Photo URLs + RLS/IDX Media Metadata for manage listing cards ──
-(function() {
-    var photos = [
-        'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00',
-        'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688',
-        'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2',
-        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267',
-        'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c',
-        'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1',
-        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c',
-        'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9',
-        'https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e',
-        'https://images.unsplash.com/photo-1631049307264-da0ec9d70304',
-        'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8',
-        'https://images.unsplash.com/photo-1540518614846-7eded433c457',
-        'https://images.unsplash.com/photo-1484154218962-a197022b5858',
-        'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14',
-        'https://images.unsplash.com/photo-1613545325278-f24b0cae1224'
-    ];
-    var param = '?w=800&q=85&auto=format&fit=crop';
-    // Statuses that are IDX-eligible (visible on public websites)
-    var idxActiveStatuses = ['Active', 'Back On Market', 'Coming Soon', 'Offer Out'];
-    myManagementListings.forEach(function(l, i) {
-        l.photo = photos[i % photos.length] + param;
-        l.photoCount = l.beds + l.baths + Math.floor(Math.random() * 6) + 4;
-        // Distribution flags: RLS, IDX, Web (mallan.nyc)
-        var isActive = idxActiveStatuses.indexOf(l.status) !== -1;
-        l.media = {
+function _mapApiListingToManage(api) {
+    var addr = api.address || {};
+    var features = api.features || {};
+    var media = api.media || [];
+    var isSale = api.listing_type === 'sale';
+    var addressStr = (addr.StreetNumber ? addr.StreetNumber + ' ' : '') + (addr.StreetName || '') + (addr.StreetSuffix ? ' ' + addr.StreetSuffix : '');
+    if (!addressStr.trim()) addressStr = addr.UnparsedAddress || api.borough || 'Unknown';
+    var unitStr = addr.UnitNumber || '';
+
+    // Determine deal type from raw_data or default
+    var dealType = 'Exclusive';
+    if (api.raw_data && api.raw_data.ListingAgreement === 'Co-Exclusive') dealType = 'Co-Exclusive';
+    if (api.raw_data && api.raw_data.ListingAgreement === 'Open') dealType = 'Open';
+
+    // Map RESO StandardStatus → CRM display status
+    var statusMap = {
+        'Draft': 'Draft', 'Active': 'Active', 'ActiveUnderContract': 'Offer Out',
+        'Pending': 'Contract Signed', 'ComingSoon': 'Coming Soon', 'Hold': 'Temp Off Market',
+        'Withdrawn': 'Perm Off Market', 'Closed': isSale ? 'Sold' : 'Leased', 'Expired': 'Expired',
+        'Canceled': 'Perm Off Market', 'Delete': 'Perm Off Market'
+    };
+    var displayStatus = statusMap[api.status] || api.status || 'Draft';
+
+    // Photos: first photo URL from media array
+    var photoUrl = '';
+    var photoCount = 0;
+    if (Array.isArray(media) && media.length > 0) {
+        photoUrl = media[0].MediaURL || media[0].url || '';
+        photoCount = media.length;
+    }
+
+    var bathsTotal = (api.bathrooms_full || 0) + ((api.bathrooms_half || 0) * 0.5);
+    var rooms = features.Rooms ? parseInt(features.Rooms) : ((api.bedrooms_total || 0) + 1);
+
+    return {
+        id: api.listing_id || api.id,
+        _dbId: api.id,
+        category: isSale ? 'sales' : 'rentals',
+        dealType: dealType,
+        status: displayStatus,
+        address: addressStr.trim(),
+        unit: unitStr,
+        price: parseFloat(api.list_price) || 0,
+        rooms: rooms,
+        beds: api.bedrooms_total || 0,
+        baths: bathsTotal,
+        listed: _formatManageDate(api.created_at),
+        update: _formatManageDate(api.updated_at),
+        contractSigned: displayStatus === 'Contract Signed' ? _formatManageDate(api.status_changed_at) : null,
+        sold: displayStatus === 'Sold' ? _formatManageDate(api.status_changed_at) : null,
+        leaseSigned: displayStatus === 'Lease Signed' ? _formatManageDate(api.status_changed_at) : null,
+        rented: displayStatus === 'Leased' ? _formatManageDate(api.status_changed_at) : null,
+        expiration: _formatManageDate(api.listing_contract_date),
+        coListed: dealType === 'Co-Exclusive',
+        photo: photoUrl,
+        photoCount: photoCount,
+        media: {
             rlsUploaded: true,
-            idxDisplayYN: isActive,
-            webDisplayed: isActive
-        };
+            idxDisplayYN: api.idx_display_yn !== false,
+            webDisplayed: api.idx_display_yn !== false && !api.owner_opt_out && !api.participant_only
+        },
+        comingSoonStartDate: displayStatus === 'Coming Soon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
+    };
+}
+
+function loadMyListingsFromAPI(callback) {
+    if (_manageListingsLoading) return;
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
+        if (typeof console !== 'undefined') console.warn('[ManageListings] MallanAPI not available — using empty list');
+        _manageListingsLoaded = true;
+        if (callback) callback();
+        return;
+    }
+    _manageListingsLoading = true;
+
+    MallanAPI.listings.list({ limit: 200 }).then(function(data) {
+        var apiListings = data.listings || [];
+        if (apiListings.length > 0) {
+            myManagementListings = apiListings.map(_mapApiListingToManage);
+        }
+        _manageListingsLoaded = true;
+        _manageListingsLoading = false;
+        // Update portfolio overview stats
+        _updatePortfolioStats();
+        if (callback) callback();
+    }).catch(function(err) {
+        if (typeof console !== 'undefined') console.error('[ManageListings] API load failed:', err);
+        _manageListingsLoaded = true;
+        _manageListingsLoading = false;
+        if (callback) callback();
     });
-})();
+}
+
+function _updatePortfolioStats() {
+    var sales = myManagementListings.filter(function(l) { return l.category === 'sales'; });
+    var rentals = myManagementListings.filter(function(l) { return l.category === 'rentals'; });
+    var totalVolume = 0;
+    sales.forEach(function(l) { totalVolume += l.price; });
+    // Format volume
+    var volStr;
+    if (totalVolume >= 1000000) volStr = '$' + (totalVolume / 1000000).toFixed(1) + 'M';
+    else if (totalVolume >= 1000) volStr = '$' + (totalVolume / 1000).toFixed(0) + 'K';
+    else volStr = '$' + totalVolume.toLocaleString();
+
+    // Update DOM if elements exist (portfolio overview cards)
+    var volEl = document.querySelector('#my-listings .text-xl.font-bold');
+    if (volEl) {
+        volEl.textContent = volStr;
+        var subEl = volEl.nextElementSibling;
+        if (subEl) subEl.innerHTML = myManagementListings.length + ' listings &middot; ' + sales.length + ' sale / ' + rentals.length + ' rental';
+    }
+}
+
+// Open house data — starts empty, populated from local scheduling
+var myOpenHouses = [];
+var ohNextId = 1;
 
 var manageStatusColors = {
     'Active':           { bg: 'bg-blue-100',   text: 'text-blue-700' },
@@ -14712,6 +14775,17 @@ function toggleCardAction(listingId, action) {
 function cardStatusApply(listingId, newStatus) {
     var listing = manageFindListing(listingId);
     if (!listing) return;
+
+    // Map display status back to RESO StandardStatus for API
+    var resoMap = {
+        'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
+        'Offer Out': 'ActiveUnderContract', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending',
+        'Board Approval': 'Pending', 'Sold': 'Closed', 'Leased': 'Closed',
+        'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
+    };
+    var resoStatus = resoMap[newStatus] || newStatus;
+
+    // Update local state immediately
     listing.status = newStatus;
     var todayStr = manageTodayStr();
     if (newStatus === 'Sold') listing.sold = todayStr;
@@ -14721,6 +14795,15 @@ function cardStatusApply(listingId, newStatus) {
     listing.update = todayStr;
     renderManageSection(currentManageMode);
     manageShowToast('Status changed to ' + newStatus);
+
+    // Persist to API
+    var dbId = listing._dbId || listing.id;
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
+        MallanAPI.listings.updateStatus(dbId, resoStatus).catch(function(err) {
+            if (typeof console !== 'undefined') console.error('[ManageListings] Status update failed:', err);
+            manageShowToast('Failed to save status change to server', 'error');
+        });
+    }
 }
 
 function cardPriceAdjust(listingId, amount) {
@@ -14746,6 +14829,15 @@ function cardPriceSave(listingId) {
     listing.update = manageTodayStr();
     renderManageSection(currentManageMode);
     manageShowToast('Price updated to ' + manageFormatPrice(newPrice, currentManageMode));
+
+    // Persist to API
+    var dbId = listing._dbId || listing.id;
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
+        MallanAPI.listings.update(dbId, { ListPrice: newPrice }).catch(function(err) {
+            if (typeof console !== 'undefined') console.error('[ManageListings] Price update failed:', err);
+            manageShowToast('Failed to save price to server', 'error');
+        });
+    }
 }
 
 function cardAutoUpdate(listingId) {
@@ -14799,6 +14891,14 @@ function switchToCardAction(listingId, action) {
 
 // ---- Render manage section (both card + table views) ----
 function renderManageSection(mode) {
+    // Lazy-load from API on first render
+    if (!_manageListingsLoaded && !_manageListingsLoading) {
+        loadMyListingsFromAPI(function() {
+            renderManageSection(mode);
+        });
+        return;
+    }
+
     currentManageMode = mode || 'sales';
     var isSales = currentManageMode === 'sales';
 
@@ -15066,6 +15166,22 @@ function manageStatusApply(newStatus) {
     document.getElementById('manageStatusModal').style.display = 'none';
     renderManageSection(currentManageMode);
     manageShowToast('Status changed to ' + newStatus);
+
+    // Persist to API
+    var resoMap = {
+        'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
+        'Offer Out': 'ActiveUnderContract', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending',
+        'Board Approval': 'Pending', 'Sold': 'Closed', 'Leased': 'Closed',
+        'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
+    };
+    var resoStatus = resoMap[newStatus] || newStatus;
+    var dbId = listing._dbId || listing.id;
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
+        MallanAPI.listings.updateStatus(dbId, resoStatus).catch(function(err) {
+            if (typeof console !== 'undefined') console.error('[ManageListings] Status update failed:', err);
+            manageShowToast('Failed to save status change to server', 'error');
+        });
+    }
 }
 
 // Auto Update
@@ -15088,8 +15204,9 @@ function manageCreateListing() {
 function manageEditListing(id) {
     var listing = manageFindListing(id);
     if (!listing) return;
-    if (listing.category === 'sales') window.open('SALE-FORM-REDESIGN.html', '_blank');
-    else window.open('RENTAL-FORM-STANDALONE.html', '_blank');
+    var dbId = listing._dbId || listing.id;
+    if (listing.category === 'sales') window.open('SALE-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
+    else window.open('RENTAL-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
 }
 function manageExportTable() {
     manageShowToast('Table exported (mockup \u2014 CSV download would fire here)');
