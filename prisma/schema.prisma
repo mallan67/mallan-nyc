@@ -29,9 +29,19 @@ model Agent {
   status         String    @default("active")        // "active" | "inactive" | "suspended"
   last_login     DateTime? @map("last_login")
 
+  // --- Public profile fields (shown on mallan.nyc/agents) ---
+  public_slug    String?   @unique @map("public_slug")  // URL slug e.g. "maya-allan"
+  title          String?   @db.Text                      // "Licensed Real Estate Broker"
+  bio            String?   @db.Text
+  photo          String?                                  // URL path e.g. "/images/agents/maya-allan.jpg"
+  specialties    String[]  @default([])
+  languages      String[]  @default([])
+  featured       Boolean   @default(false)
+
   leads          Lead[]
   listings       Listing[]
   deals          Deal[]
+  past_deals     PastDeal[]
   showings       Showing[]
   saved_searches SavedSearch[]
 
@@ -39,6 +49,50 @@ model Agent {
   updated_at     DateTime  @updatedAt @map("updated_at")
 
   @@map("agents")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAST DEAL — Closed deal for public agent profile display
+// Editable by broker from CRM backend
+// ═══════════════════════════════════════════════════════════
+model PastDeal {
+  id                BigInt    @id @default(autoincrement())
+  agent_id          BigInt    @map("agent_id")
+  agent             Agent     @relation(fields: [agent_id], references: [id])
+
+  // --- Address ---
+  street            String
+  unit              String?
+  city              String    @default("New York")
+  postal_code       String?   @map("postal_code")
+  neighborhood      String?
+
+  // --- Deal info ---
+  deal_type         String    @map("deal_type")           // "sale" | "rent"
+  property_type     String?   @map("property_type")       // "Condo" | "Co-op" | "Condop" | "Townhouse" | "Commercial" | "Rental"
+  close_price       Decimal?  @db.Decimal(14,2) @map("close_price")
+  close_date        DateTime? @map("close_date")
+  beds              Int?
+  baths_full        Int?      @map("baths_full")
+  baths_half        Int?      @map("baths_half")
+  sqft              Int?
+
+  // --- Display ---
+  photo_url         String?   @map("photo_url")           // Uploaded by broker or from Trestle proxy
+  listing_courtesy  String?   @map("listing_courtesy")    // "Listing Courtesy of [broker]" for buyer-rep deals
+  source            String    @default("manual")           // "trestle" | "manual"
+  trestle_listing_id String?  @map("trestle_listing_id")  // Trestle ListingId reference
+  trestle_listing_key String? @map("trestle_listing_key") // Trestle ListingKey
+
+  // --- Sort order (optional manual override) ---
+  sort_order        Int?      @map("sort_order")
+
+  created_at        DateTime  @default(now()) @map("created_at")
+  updated_at        DateTime  @updatedAt @map("updated_at")
+
+  @@index([agent_id, deal_type])
+  @@index([close_date])
+  @@map("past_deals")
 }
 
 // ═══════════════════════════════════════════════════════════
