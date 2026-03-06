@@ -34,7 +34,7 @@ const CARD_SELECT_FIELDS = [
   "ListingContractDate", "OnMarketDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "OriginalListPrice", "PreviousListPrice",
-  "AvailabilityDate", "ComingSoonDate",
+  "AvailabilityDate",
   // Pricing
   "ListPrice", "ClosePrice", "LeaseAmount", "LeaseAmountFrequency",
   // Rooms & Size
@@ -52,7 +52,6 @@ const CARD_SELECT_FIELDS = [
   "PublicRemarks",
   // Display gates
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  "IDXParticipationYN", "ParticipantOnlyYN",
   // Rental
   "PetsAllowed", "Furnished",
 ];
