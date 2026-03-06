@@ -174,9 +174,9 @@ export default function SignUpPage() {
             {/* ─── Step 1: Choose Method ─── */}
             {step === 'method' && (
               <>
-                <h1 className="text-2xl font-display font-semibold text-center mb-2">Create Account</h1>
-                <p className="text-brand-dark/60 text-center text-sm mb-8">
-                  For buyers, renters, sellers &amp; landlords
+                <h1 className="text-2xl font-display font-bold text-center mb-3">Create Account</h1>
+                <p className="text-brand-dark text-center text-base font-semibold mb-8">
+                  Buyers &middot; Renters &middot; Sellers &middot; Landlords
                 </p>
 
                 {/* Social Auth */}
