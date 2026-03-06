@@ -155,6 +155,11 @@ export default function PortalPage() {
           router.replace('/sign-in');
           return;
         }
+        // Redirect to complete-profile if missing phone or role
+        if (!data.user?.phone || !data.portalRole) {
+          router.replace('/portal/complete-profile');
+          return;
+        }
         setUser(data.user);
         setRole(data.portalRole || data.role);
         setLoading(false);
