@@ -5,6 +5,7 @@ import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
 import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
+import { getListingsServer } from '@/lib/idx/get-listings-server';
 
 export const revalidate = 3600;
 
@@ -74,7 +75,11 @@ function SearchLoading() {
   );
 }
 
-export default function BuyPage() {
+export default async function BuyPage() {
+  // Fetch listings server-side — ISR caches this for 1 hour at the edge.
+  // All visitors get instant results; only revalidation triggers a Trestle call.
+  const data = await getListingsServer('sale', 50);
+
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <script
@@ -84,7 +89,12 @@ export default function BuyPage() {
       <Header dark />
       <main>
         <Suspense fallback={<SearchLoading />}>
-          <PropertySearch type="buy" />
+          <PropertySearch
+            type="buy"
+            initialListings={data.listings}
+            initialTotal={data.total}
+            initialHasMore={data.hasMore}
+          />
         </Suspense>
       </main>
       <section className="py-8 px-4 bg-gray-50/50 border-t border-black/5">

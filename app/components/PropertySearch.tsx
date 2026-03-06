@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import IDXImage from '@/app/components/IDXImage';
 import { useListings } from '@/lib/hooks/useListings';
-import type { DisplayListing } from '@/lib/idx/display-adapter';
+import { toDisplayListing, type DisplayListing } from '@/lib/idx/display-adapter';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import FavoriteButton from '@/app/components/FavoriteButton';
@@ -30,9 +30,13 @@ function formatComingSoonBadge(listing: DisplayListing): string | null {
 
 interface PropertySearchProps {
   type: 'buy' | 'rent';
+  /** Server-fetched listings for instant first render (ISR cached) */
+  initialListings?: import('@/lib/idx/public-dto').PublicListingDTO[];
+  initialTotal?: number;
+  initialHasMore?: boolean;
 }
 
-export default function PropertySearch({ type }: PropertySearchProps) {
+export default function PropertySearch({ type, initialListings, initialTotal, initialHasMore }: PropertySearchProps) {
   const searchParams = useSearchParams();
   const isRental = type === 'rent';
   const gridRef = useGsapReveal<HTMLDivElement>({ children: true, y: 50, scale: 0.97 });
@@ -55,7 +59,15 @@ export default function PropertySearch({ type }: PropertySearchProps) {
   const [sortBy, setSortBy] = useState<string>('newest');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Convert initial server data to DisplayListing[] for the hook
+  const initialDisplay = useMemo(
+    () => initialListings?.map((l) => toDisplayListing(l)) ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [], // Only compute once on mount
+  );
+
   // Fetch from API — push filters server-side
+  // When initialListings are provided (ISR), skip the first client-side fetch
   const { listings, loading, error, hasMore, loadMore } = useListings({
     type: type === 'buy' ? 'sale' : 'rent',
     minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
@@ -67,7 +79,10 @@ export default function PropertySearch({ type }: PropertySearchProps) {
     neighborhood: neighborhoodFilter || undefined,
     pets: petsAllowed === true ? true : undefined,
     sort: sortBy,
-    limit: 100,
+    limit: 50,
+    initialListings: initialDisplay.length > 0 ? initialDisplay : undefined,
+    initialTotal: initialTotal,
+    initialHasMore: initialHasMore,
   });
 
   // Derive filter options from results

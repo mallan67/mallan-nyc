@@ -6,6 +6,7 @@ import SocialShareBar from '@/app/components/SocialShareBar';
 import PropertySearch from '@/app/components/PropertySearch';
 import MovingCostEstimator from '@/app/components/MovingCostEstimator';
 import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
+import { getListingsServer } from '@/lib/idx/get-listings-server';
 
 export const revalidate = 3600;
 
@@ -75,7 +76,10 @@ function SearchLoading() {
   );
 }
 
-export default function RentPage() {
+export default async function RentPage() {
+  // Fetch listings server-side — ISR caches this for 1 hour at the edge.
+  const data = await getListingsServer('rent', 50);
+
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <script
@@ -85,7 +89,12 @@ export default function RentPage() {
       <Header dark />
       <main>
         <Suspense fallback={<SearchLoading />}>
-          <PropertySearch type="rent" />
+          <PropertySearch
+            type="rent"
+            initialListings={data.listings}
+            initialTotal={data.total}
+            initialHasMore={data.hasMore}
+          />
         </Suspense>
       </main>
       <section className="py-8 px-4 bg-gray-50/50 border-t border-black/5">

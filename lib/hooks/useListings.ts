@@ -19,6 +19,10 @@ export interface UseListingsParams {
   skip?: number;
   pets?: boolean;
   limit?: number;
+  /** Pre-fetched listings from server (ISR) — skips initial client fetch */
+  initialListings?: DisplayListing[];
+  initialTotal?: number;
+  initialHasMore?: boolean;
 }
 
 interface UseListingsResult {
@@ -57,17 +61,38 @@ function buildQueryString(params: UseListingsParams): string {
   return qs.toString();
 }
 
+/** Check if any user-applied filter is active (not just defaults) */
+function hasActiveFilters(params: UseListingsParams): boolean {
+  return !!(
+    params.minPrice ||
+    (params.maxPrice && params.maxPrice < 99999999) ||
+    (params.beds != null && params.beds >= 0) ||
+    (params.minBaths != null && params.minBaths > 0) ||
+    params.propertyType ||
+    params.status ||
+    params.borough ||
+    params.neighborhood ||
+    params.minSqft ||
+    params.maxSqft ||
+    params.pets ||
+    (params.sort && params.sort !== 'newest')
+  );
+}
+
 export function useListings(params: UseListingsParams): UseListingsResult {
-  const [listings, setListings] = useState<DisplayListing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasInitial = !!(params.initialListings && params.initialListings.length > 0);
+  const [listings, setListings] = useState<DisplayListing[]>(params.initialListings || []);
+  const [loading, setLoading] = useState(!hasInitial);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState('');
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const [source, setSource] = useState(hasInitial ? 'idx+exclusive' : '');
+  const [total, setTotal] = useState(params.initialTotal || 0);
+  const [hasMore, setHasMore] = useState(params.initialHasMore || false);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchIdRef = useRef(0);
   const skipRef = useRef(params.skip || 0);
+  // Track whether we've ever done a client-side fetch (skip first if we have initial data)
+  const hasClientFetched = useRef(false);
 
   const fetchListings = useCallback(async (queryString: string, id: number, append = false) => {
     // Cancel any in-flight request
@@ -109,6 +134,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
       setTotal(data.total || mapped.length);
       setHasMore(data.hasMore || false);
       setSource(data._compliance?.source || 'unknown');
+      hasClientFetched.current = true;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (id !== fetchIdRef.current) return;
@@ -123,6 +149,12 @@ export function useListings(params: UseListingsParams): UseListingsResult {
 
   // Debounced fetch when params change (not skip for pagination)
   useEffect(() => {
+    // Skip the initial fetch if we have server-provided data and no filters are active
+    if (hasInitial && !hasClientFetched.current && !hasActiveFilters(params)) {
+      hasClientFetched.current = false; // will fetch on next filter change
+      return;
+    }
+
     skipRef.current = 0; // Reset pagination on filter change
     const qs = buildQueryString({ ...params, skip: 0 });
     const id = ++fetchIdRef.current;
@@ -136,6 +168,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     params.type,
     params.minPrice,
@@ -152,6 +185,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     params.pets,
     params.limit,
     fetchListings,
+    hasInitial,
   ]);
 
   const loadMore = useCallback(() => {
