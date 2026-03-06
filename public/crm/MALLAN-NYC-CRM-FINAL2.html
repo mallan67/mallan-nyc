@@ -1794,137 +1794,15 @@
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Budget/Price</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Stage</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Last Contact</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Matches</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phone</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Last Updated</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Source</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y">
-                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openClientProfile('john-miller')">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#4F46E5">JM</div>
-                                        <div>
-                                            <p class="font-medium">John & Sarah Miller</p>
-                                            <p class="text-sm text-gray-600">john.miller@email.com</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Buyer</span></td>
-                                <td class="px-6 py-4 text-sm">$1.5M - $2.2M</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">Active Search</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-600">2 hours ago</td>
-                                <td class="px-6 py-4"><span class="text-blue-600 font-semibold">47</span></td>
-                                <td class="px-6 py-4">
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation();openClientProfile('john-miller')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openClientProfile('david-chen')">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#059669">DC</div>
-                                        <div><p class="font-medium">David Chen</p><p class="text-sm text-gray-600">david.chen@email.com</p></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Buyer</span></td>
-                                <td class="px-6 py-4 text-sm">$3M - $5M</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">In Contract</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-600">Yesterday</td>
-                                <td class="px-6 py-4"><span class="text-blue-600 font-semibold">28</span></td>
-                                <td class="px-6 py-4">
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation();openClientProfile('david-chen')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openClientProfile('lisa-park')">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#7C3AED">LP</div>
-                                        <div><p class="font-medium">Lisa Park</p><p class="text-sm text-gray-600">lisa.park@email.com</p></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Buyer</span></td>
-                                <td class="px-6 py-4 text-sm">$2M - $3.5M</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full font-medium">Lead</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-600">2 days ago</td>
-                                <td class="px-6 py-4"><span class="text-blue-600 font-semibold">0</span></td>
-                                <td class="px-6 py-4">
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation();openClientProfile('lisa-park')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openClientProfile('tom-wilson')">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#DC2626">TW</div>
-                                        <div><p class="font-medium">Tom Wilson</p><p class="text-sm text-gray-600">tom.wilson@email.com</p></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full font-medium">Renter</span></td>
-                                <td class="px-6 py-4 text-sm">$4K - $6K/mo</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full font-medium">Lead</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-600">5 days ago</td>
-                                <td class="px-6 py-4"><span class="text-blue-600 font-semibold">0</span></td>
-                                <td class="px-6 py-4">
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation();openClientProfile('tom-wilson')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openClientProfile('emma-rodriguez')">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#0891B2">ER</div>
-                                        <div><p class="font-medium">Emma Rodriguez</p><p class="text-sm text-gray-600">emma.r@email.com</p></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">Buyer</span></td>
-                                <td class="px-6 py-4 text-sm">$7M - $10M</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-sky-100 text-sky-700 text-xs rounded-full font-medium">Closing</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-600">Today</td>
-                                <td class="px-6 py-4"><span class="text-blue-600 font-semibold">15</span></td>
-                                <td class="px-6 py-4">
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation();openClientProfile('emma-rodriguez')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 cursor-pointer">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:#EA580C">MJ</div>
-                                        <div><p class="font-medium">Mark Johnson</p><p class="text-sm text-gray-600">mark.j@email.com</p></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">Seller</span></td>
-                                <td class="px-6 py-4 text-sm">$12,000,000</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">Closed</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-600">Sep 25, 2025</td>
-                                <td class="px-6 py-4"><span class="text-gray-400">-</span></td>
-                                <td class="px-6 py-4">
-                                    <div class="flex gap-2">
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>
-                                        <button onclick="event.stopPropagation();" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
+                        <tbody class="divide-y" id="clientTableBody">
+                            <tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 text-sm">Loading clients...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -26190,8 +26068,8 @@ The spacious living/dining area is perfect for entertaining, while the master su
 
                 <!-- Filter Tabs -->
                 <div class="flex items-center gap-1.5 flex-wrap mb-4">
-                    <button onclick="filterLeads(this,'all')" class="lead-tab px-2.5 py-1 rounded text-xs font-semibold bg-gray-900 text-white">All (47)</button>
-                    <button onclick="filterLeads(this,'unassigned')" class="lead-tab px-2.5 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Unassigned (12)</button>
+                    <button onclick="filterLeads(this,'all')" class="lead-tab px-2.5 py-1 rounded text-xs font-semibold bg-gray-900 text-white" id="leadTabAll">All</button>
+                    <button onclick="filterLeads(this,'unassigned')" class="lead-tab px-2.5 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Unassigned</button>
                     <span class="text-gray-300 mx-0.5">|</span>
                     <button onclick="filterLeads(this,'streeteasy')" class="lead-tab px-2.5 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">StreetEasy</button>
                     <button onclick="filterLeads(this,'zillow')" class="lead-tab px-2.5 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Zillow</button>
@@ -26238,41 +26116,12 @@ The spacious living/dining area is perfect for entertaining, while the master su
                             </tr>
                         </thead>
                         <tbody id="leadTableBody">
-                            <!-- StreetEasy Expert leads -->
-                            <tr class="border-t hover:bg-gray-50 lead-row" data-source="streeteasy" data-agent="jane" data-status="new">
-                                <td class="px-3 py-2 text-xs font-semibold">Karen Liu</td>
-                                <td class="px-3 py-2 text-xs">
-                                    <p class="text-gray-600">kliu@gmail.com</p>
-                                    <p class="text-gray-400">(917) 555-1001</p>
-                                </td>
-                                <td class="px-3 py-2"><span class="text-[10px] font-semibold text-gray-600">StreetEasy Expert</span></td>
-                                <td class="px-3 py-2 text-xs">Buyer</td>
-                                <td class="px-3 py-2 text-xs">$1.5M–$2.5M</td>
-                                <td class="px-3 py-2 text-xs font-medium">Jane Doe</td>
-                                <td class="px-3 py-2 text-xs text-gray-500">Today</td>
-                                <td class="px-3 py-2"><span class="text-xs font-semibold text-gray-500">New</span></td>
-                                <td class="px-3 py-2">
-                                    <div class="flex items-center gap-1.5">
-                                        <button class="text-blue-600 hover:text-blue-800 text-xs" title="View" aria-label="View"><i class="fas fa-eye"></i></button>
-                                        <button class="text-gray-500 hover:text-gray-700 text-xs" title="Edit" aria-label="Edit"><i class="fas fa-edit"></i></button>
-                                        <button class="text-gray-500 hover:text-gray-700 text-xs" title="Reassign"><i class="fas fa-exchange-alt"></i></button>
-                                        <button onclick="if(confirm('Delete this lead?')) this.closest('tr').remove()" class="text-red-400 hover:text-red-600 text-xs" title="Delete" aria-label="Delete"><i class="fas fa-trash-alt"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <!-- 11 more rows trimmed -->
+                            <tr><td colspan="9" class="px-3 py-6 text-center text-gray-400 text-sm">Loading leads...</td></tr>
                         </tbody>
                     </table>
                     <div class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
-                        <span>Showing 12 of 47 leads</span>
-                        <div class="flex items-center gap-1">
-                            <button class="px-2 py-1 border rounded hover:bg-gray-100">Prev</button>
-                            <button class="px-2 py-1 border rounded bg-gray-900 text-white">1</button>
-                            <button class="px-2 py-1 border rounded hover:bg-gray-100">2</button>
-                            <button class="px-2 py-1 border rounded hover:bg-gray-100">3</button>
-                            <button class="px-2 py-1 border rounded hover:bg-gray-100">4</button>
-                            <button class="px-2 py-1 border rounded hover:bg-gray-100">Next</button>
-                        </div>
+                        <span id="leadTableCount">Loading...</span>
+                        <div class="flex items-center gap-1" id="leadTablePagination"></div>
                     </div>
                 </div>
             </div>
@@ -35826,6 +35675,198 @@ Equal Housing Opportunity
     function sortClients(sort) {
         showToast('Coming Soon: Sorting clients by ' + sort.replace('Sort by: ', '') + ' will work with live data.', 'info');
     }
+
+    // ══════════════════════════════════════════════════════════════
+    //  LIVE CLIENT/LEAD DATA — fetches from /api/crm/clients
+    // ══════════════════════════════════════════════════════════════
+    var _allClientsData = [];
+    var _leadFilterActive = 'all';
+
+    function roleColor(role) {
+        if (!role) return { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Unknown' };
+        var r = role.toLowerCase();
+        if (r === 'buyer') return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Buyer' };
+        if (r === 'tenant' || r === 'renter') return { bg: 'bg-teal-100', text: 'text-teal-700', label: 'Renter' };
+        if (r === 'seller') return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Seller' };
+        if (r === 'landlord') return { bg: 'bg-green-100', text: 'text-green-700', label: 'Landlord' };
+        return { bg: 'bg-gray-100', text: 'text-gray-700', label: role };
+    }
+
+    function statusColor(status) {
+        if (!status) return { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Unknown' };
+        var s = status.toLowerCase();
+        if (s === 'new') return { bg: 'bg-blue-50', text: 'text-blue-600', label: 'New' };
+        if (s === 'active' || s === 'assigned') return { bg: 'bg-green-100', text: 'text-green-700', label: status.charAt(0).toUpperCase() + status.slice(1) };
+        if (s === 'closed') return { bg: 'bg-gray-100', text: 'text-gray-500', label: 'Closed' };
+        return { bg: 'bg-gray-100', text: 'text-gray-700', label: status.charAt(0).toUpperCase() + status.slice(1) };
+    }
+
+    function avatarColor(name) {
+        var colors = ['#4F46E5','#059669','#7C3AED','#DC2626','#0891B2','#EA580C','#D97706','#9333EA','#2563EB','#E11D48'];
+        var hash = 0;
+        for (var i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    }
+
+    function initials(first, last) {
+        return ((first || '')[0] || '') + ((last || '')[0] || '');
+    }
+
+    function timeAgo(dateStr) {
+        if (!dateStr) return '-';
+        var d = new Date(dateStr);
+        var now = new Date();
+        var diff = Math.floor((now - d) / 1000);
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+        if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function sourceLabel(src) {
+        if (!src) return 'Manual';
+        if (src.startsWith('oauth_')) return src.replace('oauth_', '').charAt(0).toUpperCase() + src.replace('oauth_', '').slice(1) + ' OAuth';
+        if (src === 'manual') return 'Manual';
+        if (src === 'website') return 'Website';
+        if (src === 'email_signup') return 'Email Sign-up';
+        return src.charAt(0).toUpperCase() + src.slice(1);
+    }
+
+    function renderClientTable(clients) {
+        var tbody = document.getElementById('clientTableBody');
+        if (!tbody) return;
+        if (!clients || clients.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 text-sm">No clients found</td></tr>';
+            return;
+        }
+        var html = '';
+        clients.forEach(function(c) {
+            var name = (c.first_name || '') + ' ' + (c.last_name || '');
+            var rc = roleColor(c.portal_role);
+            var sc = statusColor(c.status);
+            var ini = initials(c.first_name, c.last_name);
+            var col = avatarColor(name);
+            html += '<tr class="hover:bg-gray-50 cursor-pointer" onclick="openClientProfile(\'' + c.id + '\')">'
+                + '<td class="px-6 py-4"><div class="flex items-center gap-3">'
+                + '<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="background:' + col + '">' + ini.toUpperCase() + '</div>'
+                + '<div><p class="font-medium">' + name.trim() + '</p><p class="text-sm text-gray-600">' + (c.email || '') + '</p></div>'
+                + '</div></td>'
+                + '<td class="px-6 py-4"><span class="px-2 py-1 ' + rc.bg + ' ' + rc.text + ' text-xs rounded-full font-medium">' + rc.label + '</span></td>'
+                + '<td class="px-6 py-4 text-sm text-gray-600">' + (c.phone || '-') + '</td>'
+                + '<td class="px-6 py-4"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' text-xs rounded-full font-medium">' + sc.label + '</span></td>'
+                + '<td class="px-6 py-4 text-sm text-gray-600">' + timeAgo(c.updated_at) + '</td>'
+                + '<td class="px-6 py-4 text-sm text-gray-500">' + sourceLabel(c.source) + '</td>'
+                + '<td class="px-6 py-4"><div class="flex gap-2">'
+                + '<button onclick="event.stopPropagation();openClientProfile(\'' + c.id + '\')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>'
+                + '<button onclick="event.stopPropagation();window.location.href=\'mailto:' + (c.email || '') + '\'" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>'
+                + '<button onclick="event.stopPropagation();' + (c.phone ? 'window.location.href=\'tel:' + c.phone + '\'' : '') + '" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>'
+                + '</div></td></tr>';
+        });
+        tbody.innerHTML = html;
+    }
+
+    function renderLeadTable(clients) {
+        var tbody = document.getElementById('leadTableBody');
+        if (!tbody) return;
+        if (!clients || clients.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-6 text-center text-gray-400 text-sm">No leads found</td></tr>';
+            return;
+        }
+        var html = '';
+        clients.forEach(function(c) {
+            var name = (c.first_name || '') + ' ' + (c.last_name || '');
+            var rc = roleColor(c.portal_role);
+            var sc = statusColor(c.status);
+            html += '<tr class="border-t hover:bg-gray-50 lead-row" data-source="' + (c.source || '') + '" data-status="' + (c.status || '') + '">'
+                + '<td class="px-3 py-2 text-xs font-semibold">' + name.trim() + '</td>'
+                + '<td class="px-3 py-2 text-xs"><p class="text-gray-600">' + (c.email || '') + '</p><p class="text-gray-400">' + (c.phone || '') + '</p></td>'
+                + '<td class="px-3 py-2"><span class="text-[10px] font-semibold text-gray-600">' + sourceLabel(c.source) + '</span></td>'
+                + '<td class="px-3 py-2"><span class="px-1.5 py-0.5 ' + rc.bg + ' ' + rc.text + ' text-[10px] rounded-full font-medium">' + rc.label + '</span></td>'
+                + '<td class="px-3 py-2 text-xs">-</td>'
+                + '<td class="px-3 py-2 text-xs font-medium">' + (c.agent_id ? 'Assigned' : 'Unassigned') + '</td>'
+                + '<td class="px-3 py-2 text-xs text-gray-500">' + timeAgo(c.created_at) + '</td>'
+                + '<td class="px-3 py-2"><span class="text-xs font-semibold ' + sc.text + '">' + sc.label + '</span></td>'
+                + '<td class="px-3 py-2"><div class="flex items-center gap-1.5">'
+                + '<button onclick="openClientProfile(\'' + c.id + '\')" class="text-blue-600 hover:text-blue-800 text-xs" title="View" aria-label="View"><i class="fas fa-eye"></i></button>'
+                + '<button class="text-gray-500 hover:text-gray-700 text-xs" title="Edit" aria-label="Edit"><i class="fas fa-edit"></i></button>'
+                + '</div></td></tr>';
+        });
+        tbody.innerHTML = html;
+        // Update count
+        var countEl = document.getElementById('leadTableCount');
+        if (countEl) countEl.textContent = 'Showing ' + clients.length + ' of ' + _allClientsData.length + ' leads';
+        var tabAll = document.getElementById('leadTabAll');
+        if (tabAll) tabAll.textContent = 'All (' + _allClientsData.length + ')';
+    }
+
+    function filterLeads(btn, filter) {
+        _leadFilterActive = filter;
+        // Update tab styles
+        document.querySelectorAll('.lead-tab').forEach(function(t) {
+            t.classList.remove('bg-gray-900', 'text-white');
+            t.classList.add('bg-gray-100', 'text-gray-600');
+        });
+        if (btn) {
+            btn.classList.remove('bg-gray-100', 'text-gray-600');
+            btn.classList.add('bg-gray-900', 'text-white');
+        }
+        if (filter === 'all') {
+            renderLeadTable(_allClientsData);
+            return;
+        }
+        // Filter by source or agent or status
+        var filtered = _allClientsData.filter(function(c) {
+            if (filter === 'unassigned') return !c.agent_id;
+            if (filter === 'website' || filter === 'social' || filter === 'referral') return (c.source || '').indexOf(filter) !== -1;
+            if (filter === 'streeteasy') return (c.source || '').indexOf('streeteasy') !== -1;
+            if (filter === 'zillow') return (c.source || '').indexOf('zillow') !== -1;
+            if (filter === 'marketing') return (c.source || '').indexOf('marketing') !== -1;
+            if (filter === '3rd-party') return (c.source || '').indexOf('3rd') !== -1;
+            if (filter === 'old-client') return c.status === 'closed';
+            // Agent name filter
+            return true;
+        });
+        renderLeadTable(filtered);
+    }
+
+    function loadClientsFromAPI() {
+        if (typeof MallanAPI === 'undefined' || !MallanAPI.isReady) {
+            // Fallback: direct fetch
+            fetch('/api/crm/clients?limit=200', { credentials: 'include' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.clients) {
+                        _allClientsData = data.clients;
+                        renderClientTable(data.clients);
+                        renderLeadTable(data.clients);
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Failed to load clients:', err);
+                    var tbody1 = document.getElementById('clientTableBody');
+                    var tbody2 = document.getElementById('leadTableBody');
+                    if (tbody1) tbody1.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 text-sm">Failed to load clients. Please refresh.</td></tr>';
+                    if (tbody2) tbody2.innerHTML = '<tr><td colspan="9" class="px-3 py-6 text-center text-red-400 text-sm">Failed to load leads. Please refresh.</td></tr>';
+                });
+            return;
+        }
+        MallanAPI.clients.list({ limit: 200 }).then(function(data) {
+            if (data.clients) {
+                _allClientsData = data.clients;
+                renderClientTable(data.clients);
+                renderLeadTable(data.clients);
+            }
+        }).catch(function(err) {
+            console.error('Failed to load clients:', err);
+        });
+    }
+
+    // Load clients when CRM initializes
+    document.addEventListener('DOMContentLoaded', function() {
+        // Delay slightly to ensure auth cookie is available
+        setTimeout(loadClientsFromAPI, 500);
+    });
 
     // Communications filter
     function filterComms(type, btn) {
