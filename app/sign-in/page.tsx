@@ -231,8 +231,9 @@ export default function SignInPage() {
               <div className="text-right">
                 <button
                   type="button"
-                  onClick={() => setShowForgot(true)}
-                  className="text-sm text-brand-gold hover:underline"
+                  onClick={() => setShowForgot(!showForgot)}
+                  onTouchEnd={(e) => { e.preventDefault(); setShowForgot(!showForgot); }}
+                  className="text-sm text-brand-gold hover:underline py-2 px-1 min-h-[44px] inline-flex items-center"
                 >
                   Forgot password?
                 </button>

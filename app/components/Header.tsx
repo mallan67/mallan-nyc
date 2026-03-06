@@ -104,6 +104,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
   // Auth state for showing portal/CRM link
   const [auth, setAuth] = useState<AuthState>({ authenticated: false });
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -117,7 +118,8 @@ export default function Header({ dark = false }: HeaderProps = {}) {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
   }, []);
 
   useEffect(() => {
@@ -463,29 +465,17 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </Link>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-white/10">
-                {isLoggedIn ? (
-                  <>
-                    <Link
-                      href={authHref}
-                      onClick={() => setMobileOpen(false)}
-                      className="block w-full btn-liquid bg-brand-gold text-white font-medium py-4 rounded-full text-sm text-center"
-                    >
-                      {authLabel}
-                    </Link>
-                    <button
-                      onClick={async () => {
-                        await fetch('/api/auth/logout', { method: 'POST' });
-                        setAuth({ authenticated: false });
-                        setMobileOpen(false);
-                        router.push('/sign-in');
-                      }}
-                      className="block w-full mt-3 text-white/40 hover:text-white/60 font-medium py-3 text-sm text-center"
-                    >
-                      Sign Out
-                    </button>
-                  </>
-                ) : (
+              <div className="mt-6 pt-6 border-t border-white/10 space-y-3">
+                {isLoggedIn && (
+                  <Link
+                    href={authHref}
+                    onClick={() => setMobileOpen(false)}
+                    className="block w-full btn-liquid bg-brand-gold text-white font-medium py-4 rounded-full text-sm text-center"
+                  >
+                    {authLabel}
+                  </Link>
+                )}
+                {!isLoggedIn && (
                   <Link
                     href="/sign-in"
                     onClick={() => setMobileOpen(false)}
@@ -494,6 +484,18 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                     Sign In
                   </Link>
                 )}
+                {/* Always show Sign Out — if not logged in it just clears any stale cookie */}
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    setAuth({ authenticated: false });
+                    setMobileOpen(false);
+                    router.push('/sign-in');
+                  }}
+                  className="block w-full border border-white/20 text-white font-medium py-4 rounded-full text-sm text-center active:bg-white/10"
+                >
+                  Sign Out
+                </button>
                 <p className="text-center text-sm font-extralight text-white/30 mt-5">(646) 258-4460</p>
               </div>
             </div>
