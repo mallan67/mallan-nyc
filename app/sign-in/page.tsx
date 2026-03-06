@@ -3,14 +3,21 @@
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  // Show error from OAuth redirect (e.g. ?error=Google+sign-in+failed)
+  useEffect(() => {
+    const urlError = searchParams.get('error');
+    if (urlError) setError(urlError.replace(/\+/g, ' '));
+  }, [searchParams]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [userName, setUserName] = useState('');
@@ -288,5 +295,13 @@ export default function SignInPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInContent />
+    </Suspense>
   );
 }
