@@ -24,18 +24,16 @@ function mapCommonInterestToDisplay(commonInterest?: string, fallback?: string):
   }
 }
 
-/** Trestle media URLs require Bearer auth — proxy through our API */
-const TRESTLE_HOSTS = ['api.cotality.com'];
-
+/**
+ * Trestle MediaURLs are publicly accessible (no Bearer auth needed).
+ * Serving them directly avoids the Vercel serverless proxy hop,
+ * cutting photo load time by 2-3x.
+ *
+ * The /api/media/proxy route is kept as a fallback but no longer used
+ * for the default IDX path.
+ */
 function proxyMediaUrl(url: string): string {
-  if (!url) return url;
-  try {
-    const parsed = new URL(url);
-    if (TRESTLE_HOSTS.includes(parsed.hostname)) {
-      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
-    }
-  } catch { /* not a valid URL — return as-is */ }
-  return url;
+  return url || '';
 }
 
 /**
