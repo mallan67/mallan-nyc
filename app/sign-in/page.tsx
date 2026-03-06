@@ -6,44 +6,34 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-const portalTypes = [
-  { id: 'agent', label: 'Agent', icon: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2', color: 'amber' },
-  { id: 'buyer', label: 'Buyer', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', color: 'blue' },
-  { id: 'renter', label: 'Renter', icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z', color: 'purple' },
-  { id: 'seller', label: 'Seller', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: 'green' },
-  { id: 'landlord', label: 'Landlord', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', color: 'teal' },
-];
-
-const colorMap: Record<string, { bg: string; text: string; border: string; activeBg: string; activeBorder: string }> = {
-  amber: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-gray-200', activeBg: 'bg-amber-100', activeBorder: 'border-amber-500' },
-  blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-gray-200', activeBg: 'bg-blue-100', activeBorder: 'border-blue-500' },
-  purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-gray-200', activeBg: 'bg-purple-100', activeBorder: 'border-purple-500' },
-  green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-gray-200', activeBg: 'bg-green-100', activeBorder: 'border-green-500' },
-  teal: { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-gray-200', activeBg: 'bg-teal-100', activeBorder: 'border-teal-500' },
-};
-
-// Map UI labels to the portalType the login API expects
-const portalApiMap: Record<string, string> = {
-  agent: 'agent',
-  buyer: 'buyer',
-  renter: 'tenant',
-  seller: 'seller',
-  landlord: 'landlord',
-};
+type Step = 'role' | 'method' | 'email';
 
 export default function SignInPage() {
   const router = useRouter();
-  const [selectedPortal, setSelectedPortal] = useState('agent');
+  const [step, setStep] = useState<Step>('role');
+  const [selectedRole, setSelectedRole] = useState<'agent' | 'client'>('client');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState('');
+
+  function selectRole(role: 'agent' | 'client') {
+    setSelectedRole(role);
+    setStep('method');
+    setError('');
+  }
+
+  function goBack() {
+    if (step === 'email') { setStep('method'); setError(''); setShowForgot(false); }
+    else if (step === 'method') { setStep('role'); setError(''); }
+  }
 
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault();
@@ -70,14 +60,11 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
+      // Use "auto" — backend tries Agent table then Lead table
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          portalType: portalApiMap[selectedPortal] || 'agent',
-        }),
+        body: JSON.stringify({ email, password, portalType: 'auto' }),
       });
 
       const data = await res.json();
@@ -89,11 +76,13 @@ export default function SignInPage() {
       }
 
       setUserName(data.user?.name || '');
+      setUserRole(data.user?.role || '');
       setSubmitted(true);
 
-      // Redirect based on role after short delay so user sees success
-      const role = data.user?.role || selectedPortal;
-      const isAgent = role?.toUpperCase() === 'BROKER' || role?.toUpperCase() === 'AGENT';
+      // Redirect based on account type from DB
+      const role = data.user?.role || '';
+      const userType = data.user?.userType || '';
+      const isAgent = userType === 'agent' || role?.toUpperCase() === 'BROKER' || role?.toUpperCase() === 'AGENT';
       setTimeout(() => {
         router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
       }, 1500);
@@ -104,8 +93,9 @@ export default function SignInPage() {
     }
   }
 
+  // Success state
   if (submitted) {
-    const portal = portalTypes.find(p => p.id === selectedPortal);
+    const isAgent = userRole?.toUpperCase() === 'BROKER' || userRole?.toUpperCase() === 'AGENT';
     return (
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header dark />
@@ -121,17 +111,14 @@ export default function SignInPage() {
                 {userName ? `Welcome, ${userName}` : 'Signed In'}
               </h1>
               <p className="text-brand-dark/60 mb-4">
-                Redirecting to your <strong>{portal?.label}</strong> portal...
+                Redirecting to your {isAgent ? 'CRM dashboard' : 'portal'}...
               </p>
               <div className="w-full bg-black/5 rounded-full h-1.5 mb-6">
                 <div className="bg-brand-gold h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
               </div>
-              <p className="text-xs text-brand-dark/40">
-                Portal access is being set up. Your agent will provide full login details.
-              </p>
               <Link
                 href="/"
-                className="inline-block mt-6 px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors text-sm font-medium"
+                className="inline-block mt-2 px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors text-sm font-medium"
               >
                 Back to Home
               </Link>
@@ -149,168 +136,272 @@ export default function SignInPage() {
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
           <div className="glass-card rounded-3xl p-10">
-            <h1 className="text-2xl font-display font-semibold text-center mb-2">Sign In</h1>
-            <p className="text-brand-dark/50 text-center text-sm mb-8">
-              Access your Mallan Real Estate portal
-            </p>
 
-            {/* Portal Type Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-3">Sign in as</label>
-              <div className="grid grid-cols-5 gap-2">
-                {portalTypes.map((portal) => {
-                  const c = colorMap[portal.color];
-                  const isActive = selectedPortal === portal.id;
-                  return (
-                    <button
-                      type="button"
-                      key={portal.id}
-                      onClick={() => setSelectedPortal(portal.id)}
-                      className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl ring-2 transition-all text-xs font-medium ${
-                        isActive
-                          ? `${c.activeBg} ${c.activeBorder.replace('border-', 'ring-')} ${c.text}`
-                          : 'bg-white/60 ring-black/5 text-brand-dark/60 hover:ring-black/10 hover:bg-white/80'
-                      }`}
-                    >
-                      <svg className={`w-5 h-5 ${isActive ? c.text : 'text-brand-dark/40'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={portal.icon} />
-                      </svg>
-                      {portal.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {/* ─── Step 1: Choose Role ─── */}
+            {step === 'role' && (
+              <>
+                <h1 className="text-2xl font-display font-semibold text-center mb-2">Sign In</h1>
+                <p className="text-brand-dark/50 text-center text-sm mb-8">
+                  Choose how you&apos;d like to sign in
+                </p>
 
-            {/* Login Form */}
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                  placeholder="Your password"
-                />
-              </div>
-
-              {error && (
-                <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm text-center">
-                  {error}
+                {/* House illustration */}
+                <div className="flex justify-center mb-8">
+                  <svg className="w-32 h-24 text-brand-dark/20" viewBox="0 0 120 80" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M60 8L15 40h10v32h70V40h10L60 8z" />
+                    <rect x="35" y="48" width="12" height="12" />
+                    <rect x="53" y="48" width="12" height="12" />
+                    <rect x="73" y="48" width="12" height="12" />
+                    <rect x="35" y="32" width="12" height="12" />
+                    <rect x="53" y="32" width="12" height="12" />
+                    <rect x="73" y="32" width="12" height="12" />
+                    <path d="M50 72V58h20v14" />
+                    <circle cx="18" cy="52" r="4" />
+                    <line x1="18" y1="56" x2="18" y2="72" />
+                    <circle cx="102" cy="52" r="4" />
+                    <line x1="102" y1="56" x2="102" y2="72" />
+                  </svg>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-dark text-white py-3 rounded-2xl hover:bg-brand-dark/90 transition-colors font-medium disabled:opacity-50"
-              >
-                {loading ? 'Signing in...' : 'Sign In'}
-              </button>
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => selectRole('agent')}
+                    className="w-full py-4 rounded-2xl bg-brand-dark text-white text-base font-semibold hover:bg-brand-dark/90 transition-colors cursor-pointer"
+                  >
+                    Agent
+                  </button>
 
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => setShowForgot(!showForgot)}
-                  onTouchEnd={(e) => { e.preventDefault(); setShowForgot(!showForgot); }}
-                  className="text-sm text-brand-gold hover:underline py-2 px-1 min-h-[44px] inline-flex items-center"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            </form>
+                  <button
+                    type="button"
+                    onClick={() => selectRole('client')}
+                    className="w-full py-4 rounded-2xl bg-brand-dark text-white text-base font-semibold hover:bg-brand-dark/90 transition-colors cursor-pointer"
+                  >
+                    Buyer, Renter, Seller, or Landlord
+                  </button>
+                </div>
 
-            {showForgot && (
-              <div className="mt-4 p-4 bg-gray-50/50 rounded-2xl">
-                <p className="text-sm font-medium mb-3">Reset your password</p>
-                <form onSubmit={handleForgotPassword} className="space-y-3">
-                  <input
-                    type="email"
-                    required
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    className="w-full rounded-2xl px-4 py-2.5 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                    placeholder="Enter your email address"
-                  />
-                  {forgotMessage && (
-                    <p className={`text-sm ${forgotMessage.includes('error') ? 'text-red-600' : 'text-green-600'}`}>
-                      {forgotMessage}
-                    </p>
+                {/* Terms */}
+                <p className="text-center text-xs text-brand-dark/40 mt-6">
+                  By signing in, you agree to our{' '}
+                  <Link href="/terms" className="hover:text-brand-gold underline">Terms of Service</Link>
+                  {' '}&amp;{' '}
+                  <Link href="/privacy" className="hover:text-brand-gold underline">Privacy Policy</Link>
+                </p>
+              </>
+            )}
+
+            {/* ─── Step 2: Choose Method ─── */}
+            {step === 'method' && (
+              <>
+                <div className="flex items-center mb-6">
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="p-2 -ml-2 rounded-xl hover:bg-black/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5 text-brand-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <h1 className="text-xl font-display font-semibold text-center flex-1 pr-8">
+                    {selectedRole === 'agent' ? 'Agent Sign In' : 'Sign In'}
+                  </h1>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Google */}
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl ring-1 ring-black/10 bg-white hover:bg-gray-50 transition-colors text-sm font-medium text-brand-dark/80 disabled:opacity-40 disabled:cursor-not-allowed relative"
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <span>Continue with Google</span>
+                    <span className="absolute right-4 text-[10px] text-brand-dark/30 font-normal">Coming Soon</span>
+                  </button>
+
+                  {/* Facebook */}
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl bg-[#1877F2] text-white hover:bg-[#166FE5] transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed relative"
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    <span>Continue with Facebook</span>
+                    <span className="absolute right-4 text-[10px] text-white/50 font-normal">Coming Soon</span>
+                  </button>
+
+                  {/* Apple */}
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl bg-black text-white hover:bg-black/90 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed relative"
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                    </svg>
+                    <span>Continue with Apple</span>
+                    <span className="absolute right-4 text-[10px] text-white/50 font-normal">Coming Soon</span>
+                  </button>
+
+                  {/* Email — active */}
+                  <button
+                    type="button"
+                    onClick={() => setStep('email')}
+                    className="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl ring-1 ring-black/10 bg-white hover:bg-gray-50 transition-colors text-sm font-medium text-brand-dark cursor-pointer"
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0 text-brand-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Continue with Email</span>
+                  </button>
+                </div>
+
+                {/* Sign Up Link */}
+                <div className="mt-8 pt-6 border-t border-black/5 text-center">
+                  <p className="text-brand-dark/60 text-sm">
+                    Don&apos;t have an account?{' '}
+                    <Link href="/sign-up" className="text-brand-gold font-semibold hover:underline">
+                      Create Account
+                    </Link>
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* ─── Step 3: Email + Password ─── */}
+            {step === 'email' && (
+              <>
+                <div className="flex items-center mb-6">
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="p-2 -ml-2 rounded-xl hover:bg-black/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5 text-brand-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <h1 className="text-xl font-display font-semibold text-center flex-1 pr-8">Sign In with Email</h1>
+                </div>
+
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      required
+                      autoFocus
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium mb-1">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                      placeholder="Your password"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm text-center">
+                      {error}
+                    </div>
                   )}
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={forgotLoading}
-                      className="flex-1 bg-brand-gold text-white py-2.5 rounded-2xl hover:bg-brand-gold/90 transition-colors text-sm font-medium disabled:opacity-50"
-                    >
-                      {forgotLoading ? 'Sending...' : 'Send Reset Link'}
-                    </button>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-brand-dark text-white py-3 rounded-2xl hover:bg-brand-dark/90 transition-colors font-medium disabled:opacity-50 cursor-pointer"
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </button>
+
+                  <div className="text-right">
                     <button
                       type="button"
-                      onClick={() => { setShowForgot(false); setForgotMessage(''); }}
-                      className="px-4 py-2.5 text-sm text-brand-dark/60 hover:text-brand-dark rounded-2xl ring-1 ring-black/5"
+                      onClick={() => setShowForgot(!showForgot)}
+                      onTouchEnd={(e) => { e.preventDefault(); setShowForgot(!showForgot); }}
+                      className="text-sm text-brand-gold hover:underline py-2 px-1 min-h-[44px] inline-flex items-center"
                     >
-                      Cancel
+                      Forgot password?
                     </button>
                   </div>
                 </form>
-              </div>
+
+                {showForgot && (
+                  <div className="mt-4 p-4 bg-gray-50/50 rounded-2xl">
+                    <p className="text-sm font-medium mb-3">Reset your password</p>
+                    <form onSubmit={handleForgotPassword} className="space-y-3">
+                      <input
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="w-full rounded-2xl px-4 py-2.5 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                        placeholder="Enter your email address"
+                      />
+                      {forgotMessage && (
+                        <p className={`text-sm ${forgotMessage.includes('error') ? 'text-red-600' : 'text-green-600'}`}>
+                          {forgotMessage}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={forgotLoading}
+                          className="flex-1 bg-brand-gold text-white py-2.5 rounded-2xl hover:bg-brand-gold/90 transition-colors text-sm font-medium disabled:opacity-50"
+                        >
+                          {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowForgot(false); setForgotMessage(''); }}
+                          className="px-4 py-2.5 text-sm text-brand-dark/60 hover:text-brand-dark rounded-2xl ring-1 ring-black/5"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* Sign Up Link */}
+                <div className="mt-6 pt-6 border-t border-black/5 text-center">
+                  <p className="text-brand-dark/60 text-sm">
+                    Don&apos;t have an account?{' '}
+                    <Link href="/sign-up" className="text-brand-gold font-semibold hover:underline">
+                      Create Account
+                    </Link>
+                  </p>
+                </div>
+              </>
             )}
 
-            {/* Portal Routing Info */}
-            <div className="mt-6 p-4 bg-gray-50/50 rounded-2xl">
-              <p className="text-xs font-medium text-brand-dark/70 mb-2">After sign in you&apos;ll see your portal:</p>
-              <div className="space-y-1.5 text-xs text-brand-dark/60">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-                  <span><strong>Agent</strong> — Dashboard, clients, listings, pipeline</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                  <span><strong>Buyer / Renter</strong> — Saved searches, tours, applications</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                  <span><strong>Seller / Landlord</strong> — Listing performance, showings, offers</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Sign Up Link */}
-            <div className="mt-6 pt-6 border-t border-black/5 text-center">
-              <p className="text-brand-dark/60 text-sm mb-4">
-                Don&apos;t have an account?
-              </p>
-              <Link
-                href="/sign-up"
-                className="inline-block w-full px-6 py-3 ring-2 ring-brand-dark text-brand-dark rounded-2xl hover:bg-white/40 transition-colors text-sm font-medium"
-              >
-                Create Account
-              </Link>
-            </div>
-
-            {/* Contact */}
-            <div className="mt-4 text-center">
+            {/* Contact — always visible */}
+            <div className="mt-6 text-center">
               <p className="text-brand-dark/50 text-xs mb-2">Need help?</p>
               <div className="flex gap-3 justify-center">
                 <Link href="/agents" className="text-xs text-brand-gold hover:underline">
@@ -323,18 +414,6 @@ export default function SignInPage() {
               </div>
             </div>
           </div>
-
-          <p className="text-center text-xs text-brand-dark/40 mt-6">
-            By signing in, you agree to our{' '}
-            <Link href="/terms" className="hover:text-brand-gold">
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="/privacy" className="hover:text-brand-gold">
-              Privacy Policy
-            </Link>
-            .
-          </p>
         </div>
       </main>
       <Footer />
