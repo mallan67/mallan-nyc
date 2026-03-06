@@ -6,34 +6,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-type Step = 'role' | 'method' | 'email';
-
 export default function SignInPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('role');
-  const [selectedRole, setSelectedRole] = useState<'agent' | 'client'>('client');
+  const [step, setStep] = useState<'method' | 'email'>('method');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userType, setUserType] = useState('');
   const [userRole, setUserRole] = useState('');
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState('');
-
-  function selectRole(role: 'agent' | 'client') {
-    setSelectedRole(role);
-    setStep('method');
-    setError('');
-  }
-
-  function goBack() {
-    if (step === 'email') { setStep('method'); setError(''); setShowForgot(false); }
-    else if (step === 'method') { setStep('role'); setError(''); }
-  }
 
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +47,7 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Use "auto" — backend tries Agent table then Lead table
+      // portalType "auto" — backend tries Agent table first, then Lead table
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,13 +63,13 @@ export default function SignInPage() {
       }
 
       setUserName(data.user?.name || '');
+      setUserType(data.user?.userType || '');
       setUserRole(data.user?.role || '');
       setSubmitted(true);
 
-      // Redirect based on account type from DB
       const role = data.user?.role || '';
-      const userType = data.user?.userType || '';
-      const isAgent = userType === 'agent' || role?.toUpperCase() === 'BROKER' || role?.toUpperCase() === 'AGENT';
+      const uType = data.user?.userType || '';
+      const isAgent = uType === 'agent' || role?.toUpperCase() === 'BROKER' || role?.toUpperCase() === 'AGENT';
       setTimeout(() => {
         router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
       }, 1500);
@@ -93,9 +80,9 @@ export default function SignInPage() {
     }
   }
 
-  // Success state
+  // ─── Success State ───
   if (submitted) {
-    const isAgent = userRole?.toUpperCase() === 'BROKER' || userRole?.toUpperCase() === 'AGENT';
+    const isAgent = userType === 'agent' || userRole?.toUpperCase() === 'BROKER' || userRole?.toUpperCase() === 'AGENT';
     return (
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <Header dark />
@@ -137,77 +124,13 @@ export default function SignInPage() {
         <div className="max-w-md mx-auto px-4">
           <div className="glass-card rounded-3xl p-10">
 
-            {/* ─── Step 1: Choose Role ─── */}
-            {step === 'role' && (
+            {/* ─── Step 1: Choose Sign-In Method ─── */}
+            {step === 'method' && (
               <>
                 <h1 className="text-2xl font-display font-semibold text-center mb-2">Sign In</h1>
                 <p className="text-brand-dark/50 text-center text-sm mb-8">
-                  Choose how you&apos;d like to sign in
+                  Access your Mallan Real Estate account
                 </p>
-
-                {/* House illustration */}
-                <div className="flex justify-center mb-8">
-                  <svg className="w-32 h-24 text-brand-dark/20" viewBox="0 0 120 80" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M60 8L15 40h10v32h70V40h10L60 8z" />
-                    <rect x="35" y="48" width="12" height="12" />
-                    <rect x="53" y="48" width="12" height="12" />
-                    <rect x="73" y="48" width="12" height="12" />
-                    <rect x="35" y="32" width="12" height="12" />
-                    <rect x="53" y="32" width="12" height="12" />
-                    <rect x="73" y="32" width="12" height="12" />
-                    <path d="M50 72V58h20v14" />
-                    <circle cx="18" cy="52" r="4" />
-                    <line x1="18" y1="56" x2="18" y2="72" />
-                    <circle cx="102" cy="52" r="4" />
-                    <line x1="102" y1="56" x2="102" y2="72" />
-                  </svg>
-                </div>
-
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => selectRole('agent')}
-                    className="w-full py-4 rounded-2xl bg-brand-dark text-white text-base font-semibold hover:bg-brand-dark/90 transition-colors cursor-pointer"
-                  >
-                    Agent
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => selectRole('client')}
-                    className="w-full py-4 rounded-2xl bg-brand-dark text-white text-base font-semibold hover:bg-brand-dark/90 transition-colors cursor-pointer"
-                  >
-                    Buyer, Renter, Seller, or Landlord
-                  </button>
-                </div>
-
-                {/* Terms */}
-                <p className="text-center text-xs text-brand-dark/40 mt-6">
-                  By signing in, you agree to our{' '}
-                  <Link href="/terms" className="hover:text-brand-gold underline">Terms of Service</Link>
-                  {' '}&amp;{' '}
-                  <Link href="/privacy" className="hover:text-brand-gold underline">Privacy Policy</Link>
-                </p>
-              </>
-            )}
-
-            {/* ─── Step 2: Choose Method ─── */}
-            {step === 'method' && (
-              <>
-                <div className="flex items-center mb-6">
-                  <button
-                    type="button"
-                    onClick={goBack}
-                    className="p-2 -ml-2 rounded-xl hover:bg-black/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                  >
-                    <svg className="w-5 h-5 text-brand-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <h1 className="text-xl font-display font-semibold text-center flex-1 pr-8">
-                    {selectedRole === 'agent' ? 'Agent Sign In' : 'Sign In'}
-                  </h1>
-                </div>
 
                 <div className="space-y-3">
                   {/* Google */}
@@ -252,7 +175,7 @@ export default function SignInPage() {
                     <span className="absolute right-4 text-[10px] text-white/50 font-normal">Coming Soon</span>
                   </button>
 
-                  {/* Email — active */}
+                  {/* Email */}
                   <button
                     type="button"
                     onClick={() => setStep('email')}
@@ -277,13 +200,13 @@ export default function SignInPage() {
               </>
             )}
 
-            {/* ─── Step 3: Email + Password ─── */}
+            {/* ─── Step 2: Email + Password ─── */}
             {step === 'email' && (
               <>
                 <div className="flex items-center mb-6">
                   <button
                     type="button"
-                    onClick={goBack}
+                    onClick={() => { setStep('method'); setError(''); setShowForgot(false); }}
                     className="p-2 -ml-2 rounded-xl hover:bg-black/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
                     <svg className="w-5 h-5 text-brand-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
