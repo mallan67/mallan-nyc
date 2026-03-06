@@ -77,6 +77,12 @@ function NavDropdown({ label, items, dark: _dark }: { label: string; items: { ti
   );
 }
 
+type AuthState = {
+  authenticated: boolean;
+  principalType?: 'agent' | 'lead';
+  userName?: string;
+};
+
 type HeaderProps = {
   dark?: boolean;
 };
@@ -96,6 +102,24 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'Investors Guide', href: '/resources/investors-guide' },
   ]);
 
+  // Auth state for showing portal/CRM link
+  const [auth, setAuth] = useState<AuthState>({ authenticated: false });
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.authenticated) {
+          setAuth({
+            authenticated: true,
+            principalType: data.principalType,
+            userName: data.user?.name?.split(' ')[0],
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetch('/api/resources')
       .then((r) => r.json())
@@ -104,9 +128,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
           setResources(data);
         }
       })
-      .catch(() => {
-        // Keep default resources on error
-      });
+      .catch(() => {});
   }, []);
 
   const buyItems = [
@@ -174,8 +196,17 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   );
 
   // White text on dark charcoal glass
-  const textColor = 'text-white';
   const mobileTextColor = 'text-white/80 hover:text-white';
+
+  // Auth-aware button config
+  const isLoggedIn = auth.authenticated;
+  const isAgent = auth.principalType === 'agent';
+  const authLabel = isLoggedIn
+    ? (isAgent ? 'CRM' : 'My Portal')
+    : 'Sign In';
+  const authHref = isLoggedIn
+    ? (isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal')
+    : '/sign-in';
 
   return (
     <header className={`${positionClass} top-0 left-0 right-0 z-50 transition-all duration-300 ${bgClass}`}>
@@ -184,7 +215,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
           {/* Brand — MALLANNYC */}
           <Link
             href="/"
-            className={`font-display font-bold text-lg md:text-xl tracking-tight ${textColor} hover:opacity-80 transition-opacity`}
+            className={`font-display font-bold text-lg md:text-xl tracking-tight text-white hover:opacity-80 transition-opacity`}
           >
             MALLAN<span className="font-light text-brand-gold-deep gold-glow-text">NYC</span>
           </Link>
@@ -229,10 +260,10 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
               <li>
                 <Link
-                  href="/sign-in"
+                  href={authHref}
                   className="btn-liquid text-[13px] font-medium border border-white/40 text-white px-5 py-2 rounded-full hover:bg-white hover:text-brand-dark transition-colors"
                 >
-                  Sign In
+                  {authLabel}
                 </Link>
               </li>
             </ul>
@@ -240,7 +271,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
 
           {/* Mobile menu button */}
           <button
-            className={`lg:hidden p-2 ${textColor} z-50`}
+            className={`lg:hidden p-2 text-white z-50`}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
@@ -407,13 +438,36 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               </div>
 
               <div className="mt-6 pt-6 border-t border-white/10">
-                <Link
-                  href="/sign-in"
-                  onClick={() => setMobileOpen(false)}
-                  className="block w-full btn-liquid bg-white text-brand-dark font-medium py-4 rounded-full text-sm text-center"
-                >
-                  Sign In
-                </Link>
+                {isLoggedIn ? (
+                  <>
+                    <Link
+                      href={authHref}
+                      onClick={() => setMobileOpen(false)}
+                      className="block w-full btn-liquid bg-brand-gold text-white font-medium py-4 rounded-full text-sm text-center"
+                    >
+                      {authLabel}
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                        setAuth({ authenticated: false });
+                        setMobileOpen(false);
+                        router.push('/sign-in');
+                      }}
+                      className="block w-full mt-3 text-white/40 hover:text-white/60 font-medium py-3 text-sm text-center"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/sign-in"
+                    onClick={() => setMobileOpen(false)}
+                    className="block w-full btn-liquid bg-white text-brand-dark font-medium py-4 rounded-full text-sm text-center"
+                  >
+                    Sign In
+                  </Link>
+                )}
                 <p className="text-center text-sm font-extralight text-white/30 mt-5">(646) 258-4460</p>
               </div>
             </div>
