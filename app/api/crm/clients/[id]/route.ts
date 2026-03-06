@@ -191,8 +191,8 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   }
 
   // Delete related records first (preferences, actions, sessions)
-  await prisma.leadPreferences.deleteMany({ where: { lead_id: lead.id } });
-  await prisma.leadAction.deleteMany({ where: { lead_id: lead.id } });
+  await prisma.clientPreference.deleteMany({ where: { lead_id: lead.id } });
+  await prisma.clientListingAction.deleteMany({ where: { lead_id: lead.id } });
   await prisma.session.deleteMany({ where: { user_id: lead.id, user_type: "lead" } });
   await prisma.lead.delete({ where: { id: lead.id } });
 
