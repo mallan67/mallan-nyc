@@ -25,15 +25,23 @@ function mapCommonInterestToDisplay(commonInterest?: string, fallback?: string):
 }
 
 /**
- * Trestle MediaURLs are publicly accessible (no Bearer auth needed).
- * Serving them directly avoids the Vercel serverless proxy hop,
- * cutting photo load time by 2-3x.
+ * Trestle MediaURLs are publicly accessible (no Bearer auth needed at the
+ * HTTP level), but Trestle's Imperva/Incapsula WAF blocks direct browser
+ * requests from cross-origin <img> tags. Server-to-server requests pass fine.
  *
- * The /api/media/proxy route is kept as a fallback but no longer used
- * for the default IDX path.
+ * Until photos are replicated to R2, the proxy is required.
  */
+const TRESTLE_HOSTS = ['api.cotality.com'];
+
 function proxyMediaUrl(url: string): string {
-  return url || '';
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    if (TRESTLE_HOSTS.includes(parsed.hostname)) {
+      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+    }
+  } catch { /* not a valid URL — return as-is */ }
+  return url;
 }
 
 /**
