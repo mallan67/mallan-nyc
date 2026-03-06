@@ -123,9 +123,9 @@ export default function SignInPage() {
           <div className="glass-card rounded-3xl p-8 sm:p-10">
 
             {/* Title */}
-            <h1 className="text-2xl font-display font-semibold text-center mb-2">Register / Sign In</h1>
-            <p className="text-brand-dark/60 text-center text-sm mb-8">
-              For agents, buyers, renters, sellers &amp; landlords
+            <h1 className="text-2xl font-display font-bold text-center mb-3">Register / Sign In</h1>
+            <p className="text-brand-dark text-center text-base font-semibold mb-8">
+              Agents &middot; Buyers &middot; Renters &middot; Sellers &middot; Landlords
             </p>
 
             {/* Social Auth */}
