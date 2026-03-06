@@ -35760,7 +35760,8 @@ Equal Housing Opportunity
                 + '<td class="px-6 py-4"><div class="flex gap-2">'
                 + '<button onclick="event.stopPropagation();openClientProfile(\'' + c.id + '\')" class="p-2 hover:bg-gray-100 rounded" aria-label="View"><i class="fas fa-eye text-gray-600"></i></button>'
                 + '<button onclick="event.stopPropagation();window.location.href=\'mailto:' + (c.email || '') + '\'" class="p-2 hover:bg-gray-100 rounded" aria-label="Email"><i class="fas fa-envelope text-gray-600"></i></button>'
-                + '<button onclick="event.stopPropagation();' + (c.phone ? 'window.location.href=\'tel:' + c.phone + '\'' : '') + '" class="p-2 hover:bg-gray-100 rounded" aria-label="Call"><i class="fas fa-phone text-gray-600"></i></button>'
+                + '<button onclick="event.stopPropagation();resetClientProfile(\'' + c.id + '\',\'' + name.trim().replace(/'/g,'') + '\')" class="p-2 hover:bg-gray-100 rounded" aria-label="Reset" title="Reset Profile"><i class="fas fa-undo text-amber-500"></i></button>'
+                + '<button onclick="event.stopPropagation();deleteClient(\'' + c.id + '\',\'' + name.trim().replace(/'/g,'') + '\')" class="p-2 hover:bg-gray-100 rounded" aria-label="Delete" title="Delete"><i class="fas fa-trash-alt text-red-400"></i></button>'
                 + '</div></td></tr>';
         });
         tbody.innerHTML = html;
@@ -35860,6 +35861,43 @@ Equal Housing Opportunity
         }).catch(function(err) {
             console.error('Failed to load clients:', err);
         });
+    }
+
+    function deleteClient(id, name) {
+        if (!confirm('Delete client "' + name + '"? This cannot be undone.')) return;
+        fetch('/api/crm/clients/' + id, { method: 'DELETE', credentials: 'include' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Client "' + name + '" deleted.', 'success');
+                    loadClientsFromAPI(); // Refresh tables
+                } else {
+                    showToast('Failed to delete: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(function(err) {
+                showToast('Network error: ' + err.message, 'error');
+            });
+    }
+
+    function resetClientProfile(id, name) {
+        if (!confirm('Reset profile for "' + name + '"? This clears their phone, role, and roles so they must complete profile again on next login.')) return;
+        fetch('/api/crm/clients/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ phone: '', portal_role: null, roles: [] })
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.id) {
+                    showToast('Profile reset for "' + name + '". They will see complete-profile on next login.', 'success');
+                    loadClientsFromAPI();
+                } else {
+                    showToast('Failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(function(err) { showToast('Network error: ' + err.message, 'error'); });
     }
 
     // Load clients when CRM initializes

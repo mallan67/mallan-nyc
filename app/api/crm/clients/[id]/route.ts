@@ -167,3 +167,43 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     status: updated.status,
   });
 }
+
+/**
+ * DELETE /api/crm/clients/[id]
+ * Delete a client/lead. Broker only.
+ */
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+
+  // Broker only — agents cannot delete clients
+  if (auth.role !== "BROKER") {
+    return NextResponse.json({ error: "Only broker can delete clients" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const lead = await findLead(id);
+
+  if (!lead) {
+    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  }
+
+  // Delete related records first (preferences, actions, sessions)
+  await prisma.leadPreferences.deleteMany({ where: { lead_id: lead.id } });
+  await prisma.leadAction.deleteMany({ where: { lead_id: lead.id } });
+  await prisma.session.deleteMany({ where: { user_id: lead.id, user_type: "lead" } });
+  await prisma.lead.delete({ where: { id: lead.id } });
+
+  await logAuditEvent(
+    "delete",
+    "lead",
+    lead.id.toString(),
+    auth,
+    { email: lead.email },
+    req.headers.get("x-forwarded-for") ?? undefined
+  );
+
+  return NextResponse.json({ success: true, deleted: lead.email });
+}
