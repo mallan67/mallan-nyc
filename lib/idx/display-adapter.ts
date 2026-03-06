@@ -81,6 +81,7 @@ export interface DisplayListing {
   virtualTourURL?: string;
   publicRemarks?: string;
   petsAllowed?: string;
+  availabilityDate?: string;
   _displayCompliance: {
     comingSoon?: boolean;
     attributionText: string;
@@ -125,6 +126,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     virtualTourURL: dto.virtualTourURL,
     publicRemarks: dto.publicRemarks,
     petsAllowed: dto.petsAllowed,
+    availabilityDate: dto.availabilityDate,
     _displayCompliance: dto._displayCompliance,
   };
 }

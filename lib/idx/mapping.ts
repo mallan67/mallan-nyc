@@ -267,6 +267,8 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     closePrice: normalized.ClosePrice != null ? Number(normalized.ClosePrice) : null,
     propertyType,
     propertySubType: normalized.PropertySubType ? String(normalized.PropertySubType) : null,
+    commonInterest: normalized.CommonInterest ? String(normalized.CommonInterest) : undefined,
+    ownershipType: normalized.OwnershipType ? String(normalized.OwnershipType) : undefined,
     bedroomsTotal: Number(normalized.BedroomsTotal) || 0,
     bathroomsFull: Number(normalized.BathroomsFull) || 0,
     bathroomsHalf: Number(normalized.BathroomsHalf) || 0,

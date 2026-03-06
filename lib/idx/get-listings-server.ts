@@ -14,47 +14,10 @@ import { getAccessToken, hasCredentials } from './auth';
 import { checkDistributionGates } from './trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from './mapping';
 import { toPublicDTO, type PublicListingDTO } from './public-dto';
+import { CARD_SELECT_FIELDS } from './card-fields';
 import prisma from '@/lib/prisma';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from './db-to-public-dto';
 import type { Prisma } from '@prisma/client';
-
-// Only the fields needed for listing cards — NOT all 448 RLS fields.
-// This dramatically reduces Trestle response size and API processing time.
-const CARD_SELECT_FIELDS = [
-  // Address
-  "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
-  "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
-  "PostalCode", "StateOrProvince", "CountyOrParish",
-  "Latitude", "Longitude",
-  // Classification
-  "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
-  "CommonInterest", "OwnershipType",
-  // Status & Dates
-  "StandardStatus", "MlsStatus", "ModificationTimestamp",
-  "ListingContractDate", "OnMarketDate",
-  "DaysOnMarket", "CumulativeDaysOnMarket",
-  "OriginalListPrice", "PreviousListPrice",
-  "AvailabilityDate",
-  // Pricing
-  "ListPrice", "ClosePrice", "LeaseAmount", "LeaseAmountFrequency",
-  // Rooms & Size
-  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
-  "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
-  // Building
-  "BuildingName",
-  // Financial
-  "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
-  // Agent/Office
-  "ListAgentFullName", "ListOfficeName",
-  // Media
-  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
-  // Remarks
-  "PublicRemarks",
-  // Display gates
-  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  // Rental
-  "PetsAllowed", "Furnished",
-];
 
 interface ServerListingsResult {
   listings: PublicListingDTO[];
