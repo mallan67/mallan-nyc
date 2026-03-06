@@ -4,34 +4,9 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
+import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
-
-// Only the fields needed for listing cards — NOT all 448 RLS fields.
-// Reduces Trestle response size by ~90% and dramatically improves API speed.
-const CARD_SELECT_FIELDS = [
-  "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
-  "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
-  "PostalCode", "StateOrProvince", "CountyOrParish",
-  "Latitude", "Longitude",
-  "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
-  "CommonInterest", "OwnershipType",
-  "StandardStatus", "MlsStatus", "ModificationTimestamp",
-  "ListingContractDate", "OnMarketDate",
-  "DaysOnMarket", "CumulativeDaysOnMarket",
-  "OriginalListPrice", "PreviousListPrice",
-  "AvailabilityDate",
-  "ListPrice", "ClosePrice", "LeaseAmount", "LeaseAmountFrequency",
-  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
-  "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
-  "BuildingName",
-  "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
-  "ListAgentFullName", "ListOfficeName",
-  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
-  "PublicRemarks",
-  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  "PetsAllowed", "Furnished",
-];
 
 // ── In-memory cache (same pattern as /api/idx/search) ──
 interface CacheEntry { data: unknown; expiresAt: number }
