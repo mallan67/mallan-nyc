@@ -20,7 +20,7 @@ const CARD_SELECT_FIELDS = [
   "ListingContractDate", "OnMarketDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "OriginalListPrice", "PreviousListPrice",
-  "AvailabilityDate", "ComingSoonDate",
+  "AvailabilityDate",
   "ListPrice", "ClosePrice", "LeaseAmount", "LeaseAmountFrequency",
   "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
   "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
@@ -30,7 +30,6 @@ const CARD_SELECT_FIELDS = [
   "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
   "PublicRemarks",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  "IDXParticipationYN", "ParticipantOnlyYN",
   "PetsAllowed", "Furnished",
 ];
 
