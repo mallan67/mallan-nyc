@@ -97,7 +97,7 @@ export async function getListingsServer(
         const needsPhotos = pageListings.filter(l => l.media.length === 0);
         if (needsPhotos.length > 0) {
           const filterParts2 = needsPhotos.map(l => `ResourceRecordID eq '${l.listingId.replace(/'/g, "''")}'`);
-          const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 2`;
+          const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set('$filter', mediaFilter);
           mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');

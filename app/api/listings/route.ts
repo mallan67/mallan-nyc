@@ -256,8 +256,10 @@ export async function GET(request: Request) {
             const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
             const listingIds = needsPhotos.map(l => l.listingId);
             const filterParts2 = listingIds.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
-            // Fetch first 8 media items per listing — enough to find a real photo even if floorplans are first
-            const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 2`;
+            // Fetch up to 8 media items per listing — enough to find a real photo
+            // even when floor plans or videos occupy the first few Order positions.
+            // Filter by MediaCategory=Photo OR PreferredPhotoYN=true to prioritize actual photos.
+            const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo'`;
             const mediaParams = new URLSearchParams();
             mediaParams.set('$filter', mediaFilter);
             mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
