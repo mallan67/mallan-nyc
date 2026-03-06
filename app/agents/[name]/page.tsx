@@ -101,8 +101,6 @@ async function getAgentListings(slug: string): Promise<AgentListingsData> {
   }
 }
 
-// PastDealDTO and getPastDeals imported from ./past-deals-loader
-
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
     return `$${price.toLocaleString()}/mo`;
@@ -124,30 +122,58 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/* ── Large tile card for active listings ── */
 function ActiveListingCard({ listing, isRental }: { listing: PublicListingDTO; isRental: boolean }) {
   const photoUrl = listing.media?.[0]?.url || '/images/listing-placeholder.svg';
+  const neighborhood = listing.address.neighborhood || listing.address.city || '';
+  const addr = `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
   return (
-    <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`} className="group block">
-      <div className="relative aspect-[4/3] overflow-hidden rounded bg-gray-100 mb-2">
+    <Link
+      href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`}
+      className="group block rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition-shadow"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <Image
           src={photoUrl}
-          alt={`${listing.propertyType} in ${listing.address.neighborhood || listing.address.city}`}
+          alt={addr}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-300"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
+        <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded uppercase tracking-wide">
+          Active
+        </span>
+        {isRental && (
+          <span className="absolute top-2.5 right-2.5 px-2 py-0.5 bg-brand-dark text-white text-[10px] font-bold rounded uppercase tracking-wide">
+            Rental
+          </span>
+        )}
       </div>
-      <p className="font-display font-semibold text-base text-brand-dark">
-        {formatPrice(listing.listPrice, isRental)}
-      </p>
-      <p className="text-sm text-brand-dark/80 truncate">
-        {listing.address.streetNumber} {listing.address.streetName}
-        {listing.address.unitNumber && ` #${listing.address.unitNumber}`}
-      </p>
-      <p className="text-xs text-brand-dark/70 mt-0.5">
-        {listing.propertyType} · {listing.bedroomsTotal} bed · {listing.bathroomsFull} bath
-        {listing.livingArea && listing.livingArea > 0 && ` · ${listing.livingArea.toLocaleString()} sf`}
-      </p>
+      <div className="p-3.5">
+        <p className="font-display font-bold text-lg text-brand-dark leading-tight">
+          {formatPrice(listing.listPrice, isRental)}
+        </p>
+        <div className="flex items-center gap-1.5 text-[12px] text-brand-dark/60 mt-1">
+          {listing.bedroomsTotal != null && (
+            <span>{listing.bedroomsTotal === 0 ? 'Studio' : `${listing.bedroomsTotal} Beds`}</span>
+          )}
+          {listing.bathroomsFull != null && (
+            <>
+              <span className="text-brand-dark/20">·</span>
+              <span>{listing.bathroomsFull} Baths</span>
+            </>
+          )}
+          {listing.livingArea != null && listing.livingArea > 0 && (
+            <>
+              <span className="text-brand-dark/20">·</span>
+              <span>{listing.livingArea.toLocaleString()} SF</span>
+            </>
+          )}
+        </div>
+        <p className="text-sm text-brand-dark/80 mt-1.5 truncate">{addr}</p>
+        <p className="text-[11px] text-brand-dark/40">{neighborhood}</p>
+      </div>
     </Link>
   );
 }
@@ -161,14 +187,12 @@ export default async function AgentPage({ params }: Props) {
   }
 
   const { activeSales, activeRentals } = await getAgentListings(name);
-
-  // Load past deals (Trestle + manual Excel records merged and deduped)
   const { sales: pastSales, rentals: pastRentals } = await getPastDeals(name);
 
+  const hasActive = activeSales.length > 0 || activeRentals.length > 0;
   const hasPastDeals = pastSales.length > 0 || pastRentals.length > 0;
   const navItems = [
-    ...(activeSales.length > 0 ? [{ id: 'active-sales', label: 'Active Sales' }] : []),
-    ...(activeRentals.length > 0 ? [{ id: 'active-rentals', label: 'Active Rentals' }] : []),
+    ...(hasActive ? [{ id: 'active-listings', label: 'Active Listings' }] : []),
     ...(hasPastDeals ? [{ id: 'past-deals', label: 'Past Deals' }] : []),
   ];
 
@@ -190,14 +214,14 @@ export default async function AgentPage({ params }: Props) {
             </Link>
 
             <div className="flex flex-col md:flex-row gap-6 lg:gap-10">
-              {/* Agent Photo */}
+              {/* Agent Photo — face crop */}
               <div className="flex-shrink-0 mx-auto md:mx-0">
                 <div className="relative w-48 h-48 sm:w-56 sm:h-56 overflow-hidden rounded-full bg-gray-100 ring-4 ring-white/60">
                   <Image
                     src={agent.photo || '/images/agent-placeholder.svg'}
                     alt={agent.name}
                     fill
-                    className="object-cover object-top scale-150 origin-top"
+                    className="object-cover object-[center_15%]"
                     priority
                   />
                 </div>
@@ -280,34 +304,37 @@ export default async function AgentPage({ params }: Props) {
           </nav>
         )}
 
-        {/* Active Sales */}
-        {activeSales.length > 0 && (
-          <section id="active-sales" className="py-10 scroll-mt-32">
+        {/* Active Listings — Sales + Rentals combined */}
+        {hasActive && (
+          <section id="active-listings" className="py-10 scroll-mt-32">
             <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
-                Active Sales
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeSales.map((listing) => (
-                  <ActiveListingCard key={listing.id} listing={listing} isRental={false} />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+              {/* Active Sales */}
+              {activeSales.length > 0 && (
+                <>
+                  <h2 className="text-lg font-display font-semibold text-brand-dark mb-4 pb-2 border-b border-black/5">
+                    Active Sales
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+                    {activeSales.map((listing) => (
+                      <ActiveListingCard key={listing.id} listing={listing} isRental={false} />
+                    ))}
+                  </div>
+                </>
+              )}
 
-        {/* Active Rentals */}
-        {activeRentals.length > 0 && (
-          <section id="active-rentals" className="py-10 scroll-mt-32">
-            <div className="max-w-6xl mx-auto px-4">
-              <h2 className="text-lg font-display font-semibold text-brand-dark mb-6 pb-2 border-b border-black/5">
-                Active Rentals
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeRentals.map((listing) => (
-                  <ActiveListingCard key={listing.id} listing={listing} isRental={true} />
-                ))}
-              </div>
+              {/* Active Rentals */}
+              {activeRentals.length > 0 && (
+                <>
+                  <h2 className="text-lg font-display font-semibold text-brand-dark mb-4 pb-2 border-b border-black/5">
+                    Active Rentals
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {activeRentals.map((listing) => (
+                      <ActiveListingCard key={listing.id} listing={listing} isRental={true} />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -318,7 +345,7 @@ export default async function AgentPage({ params }: Props) {
         </div>
 
         {/* No listings */}
-        {activeSales.length === 0 && activeRentals.length === 0 && pastSales.length === 0 && pastRentals.length === 0 && (
+        {!hasActive && !hasPastDeals && (
           <section className="py-16">
             <div className="max-w-6xl mx-auto px-4 text-center">
               <p className="text-brand-dark/50">
