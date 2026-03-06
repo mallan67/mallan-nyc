@@ -35832,16 +35832,20 @@ Equal Housing Opportunity
     }
 
     function loadClientsFromAPI() {
+        var doRender = function(clients) {
+            _allClientsData = clients;
+            // "My Clients" tab: only assigned clients (agent_id is set)
+            var assigned = clients.filter(function(c) { return !!c.agent_id; });
+            renderClientTable(assigned);
+            // "Lead Distribution Hub": ALL leads (broker view)
+            renderLeadTable(clients);
+        };
+
         if (typeof MallanAPI === 'undefined' || !MallanAPI.isReady) {
-            // Fallback: direct fetch
             fetch('/api/crm/clients?limit=200', { credentials: 'include' })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
-                    if (data.clients) {
-                        _allClientsData = data.clients;
-                        renderClientTable(data.clients);
-                        renderLeadTable(data.clients);
-                    }
+                    if (data.clients) doRender(data.clients);
                 })
                 .catch(function(err) {
                     console.error('Failed to load clients:', err);
@@ -35853,11 +35857,7 @@ Equal Housing Opportunity
             return;
         }
         MallanAPI.clients.list({ limit: 200 }).then(function(data) {
-            if (data.clients) {
-                _allClientsData = data.clients;
-                renderClientTable(data.clients);
-                renderLeadTable(data.clients);
-            }
+            if (data.clients) doRender(data.clients);
         }).catch(function(err) {
             console.error('Failed to load clients:', err);
         });
