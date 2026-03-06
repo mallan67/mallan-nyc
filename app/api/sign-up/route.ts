@@ -8,7 +8,7 @@ const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
 // --- Rate limiter: 3 sign-ups per IP per hour (in-memory) ---
 const rateMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 3;
+const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 function checkRateLimit(ip: string): boolean {
