@@ -259,12 +259,12 @@ export async function GET(request: Request) {
             // Fetch up to 8 media items per listing — enough to find a real photo
             // even when floor plans or videos occupy the first few Order positions.
             // Filter by MediaCategory=Photo OR PreferredPhotoYN=true to prioritize actual photos.
-            const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo'`;
+            const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo' and Order le 3`;
             const mediaParams = new URLSearchParams();
             mediaParams.set('$filter', mediaFilter);
             mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
             mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-            mediaParams.set('$top', String(needsPhotos.length * 3));
+            mediaParams.set('$top', String(Math.min(needsPhotos.length * 4, 250)));
 
             const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
               headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },

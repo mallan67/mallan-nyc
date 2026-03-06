@@ -97,12 +97,12 @@ export async function getListingsServer(
         const needsPhotos = pageListings.filter(l => l.media.length === 0);
         if (needsPhotos.length > 0) {
           const filterParts2 = needsPhotos.map(l => `ResourceRecordID eq '${l.listingId.replace(/'/g, "''")}'`);
-          const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo'`;
+          const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo' and Order le 3`;
           const mediaParams = new URLSearchParams();
           mediaParams.set('$filter', mediaFilter);
           mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
           mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-          mediaParams.set('$top', String(needsPhotos.length * 3));
+          mediaParams.set('$top', String(Math.min(needsPhotos.length * 4, 250)));
 
           const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
             headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
