@@ -7,6 +7,54 @@ import { toPublicDTO } from '@/lib/idx/public-dto';
 import prisma from '@/lib/prisma';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
+// Only the fields needed for listing cards — NOT all 448 RLS fields.
+// Reduces Trestle response size by ~90% and dramatically improves API speed.
+const CARD_SELECT_FIELDS = [
+  "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
+  "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
+  "PostalCode", "StateOrProvince", "CountyOrParish",
+  "Latitude", "Longitude",
+  "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
+  "CommonInterest", "OwnershipType",
+  "StandardStatus", "MlsStatus", "ModificationTimestamp",
+  "ListingContractDate", "OnMarketDate",
+  "DaysOnMarket", "CumulativeDaysOnMarket",
+  "OriginalListPrice", "PreviousListPrice",
+  "AvailabilityDate", "ComingSoonDate",
+  "ListPrice", "ClosePrice", "LeaseAmount", "LeaseAmountFrequency",
+  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
+  "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
+  "BuildingName",
+  "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
+  "ListAgentFullName", "ListOfficeName",
+  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  "PublicRemarks",
+  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
+  "IDXParticipationYN", "ParticipantOnlyYN",
+  "PetsAllowed", "Furnished",
+];
+
+// ── In-memory cache (same pattern as /api/idx/search) ──
+interface CacheEntry { data: unknown; expiresAt: number }
+const listingsCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const CACHE_MAX = 50;
+
+function getCached(key: string): unknown | null {
+  const entry = listingsCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { listingsCache.delete(key); return null; }
+  return entry.data;
+}
+
+function setCache(key: string, data: unknown): void {
+  if (listingsCache.size >= CACHE_MAX) {
+    const firstKey = listingsCache.keys().next().value;
+    if (firstKey !== undefined) listingsCache.delete(firstKey);
+  }
+  listingsCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 /**
  * Simple in-memory rate limiter (60 requests per minute per IP)
  * Prevents bulk scraping of listing data per REBNY RLS compliance
@@ -94,6 +142,15 @@ export async function GET(request: Request) {
     // IDX PATH: Fetch from Trestle/REBNY RLS
     // ═══════════════════════════════════════════════════════════
     if (useIDX) {
+      // Cache key from all query params
+      const cacheKey = `listings:${searchParams.toString()}`;
+      const cached = getCached(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached, {
+          headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+        });
+      }
+
       try {
         // Build OData $filter — push what we can to the server
         const filterParts: string[] = [];
@@ -157,13 +214,14 @@ export async function GET(request: Request) {
           case 'newest': default: orderby = 'ModificationTimestamp desc'; break;
         }
 
-        // Fetch more records to account for gate filtering + post-filters + pagination
-        const fetchTop = Math.min(Math.max((limit + skip) * 3, 500), 500);
+        // Fetch extra to account for gate filtering + post-filters, but not wildly more than needed
+        const fetchTop = Math.min((limit + skip) * 2 + 20, 500);
 
         // Skip $expand=Media for bulk queries — it's extremely slow (2+ min for 500 records).
         // Photos are batch-fetched separately below for just the page of results.
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
+          select: CARD_SELECT_FIELDS,
           top: fetchTop,
           maxTotal: fetchTop,
           orderby,
@@ -225,12 +283,12 @@ export async function GET(request: Request) {
             const listingIds = needsPhotos.map(l => l.listingId);
             const filterParts2 = listingIds.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
             // Fetch first 8 media items per listing — enough to find a real photo even if floorplans are first
-            const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 7`;
+            const mediaFilter = `(${filterParts2.join(' or ')}) and Order le 2`;
             const mediaParams = new URLSearchParams();
             mediaParams.set('$filter', mediaFilter);
             mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
             mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-            mediaParams.set('$top', String(needsPhotos.length * 8));
+            mediaParams.set('$top', String(needsPhotos.length * 3));
 
             const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
               headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -309,30 +367,31 @@ export async function GET(request: Request) {
           minBeds ? parseInt(minBeds, 10) : undefined,
         );
 
-        return NextResponse.json(
-          {
-            success: true,
-            count: mergedListings.length,
-            total: totalCount + mergedListings.length - publicListings.length,
-            skip,
-            limit,
-            hasMore: skip + limit < totalCount || result.hasMore,
-            listings: mergedListings,
-            _compliance: {
-              source: 'idx+exclusive',
-              idxEnabled: true,
-              attribution: generateAttributionText(),
-              disclaimer:
-                'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
-              totalFetched: result.totalFetched,
-            },
+        const responseBody = {
+          success: true,
+          count: mergedListings.length,
+          total: totalCount + mergedListings.length - publicListings.length,
+          skip,
+          limit,
+          hasMore: skip + limit < totalCount || result.hasMore,
+          listings: mergedListings,
+          _compliance: {
+            source: 'idx+exclusive',
+            idxEnabled: true,
+            attribution: generateAttributionText(),
+            disclaimer:
+              'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
+            totalFetched: result.totalFetched,
           },
-          {
-            headers: {
-              'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-            },
-          }
-        );
+        };
+
+        setCache(cacheKey, responseBody);
+
+        return NextResponse.json(responseBody, {
+          headers: {
+            'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+          },
+        });
       } catch (idxError) {
         // IDX fetch failed — return error to frontend (do NOT silently fall through to empty data)
         const message = idxError instanceof Error ? idxError.message : 'Unknown error';

@@ -107,6 +107,9 @@ const STATUS_DISPLAY: Record<string, string> = {
   Active: 'Active',
   ComingSoon: 'Coming Soon',
   ActiveUnderContract: 'Active Under Contract',
+  Closed: 'Closed',
+  Sold: 'Sold',
+  Rented: 'Rented',
 };
 
 /**
@@ -205,7 +208,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
         },
     listPrice,
     originalListPrice: listPrice,
-    closePrice: null,
+    closePrice: features.ClosePrice ? Number(features.ClosePrice) : null,
     propertyType: listing.property_type || 'Residential',
     propertySubType: listing.property_sub_type,
     bedroomsTotal: listing.bedrooms_total || 0,
