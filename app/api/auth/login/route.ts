@@ -37,9 +37,15 @@ export async function POST(req: NextRequest) {
       const lead = await prisma.lead.findUnique({
         where: { email: normalizedEmail },
       });
-      if (!lead || !lead.password_hash) {
+      if (!lead) {
         return NextResponse.json(
-          { error: "Invalid email or password" },
+          { error: "Invalid email or password. If you just signed up, make sure you're using the same email." },
+          { status: 401 }
+        );
+      }
+      if (!lead.password_hash) {
+        return NextResponse.json(
+          { error: "Your account doesn't have a password yet. Check your email for an invite link, or use Forgot Password to set one." },
           { status: 401 }
         );
       }

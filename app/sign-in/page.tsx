@@ -93,7 +93,7 @@ export default function SignInPage() {
 
       // Redirect based on role after short delay so user sees success
       const role = data.user?.role || selectedPortal;
-      const isAgent = role === 'broker' || role === 'agent';
+      const isAgent = role?.toUpperCase() === 'BROKER' || role?.toUpperCase() === 'AGENT';
       setTimeout(() => {
         router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
       }, 1500);
