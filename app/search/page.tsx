@@ -7,7 +7,7 @@ import { useListings } from '@/lib/hooks/useListings';
 // IDX disclaimer shown inline in toolbar row 2 (single line for space efficiency)
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
 import SaveSearchButton from '@/app/components/SaveSearchButton';
-import { GridCard, ListCard } from '@/app/components/SearchListingCard';
+import { GridCard, ListCard, SplitCard } from '@/app/components/SearchListingCard';
 import SearchFilterPanel from '@/app/components/SearchFilterPanel';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { TAB_CONFIG } from '@/lib/search/types';
@@ -244,7 +244,7 @@ function SearchClient() {
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
       {/* ── Search Toolbar (sticky below header) ── */}
-      <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
+      <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-[1001]">
         <div className="max-w-[1920px] mx-auto px-4 py-2">
           {/* Row 1: Tabs + Search */}
           <div className="flex items-center gap-3">
@@ -423,7 +423,7 @@ function SearchClient() {
                     ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}
                     className={scrollTargetId === listing.id ? 'animate-pulse-highlight rounded-xl' : ''}
                   >
-                    <GridCard
+                    <SplitCard
                       listing={listing}
                       isRental={isRental}
                       isHighlighted={highlightedId === listing.id}

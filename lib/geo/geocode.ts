@@ -2,13 +2,113 @@
  * Server-side geocoding for NYC addresses.
  *
  * Trestle IDX Plus feed returns null for Latitude/Longitude.
- * This module assigns coordinates using ZIP code centroids with
- * deterministic address-based jitter for marker spread.
+ * This module assigns coordinates using:
+ *   1. Nominatim (OpenStreetMap) — accurate street-level, with in-memory cache
+ *   2. ZIP code centroids as fallback — neighborhood-level
  *
- * ZERO external API calls — instant, no latency impact on listing queries.
+ * The in-memory cache persists across warm serverless invocations, so
+ * repeated searches resolve instantly. Only cache misses hit the API.
  *
  * COMPLIANCE: Geocoding runs server-side only.
  */
+
+// ── In-memory cache — persists across warm serverless invocations ──
+const geocodeCache = new Map<string, [number, number] | null>();
+
+/** Geocode a single address via Nominatim (OpenStreetMap) */
+async function geocodeViaNominatim(
+  streetNumber: string,
+  streetName: string,
+  city: string,
+  zip: string,
+): Promise<[number, number] | null> {
+  const cacheKey = `${streetNumber}|${streetName}|${city}|${zip}`;
+  if (geocodeCache.has(cacheKey)) return geocodeCache.get(cacheKey) ?? null;
+
+  try {
+    const street = `${streetNumber} ${streetName}`.trim();
+    const q = `${street}, ${city || 'New York'}, NY ${zip}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=us`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'mallan-nyc/1.0 (https://mallan.nyc)',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) {
+      geocodeCache.set(cacheKey, null);
+      return null;
+    }
+    const data = await res.json();
+    if (Array.isArray(data) && data[0]?.lat && data[0]?.lon) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        const coords: [number, number] = [lat, lng];
+        geocodeCache.set(cacheKey, coords);
+        return coords;
+      }
+    }
+    geocodeCache.set(cacheKey, null);
+  } catch {
+    geocodeCache.set(cacheKey, null);
+  }
+  return null;
+}
+
+/**
+ * Sequential geocode with delay to respect Nominatim's 1 req/sec policy.
+ * Returns results for each listing (null if failed).
+ */
+async function batchGeocodeNominatim(
+  listings: Array<{
+    address: {
+      streetNumber?: string;
+      streetName?: string;
+      postalCode?: string;
+      city?: string;
+    };
+  }>,
+  maxMs: number,
+): Promise<([number, number] | null)[]> {
+  const results: ([number, number] | null)[] = new Array(listings.length).fill(null);
+  const startTime = Date.now();
+
+  for (let i = 0; i < listings.length; i++) {
+    // Check time budget
+    if (Date.now() - startTime > maxMs) break;
+
+    const addr = listings[i].address;
+    const cacheKey = `${addr.streetNumber || ''}|${addr.streetName || ''}|${addr.city || ''}|${(addr.postalCode || '').split('-')[0].trim()}`;
+
+    // Cache hit — no delay needed
+    if (geocodeCache.has(cacheKey)) {
+      results[i] = geocodeCache.get(cacheKey) ?? null;
+      continue;
+    }
+
+    // Cache miss — call API
+    results[i] = await geocodeViaNominatim(
+      addr.streetNumber || '',
+      addr.streetName || '',
+      addr.city || '',
+      (addr.postalCode || '').split('-')[0].trim(),
+    );
+
+    // Respect rate limit: 1 request per second (only between actual API calls)
+    if (i < listings.length - 1 && Date.now() - startTime < maxMs) {
+      // Check if next is cached — if so, skip delay
+      const nextAddr = listings[i + 1].address;
+      const nextKey = `${nextAddr.streetNumber || ''}|${nextAddr.streetName || ''}|${nextAddr.city || ''}|${(nextAddr.postalCode || '').split('-')[0].trim()}`;
+      if (!geocodeCache.has(nextKey)) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+  }
+
+  return results;
+}
 
 /** Deterministic hash-based jitter so same address always gets same offset */
 function hashJitter(str: string): [number, number] {
@@ -16,15 +116,16 @@ function hashJitter(str: string): [number, number] {
   for (let i = 0; i < str.length; i++) {
     h = ((h << 5) - h + str.charCodeAt(i)) | 0;
   }
-  // ~200m spread within the ZIP area
-  const latOff = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.004;
-  const lngOff = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 0.004;
+  // ~100m spread within the ZIP area
+  const latOff = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.002;
+  const lngOff = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 0.002;
   return [latOff, lngOff];
 }
 
 /**
  * Assign coordinates to listings that lack them.
- * Uses ZIP code centroids + deterministic jitter. Instant, no external calls.
+ * Tries Nominatim first (with caching), falls back to ZIP centroids.
+ * Time-budgeted: spends max 3 seconds on Nominatim, then uses ZIP for the rest.
  * Mutates the input array for performance.
  */
 export async function geocodeListings(
@@ -39,15 +140,40 @@ export async function geocodeListings(
     };
   }>
 ): Promise<void> {
-  for (const listing of listings) {
-    const addr = listing.address;
+  // Collect listings that need geocoding
+  const needsGeocode: { index: number; listing: typeof listings[0] }[] = [];
+  for (let i = 0; i < listings.length; i++) {
+    const addr = listings[i].address;
+    if (addr.latitude != null && addr.longitude != null && addr.latitude !== 0 && addr.longitude !== 0) continue;
+    needsGeocode.push({ index: i, listing: listings[i] });
+  }
 
-    // Skip if already has valid coordinates
+  if (needsGeocode.length === 0) return;
+
+  // Try Nominatim with 3-second time budget
+  try {
+    const results = await batchGeocodeNominatim(
+      needsGeocode.map(n => n.listing),
+      3000,
+    );
+    for (let i = 0; i < needsGeocode.length; i++) {
+      if (results[i]) {
+        needsGeocode[i].listing.address.latitude = results[i]![0];
+        needsGeocode[i].listing.address.longitude = results[i]![1];
+      }
+    }
+  } catch {
+    // Nominatim failed entirely — continue with ZIP fallback
+  }
+
+  // ZIP centroid fallback for anything still missing
+  for (const { listing } of needsGeocode) {
+    const addr = listing.address;
     if (addr.latitude != null && addr.longitude != null && addr.latitude !== 0 && addr.longitude !== 0) continue;
 
     const num = addr.streetNumber || '';
     const street = addr.streetName || '';
-    const zip = (addr.postalCode || '').split('-')[0].trim(); // Normalize ZIP+4
+    const zip = (addr.postalCode || '').split('-')[0].trim();
 
     const centroid = ZIP_CENTROIDS[zip];
     if (centroid) {
@@ -58,9 +184,7 @@ export async function geocodeListings(
   }
 }
 
-// ── NYC ZIP Code Centroids ──
-// Approximate center coordinates for all NYC zip codes.
-// Provides neighborhood-level accuracy for map display.
+// ── NYC ZIP Code Centroids (fallback) ──
 const ZIP_CENTROIDS: Record<string, [number, number]> = {
   // Manhattan
   '10001': [40.7506, -73.9971], '10002': [40.7157, -73.9863], '10003': [40.7317, -73.9893],

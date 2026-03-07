@@ -169,20 +169,18 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
   );
 }
 
-/** Compact card for split view — thumbnail left + details right, narrower */
-export function CompactCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
+/** Split-view card — horizontal layout with medium photo for the sidebar */
+export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
   return (
     <Link
       href={listingHref(listing)}
-      className={`flex gap-3 p-3 rounded-xl transition-all duration-200 group border-b border-black/[0.03] last:border-b-0 ${
-        isHighlighted
-          ? 'bg-brand-gold/5 ring-1 ring-brand-gold/30 shadow-sm'
-          : 'hover:bg-gray-50/80'
+      className={`glass-card rounded-2xl overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 flex group ${
+        isHighlighted ? 'ring-2 ring-brand-gold shadow-lg' : ''
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="relative w-[120px] h-[82px] flex-shrink-0 rounded-lg overflow-hidden">
+      <div className="relative w-[180px] flex-shrink-0">
         <IDXImage
           src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
@@ -190,45 +188,50 @@ export function CompactCard({ listing, isRental, isHighlighted, onHover }: CardP
           className="group-hover:scale-105 transition-transform duration-500"
         />
         {formatComingSoonBadge(listing) && (
-          <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-amber-500 text-white text-[9px] rounded z-10">
+          <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-[10px] rounded-lg z-10">
             Coming Soon
           </span>
         )}
         {listing.media.length > 1 && (
-          <span className="absolute bottom-1 right-1 bg-black/50 text-white text-[9px] px-1 py-0.5 rounded backdrop-blur-sm">
+          <span className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded-lg">
             {listing.photosCount || listing.media.length}
           </span>
         )}
       </div>
-      <div className="flex-1 min-w-0 py-0.5">
+      <div className="flex-1 min-w-0 p-3.5">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-sm font-display font-semibold text-brand-dark">
+          <p className="text-base font-display font-semibold text-brand-dark">
             {formatPrice(listing.listPrice, isRental)}
           </p>
           <FavoriteButton listing={listing} size="sm" />
         </div>
-        <p className="text-xs text-brand-dark truncate mt-0.5">
+        <p className="text-sm text-brand-dark truncate mt-0.5">
           {listing.address.streetName === 'Address Undisclosed'
             ? 'Address Undisclosed'
-            : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, Unit ${listing.address.unitNumber}` : ''}`}
+            : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
         </p>
         {listing.address.neighborhood && (
-          <p className="text-[11px] text-brand-dark/60 truncate">
+          <p className="text-xs text-brand-dark/60 truncate">
             {listing.address.neighborhood}{listing.address.borough ? `, ${listing.address.borough}` : ''}
           </p>
         )}
-        <div className="flex gap-2 text-[11px] text-brand-dark/80 mt-1">
-          <span>{listing.bedroomsTotal} bd</span>
+        <div className="flex gap-2.5 text-xs text-brand-dark/80 mt-2">
+          <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
           <span className="text-brand-dark/30">·</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} ba</span>
+          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} bath</span>
           {listing.livingArea && listing.livingArea > 0 && (
             <>
               <span className="text-brand-dark/30">·</span>
-              <span>{listing.livingArea.toLocaleString()} sf</span>
+              <span>{listing.livingArea.toLocaleString()} sqft</span>
             </>
           )}
         </div>
-        <p className="text-[9px] text-brand-dark/50 mt-0.5">
+        {!isRental && listing.associationFee && (
+          <p className="text-[11px] text-brand-dark/60 mt-1">
+            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
+          </p>
+        )}
+        <p className="text-[9px] text-brand-dark/50 mt-1.5">
           <span className="font-semibold tracking-wide">RLS</span> · {listing.listOfficeName}
         </p>
       </div>
