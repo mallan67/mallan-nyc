@@ -338,8 +338,9 @@ export async function fetchListingMedia(
     // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
     //          MediaType = file format (jpeg, png) — NOT content type
     const cat = String(m.MediaCategory || "").toLowerCase();
+    const desc = String(m.ShortDescription || "").toLowerCase();
     let mediaType = "Photo";
-    if (cat.includes("floor plan")) mediaType = "FloorPlan";
+    if (cat.includes("floor plan") || desc.includes("floor plan") || desc.includes("floorplan")) mediaType = "FloorPlan";
     else if (cat.includes("video")) mediaType = "Video";
     else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
     const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
