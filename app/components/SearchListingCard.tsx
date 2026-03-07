@@ -74,7 +74,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
           )}
         </p>
         <p className="text-brand-dark/85 text-sm">
-          {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
+          {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
         </p>
         <div className="flex gap-4 text-sm text-brand-dark/90 mt-3 pt-3 border-t border-black/5">
           <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
@@ -142,7 +142,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
               )}
             </p>
             <p className="text-brand-dark/85 text-sm">
-              {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
+              {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
             </p>
           </div>
           {listing.propertySubType && (
@@ -212,7 +212,9 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         </p>
         {listing.address.neighborhood && (
           <p className="text-xs text-brand-dark/60 truncate">
-            {listing.address.neighborhood}{listing.address.borough ? `, ${listing.address.borough}` : ''}
+            {listing.address.neighborhood !== listing.address.borough
+              ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
+              : listing.address.borough || 'Manhattan'}
           </p>
         )}
         <div className="flex gap-2.5 text-xs text-brand-dark/80 mt-2">

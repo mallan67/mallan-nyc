@@ -73,10 +73,10 @@ export default function Footer() {
   });
 
   return (
-    <footer className="px-6 md:px-12 lg:px-20 py-16 md:py-24">
+    <footer className="px-6 md:px-12 lg:px-20 py-10 md:py-14">
       <div className="max-w-[1440px] mx-auto">
         {/* Main grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 md:gap-14 mb-16">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 md:gap-12 mb-10">
           {/* Company */}
           <div>
             <p className="font-display font-bold text-sm mb-5 text-brand-dark">
@@ -147,53 +147,26 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Fair Housing & REBNY Compliance */}
-        <div className="border-t border-black/5 pt-10 mb-10">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded flex items-center justify-center" aria-hidden="true">
-                <Image
-                  src="/images/equal-housing-logo.svg"
-                  alt=""
-                  width={32}
-                  height={32}
-                  className="w-8 h-8"
-                  unoptimized
-                />
-              </div>
-              <p className="text-brand-dark/85 text-[12px] font-light">Equal Housing Opportunity</p>
-            </div>
+        {/* Fair Housing & REBNY Compliance — compact */}
+        <div className="border-t border-black/5 pt-6 mb-6">
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
+            <Image src="/images/equal-housing-logo.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
+            <p className="text-[11px] text-brand-dark/85 font-light">Equal Housing Opportunity</p>
+            <span className="text-brand-dark/20">|</span>
             <Link href="/fair-housing" className="text-[11px] text-brand-gold-deep hover:underline font-light">
-              Read our Fair Housing Policy
+              Fair Housing Policy
             </Link>
           </div>
 
-          <div className="text-center space-y-3">
-            <p className="text-[11px] text-brand-dark/85 font-light max-w-4xl mx-auto leading-relaxed">
-              <strong className="font-medium">REBNY RLS Attribution:</strong> Listings displayed on this website may be provided
-              in part by the Real Estate Board of New York&apos;s Residential Listing Service (REBNY RLS).
-              Data is deemed reliable but not guaranteed. Data last updated: {currentDate}.
-            </p>
-            <p className="text-[11px] text-brand-dark/75 font-light max-w-4xl mx-auto leading-relaxed">
-              <strong className="font-medium">IDX Compliance:</strong> This site is controlled by a REBNY RLS participant.
-              Listing information is provided for consumers&apos; personal, non-commercial use and may
-              not be used for any purpose other than to identify prospective properties consumers
-              may be interested in purchasing or renting.
-            </p>
-            <p className="text-[11px] text-brand-dark/75 font-light max-w-4xl mx-auto leading-relaxed">
-              <strong className="font-medium">Fair Housing Notice:</strong> REBNY promotes fair housing practices. All listings
-              are presented in compliance with the federal Fair Housing Act, the New York State Human
-              Rights Law, and the New York City Human Rights Law, prohibiting discrimination based on
-              race, color, religion, national origin, sex, familial status, disability, sexual orientation,
-              gender identity or expression, marital status, age, military status, lawful source of income,
-              citizenship status, partnership status, caregiver status, immigration status, or any other
-              protected characteristic.
-            </p>
-          </div>
+          <p className="text-[10px] text-brand-dark/60 font-light max-w-4xl mx-auto leading-relaxed text-center">
+            <strong className="font-medium">REBNY RLS:</strong> Listings may be provided by REBNY RLS. Data deemed reliable but not guaranteed. Updated: {currentDate}.
+            {' '}<strong className="font-medium">IDX:</strong> For consumers&apos; personal, non-commercial use only.
+            {' '}<strong className="font-medium">Fair Housing:</strong> All listings comply with federal, NY State, and NYC fair housing laws.
+          </p>
         </div>
 
         {/* Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-10">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
           <p className="text-[11px] font-light text-brand-dark/85">
             &copy; {currentYear} {settings.companyName} &middot; License #{settings.license}
           </p>
