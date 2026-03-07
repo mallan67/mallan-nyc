@@ -210,9 +210,13 @@ function SearchClient() {
     });
   }, [listings, searchQuery, zipParam]);
 
-  // ── Sort ──
+  // ── Sort (Manhattan always first, then by selected sort) ──
   const sortedListings = useMemo(() => {
     return [...filteredListings].sort((a, b) => {
+      const aMan = a.address.borough === 'Manhattan' ? 0 : 1;
+      const bMan = b.address.borough === 'Manhattan' ? 0 : 1;
+      if (aMan !== bMan) return aMan - bMan;
+
       switch (filters.sort) {
         case 'price-asc': return a.listPrice - b.listPrice;
         case 'price-desc': return b.listPrice - a.listPrice;
