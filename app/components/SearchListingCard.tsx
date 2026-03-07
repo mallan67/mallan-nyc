@@ -180,7 +180,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="relative w-[180px] flex-shrink-0">
+      <div className="relative w-[240px] flex-shrink-0">
         <IDXImage
           src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
