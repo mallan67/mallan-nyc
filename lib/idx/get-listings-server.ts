@@ -15,6 +15,7 @@ import { checkDistributionGates } from './trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from './mapping';
 import { toPublicDTO, type PublicListingDTO } from './public-dto';
 import { CARD_SELECT_FIELDS } from './card-fields';
+import { cacheListingPhotosToR2 } from '@/lib/images/cache-listing-photos';
 import prisma from '@/lib/prisma';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from './db-to-public-dto';
 import type { Prisma } from '@prisma/client';
@@ -138,6 +139,13 @@ export async function getListingsServer(
       } catch {
         // Non-fatal — listings display without photos
       }
+    }
+
+    // Cache Trestle photos to R2 for permanent URLs (no proxy needed)
+    try {
+      await cacheListingPhotosToR2(pageListings);
+    } catch {
+      // Non-fatal — photos fall back to proxy
     }
 
     const publicListings = pageListings.map(toPublicDTO);
