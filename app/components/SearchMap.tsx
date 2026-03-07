@@ -7,6 +7,8 @@ import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { listingHref } from '@/lib/idx/display-adapter';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Fix Leaflet default marker icons in Next.js/webpack
