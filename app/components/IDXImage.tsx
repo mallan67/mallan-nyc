@@ -20,6 +20,7 @@ import { useState } from 'react';
 const ASPECT_CLASSES = {
   hero: 'aspect-[16/9] md:aspect-[21/9]',
   card: 'aspect-[4/3]',
+  wide: 'aspect-[3/2]',
   thumb: 'aspect-square',
 } as const;
 
