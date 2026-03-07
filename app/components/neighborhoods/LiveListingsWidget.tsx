@@ -40,12 +40,14 @@ interface LiveListingsWidgetProps {
   neighborhoodSlug: string;
   name: string;
   zipCodes?: string[];
+  bounds?: { north: number; south: number; east: number; west: number };
 }
 
 export default function LiveListingsWidget({
   neighborhoodSlug,
   name,
   zipCodes,
+  bounds,
 }: LiveListingsWidgetProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [listings, setListings] = useState<ListingItem[]>([]);
@@ -59,12 +61,12 @@ export default function LiveListingsWidget({
       limit: '6',
       sort: 'price-desc',
     });
-    // Use ZIP codes for precise neighborhood filtering (CityRegion is borough-level only)
-    if (zipCodes && zipCodes.length > 0) {
+    // Primary: lat/lng bounding box (matches StreetEasy boundaries precisely)
+    // Fallback: ZIP codes (less precise but works)
+    if (bounds) {
+      params.set('bounds', `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`);
+    } else if (zipCodes && zipCodes.length > 0) {
       params.set('zipCodes', zipCodes.join(','));
-    } else {
-      // Fallback to neighborhood name (post-filter)
-      params.set('neighborhood', name);
     }
     if (tab.type) params.set('type', tab.type);
     if (tab.propertyType) params.set('propertyType', tab.propertyType);
@@ -80,7 +82,7 @@ export default function LiveListingsWidget({
         setListings([]);
         setLoading(false);
       });
-  }, [name, activeTab, zipCodes]);
+  }, [name, activeTab, zipCodes, bounds]);
 
   return (
     <section aria-label={`${name} Listings`} className="py-10 sm:py-14">

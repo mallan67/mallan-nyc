@@ -99,7 +99,7 @@ export default async function NeighborhoodPage({
       <main>
         <AnswerBox neighborhood={n} />
         <MicroFAQ name={n.name} faqs={n.faqs} />
-        <LiveListingsWidget neighborhoodSlug={n.slug} name={n.name} zipCodes={n.zipCodes} />
+        <LiveListingsWidget neighborhoodSlug={n.slug} name={n.name} zipCodes={n.zipCodes} bounds={n.bounds} />
         <MarketStatsModule name={n.name} stats={n.marketStats} />
         {n.featuredBuildings.length > 0 && (
           <FeaturedBuildingsModule name={n.name} buildings={n.featuredBuildings} />

@@ -236,11 +236,20 @@ export async function GET(request: Request) {
           }
         }
 
-        // Neighborhood ZIP codes — push to OData for precise filtering
-        // CityRegion in REBNY RLS is borough-level, not neighborhood-level.
-        // Use zipCodes param (comma-separated) to filter by postal code.
+        // Neighborhood geo bounds — lat/lng bounding box for precise filtering
+        // CityRegion in REBNY RLS is borough-level only, not neighborhood.
+        // Bounding boxes match StreetEasy neighborhood boundaries.
+        const boundsParam = searchParams.get('bounds'); // "south,west,north,east"
+        if (boundsParam) {
+          const [south, west, north, east] = boundsParam.split(',').map(Number);
+          if (south && west && north && east) {
+            filterParts.push(`Latitude ge ${south} and Latitude le ${north} and Longitude ge ${west} and Longitude le ${east}`);
+          }
+        }
+
+        // Fallback: ZIP codes (less precise, but works for neighborhoods without bounds)
         const zipCodes = searchParams.get('zipCodes');
-        if (zipCodes) {
+        if (zipCodes && !boundsParam) {
           const zips = zipCodes.split(',').map(z => z.trim()).filter(Boolean);
           if (zips.length === 1) {
             filterParts.push(`PostalCode eq '${zips[0]}'`);

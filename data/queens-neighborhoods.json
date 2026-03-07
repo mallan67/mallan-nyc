@@ -231,7 +231,13 @@
         "astoria homes",
         "buy apartment astoria queens",
         "astoria multi-family"
-      ]
+      ],
+      "bounds": {
+        "north": 40.784,
+        "south": 40.758,
+        "east": -73.892,
+        "west": -73.928
+      }
     },
     {
       "slug": "long-island-city",
@@ -466,7 +472,13 @@
         "LIC luxury apartments",
         "hunters point condos",
         "court square apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.757,
+        "south": 40.735,
+        "east": -73.93,
+        "west": -73.96
+      }
     },
     {
       "slug": "jackson-heights",
@@ -699,7 +711,13 @@
         "jackson heights historic district",
         "buy co-op jackson heights",
         "jackson heights queens homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.758,
+        "south": 40.742,
+        "east": -73.865,
+        "west": -73.896
+      }
     },
     {
       "slug": "flushing",
@@ -924,7 +942,13 @@
         "flushing new development",
         "buy condo flushing queens",
         "flushing queens homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.772,
+        "south": 40.75,
+        "east": -73.79,
+        "west": -73.83
+      }
     },
     {
       "slug": "forest-hills",
@@ -1154,7 +1178,13 @@
         "forest hills condos",
         "buy co-op forest hills queens",
         "forest hills queens homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.728,
+        "south": 40.71,
+        "east": -73.835,
+        "west": -73.86
+      }
     },
     {
       "slug": "sunnyside",
@@ -1379,7 +1409,13 @@
         "sunnyside apartments for sale",
         "buy co-op sunnyside queens",
         "sunnyside queens homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.75,
+        "south": 40.735,
+        "east": -73.898,
+        "west": -73.923
+      }
     },
     {
       "slug": "bayside",
@@ -1604,7 +1640,13 @@
         "bay terrace co-ops",
         "buy home bayside queens",
         "bayside queens apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.785,
+        "south": 40.755,
+        "east": -73.75,
+        "west": -73.783
+      }
     }
   ]
 }

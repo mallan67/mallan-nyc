@@ -222,7 +222,13 @@
         "bronx luxury real estate",
         "riverdale family homes",
         "hudson river views bronx"
-      ]
+      ],
+      "bounds": {
+        "north": 40.905,
+        "south": 40.876,
+        "east": -73.892,
+        "west": -73.92
+      }
     },
     {
       "slug": "city-island",
@@ -444,7 +450,13 @@
         "city island condos",
         "city island nyc",
         "bronx island living"
-      ]
+      ],
+      "bounds": {
+        "north": 40.859,
+        "south": 40.84,
+        "east": -73.78,
+        "west": -73.795
+      }
     },
     {
       "slug": "mott-haven",
@@ -675,7 +687,13 @@
         "mott haven waterfront",
         "bronx new construction condos",
         "mott haven apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.822,
+        "south": 40.804,
+        "east": -73.906,
+        "west": -73.928
+      }
     },
     {
       "slug": "pelham-bay",
@@ -902,7 +920,13 @@
         "bronx single family homes",
         "pelham bay park area real estate",
         "northeast bronx real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.865,
+        "south": 40.835,
+        "east": -73.809,
+        "west": -73.85
+      }
     },
     {
       "slug": "fordham",
@@ -1132,7 +1156,13 @@
         "belmont bronx homes",
         "fordham university area apartments",
         "bronx zoo neighborhood real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.865,
+        "south": 40.85,
+        "east": -73.887,
+        "west": -73.91
+      }
     }
   ]
 }

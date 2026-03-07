@@ -230,7 +230,13 @@
         "yorkville apartments",
         "museum mile real estate"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.785,
+        "south": 40.761,
+        "east": -73.95,
+        "west": -73.968
+      }
     },
     {
       "slug": "upper-west-side",
@@ -453,7 +459,13 @@
         "riverside drive real estate",
         "manhattan family apartments"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.801,
+        "south": 40.77,
+        "east": -73.97,
+        "west": -73.982
+      }
     },
     {
       "slug": "tribeca",
@@ -663,7 +675,13 @@
         "tribeca manhattan",
         "downtown manhattan real estate"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.722,
+        "south": 40.713,
+        "east": -74,
+        "west": -74.013
+      }
     },
     {
       "slug": "soho",
@@ -877,7 +895,13 @@
         "luxury soho living",
         "soho new york"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.7264,
+        "south": 40.721,
+        "east": -73.996,
+        "west": -74.005
+      }
     },
     {
       "slug": "chelsea",
@@ -1089,7 +1113,13 @@
         "west chelsea luxury",
         "chelsea brownstones"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.75,
+        "south": 40.738,
+        "east": -73.992,
+        "west": -74.007
+      }
     },
     {
       "slug": "financial-district",
@@ -1310,7 +1340,13 @@
         "financial district rentals",
         "lower manhattan"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.713,
+        "south": 40.7,
+        "east": -73.998,
+        "west": -74.017
+      }
     },
     {
       "slug": "greenwich-village",
@@ -1529,7 +1565,13 @@
         "manhattan brownstones",
         "village new york"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.738,
+        "south": 40.7264,
+        "east": -73.989,
+        "west": -74.007
+      }
     },
     {
       "slug": "midtown-east",
@@ -1742,7 +1784,13 @@
         "midtown manhattan luxury",
         "UN plaza apartments"
       ],
-      "borough": "Manhattan"
+      "borough": "Manhattan",
+      "bounds": {
+        "north": 40.764,
+        "south": 40.7549,
+        "east": -73.964,
+        "west": -73.978
+      }
     },
     {
       "slug": "hells-kitchen",
@@ -1931,7 +1979,13 @@
         "hells kitchen condos",
         "midtown west real estate",
         "theater district apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.767,
+        "south": 40.7549,
+        "east": -73.988,
+        "west": -74.002
+      }
     },
     {
       "slug": "east-village",
@@ -2113,7 +2167,13 @@
         "alphabet city real estate",
         "east village condos",
         "downtown manhattan"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7358,
+        "south": 40.723,
+        "east": -73.972,
+        "west": -73.99
+      }
     },
     {
       "slug": "lower-east-side",
@@ -2287,7 +2347,13 @@
         "lower east side real estate",
         "downtown manhattan condos",
         "les luxury"
-      ]
+      ],
+      "bounds": {
+        "north": 40.723,
+        "south": 40.712,
+        "east": -73.975,
+        "west": -73.99
+      }
     },
     {
       "slug": "harlem",
@@ -2468,7 +2534,13 @@
         "harlem condos for sale",
         "harlem apartments",
         "upper manhattan"
-      ]
+      ],
+      "bounds": {
+        "north": 40.824,
+        "south": 40.8008,
+        "east": -73.936,
+        "west": -73.96
+      }
     },
     {
       "slug": "nomad",
@@ -2637,7 +2709,13 @@
         "madison square park condos",
         "nomad manhattan",
         "nomad luxury"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7478,
+        "south": 40.7422,
+        "east": -73.984,
+        "west": -73.991
+      }
     },
     {
       "slug": "flatiron",
@@ -2810,7 +2888,13 @@
         "flatiron condos",
         "union square apartments",
         "park avenue south"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7422,
+        "south": 40.7358,
+        "east": -73.986,
+        "west": -73.994
+      }
     },
     {
       "slug": "gramercy",
@@ -2980,7 +3064,13 @@
         "gramercy co-ops",
         "gramercy park condos",
         "gramercy manhattan"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7422,
+        "south": 40.734,
+        "east": -73.979,
+        "west": -73.987
+      }
     },
     {
       "slug": "battery-park-city",
@@ -3144,7 +3234,13 @@
         "battery park city real estate",
         "waterfront manhattan",
         "bpc condo"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7175,
+        "south": 40.705,
+        "east": -74.013,
+        "west": -74.021
+      }
     },
     {
       "slug": "hudson-yards",
@@ -3301,7 +3397,13 @@
         "hudson yards real estate",
         "new manhattan neighborhood",
         "hudson yards luxury"
-      ]
+      ],
+      "bounds": {
+        "north": 40.756,
+        "south": 40.75,
+        "east": -73.994,
+        "west": -74.005
+      }
     },
     {
       "slug": "midtown-west",
@@ -3488,7 +3590,13 @@
         "times square apartments",
         "penn station apartments",
         "midtown west real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.762,
+        "south": 40.749,
+        "east": -73.983,
+        "west": -73.999
+      }
     },
     {
       "slug": "west-village",
@@ -3737,7 +3845,13 @@
         "west village new construction",
         "hudson river park apartments",
         "west village brownstones"
-      ]
+      ],
+      "bounds": {
+        "north": 40.738,
+        "south": 40.7264,
+        "east": -73.999,
+        "west": -74.011
+      }
     },
     {
       "slug": "nolita",
@@ -3981,7 +4095,13 @@
         "nolita luxury apartments",
         "downtown manhattan condos",
         "nolita new construction"
-      ]
+      ],
+      "bounds": {
+        "north": 40.726,
+        "south": 40.719,
+        "east": -73.99,
+        "west": -73.996
+      }
     },
     {
       "slug": "noho",
@@ -4220,7 +4340,13 @@
         "noho luxury apartments",
         "great jones street apartments",
         "noho rentals"
-      ]
+      ],
+      "bounds": {
+        "north": 40.731,
+        "south": 40.725,
+        "east": -73.988,
+        "west": -73.996
+      }
     },
     {
       "slug": "little-italy",
@@ -4465,7 +4591,13 @@
         "grand street apartments",
         "little italy new york real estate",
         "affordable downtown manhattan"
-      ]
+      ],
+      "bounds": {
+        "north": 40.723,
+        "south": 40.718,
+        "east": -73.994,
+        "west": -73.999
+      }
     },
     {
       "slug": "chinatown",
@@ -4720,7 +4852,13 @@
         "lower manhattan real estate",
         "chinatown luxury condos",
         "chinatown nyc apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.718,
+        "south": 40.7085,
+        "east": -73.99,
+        "west": -74.001
+      }
     },
     {
       "slug": "washington-heights",
@@ -4961,7 +5099,13 @@
         "washington heights rentals",
         "181st street apartments",
         "pre-war co-ops manhattan"
-      ]
+      ],
+      "bounds": {
+        "north": 40.858,
+        "south": 40.834,
+        "east": -73.924,
+        "west": -73.946
+      }
     },
     {
       "slug": "inwood",
@@ -5190,7 +5334,13 @@
         "park terrace apartments inwood",
         "inwood condos",
         "cheapest manhattan neighborhoods"
-      ]
+      ],
+      "bounds": {
+        "north": 40.876,
+        "south": 40.855,
+        "east": -73.913,
+        "west": -73.933
+      }
     },
     {
       "slug": "murray-hill",
@@ -5429,7 +5579,13 @@
         "park avenue south condos",
         "manhattan midtown apartments",
         "murray hill doorman buildings"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7549,
+        "south": 40.749,
+        "east": -73.968,
+        "west": -73.983
+      }
     },
     {
       "slug": "kips-bay",
@@ -5665,7 +5821,13 @@
         "kips bay doorman buildings",
         "midtown east affordable apartments",
         "kips bay towers"
-      ]
+      ],
+      "bounds": {
+        "north": 40.749,
+        "south": 40.74,
+        "east": -73.97,
+        "west": -73.981
+      }
     },
     {
       "slug": "sutton-place",
@@ -5912,7 +6074,13 @@
         "3 sutton place condo",
         "riverview terrace manhattan",
         "midtown east waterfront apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.762,
+        "south": 40.756,
+        "east": -73.958,
+        "west": -73.966
+      }
     },
     {
       "slug": "morningside-heights",
@@ -6153,7 +6321,13 @@
         "pre-war co-ops morningside heights",
         "morningside heights one bedroom",
         "cathedral parkway apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.812,
+        "south": 40.8008,
+        "east": -73.954,
+        "west": -73.968
+      }
     },
     {
       "slug": "east-harlem",
@@ -6399,7 +6573,13 @@
         "east harlem two bedroom",
         "east harlem condo amenities",
         "upper manhattan real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.805,
+        "south": 40.7908,
+        "east": -73.935,
+        "west": -73.95
+      }
     },
     {
       "slug": "roosevelt-island",
@@ -6627,7 +6807,13 @@
         "roosevelt island tram",
         "cornell tech apartments",
         "roosevelt island two bedroom"
-      ]
+      ],
+      "bounds": {
+        "north": 40.772,
+        "south": 40.75,
+        "east": -73.938,
+        "west": -73.953
+      }
     },
     {
       "slug": "yorkville",
@@ -6868,7 +7054,13 @@
         "carl schurz park apartments",
         "yorkville new construction",
         "yorkville manhattan real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.7908,
+        "south": 40.781,
+        "east": -73.943,
+        "west": -73.958
+      }
     },
     {
       "slug": "two-bridges",
@@ -7108,7 +7300,13 @@
         "two bridges luxury condos",
         "cherry street condos manhattan",
         "two bridges manhattan real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.712,
+        "south": 40.705,
+        "east": -73.977,
+        "west": -73.992
+      }
     }
   ]
 }

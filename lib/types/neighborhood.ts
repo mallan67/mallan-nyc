@@ -97,6 +97,7 @@ export interface Neighborhood {
   ctas: NeighborhoodCTAs;
 
   boundaries: NeighborhoodBoundaries;
+  bounds?: { north: number; south: number; east: number; west: number };
   transit: string[];
   zipCodes: string[];
   adjacentNeighborhoods: string[];
