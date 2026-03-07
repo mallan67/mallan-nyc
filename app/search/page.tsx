@@ -3,11 +3,9 @@
 import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import { useListings } from '@/lib/hooks/useListings';
-import { type DisplayListing } from '@/lib/idx/display-adapter';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
-import SearchAutocomplete from '@/app/components/SearchAutocomplete';
+import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
 import SaveSearchButton from '@/app/components/SaveSearchButton';
 import { GridCard, ListCard, CompactCard } from '@/app/components/SearchListingCard';
 import SearchFilterPanel from '@/app/components/SearchFilterPanel';
@@ -160,20 +158,20 @@ function SearchClient() {
   }, [searchParams, router]);
 
   // ── Autocomplete select ──
-  const handleAutocompleteSelect = useCallback((suggestion: { type?: string; label?: string; value?: string }) => {
+  const handleAutocompleteSelect = useCallback((suggestion: Suggestion) => {
     const params = new URLSearchParams(searchParams?.toString() || '');
     if (suggestion.type === 'neighborhood') {
-      params.set('neighborhood', suggestion.value || '');
+      params.set('neighborhood', suggestion.value);
       router.push(`/search?${params.toString()}`);
     } else if (suggestion.type === 'zip') {
-      params.set('zip', suggestion.value || '');
+      params.set('zip', suggestion.value);
       router.push(`/search?${params.toString()}`);
     } else if (suggestion.type === 'agent') {
       router.push(`/agents/${suggestion.value}`);
     } else if (suggestion.type === 'listing') {
       router.push(`/listings/${suggestion.value}`);
     } else {
-      setSearchQuery(suggestion.label || '');
+      setSearchQuery(suggestion.label);
     }
   }, [searchParams, router]);
 

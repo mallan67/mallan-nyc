@@ -2,11 +2,16 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-interface Suggestion {
-  address: string;
-  neighborhood: string;
-  borough: string;
-  postalCode: string;
+export interface Suggestion {
+  type: 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
+  label: string;
+  sublabel: string;
+  value: string;
+  // Legacy fields for backward compatibility
+  address?: string;
+  neighborhood?: string;
+  borough?: string;
+  postalCode?: string;
 }
 
 interface SearchAutocompleteProps {
@@ -79,7 +84,7 @@ export default function SearchAutocomplete({
     setIsOpen(false);
     setSuggestions([]);
     onSelect(suggestion);
-    onChange(suggestion.address);
+    onChange(suggestion.label || suggestion.address || '');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -167,7 +172,7 @@ export default function SearchAutocomplete({
         >
           {suggestions.map((suggestion, i) => (
             <li
-              key={`${suggestion.address}-${suggestion.postalCode}-${i}`}
+              key={`${suggestion.type}-${suggestion.value}-${i}`}
               id={`suggestion-${i}`}
               role="option"
               aria-selected={i === activeIndex}
@@ -177,12 +182,10 @@ export default function SearchAutocomplete({
               }`}
             >
               <p className="text-sm font-medium text-brand-dark">
-                {suggestion.address}
+                {suggestion.label || suggestion.address}
               </p>
               <p className="text-xs text-brand-dark/85">
-                {suggestion.neighborhood ? `${suggestion.neighborhood}, ` : ''}
-                {suggestion.borough}
-                {suggestion.postalCode ? ` ${suggestion.postalCode}` : ''}
+                {suggestion.sublabel || [suggestion.neighborhood, suggestion.borough, suggestion.postalCode].filter(Boolean).join(', ')}
               </p>
             </li>
           ))}
