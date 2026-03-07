@@ -19,6 +19,9 @@ import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import NeighborhoodExplorer from '@/app/components/NeighborhoodExplorer';
 import BuildingUnits from '@/app/components/BuildingUnits';
 import SimilarListings from '@/app/components/SimilarListings';
+import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
+import type { BoroughSlug } from '@/lib/types/neighborhood';
+import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
@@ -445,6 +448,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const borough = countyToBorough(listing.address.county);
   const neighborhood = listing.address.neighborhood || '';
   const displayPropertyType = listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType;
+
+  // Neighborhood data lookup
+  const boroughSlug = borough.toLowerCase().replace(/\s+/g, '-') as BoroughSlug;
+  const neighborhoodSlug = neighborhood.toLowerCase().replace(/['']/g, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const neighborhoodData = neighborhoodSlug ? findNeighborhood(boroughSlug, neighborhoodSlug) : undefined;
 
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
@@ -1158,6 +1166,78 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     address={fullAddress}
                     borough={borough}
                   />
+                </section>
+              )}
+
+              {/* ── 12b. NEIGHBORHOOD SUMMARY ── */}
+              {neighborhoodData && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <p className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-[0.15em] mb-5">
+                    The Neighborhood
+                  </p>
+
+                  <div className="flex items-start gap-5">
+                    {/* Hero thumbnail */}
+                    {neighborhoodData.heroImage && (
+                      <div className="hidden sm:block relative w-28 h-28 flex-shrink-0 rounded-2xl overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={neighborhoodData.heroImage}
+                          alt={neighborhoodData.name}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-display text-lg font-semibold text-brand-dark leading-snug">
+                        {neighborhoodData.name}
+                      </h3>
+                      <p className="text-[13px] text-brand-gold-deep font-medium mb-2">{neighborhoodData.tagline}</p>
+                      <p className="text-[13px] text-brand-dark/70 leading-relaxed line-clamp-3">
+                        {neighborhoodData.summary}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                    <div className="bg-stone-50 rounded-xl px-3 py-2.5 text-center">
+                      <p className="text-[20px] font-bold text-brand-dark">{neighborhoodData.walkScore}</p>
+                      <p className="text-[10px] text-brand-dark/50 uppercase tracking-wider font-semibold">Walk Score</p>
+                    </div>
+                    <div className="bg-stone-50 rounded-xl px-3 py-2.5 text-center">
+                      <p className="text-[20px] font-bold text-brand-dark">{neighborhoodData.transitScore}</p>
+                      <p className="text-[10px] text-brand-dark/50 uppercase tracking-wider font-semibold">Transit Score</p>
+                    </div>
+                    <div className="bg-stone-50 rounded-xl px-3 py-2.5 text-center">
+                      <p className="text-[20px] font-bold text-brand-dark">${neighborhoodData.avgPricePerSqft.toLocaleString()}</p>
+                      <p className="text-[10px] text-brand-dark/50 uppercase tracking-wider font-semibold">Avg $/Sq Ft</p>
+                    </div>
+                    <div className="bg-stone-50 rounded-xl px-3 py-2.5 text-center">
+                      <p className="text-[13px] font-bold text-brand-dark mt-0.5">{neighborhoodData.dominantPropertyType}</p>
+                      <p className="text-[10px] text-brand-dark/50 uppercase tracking-wider font-semibold mt-0.5">Primary Type</p>
+                    </div>
+                  </div>
+
+                  {/* Subway lines + link */}
+                  <div className="flex items-center justify-between mt-4">
+                    {neighborhoodData.nearestSubway.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        {neighborhoodData.nearestSubway.map((line) => (
+                          <SubwayBadge key={line} line={line} />
+                        ))}
+                      </div>
+                    )}
+                    <Link
+                      href={`/${boroughSlug}/${neighborhoodData.slug}`}
+                      className="text-[12px] font-semibold text-brand-gold-deep uppercase tracking-wider hover:text-brand-gold transition-colors flex items-center gap-1"
+                    >
+                      Full Neighborhood Guide
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </Link>
+                  </div>
                 </section>
               )}
 

@@ -236,6 +236,23 @@ export async function GET(request: Request) {
           }
         }
 
+        // Neighborhood — push to OData for efficiency
+        if (neighborhood) {
+          const safeNeighborhood = neighborhood.replace(/'/g, "''");
+          filterParts.push(`CityRegion eq '${safeNeighborhood}'`);
+        }
+
+        // Borough — push to OData
+        if (borough) {
+          const boroughMap: Record<string, string> = {
+            'manhattan': 'New York', 'brooklyn': 'Kings', 'queens': 'Queens',
+            'bronx': 'Bronx', 'staten island': 'Richmond',
+          };
+          const countyValue = boroughMap[borough.toLowerCase()] || borough;
+          const safeBorough = countyValue.replace(/'/g, "''");
+          filterParts.push(`CountyOrParish eq '${safeBorough}'`);
+        }
+
         // Build OData $orderby for sort
         let orderby: string | undefined;
         switch (sortParam) {
