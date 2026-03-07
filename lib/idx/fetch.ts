@@ -339,13 +339,21 @@ export async function fetchListingMedia(
     //          MediaType = file format (jpeg, png) — NOT content type
     const cat = String(m.MediaCategory || "").toLowerCase();
     const desc = String(m.ShortDescription || "").toLowerCase();
+    const url = String(m.MediaURL || "");
+    const urlLower = url.toLowerCase();
+
     let mediaType = "Photo";
-    if (cat.includes("floor plan") || desc.includes("floor plan") || desc.includes("floorplan")) mediaType = "FloorPlan";
-    else if (cat.includes("video")) mediaType = "Video";
-    else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+    if (cat.includes("floor plan") || cat.includes("floorplan") || desc.includes("floor plan") || desc.includes("floorplan")) {
+      mediaType = "FloorPlan";
+    } else if (cat.includes("video") || desc.includes("video") || /\.(mp4|avi|mov|wmv|webm)(\?|$)/.test(urlLower) || /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(urlLower)) {
+      mediaType = "Video";
+    } else if (cat.includes("virtual tour") || cat.includes("virtualtour") || cat === "3d" || desc.includes("virtual tour") || desc.includes("3d tour") || desc.includes("matterport") || /matterport\.com|my\.matterport|iguide\.com|zillow\.com\/view/.test(urlLower)) {
+      mediaType = "VirtualTour";
+    }
+
     const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
     return {
-      url: String(m.MediaURL || ""),
+      url,
       mediaType,
       order: isPreferred ? -1 : Number(m.Order || i),
     };
