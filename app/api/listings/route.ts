@@ -105,12 +105,21 @@ export async function GET(request: Request) {
     const minBaths = searchParams.get('minBaths');
     const propertyTypeFilter = searchParams.get('propertyType');
     const statusFilter = searchParams.get('status');
+    const statusesParam = searchParams.get('statuses'); // comma-separated: Active,ComingSoon
     const minSqft = searchParams.get('minSqft');
     const maxSqft = searchParams.get('maxSqft');
     const sortParam = searchParams.get('sort');
     const skipParam = searchParams.get('skip');
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
+    // New filter params
+    const commercial = searchParams.get('commercial') === 'true';
+    const propertySubTypes = searchParams.get('propertySubTypes'); // comma-separated
+    const ownershipTypes = searchParams.get('ownershipTypes'); // comma-separated
+    const yearBuiltParam = searchParams.get('yearBuilt'); // 'pre-war' | 'post-war'
+    const furnishedParam = searchParams.get('furnished') === 'true';
+    const amenitiesParam = searchParams.get('amenities'); // comma-separated amenity keys
+    const openHouseParam = searchParams.get('openHouse') === 'true';
 
     // ═══════════════════════════════════════════════════════════
     // IDX PATH: Fetch from Trestle/REBNY RLS
@@ -130,9 +139,18 @@ export async function GET(request: Request) {
         const filterParts: string[] = [];
 
         // Status filter — default to active statuses
-        if (statusFilter) {
-          // Validate against allowed RESO enum tokens
-          const allowedStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+        const allowedStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+        if (statusesParam) {
+          // Multi-status: comma-separated
+          const requested = statusesParam.split(',').filter(s => allowedStatuses.includes(s));
+          if (requested.length === 1) {
+            filterParts.push(`StandardStatus eq '${requested[0]}'`);
+          } else if (requested.length > 1) {
+            filterParts.push(`(${requested.map(s => `StandardStatus eq '${s}'`).join(' or ')})`);
+          } else {
+            filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+          }
+        } else if (statusFilter) {
           if (allowedStatuses.includes(statusFilter)) {
             filterParts.push(`StandardStatus eq '${statusFilter}'`);
           } else {
@@ -148,6 +166,12 @@ export async function GET(request: Request) {
           filterParts.push("PropertyType eq 'ResidentialLease'");
         }
 
+        // Commercial filter — uses PropertySubType values under Residential PropertyType
+        if (commercial) {
+          const commercialSubTypes = ['Office', 'Retail', 'Industrial', 'Warehouse', 'MixedUse'];
+          filterParts.push(`(${commercialSubTypes.map(t => `PropertySubType eq '${t}'`).join(' or ')})`);
+        }
+
         if (minPrice) filterParts.push(`ListPrice ge ${parseInt(minPrice, 10)}`);
         if (maxPrice) filterParts.push(`ListPrice le ${parseInt(maxPrice, 10)}`);
         if (minBeds) filterParts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
@@ -155,9 +179,42 @@ export async function GET(request: Request) {
         if (minSqft) filterParts.push(`LivingArea ge ${parseInt(minSqft, 10)}`);
         if (maxSqft) filterParts.push(`LivingArea le ${parseInt(maxSqft, 10)}`);
 
-        if (propertyTypeFilter) {
-          // Map user-friendly names to Trestle fields
-          // Condo/Co-op/Condop are CommonInterest, not PropertySubType
+        // Year Built: pre-war (<=1946) / post-war (>=1947)
+        if (yearBuiltParam === 'pre-war') filterParts.push('YearBuilt le 1946');
+        else if (yearBuiltParam === 'post-war') filterParts.push('YearBuilt ge 1947');
+
+        // Furnished (rental)
+        if (furnishedParam) filterParts.push("Furnished eq 'Furnished'");
+
+        // Property sub-types (comma-separated)
+        if (propertySubTypes) {
+          const subTypeMap: Record<string, string> = {
+            'Townhouse': 'SingleFamilyTownhouse',
+            'Multi-Family': 'MultiFamily',
+            'Single Family': 'SingleFamilyResidence',
+            'Office': 'Office', 'Retail': 'Retail', 'Industrial': 'Industrial',
+            'Warehouse': 'Warehouse', 'Mixed Use': 'MixedUse',
+            'Hospitality': 'Hospitality', 'Healthcare': 'Healthcare', 'Parking': 'Parking',
+          };
+          const types = propertySubTypes.split(',').map(t => subTypeMap[t.trim()] || t.trim()).filter(Boolean);
+          if (types.length > 0) {
+            filterParts.push(`(${types.map(t => `PropertySubType eq '${t.replace(/'/g, "''")}'`).join(' or ')})`);
+          }
+        }
+
+        // Ownership types (comma-separated: Condo, Co-op, Condop)
+        if (ownershipTypes) {
+          const ownerMap: Record<string, string> = {
+            'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
+          };
+          const types = ownershipTypes.split(',').map(t => ownerMap[t.trim()]).filter(Boolean);
+          if (types.length > 0) {
+            filterParts.push(`(${types.map(t => `CommonInterest eq '${t}'`).join(' or ')})`);
+          }
+        }
+
+        // Legacy single propertyType filter (backward compat)
+        if (propertyTypeFilter && !propertySubTypes && !ownershipTypes) {
           const commonInterestMap: Record<string, string> = {
             'Condo': 'Condominium',
             'Co-op': 'StockCooperative',
@@ -174,7 +231,6 @@ export async function GET(request: Request) {
           } else if (propertySubTypeMap[safe]) {
             filterParts.push(`PropertySubType eq '${propertySubTypeMap[safe]}'`);
           } else {
-            // Try both fields for unknown values
             filterParts.push(`(PropertySubType eq '${safe}' or CommonInterest eq '${safe}')`);
           }
         }
@@ -193,9 +249,17 @@ export async function GET(request: Request) {
 
         // Skip $expand=Media for bulk queries — it's extremely slow (2+ min for 500 records).
         // Photos are batch-fetched separately below for just the page of results.
+        // When amenity filters are active, add the required fields to $select
+        const amenityFields = amenitiesParam ? [
+          'BuildingFeatures', 'InteriorFeatures', 'ExteriorFeatures',
+          'Appliances', 'Cooling', 'View', 'ParkingFeatures', 'LaundryFeatures',
+          'GarageYN',
+        ] : [];
+        const selectFields = [...CARD_SELECT_FIELDS, ...amenityFields.filter(f => !CARD_SELECT_FIELDS.includes(f))];
+
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
-          select: CARD_SELECT_FIELDS,
+          select: selectFields,
           top: fetchTop,
           maxTotal: fetchTop,
           orderby,
@@ -210,8 +274,39 @@ export async function GET(request: Request) {
           (raw) => checkDistributionGates(raw).displayable
         );
 
+        // Step 1b: Amenity filters on RAW Trestle data (before mapping)
+        // Uses PascalCase field names directly from Trestle response.
+        // Multi-value picklist fields contain comma-separated values (e.g. "Elevators,IndoorPool")
+        let amenityFiltered = displayable;
+        if (amenitiesParam) {
+          const { AMENITY_FIELD_MAP } = await import('@/lib/search/types');
+          const requestedAmenities = amenitiesParam.split(',').filter(
+            (a): a is import('@/lib/search/types').AmenityFilter => a in AMENITY_FIELD_MAP
+          );
+          for (const amenityKey of requestedAmenities) {
+            const mapping = AMENITY_FIELD_MAP[amenityKey];
+            const fields = mapping.field.split(',');
+            const matchValues = mapping.values.map(v => v.toLowerCase());
+
+            if (amenityKey === 'pet-friendly') {
+              amenityFiltered = amenityFiltered.filter((raw) => {
+                const val = String(raw.PetsAllowed || '').toLowerCase();
+                if (!val) return false;
+                return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
+              });
+            } else {
+              amenityFiltered = amenityFiltered.filter((raw) => {
+                return fields.some(fieldName => {
+                  const val = String(raw[fieldName] || '').toLowerCase();
+                  return matchValues.some(mv => val.includes(mv));
+                });
+              });
+            }
+          }
+        }
+
         // Step 2: Map to IDXListing
-        const mapped = displayable
+        const mapped = amenityFiltered
           .map((raw) => mapRESOToInternal(raw))
           .filter((l): l is NonNullable<typeof l> => l !== null);
 
@@ -223,7 +318,6 @@ export async function GET(request: Request) {
           filtered = filtered.filter((l) => {
             const county = l.address.county.toLowerCase();
             const city = l.address.city.toLowerCase();
-            // NYC borough → county mapping
             if (boroughLower === 'manhattan') return county.includes('new york') || city === 'manhattan';
             if (boroughLower === 'brooklyn') return county.includes('kings') || city === 'brooklyn';
             if (boroughLower === 'queens') return county.includes('queens') || city === 'queens';
@@ -240,7 +334,28 @@ export async function GET(request: Request) {
           );
         }
 
-        // propertyType filter already pushed to OData — no post-fetch filtering needed
+        // Open House filter — requires separate Trestle OpenHouse resource query
+        if (openHouseParam) {
+          try {
+            const ohToken = await getAccessToken();
+            const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+            const today = new Date().toISOString().split('T')[0];
+            const ohParams = new URLSearchParams();
+            ohParams.set('$select', 'ListingKey');
+            ohParams.set('$filter', `OpenHouseDate ge ${today} and OpenHouseStatus eq 'Active'`);
+            ohParams.set('$top', '500');
+            const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
+              headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
+            });
+            if (ohRes.ok) {
+              const ohData = await ohRes.json();
+              const ohListingKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
+              filtered = filtered.filter(l => ohListingKeys.has(l.listingId));
+            }
+          } catch (ohErr) {
+            console.warn('[/api/listings] Open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
+          }
+        }
 
         // Step 4: Apply skip + limit and convert to public DTO
         // Use OData count for true total when available; fall back to filtered.length
