@@ -124,9 +124,10 @@ async function fetchLastSaleFromACRIS(
 
     if (docRows.length === 0) return null;
 
-    // Step 2: Get deed documents with sale amounts
+    // Step 2: Get transfer/deed documents with sale amounts
+    // NYC condos/co-ops use RPTT&RET (Real Property Transfer Tax), houses use DEED/DEEDO
     const docIds = docRows.map(r => r.document_id);
-    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')}) AND doc_type in ('DEED','DEEDO') AND document_amt>'0'`;
+    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')}) AND doc_type in ('DEED','DEEDO','RPTT&RET') AND document_amt>'0'`;
     const docs = await soda<{
       document_id: string;
       doc_type: string;
