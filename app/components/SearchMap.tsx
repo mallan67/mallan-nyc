@@ -289,53 +289,49 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
               }}
             >
               <Popup>
-                <div className="w-[260px]">
-                  {listing.media[0]?.url && (
-                    <a href={listingHref(listing)}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                <a href={listingHref(listing)} className="block w-[280px] no-underline text-inherit hover:text-inherit">
+                  <div className="flex gap-0">
+                    {listing.media[0]?.url && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={listing.media[0].url}
                         alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-                        className="w-full h-[140px] object-cover"
+                        className="w-[110px] h-[100px] object-cover flex-shrink-0"
                         loading="lazy"
                       />
-                    </a>
-                  )}
-                  <div className="p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-sm text-gray-900">
-                          {formatPrice(listing.listPrice, isRental)}
-                        </p>
-                        <p className="text-xs text-gray-700 mt-0.5">
-                          {listing.address.streetName === 'Address Undisclosed'
-                            ? 'Address Undisclosed'
-                            : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
-                        </p>
-                      </div>
-                      {stackCount > 1 && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-medium flex-shrink-0">
-                          {stackCount} in bldg
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {listing.bedroomsTotal} bed &middot; {listing.bathroomsFull} bath
-                      {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sqft` : ''}
-                    </p>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                      <p className="text-[10px] text-gray-400">
-                        {listing.listOfficeName}
+                    )}
+                    <div className="flex-1 p-2 min-w-0">
+                      <p className="font-bold text-sm text-gray-900 leading-tight">
+                        {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
                       </p>
-                      <a
-                        href={listingHref(listing)}
-                        className="text-xs font-medium text-brand-gold hover:text-brand-gold/80 transition-colors"
-                      >
-                        View Details →
-                      </a>
+                      <p className="text-[11px] text-gray-800 mt-0.5 truncate font-medium">
+                        {listing.address.streetName === 'Address Undisclosed'
+                          ? 'Address Undisclosed'
+                          : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
+                      </p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough || 'Manhattan'}
+                      </p>
+                      <p className="text-[10px] text-gray-600 mt-1">
+                        {listing.bedroomsTotal} bd &middot; {listing.bathroomsFull} ba
+                        {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sf` : ''}
+                      </p>
+                      {listing.associationFee ? (
+                        <p className="text-[9px] text-gray-400 mt-0.5">
+                          {isRental ? '' : `Maint: $${listing.associationFee.toLocaleString()}/mo`}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                </div>
+                  <div className="flex items-center justify-between px-2 py-1 border-t border-gray-100 bg-gray-50/50">
+                    <p className="text-[9px] text-gray-400 truncate max-w-[160px]">
+                      RLS &middot; {listing.listOfficeName}
+                    </p>
+                    <span className="text-[10px] font-medium text-brand-gold flex-shrink-0">
+                      Details &rarr;
+                    </span>
+                  </div>
+                </a>
               </Popup>
             </Marker>
           );

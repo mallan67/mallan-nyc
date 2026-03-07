@@ -3,13 +3,13 @@
  *
  * Trestle IDX Plus feed returns null for Latitude/Longitude.
  * This module assigns coordinates using:
- *   1. Neon DB cache — instant lookup (address geocoded once, cached forever)
- *   2. US Census Geocoder — free, accurate, no API key needed
- *   3. ZIP code centroids — instant fallback if Census is slow/unavailable
+ *   1. In-memory cache (warm serverless) — instant
+ *   2. Neon DB cache — fast single query
+ *   3. US Census Geocoder — free, accurate, cached to DB for next time
+ *   4. ZIP code centroids — instant fallback
  *
- * Background strategy: geocodeListings() returns instantly with ZIP centroids,
- * then fires off Census geocoding in the background to fill the cache for
- * subsequent requests. First page load uses ZIP, second load uses accurate coords.
+ * Census geocoding runs within a 4-second budget per request.
+ * Results are cached permanently in Neon so each address is geocoded once.
  *
  * COMPLIANCE: Geocoding runs server-side only.
  */
@@ -42,7 +42,6 @@ function hashJitter(str: string): [number, number] {
 /**
  * Geocode a single address via US Census Geocoder.
  * Free, no API key, accurate for US addresses.
- * https://geocoding.geo.census.gov/geocoder/
  */
 async function geocodeViaCensus(
   streetNumber: string,
@@ -62,7 +61,7 @@ async function geocodeViaCensus(
     const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${params.toString()}`;
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(2500),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -75,72 +74,21 @@ async function geocodeViaCensus(
       }
     }
   } catch {
-    // Census API timeout or error — fall through
+    // Census API timeout or error
   }
   return null;
 }
 
 /**
- * Background geocoding: fetch from Census and save to DB cache.
- * Does NOT block the response. Runs fire-and-forget.
- */
-async function backgroundGeocode(
-  listings: Array<{
-    address: {
-      streetNumber?: string;
-      streetName?: string;
-      postalCode?: string;
-      city?: string;
-      stateOrProvince?: string;
-    };
-  }>,
-): Promise<void> {
-  for (const listing of listings) {
-    const addr = listing.address;
-    const num = addr.streetNumber || '';
-    const street = addr.streetName || '';
-    const zip = (addr.postalCode || '').split('-')[0].trim();
-    if (!num || !street || !zip) continue;
-
-    const key = addressKey(num, street, zip);
-    // Skip if already in memory cache (means DB has it too)
-    if (memCache.has(key)) continue;
-
-    const coords = await geocodeViaCensus(
-      num, street,
-      addr.city || 'New York',
-      addr.stateOrProvince || 'NY',
-      zip,
-    );
-
-    if (coords) {
-      // Save to DB
-      try {
-        await prisma.geocodeCache.upsert({
-          where: { address_key: key },
-          create: { address_key: key, latitude: coords[0], longitude: coords[1], source: 'census' },
-          update: { latitude: coords[0], longitude: coords[1], source: 'census' },
-        });
-        memCache.set(key, coords);
-      } catch {
-        // DB write failed — non-fatal
-      }
-    }
-
-    // Rate limit: Census doesn't have a strict limit but be polite
-    await new Promise(r => setTimeout(r, 100));
-  }
-}
-
-/**
  * Assign coordinates to listings that lack them.
  *
- * Strategy (instant, non-blocking):
- *   1. Check in-memory cache (warm serverless)
- *   2. Batch lookup from Neon DB cache
- *   3. Apply ZIP centroid fallback for any still missing
- *   4. Fire background Census geocoding for cache misses (doesn't block response)
+ * Strategy:
+ *   1. Check in-memory cache (instant)
+ *   2. Batch lookup from Neon DB cache (single query, fast)
+ *   3. Census geocode cache misses within time budget (4s total)
+ *   4. ZIP centroid fallback for anything still missing
  *
+ * Census results are saved to DB so subsequent requests are instant.
  * Mutates the input array for performance.
  */
 export async function geocodeListings(
@@ -186,7 +134,7 @@ export async function geocodeListings(
     return addressKey(a.streetNumber || '', a.streetName || '', (a.postalCode || '').split('-')[0].trim());
   });
 
-  const needsCensus: typeof listings = [];
+  const needsCensus: { listing: typeof listings[0]; key: string }[] = [];
   try {
     const dbResults = await prisma.geocodeCache.findMany({
       where: { address_key: { in: keys } },
@@ -202,34 +150,71 @@ export async function geocodeListings(
         listing.address.longitude = coords[1];
         memCache.set(key, coords);
       } else {
-        needsCensus.push(listing);
+        needsCensus.push({ listing, key });
       }
     }
   } catch {
-    // DB read failed — all go to ZIP fallback + Census background
-    needsCensus.push(...stillNeedDb);
+    // DB read failed — all go to Census + ZIP fallback
+    for (let i = 0; i < stillNeedDb.length; i++) {
+      needsCensus.push({ listing: stillNeedDb[i], key: keys[i] });
+    }
   }
 
-  // Step 3: ZIP centroid fallback for anything still missing (instant)
-  for (const listing of needsCensus) {
+  if (needsCensus.length === 0) return;
+
+  // Step 3: Census geocode within time budget (4 seconds total)
+  const startTime = Date.now();
+  const TIME_BUDGET_MS = 4000;
+  const dbWrites: Promise<unknown>[] = [];
+
+  for (const { listing, key } of needsCensus) {
+    if (Date.now() - startTime > TIME_BUDGET_MS) break;
+
     const addr = listing.address;
     const num = addr.streetNumber || '';
     const street = addr.streetName || '';
     const zip = (addr.postalCode || '').split('-')[0].trim();
+    if (!num || !street || !zip) continue;
+
+    const coords = await geocodeViaCensus(
+      num, street,
+      addr.city || 'New York',
+      addr.stateOrProvince || 'NY',
+      zip,
+    );
+
+    if (coords) {
+      addr.latitude = coords[0];
+      addr.longitude = coords[1];
+      memCache.set(key, coords);
+      // Save to DB (non-blocking — don't await each one individually)
+      dbWrites.push(
+        prisma.geocodeCache.upsert({
+          where: { address_key: key },
+          create: { address_key: key, latitude: coords[0], longitude: coords[1], source: 'census' },
+          update: { latitude: coords[0], longitude: coords[1], source: 'census' },
+        }).catch(() => { /* non-fatal */ })
+      );
+    }
+  }
+
+  // Step 4: ZIP centroid fallback for anything still missing
+  for (const { listing, key } of needsCensus) {
+    const addr = listing.address;
+    if (addr.latitude != null && addr.longitude != null && addr.latitude !== 0 && addr.longitude !== 0) continue;
+
+    const zip = (addr.postalCode || '').split('-')[0].trim();
     const centroid = ZIP_CENTROIDS[zip];
     if (centroid) {
-      const jitter = hashJitter(`${num}|${street}|${zip}`);
+      const jitter = hashJitter(key);
       addr.latitude = centroid[0] + jitter[0];
       addr.longitude = centroid[1] + jitter[1];
     }
   }
 
-  // Step 4: Fire-and-forget background Census geocoding for cache misses
-  // This populates the DB cache so next request has accurate coords
-  if (needsCensus.length > 0) {
-    backgroundGeocode(needsCensus).catch(() => {
-      // Non-fatal — ZIP centroids are already assigned
-    });
+  // Wait for all DB writes to complete (they're fast, don't block much)
+  if (dbWrites.length > 0) {
+    await Promise.allSettled(dbWrites);
   }
 }
 
