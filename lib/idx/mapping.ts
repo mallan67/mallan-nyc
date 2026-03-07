@@ -327,6 +327,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     flooring: normalized.Flooring ? String(normalized.Flooring) : undefined,
     // Amenities
     interiorFeatures: normalized.InteriorFeatures ? String(normalized.InteriorFeatures) : undefined,
+    buildingFeatures: normalized.BuildingFeatures ? String(normalized.BuildingFeatures) : undefined,
     exteriorFeatures: normalized.ExteriorFeatures ? String(normalized.ExteriorFeatures) : undefined,
     appliances: normalized.Appliances ? String(normalized.Appliances) : undefined,
     laundryFeatures: normalized.LaundryFeatures ? String(normalized.LaundryFeatures) : undefined,
@@ -334,6 +335,8 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     communityFeatures: normalized.CommunityFeatures ? String(normalized.CommunityFeatures) : undefined,
     associationAmenities: normalized.AssociationAmenities ? String(normalized.AssociationAmenities) : undefined,
     parkingFeatures: normalized.ParkingFeatures ? String(normalized.ParkingFeatures) : undefined,
+    poolFeatures: normalized.PoolFeatures ? String(normalized.PoolFeatures) : undefined,
+    spaFeatures: normalized.SpaFeatures ? String(normalized.SpaFeatures) : undefined,
     parkingTotal: normalized.ParkingTotal != null ? Number(normalized.ParkingTotal) : undefined,
     garageSpaces: normalized.GarageSpaces != null ? Number(normalized.GarageSpaces) : undefined,
     // Financial
