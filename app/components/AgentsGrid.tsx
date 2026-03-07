@@ -97,7 +97,7 @@ export default function AgentsGrid() {
 
       {/* Featured Agent — Editorial Split */}
       {featured && (
-        <section className="py-20 md:py-28 lg:py-36">
+        <section className="py-14 md:py-20">
           <div className="max-w-[1200px] mx-auto px-6 md:px-12">
             <div ref={featuredRef} className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
               {/* Portrait */}
@@ -196,9 +196,9 @@ export default function AgentsGrid() {
 
       {/* Team Members — Horizontal Cards */}
       {team.length > 0 && (
-        <section className="py-20 md:py-28">
+        <section className="py-14 md:py-20">
           <div className="max-w-[1200px] mx-auto px-6 md:px-12">
-            <div className="mb-14">
+            <div className="mb-10">
               <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Meet</p>
               <h2 className="font-display font-bold text-2xl md:text-3xl tracking-tight text-brand-dark">The Team</h2>
             </div>
