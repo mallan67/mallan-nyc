@@ -187,7 +187,7 @@ function SearchClient() {
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
-    limit: 50,
+    limit: 200,
   });
 
   // ── Client-side text/zip post-filter ──
@@ -711,6 +711,8 @@ export default function SearchPage() {
   return (
     <div className="h-screen flex flex-col bg-[#FEFEFE] font-sans overflow-hidden">
       <Header dark />
+      {/* Spacer for fixed header (h-16 mobile, h-[72px] desktop) */}
+      <div className="flex-shrink-0 h-16 md:h-[72px]" />
       <main className="flex-1 min-h-0 flex flex-col">
         <Suspense fallback={<SearchLoading />}>
           <SearchClient />
