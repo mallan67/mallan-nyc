@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
+import { listingHref } from '@/lib/idx/display-adapter';
 import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet default marker icons in Next.js/webpack
@@ -26,39 +27,123 @@ function formatPrice(price: number, isRental: boolean): string {
 }
 
 /** Price pill marker icon */
-function createPriceIcon(price: number, isRental: boolean, highlighted: boolean, comingSoon: boolean): L.DivIcon {
+function createPriceIcon(
+  price: number,
+  isRental: boolean,
+  highlighted: boolean,
+  comingSoon: boolean,
+  stackCount?: number,
+): L.DivIcon {
   const label = formatPrice(price, isRental);
   const bg = highlighted ? '#C4A052' : comingSoon ? '#f59e0b' : '#1a1a1a';
   const text = '#ffffff';
+  const badge = stackCount && stackCount > 1
+    ? `<span style="position:absolute;top:-6px;right:-6px;background:#C4A052;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:99px;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;">${stackCount}</span>`
+    : '';
   return L.divIcon({
     className: 'price-marker',
     html: `<div style="
+      position:relative;
       background:${bg};color:${text};
       font-size:11px;font-weight:600;
       padding:3px 8px;border-radius:8px;
-      white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.2);
+      white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);
       border:2px solid ${highlighted ? '#fff' : 'transparent'};
       transform:translate(-50%,-100%);
-    ">${label}</div>`,
+      cursor:pointer;
+      transition:transform 0.15s ease, box-shadow 0.15s ease;
+    ">${label}${badge}</div>`,
     iconSize: [0, 0],
     iconAnchor: [0, 0],
   });
 }
 
-/** Fit map bounds to markers when listings change */
-function FitBounds({ listings }: { listings: { lat: number; lng: number }[] }) {
+// ── Same-building coordinate offset ──
+// Groups listings by coordinates (rounded to 5 decimals ≈ 1m precision).
+// Listings sharing the same building get offset in a circle pattern
+// so all markers are visible at street-level zoom.
+const COORD_KEY = (lat: number, lng: number) => `${lat.toFixed(5)},${lng.toFixed(5)}`;
+const OFFSET_RADIUS = 0.00012; // ~13 meters — visible at zoom 16+
+
+function computePositions(listings: DisplayListing[]): Map<string, [number, number]> {
+  // Group by coordinate
+  const groups = new Map<string, DisplayListing[]>();
+  for (const l of listings) {
+    if (!l.address.latitude || !l.address.longitude) continue;
+    const key = COORD_KEY(l.address.latitude, l.address.longitude);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(l);
+  }
+
+  const positions = new Map<string, [number, number]>();
+  for (const [, group] of groups) {
+    if (group.length === 1) {
+      const l = group[0];
+      positions.set(l.id, [l.address.latitude!, l.address.longitude!]);
+    } else {
+      // Fan out in a circle
+      for (let i = 0; i < group.length; i++) {
+        const l = group[i];
+        const angle = (i / group.length) * 2 * Math.PI - Math.PI / 2;
+        positions.set(l.id, [
+          l.address.latitude! + OFFSET_RADIUS * Math.cos(angle),
+          l.address.longitude! + OFFSET_RADIUS * Math.sin(angle),
+        ]);
+      }
+    }
+  }
+  return positions;
+}
+
+function computeStackCounts(listings: DisplayListing[]): Map<string, number> {
+  const groups = new Map<string, string[]>();
+  for (const l of listings) {
+    if (!l.address.latitude || !l.address.longitude) continue;
+    const key = COORD_KEY(l.address.latitude, l.address.longitude);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(l.id);
+  }
+  const counts = new Map<string, number>();
+  for (const [, ids] of groups) {
+    for (const id of ids) {
+      counts.set(id, ids.length);
+    }
+  }
+  return counts;
+}
+
+/** Fit map bounds to markers when listing coordinates change */
+function FitBounds({ coordHash, listings }: { coordHash: string; listings: { lat: number; lng: number }[] }) {
   const map = useMap();
-  const prevLen = useRef(0);
+  const prevHash = useRef('');
+  const userInteracted = useRef(false);
+
+  // Track manual pan/zoom so we don't override user's view
+  useEffect(() => {
+    const onMoveStart = () => { userInteracted.current = true; };
+    map.on('dragstart', onMoveStart);
+    map.on('zoomstart', onMoveStart);
+    return () => {
+      map.off('dragstart', onMoveStart);
+      map.off('zoomstart', onMoveStart);
+    };
+  }, [map]);
 
   useEffect(() => {
     if (listings.length === 0) return;
-    // Only auto-fit when the listing set changes significantly
-    if (Math.abs(listings.length - prevLen.current) < 2 && prevLen.current > 0) return;
-    prevLen.current = listings.length;
+    // Only re-fit when the coordinate set actually changes
+    if (coordHash === prevHash.current) return;
+    const isFirstLoad = prevHash.current === '';
+    prevHash.current = coordHash;
+
+    // Don't override manual pan/zoom unless this is a filter change (new data)
+    if (userInteracted.current && !isFirstLoad) {
+      userInteracted.current = false; // Reset for next filter change
+    }
 
     const bounds = L.latLngBounds(listings.map(l => [l.lat, l.lng]));
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-  }, [listings, map]);
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
+  }, [coordHash, listings, map]);
 
   return null;
 }
@@ -82,13 +167,26 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
     return [avgLat, avgLng];
   }, [mappable]);
 
+  // Offset positions for same-building listings
+  const positions = useMemo(() => computePositions(mappable), [mappable]);
+  const stackCounts = useMemo(() => computeStackCounts(mappable), [mappable]);
+
+  // Coordinate hash for FitBounds — changes when the actual listing set changes
   const boundsData = useMemo(
     () => mappable.map(l => ({ lat: l.address.latitude!, lng: l.address.longitude! })),
+    [mappable]
+  );
+  const coordHash = useMemo(
+    () => mappable.map(l => l.id).sort().join(','),
     [mappable]
   );
 
   const totalListings = listings.length;
   const withoutCoords = totalListings - mappable.length;
+
+  const handleMarkerClick = useCallback((id: string) => {
+    onMarkerClick?.(id);
+  }, [onMarkerClick]);
 
   if (mappable.length === 0) {
     return (
@@ -112,7 +210,7 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
     <div className="relative overflow-hidden h-full min-h-[300px]">
       {withoutCoords > 0 && (
         <div className="absolute top-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-brand-dark/85 px-3 py-1.5 rounded-lg shadow-sm">
-          Showing {mappable.length} of {totalListings} listings on map
+          Showing {mappable.length} of {totalListings} on map
         </div>
       )}
       <MapContainer
@@ -120,48 +218,63 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
         zoom={12}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
+        zoomControl={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <FitBounds listings={boundsData} />
+        <FitBounds coordHash={coordHash} listings={boundsData} />
         {mappable.map((listing) => {
           const isHighlighted = highlightedId === listing.id;
           const isComingSoon = !!listing._displayCompliance.comingSoon;
           const isRental = listing.listingType === 'rent';
+          const pos = positions.get(listing.id) || [listing.address.latitude!, listing.address.longitude!];
+          const stackCount = stackCounts.get(listing.id) || 1;
           return (
             <Marker
               key={listing.id}
-              position={[listing.address.latitude!, listing.address.longitude!]}
-              icon={createPriceIcon(listing.listPrice, isRental, isHighlighted, isComingSoon)}
+              position={pos}
+              icon={createPriceIcon(listing.listPrice, isRental, isHighlighted, isComingSoon, stackCount)}
+              zIndexOffset={isHighlighted ? 1000 : 0}
               eventHandlers={{
-                click: () => onMarkerClick?.(listing.id),
+                click: () => handleMarkerClick(listing.id),
               }}
             >
               <Popup>
-                <div className="min-w-[200px]">
-                  <p className="font-semibold text-sm">
-                    {formatPrice(listing.listPrice, isRental)}
-                  </p>
-                  <p className="text-xs text-gray-700">
-                    {listing.address.streetName === 'Address Undisclosed'
-                      ? 'Address Undisclosed'
-                      : `${listing.address.streetNumber} ${listing.address.streetName}`}
-                  </p>
-                  <p className="text-xs text-gray-500">
+                <div className="min-w-[220px] p-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-sm text-gray-900">
+                        {formatPrice(listing.listPrice, isRental)}
+                      </p>
+                      <p className="text-xs text-gray-700 mt-0.5">
+                        {listing.address.streetName === 'Address Undisclosed'
+                          ? 'Address Undisclosed'
+                          : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
+                      </p>
+                    </div>
+                    {stackCount > 1 && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-medium flex-shrink-0">
+                        {stackCount} in bldg
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
                     {listing.bedroomsTotal} bed &middot; {listing.bathroomsFull} bath
                     {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sqft` : ''}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    Courtesy of {listing.listOfficeName}
-                  </p>
-                  <a
-                    href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`}
-                    className="text-xs text-blue-600 hover:underline mt-1 block"
-                  >
-                    View Details
-                  </a>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-[10px] text-gray-400">
+                      {listing.listOfficeName}
+                    </p>
+                    <a
+                      href={listingHref(listing)}
+                      className="text-xs font-medium text-brand-gold hover:text-brand-gold/80 transition-colors"
+                    >
+                      View Details →
+                    </a>
+                  </div>
                 </div>
               </Popup>
             </Marker>
