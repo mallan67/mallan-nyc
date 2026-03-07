@@ -21304,6 +21304,7 @@ function parseBudgetValue(td) {
         // ═══════════════════════════════════════════════════════════════════
 
         var _photoCache = {};       // listingId → photoUrl (or null)
+        var _mediaCache = {};       // listingId → [{ url, mediaType, order }]
         var _photoPending = {};     // listingId → true (in-flight)
         var _photoBatchQueue = [];  // listing IDs waiting to be fetched
         var _photoBatchTimer = null;
@@ -21352,10 +21353,13 @@ function parseBudgetValue(td) {
                 return res.json();
             }).then(function(data) {
                 var photos = data.photos || {};
+                var media = data.media || {};
                 batch.forEach(function(lid) {
                     _photoCache[lid] = photos[lid] || null;
+                    _mediaCache[lid] = media[lid] || [];
                     delete _photoPending[lid];
                     _applyPhotoToCards(lid, photos[lid]);
+                    _applyMediaToListing(lid, media[lid] || []);
                 });
             }).catch(function(err) {
                 console.warn('[PhotoLoader] Batch fetch failed:', err.message);
@@ -21441,6 +21445,46 @@ function parseBudgetValue(td) {
          */
         function getCachedPhoto(listingId) {
             return _photoCache[String(listingId)];
+        }
+
+        /**
+         * Get cached media array for a listing (returns array of { url, mediaType, order }).
+         */
+        function getCachedMedia(listingId) {
+            return _mediaCache[String(listingId)] || [];
+        }
+
+        /**
+         * Apply fetched media to the listing object in mockListings for detail panel use.
+         */
+        function _applyMediaToListing(listingId, mediaItems) {
+            if (!mediaItems || !mediaItems.length) return;
+            if (typeof mockListings === 'undefined') return;
+            var listing = mockListings.find(function(l) { return l.lid === listingId || String(l._listingKey) === listingId; });
+            if (!listing) return;
+
+            // Build typed arrays
+            var photos = [];
+            var floorPlans = [];
+            var videos = [];
+            var virtualTours = [];
+            mediaItems.forEach(function(m) {
+                var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
+                if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
+                else if (m.mediaType === 'Video') videos.push(entry);
+                else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
+                else photos.push(entry);
+            });
+
+            // Update listing.images with photos only (existing behavior)
+            if (photos.length > 0) {
+                listing.images = photos.sort(function(a, b) { return a.order - b.order; });
+                listing.photoCount = photos.length;
+            }
+            // Store typed media for detail panel
+            if (floorPlans.length > 0) listing._floorPlans = floorPlans;
+            if (videos.length > 0) listing._videos = videos;
+            if (virtualTours.length > 0) listing._virtualTours = virtualTours;
         }
 
 </script>
@@ -27646,24 +27690,46 @@ function emailCurrentCalc() {
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="lux-card">
                                 <h3 class="lux-section-title"><i class="fas fa-video text-blue-500"></i> Video Tour</h3>
-                                <div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                                    <div class="text-center text-gray-400"><i class="fas fa-play-circle text-4xl mb-2"></i><div class="text-sm">No video available</div></div>
-                                </div>
+                                ${(function() {
+                                    var vids = listing._videos || [];
+                                    var videoUrl = vids.length > 0 ? vids[0].url : null;
+                                    if (videoUrl) {
+                                        var isEmbed = /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl);
+                                        if (isEmbed) {
+                                            return '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + videoUrl + '" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Video Tour"></iframe></div>';
+                                        } else {
+                                            return '<div class="h-48 rounded-xl overflow-hidden bg-black"><video src="' + videoUrl + '" class="w-full h-full object-contain" controls playsinline preload="metadata" title="Video Tour"></video></div>';
+                                        }
+                                    }
+                                    return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-play-circle text-4xl mb-2"></i><div class="text-sm">No video available</div></div></div>';
+                                })()}
                             </div>
                             <div class="lux-card">
                                 <h3 class="lux-section-title"><i class="fas fa-vr-cardboard text-purple-500"></i> Virtual Tour / 3D</h3>
-                                <div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                                    <div class="text-center text-gray-400"><i class="fas fa-cube text-4xl mb-2"></i><div class="text-sm">No virtual tour available</div></div>
-                                </div>
+                                ${(function() {
+                                    var vtUrl = listing.virtualTourUrl || null;
+                                    var vtMedia = listing._virtualTours || [];
+                                    var tourUrl = vtUrl || (vtMedia.length > 0 ? vtMedia[0].url : null);
+                                    if (tourUrl) {
+                                        return '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + tourUrl + '" class="w-full h-full" allow="fullscreen; xr-spatial-tracking" allowfullscreen title="3D Virtual Tour"></iframe></div>';
+                                    }
+                                    return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-cube text-4xl mb-2"></i><div class="text-sm">No virtual tour available</div></div></div>';
+                                })()}
                             </div>
                         </div>
 
                         <!-- Floor Plans -->
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-layer-group text-green-500"></i> Floor Plans</h3>
-                            <div class="h-36 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                                <div class="text-center text-gray-400"><i class="fas fa-drafting-compass text-3xl mb-2"></i><div class="text-sm">No floor plans uploaded</div></div>
-                            </div>
+                            ${(function() {
+                                var fps = listing._floorPlans || [];
+                                if (fps.length > 0) {
+                                    return '<div class="grid grid-cols-' + Math.min(fps.length, 3) + ' gap-3">' + fps.map(function(fp, idx) {
+                                        return '<div class="lux-media-thumb"><img src="' + fp.url + '" alt="Floor Plan ' + (idx+1) + '" loading="lazy" class="w-full h-36 object-contain bg-white rounded-xl border"></div>';
+                                    }).join('') + '</div>';
+                                }
+                                return '<div class="h-36 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-drafting-compass text-3xl mb-2"></i><div class="text-sm">No floor plans uploaded</div></div></div>';
+                            })()}
                         </div>
 
                         <!-- Documents -->
