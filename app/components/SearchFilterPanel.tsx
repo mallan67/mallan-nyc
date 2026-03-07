@@ -311,15 +311,55 @@ export default function SearchFilterPanel({
 
           {/* Open House */}
           <FilterSection title="Open House">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={staged.openHouse ?? false}
-                onChange={() => updateStaged({ openHouse: !staged.openHouse })}
-                className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
-              />
-              <span className="text-brand-dark">Has upcoming open house</span>
-            </label>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Any', checked: !staged.openHouse },
+                  { label: 'Today', checked: staged.openHouse && staged.openHouseDate === new Date().toISOString().split('T')[0] },
+                  { label: 'This Weekend', checked: staged.openHouse && staged.openHouseDate === 'weekend' },
+                  { label: 'Any Upcoming', checked: staged.openHouse && !staged.openHouseDate },
+                ].map(({ label, checked }) => (
+                  <button
+                    key={label}
+                    onClick={() => {
+                      if (label === 'Any') {
+                        updateStaged({ openHouse: false, openHouseDate: undefined });
+                      } else if (label === 'Today') {
+                        updateStaged({ openHouse: true, openHouseDate: new Date().toISOString().split('T')[0] });
+                      } else if (label === 'This Weekend') {
+                        updateStaged({ openHouse: true, openHouseDate: 'weekend' });
+                      } else {
+                        updateStaged({ openHouse: true, openHouseDate: undefined });
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                      checked
+                        ? 'bg-brand-dark text-white'
+                        : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div>
+                <label className="text-xs text-brand-dark/85 mb-1 block">Or pick a date</label>
+                <input
+                  type="date"
+                  value={staged.openHouseDate && staged.openHouseDate !== 'weekend' ? staged.openHouseDate : ''}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                      updateStaged({ openHouse: true, openHouseDate: val });
+                    } else {
+                      updateStaged({ openHouse: false, openHouseDate: undefined });
+                    }
+                  }}
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                />
+              </div>
+            </div>
           </FilterSection>
 
           {/* Amenities */}

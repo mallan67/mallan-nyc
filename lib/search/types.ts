@@ -34,6 +34,7 @@ export interface SearchFilters {
   amenities?: AmenityFilter[];
   // Open House
   openHouse?: boolean;
+  openHouseDate?: string; // ISO date string (YYYY-MM-DD)
   // Sort
   sort?: string;
   // Location
@@ -171,6 +172,7 @@ export const RESIDENTIAL_PROPERTY_TYPES = [
   'Condo', 'Co-op', 'Condop',
   'Apartment', 'Loft', 'Duplex', 'Triplex',
   'Townhouse', 'Multi-Family', 'Single Family', 'Land', 'Mixed Use',
+  'New Development',
 ];
 
 /** Ownership type checkboxes (NYC-specific) — kept for backward compat but merged into property types UI */

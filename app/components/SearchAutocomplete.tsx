@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export interface Suggestion {
-  type: 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
+  type: 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing' | 'location';
   label: string;
   sublabel: string;
   value: string;
@@ -19,6 +19,31 @@ interface SearchAutocompleteProps {
   onChange: (value: string) => void;
   onSelect: (suggestion: Suggestion) => void;
   placeholder?: string;
+}
+
+/** Category display config */
+const CATEGORY_ORDER: { type: Suggestion['type']; header: string }[] = [
+  { type: 'location', header: 'SEARCH BY LOCATION' },
+  { type: 'neighborhood', header: 'LOCATIONS' },
+  { type: 'agent', header: 'AGENTS' },
+  { type: 'listing', header: 'LISTINGS' },
+  { type: 'address', header: 'BUILDINGS' },
+  { type: 'zip', header: 'ZIP CODES' },
+];
+
+/** Human-readable type label shown below each suggestion */
+function typeLabel(s: Suggestion): string {
+  switch (s.type) {
+    case 'neighborhood':
+      if (s.sublabel === 'Borough') return 'BOROUGH';
+      return 'NEIGHBORHOOD';
+    case 'address': return 'ADDRESS';
+    case 'zip': return 'ZIP CODE';
+    case 'agent': return 'AGENT';
+    case 'listing': return 'LISTING';
+    case 'location': return '';
+    default: return '';
+  }
 }
 
 export default function SearchAutocomplete({
@@ -84,21 +109,73 @@ export default function SearchAutocomplete({
     setIsOpen(false);
     setSuggestions([]);
     onSelect(suggestion);
-    onChange(suggestion.label || suggestion.address || '');
+    if (suggestion.type !== 'location') {
+      onChange(suggestion.label || suggestion.address || '');
+    }
   };
 
+  /** Use browser geolocation */
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) return;
+    const locationSuggestion: Suggestion = {
+      type: 'location',
+      label: 'Locating...',
+      sublabel: '',
+      value: '',
+    };
+    onChange('My location');
+    setIsOpen(false);
+    setSuggestions([]);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locationSuggestion.value = `${pos.coords.latitude},${pos.coords.longitude}`;
+        locationSuggestion.label = 'Current Location';
+        onSelect(locationSuggestion);
+      },
+      () => {
+        // Permission denied or error — just close
+        onChange('');
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  };
+
+  // Build flat list of selectable items for keyboard nav
+  const selectableItems: Suggestion[] = [];
+  // "Current location" is always first selectable when dropdown is open
+  if (isOpen) {
+    selectableItems.push({
+      type: 'location',
+      label: 'Search by my current location.',
+      sublabel: '',
+      value: 'current',
+    });
+  }
+  for (const cat of CATEGORY_ORDER) {
+    if (cat.type === 'location') continue;
+    for (const s of suggestions) {
+      if (s.type === cat.type) selectableItems.push(s);
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen || suggestions.length === 0) return;
+    if (!isOpen || selectableItems.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+      setActiveIndex((prev) => (prev < selectableItems.length - 1 ? prev + 1 : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : selectableItems.length - 1));
     } else if (e.key === 'Enter' && activeIndex >= 0) {
       e.preventDefault();
-      handleSelect(suggestions[activeIndex]);
+      const item = selectableItems[activeIndex];
+      if (item.type === 'location') {
+        handleCurrentLocation();
+      } else {
+        handleSelect(item);
+      }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
     }
@@ -123,6 +200,17 @@ export default function SearchAutocomplete({
     };
   }, []);
 
+  // Group suggestions by category
+  const grouped: { header: string; items: Suggestion[] }[] = [];
+  for (const cat of CATEGORY_ORDER) {
+    if (cat.type === 'location') continue; // rendered separately
+    const items = suggestions.filter(s => s.type === cat.type);
+    if (items.length > 0) grouped.push({ header: cat.header, items });
+  }
+
+  // Track flat index for keyboard highlight across groups
+  let flatIndex = 1; // 0 = current location row
+
   return (
     <div ref={wrapperRef} className="relative">
       <label htmlFor="search-autocomplete" className="sr-only">
@@ -140,7 +228,7 @@ export default function SearchAutocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => suggestions.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full rounded-lg pl-7 pr-7 py-1.5 text-xs bg-gray-50 border border-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:bg-white transition-colors"
+          className="w-full rounded-lg pl-7 pr-7 py-1.5 text-xs bg-gray-50 border border-black/8 focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/20 focus:bg-white transition-colors"
           aria-label="Search by address, neighborhood, zip, or borough"
           autoComplete="off"
           role="combobox"
@@ -166,33 +254,79 @@ export default function SearchAutocomplete({
         )}
       </div>
 
-      {/* Suggestions Dropdown */}
-      {isOpen && suggestions.length > 0 && (
-        <ul
+      {/* Grouped Suggestions Dropdown */}
+      {isOpen && (suggestions.length > 0 || value.length >= 2) && (
+        <div
           id="search-suggestions"
           role="listbox"
-          className="absolute z-50 w-full mt-1 bg-white rounded-xl shadow-lg ring-1 ring-black/5 py-1 max-h-80 overflow-auto"
+          className="absolute z-50 w-full sm:w-[360px] mt-1 bg-white rounded-xl shadow-lg ring-1 ring-black/5 max-h-[420px] overflow-auto"
         >
-          {suggestions.map((suggestion, i) => (
-            <li
-              key={`${suggestion.type}-${suggestion.value}-${i}`}
-              id={`suggestion-${i}`}
-              role="option"
-              aria-selected={i === activeIndex}
-              onClick={() => handleSelect(suggestion)}
-              className={`px-4 py-2.5 cursor-pointer transition-colors ${
-                i === activeIndex ? 'bg-brand-gold/10' : 'hover:bg-gray-50'
-              }`}
-            >
-              <p className="text-sm font-medium text-brand-dark">
-                {suggestion.label || suggestion.address}
-              </p>
-              <p className="text-xs text-brand-dark/85">
-                {suggestion.sublabel || [suggestion.neighborhood, suggestion.borough, suggestion.postalCode].filter(Boolean).join(', ')}
-              </p>
-            </li>
+          {/* Current Location */}
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-[10px] font-semibold tracking-wider text-brand-dark/40 uppercase">Search by location</p>
+          </div>
+          <button
+            id="suggestion-0"
+            role="option"
+            aria-selected={activeIndex === 0}
+            onClick={handleCurrentLocation}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
+              activeIndex === 0 ? 'bg-brand-gold/10' : 'hover:bg-gray-50'
+            }`}
+          >
+            {/* Crosshair icon */}
+            <svg className="w-4 h-4 text-brand-dark/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="3" />
+              <line x1="12" y1="1" x2="12" y2="4" />
+              <line x1="12" y1="20" x2="12" y2="23" />
+              <line x1="1" y1="12" x2="4" y2="12" />
+              <line x1="20" y1="12" x2="23" y2="12" />
+            </svg>
+            <span className="text-sm text-brand-dark">Search by my current location.</span>
+          </button>
+
+          {/* Grouped results */}
+          {grouped.map(({ header, items }) => (
+            <div key={header}>
+              <div className="px-3 pt-3 pb-1 border-t border-gray-100">
+                <p className="text-[10px] font-semibold tracking-wider text-brand-dark/40 uppercase">{header}</p>
+              </div>
+              {items.map((suggestion) => {
+                const idx = flatIndex++;
+                const tLabel = typeLabel(suggestion);
+                return (
+                  <button
+                    key={`${suggestion.type}-${suggestion.value}-${idx}`}
+                    id={`suggestion-${idx}`}
+                    role="option"
+                    aria-selected={idx === activeIndex}
+                    onClick={() => handleSelect(suggestion)}
+                    className={`w-full text-left px-3 py-2 transition-colors ${
+                      idx === activeIndex ? 'bg-brand-gold/10' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <p className="text-sm text-brand-dark">
+                      {suggestion.label}{suggestion.sublabel && suggestion.sublabel !== 'Borough' ? `, ${suggestion.sublabel}` : ''}
+                    </p>
+                    {tLabel && (
+                      <p className="text-[10px] font-semibold tracking-wider text-brand-dark/35 uppercase mt-0.5">
+                        {tLabel}
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           ))}
-        </ul>
+
+          {/* No results state */}
+          {suggestions.length === 0 && !loading && value.length >= 2 && (
+            <div className="px-3 py-3 border-t border-gray-100">
+              <p className="text-xs text-brand-dark/50 text-center">No results found</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

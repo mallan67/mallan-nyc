@@ -246,19 +246,42 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
         </div>
       )}
 
-      {/* Map style switcher */}
-      <div className="absolute top-3 right-3 z-[1000] flex gap-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm p-1">
+      {/* Map style switcher — bottom-left with icons */}
+      <div className="absolute bottom-8 left-3 z-[1000] flex gap-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm p-1">
         {(Object.entries(MAP_STYLES) as [MapStyleKey, typeof MAP_STYLES[MapStyleKey]][]).map(([key, { label }]) => (
           <button
             key={key}
             onClick={() => setMapStyle(key)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+            className={`p-1.5 rounded transition-colors ${
               mapStyle === key
                 ? 'bg-brand-dark text-white'
                 : 'text-brand-dark/70 hover:text-brand-dark hover:bg-gray-100'
             }`}
+            title={label}
+            aria-label={`${label} map style`}
           >
-            {label}
+            {key === 'bright' && (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="8" cy="8" r="3.5" />
+                <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+              </svg>
+            )}
+            {key === 'liberty' && (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 13l3-4 3 2.5 3-5 5 6.5" />
+                <path d="M1 13h14" />
+                <circle cx="12" cy="4" r="2" fill="currentColor" opacity="0.3" />
+              </svg>
+            )}
+            {key === 'positron' && (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                <rect x="2" y="2" width="12" height="12" rx="2" />
+                <line x1="2" y1="6" x2="14" y2="6" />
+                <line x1="2" y1="10" x2="14" y2="10" />
+                <line x1="6" y1="2" x2="6" y2="14" />
+                <line x1="10" y1="2" x2="10" y2="14" />
+              </svg>
+            )}
           </button>
         ))}
       </div>

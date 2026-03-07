@@ -28,6 +28,7 @@ export interface UseListingsParams {
   furnished?: boolean;
   amenities?: string[];
   openHouse?: boolean;
+  openHouseDate?: string;
   /** Pre-fetched listings from server (ISR) — skips initial client fetch */
   initialListings?: DisplayListing[];
   initialTotal?: number;
@@ -73,6 +74,7 @@ function buildQueryString(params: UseListingsParams): string {
   if (params.furnished) qs.set('furnished', 'true');
   if (params.amenities?.length) qs.set('amenities', params.amenities.join(','));
   if (params.openHouse) qs.set('openHouse', 'true');
+  if (params.openHouseDate) qs.set('openHouseDate', params.openHouseDate);
 
   qs.set('limit', String(params.limit || 50));
 
@@ -101,6 +103,7 @@ function hasActiveFilters(params: UseListingsParams): boolean {
     params.furnished ||
     params.amenities?.length ||
     params.openHouse ||
+    params.openHouseDate ||
     (params.sort && params.sort !== 'newest')
   );
 }
@@ -222,6 +225,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     params.amenities?.join(','),
     params.openHouse,
+    params.openHouseDate,
     fetchListings,
     hasInitial,
   ]);
