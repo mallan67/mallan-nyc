@@ -39,35 +39,52 @@ function formatPrice(price: number, isRental: boolean): string {
   return `$${(price / 1_000).toFixed(0)}K`;
 }
 
-/** Price pill marker icon */
-function createPriceIcon(
+/** Photo + price marker icon */
+function createListingIcon(
   price: number,
   isRental: boolean,
   highlighted: boolean,
   comingSoon: boolean,
+  photoUrl?: string,
   stackCount?: number,
 ): L.DivIcon {
   const label = formatPrice(price, isRental);
-  const bg = highlighted ? '#C4A052' : comingSoon ? '#f59e0b' : '#1a1a1a';
-  const text = '#ffffff';
+  const borderColor = highlighted ? '#C4A052' : comingSoon ? '#f59e0b' : '#fff';
+  const shadow = highlighted ? '0 4px 16px rgba(196,160,82,0.5)' : '0 2px 10px rgba(0,0,0,0.3)';
   const badge = stackCount && stackCount > 1
-    ? `<span style="position:absolute;top:-6px;right:-6px;background:#C4A052;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:99px;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;">${stackCount}</span>`
+    ? `<span style="position:absolute;top:-4px;right:-4px;background:#C4A052;color:#fff;font-size:8px;font-weight:700;min-width:14px;height:14px;border-radius:99px;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;z-index:2;">${stackCount}</span>`
     : '';
+  const photo = photoUrl
+    ? `<img src="${photoUrl}" style="width:100%;height:48px;object-fit:cover;display:block;" alt="" loading="lazy" />`
+    : `<div style="width:100%;height:48px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#9ca3af"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/></svg></div>`;
   return L.divIcon({
-    className: 'price-marker',
+    className: 'listing-marker',
     html: `<div style="
       position:relative;
-      background:${bg};color:${text};
-      font-size:11px;font-weight:600;
-      padding:3px 8px;border-radius:8px;
-      white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);
-      border:2px solid ${highlighted ? '#fff' : 'transparent'};
+      width:72px;
+      background:#fff;
+      border-radius:8px;
+      overflow:hidden;
+      box-shadow:${shadow};
+      border:2px solid ${borderColor};
       transform:translate(-50%,-100%);
       cursor:pointer;
       transition:transform 0.15s ease, box-shadow 0.15s ease;
-    ">${label}${badge}</div>`,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
+    ">
+      ${photo}
+      <div style="
+        padding:2px 4px;
+        text-align:center;
+        font-size:10px;
+        font-weight:700;
+        color:#1a1a1a;
+        white-space:nowrap;
+        line-height:1.3;
+      ">${label}</div>
+      ${badge}
+    </div>`,
+    iconSize: [72, 72],
+    iconAnchor: [36, 72],
   });
 }
 
@@ -284,7 +301,7 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
             <Marker
               key={listing.id}
               position={pos}
-              icon={createPriceIcon(listing.listPrice, isRental, isHighlighted, isComingSoon, stackCount)}
+              icon={createListingIcon(listing.listPrice, isRental, isHighlighted, isComingSoon, listing.media[0]?.url, stackCount)}
               zIndexOffset={isHighlighted ? 1000 : 0}
               eventHandlers={{
                 click: () => handleMarkerClick(listing.id),
