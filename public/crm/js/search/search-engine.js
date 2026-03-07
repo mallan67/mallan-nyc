@@ -1842,6 +1842,7 @@
         }
 
         function toggleSearchType(type) {
+            try { sessionStorage.setItem('searchType', type); } catch(e) {}
             var btnGeneral = document.getElementById('btnGeneralSearch');
             var btnComparables = document.getElementById('btnComparables');
             var generalSection = document.getElementById('generalSearchSection');
