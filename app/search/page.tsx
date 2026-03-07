@@ -67,7 +67,7 @@ function SearchClient() {
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
   // ── Dynamic content height for full-viewport modes ──
-  const toolbarRef = useRef<HTMLElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState('calc(100dvh - 180px)');
 
   // ── Filters ──
@@ -224,14 +224,14 @@ function SearchClient() {
   useEffect(() => {
     const measure = () => {
       if (toolbarRef.current) {
-        const rect = toolbarRef.current.getBoundingClientRect();
-        const bottom = rect.top + rect.height;
-        setContentHeight(`calc(100dvh - ${Math.ceil(bottom)}px)`);
+        // Use offsetTop + offsetHeight for reliable measurement (unaffected by scroll)
+        const toolbarBottom = toolbarRef.current.offsetTop + toolbarRef.current.offsetHeight;
+        setContentHeight(`calc(100dvh - ${toolbarBottom}px)`);
       }
     };
     // Measure after layout settles
-    const t1 = setTimeout(measure, 50);
-    const t2 = setTimeout(measure, 200);
+    const t1 = setTimeout(measure, 100);
+    const t2 = setTimeout(measure, 500);
     window.addEventListener('resize', measure);
     return () => {
       clearTimeout(t1);
@@ -247,7 +247,7 @@ function SearchClient() {
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
       {/* ── Search Toolbar (sticky below header) ── */}
-      <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-30">
+      <div ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-30">
         <div className="max-w-[1920px] mx-auto px-4 py-2">
           {/* Row 1: Tabs + Search */}
           <div className="flex items-center gap-3">
@@ -375,7 +375,7 @@ function SearchClient() {
             )}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ── Main Area ── */}
       <div className={isFullViewport ? 'overflow-hidden' : ''} style={isFullViewport ? { height: contentHeight } : undefined}>
