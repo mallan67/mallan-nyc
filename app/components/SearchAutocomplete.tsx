@@ -50,7 +50,7 @@ export default function SearchAutocomplete({
   value,
   onChange,
   onSelect,
-  placeholder = 'Search by address, neighborhood, zip...',
+  placeholder = 'Neighborhood, ZIP, address, or listing #',
 }: SearchAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -229,7 +229,7 @@ export default function SearchAutocomplete({
           onFocus={() => suggestions.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
           className="w-full rounded-lg pl-7 pr-7 py-1.5 text-xs bg-gray-50 border border-black/8 focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/20 focus:bg-white transition-colors"
-          aria-label="Search by address, neighborhood, zip, or borough"
+          aria-label="Search by neighborhood, ZIP, address, or listing number"
           autoComplete="off"
           role="combobox"
           aria-expanded={isOpen}

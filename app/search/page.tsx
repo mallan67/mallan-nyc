@@ -196,11 +196,15 @@ function SearchClient() {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const addr = `${listing.address.streetNumber} ${listing.address.streetName} ${listing.address.unitNumber || ''}`.toLowerCase();
+        const mlsId = (listing.mlsId || '').toLowerCase();
+        const listingId = (listing.id || '').toLowerCase();
         if (
           !addr.includes(q) &&
           !listing.address.neighborhood.toLowerCase().includes(q) &&
           !listing.address.postalCode.includes(q) &&
-          !listing.address.borough.toLowerCase().includes(q)
+          !listing.address.borough.toLowerCase().includes(q) &&
+          !mlsId.includes(q) &&
+          !listingId.includes(q)
         ) return false;
       }
       if (zipParam && listing.address.postalCode !== zipParam) return false;
