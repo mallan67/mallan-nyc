@@ -9,10 +9,10 @@ export default function RentVsBuyStandalone() {
   const [monthlyRent, setMonthlyRent] = useState(3500);
 
   return (
-    <div className="bg-white rounded-lg border overflow-hidden">
+    <div className="glass-card rounded-3xl overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/40 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center">
@@ -21,12 +21,12 @@ export default function RentVsBuyStandalone() {
             </svg>
           </div>
           <div className="text-left">
-            <h3 className="font-semibold text-gray-900">Rent vs. Buy Calculator</h3>
-            <p className="text-sm text-gray-500">Side-by-side cost comparison for NYC</p>
+            <h3 className="font-display font-semibold text-brand-dark">Rent vs. Buy Calculator</h3>
+            <p className="text-sm text-brand-dark/85">Side-by-side cost comparison for NYC</p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-brand-dark/90 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -34,7 +34,7 @@ export default function RentVsBuyStandalone() {
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t">
+        <div className="px-6 pb-6 border-t border-black/5">
           <div className="mt-4 space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
