@@ -363,76 +363,79 @@ export async function GET(request: Request) {
         const totalCount = result.odataCount ?? filtered.length;
         const pageListings = filtered.slice(skip, skip + limit);
 
-        // Step 4b: Batch-fetch primary photos for the page (much faster than $expand=Media on 500 records)
-        // Only fetch for listings that don't already have media (from $expand fallback)
+        // Step 4b: Batch-fetch primary photos in chunks of 50 (Trestle OData filter length limit)
         const needsPhotos = pageListings.filter(l => l.media.length === 0);
         if (needsPhotos.length > 0) {
           try {
             const token = await getAccessToken();
             const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
-            const listingIds = needsPhotos.map(l => l.listingId);
-            const filterParts2 = listingIds.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
-            // Fetch all media types — photos (up to 3), plus all floor plans, videos, virtual tours
-            const mediaFilter = `(${filterParts2.join(' or ')}) and (Order le 3 or MediaCategory ne 'Photo')`;
-            const mediaParams = new URLSearchParams();
-            mediaParams.set('$filter', mediaFilter);
-            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
-            mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-            mediaParams.set('$top', String(Math.min(needsPhotos.length * 4, 250)));
 
-            const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-            });
+            function classifyMedia(m: Record<string, unknown>): 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' {
+              const cat = String(m.MediaCategory || '').toLowerCase();
+              if (cat.includes('floor plan')) return 'FloorPlan';
+              if (cat.includes('video')) return 'Video';
+              if (cat.includes('virtual tour')) return 'VirtualTour';
+              if (cat === 'photo' || cat === '') return 'Photo';
+              const desc = String(m.ShortDescription || '').toLowerCase();
+              if (desc.includes('floor plan') || desc.includes('floorplan')) return 'FloorPlan';
+              return 'Photo';
+            }
 
-            if (mediaResponse.ok) {
-              const mediaData = await mediaResponse.json();
-              const mediaRecords = mediaData.value || [];
+            // Chunk into batches of 50 to keep OData filter length reasonable
+            const MEDIA_BATCH = 50;
+            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+            const chunks: typeof needsPhotos[] = [];
+            for (let i = 0; i < needsPhotos.length; i += MEDIA_BATCH) {
+              chunks.push(needsPhotos.slice(i, i + MEDIA_BATCH));
+            }
 
-              // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, etc.)
-              //          MediaType = file format (jpeg, png, gif, etc.)
-              // Use MediaCategory to distinguish photos from floorplans.
-              // PreferredPhotoYN marks the listing's primary/hero photo.
-              function classifyMedia(m: Record<string, unknown>): 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' {
-                const cat = String(m.MediaCategory || '').toLowerCase();
-                if (cat.includes('floor plan')) return 'FloorPlan';
-                if (cat.includes('video')) return 'Video';
-                if (cat.includes('virtual tour')) return 'VirtualTour';
-                if (cat === 'photo' || cat === '') return 'Photo'; // Default to photo
-                // Fallback: check ShortDescription
-                const desc = String(m.ShortDescription || '').toLowerCase();
-                if (desc.includes('floor plan') || desc.includes('floorplan')) return 'FloorPlan';
-                return 'Photo';
-              }
+            // Fetch chunks in parallel (max 4 concurrent)
+            const fetchChunk = async (chunk: typeof needsPhotos) => {
+              const ids = chunk.map(l => l.listingId);
+              const idFilter = ids.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(' or ');
+              const mediaFilter = `(${idFilter}) and (Order le 3 or MediaCategory ne 'Photo')`;
+              const mediaParams = new URLSearchParams();
+              mediaParams.set('$filter', mediaFilter);
+              mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
+              mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
+              mediaParams.set('$top', String(chunk.length * 4));
 
-              // Group by listing ID — separate by media type
-              const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-              for (const m of mediaRecords) {
+              const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+              });
+              if (!res.ok) return;
+              const data = await res.json();
+              for (const m of (data.value || [])) {
                 const lid = String(m.ResourceRecordID || '');
                 if (!lid || !m.MediaURL) continue;
                 const mediaType = classifyMedia(m);
                 const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-                const entry = {
+                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+                mediaByListing.get(lid)!.push({
                   url: String(m.MediaURL),
                   mediaType,
                   order: isPreferred ? -1 : Number(m.Order ?? 0),
-                };
-                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-                mediaByListing.get(lid)!.push(entry);
+                });
               }
-              // Inject: photos first (preferred at top), then videos/tours, then floor plans
-              const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
-              for (const listing of needsPhotos) {
-                const media = mediaByListing.get(listing.listingId) || [];
-                if (media.length > 0) {
-                  listing.media = media.sort((a, b) => {
-                    const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
-                    return rankDiff !== 0 ? rankDiff : a.order - b.order;
-                  }) as typeof listing.media;
-                }
+            };
+
+            // Run up to 4 chunks in parallel
+            for (let i = 0; i < chunks.length; i += 4) {
+              await Promise.allSettled(chunks.slice(i, i + 4).map(fetchChunk));
+            }
+
+            // Inject media into listings
+            const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
+            for (const listing of needsPhotos) {
+              const media = mediaByListing.get(listing.listingId) || [];
+              if (media.length > 0) {
+                listing.media = media.sort((a, b) => {
+                  const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+                  return rankDiff !== 0 ? rankDiff : a.order - b.order;
+                }) as typeof listing.media;
               }
             }
           } catch (mediaErr) {
-            // Non-fatal — listings display without photos
             console.warn('[/api/listings] Photo batch fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
