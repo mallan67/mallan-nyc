@@ -5,6 +5,7 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
 import { type DisplayListing, listingHref } from '@/lib/idx/display-adapter';
+import { useSwipe } from '@/lib/hooks/useSwipe';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -170,24 +171,28 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
   );
 }
 
-/** Split-view card — compact card for 2-col grid with photo carousel */
+/** Split-view card — compact card for 2-col grid with photo carousel + touch swipe */
 export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const [hovered, setHovered] = useState(false);
   const photos = listing.media.filter(m => !m.mediaType || m.mediaType === 'Photo');
   const hasMultiple = photos.length > 1;
 
+  const goPrev = useCallback(() => setPhotoIdx(i => (i > 0 ? i - 1 : photos.length - 1)), [photos.length]);
+  const goNext = useCallback(() => setPhotoIdx(i => (i < photos.length - 1 ? i + 1 : 0)), [photos.length]);
+  const swipe = useSwipe(goNext, goPrev);
+
   const prev = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setPhotoIdx(i => (i > 0 ? i - 1 : photos.length - 1));
-  }, [photos.length]);
+    goPrev();
+  }, [goPrev]);
 
   const next = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setPhotoIdx(i => (i < photos.length - 1 ? i + 1 : 0));
-  }, [photos.length]);
+    goNext();
+  }, [goNext]);
 
   return (
     <div
@@ -197,9 +202,14 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
       onMouseEnter={() => { onHover?.(listing.id); setHovered(true); }}
       onMouseLeave={() => { onHover?.(null); setHovered(false); }}
     >
-      {/* Photo with carousel */}
-      <div className="relative overflow-hidden">
-        <Link href={listingHref(listing)} className="block w-full">
+      {/* Photo with carousel + touch swipe */}
+      <div
+        className="relative overflow-hidden touch-pan-y"
+        onTouchStart={swipe.onTouchStart}
+        onTouchMove={swipe.onTouchMove}
+        onTouchEnd={swipe.onTouchEnd}
+      >
+        <Link href={listingHref(listing)} className="block w-full" onClick={swipe.cancelIfSwiping}>
           <IDXImage
             src={photos[photoIdx]?.url || '/images/listing-placeholder.svg'}
             alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
