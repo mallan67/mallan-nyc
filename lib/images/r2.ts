@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectsCommand,
+  HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 
 function getR2Config() {
@@ -84,6 +85,41 @@ export async function deleteFromR2(keys: string[]): Promise<void> {
         },
       })
     );
+  }
+}
+
+/**
+ * Check whether R2 environment variables are configured.
+ */
+export function hasR2Config(): boolean {
+  return !!(
+    process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET_NAME &&
+    process.env.R2_PUBLIC_URL
+  );
+}
+
+/**
+ * Get the public URL for an R2 object key.
+ */
+export function getR2PublicUrl(key: string): string {
+  const { publicUrl } = getR2Config();
+  return `${publicUrl.replace(/\/+$/, '')}/${key}`;
+}
+
+/**
+ * Check if an object exists in R2.
+ */
+export async function existsInR2(key: string): Promise<boolean> {
+  try {
+    const { bucket } = getR2Config();
+    const client = createClient();
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return true;
+  } catch {
+    return false;
   }
 }
 
