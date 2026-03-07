@@ -11,6 +11,7 @@ export interface UseListingsParams {
   minBaths?: number | null;
   propertyType?: string;
   status?: string;
+  statuses?: string[];
   borough?: string;
   neighborhood?: string;
   minSqft?: number;
@@ -19,6 +20,14 @@ export interface UseListingsParams {
   skip?: number;
   pets?: boolean;
   limit?: number;
+  // New filter params
+  commercial?: boolean;
+  propertySubTypes?: string[];
+  ownershipTypes?: string[];
+  yearBuilt?: string;
+  furnished?: boolean;
+  amenities?: string[];
+  openHouse?: boolean;
   /** Pre-fetched listings from server (ISR) — skips initial client fetch */
   initialListings?: DisplayListing[];
   initialTotal?: number;
@@ -55,6 +64,15 @@ function buildQueryString(params: UseListingsParams): string {
   if (params.sort) qs.set('sort', params.sort);
   if (params.skip && params.skip > 0) qs.set('skip', String(params.skip));
   if (params.pets) qs.set('pets', 'true');
+  // New filter params
+  if (params.commercial) qs.set('commercial', 'true');
+  if (params.propertySubTypes?.length) qs.set('propertySubTypes', params.propertySubTypes.join(','));
+  if (params.ownershipTypes?.length) qs.set('ownershipTypes', params.ownershipTypes.join(','));
+  if (params.statuses?.length) qs.set('statuses', params.statuses.join(','));
+  if (params.yearBuilt && params.yearBuilt !== 'any') qs.set('yearBuilt', params.yearBuilt);
+  if (params.furnished) qs.set('furnished', 'true');
+  if (params.amenities?.length) qs.set('amenities', params.amenities.join(','));
+  if (params.openHouse) qs.set('openHouse', 'true');
 
   qs.set('limit', String(params.limit || 50));
 
@@ -70,11 +88,19 @@ function hasActiveFilters(params: UseListingsParams): boolean {
     (params.minBaths != null && params.minBaths > 0) ||
     params.propertyType ||
     params.status ||
+    params.statuses?.length ||
     params.borough ||
     params.neighborhood ||
     params.minSqft ||
     params.maxSqft ||
     params.pets ||
+    params.commercial ||
+    params.propertySubTypes?.length ||
+    params.ownershipTypes?.length ||
+    (params.yearBuilt && params.yearBuilt !== 'any') ||
+    params.furnished ||
+    params.amenities?.length ||
+    params.openHouse ||
     (params.sort && params.sort !== 'newest')
   );
 }
@@ -184,6 +210,18 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     params.sort,
     params.pets,
     params.limit,
+    params.commercial,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    params.propertySubTypes?.join(','),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    params.ownershipTypes?.join(','),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    params.statuses?.join(','),
+    params.yearBuilt,
+    params.furnished,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    params.amenities?.join(','),
+    params.openHouse,
     fetchListings,
     hasInitial,
   ]);

@@ -375,3 +375,12 @@ header button:focus-visible {
 
 /* Color contrast: Tailwind v4 gray-500 (#6b7280) passes AA 4.5:1 on white */
 /* Color contrast: Tailwind v4 gray-400 (#9ca3af) — decorative/non-essential only */
+
+/* ═══ SEARCH PAGE — Filter panel slide-in ═══ */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}

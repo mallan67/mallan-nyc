@@ -1,0 +1,385 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import type { SearchTab, SearchFilters, AmenityFilter } from '@/lib/search/types';
+import {
+  AMENITY_FIELD_MAP,
+  TAB_CONFIG,
+  RESIDENTIAL_PROPERTY_TYPES,
+  OWNERSHIP_TYPES,
+  COMMERCIAL_SUB_TYPES,
+} from '@/lib/search/types';
+
+interface SearchFilterPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onApply: (filters: SearchFilters) => void;
+  currentFilters: SearchFilters;
+  activeTab: SearchTab;
+}
+
+export default function SearchFilterPanel({
+  isOpen,
+  onClose,
+  onApply,
+  currentFilters,
+  activeTab,
+}: SearchFilterPanelProps) {
+  // Staged filters — only applied when user clicks "Apply"
+  const [staged, setStaged] = useState<SearchFilters>(currentFilters);
+
+  // Sync staged with current when panel opens
+  useEffect(() => {
+    if (isOpen) setStaged(currentFilters);
+  }, [isOpen, currentFilters]);
+
+  const tabConfig = TAB_CONFIG[activeTab];
+  const isCommercial = tabConfig.commercial;
+
+  const updateStaged = useCallback((partial: Partial<SearchFilters>) => {
+    setStaged(prev => ({ ...prev, ...partial }));
+  }, []);
+
+  const toggleArrayItem = useCallback(<T extends string>(arr: T[] | undefined, item: T): T[] => {
+    const current = arr || [];
+    return current.includes(item) ? current.filter(i => i !== item) : [...current, item];
+  }, []);
+
+  const handleApply = () => {
+    onApply(staged);
+    onClose();
+  };
+
+  const handleReset = () => {
+    const reset: SearchFilters = { sort: currentFilters.sort };
+    setStaged(reset);
+    onApply(reset);
+    onClose();
+  };
+
+  const hasChanges = JSON.stringify(staged) !== JSON.stringify(currentFilters);
+
+  // Group amenities by their group
+  const amenityGroups = Object.entries(AMENITY_FIELD_MAP).reduce((acc, [key, config]) => {
+    if (!acc[config.group]) acc[config.group] = [];
+    acc[config.group].push({ key: key as AmenityFilter, ...config });
+    return acc;
+  }, {} as Record<string, { key: AmenityFilter; label: string; group: string }[]>);
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-display font-semibold text-brand-dark">Filters</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Close filters"
+          >
+            <svg className="w-5 h-5 text-brand-dark/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {/* Price */}
+          <FilterSection title="Price">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-xs text-brand-dark/85 mb-1 block">Min</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={staged.minPrice ? `$${staged.minPrice.toLocaleString()}` : ''}
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                    updateStaged({ minPrice: isNaN(num) ? undefined : num });
+                  }}
+                  placeholder="No min"
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                />
+              </div>
+              <div className="flex items-end pb-2.5 text-brand-dark/40">&ndash;</div>
+              <div className="flex-1">
+                <label className="text-xs text-brand-dark/85 mb-1 block">Max</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={staged.maxPrice ? `$${staged.maxPrice.toLocaleString()}` : ''}
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                    updateStaged({ maxPrice: isNaN(num) ? undefined : num });
+                  }}
+                  placeholder="No max"
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                />
+              </div>
+            </div>
+          </FilterSection>
+
+          {/* Beds & Baths */}
+          {tabConfig.showBedsBaths && (
+            <>
+              <FilterSection title="Bedrooms">
+                <div className="flex gap-1.5">
+                  {[
+                    { label: 'Any', value: null },
+                    { label: 'Studio', value: 0 },
+                    { label: '1', value: 1 },
+                    { label: '2', value: 2 },
+                    { label: '3', value: 3 },
+                    { label: '4+', value: 4 },
+                  ].map(({ label, value }) => (
+                    <button
+                      key={label}
+                      onClick={() => updateStaged({ beds: value })}
+                      className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
+                        staged.beds === value
+                          ? 'bg-brand-dark text-white'
+                          : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </FilterSection>
+
+              <FilterSection title="Bathrooms">
+                <div className="flex gap-1.5">
+                  {[
+                    { label: 'Any', value: null },
+                    { label: '1+', value: 1 },
+                    { label: '1.5+', value: 1.5 },
+                    { label: '2+', value: 2 },
+                    { label: '3+', value: 3 },
+                  ].map(({ label, value }) => (
+                    <button
+                      key={label}
+                      onClick={() => updateStaged({ baths: value })}
+                      className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
+                        staged.baths === value
+                          ? 'bg-brand-dark text-white'
+                          : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </FilterSection>
+            </>
+          )}
+
+          {/* Sqft */}
+          <FilterSection title="Square Feet">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={staged.minSqft ? staged.minSqft.toLocaleString() : ''}
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                    updateStaged({ minSqft: isNaN(num) ? undefined : num });
+                  }}
+                  placeholder="No min"
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                />
+              </div>
+              <div className="flex items-center text-brand-dark/40">&ndash;</div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={staged.maxSqft ? staged.maxSqft.toLocaleString() : ''}
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                    updateStaged({ maxSqft: isNaN(num) ? undefined : num });
+                  }}
+                  placeholder="No max"
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                />
+              </div>
+            </div>
+          </FilterSection>
+
+          {/* Property Type */}
+          <FilterSection title={isCommercial ? 'Commercial Type' : 'Property Type'}>
+            <div className="grid grid-cols-2 gap-2">
+              {(isCommercial ? COMMERCIAL_SUB_TYPES : RESIDENTIAL_PROPERTY_TYPES).map((type) => (
+                <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={staged.propertySubTypes?.includes(type) ?? false}
+                    onChange={() => updateStaged({ propertySubTypes: toggleArrayItem(staged.propertySubTypes, type) })}
+                    className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
+                  />
+                  <span className="text-brand-dark">{type}</span>
+                </label>
+              ))}
+            </div>
+          </FilterSection>
+
+          {/* Ownership Type (residential only) */}
+          {tabConfig.showOwnership && (
+            <FilterSection title="Ownership Type">
+              <div className="flex gap-2">
+                {OWNERSHIP_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => updateStaged({ ownershipTypes: toggleArrayItem(staged.ownershipTypes, type) })}
+                    className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
+                      staged.ownershipTypes?.includes(type)
+                        ? 'bg-brand-dark text-white'
+                        : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </FilterSection>
+          )}
+
+          {/* Status */}
+          <FilterSection title="Listing Status">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Active', value: 'Active' },
+                { label: 'Coming Soon', value: 'ComingSoon' },
+                { label: 'Under Contract', value: 'ActiveUnderContract' },
+              ].map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => updateStaged({ statuses: toggleArrayItem(staged.statuses, value) })}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    staged.statuses?.includes(value)
+                      ? 'bg-brand-dark text-white'
+                      : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </FilterSection>
+
+          {/* Year Built */}
+          <FilterSection title="Year Built">
+            <div className="flex gap-2">
+              {[
+                { label: 'Any', value: 'any' },
+                { label: 'Pre-War (≤1946)', value: 'pre-war' },
+                { label: 'Post-War (1947+)', value: 'post-war' },
+              ].map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => updateStaged({ yearBuilt: value as SearchFilters['yearBuilt'] })}
+                  className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
+                    (staged.yearBuilt || 'any') === value
+                      ? 'bg-brand-dark text-white'
+                      : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </FilterSection>
+
+          {/* Furnished (rental only) */}
+          {tabConfig.showFurnished && (
+            <FilterSection title="Furnished">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={staged.furnished ?? false}
+                  onChange={() => updateStaged({ furnished: !staged.furnished })}
+                  className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
+                />
+                <span className="text-brand-dark">Furnished only</span>
+              </label>
+            </FilterSection>
+          )}
+
+          {/* Open House */}
+          <FilterSection title="Open House">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={staged.openHouse ?? false}
+                onChange={() => updateStaged({ openHouse: !staged.openHouse })}
+                className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
+              />
+              <span className="text-brand-dark">Has upcoming open house</span>
+            </label>
+          </FilterSection>
+
+          {/* Amenities */}
+          <FilterSection title="Amenities">
+            <div className="space-y-4">
+              {Object.entries(amenityGroups).map(([group, amenities]) => (
+                <div key={group}>
+                  <p className="text-xs font-medium text-brand-dark/60 uppercase tracking-wider mb-2">{group}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {amenities.map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={staged.amenities?.includes(key) ?? false}
+                          onChange={() => updateStaged({ amenities: toggleArrayItem(staged.amenities, key) })}
+                          className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
+                        />
+                        <span className="text-brand-dark">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FilterSection>
+        </div>
+
+        {/* Footer — Apply / Reset */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={handleReset}
+            className="flex-1 py-3 text-sm font-medium text-brand-dark bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            Reset All
+          </button>
+          <button
+            onClick={handleApply}
+            className={`flex-1 py-3 text-sm font-medium text-white rounded-xl transition-colors ${
+              hasChanges ? 'bg-brand-dark hover:bg-brand-dark/90' : 'bg-brand-dark/70'
+            }`}
+          >
+            Apply Filters
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-brand-dark mb-3">{title}</h3>
+      {children}
+    </div>
+  );
+}
