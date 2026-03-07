@@ -39,6 +39,7 @@ export default function IDXImage({
   className = '',
 }: IDXImageProps) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   if (!src || failed) {
     return (
@@ -66,17 +67,22 @@ export default function IDXImage({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-gray-200 ${ASPECT_CLASSES[aspect]} ${className}`}>
+    <div className={`relative overflow-hidden ${ASPECT_CLASSES[aspect]} ${className}`}>
+      {/* Shimmer skeleton while loading */}
+      {!loaded && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+      )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding={priority ? 'sync' : 'async'}
+        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
-        className="absolute inset-0 w-full h-full object-cover"
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
-          animation: 'liquidMotion 10s ease-in-out infinite',
+          animation: loaded ? 'liquidMotion 10s ease-in-out infinite' : undefined,
           transformOrigin: '50% 60%',
         }}
       />
