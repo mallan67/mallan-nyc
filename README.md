@@ -487,12 +487,24 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 ### Media Pipeline
 
+**4 media types supported:** Photos, Floor Plans, Videos, Virtual Tours (3D/Matterport)
+
 - **Trestle photos** require Bearer auth — browser `<img>` tags cannot send auth headers
 - **Server-side proxy** (`/api/media/proxy`): fetches from Trestle with Bearer token, serves to browser
 - **CDN cache:** 7 days + `immutable` flag (first load proxied, subsequent loads instant from CDN)
 - **Allowlist:** Only `api.cotality.com`, `api-trestle.corelogic.com`, `api-prod.corelogic.com` domains
 - **Agent uploads:** Multipart form → Sharp (EXIF/GPS stripped, WebP, 3 variants: hero 1600px, card 800px, thumb 400px) → Cloudflare R2
 - **Rate limit exemption:** `/api/media/proxy` is exempt from the 30/min API rate limit (50+ images per page load is normal)
+
+**Media type classification** (from Trestle `MediaCategory` field):
+- `Photo` → cached to R2, displayed in photo carousel
+- `Floor Plan` → cached to R2, displayed in dedicated Floor Plan tab
+- `Video` → rendered as `<video>` tag (direct files) or `<iframe>` (YouTube/Vimeo/Wistia embeds)
+- `Virtual Tour` → rendered as `<iframe>` with `xr-spatial-tracking` (Matterport, etc.)
+
+**Virtual tour sources** (priority order):
+1. `VirtualTourURLUnbranded` field on Property resource (RESO standard)
+2. Media resource items with `MediaCategory = 'Virtual Tour'` (fallback)
 
 ### Security
 
@@ -509,6 +521,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 ## Last Work Completed
 
+- **2026-03-07:** Media pipeline fix — VirtualTour items no longer leak into photo carousel, videos render as `<video>` tag for direct files (iframe for YouTube/Vimeo), virtual tour fallback from Media resource when `VirtualTourURLUnbranded` is empty.
 - **2026-03-06:** CRM mock data cleanup — removed ALL fake names, stats, prices, addresses from rendered HTML. See [CRM Mock Data Cleanup](#crm-mock-data-cleanup-2026-03-06) below. Commit `5638ef05` (-1,068 lines net).
 - **2026-03-06:** CRM navigation fixes — showTab null guard, agent blocked tab redirect, auth redirect preserves hash, sessionStorage tab persistence, portal tab restore. Restored 3 tab UIs (exclusives, in-contract, sold).
 - **2026-03-06:** CSP fix — added `api.cotality.com`, `api-trestle.corelogic.com`, `api-prod.corelogic.com` to `img-src` and `connect-src` in both global and CRM CSP headers (`vercel.json`). Prevents image/fetch blocks after Trestle/Cotality API migration (deadline March 31, 2026). Legacy domains removable after deadline.
