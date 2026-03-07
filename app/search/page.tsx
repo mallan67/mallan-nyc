@@ -152,9 +152,7 @@ function SearchClient() {
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
 
-  // ── Dynamic content height for full-viewport modes ──
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState('calc(100dvh - 180px)');
 
   // ── Filters ──
   const [filters, setFilters] = useState<SearchFilters>({
@@ -331,34 +329,16 @@ function SearchClient() {
 
   const filterCount = activeFilterPills.length;
 
-  // ── Measure toolbar bottom for dynamic content height ──
-  useEffect(() => {
-    const measure = () => {
-      if (toolbarRef.current) {
-        const rect = toolbarRef.current.getBoundingClientRect();
-        setContentHeight(`calc(100dvh - ${rect.bottom}px)`);
-      }
-    };
-    // Use ResizeObserver for reliable measurement without timeouts
-    const observer = new ResizeObserver(measure);
-    if (toolbarRef.current) observer.observe(toolbarRef.current);
-    // Also measure on initial render
-    requestAnimationFrame(measure);
-    window.addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [activeFilterPills.length, activeTab]);
+  // toolbarRef kept for potential future use
 
   // ── Show footer only in grid/list modes ──
   const showFooter = viewMode === 'grid' || viewMode === 'list';
   const isFullViewport = viewMode === 'split' || viewMode === 'all-listings' || viewMode === 'all-map';
 
   return (
-    <div className="min-h-screen bg-[#FEFEFE]">
-      {/* ── Search Toolbar (sticky below header) ── */}
-      <div ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
+    <div className="flex-1 min-h-0 flex flex-col bg-[#FEFEFE]">
+      {/* ── Search Toolbar ── */}
+      <div ref={toolbarRef} className="flex-shrink-0 bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
         <div className="max-w-[1920px] mx-auto px-4 py-2">
           {/* Row 1: Tabs + Search */}
           <div className="flex items-center gap-3">
@@ -498,7 +478,7 @@ function SearchClient() {
       </div>
 
       {/* ── Main Area ── */}
-      <div className={isFullViewport ? 'overflow-hidden isolate' : ''} style={isFullViewport ? { height: contentHeight } : undefined}>
+      <div className={`flex-1 min-h-0 ${isFullViewport ? 'overflow-hidden isolate' : 'overflow-y-auto'}`}>
         {/* Error */}
         {error && (
           <div className="text-center py-8 mx-4 mt-4 glass-card rounded-3xl">
@@ -512,8 +492,8 @@ function SearchClient() {
           <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
             {viewMode === 'split' && (
               <>
-                <div className="hidden lg:block w-[60%] h-full bg-gray-100 animate-pulse" />
-                <div className="flex-1 lg:w-[40%] px-3 pt-2 space-y-3">
+                <div className="hidden lg:block w-[45%] h-full bg-gray-100 animate-pulse" />
+                <div className="flex-1 lg:w-[55%] px-3 pt-2 space-y-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="bg-gray-100 rounded-xl h-28 animate-pulse" />
                   ))}
@@ -542,8 +522,8 @@ function SearchClient() {
         {/* ── SPLIT VIEW (default desktop) ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
           <div className="flex h-full">
-            {/* Map — left 60% (isolate creates a new stacking context so leaflet z-1000 stays inside) */}
-            <div className="hidden lg:block w-[60%] h-full border-r border-black/5 isolate">
+            {/* Map — left 45% */}
+            <div className="hidden lg:block w-[45%] h-full border-r border-black/5 isolate">
               <SearchMap
                 listings={sortedListings}
                 highlightedId={highlightedId}
@@ -551,7 +531,7 @@ function SearchClient() {
               />
             </div>
             {/* Listings — right 40% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto" style={{ paddingTop: 8 }}>
+            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto">
               <div className="px-3 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
@@ -729,9 +709,9 @@ function SearchLoading() {
 
 export default function SearchPage() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
+    <div className="h-screen flex flex-col bg-[#FEFEFE] font-sans overflow-hidden">
       <Header dark />
-      <main>
+      <main className="flex-1 min-h-0 flex flex-col">
         <Suspense fallback={<SearchLoading />}>
           <SearchClient />
         </Suspense>
