@@ -27,7 +27,7 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
       className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-2xl ring-1 transition-colors ${
         active
           ? 'bg-red-50 text-red-600 ring-red-200 hover:bg-red-100'
-          : 'bg-white text-brand-dark/70 ring-black/10 hover:bg-gray-50'
+          : 'bg-white text-brand-dark/95 ring-black/10 hover:bg-gray-50'
       }`}
       aria-label={active ? 'Remove from favorites' : 'Save to favorites'}
     >

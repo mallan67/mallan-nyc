@@ -122,7 +122,7 @@ export default function SignUpPage() {
                 </svg>
               </div>
               <h1 className="text-xl font-display font-semibold mb-2">Welcome, {firstName || 'there'}!</h1>
-              <p className="text-brand-dark/60 text-sm mb-2">Your account has been created.</p>
+              <p className="text-brand-dark/90 text-sm mb-2">Your account has been created.</p>
               <div className="flex flex-wrap gap-1.5 justify-center mb-5">
                 {selectedRoles.map(r => {
                   const role = roles.find(x => x.id === r);
@@ -212,7 +212,7 @@ export default function SignUpPage() {
                 {/* Divider */}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex-1 h-px bg-black/10" />
-                  <span className="text-xs text-brand-dark/40 font-medium">or continue with email</span>
+                  <span className="text-xs text-brand-dark/90 font-medium">or continue with email</span>
                   <div className="flex-1 h-px bg-black/10" />
                 </div>
 
@@ -222,7 +222,7 @@ export default function SignUpPage() {
                   onClick={() => selectMethod('email')}
                   className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-2xl ring-1 ring-black/10 bg-white hover:bg-gray-50 transition-colors text-sm font-medium text-brand-dark cursor-pointer"
                 >
-                  <svg className="w-5 h-5 text-brand-dark/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-brand-dark/85" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   Continue with Email
@@ -240,7 +240,7 @@ export default function SignUpPage() {
 
                 {/* Sign In Link */}
                 <div className="mt-6 pt-6 border-t border-black/5 text-center">
-                  <p className="text-brand-dark/60 text-sm">
+                  <p className="text-brand-dark/90 text-sm">
                     Already have an account?{' '}
                     <Link href="/sign-in" className="text-brand-gold font-semibold hover:underline">
                       Sign In
@@ -259,7 +259,7 @@ export default function SignUpPage() {
                     onClick={goBack}
                     className="p-1.5 -ml-1.5 rounded-lg hover:bg-black/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
-                    <svg className="w-4.5 h-4.5 text-brand-dark/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4.5 h-4.5 text-brand-dark/85" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
@@ -322,7 +322,7 @@ export default function SignUpPage() {
                         className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
                         placeholder="Create a password"
                       />
-                      <p className={`text-[11px] mt-1 ${password && password.length < 8 ? 'text-red-500' : 'text-brand-dark/35'}`}>
+                      <p className={`text-[11px] mt-1 ${password && password.length < 8 ? 'text-red-500' : 'text-brand-dark/70'}`}>
                         {password && password.length < 8
                           ? `${8 - password.length} more character${8 - password.length === 1 ? '' : 's'} needed`
                           : 'Minimum 8 characters'}
@@ -361,7 +361,7 @@ export default function SignUpPage() {
                     onClick={goBack}
                     className="p-1.5 -ml-1.5 rounded-lg hover:bg-black/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
-                    <svg className="w-4.5 h-4.5 text-brand-dark/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4.5 h-4.5 text-brand-dark/85" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
@@ -374,7 +374,7 @@ export default function SignUpPage() {
                   <div className="w-6 h-1 rounded-full bg-brand-gold" />
                 </div>
 
-                <p className="text-brand-dark/40 text-center text-xs mb-4">
+                <p className="text-brand-dark/90 text-center text-xs mb-4">
                   Select all that apply
                 </p>
 
@@ -390,7 +390,7 @@ export default function SignUpPage() {
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl ring-1.5 transition-all text-left ${
                           isActive
                             ? `${c.activeBg} ${c.activeRing} ${c.text}`
-                            : 'bg-white/60 ring-black/6 text-brand-dark/70 hover:ring-black/12 hover:bg-white/80'
+                            : 'bg-white/60 ring-black/6 text-brand-dark/95 hover:ring-black/12 hover:bg-white/80'
                         }`}
                       >
                         <div className={`w-4.5 h-4.5 rounded-full ring-1.5 flex items-center justify-center flex-shrink-0 ${
@@ -404,7 +404,7 @@ export default function SignUpPage() {
                         </div>
                         <div>
                           <div className="font-medium text-sm">{role.label}</div>
-                          <div className={`text-[11px] ${isActive ? `${c.text} opacity-70` : 'text-brand-dark/35'}`}>
+                          <div className={`text-[11px] ${isActive ? `${c.text} opacity-70` : 'text-brand-dark/70'}`}>
                             {role.description}
                           </div>
                         </div>
@@ -426,7 +426,7 @@ export default function SignUpPage() {
                   className={`w-full mt-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     selectedRoles.length > 0 && !submitting
                       ? 'bg-brand-dark text-white hover:bg-brand-dark/90 cursor-pointer'
-                      : 'bg-black/5 text-brand-dark/30 cursor-not-allowed'
+                      : 'bg-black/5 text-brand-dark/85 cursor-not-allowed'
                   }`}
                 >
                   {submitting ? 'Creating Account...' : 'Create Account'}
@@ -448,7 +448,7 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <p className="text-center text-[10px] text-brand-dark/30 mt-5">
+          <p className="text-center text-[10px] text-brand-dark/85 mt-5">
             By creating an account, you agree to our{' '}
             <Link href="/terms" className="hover:text-brand-gold underline">Terms</Link>
             {' '}&amp;{' '}

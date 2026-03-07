@@ -51,11 +51,11 @@ export default function MovingCostEstimator() {
           </div>
           <div className="text-left">
             <h3 className="font-display font-semibold text-brand-dark">NYC Moving Cost Estimator</h3>
-            <p className="text-sm text-brand-dark/50">Total move-in costs at a glance</p>
+            <p className="text-sm text-brand-dark/85">Total move-in costs at a glance</p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-brand-dark/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-brand-dark/90 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -66,7 +66,7 @@ export default function MovingCostEstimator() {
         <div className="px-6 pb-6 border-t border-black/5">
           {/* Total */}
           <div className="mt-4 bg-amber-50/60 rounded-2xl p-4 text-center">
-            <p className="text-xs text-brand-dark/50 uppercase tracking-wide mb-1">Estimated Total Move-In Cost</p>
+            <p className="text-xs text-brand-dark/85 uppercase tracking-wide mb-1">Estimated Total Move-In Cost</p>
             <p className="text-3xl font-display font-bold text-brand-dark">
               ${calculations.total.toLocaleString()}
             </p>
@@ -75,29 +75,29 @@ export default function MovingCostEstimator() {
           {/* Line items */}
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between py-1">
-              <span className="text-brand-dark/60">First month&apos;s rent</span>
+              <span className="text-brand-dark/90">First month&apos;s rent</span>
               <span className="font-medium">${calculations.firstMonth.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-brand-dark/60">Security deposit</span>
+              <span className="text-brand-dark/90">Security deposit</span>
               <span className="font-medium">${calculations.securityDeposit.toLocaleString()}</span>
             </div>
             {hasBrokerFee && (
               <div className="flex justify-between py-1">
-                <span className="text-brand-dark/60">Broker fee (1 month)</span>
+                <span className="text-brand-dark/90">Broker fee (1 month)</span>
                 <span className="font-medium">${calculations.brokerFee.toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between py-1">
-              <span className="text-brand-dark/60">Moving company</span>
+              <span className="text-brand-dark/90">Moving company</span>
               <span className="font-medium">${calculations.movingCompany.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-brand-dark/60">Utilities setup</span>
+              <span className="text-brand-dark/90">Utilities setup</span>
               <span className="font-medium">${calculations.utilitiesSetup.toLocaleString()}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
-              <span className="text-brand-dark/70">Total</span>
+              <span className="text-brand-dark/95">Total</span>
               <span className="text-brand-dark">${calculations.total.toLocaleString()}</span>
             </div>
           </div>
@@ -106,7 +106,7 @@ export default function MovingCostEstimator() {
           <div className="mt-6 space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Monthly Rent</label>
+                <label className="text-brand-dark/90">Monthly Rent</label>
                 <span className="font-medium">${monthlyRent.toLocaleString()}</span>
               </div>
               <input
@@ -121,7 +121,7 @@ export default function MovingCostEstimator() {
             </div>
 
             <div>
-              <label className="block text-sm text-brand-dark/60 mb-2">Apartment Size</label>
+              <label className="block text-sm text-brand-dark/90 mb-2">Apartment Size</label>
               <div className="grid grid-cols-4 gap-2">
                 {APT_SIZES.map((size) => (
                   <button
@@ -130,7 +130,7 @@ export default function MovingCostEstimator() {
                     className={`py-2 text-xs font-medium rounded-2xl transition-colors ${
                       aptSize === size.value
                         ? 'bg-brand-gold text-white'
-                        : 'bg-white/60 text-brand-dark/60 ring-1 ring-black/5 hover:bg-white/80'
+                        : 'bg-white/60 text-brand-dark/90 ring-1 ring-black/5 hover:bg-white/80'
                     }`}
                   >
                     {size.label}
@@ -140,7 +140,7 @@ export default function MovingCostEstimator() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-brand-dark/60">Broker fee (1 month)</span>
+              <span className="text-sm text-brand-dark/90">Broker fee (1 month)</span>
               <button
                 onClick={() => setHasBrokerFee(!hasBrokerFee)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -156,7 +156,7 @@ export default function MovingCostEstimator() {
             </div>
           </div>
 
-          <p className="mt-4 text-xs text-brand-dark/40">
+          <p className="mt-4 text-xs text-brand-dark/90">
             *Estimates based on typical NYC move-in costs. Actual costs vary by building,
             location, and moving company. Some buildings may require additional deposits
             or fees.

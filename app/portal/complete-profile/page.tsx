@@ -93,7 +93,7 @@ export default function CompleteProfilePage() {
         <div className="max-w-md mx-auto px-4">
           <div className="glass-card rounded-3xl p-8 sm:p-10">
             <h1 className="text-2xl font-display font-bold text-center mb-2">Almost There!</h1>
-            <p className="text-brand-dark/60 text-center text-sm mb-8">
+            <p className="text-brand-dark/90 text-center text-sm mb-8">
               {userName ? `Welcome, ${userName}. ` : ''}Just a couple more details to set up your portal.
             </p>
 
@@ -131,7 +131,7 @@ export default function CompleteProfilePage() {
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl ring-1.5 transition-all text-left ${
                           isActive
                             ? `${c.activeBg} ${c.activeRing} ${c.text}`
-                            : 'bg-white/60 ring-black/6 text-brand-dark/70 hover:ring-black/12 hover:bg-white/80'
+                            : 'bg-white/60 ring-black/6 text-brand-dark/95 hover:ring-black/12 hover:bg-white/80'
                         }`}
                       >
                         <div className={`w-5 h-5 rounded-full ring-2 flex items-center justify-center flex-shrink-0 ${
@@ -145,7 +145,7 @@ export default function CompleteProfilePage() {
                         </div>
                         <div>
                           <div className="font-medium text-sm">{role.label}</div>
-                          <div className={`text-xs ${isActive ? `${c.text} opacity-70` : 'text-brand-dark/35'}`}>
+                          <div className={`text-xs ${isActive ? `${c.text} opacity-70` : 'text-brand-dark/70'}`}>
                             {role.description}
                           </div>
                         </div>
@@ -167,7 +167,7 @@ export default function CompleteProfilePage() {
                 className={`w-full py-3 rounded-2xl text-sm font-medium transition-colors ${
                   selectedRoles.length > 0 && !loading
                     ? 'bg-brand-dark text-white hover:bg-brand-dark/90 cursor-pointer'
-                    : 'bg-black/5 text-brand-dark/30 cursor-not-allowed'
+                    : 'bg-black/5 text-brand-dark/70 cursor-not-allowed'
                 }`}
               >
                 {loading ? 'Saving...' : 'Continue to Portal'}

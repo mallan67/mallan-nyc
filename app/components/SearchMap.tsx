@@ -53,12 +53,12 @@ export default function SearchMap({ listings }: SearchMapProps) {
         <svg className="w-12 h-12 text-brand-dark/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
         </svg>
-        <p className="text-brand-dark/50 text-center px-4">
+        <p className="text-brand-dark/85 text-center px-4">
           {totalListings === 0
             ? 'No listings to display on map'
             : `${totalListings} listing${totalListings !== 1 ? 's' : ''} found, but location data is not available for map display`}
         </p>
-        <p className="text-brand-dark/30 text-xs text-center px-4">
+        <p className="text-brand-dark/85 text-xs text-center px-4">
           Try switching to Grid or List view to see results
         </p>
       </div>
@@ -68,7 +68,7 @@ export default function SearchMap({ listings }: SearchMapProps) {
   return (
     <div className="relative rounded-2xl overflow-hidden ring-1 ring-black/5 h-[500px]">
       {withoutCoords > 0 && (
-        <div className="absolute top-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-brand-dark/50 px-3 py-1.5 rounded-lg shadow-sm">
+        <div className="absolute top-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-brand-dark/85 px-3 py-1.5 rounded-lg shadow-sm">
           Showing {mappable.length} of {totalListings} listings on map
         </div>
       )}

@@ -11,10 +11,10 @@ export default function ListingNotFound() {
           <h1 className="text-3xl font-display font-semibold mb-4">
             Listing Not Available
           </h1>
-          <p className="text-brand-dark/60 mb-2">
+          <p className="text-brand-dark/90 mb-2">
             This listing may have been removed, sold, or is no longer on the market.
           </p>
-          <p className="text-brand-dark/40 text-sm mb-8">
+          <p className="text-brand-dark/75 text-sm mb-8">
             Listings are updated frequently from the REBNY Residential Listing Service.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

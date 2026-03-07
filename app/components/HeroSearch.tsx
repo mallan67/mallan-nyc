@@ -260,7 +260,7 @@ export default function HeroSearch() {
             className="flex items-center bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-full"
             style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.2)' }}
           >
-            <svg className="ml-4 md:ml-6 w-5 h-5 text-brand-dark/25 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className="ml-4 md:ml-6 w-5 h-5 text-brand-dark/65 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
             <input
@@ -275,7 +275,7 @@ export default function HeroSearch() {
               onFocus={() => query.length >= 2 && setShowSuggestions(true)}
               onKeyDown={handleKeyDown}
               placeholder="Search by neighborhood, address, or building..."
-              className="flex-1 min-w-0 px-3 md:px-4 py-3 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/50 font-light tracking-wide"
+              className="flex-1 min-w-0 px-3 md:px-4 py-3 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/85 font-light tracking-wide"
               autoComplete="off"
               role="combobox"
               aria-expanded={showSuggestions && suggestions.length > 0}
@@ -315,13 +315,13 @@ export default function HeroSearch() {
                       : 'hover:bg-black/[0.02]'
                   }`}
                 >
-                  <span className="text-brand-dark/50">
+                  <span className="text-brand-dark/85">
                     {getTypeIcon(suggestion.type)}
                   </span>
                   <span className="flex-1 text-brand-dark font-light text-sm">
                     {suggestion.label}
                   </span>
-                  <span className="text-[11px] text-brand-dark/50 capitalize font-light">
+                  <span className="text-[11px] text-brand-dark/85 capitalize font-light">
                     {suggestion.type}
                   </span>
                 </button>

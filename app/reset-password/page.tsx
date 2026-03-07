@@ -26,7 +26,7 @@ function ResetPasswordForm() {
           </svg>
         </div>
         <h1 className="text-2xl font-display font-semibold mb-2">Invalid Reset Link</h1>
-        <p className="text-brand-dark/60 mb-6">
+        <p className="text-brand-dark/90 mb-6">
           This password reset link is missing or invalid. Please request a new one.
         </p>
         <Link
@@ -88,7 +88,7 @@ function ResetPasswordForm() {
           </svg>
         </div>
         <h1 className="text-2xl font-display font-semibold mb-2">Password Reset</h1>
-        <p className="text-brand-dark/60 mb-4">
+        <p className="text-brand-dark/90 mb-4">
           Your password has been updated. Redirecting to your portal...
         </p>
         <div className="w-full bg-black/5 rounded-full h-1.5">
@@ -101,7 +101,7 @@ function ResetPasswordForm() {
   return (
     <div className="glass-card rounded-3xl p-10">
       <h1 className="text-2xl font-display font-semibold text-center mb-2">Reset Password</h1>
-      <p className="text-brand-dark/50 text-center text-sm mb-8">
+      <p className="text-brand-dark/85 text-center text-sm mb-8">
         Choose a new password for your account
       </p>
 

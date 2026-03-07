@@ -51,7 +51,7 @@ export default function SavedSearchesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl font-display font-semibold">Saved Searches</h1>
-              <p className="text-brand-dark/50 text-sm mt-1">
+              <p className="text-brand-dark/85 text-sm mt-1">
                 {loaded ? `${searches.length} saved search${searches.length !== 1 ? 'es' : ''}` : 'Loading...'}
               </p>
             </div>
@@ -78,8 +78,8 @@ export default function SavedSearchesPage() {
               <svg className="w-16 h-16 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
-              <h2 className="text-lg font-medium text-brand-dark/40 mb-2">No saved searches yet</h2>
-              <p className="text-brand-dark/30 text-sm mb-6">
+              <h2 className="text-lg font-medium text-brand-dark/90 mb-2">No saved searches yet</h2>
+              <p className="text-brand-dark/85 text-sm mb-6">
                 Save a search from the results page to quickly access it later.
               </p>
               <div className="flex gap-3 justify-center">
@@ -102,10 +102,10 @@ export default function SavedSearchesPage() {
                     >
                       {search.name}
                     </Link>
-                    <p className="text-brand-dark/40 text-xs mt-1 truncate">
+                    <p className="text-brand-dark/90 text-xs mt-1 truncate">
                       {formatFilters(search.filters)}
                     </p>
-                    <p className="text-brand-dark/30 text-[10px] mt-1">
+                    <p className="text-brand-dark/85 text-[10px] mt-1">
                       Saved {new Date(search.savedAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -118,7 +118,7 @@ export default function SavedSearchesPage() {
                     </Link>
                     <button
                       onClick={() => deleteSearch(search.id)}
-                      className="px-3 py-2 text-xs text-brand-dark/40 hover:text-red-500 rounded-xl ring-1 ring-black/5 hover:ring-red-200 transition-colors"
+                      className="px-3 py-2 text-xs text-brand-dark/90 hover:text-red-500 rounded-xl ring-1 ring-black/5 hover:ring-red-200 transition-colors"
                       title="Remove"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

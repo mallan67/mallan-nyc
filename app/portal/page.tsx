@@ -455,11 +455,11 @@ export default function PortalPage() {
               <h1 className="text-2xl font-display font-semibold">
                 Welcome, {user?.name?.split(' ')[0]}
               </h1>
-              <p className="text-brand-dark/50 text-sm mt-1">
+              <p className="text-brand-dark/85 text-sm mt-1">
                 {roleLabel} Portal — Mallan Real Estate
               </p>
             </div>
-            <button onClick={handleLogout} className="text-sm text-brand-dark/50 hover:text-brand-dark transition-colors">
+            <button onClick={handleLogout} className="text-sm text-brand-dark/85 hover:text-brand-dark transition-colors">
               Sign Out
             </button>
           </div>
@@ -473,7 +473,7 @@ export default function PortalPage() {
                 className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[1px] whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-brand-gold text-brand-dark'
-                    : 'border-transparent text-brand-dark/40 hover:text-brand-dark/70'
+                    : 'border-transparent text-brand-dark/90 hover:text-brand-dark/95'
                 }`}
               >
                 {tab.label}
@@ -518,7 +518,7 @@ export default function PortalPage() {
                         {requestSubmitting ? 'Sending...' : 'Send Request'}
                       </button>
                       <button type="button" onClick={() => { setShowRequestForm(false); setRequestMessage(''); }}
-                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
+                        className="px-4 py-2 text-sm text-brand-dark/90 hover:text-brand-dark rounded-xl">Cancel</button>
                     </div>
                   </form>
                 </div>
@@ -531,8 +531,8 @@ export default function PortalPage() {
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
-                  <p className="text-brand-dark/40 mb-2">No listings yet</p>
-                  <p className="text-brand-dark/30 text-sm">
+                  <p className="text-brand-dark/90 mb-2">No listings yet</p>
+                  <p className="text-brand-dark/85 text-sm">
                     {isBuyerOrTenant ? 'Your agent will share listings with you here.' : 'Your property details will appear here once your agent adds them.'}
                   </p>
                 </div>
@@ -543,9 +543,9 @@ export default function PortalPage() {
                       <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{listing.address || 'Address Undisclosed'}</p>
-                          <p className="text-brand-dark/50 text-xs mt-1">
+                          <p className="text-brand-dark/85 text-xs mt-1">
                             ${Number(listing.list_price).toLocaleString()}{listing.listing_type === 'rent' ? '/mo' : ''} — {listing.listing_type === 'rent' ? 'Rental' : 'Sale'}
-                            {listing.status && listing.status !== 'Active' && <span className="ml-2 text-brand-dark/40">({listing.status})</span>}
+                            {listing.status && listing.status !== 'Active' && <span className="ml-2 text-brand-dark/90">({listing.status})</span>}
                           </p>
                         </div>
                         <div className="flex gap-2 flex-shrink-0 flex-wrap">
@@ -555,7 +555,7 @@ export default function PortalPage() {
                             const cfg = reactionConfig[action];
                             return (
                               <button key={action} onClick={() => handleReaction(listing.id, action)} disabled={isLoading}
-                                className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${active ? cfg.activeClass : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'} ${isLoading ? 'opacity-50' : ''}`}
+                                className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${active ? cfg.activeClass : 'bg-white ring-black/10 text-brand-dark/90 hover:bg-gray-50'} ${isLoading ? 'opacity-50' : ''}`}
                                 title={active ? `Remove ${cfg.label}` : cfg.label}>
                                 {cfg.icon} {cfg.label}
                               </button>
@@ -563,12 +563,12 @@ export default function PortalPage() {
                           })}
                           {isBuyerOrTenant && (
                             <button onClick={() => setShowingListingId(showingListingId === listing.id ? null : listing.id)}
-                              className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${showingListingId === listing.id ? 'bg-purple-50 ring-purple-200 text-purple-600' : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'}`}>
+                              className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${showingListingId === listing.id ? 'bg-purple-50 ring-purple-200 text-purple-600' : 'bg-white ring-black/10 text-brand-dark/90 hover:bg-gray-50'}`}>
                               Schedule
                             </button>
                           )}
                           <button onClick={() => toggleComments(listing.id)}
-                            className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${expandedListing === listing.id ? 'bg-blue-50 ring-blue-200 text-blue-600' : 'bg-white ring-black/10 text-brand-dark/60 hover:bg-gray-50'}`}>
+                            className={`px-3 py-1.5 text-xs rounded-xl ring-1 transition-colors ${expandedListing === listing.id ? 'bg-blue-50 ring-blue-200 text-blue-600' : 'bg-white ring-black/10 text-brand-dark/90 hover:bg-gray-50'}`}>
                             Comments
                           </button>
                         </div>
@@ -597,7 +597,7 @@ export default function PortalPage() {
                                 {showingSubmitting ? 'Requesting...' : 'Request Showing'}
                               </button>
                               <button type="button" onClick={() => { setShowingListingId(null); setShowingMessage(''); }}
-                                className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
+                                className="px-4 py-2 text-sm text-brand-dark/90 hover:text-brand-dark rounded-xl">Cancel</button>
                             </div>
                           </form>
                         </div>
@@ -614,7 +614,7 @@ export default function PortalPage() {
                           ) : (
                             <>
                               {topComments.length === 0 && (
-                                <p className="text-brand-dark/30 text-xs mb-3">No comments yet. Be the first to share your thoughts!</p>
+                                <p className="text-brand-dark/85 text-xs mb-3">No comments yet. Be the first to share your thoughts!</p>
                               )}
                               <div className="space-y-3 max-h-64 overflow-y-auto mb-3">
                                 {topComments.map((comment) => (
@@ -626,9 +626,9 @@ export default function PortalPage() {
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2">
                                           <span className="text-xs font-medium">{comment.author.isMe ? 'You' : comment.author.name}</span>
-                                          <span className="text-[10px] text-brand-dark/30">{new Date(comment.created_at).toLocaleDateString()}</span>
+                                          <span className="text-[10px] text-brand-dark/85">{new Date(comment.created_at).toLocaleDateString()}</span>
                                         </div>
-                                        <p className="text-sm text-brand-dark/70 mt-0.5">{comment.body}</p>
+                                        <p className="text-sm text-brand-dark/95 mt-0.5">{comment.body}</p>
                                         <button onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
                                           className="text-[10px] text-brand-gold hover:underline mt-1">Reply</button>
                                       </div>
@@ -636,14 +636,14 @@ export default function PortalPage() {
                                     {getReplies(comment.id).map((reply) => (
                                       <div key={reply.id} className="ml-9 mt-2 flex gap-2">
                                         <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                          <span className="text-[10px] font-medium text-brand-dark/40">{reply.author.name.charAt(0)}</span>
+                                          <span className="text-[10px] font-medium text-brand-dark/90">{reply.author.name.charAt(0)}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-baseline gap-2">
                                             <span className="text-xs font-medium">{reply.author.isMe ? 'You' : reply.author.name}</span>
-                                            <span className="text-[10px] text-brand-dark/30">{new Date(reply.created_at).toLocaleDateString()}</span>
+                                            <span className="text-[10px] text-brand-dark/85">{new Date(reply.created_at).toLocaleDateString()}</span>
                                           </div>
-                                          <p className="text-xs text-brand-dark/60 mt-0.5">{reply.body}</p>
+                                          <p className="text-xs text-brand-dark/90 mt-0.5">{reply.body}</p>
                                         </div>
                                       </div>
                                     ))}
@@ -693,8 +693,8 @@ export default function PortalPage() {
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-brand-dark/40 mb-2">No showings scheduled</p>
-                  <p className="text-brand-dark/30 text-sm">
+                  <p className="text-brand-dark/90 mb-2">No showings scheduled</p>
+                  <p className="text-brand-dark/85 text-sm">
                     {isBuyerOrTenant ? 'Click "Schedule" on a listing to request a showing.' : 'Upcoming showings for your property will appear here.'}
                   </p>
                 </div>
@@ -704,7 +704,7 @@ export default function PortalPage() {
                     <div key={showing.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{showing.listing?.address || 'Address Undisclosed'}</p>
-                        <p className="text-brand-dark/50 text-xs mt-1">
+                        <p className="text-brand-dark/85 text-xs mt-1">
                           {new Date(showing.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                           {showing.time ? ` at ${showing.time}` : ''}{' — '}
                           {showing.type === 'openhouse' ? 'Open House' : showing.type === 'virtual' ? 'Virtual' : 'Private'}
@@ -730,8 +730,8 @@ export default function PortalPage() {
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <p className="text-brand-dark/40 mb-2">No offers yet</p>
-                  <p className="text-brand-dark/30 text-sm">
+                  <p className="text-brand-dark/90 mb-2">No offers yet</p>
+                  <p className="text-brand-dark/85 text-sm">
                     When buyers express interest or submit offers on your property, they will appear here.
                   </p>
                 </div>
@@ -743,21 +743,21 @@ export default function PortalPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{offer.listing_address || 'Address Undisclosed'}</p>
                           {offer.list_price && (
-                            <p className="text-brand-dark/50 text-xs mt-0.5">List Price: ${Number(offer.list_price).toLocaleString()}</p>
+                            <p className="text-brand-dark/85 text-xs mt-0.5">List Price: ${Number(offer.list_price).toLocaleString()}</p>
                           )}
                           {offer.from && (
-                            <p className="text-brand-dark/40 text-xs mt-0.5">From: {offer.from.name}</p>
+                            <p className="text-brand-dark/90 text-xs mt-0.5">From: {offer.from.name}</p>
                           )}
                         </div>
                         <div className="text-right flex-shrink-0">
                           <span className="inline-flex px-3 py-1 text-xs font-medium rounded-full bg-orange-50 text-orange-700">Offer</span>
-                          <p className="text-[10px] text-brand-dark/30 mt-1">
+                          <p className="text-[10px] text-brand-dark/85 mt-1">
                             {new Date(offer.created_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                       {offer.comment && (
-                        <p className="mt-2 text-sm text-brand-dark/60 bg-gray-50 rounded-xl px-3 py-2">{offer.comment}</p>
+                        <p className="mt-2 text-sm text-brand-dark/90 bg-gray-50 rounded-xl px-3 py-2">{offer.comment}</p>
                       )}
                     </div>
                   ))}
@@ -782,22 +782,22 @@ export default function PortalPage() {
                       className="text-sm text-brand-gold hover:underline">Edit</button>
                   </div>
                   {!preferences ? (
-                    <p className="text-brand-dark/40 text-sm">
+                    <p className="text-brand-dark/90 text-sm">
                       No preferences set yet. Click Edit to tell your agent what you are looking for.
                     </p>
                   ) : (
                     <div className="space-y-3 text-sm">
                       {preferences.boroughs.length > 0 && (
-                        <div><span className="text-brand-dark/40 text-xs">Boroughs:</span> <span>{preferences.boroughs.join(', ')}</span></div>
+                        <div><span className="text-brand-dark/90 text-xs">Boroughs:</span> <span>{preferences.boroughs.join(', ')}</span></div>
                       )}
                       {preferences.neighborhoods.length > 0 && (
-                        <div><span className="text-brand-dark/40 text-xs">Neighborhoods:</span> <span>{preferences.neighborhoods.join(', ')}</span></div>
+                        <div><span className="text-brand-dark/90 text-xs">Neighborhoods:</span> <span>{preferences.neighborhoods.join(', ')}</span></div>
                       )}
                       {preferences.property_types.length > 0 && (
-                        <div><span className="text-brand-dark/40 text-xs">Property Types:</span> <span>{preferences.property_types.join(', ')}</span></div>
+                        <div><span className="text-brand-dark/90 text-xs">Property Types:</span> <span>{preferences.property_types.join(', ')}</span></div>
                       )}
                       {(preferences.min_price || preferences.max_price) && (
-                        <div><span className="text-brand-dark/40 text-xs">Price:</span>{' '}
+                        <div><span className="text-brand-dark/90 text-xs">Price:</span>{' '}
                           <span>
                             {preferences.min_price ? `$${Number(preferences.min_price).toLocaleString()}` : 'Any'}
                             {' — '}
@@ -806,21 +806,21 @@ export default function PortalPage() {
                         </div>
                       )}
                       {(preferences.min_beds || preferences.max_beds) && (
-                        <div><span className="text-brand-dark/40 text-xs">Bedrooms:</span>{' '}
+                        <div><span className="text-brand-dark/90 text-xs">Bedrooms:</span>{' '}
                           <span>{preferences.min_beds ?? 'Any'} — {preferences.max_beds ?? 'Any'}</span>
                         </div>
                       )}
                       {preferences.min_baths && (
-                        <div><span className="text-brand-dark/40 text-xs">Min Bathrooms:</span> <span>{preferences.min_baths}+</span></div>
+                        <div><span className="text-brand-dark/90 text-xs">Min Bathrooms:</span> <span>{preferences.min_baths}+</span></div>
                       )}
                       {preferences.must_haves.length > 0 && (
-                        <div><span className="text-brand-dark/40 text-xs">Must Haves:</span> <span>{preferences.must_haves.join(', ')}</span></div>
+                        <div><span className="text-brand-dark/90 text-xs">Must Haves:</span> <span>{preferences.must_haves.join(', ')}</span></div>
                       )}
                       {preferences.deal_breakers.length > 0 && (
-                        <div><span className="text-brand-dark/40 text-xs">Deal Breakers:</span> <span className="text-red-600">{preferences.deal_breakers.join(', ')}</span></div>
+                        <div><span className="text-brand-dark/90 text-xs">Deal Breakers:</span> <span className="text-red-600">{preferences.deal_breakers.join(', ')}</span></div>
                       )}
                       {preferences.notes && (
-                        <div><span className="text-brand-dark/40 text-xs">Notes:</span> <p className="text-brand-dark/60 mt-0.5">{preferences.notes}</p></div>
+                        <div><span className="text-brand-dark/90 text-xs">Notes:</span> <p className="text-brand-dark/90 mt-0.5">{preferences.notes}</p></div>
                       )}
                     </div>
                   )}
@@ -830,32 +830,32 @@ export default function PortalPage() {
                   <h3 className="text-sm font-semibold mb-4">Edit Preferences</h3>
                   <form onSubmit={savePreferences} className="space-y-4">
                     <div>
-                      <label className="text-xs text-brand-dark/50 font-medium">Boroughs (comma-separated)</label>
+                      <label className="text-xs text-brand-dark/85 font-medium">Boroughs (comma-separated)</label>
                       <input value={prefForm.boroughs.join(', ')}
                         onChange={(e) => setPrefForm({ ...prefForm, boroughs: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                         className={inputClass} placeholder="Manhattan, Brooklyn, Queens" />
                     </div>
                     <div>
-                      <label className="text-xs text-brand-dark/50 font-medium">Neighborhoods (comma-separated)</label>
+                      <label className="text-xs text-brand-dark/85 font-medium">Neighborhoods (comma-separated)</label>
                       <input value={prefForm.neighborhoods.join(', ')}
                         onChange={(e) => setPrefForm({ ...prefForm, neighborhoods: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                         className={inputClass} placeholder="Upper East Side, Williamsburg" />
                     </div>
                     <div>
-                      <label className="text-xs text-brand-dark/50 font-medium">Property Types (comma-separated)</label>
+                      <label className="text-xs text-brand-dark/85 font-medium">Property Types (comma-separated)</label>
                       <input value={prefForm.property_types.join(', ')}
                         onChange={(e) => setPrefForm({ ...prefForm, property_types: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                         className={inputClass} placeholder="Condo, Co-op, Townhouse" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-brand-dark/50 font-medium">Min Price</label>
+                        <label className="text-xs text-brand-dark/85 font-medium">Min Price</label>
                         <input type="number" value={prefForm.min_price ?? ''}
                           onChange={(e) => setPrefForm({ ...prefForm, min_price: e.target.value || null })}
                           className={inputClass} placeholder="500000" />
                       </div>
                       <div>
-                        <label className="text-xs text-brand-dark/50 font-medium">Max Price</label>
+                        <label className="text-xs text-brand-dark/85 font-medium">Max Price</label>
                         <input type="number" value={prefForm.max_price ?? ''}
                           onChange={(e) => setPrefForm({ ...prefForm, max_price: e.target.value || null })}
                           className={inputClass} placeholder="1500000" />
@@ -863,38 +863,38 @@ export default function PortalPage() {
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className="text-xs text-brand-dark/50 font-medium">Min Beds</label>
+                        <label className="text-xs text-brand-dark/85 font-medium">Min Beds</label>
                         <input type="number" value={prefForm.min_beds ?? ''}
                           onChange={(e) => setPrefForm({ ...prefForm, min_beds: e.target.value ? Number(e.target.value) : null })}
                           className={inputClass} placeholder="1" />
                       </div>
                       <div>
-                        <label className="text-xs text-brand-dark/50 font-medium">Max Beds</label>
+                        <label className="text-xs text-brand-dark/85 font-medium">Max Beds</label>
                         <input type="number" value={prefForm.max_beds ?? ''}
                           onChange={(e) => setPrefForm({ ...prefForm, max_beds: e.target.value ? Number(e.target.value) : null })}
                           className={inputClass} placeholder="3" />
                       </div>
                       <div>
-                        <label className="text-xs text-brand-dark/50 font-medium">Min Baths</label>
+                        <label className="text-xs text-brand-dark/85 font-medium">Min Baths</label>
                         <input type="number" value={prefForm.min_baths ?? ''}
                           onChange={(e) => setPrefForm({ ...prefForm, min_baths: e.target.value ? Number(e.target.value) : null })}
                           className={inputClass} placeholder="1" />
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-brand-dark/50 font-medium">Must Haves (comma-separated)</label>
+                      <label className="text-xs text-brand-dark/85 font-medium">Must Haves (comma-separated)</label>
                       <input value={prefForm.must_haves.join(', ')}
                         onChange={(e) => setPrefForm({ ...prefForm, must_haves: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                         className={inputClass} placeholder="Doorman, Laundry in unit, Outdoor space" />
                     </div>
                     <div>
-                      <label className="text-xs text-brand-dark/50 font-medium">Deal Breakers (comma-separated)</label>
+                      <label className="text-xs text-brand-dark/85 font-medium">Deal Breakers (comma-separated)</label>
                       <input value={prefForm.deal_breakers.join(', ')}
                         onChange={(e) => setPrefForm({ ...prefForm, deal_breakers: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                         className={inputClass} placeholder="Walk-up, No pets" />
                     </div>
                     <div>
-                      <label className="text-xs text-brand-dark/50 font-medium">Notes</label>
+                      <label className="text-xs text-brand-dark/85 font-medium">Notes</label>
                       <textarea value={prefForm.notes ?? ''} rows={3}
                         onChange={(e) => setPrefForm({ ...prefForm, notes: e.target.value || null })}
                         className={`${inputClass} resize-none`} placeholder="Anything else your agent should know..." />
@@ -905,7 +905,7 @@ export default function PortalPage() {
                         {prefsSaving ? 'Saving...' : 'Save Preferences'}
                       </button>
                       <button type="button" onClick={() => setEditingPrefs(false)}
-                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
+                        className="px-4 py-2 text-sm text-brand-dark/90 hover:text-brand-dark rounded-xl">Cancel</button>
                     </div>
                   </form>
                 </div>
@@ -917,7 +917,7 @@ export default function PortalPage() {
           {activeTab === 'family' && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-brand-dark/50">Invite family members to view listings and comment together.</p>
+                <p className="text-sm text-brand-dark/85">Invite family members to view listings and comment together.</p>
                 {family.length < 5 && (
                   <button onClick={() => setShowInviteForm(!showInviteForm)}
                     className="px-4 py-2 text-sm font-medium bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors">Invite</button>
@@ -951,7 +951,7 @@ export default function PortalPage() {
                         {inviteSubmitting ? 'Sending...' : 'Send Invite'}
                       </button>
                       <button type="button" onClick={() => { setShowInviteForm(false); setInviteMessage(''); }}
-                        className="px-4 py-2 text-sm text-brand-dark/60 hover:text-brand-dark rounded-xl">Cancel</button>
+                        className="px-4 py-2 text-sm text-brand-dark/90 hover:text-brand-dark rounded-xl">Cancel</button>
                     </div>
                   </form>
                 </div>
@@ -964,8 +964,8 @@ export default function PortalPage() {
                   <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                  <p className="text-brand-dark/40 mb-2">No family members yet</p>
-                  <p className="text-brand-dark/30 text-sm">Invite your spouse, parents, or family to view and comment on listings together.</p>
+                  <p className="text-brand-dark/90 mb-2">No family members yet</p>
+                  <p className="text-brand-dark/85 text-sm">Invite your spouse, parents, or family to view and comment on listings together.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -976,15 +976,15 @@ export default function PortalPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{fm.member.name}</p>
-                        <p className="text-brand-dark/40 text-xs">{fm.member.email}</p>
+                        <p className="text-brand-dark/90 text-xs">{fm.member.email}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-brand-dark/40 capitalize">{fm.relationship || 'Family'}</span>
+                        <span className="text-xs text-brand-dark/90 capitalize">{fm.relationship || 'Family'}</span>
                         <span className={`w-2 h-2 rounded-full ${fm.member.active ? 'bg-green-400' : 'bg-gray-300'}`} />
                       </div>
                     </div>
                   ))}
-                  {family.length >= 5 && <p className="text-xs text-brand-dark/30 text-center mt-2">Maximum of 5 family members reached.</p>}
+                  {family.length >= 5 && <p className="text-xs text-brand-dark/85 text-center mt-2">Maximum of 5 family members reached.</p>}
                 </div>
               )}
             </div>
@@ -995,21 +995,21 @@ export default function PortalPage() {
             <div className="max-w-lg">
               <div className="bg-white rounded-2xl ring-1 ring-black/5 p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-brand-dark/40 font-medium">Name</label>
+                  <label className="text-xs text-brand-dark/90 font-medium">Name</label>
                   <p className="text-sm font-medium mt-0.5">{user.name}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-brand-dark/40 font-medium">Email</label>
+                  <label className="text-xs text-brand-dark/90 font-medium">Email</label>
                   <p className="text-sm mt-0.5">{user.email}</p>
                 </div>
                 {user.phone && (
                   <div>
-                    <label className="text-xs text-brand-dark/40 font-medium">Phone</label>
+                    <label className="text-xs text-brand-dark/90 font-medium">Phone</label>
                     <p className="text-sm mt-0.5">{user.phone}</p>
                   </div>
                 )}
                 <div>
-                  <label className="text-xs text-brand-dark/40 font-medium">Portal Type</label>
+                  <label className="text-xs text-brand-dark/90 font-medium">Portal Type</label>
                   <p className="text-sm mt-0.5">{roleLabel}</p>
                 </div>
                 <div className="pt-4 border-t border-black/5">

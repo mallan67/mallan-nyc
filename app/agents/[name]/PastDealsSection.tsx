@@ -73,33 +73,33 @@ function PastDealCard({ deal }: { deal: PastDealDTO }) {
                 {formatPrice(price, isRent)}
               </p>
             ) : (
-              <p className="text-[13px] text-brand-dark/30">&mdash;</p>
+              <p className="text-[13px] text-brand-dark/70">&mdash;</p>
             )}
             {deal.propertyType && deal.propertyType !== 'Residential' && (
-              <span className="text-[10px] text-brand-dark/40 flex-shrink-0">
+              <span className="text-[10px] text-brand-dark/75 flex-shrink-0">
                 {deal.propertyType}
               </span>
             )}
           </div>
 
           {/* Details row */}
-          <div className="flex items-center gap-1 text-[12px] text-brand-dark/70 mt-0.5 flex-wrap">
+          <div className="flex items-center gap-1 text-[12px] text-brand-dark/95 mt-0.5 flex-wrap">
             {bedsLabel && <span>{bedsLabel}</span>}
-            {bedsLabel && bathsLabel && <span className="text-brand-dark/30">|</span>}
+            {bedsLabel && bathsLabel && <span className="text-brand-dark/70">|</span>}
             {bathsLabel && <span>{bathsLabel}</span>}
             {deal.sqft && deal.sqft > 0 && (
               <>
-                <span className="text-brand-dark/30">|</span>
+                <span className="text-brand-dark/70">|</span>
                 <span>{deal.sqft.toLocaleString()} sqft</span>
               </>
             )}
           </div>
 
           {/* Address */}
-          <p className="text-[13px] text-brand-dark/80 mt-1 truncate">
+          <p className="text-[13px] text-brand-dark/90 mt-1 truncate">
             {deal.street}{deal.unit ? `, ${deal.unit}` : ''}
           </p>
-          <p className="text-[11px] text-brand-dark/50">
+          <p className="text-[11px] text-brand-dark/85">
             {deal.neighborhood || deal.city}
           </p>
         </div>
@@ -108,7 +108,7 @@ function PastDealCard({ deal }: { deal: PastDealDTO }) {
         {(hasCourtesy || isRLS) && (
           <div className="flex items-end justify-between mt-1.5 gap-2">
             {hasCourtesy ? (
-              <p className="text-[10px] text-brand-dark/40 leading-tight truncate">
+              <p className="text-[10px] text-brand-dark/75 leading-tight truncate">
                 Listing Courtesy of {deal.listingCourtesy}
               </p>
             ) : (
@@ -143,7 +143,7 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
-        className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded text-brand-dark/60 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded text-brand-dark/90 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -151,7 +151,7 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
       </button>
       {pages.map((p, i) =>
         p === '...' ? (
-          <span key={`dots-${i}`} className="px-2 py-1.5 text-xs text-brand-dark/30">...</span>
+          <span key={`dots-${i}`} className="px-2 py-1.5 text-xs text-brand-dark/70">...</span>
         ) : (
           <button
             key={p}
@@ -159,7 +159,7 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
             className={`w-8 h-8 flex items-center justify-center text-xs rounded border ${
               p === page
                 ? 'border-brand-dark bg-brand-dark text-white font-medium'
-                : 'border-gray-200 text-brand-dark/60 hover:bg-gray-50'
+                : 'border-gray-200 text-brand-dark/90 hover:bg-gray-50'
             }`}
           >
             {p}
@@ -169,7 +169,7 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page === totalPages}
-        className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded text-brand-dark/60 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded text-brand-dark/90 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -198,7 +198,7 @@ export default function PastDealsSection({ sales, rentals }: { sales: PastDealDT
     <section className="py-10 scroll-mt-32">
       <div className="max-w-6xl mx-auto px-4">
         <h2 className="text-lg font-display font-semibold text-brand-dark mb-4 pb-2 border-b border-black/5">
-          Past {activeTab === 'sales' ? 'Sales' : 'Rentals'}
+          Closed Deals
         </h2>
 
         {/* Tabs */}
@@ -209,10 +209,10 @@ export default function PastDealsSection({ sales, rentals }: { sales: PastDealDT
               className={`px-6 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 activeTab === 'sales'
                   ? 'border-brand-dark text-brand-dark'
-                  : 'border-transparent text-brand-dark/40 hover:text-brand-dark/60'
+                  : 'border-transparent text-brand-dark/75 hover:text-brand-dark/90'
               }`}
             >
-              Sales ({sales.length})
+              Sold ({sales.length})
             </button>
           )}
           {hasRentals && (
@@ -221,10 +221,10 @@ export default function PastDealsSection({ sales, rentals }: { sales: PastDealDT
               className={`px-6 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 activeTab === 'rentals'
                   ? 'border-brand-dark text-brand-dark'
-                  : 'border-transparent text-brand-dark/40 hover:text-brand-dark/60'
+                  : 'border-transparent text-brand-dark/75 hover:text-brand-dark/90'
               }`}
             >
-              Rentals ({rentals.length})
+              Rented ({rentals.length})
             </button>
           )}
         </div>

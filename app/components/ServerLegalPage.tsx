@@ -26,7 +26,7 @@ export default function ServerLegalPage({ title, lastUpdated, content }: ServerL
     <div className="max-w-3xl mx-auto px-4 py-16">
       <h1 className="font-display font-bold text-2xl md:text-3xl mb-2">{title}</h1>
       {lastUpdated && (
-        <p className="text-sm text-brand-dark/40 mb-8">
+        <p className="text-sm text-brand-dark/90 mb-8">
           Last updated: {new Date(lastUpdated).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',

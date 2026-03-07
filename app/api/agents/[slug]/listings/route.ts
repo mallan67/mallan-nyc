@@ -1,0 +1,263 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { fetchFromTrestle } from '@/lib/idx/fetch';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { getAccessToken } from '@/lib/idx/auth';
+import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import type { IDXListing } from '@/lib/idx/types';
+
+/**
+ * GET /api/agents/[slug]/listings
+ *
+ * Returns an agent's listings grouped by category:
+ * - activeSales, activeRentals, closedSales, closedRentals
+ *
+ * Sources: Trestle IDX (by ListAgentFullName) + local DB exclusives (by agent_id)
+ */
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
+
+  try {
+    // Look up agent by public_slug
+    const agent = await prisma.agent.findFirst({
+      where: {
+        OR: [
+          { public_slug: slug },
+          // Fallback: construct name from slug
+          { full_name: { equals: slug.replace(/-/g, ' '), mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, full_name: true, first_name: true, last_name: true },
+    });
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+
+    const agentName = agent.full_name || `${agent.first_name} ${agent.last_name}`;
+    const useIDX = process.env.IDX_ENABLED === 'true';
+
+    // Fetch from both sources in parallel
+    const [trestleResults, dbResults] = await Promise.all([
+      useIDX ? fetchTrestleAgentListings(agentName) : { active: [], closed: [] },
+      fetchDbAgentListings(agent.id),
+    ]);
+
+    // Merge and deduplicate (Trestle takes precedence)
+    const trestleActiveIds = new Set(trestleResults.active.map((l) => l.id));
+    const trestleClosedIds = new Set(trestleResults.closed.map((l) => l.id));
+
+    const dbActiveNew = dbResults.active.filter((l) => !trestleActiveIds.has(l.id));
+    const dbClosedNew = dbResults.closed.filter((l) => !trestleClosedIds.has(l.id));
+
+    const allActive = [...dbActiveNew, ...trestleResults.active];
+    const allClosed = [...dbClosedNew, ...trestleResults.closed];
+
+    // Split by listing type
+    const activeSales = allActive.filter((l) => l.listingType === 'sale');
+    const activeRentals = allActive.filter((l) => l.listingType === 'rent');
+    const closedSales = allClosed.filter((l) => l.listingType === 'sale');
+    const closedRentals = allClosed.filter((l) => l.listingType === 'rent');
+
+    return NextResponse.json(
+      {
+        agent: { name: agentName, slug },
+        activeSales,
+        activeRentals,
+        closedSales,
+        closedRentals,
+        _compliance: {
+          source: useIDX ? 'idx+exclusive' : 'exclusive',
+          attribution: useIDX ? generateAttributionText() : 'Exclusive listings by Mallan Real Estate Inc.',
+        },
+      },
+      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+    );
+  } catch (error) {
+    console.error(`[/api/agents/${slug}/listings] Error:`, error instanceof Error ? error.message : error);
+    return NextResponse.json(
+      { error: 'Failed to fetch agent listings' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Fetch agent's listings from Trestle IDX by ListAgentFullName.
+ * Returns active and closed listings separately.
+ */
+async function fetchTrestleAgentListings(agentName: string): Promise<{
+  active: PublicListingDTO[];
+  closed: PublicListingDTO[];
+}> {
+  try {
+    const safeName = agentName.replace(/'/g, "''");
+
+    // Fetch active listings
+    const activeResult = await fetchFromTrestle({
+      filter: `ListAgentFullName eq '${safeName}' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')`,
+      top: 50,
+      maxTotal: 50,
+      orderby: 'ModificationTimestamp desc',
+      expandMedia: false,
+    });
+
+    // Fetch closed listings
+    const closedResult = await fetchFromTrestle({
+      filter: `ListAgentFullName eq '${safeName}' and StandardStatus eq 'Closed'`,
+      top: 50,
+      maxTotal: 50,
+      orderby: 'CloseDate desc',
+      expandMedia: false,
+    });
+
+    // Apply distribution gates + mapping
+    const processRecords = (records: Record<string, unknown>[]): IDXListing[] => {
+      const displayable = records.filter((raw) => checkDistributionGates(raw).displayable);
+      return displayable
+        .map((raw) => mapRESOToInternal(raw))
+        .filter((l): l is IDXListing => l !== null);
+    };
+
+    const activeMapped = processRecords(activeResult.records);
+    const closedMapped = processRecords(closedResult.records);
+
+    // Batch fetch photos for all listings
+    const allMapped = [...activeMapped, ...closedMapped];
+    await batchFetchPhotos(allMapped);
+
+    return {
+      active: activeMapped.map(toPublicDTO),
+      closed: closedMapped.map(toPublicDTO),
+    };
+  } catch (err) {
+    console.warn('[agent-listings] Trestle fetch failed:', err instanceof Error ? err.message : err);
+    return { active: [], closed: [] };
+  }
+}
+
+/**
+ * Fetch agent's exclusive listings from the local database.
+ */
+async function fetchDbAgentListings(agentId: bigint): Promise<{
+  active: PublicListingDTO[];
+  closed: PublicListingDTO[];
+}> {
+  try {
+    const dbListings = await prisma.listing.findMany({
+      where: { agent_id: agentId },
+      orderBy: { updated_at: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        listing_id: true,
+        status: true,
+        listing_type: true,
+        property_type: true,
+        property_sub_type: true,
+        list_price: true,
+        bedrooms_total: true,
+        bathrooms_full: true,
+        bathrooms_half: true,
+        living_area: true,
+        borough: true,
+        neighborhood: true,
+        address: true,
+        features: true,
+        media: true,
+        agent_info: true,
+        idx_display_yn: true,
+        internet_entire_listing_display_yn: true,
+        internet_address_display_yn: true,
+        owner_opt_out: true,
+        participant_only: true,
+        listing_contract_date: true,
+        modification_timestamp: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    const serialized: DbListing[] = dbListings.map((l) => ({
+      ...l,
+      id: l.id.toString(),
+      list_price: l.list_price.toString(),
+      living_area: l.living_area?.toString() ?? null,
+    }));
+
+    const displayable = filterDisplayableDbListings(serialized);
+    const activeStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+    const closedStatuses = ['Closed', 'Sold', 'Rented'];
+
+    return {
+      active: displayable
+        .filter((l) => activeStatuses.includes(l.status))
+        .map(dbListingToPublicDTO),
+      closed: serialized
+        .filter((l) => closedStatuses.includes(l.status))
+        .map(dbListingToPublicDTO),
+    };
+  } catch (err) {
+    console.warn('[agent-listings] DB fetch failed:', err instanceof Error ? err.message : err);
+    return { active: [], closed: [] };
+  }
+}
+
+/**
+ * Batch fetch primary photos from Trestle Media endpoint for listings missing media.
+ */
+async function batchFetchPhotos(listings: IDXListing[]) {
+  const needsPhotos = listings.filter((l) => l.media.length === 0);
+  if (needsPhotos.length === 0) return;
+
+  try {
+    const token = await getAccessToken();
+    const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
+    const listingIds = needsPhotos.map((l) => l.listingId);
+    const filterParts = listingIds.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
+    const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3`;
+    const mediaParams = new URLSearchParams();
+    mediaParams.set('$filter', mediaFilter);
+    mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN');
+    mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
+    mediaParams.set('$top', String(needsPhotos.length * 4));
+
+    const resp = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+
+    if (!resp.ok) return;
+
+    const data = await resp.json();
+    const records = data.value || [];
+
+    const byListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+    for (const m of records) {
+      const lid = String(m.ResourceRecordID || '');
+      if (!lid || !m.MediaURL) continue;
+      const cat = String(m.MediaCategory || '').toLowerCase();
+      if (cat.includes('floor plan')) continue; // Skip floorplans for cards
+      const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
+      if (!byListing.has(lid)) byListing.set(lid, []);
+      byListing.get(lid)!.push({
+        url: String(m.MediaURL),
+        mediaType: 'Photo',
+        order: isPreferred ? -1 : Number(m.Order ?? 0),
+      });
+    }
+
+    for (const listing of needsPhotos) {
+      const photos = byListing.get(listing.listingId);
+      if (photos && photos.length > 0) {
+        listing.media = photos.sort((a, b) => a.order - b.order) as typeof listing.media;
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
+}

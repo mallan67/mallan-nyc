@@ -202,7 +202,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
             {/* Filters toggle — mobile only */}
             <button
               onClick={() => setFiltersOpen(!filtersOpen)}
-              className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium ring-1 ring-black/5 bg-white/60 text-brand-dark/70 flex-shrink-0"
+              className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium ring-1 ring-black/5 bg-white/60 text-brand-dark/95 flex-shrink-0"
               aria-expanded={filtersOpen}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
@@ -398,7 +398,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="col-span-2 text-sm text-brand-dark/50 hover:text-brand-gold py-1"
+                  className="col-span-2 text-sm text-brand-dark/85 hover:text-brand-gold py-1"
                 >
                   Clear all filters
                 </button>
@@ -413,7 +413,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count */}
           <div className="flex items-center justify-between mb-6">
-            <p className="text-brand-dark/60" aria-live="polite" aria-atomic="true">
+            <p className="text-brand-dark/90" aria-live="polite" aria-atomic="true">
               {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'} found`}
             </p>
             <div className="flex items-center gap-2">
@@ -468,8 +468,8 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
           {/* Listings Grid */}
           {!loading && sortedListings.length === 0 && !error ? (
             <div className="text-center py-16 glass-card rounded-3xl">
-              <p className="text-brand-dark/50 text-lg mb-2">No properties match your criteria</p>
-              <p className="text-brand-dark/40 mb-4">Try adjusting your filters</p>
+              <p className="text-brand-dark/85 text-lg mb-2">No properties match your criteria</p>
+              <p className="text-brand-dark/90 mb-4">Try adjusting your filters</p>
               <button onClick={clearFilters} className="text-brand-gold hover:underline">
                 Clear all filters
               </button>
@@ -521,9 +521,9 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
                       <p className="text-xl font-display font-semibold mb-1">
                         {formatPrice(listing.listPrice, isRental)}
                       </p>
-                      <p className="text-brand-dark/80">
+                      <p className="text-brand-dark/90">
                         {listing.address.streetName === 'Address Undisclosed' ? (
-                          <span className="italic text-brand-dark/50">Address Undisclosed</span>
+                          <span className="italic text-brand-dark/85">Address Undisclosed</span>
                         ) : (
                           <>
                             {listing.address.streetNumber} {listing.address.streetName}
@@ -531,11 +531,11 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
                           </>
                         )}
                       </p>
-                      <p className="text-brand-dark/50 text-sm">
+                      <p className="text-brand-dark/85 text-sm">
                         {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
                       </p>
 
-                      <div className="flex gap-4 text-sm text-brand-dark/60 mt-3 pt-3 border-t border-black/5">
+                      <div className="flex gap-4 text-sm text-brand-dark/90 mt-3 pt-3 border-t border-black/5">
                         <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
                         <span>
                           {listing.bathroomsFull}
@@ -544,12 +544,12 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
                         {listing.livingArea && listing.livingArea > 0 && (
                           <span>{listing.livingArea.toLocaleString()} sqft</span>
                         )}
-                        <span className="text-brand-dark/40">{listing.propertyType}</span>
+                        <span className="text-brand-dark/90">{listing.propertyType}</span>
                       </div>
 
                       {/* NYC-Specific: Maintenance/CC */}
                       {!isRental && listing.associationFee && (
-                        <p className="text-xs text-brand-dark/40 mt-2">
+                        <p className="text-xs text-brand-dark/90 mt-2">
                           {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
                         </p>
                       )}
@@ -561,15 +561,15 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
                         const mo = Math.round((loanAmt * mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1));
                         const cc = Math.round(listing.listPrice * 0.03 / 1000);
                         return (
-                          <p className="text-[11px] text-brand-dark/50 mt-2 flex items-center gap-1">
+                          <p className="text-[11px] text-brand-dark/85 mt-2 flex items-center gap-1">
                             <svg className="w-3 h-3 text-brand-gold flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            Est. <strong className="text-brand-dark/70">${mo.toLocaleString()}/mo</strong> &middot; Closing ~${cc}K
+                            Est. <strong className="text-brand-dark/95">${mo.toLocaleString()}/mo</strong> &middot; Closing ~${cc}K
                           </p>
                         );
                       })() : (() => {
                         const eqBuy = Math.round(listing.listPrice * 12 / 0.05 / 1000000 * 10) / 10;
                         return (
-                          <p className="text-[11px] text-brand-dark/50 mt-2 flex items-center gap-1">
+                          <p className="text-[11px] text-brand-dark/85 mt-2 flex items-center gap-1">
                             <svg className="w-3 h-3 text-brand-gold flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
                             Rent vs Buy: own equivalent ~${eqBuy}M
                           </p>
@@ -577,7 +577,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
                       })()}
 
                       {/* RLS attribution — bottom of card */}
-                      <p className="text-[10px] text-brand-dark/30 mt-2 pt-2 border-t border-black/5">
+                      <p className="text-[10px] text-brand-dark/85 mt-2 pt-2 border-t border-black/5">
                         <span className="font-semibold tracking-wide">RLS</span>
                         {' '}&middot;{' '}{listing.listOfficeName}
                         {listing.modificationTimestamp && (
@@ -611,7 +611,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
           <h2 className="text-xl font-display font-semibold mb-4">
             Don&apos;t See What You&apos;re Looking For?
           </h2>
-          <p className="text-brand-dark/60 mb-8">
+          <p className="text-brand-dark/90 mb-8">
             Our agents have access to exclusive listings and can help you find the perfect property.
           </p>
           <Link

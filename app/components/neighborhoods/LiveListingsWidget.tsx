@@ -71,7 +71,7 @@ export default function LiveListingsWidget({
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 activeTab === tab.key
                   ? 'border-brand-gold-deep text-brand-dark'
-                  : 'border-transparent text-brand-dark/50 hover:text-brand-dark/70'
+                  : 'border-transparent text-brand-dark/85 hover:text-brand-dark/95'
               }`}
             >
               {tab.label}
@@ -81,7 +81,7 @@ export default function LiveListingsWidget({
 
         {/* Results */}
         {filtered.length === 0 ? (
-          <div className="text-center py-12 text-brand-dark/50">
+          <div className="text-center py-12 text-brand-dark/85">
             <p className="mb-4">No active listings match this filter.</p>
             <Link
               href={`/buy?neighborhood=${neighborhoodSlug}`}
@@ -141,7 +141,7 @@ function ListingCard({ listing }: { listing: Listing }) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-brand-dark/40 text-sm">
+          <div className="w-full h-full flex items-center justify-center text-brand-dark/75 text-sm">
             No Photo
           </div>
         )}
@@ -167,13 +167,13 @@ function ListingCard({ listing }: { listing: Listing }) {
         <p className="text-lg font-display font-semibold text-brand-dark">{price}</p>
 
         {showAddress && (
-          <p className="text-sm text-brand-dark/70 mt-0.5">
+          <p className="text-sm text-brand-dark/95 mt-0.5">
             {listing.address.streetNumber} {listing.address.streetName}
             {listing.address.unit ? `, ${listing.address.unit}` : ''}
           </p>
         )}
 
-        <p className="text-xs text-brand-dark/50 mt-1">
+        <p className="text-xs text-brand-dark/85 mt-1">
           {listing.propertyInfo.bedroomsTotal} bed
           {listing.propertyInfo.bedroomsTotal !== 1 ? 's' : ''} &middot;{' '}
           {listing.propertyInfo.bathroomsFull} bath
@@ -184,7 +184,7 @@ function ListingCard({ listing }: { listing: Listing }) {
         </p>
 
         {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" - REQUIRED */}
-        <p className="text-[11px] text-brand-dark/40 mt-2">
+        <p className="text-[11px] text-brand-dark/75 mt-2">
           Listing Courtesy of {listing.agent?.listOfficeName || 'REBNY RLS'}
         </p>
 

@@ -41,8 +41,8 @@ export default function AdjacentNeighborhoods({
                 <h3 className="font-display font-semibold text-brand-dark group-hover:text-brand-gold transition-colors">
                   {n.name}
                 </h3>
-                <p className="text-sm text-brand-dark/50 mt-0.5">{n.tagline}</p>
-                <p className="text-xs text-brand-dark/40 mt-1">
+                <p className="text-sm text-brand-dark/85 mt-0.5">{n.tagline}</p>
+                <p className="text-xs text-brand-dark/75 mt-1">
                   From ${n.marketStats.medianSalePrice >= 1_000_000
                     ? `${(n.marketStats.medianSalePrice / 1_000_000).toFixed(1)}M`
                     : `${Math.round(n.marketStats.medianSalePrice / 1_000)}K`}

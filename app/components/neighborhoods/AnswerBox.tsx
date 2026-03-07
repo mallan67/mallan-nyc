@@ -27,13 +27,13 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
         <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-4">
           {name} at a Glance
         </h2>
-        <p className="text-brand-dark/60 text-base sm:text-lg mb-8 max-w-3xl">
+        <p className="text-brand-dark/90 text-base sm:text-lg mb-8 max-w-3xl">
           {summary}
         </p>
 
         <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
           <div className="bg-gray-50/50 rounded-2xl p-4">
-            <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
+            <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">
               Avg. Price/Sq Ft
             </dt>
             <dd className="mt-1 text-xl font-display font-semibold text-brand-dark">
@@ -41,7 +41,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
             </dd>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4">
-            <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
+            <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">
               Dominant Type
             </dt>
             <dd className="mt-1 text-xl font-display font-semibold text-brand-dark">
@@ -49,7 +49,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
             </dd>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4">
-            <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
+            <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">
               Walk Score
             </dt>
             <dd className="mt-1 text-xl font-display font-semibold text-brand-dark">
@@ -57,7 +57,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
             </dd>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4">
-            <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
+            <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">
               Transit Score
             </dt>
             <dd className="mt-1 text-xl font-display font-semibold text-brand-dark">
@@ -65,7 +65,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
             </dd>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4">
-            <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
+            <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">
               Top School
             </dt>
             <dd className="mt-1 text-sm font-display font-semibold text-brand-dark leading-tight">
@@ -73,7 +73,7 @@ export default function AnswerBox({ neighborhood }: AnswerBoxProps) {
             </dd>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4">
-            <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">
+            <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">
               Median Sale
             </dt>
             <dd className="mt-1 text-xl font-display font-semibold text-brand-dark">

@@ -192,7 +192,7 @@ function SearchClient() {
                 className={`px-4 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${
                   activeTab === tab
                     ? 'bg-white text-brand-dark shadow-sm rounded-xl'
-                    : 'text-brand-dark/60 hover:text-brand-dark'
+                    : 'text-brand-dark/90 hover:text-brand-dark'
                 }`}
               >
                 {tab}
@@ -306,7 +306,7 @@ function SearchClient() {
               <button
                 onClick={() => setShowMoreFilters(!showMoreFilters)}
                 className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ring-black/5 transition-colors ${
-                  showMoreFilters ? 'bg-brand-dark text-white' : 'bg-white/60 text-brand-dark/70 hover:bg-white'
+                  showMoreFilters ? 'bg-brand-dark text-white' : 'bg-white/60 text-brand-dark/95 hover:bg-white'
                 }`}
                 aria-expanded={showMoreFilters}
               >
@@ -338,7 +338,7 @@ function SearchClient() {
             <div className="mt-3 flex gap-4 flex-wrap items-end p-3 bg-gray-50/50 rounded-2xl">
               {/* Status */}
               <div>
-                <label className="block text-xs font-medium text-brand-dark/50 mb-1">Status</label>
+                <label className="block text-xs font-medium text-brand-dark/85 mb-1">Status</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -353,7 +353,7 @@ function SearchClient() {
 
               {/* Min Sqft */}
               <div>
-                <label className="block text-xs font-medium text-brand-dark/50 mb-1">Min Sqft</label>
+                <label className="block text-xs font-medium text-brand-dark/85 mb-1">Min Sqft</label>
                 <input
                   type="number"
                   value={minSqft ?? ''}
@@ -365,7 +365,7 @@ function SearchClient() {
 
               {/* Max Sqft */}
               <div>
-                <label className="block text-xs font-medium text-brand-dark/50 mb-1">Max Sqft</label>
+                <label className="block text-xs font-medium text-brand-dark/85 mb-1">Max Sqft</label>
                 <input
                   type="number"
                   value={maxSqft ?? ''}
@@ -380,7 +380,7 @@ function SearchClient() {
           {/* Active Filters */}
           {hasActiveFilters && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-brand-dark/50">Active filters:</span>
+              <span className="text-sm text-brand-dark/85">Active filters:</span>
               {neighborhoodParam && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-brand-gold/10 text-brand-dark text-sm rounded-full">
                   {neighborhoodParam}
@@ -398,7 +398,7 @@ function SearchClient() {
               )}
               <button
                 onClick={clearFilters}
-                className="text-sm text-brand-dark/50 hover:text-brand-dark underline"
+                className="text-sm text-brand-dark/85 hover:text-brand-dark underline"
               >
                 Clear all
               </button>
@@ -412,7 +412,7 @@ function SearchClient() {
         <div className="max-w-7xl mx-auto px-4">
           {/* Results Count + View Mode Toggle */}
           <div className="flex items-center justify-between mb-6">
-            <p className="text-brand-dark/60" aria-live="polite" aria-atomic="true">
+            <p className="text-brand-dark/90" aria-live="polite" aria-atomic="true">
               {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'} found`}
             </p>
             <div className="flex items-center gap-2">
@@ -441,7 +441,7 @@ function SearchClient() {
                     key={mode}
                     onClick={() => setViewMode(mode)}
                     className={`p-2 rounded-lg transition-colors ${
-                      viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark/60'
+                      viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/90 hover:text-brand-dark/90'
                     }`}
                     aria-label={`${label} view`}
                     title={label}
@@ -498,8 +498,8 @@ function SearchClient() {
           {/* Listings Grid/List */}
           {!loading && sortedListings.length === 0 && !error ? (
             <div className="text-center py-16 glass-card rounded-3xl">
-              <p className="text-brand-dark/50 text-lg mb-2">No properties match your criteria</p>
-              <p className="text-brand-dark/40 mb-4">Try adjusting your filters</p>
+              <p className="text-brand-dark/85 text-lg mb-2">No properties match your criteria</p>
+              <p className="text-brand-dark/90 mb-4">Try adjusting your filters</p>
               <button onClick={clearFilters} className="text-brand-dark hover:underline">
                 Clear all filters
               </button>
@@ -542,7 +542,7 @@ function SearchClient() {
           <h2 className="text-xl sm:text-2xl font-display font-semibold mb-4">
             Need Help Finding Your Perfect Property?
           </h2>
-          <p className="text-brand-dark/50 mb-8">
+          <p className="text-brand-dark/85 mb-8">
             Our agents have access to exclusive listings and can help you find exactly what you&apos;re looking for.
           </p>
           <Link
@@ -599,7 +599,7 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
         </p>
         <p className="text-brand-dark">
           {listing.address.streetName === 'Address Undisclosed' ? (
-            <span className="italic text-brand-dark/50">Address Undisclosed</span>
+            <span className="italic text-brand-dark/85">Address Undisclosed</span>
           ) : (
             <>
               {listing.address.streetNumber} {listing.address.streetName}
@@ -607,11 +607,11 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
             </>
           )}
         </p>
-        <p className="text-brand-dark/50 text-sm">
+        <p className="text-brand-dark/85 text-sm">
           {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
         </p>
 
-        <div className="flex gap-4 text-sm text-brand-dark/60 mt-3 pt-3 border-t border-black/5">
+        <div className="flex gap-4 text-sm text-brand-dark/90 mt-3 pt-3 border-t border-black/5">
           <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
           <span>
             {listing.bathroomsFull}
@@ -624,13 +624,13 @@ function GridCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
 
         {/* NYC-Specific: Maintenance/CC */}
         {!isRental && listing.associationFee && (
-          <p className="text-xs text-brand-dark/40 mt-2">
+          <p className="text-xs text-brand-dark/90 mt-2">
             {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
         )}
 
         {/* RLS attribution — bottom of card */}
-        <p className="text-[10px] text-brand-dark/30 mt-2 pt-2 border-t border-black/5">
+        <p className="text-[10px] text-brand-dark/85 mt-2 pt-2 border-t border-black/5">
           <span className="font-semibold tracking-wide">RLS</span>
           {' '}&middot;{' '}{listing.listOfficeName}
           {listing.modificationTimestamp && (
@@ -677,7 +677,7 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
             </p>
             <p className="text-brand-dark truncate">
               {listing.address.streetName === 'Address Undisclosed' ? (
-                <span className="italic text-brand-dark/50">Address Undisclosed</span>
+                <span className="italic text-brand-dark/85">Address Undisclosed</span>
               ) : (
                 <>
                   {listing.address.streetNumber} {listing.address.streetName}
@@ -685,27 +685,27 @@ function ListCard({ listing, isRental }: { listing: DisplayListing; isRental: bo
                 </>
               )}
             </p>
-            <p className="text-brand-dark/50 text-sm">
+            <p className="text-brand-dark/85 text-sm">
               {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
             </p>
           </div>
           {listing.propertySubType && (
-            <span className="text-xs px-2 py-1 bg-gray-100 text-brand-dark/60 rounded-lg flex-shrink-0">
+            <span className="text-xs px-2 py-1 bg-gray-100 text-brand-dark/90 rounded-lg flex-shrink-0">
               {listing.propertySubType}
             </span>
           )}
         </div>
 
-        <div className="flex gap-4 text-sm text-brand-dark/60 mt-2">
+        <div className="flex gap-4 text-sm text-brand-dark/90 mt-2">
           <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
           <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`} bath</span>
           {listing.livingArea && listing.livingArea > 0 && <span>{listing.livingArea.toLocaleString()} sqft</span>}
           {!isRental && listing.associationFee && (
-            <span className="text-brand-dark/40">{listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo</span>
+            <span className="text-brand-dark/90">{listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo</span>
           )}
         </div>
 
-        <p className="text-[10px] text-brand-dark/30 mt-2">
+        <p className="text-[10px] text-brand-dark/85 mt-2">
           <span className="font-semibold tracking-wide">RLS</span>
           {' '}&middot;{' '}{listing.listOfficeName}
           {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
@@ -720,7 +720,7 @@ function SearchLoading() {
     <div className="min-h-screen bg-[#FEFEFE] pt-20 flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-4 border-brand-dark border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-brand-dark/50">Loading properties...</p>
+        <p className="text-brand-dark/85">Loading properties...</p>
       </div>
     </div>
   );

@@ -66,7 +66,7 @@ function NavDropdown({ label, items, dark: _dark }: { label: string; items: { ti
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-brand-dark/60 hover:bg-black/[0.03] hover:text-brand-dark transition-colors font-light"
+              className="block px-4 py-2.5 text-sm text-brand-dark/90 hover:bg-black/[0.03] hover:text-brand-dark transition-colors font-light"
             >
               {item.title}
             </Link>
@@ -269,7 +269,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                     {authLabel}
                   </Link>
                   <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-xl shadow-lg ring-1 ring-black/5 z-50 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                    <Link href={authHref} className="block px-4 py-2.5 text-sm text-brand-dark/60 hover:bg-black/[0.03] hover:text-brand-dark transition-colors whitespace-nowrap">
+                    <Link href={authHref} className="block px-4 py-2.5 text-sm text-brand-dark/90 hover:bg-black/[0.03] hover:text-brand-dark transition-colors whitespace-nowrap">
                       {authLabel}
                     </Link>
                     <button
@@ -496,7 +496,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 >
                   Sign Out
                 </button>
-                <p className="text-center text-sm font-extralight text-white/30 mt-5">(646) 258-4460</p>
+                <p className="text-center text-sm font-light text-white/30 mt-5">(646) 258-4460</p>
               </div>
             </div>
           </nav>

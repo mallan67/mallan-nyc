@@ -116,7 +116,7 @@ export default function RentVsBuyCalculator({
           </div>
           <div>
             <h3 className="font-display font-semibold text-brand-dark">Should You Buy Instead?</h3>
-            <p className="text-brand-dark/50 text-sm">Compare renting vs. owning</p>
+            <p className="text-brand-dark/85 text-sm">Compare renting vs. owning</p>
           </div>
         </div>
       </div>
@@ -130,20 +130,20 @@ export default function RentVsBuyCalculator({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             ) : (
-              <svg className="w-5 h-5 text-brand-dark/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 text-brand-dark/85" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             )}
             <span className={`text-sm font-medium ${
-              calculations.buyIsBetter ? 'text-green-700' : 'text-brand-dark/60'
+              calculations.buyIsBetter ? 'text-green-700' : 'text-brand-dark/90'
             }`}>
               {calculations.buyIsBetter ? 'Buying could save you money' : 'Renting may be right for now'}
             </span>
           </div>
-          <p className={`text-xl font-display font-semibold ${calculations.buyIsBetter ? 'text-green-700' : 'text-brand-dark/70'}`}>
+          <p className={`text-xl font-display font-semibold ${calculations.buyIsBetter ? 'text-green-700' : 'text-brand-dark/95'}`}>
             ${calculations.savings.toLocaleString()} {calculations.buyIsBetter ? 'potential savings' : 'difference'}
           </p>
-          <p className="text-sm text-brand-dark/50 mt-1">
+          <p className="text-sm text-brand-dark/85 mt-1">
             Over {yearsToStay} years {calculations.buyIsBetter
               ? `with $${calculations.equityBuilt.toLocaleString()} in equity`
               : 'when factoring in all costs'}
@@ -153,12 +153,12 @@ export default function RentVsBuyCalculator({
         {/* Quick Comparison */}
         <div className="mt-6 grid grid-cols-2 gap-4">
           <div className="bg-white/60 rounded-2xl p-4 text-center ring-1 ring-black/5">
-            <p className="text-xs text-brand-dark/50 uppercase tracking-wide mb-1">Continue Renting</p>
+            <p className="text-xs text-brand-dark/85 uppercase tracking-wide mb-1">Continue Renting</p>
             <p className="text-xl font-display font-bold text-brand-dark">${rentAmount.toLocaleString()}/mo</p>
-            <p className="text-sm text-brand-dark/50 mt-1">${calculations.totalRentCost.toLocaleString()} over {yearsToStay}yr</p>
+            <p className="text-sm text-brand-dark/85 mt-1">${calculations.totalRentCost.toLocaleString()} over {yearsToStay}yr</p>
           </div>
           <div className="bg-white/60 rounded-2xl p-4 text-center ring-1 ring-black/5">
-            <p className="text-xs text-brand-dark/50 uppercase tracking-wide mb-1">If You Buy</p>
+            <p className="text-xs text-brand-dark/85 uppercase tracking-wide mb-1">If You Buy</p>
             <p className="text-xl font-display font-bold text-brand-dark">${calculations.monthlyOwningCost.toLocaleString()}/mo</p>
             <p className="text-sm text-green-600 mt-1">+${calculations.equityBuilt.toLocaleString()} equity</p>
           </div>
@@ -166,21 +166,21 @@ export default function RentVsBuyCalculator({
 
         {/* Comparable Purchase */}
         <div className="mt-4 bg-white/60 rounded-2xl p-4 ring-1 ring-black/5">
-          <p className="text-sm text-brand-dark/60 mb-2">Estimated comparable purchase price:</p>
+          <p className="text-sm text-brand-dark/90 mb-2">Estimated comparable purchase price:</p>
           <p className="text-2xl font-display font-bold text-brand-dark">${calculations.estimatedPurchasePrice.toLocaleString()}</p>
-          <p className="text-xs text-brand-dark/50 mt-1">
+          <p className="text-xs text-brand-dark/85 mt-1">
             Down payment needed: ${calculations.downPayment.toLocaleString()} ({downPaymentPercent}%)
           </p>
         </div>
 
         {/* Adjust Scenario */}
         <div className="mt-5 pt-4 border-t border-black/5">
-          <h4 className="font-display font-medium text-brand-dark/70 text-sm mb-4">Adjust Your Scenario</h4>
+          <h4 className="font-display font-medium text-brand-dark/95 text-sm mb-4">Adjust Your Scenario</h4>
 
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Current Monthly Rent</label>
+                <label className="text-brand-dark/90">Current Monthly Rent</label>
                 <span className="font-medium">${rentAmount.toLocaleString()}</span>
               </div>
               <input
@@ -196,7 +196,7 @@ export default function RentVsBuyCalculator({
 
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Down Payment</label>
+                <label className="text-brand-dark/90">Down Payment</label>
                 <span className="font-medium">{downPaymentPercent}%</span>
               </div>
               <input
@@ -212,7 +212,7 @@ export default function RentVsBuyCalculator({
 
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Years You Plan to Stay</label>
+                <label className="text-brand-dark/90">Years You Plan to Stay</label>
                 <span className="font-medium">{yearsToStay} years</span>
               </div>
               <input
@@ -228,7 +228,7 @@ export default function RentVsBuyCalculator({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Interest Rate</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Interest Rate</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -239,11 +239,11 @@ export default function RentVsBuyCalculator({
                     min={3}
                     max={10}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Annual Rent Increase</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Annual Rent Increase</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -254,7 +254,7 @@ export default function RentVsBuyCalculator({
                     min={0}
                     max={10}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90">%</span>
                 </div>
               </div>
             </div>
@@ -266,19 +266,19 @@ export default function RentVsBuyCalculator({
           <h4 className="font-display font-semibold text-brand-dark text-sm mb-3">{yearsToStay}-Year Cost Comparison</h4>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-brand-dark/60">Total rent paid</span>
+              <span className="text-brand-dark/90">Total rent paid</span>
               <span className="font-medium text-red-600">-${calculations.totalRentCost.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-brand-dark/60">Net buying cost</span>
+              <span className="text-brand-dark/90">Net buying cost</span>
               <span className="font-medium">-${calculations.totalBuyingCosts.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-brand-dark/60">Equity you&apos;d build</span>
+              <span className="text-brand-dark/90">Equity you&apos;d build</span>
               <span className="font-medium text-green-600">+${calculations.equityBuilt.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-brand-dark/60">Est. appreciation</span>
+              <span className="text-brand-dark/90">Est. appreciation</span>
               <span className="font-medium text-green-600">+${calculations.appreciationGain.toLocaleString()}</span>
             </div>
           </div>
@@ -287,7 +287,7 @@ export default function RentVsBuyCalculator({
         {/* CTA */}
         <div className="mt-6 bg-brand-gold/10 rounded-2xl p-4 text-center">
           <p className="text-sm font-medium text-brand-dark mb-1">Interested in exploring homeownership?</p>
-          <p className="text-xs text-brand-dark/50 mb-3">Contact us to discuss your options and find properties in your budget.</p>
+          <p className="text-xs text-brand-dark/85 mb-3">Contact us to discuss your options and find properties in your budget.</p>
           <Link
             href="/contact?ref=rent-vs-buy"
             data-analytics-cta="cta_rent_vs_buy"
@@ -297,7 +297,7 @@ export default function RentVsBuyCalculator({
           </Link>
         </div>
 
-        <p className="mt-4 text-xs text-brand-dark/40">
+        <p className="mt-4 text-xs text-brand-dark/90">
           *Estimates only. Assumes 30-year fixed mortgage, 4% closing costs, 6% selling costs.
           Actual costs vary. Consult a financial advisor for personalized advice.
         </p>

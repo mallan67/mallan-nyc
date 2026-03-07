@@ -173,25 +173,25 @@ export default function ContactPage() {
                     <h2 className="text-xl font-display font-semibold text-brand-dark mb-3">
                       Thank You
                     </h2>
-                    <p className="text-brand-dark/60 mb-2">
+                    <p className="text-brand-dark/90 mb-2">
                       Your message has been received.
                     </p>
                     <div className="bg-white/60 rounded-2xl p-4 my-6 text-left ring-1 ring-green-100/50">
                       <h3 className="text-sm font-medium text-brand-dark mb-2">What happens next:</h3>
-                      <ol className="text-sm text-brand-dark/60 space-y-1 list-decimal list-inside">
+                      <ol className="text-sm text-brand-dark/90 space-y-1 list-decimal list-inside">
                         <li>We review your inquiry within 24 hours</li>
                         <li>A licensed agent will respond via email</li>
                         <li>No automated calls or texts—just a real person</li>
                       </ol>
                     </div>
                     <div className="border-t border-black/5 pt-6">
-                      <p className="text-sm text-brand-dark/50 mb-4">
+                      <p className="text-sm text-brand-dark/85 mb-4">
                         Need to speak with someone now?
                       </p>
                       <a
                         href="tel:+16462584460"
                         data-analytics-cta="cta_phone_success"
-                        className="inline-block px-6 py-2 ring-1 ring-black/5 text-brand-dark/70 font-medium rounded-2xl hover:bg-gray-100 transition-colors text-sm"
+                        className="inline-block px-6 py-2 ring-1 ring-black/5 text-brand-dark/95 font-medium rounded-2xl hover:bg-gray-100 transition-colors text-sm"
                       >
                         Call (646) 258-4460
                       </a>
@@ -210,7 +210,7 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="name"
-                          className="block text-sm font-medium text-brand-dark/70 mb-1"
+                          className="block text-sm font-medium text-brand-dark/95 mb-1"
                         >
                           Name <span className="text-red-500">*</span>
                         </label>
@@ -236,7 +236,7 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="email"
-                          className="block text-sm font-medium text-brand-dark/70 mb-1"
+                          className="block text-sm font-medium text-brand-dark/95 mb-1"
                         >
                           Email <span className="text-red-500">*</span>
                         </label>
@@ -262,9 +262,9 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="phone"
-                          className="block text-sm font-medium text-brand-dark/70 mb-1"
+                          className="block text-sm font-medium text-brand-dark/95 mb-1"
                         >
-                          Phone <span className="text-brand-dark/40">(optional)</span>
+                          Phone <span className="text-brand-dark/90">(optional)</span>
                         </label>
                         <input
                           type="tel"
@@ -280,7 +280,7 @@ export default function ContactPage() {
                       <div>
                         <label
                           htmlFor="message"
-                          className="block text-sm font-medium text-brand-dark/70 mb-1"
+                          className="block text-sm font-medium text-brand-dark/95 mb-1"
                         >
                           Message <span className="text-red-500">*</span>
                         </label>
@@ -316,10 +316,10 @@ export default function ContactPage() {
                           />
                           <label
                             htmlFor="consent"
-                            className="ml-3 text-sm text-brand-dark/60"
+                            className="ml-3 text-sm text-brand-dark/90"
                             id="consent-description"
                           >
-                            <span className="font-medium text-brand-dark/70">
+                            <span className="font-medium text-brand-dark/95">
                               I consent to be contacted
                             </span>{' '}
                             by Mallan Real Estate Inc. regarding my inquiry via email.
@@ -366,7 +366,7 @@ export default function ContactPage() {
                   <div className="space-y-4">
                     {/* Phone */}
                     <div>
-                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Phone</h3>
+                      <h3 className="text-sm font-medium text-brand-dark/95 mb-1">Phone</h3>
                       <a
                         href="tel:+16462584460"
                         data-analytics-cta="phone_call"
@@ -378,7 +378,7 @@ export default function ContactPage() {
 
                     {/* Email */}
                     <div>
-                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Email</h3>
+                      <h3 className="text-sm font-medium text-brand-dark/95 mb-1">Email</h3>
                       <a
                         href="mailto:info@mallan.nyc"
                         data-analytics-cta="email_agent"
@@ -390,8 +390,8 @@ export default function ContactPage() {
 
                     {/* Office */}
                     <div>
-                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Office</h3>
-                      <p className="text-brand-dark/60 text-sm">
+                      <h3 className="text-sm font-medium text-brand-dark/95 mb-1">Office</h3>
+                      <p className="text-brand-dark/90 text-sm">
                         400 East 90th Street, Suite 17C<br />
                         New York, NY 10128
                       </p>
@@ -399,8 +399,8 @@ export default function ContactPage() {
 
                     {/* Hours */}
                     <div>
-                      <h3 className="text-sm font-medium text-brand-dark/70 mb-1">Hours</h3>
-                      <p className="text-brand-dark/60 text-sm">
+                      <h3 className="text-sm font-medium text-brand-dark/95 mb-1">Hours</h3>
+                      <p className="text-brand-dark/90 text-sm">
                         Mon-Fri: 9am - 6pm<br />
                         Sat-Sun: 10am - 4pm
                       </p>
@@ -410,7 +410,7 @@ export default function ContactPage() {
 
                 {/* License Info */}
                 <div className="mt-6 text-center">
-                  <p className="text-xs text-brand-dark/40">
+                  <p className="text-xs text-brand-dark/90">
                     Licensed Real Estate Broker<br />
                     NY License #10991205323
                   </p>

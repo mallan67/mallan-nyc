@@ -25,7 +25,7 @@ export default function StreetGuidanceSection({
         <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-2">
           Broker&rsquo;s Street Guide
         </h2>
-        <p className="text-brand-dark/60 mb-6 max-w-3xl">{guidance.description}</p>
+        <p className="text-brand-dark/90 mb-6 max-w-3xl">{guidance.description}</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {guidance.bestBlocksForParks.length > 0 && (

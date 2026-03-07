@@ -275,7 +275,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       {/* Breadcrumb + Back */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-20">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <nav className="flex items-center gap-2 text-sm text-brand-dark/50">
+          <nav className="flex items-center gap-2 text-sm text-brand-dark/85">
             <BackButton fallbackHref={isRental ? '/rent' : '/buy'} />
             <Link href="/" className="hover:text-brand-gold hidden md:inline">Home</Link>
             <span className="hidden md:inline">/</span>
@@ -328,8 +328,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
                       propertyType={listing.propertyType}
                     />
-                    <p className="text-xl text-brand-dark/70 mt-2">{fullAddress}</p>
-                    <p className="text-brand-dark/50">
+                    <p className="text-xl text-brand-dark/95 mt-2">{fullAddress}</p>
+                    <p className="text-brand-dark/85">
                       {neighborhood ? `${neighborhood}, ` : ''}{borough}, NY {listing.address.postalCode}
                     </p>
                   </div>
@@ -360,31 +360,31 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <div className="flex flex-wrap gap-6 py-4 border-y border-black/5">
                   <div>
                     <span className="text-xl font-display font-semibold">{listing.bedroomsTotal}</span>
-                    <span className="text-brand-dark/50 ml-1">Beds</span>
+                    <span className="text-brand-dark/85 ml-1">Beds</span>
                   </div>
                   <div>
                     <span className="text-xl font-display font-semibold">
                       {listing.bathroomsFull}
                       {listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`}
                     </span>
-                    <span className="text-brand-dark/50 ml-1">Baths</span>
+                    <span className="text-brand-dark/85 ml-1">Baths</span>
                   </div>
                   {listing.livingArea && (
                     <div>
                       <span className="text-xl font-display font-semibold">{listing.livingArea.toLocaleString()}</span>
-                      <span className="text-brand-dark/50 ml-1">Sq Ft</span>
+                      <span className="text-brand-dark/85 ml-1">Sq Ft</span>
                     </div>
                   )}
                   {listing.livingArea && listing.listPrice > 0 && (
                     <div>
                       <span className="text-xl font-display font-semibold">${Math.round(listing.listPrice / listing.livingArea).toLocaleString()}</span>
-                      <span className="text-brand-dark/50 ml-1">/Sq Ft</span>
+                      <span className="text-brand-dark/85 ml-1">/Sq Ft</span>
                     </div>
                   )}
                   {listing.roomsTotal && (
                     <div>
                       <span className="text-xl font-display font-semibold">{listing.roomsTotal}</span>
-                      <span className="text-brand-dark/50 ml-1">Rooms</span>
+                      <span className="text-brand-dark/85 ml-1">Rooms</span>
                     </div>
                   )}
                 </div>
@@ -394,7 +394,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {listing.publicRemarks && (
                 <section>
                   <h2 className="text-xl font-display font-semibold mb-4">About This Property</h2>
-                  <p className="text-brand-dark/70 leading-relaxed whitespace-pre-line">
+                  <p className="text-brand-dark/95 leading-relaxed whitespace-pre-line">
                     {listing.publicRemarks}
                   </p>
                 </section>
@@ -409,7 +409,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <div className="grid sm:grid-cols-2 gap-4">
                     {listing.associationFee && (
                       <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/50">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
+                        <span className="text-brand-dark/85">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
                         <span className="font-medium">
                           ${listing.associationFee.toLocaleString()}/{listing.associationFeeFrequency === 'Monthly' ? 'mo' : listing.associationFeeFrequency || 'mo'}
                         </span>
@@ -417,10 +417,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     )}
                     {listing.taxAnnualAmount && (
                       <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/50">Real Estate Taxes</span>
+                        <span className="text-brand-dark/85">Real Estate Taxes</span>
                         <span className="font-medium">
                           ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
-                          {listing.taxYear && <span className="text-brand-dark/40 text-xs ml-1">({listing.taxYear})</span>}
+                          {listing.taxYear && <span className="text-brand-dark/75 text-xs ml-1">({listing.taxYear})</span>}
                         </span>
                       </div>
                     )}
@@ -433,46 +433,46 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <h2 className="text-xl font-display font-semibold mb-4">Property Details</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="flex justify-between py-2 border-b border-black/5">
-                    <span className="text-brand-dark/50">Property Type</span>
+                    <span className="text-brand-dark/85">Property Type</span>
                     <span className="font-medium">{listing.propertySubType || listing.propertyType}</span>
                   </div>
                   {listing.architecturalStyle && (
                     <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/50">Style</span>
+                      <span className="text-brand-dark/85">Style</span>
                       <span className="font-medium">{listing.architecturalStyle}</span>
                     </div>
                   )}
                   {listing.yearBuilt && (
                     <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/50">Year Built</span>
+                      <span className="text-brand-dark/85">Year Built</span>
                       <span className="font-medium">{listing.yearBuilt}</span>
                     </div>
                   )}
                   {listing.storiesTotal && (
                     <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/50">Stories</span>
+                      <span className="text-brand-dark/85">Stories</span>
                       <span className="font-medium">{listing.storiesTotal}</span>
                     </div>
                   )}
                   {listing.buildingName && (
                     <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/50">Building</span>
+                      <span className="text-brand-dark/85">Building</span>
                       <span className="font-medium">{listing.buildingName}</span>
                     </div>
                   )}
                   <div className="flex justify-between py-2 border-b border-black/5">
-                    <span className="text-brand-dark/50">MLS #</span>
+                    <span className="text-brand-dark/85">MLS #</span>
                     <span className="font-medium">{listing.mlsId}</span>
                   </div>
                   {listing.onMarketDate && (
                     <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/50">Listed</span>
+                      <span className="text-brand-dark/85">Listed</span>
                       <span className="font-medium">{new Date(listing.onMarketDate).toLocaleDateString()}</span>
                     </div>
                   )}
                   {listing.status && (
                     <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/50">Status</span>
+                      <span className="text-brand-dark/85">Status</span>
                       <span className="font-medium">{listing.status}</span>
                     </div>
                   )}
@@ -486,19 +486,19 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <div className="grid sm:grid-cols-2 gap-4">
                     {listing.petsAllowed && (
                       <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/50">Pets</span>
+                        <span className="text-brand-dark/85">Pets</span>
                         <span className="font-medium">{listing.petsAllowed}</span>
                       </div>
                     )}
                     {listing.furnished && (
                       <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/50">Furnished</span>
+                        <span className="text-brand-dark/85">Furnished</span>
                         <span className="font-medium">{listing.furnished}</span>
                       </div>
                     )}
                     {listing.availabilityDate && (
                       <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/50">Available</span>
+                        <span className="text-brand-dark/85">Available</span>
                         <span className="font-medium">{new Date(listing.availabilityDate).toLocaleDateString()}</span>
                       </div>
                     )}
@@ -574,7 +574,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <h3 className="text-lg font-display font-semibold mb-4">Find More Properties</h3>
                   <Link
                     href={isRental ? '/rent' : '/buy'}
-                    className="inline-block text-sm text-brand-dark/50 hover:text-brand-gold"
+                    className="inline-block text-sm text-brand-dark/85 hover:text-brand-gold"
                   >
                     View all {isRental ? 'rentals' : 'sales'}
                   </Link>
@@ -588,7 +588,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       {/* Listing Courtesy Attribution (REBNY compliance) */}
       <section className="border-t border-black/5 py-6 px-4">
         <div className="max-w-7xl mx-auto">
-          <p className="text-sm text-brand-dark/50">
+          <p className="text-sm text-brand-dark/85">
             Courtesy of {listing.listAgentFullName || 'Listing Agent'}, {listing.listOfficeName || 'Listing Office'}
           </p>
         </div>

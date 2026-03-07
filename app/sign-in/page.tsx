@@ -74,8 +74,15 @@ function SignInContent() {
       const role = data.user?.role || '';
       const uType = data.user?.userType || '';
       const isAgent = uType === 'agent' || role?.toUpperCase() === 'BROKER' || role?.toUpperCase() === 'AGENT';
+
+      // Use redirect param if provided and safe, otherwise default by role
+      const redirectParam = searchParams.get('redirect');
+      const safeRedirect = redirectParam && /^\/(?:crm|admin|portal)(?:\/|$|\?|#)/.test(redirectParam)
+        ? redirectParam
+        : null;
+      const destination = safeRedirect || (isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
       setTimeout(() => {
-        router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
+        router.push(destination);
       }, 1500);
     } catch {
       setError('Network error. Please check your connection and try again.');
@@ -101,7 +108,7 @@ function SignInContent() {
               <h1 className="text-xl font-display font-semibold mb-2">
                 {userName ? `Welcome, ${userName}` : 'Signed In'}
               </h1>
-              <p className="text-brand-dark/60 text-sm mb-4">
+              <p className="text-brand-dark/90 text-sm mb-4">
                 Redirecting to your {isAgent ? 'CRM dashboard' : 'portal'}...
               </p>
               <div className="w-full bg-black/5 rounded-full h-1.5">
@@ -170,7 +177,7 @@ function SignInContent() {
             {/* Divider */}
             <div className="flex items-center gap-4 mb-6">
               <div className="flex-1 h-px bg-black/10" />
-              <span className="text-xs text-brand-dark/40 font-medium">or continue with email</span>
+              <span className="text-xs text-brand-dark/90 font-medium">or continue with email</span>
               <div className="flex-1 h-px bg-black/10" />
             </div>
 
@@ -251,7 +258,7 @@ function SignInContent() {
                     <button
                       type="button"
                       onClick={() => { setShowForgot(false); setForgotMessage(''); }}
-                      className="px-4 py-2.5 text-sm text-brand-dark/60 hover:text-brand-dark rounded-2xl ring-1 ring-black/8"
+                      className="px-4 py-2.5 text-sm text-brand-dark/90 hover:text-brand-dark rounded-2xl ring-1 ring-black/8"
                     >
                       Cancel
                     </button>
@@ -262,7 +269,7 @@ function SignInContent() {
 
             {/* Create Account */}
             <div className="mt-6 pt-6 border-t border-black/5 text-center">
-              <p className="text-brand-dark/60 text-sm mb-3">Don&apos;t have an account?</p>
+              <p className="text-brand-dark/90 text-sm mb-3">Don&apos;t have an account?</p>
               <Link
                 href="/sign-up"
                 className="inline-block w-full px-5 py-3 ring-1 ring-brand-dark/20 text-brand-dark rounded-2xl hover:bg-black/3 transition-colors text-sm font-medium"
@@ -285,7 +292,7 @@ function SignInContent() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-brand-dark/40 mt-6">
+          <p className="text-center text-xs text-brand-dark/90 mt-6">
             By continuing, you agree to our{' '}
             <Link href="/terms" className="hover:text-brand-gold underline">Terms</Link>
             {' '}&amp;{' '}

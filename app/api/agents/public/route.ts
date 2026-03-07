@@ -1,19 +1,50 @@
 import { NextResponse } from 'next/server';
-
-// Static import for Vercel serverless compatibility
-import agentsData from '@/data/agents.json';
+import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json(agentsData);
-}
+  try {
+    const agents = await prisma.agent.findMany({
+      where: { status: 'active' },
+      select: {
+        public_slug: true,
+        full_name: true,
+        first_name: true,
+        last_name: true,
+        title: true,
+        photo: true,
+        phone: true,
+        email: true,
+        bio: true,
+        specialties: true,
+        languages: true,
+        featured: true,
+      },
+      orderBy: [{ featured: 'desc' }, { created_at: 'asc' }],
+    });
 
-export async function POST() {
-  // Note: POST is only functional in development (local filesystem)
-  // In production, use a database or CMS
-  return NextResponse.json(
-    { error: 'POST not supported in production. Edit data/agents.json locally.' },
-    { status: 501 }
-  );
+    const mapped = agents.map((a) => ({
+      id: a.public_slug || `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-'),
+      name: a.full_name || `${a.first_name} ${a.last_name}`,
+      title: a.title || 'Licensed Real Estate Salesperson',
+      photo: a.photo || '/images/agent-placeholder.svg',
+      phone: a.phone || '',
+      email: a.email,
+      bio: a.bio || '',
+      specialties: a.specialties,
+      languages: a.languages,
+      featured: a.featured,
+    }));
+
+    return NextResponse.json(
+      { agents: mapped },
+      { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' } }
+    );
+  } catch (error) {
+    console.error('[/api/agents/public] DB error:', error instanceof Error ? error.message : error);
+    // Fallback to static JSON if DB fails
+    const agentsData = await import('@/data/agents.json');
+    return NextResponse.json(agentsData);
+  }
 }

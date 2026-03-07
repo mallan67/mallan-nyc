@@ -204,7 +204,7 @@ export default function CMARequestForm() {
         {isSubmitting ? 'Submitting...' : 'Get My Free Valuation'}
       </button>
 
-      <p className="text-xs text-brand-dark/40 text-center">
+      <p className="text-xs text-brand-dark/90 text-center">
         By submitting, you agree to our{' '}
         <Link href="/terms" className="text-brand-gold hover:underline">Terms</Link>
         {' '}and{' '}
