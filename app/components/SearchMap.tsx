@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { listingHref } from '@/lib/idx/display-adapter';
 import 'leaflet/dist/leaflet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Fix Leaflet default marker icons in Next.js/webpack
 const DefaultIcon = L.icon({
@@ -19,6 +20,15 @@ const DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// ── Map styles (OpenFreeMap vector tiles via MapLibre GL) ──
+const MAP_STYLES = {
+  bright: { label: 'Bright', url: 'https://tiles.openfreemap.org/styles/bright' },
+  liberty: { label: 'Liberty', url: 'https://tiles.openfreemap.org/styles/liberty' },
+  positron: { label: 'Positron', url: 'https://tiles.openfreemap.org/styles/positron' },
+} as const;
+
+type MapStyleKey = keyof typeof MAP_STYLES;
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -59,14 +69,10 @@ function createPriceIcon(
 }
 
 // ── Same-building coordinate offset ──
-// Groups listings by coordinates (rounded to 5 decimals ≈ 1m precision).
-// Listings sharing the same building get offset in a circle pattern
-// so all markers are visible at street-level zoom.
 const COORD_KEY = (lat: number, lng: number) => `${lat.toFixed(5)},${lng.toFixed(5)}`;
-const OFFSET_RADIUS = 0.00012; // ~13 meters — visible at zoom 16+
+const OFFSET_RADIUS = 0.00012;
 
 function computePositions(listings: DisplayListing[]): Map<string, [number, number]> {
-  // Group by coordinate
   const groups = new Map<string, DisplayListing[]>();
   for (const l of listings) {
     if (!l.address.latitude || !l.address.longitude) continue;
@@ -81,7 +87,6 @@ function computePositions(listings: DisplayListing[]): Map<string, [number, numb
       const l = group[0];
       positions.set(l.id, [l.address.latitude!, l.address.longitude!]);
     } else {
-      // Fan out in a circle
       for (let i = 0; i < group.length; i++) {
         const l = group[i];
         const angle = (i / group.length) * 2 * Math.PI - Math.PI / 2;
@@ -112,13 +117,43 @@ function computeStackCounts(listings: DisplayListing[]): Map<string, number> {
   return counts;
 }
 
+/** Add OpenFreeMap vector tile layer via MapLibre GL */
+function MapLibreLayer({ styleUrl }: { styleUrl: string }) {
+  const map = useMap();
+  const layerRef = useRef<L.Layer | null>(null);
+
+  useEffect(() => {
+    // Dynamic import to avoid SSR issues
+    import('@maplibre/maplibre-gl-leaflet').then((mod) => {
+      // Remove old layer
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+      }
+      // Add new MapLibre GL layer — the module attaches L.maplibreGL to Leaflet
+      const createLayer = (L as unknown as { maplibreGL?: (opts: { style: string }) => L.Layer }).maplibreGL
+        || (mod.default as unknown as (opts: { style: string }) => L.Layer);
+      const glLayer = createLayer({ style: styleUrl });
+      glLayer.addTo(map);
+      layerRef.current = glLayer;
+    });
+
+    return () => {
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+        layerRef.current = null;
+      }
+    };
+  }, [map, styleUrl]);
+
+  return null;
+}
+
 /** Fit map bounds to markers when listing coordinates change */
 function FitBounds({ coordHash, listings }: { coordHash: string; listings: { lat: number; lng: number }[] }) {
   const map = useMap();
   const prevHash = useRef('');
   const userInteracted = useRef(false);
 
-  // Track manual pan/zoom so we don't override user's view
   useEffect(() => {
     const onMoveStart = () => { userInteracted.current = true; };
     map.on('dragstart', onMoveStart);
@@ -131,14 +166,12 @@ function FitBounds({ coordHash, listings }: { coordHash: string; listings: { lat
 
   useEffect(() => {
     if (listings.length === 0) return;
-    // Only re-fit when the coordinate set actually changes
     if (coordHash === prevHash.current) return;
     const isFirstLoad = prevHash.current === '';
     prevHash.current = coordHash;
 
-    // Don't override manual pan/zoom unless this is a filter change (new data)
     if (userInteracted.current && !isFirstLoad) {
-      userInteracted.current = false; // Reset for next filter change
+      userInteracted.current = false;
     }
 
     const bounds = L.latLngBounds(listings.map(l => [l.lat, l.lng]));
@@ -155,6 +188,8 @@ interface SearchMapProps {
 }
 
 export default function SearchMap({ listings, highlightedId, onMarkerClick }: SearchMapProps) {
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>('bright');
+
   const mappable = useMemo(
     () => listings.filter((l) => l.address.latitude && l.address.longitude),
     [listings]
@@ -167,11 +202,9 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
     return [avgLat, avgLng];
   }, [mappable]);
 
-  // Offset positions for same-building listings
   const positions = useMemo(() => computePositions(mappable), [mappable]);
   const stackCounts = useMemo(() => computeStackCounts(mappable), [mappable]);
 
-  // Coordinate hash for FitBounds — changes when the actual listing set changes
   const boundsData = useMemo(
     () => mappable.map(l => ({ lat: l.address.latitude!, lng: l.address.longitude! })),
     [mappable]
@@ -199,20 +232,36 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
             ? 'No listings to display on map'
             : `${totalListings} listing${totalListings !== 1 ? 's' : ''} found, but location data is not available for map display`}
         </p>
-        <p className="text-brand-dark/85 text-xs text-center px-4">
-          Try switching to Grid or List view to see results
-        </p>
       </div>
     );
   }
 
   return (
     <div className="relative overflow-hidden h-full min-h-[300px]">
+      {/* Info badge */}
       {withoutCoords > 0 && (
         <div className="absolute top-3 left-3 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-brand-dark/85 px-3 py-1.5 rounded-lg shadow-sm">
           Showing {mappable.length} of {totalListings} on map
         </div>
       )}
+
+      {/* Map style switcher */}
+      <div className="absolute top-3 right-3 z-[1000] flex gap-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm p-1">
+        {(Object.entries(MAP_STYLES) as [MapStyleKey, typeof MAP_STYLES[MapStyleKey]][]).map(([key, { label }]) => (
+          <button
+            key={key}
+            onClick={() => setMapStyle(key)}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              mapStyle === key
+                ? 'bg-brand-dark text-white'
+                : 'text-brand-dark/70 hover:text-brand-dark hover:bg-gray-100'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <MapContainer
         center={center}
         zoom={12}
@@ -220,10 +269,7 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
         scrollWheelZoom={true}
         zoomControl={true}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <MapLibreLayer styleUrl={MAP_STYLES[mapStyle].url} />
         <FitBounds coordHash={coordHash} listings={boundsData} />
         {mappable.map((listing) => {
           const isHighlighted = highlightedId === listing.id;
@@ -281,6 +327,13 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
           );
         })}
       </MapContainer>
+
+      {/* Attribution */}
+      <div className="absolute bottom-1 left-1 z-[1000] text-[9px] text-gray-500 bg-white/70 px-1.5 py-0.5 rounded">
+        <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="hover:underline">OpenFreeMap</a>
+        {' '}© <a href="https://openmaptiles.org" target="_blank" rel="noopener noreferrer" className="hover:underline">OpenMapTiles</a>
+        {' '}· <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="hover:underline">OpenStreetMap</a>
+      </div>
     </div>
   );
 }

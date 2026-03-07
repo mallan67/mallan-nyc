@@ -245,10 +245,9 @@ function SearchClient() {
     <div className="min-h-screen bg-[#FEFEFE]">
       {/* ── Search Toolbar (sticky below header) ── */}
       <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
-        <div className="max-w-[1920px] mx-auto px-4 py-2.5">
-          {/* Row 1: Tabs + Search + Price + Filters + View + Sort */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* 4 Tab Pills */}
+        <div className="max-w-[1920px] mx-auto px-4 py-2">
+          {/* Row 1: Tabs + Search */}
+          <div className="flex items-center gap-3">
             <div className="flex gap-0.5 bg-gray-100/60 rounded-xl p-0.5 flex-shrink-0">
               {(Object.entries(TAB_CONFIG) as [SearchTab, typeof TAB_CONFIG[SearchTab]][]).map(([tab, config]) => (
                 <button
@@ -264,9 +263,7 @@ function SearchClient() {
                 </button>
               ))}
             </div>
-
-            {/* Search */}
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-1 min-w-[140px]">
               <SearchAutocomplete
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -274,9 +271,11 @@ function SearchClient() {
                 placeholder="Address, neighborhood, zip..."
               />
             </div>
+          </div>
 
-            {/* Price Min/Max inputs */}
-            <div className="hidden sm:flex items-center gap-1.5">
+          {/* Row 2: Price + Filters + Views + Sort + Count */}
+          <div className="flex items-center gap-2 mt-1.5">
+            <div className="hidden sm:flex items-center gap-1">
               <input
                 type="text"
                 inputMode="numeric"
@@ -286,7 +285,7 @@ function SearchClient() {
                   setFilters(prev => ({ ...prev, minPrice: isNaN(num) ? undefined : num }));
                 }}
                 placeholder="$ Min"
-                className="w-24 rounded-xl px-3 py-2 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                className="w-20 rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Minimum price"
               />
               <span className="text-brand-dark/40 text-xs">&ndash;</span>
@@ -299,61 +298,57 @@ function SearchClient() {
                   setFilters(prev => ({ ...prev, maxPrice: isNaN(num) ? undefined : num }));
                 }}
                 placeholder="$ Max"
-                className="w-24 rounded-xl px-3 py-2 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+                className="w-20 rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                 aria-label="Maximum price"
               />
             </div>
 
-            {/* Filters Button */}
             <button
               onClick={() => setShowFilters(true)}
-              className="rounded-xl px-3 py-2 text-sm font-medium ring-1 ring-black/5 bg-white/60 text-brand-dark/95 hover:bg-white transition-colors flex items-center gap-1.5 flex-shrink-0"
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium ring-1 ring-black/5 bg-white/60 text-brand-dark/95 hover:bg-white transition-colors flex items-center gap-1 flex-shrink-0"
               aria-label="Open filters"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               Filters
               {filterCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-brand-gold text-white text-xs flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-brand-gold text-white text-[10px] flex items-center justify-center">
                   {filterCount}
                 </span>
               )}
             </button>
 
-            {/* View Mode Toggles */}
-            <div className="hidden lg:flex bg-gray-100/60 rounded-xl p-0.5">
+            <div className="hidden lg:flex bg-gray-100/60 rounded-lg p-0.5">
               {(Object.entries(VIEW_ICONS) as [ViewMode, typeof VIEW_ICONS[ViewMode]][]).map(([mode, { d, label }]) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
-                  className={`p-1.5 rounded-lg transition-colors ${
+                  className={`p-1 rounded transition-colors ${
                     viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/50 hover:text-brand-dark/80'
                   }`}
                   aria-label={`${label} view`}
                   title={label}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
                   </svg>
                 </button>
               ))}
             </div>
 
-            {/* Sort */}
             <select
               value={filters.sort || 'newest'}
               onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="hidden sm:block rounded-xl px-3 py-2 bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+              className="hidden sm:block rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
               aria-label="Sort order"
             >
               <option value="newest">Newest</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
+              <option value="price-asc">Price: Low → High</option>
+              <option value="price-desc">Price: High → Low</option>
               <option value="sqft-desc">Largest</option>
             </select>
 
-            {/* Save Search */}
             <SaveSearchButton
               type={isRental ? 'rent' : 'buy'}
               filters={{
@@ -365,26 +360,17 @@ function SearchClient() {
               }}
             />
 
-          </div>
+            {/* Count */}
+            <p className="text-[11px] text-brand-dark/60 ml-auto whitespace-nowrap" aria-live="polite">
+              {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
+            </p>
 
-          {/* Row 2: Count + filter pills */}
-          {(activeFilterPills.length > 0 || (!loading && sortedListings.length > 0)) && (
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <p className="text-xs text-brand-dark/80 font-medium" aria-live="polite">
-                {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
-              </p>
-              {activeFilterPills.map((pill) => (
-                <span key={pill.key} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-gold/10 text-brand-dark text-xs rounded-full">
-                  {pill.label}
-                </span>
-              ))}
-              {activeFilterPills.length > 0 && (
-                <button onClick={clearFilters} className="text-xs text-brand-dark/70 hover:text-brand-dark underline">
-                  Clear all
-                </button>
-              )}
-            </div>
-          )}
+            {activeFilterPills.length > 0 && (
+              <button onClick={clearFilters} className="text-[10px] text-brand-dark/50 hover:text-brand-dark underline whitespace-nowrap">
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
