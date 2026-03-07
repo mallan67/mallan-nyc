@@ -163,38 +163,54 @@ export async function geocodeListings(
   if (needsCensus.length === 0) return;
 
   // Step 3: Census geocode within time budget (4 seconds total)
+  // Parallelize calls in batches of 5 to maximize throughput
   const startTime = Date.now();
   const TIME_BUDGET_MS = 4000;
+  const BATCH_SIZE = 5;
   const dbWrites: Promise<unknown>[] = [];
 
-  for (const { listing, key } of needsCensus) {
-    if (Date.now() - startTime > TIME_BUDGET_MS) break;
-
+  // Filter to valid addresses only
+  const geocodable = needsCensus.filter(({ listing }) => {
     const addr = listing.address;
     const num = addr.streetNumber || '';
     const street = addr.streetName || '';
     const zip = (addr.postalCode || '').split('-')[0].trim();
-    if (!num || !street || !zip) continue;
+    return num && street && zip;
+  });
 
-    const coords = await geocodeViaCensus(
-      num, street,
-      addr.city || 'New York',
-      addr.stateOrProvince || 'NY',
-      zip,
+  for (let i = 0; i < geocodable.length; i += BATCH_SIZE) {
+    if (Date.now() - startTime > TIME_BUDGET_MS) break;
+
+    const batch = geocodable.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(({ listing }) => {
+        const addr = listing.address;
+        return geocodeViaCensus(
+          addr.streetNumber || '',
+          addr.streetName || '',
+          addr.city || 'New York',
+          addr.stateOrProvince || 'NY',
+          (addr.postalCode || '').split('-')[0].trim(),
+        );
+      })
     );
 
-    if (coords) {
-      addr.latitude = coords[0];
-      addr.longitude = coords[1];
-      memCache.set(key, coords);
-      // Save to DB (non-blocking — don't await each one individually)
-      dbWrites.push(
-        prisma.geocodeCache.upsert({
-          where: { address_key: key },
-          create: { address_key: key, latitude: coords[0], longitude: coords[1], source: 'census' },
-          update: { latitude: coords[0], longitude: coords[1], source: 'census' },
-        }).catch(() => { /* non-fatal */ })
-      );
+    for (let j = 0; j < batch.length; j++) {
+      const result = results[j];
+      if (result.status === 'fulfilled' && result.value) {
+        const coords = result.value;
+        const { listing, key } = batch[j];
+        listing.address.latitude = coords[0];
+        listing.address.longitude = coords[1];
+        memCache.set(key, coords);
+        dbWrites.push(
+          prisma.geocodeCache.upsert({
+            where: { address_key: key },
+            create: { address_key: key, latitude: coords[0], longitude: coords[1], source: 'census' },
+            update: { latitude: coords[0], longitude: coords[1], source: 'census' },
+          }).catch(() => { /* non-fatal */ })
+        );
+      }
     }
   }
 

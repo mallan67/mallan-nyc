@@ -75,13 +75,33 @@ const RENT_PRICE_PRESETS = [
   { label: '$50,000+', value: '50000' },
 ];
 
-// ── View mode icons ──
-const VIEW_ICONS: Record<ViewMode, { d: string; label: string }> = {
-  split: { d: 'M9 3v18m12-18H3', label: 'Split' },
-  'all-listings': { d: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z', label: 'All Listings' },
-  'all-map': { d: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7', label: 'Full Map' },
-  grid: { d: 'M4 6h16M4 10h16M4 14h16M4 18h16', label: 'Grid' },
-  list: { d: 'M4 6h16M4 12h16M4 18h16', label: 'List' },
+// ── View mode icons (SVG paths) ──
+// split: vertical divider with left/right panels
+// all-listings: 2x2 grid of cards
+// all-map: map icon
+// grid: 3x3 small grid
+// list: horizontal lines (list view)
+const VIEW_ICONS: Record<ViewMode, { paths: string[]; label: string }> = {
+  split: {
+    paths: ['M3 3h7v18H3V3zM14 3h7v18h-7V3z'],
+    label: 'Split',
+  },
+  'all-listings': {
+    paths: ['M3 3h8v8H3V3zM13 3h8v8h-8V3zM3 13h8v8H3v-8zM13 13h8v8h-8v-8z'],
+    label: 'All Listings',
+  },
+  'all-map': {
+    paths: ['M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7'],
+    label: 'Full Map',
+  },
+  grid: {
+    paths: ['M4 5h4v4H4V5zM10 5h4v4h-4V5zM16 5h4v4h-4V5zM4 11h4v4H4v-4zM10 11h4v4h-4v-4zM16 11h4v4h-4v-4zM4 17h4v2H4v-2zM10 17h4v2h-4v-2zM16 17h4v2h-4v-2z'],
+    label: 'Grid',
+  },
+  list: {
+    paths: ['M4 6h16M4 12h16M4 18h16'],
+    label: 'List',
+  },
 };
 
 function SearchClient() {
@@ -315,7 +335,7 @@ function SearchClient() {
 
           {/* Row 2: Price + Filters + Views + Sort + Count */}
           <div className="flex items-center gap-2 mt-1.5">
-            <div className="hidden sm:flex items-center gap-1">
+            <div className="flex items-center gap-1">
               {(() => {
                 const presets = isRental ? RENT_PRICE_PRESETS : PRICE_PRESETS;
                 return (
@@ -371,27 +391,37 @@ function SearchClient() {
             </button>
 
             <div className="hidden lg:flex bg-gray-100/60 rounded-lg p-0.5">
-              {(Object.entries(VIEW_ICONS) as [ViewMode, typeof VIEW_ICONS[ViewMode]][]).map(([mode, { d, label }]) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`p-1 rounded transition-colors ${
-                    viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/50 hover:text-brand-dark/80'
-                  }`}
-                  aria-label={`${label} view`}
-                  title={label}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
-                  </svg>
-                </button>
-              ))}
+              {(Object.entries(VIEW_ICONS) as [ViewMode, typeof VIEW_ICONS[ViewMode]][]).map(([mode, { paths, label }]) => {
+                const useStroke = mode === 'all-map' || mode === 'list';
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`p-1.5 rounded transition-colors ${
+                      viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/50 hover:text-brand-dark/80'
+                    }`}
+                    aria-label={`${label} view`}
+                    title={label}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24"
+                      fill={useStroke ? 'none' : 'currentColor'}
+                      stroke={useStroke ? 'currentColor' : 'none'}
+                    >
+                      {paths.map((d, i) => (
+                        <path key={i} d={d}
+                          {...(useStroke ? { strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, strokeWidth: 2 } : {})}
+                        />
+                      ))}
+                    </svg>
+                  </button>
+                );
+              })}
             </div>
 
             <select
               value={filters.sort || 'newest'}
               onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="hidden sm:block rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+              className="rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
               aria-label="Sort order"
             >
               <option value="newest">Newest</option>
@@ -480,7 +510,7 @@ function SearchClient() {
             </div>
             {/* Listings — right 40% */}
             <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto">
-              <div className="px-3 pt-3 pb-3 flex flex-col gap-3">
+              <div className="px-3 pt-4 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
@@ -533,7 +563,7 @@ function SearchClient() {
 
         {/* ── ALL MAP VIEW ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'all-map' && (
-          <div className="h-full">
+          <div className="h-full isolate">
             <SearchMap
               listings={sortedListings}
               highlightedId={highlightedId}
