@@ -866,37 +866,36 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {/* ── 3. FINANCIALS (Co-op/Condo + Price History + Last Sale) ── */}
               {(!isRental && (isCoop || isCondo || priceHistory.length > 1 || (lastUnitSale && lastUnitSale.closePrice > 0))) && (
                 <section className="py-6 border-t border-black/[0.06]">
-                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Financials</h2>
-                  <div className="space-y-4">
+                  <h2 className="font-display font-semibold text-lg mb-5 text-brand-dark">Financials</h2>
+                  <div className="space-y-5">
                     {/* Co-op/Condo Monthly Costs */}
-                    {(isCoop || isCondo) && (listing.associationFee || listing.taxAnnualAmount) && (
-                      <div className="rounded-2xl bg-[#F8F7F4] p-5">
-                        <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-3">
+                    {(isCoop || isCondo) && (listing.associationFee ? listing.associationFee > 0 : false) && (
+                      <div className="rounded-2xl border border-black/[0.06] p-5">
+                        <p className="text-[12px] font-semibold text-brand-dark/70 uppercase tracking-wider mb-4">
                           {isCoop ? 'Co-op Monthly Costs' : 'Condo Monthly Costs'}
                         </p>
-                        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2">
-                          {listing.associationFee && (
-                            <div className="flex justify-between py-2 border-b border-black/5">
-                              <span className="text-brand-dark/70 text-sm">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
-                              <span className="font-display font-semibold text-brand-dark">
-                                ${listing.associationFee.toLocaleString()}/mo
+                        <div className="space-y-0">
+                          <div className="flex justify-between items-center py-3 border-b border-black/[0.06]">
+                            <span className="text-[14px] text-brand-dark">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
+                            <span className="font-display font-bold text-[15px] text-brand-dark">
+                              ${listing.associationFee!.toLocaleString()}<span className="text-brand-dark/50 font-normal text-[13px]">/mo</span>
+                            </span>
+                          </div>
+                          {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
+                            <div className="flex justify-between items-center py-3 border-b border-black/[0.06]">
+                              <span className="text-[14px] text-brand-dark">Real Estate Taxes</span>
+                              <span className="font-display font-bold text-[15px] text-brand-dark">
+                                ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}<span className="text-brand-dark/50 font-normal text-[13px]">/mo</span>
+                                {listing.taxYear ? <span className="text-brand-dark/40 font-normal text-[12px] ml-1.5">({listing.taxYear})</span> : null}
                               </span>
                             </div>
                           )}
-                          {listing.taxAnnualAmount && (
-                            <div className="flex justify-between py-2 border-b border-black/5">
-                              <span className="text-brand-dark/70 text-sm">Real Estate Taxes</span>
-                              <span className="font-display font-semibold text-brand-dark">
-                                ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
-                                {listing.taxYear && <span className="text-brand-dark/50 text-xs ml-1">({listing.taxYear})</span>}
-                              </span>
-                            </div>
-                          )}
-                          {listing.associationFee && listing.taxAnnualAmount && (
-                            <div className="flex justify-between py-2 sm:col-span-2 border-t border-brand-gold/20">
-                              <span className="text-brand-dark/90 text-sm font-medium">Total Monthly</span>
-                              <span className="font-display font-bold text-brand-dark">
-                                ${(listing.associationFee + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}/mo
+                          {/* Total row — only if both maintenance + tax exist */}
+                          {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
+                            <div className="flex justify-between items-center py-3 mt-1 bg-brand-gold/[0.06] rounded-xl px-3 -mx-1">
+                              <span className="text-[14px] font-semibold text-brand-dark">Total Monthly</span>
+                              <span className="font-display font-bold text-[16px] text-brand-dark">
+                                ${(listing.associationFee! + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}<span className="text-brand-dark/50 font-normal text-[13px]">/mo</span>
                               </span>
                             </div>
                           )}
@@ -906,8 +905,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
                     {/* Price History */}
                     {priceHistory.length > 1 && (
-                      <div className="rounded-2xl bg-[#F8F7F4] p-5">
-                        <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-3">Price History</p>
+                      <div className="rounded-2xl border border-black/[0.06] p-5">
+                        <p className="text-[12px] font-semibold text-brand-dark/70 uppercase tracking-wider mb-4">Price History</p>
                         <div className="flex items-end gap-4">
                           {priceHistory.map((entry, i) => {
                             const isCurrent = i === priceHistory.length - 1;
@@ -915,15 +914,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
                             const change = prev ? ((entry.price - prev) / prev * 100) : null;
                             return (
                               <div key={entry.label} className="flex-1 text-center">
-                                <p className={`font-display font-bold text-sm md:text-base ${isCurrent ? 'text-brand-dark' : 'text-brand-dark/50 line-through'}`}>
+                                <p className={`font-display font-bold text-sm md:text-base ${isCurrent ? 'text-brand-dark' : 'text-brand-dark/40 line-through'}`}>
                                   {formatPrice(entry.price, isRental)}
                                 </p>
                                 {change !== null && (
-                                  <p className={`text-[11px] font-medium mt-0.5 ${change < 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                  <p className={`text-[12px] font-semibold mt-1 ${change < 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     {change > 0 ? '+' : ''}{change.toFixed(1)}%
                                   </p>
                                 )}
-                                <p className="text-[11px] text-brand-dark/50 mt-1">{entry.label}</p>
+                                <p className="text-[12px] text-brand-dark/50 mt-1">{entry.label}</p>
                               </div>
                             );
                           })}
@@ -933,36 +932,34 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
                     {/* Last Closed Sale */}
                     {lastUnitSale && lastUnitSale.closePrice > 0 && (
-                      <div className="rounded-2xl bg-[#F8F7F4] p-5">
-                        <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-3">
-                          Last Sale — This {lastUnitSale.source === 'acris' ? 'Property' : 'Unit'}
+                      <div className="rounded-2xl border border-black/[0.06] p-5">
+                        <p className="text-[12px] font-semibold text-brand-dark/70 uppercase tracking-wider mb-3">
+                          Last Sale {'\u2014'} This {lastUnitSale.source === 'acris' ? 'Property' : 'Unit'}
                         </p>
                         <div className="flex flex-wrap items-baseline gap-3">
-                          <span className="text-lg font-display font-bold text-brand-dark">
+                          <span className="text-xl font-display font-bold text-brand-dark">
                             {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
                           </span>
                           {lastUnitSale.sqft > 0 && (
-                            <span className="text-sm text-brand-dark/60">
+                            <span className="text-[13px] text-brand-dark/60">
                               ${Math.round(lastUnitSale.closePrice / lastUnitSale.sqft).toLocaleString()}/sf
                             </span>
                           )}
                           {lastUnitSale.closeDate && (
-                            <span className="text-sm text-brand-dark/50">
+                            <span className="text-[13px] text-brand-dark/60">
                               Closed {new Date(lastUnitSale.closeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                             </span>
                           )}
                         </div>
-                        {listing.listPrice > 0 && lastUnitSale.closePrice > 0 && (
-                          <p className={`text-xs mt-2 font-medium ${listing.listPrice > lastUnitSale.closePrice ? 'text-red-500/70' : 'text-green-600/70'}`}>
+                        {listing.listPrice > 0 && lastUnitSale.closePrice > 0 && listing.listPrice !== lastUnitSale.closePrice && (
+                          <p className={`text-[13px] mt-3 font-semibold ${listing.listPrice > lastUnitSale.closePrice ? 'text-red-600' : 'text-green-600'}`}>
                             {listing.listPrice > lastUnitSale.closePrice
                               ? `Asking ${Math.round(((listing.listPrice - lastUnitSale.closePrice) / lastUnitSale.closePrice) * 100)}% above last sale`
-                              : listing.listPrice < lastUnitSale.closePrice
-                              ? `Asking ${Math.round(((lastUnitSale.closePrice - listing.listPrice) / lastUnitSale.closePrice) * 100)}% below last sale`
-                              : 'Asking matches last sale price'}
+                              : `Asking ${Math.round(((lastUnitSale.closePrice - listing.listPrice) / lastUnitSale.closePrice) * 100)}% below last sale`}
                           </p>
                         )}
                         {lastUnitSale.source === 'acris' && (
-                          <p className="text-[10px] text-brand-dark/35 mt-1">Source: NYC ACRIS Public Records</p>
+                          <p className="text-[11px] text-brand-dark/40 mt-2">Source: NYC ACRIS Public Records</p>
                         )}
                       </div>
                     )}
