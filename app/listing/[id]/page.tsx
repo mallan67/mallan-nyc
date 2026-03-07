@@ -271,6 +271,25 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
+/** Format raw Trestle values: "CentralAir" → "Central Air", "InUnit" → "In-Unit" */
+function formatTrestleValue(val: string): string {
+  return val
+    .replace(/([a-z])([A-Z])/g, '$1 $2')   // camelCase → separate words
+    .replace(/^In\s/, 'In-')                // "In Unit" → "In-Unit"
+    .replace(/^Building\s?/, '')             // remove "Building" prefix
+    .replace(/\bYN$/i, '')                   // remove YN suffix
+    .replace(/\bYes$/i, '')                  // remove trailing "Yes"
+    .replace(/\bNo$/i, '')                   // remove trailing "No"
+    .trim();
+}
+
+/** Split comma-separated Trestle field into cleaned values */
+function parseTrestleList(raw: string): string[] {
+  return raw.split(',')
+    .map(v => formatTrestleValue(v.trim()))
+    .filter(v => v.length > 0 && v.toLowerCase() !== 'none' && v.toLowerCase() !== 'other');
+}
+
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
     return `$${price.toLocaleString()}/mo`;
@@ -315,20 +334,27 @@ export default async function ListingPage({ params, searchParams }: Props) {
       )
     : null;
 
-  // Collect building amenities from all available fields
-  const amenityItems: { label: string; value: string }[] = [];
-  if (listing.associationAmenities) amenityItems.push({ label: 'Building Amenities', value: listing.associationAmenities });
-  if (listing.communityFeatures) amenityItems.push({ label: 'Community Features', value: listing.communityFeatures });
-  if (listing.interiorFeatures) amenityItems.push({ label: 'Interior Features', value: listing.interiorFeatures });
-  if (listing.appliances) amenityItems.push({ label: 'Appliances', value: listing.appliances });
-  if (listing.flooring) amenityItems.push({ label: 'Flooring', value: listing.flooring });
-  if (listing.laundryFeatures) amenityItems.push({ label: 'Laundry', value: listing.laundryFeatures });
-  if (listing.heating) amenityItems.push({ label: 'Heating', value: listing.heating });
-  if (listing.cooling) amenityItems.push({ label: 'Cooling', value: listing.cooling });
-  if (listing.parkingFeatures) amenityItems.push({ label: 'Parking', value: listing.parkingFeatures });
-  if (listing.securityFeatures) amenityItems.push({ label: 'Security', value: listing.securityFeatures });
-  if (listing.exteriorFeatures) amenityItems.push({ label: 'Exterior', value: listing.exteriorFeatures });
-  if (listing.petsAllowedDetail) amenityItems.push({ label: 'Pets', value: listing.petsAllowedDetail });
+  // Building amenities as gold pills
+  const buildingAmenities: string[] = [
+    ...(listing.associationAmenities ? parseTrestleList(listing.associationAmenities) : []),
+    ...(listing.communityFeatures ? parseTrestleList(listing.communityFeatures) : []),
+  ];
+  // Security features as green pills
+  const securityFeatures: string[] = listing.securityFeatures ? parseTrestleList(listing.securityFeatures) : [];
+  // Interior details as 2-col grid rows
+  const interiorDetails: { label: string; value: string }[] = [];
+  if (listing.flooring) interiorDetails.push({ label: 'Flooring', value: parseTrestleList(listing.flooring).join(', ') });
+  if (listing.laundryFeatures) interiorDetails.push({ label: 'Laundry', value: parseTrestleList(listing.laundryFeatures).join(', ') });
+  if (listing.heating) interiorDetails.push({ label: 'Heating', value: parseTrestleList(listing.heating).join(', ') });
+  if (listing.cooling) interiorDetails.push({ label: 'Cooling', value: parseTrestleList(listing.cooling).join(', ') });
+  if (listing.parkingFeatures) interiorDetails.push({ label: 'Parking', value: parseTrestleList(listing.parkingFeatures).join(', ') });
+  // Appliances as gold pills
+  const appliancesList: string[] = listing.appliances ? parseTrestleList(listing.appliances) : [];
+  // Interior features as gold pills
+  const interiorFeaturesList: string[] = listing.interiorFeatures ? parseTrestleList(listing.interiorFeatures) : [];
+  // Pet policy
+  const petPolicy = listing.petsAllowedDetail ? parseTrestleList(listing.petsAllowedDetail).join(', ') : '';
+  const petsAllowed = petPolicy && !petPolicy.toLowerCase().includes('no');
 
   // Separate media by type: photos, floorplans, videos, virtual tours
   const nonPhotoTypes = new Set(['video', 'mpeg', 'mp4', 'avi', 'floorplan', 'floor plan', 'virtualtour', 'virtual tour']);
@@ -361,8 +387,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <Header dark />
 
       {/* Breadcrumb + Back */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-20">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-[68px]">
+        <div className="max-w-7xl mx-auto px-4 py-2">
           <nav className="flex items-center gap-2 text-sm text-brand-dark/85">
             <BackButton fallbackHref={isRental ? '/rent' : '/buy'} />
             <Link href="/" className="hover:text-brand-gold hidden md:inline">Home</Link>
@@ -604,26 +630,75 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* Building Amenities */}
-              {amenityItems.length > 0 && (
+              {/* Interior Features */}
+              {(interiorDetails.length > 0 || appliancesList.length > 0 || interiorFeaturesList.length > 0) && (
                 <section>
-                  <h2 className="text-xl font-display font-semibold mb-4">Building Amenities & Features</h2>
-                  <div className="space-y-3">
-                    {amenityItems.map((item) => (
-                      <div key={item.label} className="py-2 border-b border-black/5">
-                        <span className="text-sm font-medium text-brand-dark/85">{item.label}</span>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {item.value.split(',').map((v, i) => (
-                            <span
-                              key={i}
-                              className="inline-block px-2.5 py-1 bg-gray-50 text-brand-dark/80 text-xs rounded-lg"
-                            >
-                              {v.trim()}
-                            </span>
-                          ))}
+                  <h2 className="text-xl font-display font-semibold mb-4">Interior Features</h2>
+                  {interiorDetails.length > 0 && (
+                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                      {interiorDetails.map((item) => (
+                        <div key={item.label} className="flex justify-between py-2 border-b border-black/5">
+                          <span className="text-brand-dark/60">{item.label}</span>
+                          <span className="font-medium">{item.value}</span>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                  {interiorFeaturesList.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {interiorFeaturesList.map((f) => (
+                        <span key={f} className="px-3 py-1.5 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {appliancesList.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm text-brand-dark/50 mb-2">Appliances</p>
+                      <div className="flex flex-wrap gap-2">
+                        {appliancesList.map((a) => (
+                          <span key={a} className="px-3 py-1.5 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
+                            {a}
+                          </span>
+                        ))}
                       </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Building Amenities */}
+              {(buildingAmenities.length > 0 || securityFeatures.length > 0 || petPolicy) && (
+                <section>
+                  <h2 className="text-xl font-display font-semibold mb-4">Building Amenities</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {buildingAmenities.map((amenity) => (
+                      <span key={amenity} className="px-4 py-2 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
+                        {amenity}
+                      </span>
                     ))}
+                    {securityFeatures.map((item) => (
+                      <span key={item} className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm">
+                        {item}
+                      </span>
+                    ))}
+                    {petPolicy && (
+                      <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium ${
+                        petsAllowed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                      }`}>
+                        {petsAllowed ? (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                        Pets: {petPolicy}
+                      </span>
+                    )}
                   </div>
                 </section>
               )}
