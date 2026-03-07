@@ -967,39 +967,40 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* ── 4. UNIT FEATURES ── */}
-              {(unitFeatures.length > 0 || unitDetails.length > 0) && (
+              {/* ── 4. UNIT FEATURES + APPLIANCES ── */}
+              {(unitFeatures.length > 0 || unitDetails.length > 0 || appliancesList.length > 0) && (
                 <section className="py-6 border-t border-black/[0.06]">
-                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Unit Features</h2>
-                  {unitFeatures.length > 0 && (
+                  <h2 className="font-display font-semibold text-lg mb-5 text-brand-dark">Unit Features</h2>
+
+                  {/* Feature + Appliance pills combined in one grid */}
+                  {(unitFeatures.length > 0 || appliancesList.length > 0) && (
                     <div className="flex flex-wrap gap-2">
                       {unitFeatures.map((f) => (
-                        <span key={f} className="px-3 py-1.5 bg-black/[0.04] text-brand-dark/80 rounded-lg text-[13px] font-light">{f}</span>
+                        <span key={f} className="inline-flex items-center gap-2 px-3.5 py-2 bg-black/[0.04] text-brand-dark text-[13px] rounded-full">
+                          <svg className="w-3.5 h-3.5 text-brand-gold-deep flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          {f}
+                        </span>
+                      ))}
+                      {appliancesList.map((a) => (
+                        <span key={a} className="inline-flex items-center gap-2 px-3.5 py-2 bg-black/[0.04] text-brand-dark text-[13px] rounded-full">
+                          <svg className="w-3.5 h-3.5 text-brand-gold-deep flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          {a}
+                        </span>
                       ))}
                     </div>
                   )}
+
+                  {/* Detail rows (Flooring, Laundry, Heating, Cooling) — compact 2-col table */}
                   {unitDetails.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 mt-4">
+                    <div className={`grid sm:grid-cols-2 gap-x-6 ${unitFeatures.length > 0 || appliancesList.length > 0 ? 'mt-5 pt-4 border-t border-black/[0.06]' : ''}`}>
                       {unitDetails.map((item) => (
-                        <div key={item.label} className="flex justify-between py-2.5 border-b border-black/5">
-                          <span className="text-[13px] text-brand-dark/60">{item.label}</span>
+                        <div key={item.label} className="flex gap-3 py-3 border-b border-black/[0.06]">
+                          <span className="text-[13px] text-brand-dark/50 w-[80px] flex-shrink-0">{item.label}</span>
                           <span className="text-[13px] font-medium text-brand-dark">{item.value}</span>
                         </div>
                       ))}
                     </div>
                   )}
-                </section>
-              )}
-
-              {/* ── 5. APPLIANCES ── */}
-              {appliancesList.length > 0 && (
-                <section className="py-6 border-t border-black/[0.06]">
-                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Appliances</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {appliancesList.map((a) => (
-                      <span key={a} className="px-3 py-1.5 bg-black/[0.04] text-brand-dark/80 rounded-lg text-[13px] font-light">{a}</span>
-                    ))}
-                  </div>
                 </section>
               )}
 
