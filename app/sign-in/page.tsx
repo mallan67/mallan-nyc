@@ -294,8 +294,8 @@ function SignInContent() {
                   <Image
                     src="/images/broker-admin-icon.png"
                     alt=""
-                    width={24}
-                    height={24}
+                    width={40}
+                    height={40}
                     className="opacity-60 hover:opacity-100 transition-opacity"
                   />
                 </Link>
