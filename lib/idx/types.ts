@@ -101,6 +101,7 @@ export interface IDXListing {
 
   // Amenities
   interiorFeatures?: string;
+  buildingFeatures?: string;
   exteriorFeatures?: string;
   appliances?: string;
   laundryFeatures?: string;
@@ -109,6 +110,8 @@ export interface IDXListing {
   communityFeatures?: string;
   associationAmenities?: string;
   parkingFeatures?: string;
+  poolFeatures?: string;
+  spaFeatures?: string;
   parkingTotal?: number;
   garageSpaces?: number;
 

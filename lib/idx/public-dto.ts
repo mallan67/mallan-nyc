@@ -115,6 +115,7 @@ export interface PublicListingDTO {
   buildingName?: string;
   architecturalStyle?: string;
   interiorFeatures?: string;
+  buildingFeatures?: string;
   exteriorFeatures?: string;
   appliances?: string;
   laundryFeatures?: string;
@@ -122,6 +123,8 @@ export interface PublicListingDTO {
   communityFeatures?: string;
   associationAmenities?: string;
   parkingFeatures?: string;
+  poolFeatures?: string;
+  spaFeatures?: string;
   heating?: string;
   cooling?: string;
   flooring?: string;
@@ -237,6 +240,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     buildingName: listing.buildingName,
     architecturalStyle: listing.architecturalStyle,
     interiorFeatures: listing.interiorFeatures,
+    buildingFeatures: listing.buildingFeatures,
     exteriorFeatures: listing.exteriorFeatures,
     appliances: listing.appliances,
     laundryFeatures: listing.laundryFeatures,
@@ -244,6 +248,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     communityFeatures: listing.communityFeatures,
     associationAmenities: listing.associationAmenities,
     parkingFeatures: listing.parkingFeatures,
+    poolFeatures: listing.poolFeatures,
+    spaFeatures: listing.spaFeatures,
     heating: listing.heating,
     cooling: listing.cooling,
     flooring: listing.flooring,

@@ -519,8 +519,34 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 ---
 
+## Listing Detail Page — Feature Sections
+
+The listing detail page (`app/listing/[id]/page.tsx`) displays property data in structured sections:
+
+| Section | Data Source (Trestle IDX Plus) | Examples |
+|---------|-------------------------------|----------|
+| **Unit Features** | `InteriorFeatures` + unit-level `ExteriorFeatures` + Flooring/Laundry(unit)/Heating/Cooling | High Ceilings, Walk-In Closets, Balcony, Hardwood, In-Unit Washer |
+| **Appliances** | `Appliances` | Dishwasher, Washer, Dryer, Range, Refrigerator |
+| **Building Amenities** | `BuildingFeatures` + `AssociationAmenities` + `CommunityFeatures` + `SecurityFeatures` + `PoolFeatures` + `SpaFeatures` + building-level `ExteriorFeatures`/`LaundryFeatures` | Doorman, Elevator, Gym, Pool, Spa, Sauna, Steam Room, Children's Room, Roof Deck, Garden, Laundry |
+| **Parking** | `ParkingFeatures` + `GarageSpaces` | Garage Access (separate from building amenities) |
+| **Pet Policy** | `PetsAllowed` | Cats Ok, Dogs Ok (separate section — NOT in building amenities) |
+
+**Key design rules:**
+- Amenities are at **building level** via `BuildingFeatures` (comma-separated). Individual YN flags (DoormanYN, ElevatorYN, etc.) do NOT exist on the IDX Plus feed.
+- Storage and Bike Room are **excluded** from building amenities display.
+- Pets are **never** displayed as building amenities — always a separate Pet Policy section.
+- Garage is **separate** from building amenities (not always included with building).
+- Interior items like Sauna, Elevator, Storage are filtered out of Unit Features (they belong at building level).
+- Building-level exterior features (Roof Deck, Garden, Courtyard) are moved to Building Amenities.
+- Common Area / Common On Floor laundry goes to Building Amenities; In-Unit laundry stays in Unit Features.
+
+**ACRIS fallback:** When Trestle has no closed sale data, the page queries NYC ACRIS public records (Socrata API) by borough/block/lot for last sale price.
+
+---
+
 ## Last Work Completed
 
+- **2026-03-07:** Amenity pipeline + listing detail restructure — `BuildingFeatures`, `PoolFeatures`, `SpaFeatures` added to IDX pipeline (types → mapping → public-dto → page). Listing detail page restructured into 5 clean sections: Unit Features, Appliances, Building Amenities, Parking, Pet Policy. Pets removed from building amenities. Storage/BikeRoom excluded. Garage separate. ACRIS fallback for last sale price via borough/block/lot.
 - **2026-03-07:** Media pipeline fix — VirtualTour items no longer leak into photo carousel, videos render as `<video>` tag for direct files (iframe for YouTube/Vimeo), virtual tour fallback from Media resource when `VirtualTourURLUnbranded` is empty.
 - **2026-03-06:** CRM mock data cleanup — removed ALL fake names, stats, prices, addresses from rendered HTML. See [CRM Mock Data Cleanup](#crm-mock-data-cleanup-2026-03-06) below. Commit `5638ef05` (-1,068 lines net).
 - **2026-03-06:** CRM navigation fixes — showTab null guard, agent blocked tab redirect, auth redirect preserves hash, sessionStorage tab persistence, portal tab restore. Restored 3 tab UIs (exclusives, in-contract, sold).
