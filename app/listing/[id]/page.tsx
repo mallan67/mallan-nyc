@@ -16,6 +16,7 @@ import DetailFavoriteButton from '@/app/components/DetailFavoriteButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
+import ListingLocationMap from '@/app/components/ListingLocationMap';
 import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -518,6 +519,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <TransitCommuteTool
                   latitude={listing.address.latitude}
                   longitude={listing.address.longitude}
+                  borough={borough}
+                />
+              )}
+
+              {/* Location Map & Directions */}
+              {listing.address.latitude && listing.address.longitude && (
+                <ListingLocationMap
+                  latitude={listing.address.latitude}
+                  longitude={listing.address.longitude}
+                  address={fullAddress}
                   borough={borough}
                 />
               )}
