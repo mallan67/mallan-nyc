@@ -3,6 +3,20 @@ import { getAccessToken } from '@/lib/idx/auth';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
+function mapPropertyType(r: Record<string, unknown>): string {
+  const ci = r.CommonInterest ? String(r.CommonInterest) : '';
+  if (ci === 'Condominium') return 'Condo';
+  if (ci === 'StockCooperative') return 'Co-op';
+  if (ci === 'Condop') return 'Condop';
+  const sub = (r.PropertySubType ? String(r.PropertySubType) : '').toLowerCase();
+  if (sub.includes('condo')) return 'Condo';
+  if (sub.includes('co-op') || sub.includes('coop')) return 'Co-op';
+  if (sub.includes('townhouse')) return 'Townhouse';
+  if (sub.includes('loft')) return 'Loft';
+  if (sub === 'apartment') return '';
+  return r.PropertySubType ? String(r.PropertySubType) : '';
+}
+
 /**
  * GET /api/listings/similar?type=sale&beds=1&price=715000&postalCode=10011&excludeId=xxx
  *
@@ -23,22 +37,21 @@ export async function GET(request: NextRequest) {
   try {
     const token = await getAccessToken();
 
-    // Price range: 30% below to 30% above
-    const minPrice = Math.round(price * 0.7);
-    const maxPrice = Math.round(price * 1.3);
+    // Price range: 50% below to 50% above
+    const minPrice = Math.round(price * 0.5);
+    const maxPrice = Math.round(price * 1.5);
 
     const isRental = type === 'rent';
     const propertyClass = isRental
       ? "PropertyType eq 'Residential Lease'"
       : "PropertyType eq 'Residential'";
 
-    // Build filter: same ZIP, similar price, active, same type
-    const bedsFilter = beds > 0 ? ` and BedroomsTotal eq ${beds}` : '';
-    const filter = `PostalCode eq '${postalCode}' and MlsStatus eq 'Active' and ${propertyClass} and ListPrice ge ${minPrice} and ListPrice le ${maxPrice}${bedsFilter}`;
+    // Build filter: same ZIP, similar price, active, same type (no bed filter — too restrictive)
+    const filter = `PostalCode eq '${postalCode}' and MlsStatus eq 'Active' and ${propertyClass} and ListPrice ge ${minPrice} and ListPrice le ${maxPrice}`;
 
     const params = new URLSearchParams({
       $filter: filter,
-      $select: 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,ListOfficeName,CityRegion',
+      $select: 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,PropertyType,CommonInterest,ListOfficeName,CityRegion',
       $orderby: 'ListPrice desc',
       $top: '7', // fetch 7 so we have 6 after excluding current
     });
@@ -75,7 +88,7 @@ export async function GET(request: NextRequest) {
           address: `${streetNum} ${streetName}${unit}`,
           neighborhood: String(r.CityRegion || ''),
           photoUrl: null, // Photos require separate Media fetch — client will show placeholder
-          propertyType: String(r.PropertySubType || ''),
+          propertyType: mapPropertyType(r),
           office: String(r.ListOfficeName || ''),
         };
       });
