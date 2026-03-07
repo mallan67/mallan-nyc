@@ -18,6 +18,7 @@ import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import ListingLocationMap from '@/app/components/ListingLocationMap';
 import BuildingUnits from '@/app/components/BuildingUnits';
+import SimilarListings from '@/app/components/SimilarListings';
 import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -27,9 +28,52 @@ import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlu
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
 
+import { getAccessToken } from '@/lib/idx/auth';
+
 // Dynamic — listings come from IDX, not static JSON
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+/** Fetch last closed sale for a specific unit from Trestle */
+async function fetchLastUnitSale(
+  streetNumber: string,
+  streetName: string,
+  unitNumber: string | null,
+  postalCode: string,
+): Promise<{ closePrice: number; closeDate: string; sqft: number } | null> {
+  if (!streetNumber || !streetName) return null;
+  try {
+    const token = await getAccessToken();
+    const baseUrl = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+    const escapedStreet = streetName.replace(/'/g, "''");
+    let filter = `StreetNumber eq '${streetNumber}' and contains(StreetName,'${escapedStreet}') and PostalCode eq '${postalCode}' and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`;
+    if (unitNumber) {
+      const escapedUnit = unitNumber.replace(/'/g, "''");
+      filter += ` and UnitNumber eq '${escapedUnit}'`;
+    }
+    const params = new URLSearchParams({
+      $filter: filter,
+      $select: 'ClosePrice,CloseDate,LivingArea,ListPrice',
+      $orderby: 'CloseDate desc',
+      $top: '1',
+    });
+    const res = await fetch(`${baseUrl}/odata/Property?${params}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const record = data?.value?.[0];
+    if (!record) return null;
+    return {
+      closePrice: Number(record.ClosePrice || record.ListPrice || 0),
+      closeDate: record.CloseDate ? String(record.CloseDate) : '',
+      sqft: Number(record.LivingArea || 0),
+    };
+  } catch {
+    return null;
+  }
+}
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -260,6 +304,31 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
+
+  // Fetch last closed sale for this specific unit (server-side, cached 1hr)
+  const lastUnitSale = listing.address.streetName !== 'Address Undisclosed'
+    ? await fetchLastUnitSale(
+        listing.address.streetNumber,
+        listing.address.streetName,
+        listing.address.unitNumber,
+        listing.address.postalCode,
+      )
+    : null;
+
+  // Collect building amenities from all available fields
+  const amenityItems: { label: string; value: string }[] = [];
+  if (listing.associationAmenities) amenityItems.push({ label: 'Building Amenities', value: listing.associationAmenities });
+  if (listing.communityFeatures) amenityItems.push({ label: 'Community Features', value: listing.communityFeatures });
+  if (listing.interiorFeatures) amenityItems.push({ label: 'Interior Features', value: listing.interiorFeatures });
+  if (listing.appliances) amenityItems.push({ label: 'Appliances', value: listing.appliances });
+  if (listing.flooring) amenityItems.push({ label: 'Flooring', value: listing.flooring });
+  if (listing.laundryFeatures) amenityItems.push({ label: 'Laundry', value: listing.laundryFeatures });
+  if (listing.heating) amenityItems.push({ label: 'Heating', value: listing.heating });
+  if (listing.cooling) amenityItems.push({ label: 'Cooling', value: listing.cooling });
+  if (listing.parkingFeatures) amenityItems.push({ label: 'Parking', value: listing.parkingFeatures });
+  if (listing.securityFeatures) amenityItems.push({ label: 'Security', value: listing.securityFeatures });
+  if (listing.exteriorFeatures) amenityItems.push({ label: 'Exterior', value: listing.exteriorFeatures });
+  if (listing.petsAllowedDetail) amenityItems.push({ label: 'Pets', value: listing.petsAllowedDetail });
 
   // Separate media by type: photos, floorplans, videos, virtual tours
   const nonPhotoTypes = new Set(['video', 'mpeg', 'mp4', 'avi', 'floorplan', 'floor plan', 'virtualtour', 'virtual tour']);
@@ -504,6 +573,61 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </div>
               </section>
 
+              {/* Last Closed Price for This Unit */}
+              {lastUnitSale && lastUnitSale.closePrice > 0 && (
+                <section className="glass-card rounded-3xl p-6">
+                  <h2 className="text-xl font-display font-semibold mb-3">Last Sale — This Unit</h2>
+                  <div className="flex flex-wrap items-baseline gap-4">
+                    <span className="text-2xl font-display font-bold text-brand-dark">
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
+                    </span>
+                    {lastUnitSale.sqft > 0 && (
+                      <span className="text-sm text-brand-dark/70">
+                        ${Math.round(lastUnitSale.closePrice / lastUnitSale.sqft).toLocaleString()}/sf
+                      </span>
+                    )}
+                    {lastUnitSale.closeDate && (
+                      <span className="text-sm text-brand-dark/60">
+                        Closed {new Date(lastUnitSale.closeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
+                  {listing.listPrice > 0 && lastUnitSale.closePrice > 0 && (
+                    <p className="text-xs text-brand-dark/50 mt-2">
+                      {listing.listPrice > lastUnitSale.closePrice
+                        ? `Current asking is ${Math.round(((listing.listPrice - lastUnitSale.closePrice) / lastUnitSale.closePrice) * 100)}% above last sale`
+                        : listing.listPrice < lastUnitSale.closePrice
+                        ? `Current asking is ${Math.round(((lastUnitSale.closePrice - listing.listPrice) / lastUnitSale.closePrice) * 100)}% below last sale`
+                        : 'Current asking matches last sale price'}
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {/* Building Amenities */}
+              {amenityItems.length > 0 && (
+                <section>
+                  <h2 className="text-xl font-display font-semibold mb-4">Building Amenities & Features</h2>
+                  <div className="space-y-3">
+                    {amenityItems.map((item) => (
+                      <div key={item.label} className="py-2 border-b border-black/5">
+                        <span className="text-sm font-medium text-brand-dark/85">{item.label}</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {item.value.split(',').map((v, i) => (
+                            <span
+                              key={i}
+                              className="inline-block px-2.5 py-1 bg-gray-50 text-brand-dark/80 text-xs rounded-lg"
+                            >
+                              {v.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Rental-Specific Info */}
               {isRental && (listing.petsAllowed || listing.furnished || listing.availabilityDate) && (
                 <section>
@@ -560,6 +684,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   buildingName={listing.buildingName}
                 />
               )}
+
+              {/* Similar Listings Nearby */}
+              <SimilarListings
+                listingType={listing.listingType}
+                beds={listing.bedroomsTotal}
+                listPrice={listing.listPrice}
+                postalCode={listing.address.postalCode}
+                neighborhood={neighborhood}
+                currentListingId={listing.id}
+              />
             </div>
 
             {/* Sidebar */}

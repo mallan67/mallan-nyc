@@ -107,6 +107,7 @@ export interface IDXListing {
   securityFeatures?: string;
   accessibilityFeatures?: string;
   communityFeatures?: string;
+  associationAmenities?: string;
   parkingFeatures?: string;
   parkingTotal?: number;
   garageSpaces?: number;
