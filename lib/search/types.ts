@@ -166,13 +166,14 @@ export const TAB_CONFIG: Record<SearchTab, {
   },
 };
 
-/** Residential property type checkboxes */
+/** Residential property type checkboxes (includes ownership types for NYC) */
 export const RESIDENTIAL_PROPERTY_TYPES = [
-  'Apartment', 'Studio', 'Loft', 'Duplex', 'Triplex',
+  'Condo', 'Co-op', 'Condop',
+  'Apartment', 'Loft', 'Duplex', 'Triplex',
   'Townhouse', 'Multi-Family', 'Single Family', 'Land', 'Mixed Use',
 ];
 
-/** Ownership type checkboxes (NYC-specific) */
+/** Ownership type checkboxes (NYC-specific) — kept for backward compat but merged into property types UI */
 export const OWNERSHIP_TYPES = ['Condo', 'Condop', 'Co-op'];
 
 /** Commercial sub-type checkboxes */

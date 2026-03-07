@@ -6,7 +6,7 @@ import {
   AMENITY_FIELD_MAP,
   TAB_CONFIG,
   RESIDENTIAL_PROPERTY_TYPES,
-  OWNERSHIP_TYPES,
+  OWNERSHIP_TYPES as OWNERSHIP_VALUES,
   COMMERCIAL_SUB_TYPES,
 } from '@/lib/search/types';
 
@@ -216,43 +216,37 @@ export default function SearchFilterPanel({
             </div>
           </FilterSection>
 
-          {/* Property Type */}
+          {/* Property Type (includes Condo/Co-op/Condop for residential) */}
           <FilterSection title={isCommercial ? 'Commercial Type' : 'Property Type'}>
             <div className="grid grid-cols-2 gap-2">
-              {(isCommercial ? COMMERCIAL_SUB_TYPES : RESIDENTIAL_PROPERTY_TYPES).map((type) => (
-                <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={staged.propertySubTypes?.includes(type) ?? false}
-                    onChange={() => updateStaged({ propertySubTypes: toggleArrayItem(staged.propertySubTypes, type) })}
-                    className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
-                  />
-                  <span className="text-brand-dark">{type}</span>
-                </label>
-              ))}
+              {(isCommercial ? COMMERCIAL_SUB_TYPES : RESIDENTIAL_PROPERTY_TYPES).map((type) => {
+                const isOwnership = OWNERSHIP_VALUES.includes(type);
+                const isChecked = isOwnership
+                  ? (staged.ownershipTypes?.includes(type) ?? false)
+                  : (staged.propertySubTypes?.includes(type) ?? false);
+                const handleChange = () => {
+                  if (isOwnership) {
+                    updateStaged({ ownershipTypes: toggleArrayItem(staged.ownershipTypes, type) });
+                  } else {
+                    updateStaged({ propertySubTypes: toggleArrayItem(staged.propertySubTypes, type) });
+                  }
+                };
+                return (
+                  <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={handleChange}
+                      className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
+                    />
+                    <span className="text-brand-dark">{type}</span>
+                  </label>
+                );
+              })}
             </div>
           </FilterSection>
 
-          {/* Ownership Type (residential only) */}
-          {tabConfig.showOwnership && (
-            <FilterSection title="Ownership Type">
-              <div className="flex gap-2">
-                {OWNERSHIP_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => updateStaged({ ownershipTypes: toggleArrayItem(staged.ownershipTypes, type) })}
-                    className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
-                      staged.ownershipTypes?.includes(type)
-                        ? 'bg-brand-dark text-white'
-                        : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </FilterSection>
-          )}
+          {/* Ownership Type section removed — Condo/Co-op/Condop merged into Property Type above */}
 
           {/* Status */}
           <FilterSection title="Listing Status">
