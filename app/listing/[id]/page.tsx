@@ -1004,7 +1004,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               )}
 
               {/* ── 6. BUILDING AMENITIES ── */}
-              {(buildingAmenitiesFinal.length > 0 || hasGarage || petPolicy) && (
+              {(buildingAmenitiesFinal.length > 0 || hasGarage) && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Building Amenities</h2>
                   {buildingAmenitiesFinal.length > 0 && (
@@ -1017,26 +1017,29 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       ))}
                     </div>
                   )}
-                  {(hasGarage || petPolicy) && (
+                  {hasGarage && (
                     <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-black/5">
-                      {hasGarage && (
-                        <span className="inline-flex items-center gap-2 text-[13px] text-brand-dark/80 bg-black/[0.03] px-3 py-1.5 rounded-lg">
-                          <svg className="w-4 h-4 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8m-8 4h8m-4-8v16M3 21h18M3 3h18" /></svg>
-                          Garage Access
-                        </span>
-                      )}
-                      {petPolicy && (
-                        <span className={`inline-flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg ${petsAllowed ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}`}>
-                          {petsAllowed ? (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                          )}
-                          Pets: {petPolicy}
-                        </span>
-                      )}
+                      <span className="inline-flex items-center gap-2 text-[13px] text-brand-dark/80 bg-black/[0.03] px-3 py-1.5 rounded-lg">
+                        <svg className="w-4 h-4 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8m-8 4h8m-4-8v16M3 21h18M3 3h18" /></svg>
+                        Garage Access
+                      </span>
                     </div>
                   )}
+                </section>
+              )}
+
+              {/* ── 6b. PET POLICY ── */}
+              {petPolicy && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Pet Policy</h2>
+                  <div className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[14px] font-medium ${petsAllowed ? 'text-green-700 bg-green-50 border border-green-200' : 'text-red-700 bg-red-50 border border-red-200'}`}>
+                    {petsAllowed ? (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    )}
+                    {petPolicy}
+                  </div>
                 </section>
               )}
 
