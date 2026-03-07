@@ -229,7 +229,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     // Media — proxy Trestle URLs through our API (they require Bearer auth)
     media: listing.media.map(m => ({ ...m, url: proxyMediaUrl(m.url) })),
     photosCount: listing.photosCount,
-    virtualTourURL: listing.virtualTourURLUnbranded || undefined,
+    virtualTourURL: listing.virtualTourURLUnbranded || listing.virtualTourURLBranded || undefined,
     // Public remarks only — private remarks are NEVER on IDXListing
     publicRemarks: listing.publicRemarks,
     // Dates

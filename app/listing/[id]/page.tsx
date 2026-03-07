@@ -19,7 +19,6 @@ import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import ListingLocationMap from '@/app/components/ListingLocationMap';
 import BuildingUnits from '@/app/components/BuildingUnits';
 import SimilarListings from '@/app/components/SimilarListings';
-import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
@@ -440,15 +439,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const listing = result.listing;
   const { tax } = result;
 
-  // SEO: The canonical URL (set in generateMetadata) uses the address slug.
-  // Google will index the correct URL via <link rel="canonical">.
-  // No runtime redirect needed — both MLS ID and address slug URLs serve the listing.
-
   const isRental = listing.listingType === 'rent';
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
   const isCondo = listing.propertyType === 'Condo' || listing.propertyType === 'Condop' || listing.propertyType === 'Condominium';
   const borough = countyToBorough(listing.address.county);
   const neighborhood = listing.address.neighborhood || '';
+  const displayPropertyType = listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType;
 
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
@@ -590,60 +586,100 @@ export default async function ListingPage({ params, searchParams }: Props) {
     .join(', ');
   const petsAllowed = petPolicy && !petPolicy.toLowerCase().includes('no pets') && !petPolicy.toLowerCase().includes('not allowed');
 
-  // Separate media by type: photos, floorplans, videos, virtual tours
-  const nonPhotoTypes = new Set(['video', 'mpeg', 'mp4', 'avi', 'floorplan', 'floor plan', 'virtualtour', 'virtual tour']);
-  const videoTypes = new Set(['video', 'mpeg', 'mp4', 'avi']);
-  const floorPlanTypes = new Set(['floorplan', 'floor plan']);
-  const virtualTourTypes = new Set(['virtualtour', 'virtual tour']);
+  // ── Separate media by type ──
   const images = listing.media
-    .filter((m) => {
-      const type = (m.mediaType || '').toLowerCase();
-      return !nonPhotoTypes.has(type);
-    })
+    .filter((m) => (m.mediaType || '').toLowerCase() === 'photo' || !(m.mediaType))
     .sort((a, b) => a.order - b.order)
     .map((m) => ({ url: m.url }));
-  const floorPlanMedia = listing.media.find((m) =>
-    floorPlanTypes.has((m.mediaType || '').toLowerCase())
-  );
+  const floorPlanMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'floorplan');
   const floorPlanUrl = floorPlanMedia?.url || null;
-  const videoMedia = listing.media.find((m) =>
-    videoTypes.has((m.mediaType || '').toLowerCase())
-  );
+  const videoMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'video');
   const videoUrl = videoMedia?.url || null;
-  // Virtual tour: prefer Property-level VirtualTourURLUnbranded, fall back to Media resource
-  const virtualTourMedia = listing.media.find((m) =>
-    virtualTourTypes.has((m.mediaType || '').toLowerCase())
-  );
+  const virtualTourMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'virtualtour');
   const virtualTourUrl = listing.virtualTourURL || virtualTourMedia?.url || null;
+
+  // ── Price history ──
+  const priceHistory: { label: string; price: number }[] = [];
+  if (listing.originalListPrice && listing.originalListPrice !== listing.listPrice) {
+    priceHistory.push({ label: 'Original', price: listing.originalListPrice });
+  }
+  if (listing.previousListPrice && listing.previousListPrice !== listing.listPrice && listing.previousListPrice !== listing.originalListPrice) {
+    priceHistory.push({ label: 'Previous', price: listing.previousListPrice });
+  }
+  priceHistory.push({ label: 'Current', price: listing.listPrice });
+
+  // ── JSON-LD Structured Data ──
+  const listingSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateListing',
+    name: `${fullAddress} — ${displayPropertyType} ${isRental ? 'for Rent' : 'for Sale'}`,
+    url: `https://mallan.nyc/listing/${listing.slug}`,
+    description: listing.publicRemarks?.substring(0, 300) || undefined,
+    datePosted: listing.onMarketDate || listing.listingContractDate,
+    image: listing.media[0]?.url || undefined,
+    offers: {
+      '@type': 'Offer',
+      price: listing.listPrice,
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+    },
+    address: listing.address.streetName !== 'Address Undisclosed' ? {
+      '@type': 'PostalAddress',
+      streetAddress: `${listing.address.streetNumber} ${listing.address.streetName}`,
+      addressLocality: borough,
+      addressRegion: 'NY',
+      postalCode: listing.address.postalCode,
+      addressCountry: 'US',
+    } : undefined,
+    ...(listing.address.latitude && listing.address.longitude ? {
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: listing.address.latitude,
+        longitude: listing.address.longitude,
+      },
+    } : {}),
+    numberOfRooms: listing.roomsTotal || undefined,
+    numberOfBedrooms: listing.bedroomsTotal,
+    numberOfBathroomsTotal: listing.bathroomsFull + listing.bathroomsHalf * 0.5,
+    floorSize: listing.livingArea ? {
+      '@type': 'QuantitativeValue',
+      value: listing.livingArea,
+      unitCode: 'FTK',
+    } : undefined,
+  };
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
+      />
       <Header dark />
 
-      {/* Breadcrumb + Back */}
+      {/* ═══ Breadcrumb ═══ */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-[68px]">
-        <div className="max-w-7xl mx-auto px-4 py-2">
-          <nav className="flex items-center gap-2 text-sm text-brand-dark/85">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
+          <nav className="flex items-center gap-1.5 text-[13px]" aria-label="Breadcrumb">
             <BackButton fallbackHref={isRental ? '/rent' : '/buy'} />
-            <Link href="/" className="hover:text-brand-gold hidden md:inline">Home</Link>
-            <span className="hidden md:inline">/</span>
-            <Link href={isRental ? '/rent' : '/buy'} className="hover:text-brand-gold hidden md:inline">
+            <Link href="/" className="text-brand-dark/60 hover:text-brand-gold transition-colors hidden md:inline">Home</Link>
+            <span className="text-brand-dark/30 hidden md:inline">/</span>
+            <Link href={isRental ? '/search?tab=rent-residential' : '/search?tab=buy-residential'} className="text-brand-dark/60 hover:text-brand-gold transition-colors hidden md:inline">
               {isRental ? 'Rentals' : 'Sales'}
             </Link>
-            <span className="hidden md:inline">/</span>
-            <span className="text-brand-dark hidden md:inline">{borough}</span>
+            <span className="text-brand-dark/30 hidden md:inline">/</span>
+            <span className="text-brand-dark/80 hidden md:inline">{borough}</span>
             {neighborhood && (
               <>
-                <span className="hidden md:inline">/</span>
-                <span className="text-brand-dark hidden md:inline">{neighborhood}</span>
+                <span className="text-brand-dark/30 hidden md:inline">/</span>
+                <span className="text-brand-dark font-medium hidden md:inline">{neighborhood}</span>
               </>
             )}
-            <span className="text-brand-dark md:hidden">{borough}</span>
+            <span className="text-brand-dark/80 md:hidden">{neighborhood || borough}</span>
           </nav>
         </div>
       </div>
 
-      {/* Media Gallery */}
+      {/* ═══ Media Gallery ═══ */}
       <ListingMediaGallery
         images={images}
         floorPlanUrl={floorPlanUrl}
@@ -652,320 +688,444 @@ export default async function ListingPage({ params, searchParams }: Props) {
         alt={fullAddress}
         badges={
           listing._displayCompliance.comingSoon ? (
-            <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-medium px-3 py-1.5 rounded-full z-10">
+            <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-medium px-3.5 py-1.5 rounded-full z-10">
               Coming Soon
             </span>
           ) : null
         }
       />
 
-      <main className="py-5 md:py-8 px-4">
+      {/* ═══ Mobile CTA Bar (sticky, visible on mobile/tablet only) ═══ */}
+      <div className="lg:hidden sticky top-[60px] z-30 bg-white/95 backdrop-blur-xl border-b border-black/5 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-display font-bold text-lg text-brand-dark truncate">
+              {formatPrice(listing.listPrice, isRental)}
+            </p>
+            <p className="text-[12px] text-brand-dark/70 truncate">{fullAddress}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <DetailFavoriteButton
+              id={listing.id}
+              slug={listing.slug}
+              address={fullAddress}
+              price={listing.listPrice}
+              listingType={isRental ? 'rent' : 'sale'}
+              beds={listing.bedroomsTotal}
+              baths={listing.bathroomsFull}
+              photoUrl={listing.media[0]?.url}
+            />
+            <a
+              href="tel:646-258-4460"
+              className="btn-liquid px-5 py-2.5 bg-brand-gold text-white text-sm font-medium rounded-full hover:bg-brand-gold-deep"
+            >
+              Call
+            </a>
+            <a
+              href="#inquiry"
+              className="btn-liquid px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-full hover:bg-brand-dark/90"
+            >
+              Inquire
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <main className="py-8 md:py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-5 divide-y divide-black/5 [&>*]:pt-5 [&>*:first-child]:pt-0">
-              {/* Header */}
-              <div>
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+          <div className="grid lg:grid-cols-3 gap-8 lg:gap-10">
+
+            {/* ═══════════════════════════════════════
+                MAIN CONTENT (2/3)
+                ═══════════════════════════════════════ */}
+            <div className="lg:col-span-2 space-y-0">
+
+              {/* ── 1. PRICE + ADDRESS HERO ── */}
+              <section className="pb-6">
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
                   <div>
-                    <PriceWithCalculator
-                      price={listing.listPrice}
-                      originalPrice={listing.originalListPrice}
-                      isRental={isRental}
-                      maintenanceFee={listing.associationFee || 0}
-                      monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
-                      propertyType={listing.propertyType}
-                    />
-                    <p className="text-lg text-brand-dark/95 mt-1">{fullAddress}</p>
-                    <p className="text-brand-dark/85">
-                      {neighborhood && neighborhood !== borough ? `${neighborhood}, ` : ''}{borough}, NY {listing.address.postalCode}
+                    {/* Price — the most prominent element */}
+                    <div className="flex items-baseline gap-3 mb-1">
+                      <PriceWithCalculator
+                        price={listing.listPrice}
+                        originalPrice={listing.originalListPrice}
+                        isRental={isRental}
+                        maintenanceFee={listing.associationFee || 0}
+                        monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
+                        propertyType={listing.propertyType}
+                      />
+                    </div>
+                    {/* Neighborhood — the selling point in NYC */}
+                    {neighborhood && neighborhood !== borough && (
+                      <h1 className="font-display font-bold text-xl md:text-2xl text-brand-dark tracking-tight mb-0.5">
+                        {neighborhood}
+                      </h1>
+                    )}
+                    <p className="text-brand-dark/90 text-[15px]">{fullAddress}</p>
+                    <p className="text-brand-dark/60 text-[13px]">
+                      {borough}, NY {listing.address.postalCode}
                     </p>
                   </div>
+                  {/* Action buttons + badges */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-block px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-sm rounded-full">
-                      {listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType}
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-brand-gold/10 text-brand-gold-deep text-[13px] font-medium rounded-full">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2 22V6l10-4 10 4v16l-10-4L2 22z" /></svg>
+                      {displayPropertyType}
                     </span>
                     {listing.previousListPrice && listing.listPrice < listing.previousListPrice && (
-                      <span className="inline-block px-3 py-1 bg-green-50 text-green-700 text-sm font-medium rounded-full">
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-[13px] font-medium rounded-full">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                         Price Reduced
                       </span>
                     )}
-                    <DetailFavoriteButton
-                      id={listing.id}
-                      slug={listing.slug}
-                      address={fullAddress}
-                      price={listing.listPrice}
-                      listingType={isRental ? 'rent' : 'sale'}
-                      beds={listing.bedroomsTotal}
-                      baths={listing.bathroomsFull}
-                      photoUrl={listing.media[0]?.url}
-                    />
-                    <ShareButton title={`${fullAddress} | ${formatPrice(listing.listPrice, isRental)}`} />
+                    <div className="hidden lg:flex items-center gap-2">
+                      <DetailFavoriteButton
+                        id={listing.id}
+                        slug={listing.slug}
+                        address={fullAddress}
+                        price={listing.listPrice}
+                        listingType={isRental ? 'rent' : 'sale'}
+                        beds={listing.bedroomsTotal}
+                        baths={listing.bathroomsFull}
+                        photoUrl={listing.media[0]?.url}
+                      />
+                      <ShareButton title={`${fullAddress} | ${formatPrice(listing.listPrice, isRental)}`} />
+                    </div>
                   </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="flex flex-wrap gap-5 py-3 border-y border-black/5">
-                  <div>
-                    <span className="text-lg font-display font-semibold">{listing.bedroomsTotal}</span>
-                    <span className="text-brand-dark/85 ml-1">Beds</span>
+                {/* Quick Stats — icon-enhanced, clear separators */}
+                <div className="flex flex-wrap items-center gap-0 py-4 px-1 rounded-2xl bg-[#F8F7F4]">
+                  <div className="flex items-center gap-2 px-4 py-1">
+                    <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" /></svg>
+                    <div>
+                      <span className="text-lg font-display font-bold text-brand-dark">{listing.bedroomsTotal}</span>
+                      <span className="text-brand-dark/60 text-[13px] ml-1">Beds</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-lg font-display font-semibold">
-                      {listing.bathroomsFull}
-                      {listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`}
-                    </span>
-                    <span className="text-brand-dark/85 ml-1">Baths</span>
+                  <div className="w-px h-8 bg-black/10" />
+                  <div className="flex items-center gap-2 px-4 py-1">
+                    <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4 4m4-4v12" /></svg>
+                    <div>
+                      <span className="text-lg font-display font-bold text-brand-dark">
+                        {listing.bathroomsFull}{listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`}
+                      </span>
+                      <span className="text-brand-dark/60 text-[13px] ml-1">Baths</span>
+                    </div>
                   </div>
                   {listing.livingArea && (
-                    <div>
-                      <span className="text-lg font-display font-semibold">{listing.livingArea.toLocaleString()}</span>
-                      <span className="text-brand-dark/85 ml-1">Sq Ft</span>
-                    </div>
+                    <>
+                      <div className="w-px h-8 bg-black/10" />
+                      <div className="flex items-center gap-2 px-4 py-1">
+                        <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                        <div>
+                          <span className="text-lg font-display font-bold text-brand-dark">{listing.livingArea.toLocaleString()}</span>
+                          <span className="text-brand-dark/60 text-[13px] ml-1">Sq Ft</span>
+                        </div>
+                      </div>
+                    </>
                   )}
                   {listing.livingArea && listing.listPrice > 0 && (
-                    <div>
-                      <span className="text-lg font-display font-semibold">${Math.round(listing.listPrice / listing.livingArea).toLocaleString()}</span>
-                      <span className="text-brand-dark/85 ml-1">/Sq Ft</span>
-                    </div>
+                    <>
+                      <div className="w-px h-8 bg-black/10" />
+                      <div className="px-4 py-1">
+                        <span className="text-lg font-display font-bold text-brand-dark">${Math.round(listing.listPrice / listing.livingArea).toLocaleString()}</span>
+                        <span className="text-brand-dark/60 text-[13px] ml-1">/Sq Ft</span>
+                      </div>
+                    </>
                   )}
                   {listing.roomsTotal && (
-                    <div>
-                      <span className="text-lg font-display font-semibold">{listing.roomsTotal}</span>
-                      <span className="text-brand-dark/85 ml-1">Rooms</span>
-                    </div>
+                    <>
+                      <div className="w-px h-8 bg-black/10" />
+                      <div className="px-4 py-1">
+                        <span className="text-lg font-display font-bold text-brand-dark">{listing.roomsTotal}</span>
+                        <span className="text-brand-dark/60 text-[13px] ml-1">Rooms</span>
+                      </div>
+                    </>
                   )}
                 </div>
-              </div>
+              </section>
 
-              {/* Description */}
+              {/* ── 2. DESCRIPTION ── */}
               {listing.publicRemarks && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">About This Property</h2>
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">About This Property</h2>
                   <div
-                    className="text-brand-dark/90 text-sm leading-relaxed prose prose-sm max-w-none text-justify [&>p]:mb-3 [&>p:last-child]:mb-0"
+                    className="text-brand-dark/85 text-[15px] leading-[1.85] max-w-none text-justify"
                     dangerouslySetInnerHTML={{
                       __html: listing.publicRemarks
                         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
                         .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
                         .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+                        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
                     }}
                   />
                 </section>
               )}
 
-              {/* NYC-Specific Info (Co-op/Condo) */}
-              {!isRental && (isCoop || isCondo) && (listing.associationFee || listing.taxAnnualAmount) && (
-                <section className="glass-card rounded-2xl p-4">
-                  <h2 className="text-sm font-display font-semibold mb-2">
-                    {isCoop ? 'Co-op Information' : 'Condo Information'}
-                  </h2>
-                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
-                    {listing.associationFee && (
-                      <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/85">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
-                        <span className="font-medium">
-                          ${listing.associationFee.toLocaleString()}/{listing.associationFeeFrequency === 'Monthly' ? 'mo' : listing.associationFeeFrequency || 'mo'}
-                        </span>
+              {/* ── 3. FINANCIALS (Co-op/Condo + Price History + Last Sale) ── */}
+              {(!isRental && (isCoop || isCondo || priceHistory.length > 1 || (lastUnitSale && lastUnitSale.closePrice > 0))) && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Financials</h2>
+                  <div className="space-y-4">
+                    {/* Co-op/Condo Monthly Costs */}
+                    {(isCoop || isCondo) && (listing.associationFee || listing.taxAnnualAmount) && (
+                      <div className="rounded-2xl bg-[#F8F7F4] p-5">
+                        <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-3">
+                          {isCoop ? 'Co-op Monthly Costs' : 'Condo Monthly Costs'}
+                        </p>
+                        <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2">
+                          {listing.associationFee && (
+                            <div className="flex justify-between py-2 border-b border-black/5">
+                              <span className="text-brand-dark/70 text-sm">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
+                              <span className="font-display font-semibold text-brand-dark">
+                                ${listing.associationFee.toLocaleString()}/mo
+                              </span>
+                            </div>
+                          )}
+                          {listing.taxAnnualAmount && (
+                            <div className="flex justify-between py-2 border-b border-black/5">
+                              <span className="text-brand-dark/70 text-sm">Real Estate Taxes</span>
+                              <span className="font-display font-semibold text-brand-dark">
+                                ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
+                                {listing.taxYear && <span className="text-brand-dark/50 text-xs ml-1">({listing.taxYear})</span>}
+                              </span>
+                            </div>
+                          )}
+                          {listing.associationFee && listing.taxAnnualAmount && (
+                            <div className="flex justify-between py-2 sm:col-span-2 border-t border-brand-gold/20">
+                              <span className="text-brand-dark/90 text-sm font-medium">Total Monthly</span>
+                              <span className="font-display font-bold text-brand-dark">
+                                ${(listing.associationFee + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}/mo
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {listing.taxAnnualAmount && (
-                      <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/85">Real Estate Taxes</span>
-                        <span className="font-medium">
-                          ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
-                          {listing.taxYear && <span className="text-brand-dark/75 text-xs ml-1">({listing.taxYear})</span>}
-                        </span>
+
+                    {/* Price History */}
+                    {priceHistory.length > 1 && (
+                      <div className="rounded-2xl bg-[#F8F7F4] p-5">
+                        <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-3">Price History</p>
+                        <div className="flex items-end gap-4">
+                          {priceHistory.map((entry, i) => {
+                            const isCurrent = i === priceHistory.length - 1;
+                            const prev = i > 0 ? priceHistory[i - 1].price : null;
+                            const change = prev ? ((entry.price - prev) / prev * 100) : null;
+                            return (
+                              <div key={entry.label} className="flex-1 text-center">
+                                <p className={`font-display font-bold text-sm md:text-base ${isCurrent ? 'text-brand-dark' : 'text-brand-dark/50 line-through'}`}>
+                                  {formatPrice(entry.price, isRental)}
+                                </p>
+                                {change !== null && (
+                                  <p className={`text-[11px] font-medium mt-0.5 ${change < 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                                  </p>
+                                )}
+                                <p className="text-[11px] text-brand-dark/50 mt-1">{entry.label}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Last Closed Sale */}
+                    {lastUnitSale && lastUnitSale.closePrice > 0 && (
+                      <div className="rounded-2xl bg-[#F8F7F4] p-5">
+                        <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-3">
+                          Last Sale — This {lastUnitSale.source === 'acris' ? 'Property' : 'Unit'}
+                        </p>
+                        <div className="flex flex-wrap items-baseline gap-3">
+                          <span className="text-lg font-display font-bold text-brand-dark">
+                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
+                          </span>
+                          {lastUnitSale.sqft > 0 && (
+                            <span className="text-sm text-brand-dark/60">
+                              ${Math.round(lastUnitSale.closePrice / lastUnitSale.sqft).toLocaleString()}/sf
+                            </span>
+                          )}
+                          {lastUnitSale.closeDate && (
+                            <span className="text-sm text-brand-dark/50">
+                              Closed {new Date(lastUnitSale.closeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                        {listing.listPrice > 0 && lastUnitSale.closePrice > 0 && (
+                          <p className={`text-xs mt-2 font-medium ${listing.listPrice > lastUnitSale.closePrice ? 'text-red-500/70' : 'text-green-600/70'}`}>
+                            {listing.listPrice > lastUnitSale.closePrice
+                              ? `Asking ${Math.round(((listing.listPrice - lastUnitSale.closePrice) / lastUnitSale.closePrice) * 100)}% above last sale`
+                              : listing.listPrice < lastUnitSale.closePrice
+                              ? `Asking ${Math.round(((lastUnitSale.closePrice - listing.listPrice) / lastUnitSale.closePrice) * 100)}% below last sale`
+                              : 'Asking matches last sale price'}
+                          </p>
+                        )}
+                        {lastUnitSale.source === 'acris' && (
+                          <p className="text-[10px] text-brand-dark/35 mt-1">Source: NYC ACRIS Public Records</p>
+                        )}
                       </div>
                     )}
                   </div>
                 </section>
               )}
 
-              {/* ── LEVEL 3: Building Info (compact) ── */}
-              <section>
-                <h2 className="text-sm font-display font-semibold text-brand-dark/70 mb-2">Building Info</h2>
-                <div className="grid sm:grid-cols-3 gap-x-4 gap-y-0 text-xs">
-                  <div className="flex justify-between py-1 border-b border-black/5">
-                    <span className="text-brand-dark/60">Type</span>
-                    <span className="font-medium text-brand-dark/80">{listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType}</span>
+              {/* ── 4. UNIT FEATURES ── */}
+              {(unitFeatures.length > 0 || unitDetails.length > 0) && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Unit Features</h2>
+                  {unitFeatures.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {unitFeatures.map((f) => (
+                        <span key={f} className="px-3 py-1.5 bg-black/[0.04] text-brand-dark/80 rounded-lg text-[13px] font-light">{f}</span>
+                      ))}
+                    </div>
+                  )}
+                  {unitDetails.length > 0 && (
+                    <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 mt-4">
+                      {unitDetails.map((item) => (
+                        <div key={item.label} className="flex justify-between py-2.5 border-b border-black/5">
+                          <span className="text-[13px] text-brand-dark/60">{item.label}</span>
+                          <span className="text-[13px] font-medium text-brand-dark">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* ── 5. APPLIANCES ── */}
+              {appliancesList.length > 0 && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Appliances</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {appliancesList.map((a) => (
+                      <span key={a} className="px-3 py-1.5 bg-black/[0.04] text-brand-dark/80 rounded-lg text-[13px] font-light">{a}</span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* ── 6. BUILDING AMENITIES ── */}
+              {(buildingAmenitiesFinal.length > 0 || hasGarage || petPolicy) && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Building Amenities</h2>
+                  {buildingAmenitiesFinal.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {buildingAmenitiesFinal.map((amenity) => (
+                        <div key={amenity} className="flex items-center gap-2.5 px-3.5 py-2.5 bg-brand-gold/[0.06] rounded-xl">
+                          <svg className="w-4 h-4 text-brand-gold-deep flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          <span className="text-[13px] text-brand-dark/80">{amenity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(hasGarage || petPolicy) && (
+                    <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-black/5">
+                      {hasGarage && (
+                        <span className="inline-flex items-center gap-2 text-[13px] text-brand-dark/80 bg-black/[0.03] px-3 py-1.5 rounded-lg">
+                          <svg className="w-4 h-4 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8m-8 4h8m-4-8v16M3 21h18M3 3h18" /></svg>
+                          Garage Access
+                        </span>
+                      )}
+                      {petPolicy && (
+                        <span className={`inline-flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-lg ${petsAllowed ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}`}>
+                          {petsAllowed ? (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          )}
+                          Pets: {petPolicy}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* ── 7. RENTAL DETAILS ── */}
+              {isRental && (listing.petsAllowed || listing.furnished || listing.availabilityDate) && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Rental Details</h2>
+                  <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
+                    {listing.availabilityDate && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/60">Available</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{new Date(listing.availabilityDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {listing.petsAllowed && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/60">Pets</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{listing.petsAllowed}</span>
+                      </div>
+                    )}
+                    {listing.furnished && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/60">Furnished</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{listing.furnished}</span>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* ── 8. BUILDING INFO ── */}
+              <section className="py-6 border-t border-black/[0.06]">
+                <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Building Details</h2>
+                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
+                  <div className="flex justify-between py-2.5 border-b border-black/5">
+                    <span className="text-[13px] text-brand-dark/60">Property Type</span>
+                    <span className="text-[13px] font-medium text-brand-dark">{displayPropertyType}</span>
                   </div>
                   {listing.architecturalStyle && (
-                    <div className="flex justify-between py-1 border-b border-black/5">
-                      <span className="text-brand-dark/60">Style</span>
-                      <span className="font-medium text-brand-dark/80">{listing.architecturalStyle}</span>
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Style</span>
+                      <span className="text-[13px] font-medium text-brand-dark">{listing.architecturalStyle}</span>
                     </div>
                   )}
                   {listing.yearBuilt && (
-                    <div className="flex justify-between py-1 border-b border-black/5">
-                      <span className="text-brand-dark/60">Built</span>
-                      <span className="font-medium text-brand-dark/80">{listing.yearBuilt}</span>
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Year Built</span>
+                      <span className="text-[13px] font-medium text-brand-dark">{listing.yearBuilt}</span>
                     </div>
                   )}
                   {listing.storiesTotal && (
-                    <div className="flex justify-between py-1 border-b border-black/5">
-                      <span className="text-brand-dark/60">Stories</span>
-                      <span className="font-medium text-brand-dark/80">{listing.storiesTotal}</span>
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Stories</span>
+                      <span className="text-[13px] font-medium text-brand-dark">{listing.storiesTotal}</span>
                     </div>
                   )}
                   {listing.buildingName && (
-                    <div className="flex justify-between py-1 border-b border-black/5">
-                      <span className="text-brand-dark/60">Building</span>
-                      <span className="font-medium text-brand-dark/80">{listing.buildingName}</span>
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Building</span>
+                      <span className="text-[13px] font-medium text-brand-dark">{listing.buildingName}</span>
                     </div>
                   )}
-                  <div className="flex justify-between py-1 border-b border-black/5">
-                    <span className="text-brand-dark/60">MLS #</span>
-                    <span className="font-medium text-brand-dark/80">{listing.mlsId}</span>
+                  <div className="flex justify-between py-2.5 border-b border-black/5">
+                    <span className="text-[13px] text-brand-dark/60">MLS #</span>
+                    <span className="text-[13px] font-medium text-brand-dark font-mono">{listing.mlsId}</span>
                   </div>
                   {listing.onMarketDate && (
-                    <div className="flex justify-between py-1 border-b border-black/5">
-                      <span className="text-brand-dark/60">Listed</span>
-                      <span className="font-medium text-brand-dark/80">{new Date(listing.onMarketDate).toLocaleDateString()}</span>
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Listed</span>
+                      <span className="text-[13px] font-medium text-brand-dark">{new Date(listing.onMarketDate).toLocaleDateString()}</span>
                     </div>
                   )}
                   {listing.status && (
-                    <div className="flex justify-between py-1 border-b border-black/5">
-                      <span className="text-brand-dark/60">Status</span>
-                      <span className="font-medium text-brand-dark/80">{listing.status}</span>
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Status</span>
+                      <span className={`text-[13px] font-medium ${listing.status === 'Active' ? 'text-blue-600' : listing.status === 'Closed' ? 'text-green-600' : 'text-brand-dark'}`}>
+                        {listing.status}
+                      </span>
                     </div>
                   )}
                 </div>
               </section>
 
-              {/* Last Closed Price for This Unit */}
-              {lastUnitSale && lastUnitSale.closePrice > 0 && (
-                <section className="glass-card rounded-2xl p-4">
-                  <h2 className="text-sm font-display font-semibold mb-2">
-                    Last Sale — This {lastUnitSale.source === 'acris' ? 'Property' : 'Unit'}
-                  </h2>
-                  <div className="flex flex-wrap items-baseline gap-3">
-                    <span className="text-lg font-display font-bold text-brand-dark">
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
-                    </span>
-                    {lastUnitSale.sqft > 0 && (
-                      <span className="text-sm text-brand-dark/70">
-                        ${Math.round(lastUnitSale.closePrice / lastUnitSale.sqft).toLocaleString()}/sf
-                      </span>
-                    )}
-                    {lastUnitSale.closeDate && (
-                      <span className="text-sm text-brand-dark/60">
-                        Closed {new Date(lastUnitSale.closeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                      </span>
-                    )}
-                  </div>
-                  {listing.listPrice > 0 && lastUnitSale.closePrice > 0 && (
-                    <p className="text-xs text-brand-dark/50 mt-2">
-                      {listing.listPrice > lastUnitSale.closePrice
-                        ? `Current asking is ${Math.round(((listing.listPrice - lastUnitSale.closePrice) / lastUnitSale.closePrice) * 100)}% above last sale`
-                        : listing.listPrice < lastUnitSale.closePrice
-                        ? `Current asking is ${Math.round(((lastUnitSale.closePrice - listing.listPrice) / lastUnitSale.closePrice) * 100)}% below last sale`
-                        : 'Current asking matches last sale price'}
-                    </p>
-                  )}
-                  {lastUnitSale.source === 'acris' && (
-                    <p className="text-[10px] text-brand-dark/40 mt-1">Source: NYC ACRIS Public Records</p>
-                  )}
-                </section>
-              )}
-
-              {/* ── LEVEL 1: Unit Features ── */}
-              {(unitFeatures.length > 0 || unitDetails.length > 0 || appliancesList.length > 0) && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">Unit Features</h2>
-                  {unitFeatures.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {unitFeatures.map((f) => (
-                        <span key={f} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">{f}</span>
-                      ))}
-                    </div>
-                  )}
-                  {unitDetails.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0 mt-2">
-                      {unitDetails.map((item) => (
-                        <div key={item.label} className="flex justify-between py-1.5 border-b border-black/5">
-                          <span className="text-sm text-brand-dark/70">{item.label}</span>
-                          <span className="text-sm font-medium text-brand-dark">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {appliancesList.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-1.5">Appliances</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {appliancesList.map((a) => (
-                          <span key={a} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">{a}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* ── LEVEL 2: Building Amenities ── */}
-              {(buildingAmenitiesFinal.length > 0 || hasGarage || petPolicy) && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">Building Amenities</h2>
-                  {buildingAmenitiesFinal.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {buildingAmenitiesFinal.map((amenity) => (
-                        <span key={amenity} className="px-2.5 py-1 bg-brand-gold/8 text-brand-dark/80 rounded-md text-xs">{amenity}</span>
-                      ))}
-                    </div>
-                  )}
-                  {/* Parking & Pet Policy — compact inline */}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
-                    {hasGarage && (
-                      <span className="inline-flex items-center gap-1 text-sm text-brand-dark/80">
-                        <svg className="w-3.5 h-3.5 text-brand-dark/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8m-8 4h8m-4-8v16M3 21h18M3 3h18" /></svg>
-                        Garage
-                      </span>
-                    )}
-                    {petPolicy && (
-                      <span className={`inline-flex items-center gap-1 text-sm ${petsAllowed ? 'text-green-700' : 'text-red-700'}`}>
-                        {petsAllowed ? (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                        ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        )}
-                        {petPolicy}
-                      </span>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* Rental-Specific Info */}
-              {isRental && (listing.petsAllowed || listing.furnished || listing.availabilityDate) && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">Rental Details</h2>
-                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
-                    {listing.petsAllowed && (
-                      <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/85">Pets</span>
-                        <span className="font-medium">{listing.petsAllowed}</span>
-                      </div>
-                    )}
-                    {listing.furnished && (
-                      <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/85">Furnished</span>
-                        <span className="font-medium">{listing.furnished}</span>
-                      </div>
-                    )}
-                    {listing.availabilityDate && (
-                      <div className="flex justify-between py-2 border-b border-black/5">
-                        <span className="text-brand-dark/85">Available</span>
-                        <span className="font-medium">{new Date(listing.availabilityDate).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* Investment Analysis / Calculators — above map */}
-              {!isRental && (
-                <section>
+              {/* ── 9. CALCULATORS (collapsed by default) ── */}
+              <section className="py-6 border-t border-black/[0.06]">
+                {!isRental ? (
                   <InvestorCalculator
                     purchasePrice={listing.listPrice}
                     maintenanceFee={listing.associationFee || 0}
@@ -973,10 +1133,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     bedrooms={listing.bedroomsTotal}
                     neighborhood={neighborhood || borough}
                   />
-                </section>
-              )}
-              {isRental && (
-                <section>
+                ) : (
                   <RentVsBuyCalculator
                     purchasePrice={listing.listPrice * 250}
                     monthlyRent={listing.listPrice}
@@ -984,73 +1141,108 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     realEstateTaxes={0}
                     isRental={true}
                   />
+                )}
+              </section>
+
+              {/* ── 10. MAP ── */}
+              {listing.address.latitude && listing.address.longitude && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <ListingLocationMap
+                    latitude={listing.address.latitude}
+                    longitude={listing.address.longitude}
+                    address={fullAddress}
+                    borough={borough}
+                  />
                 </section>
               )}
 
-              {/* Transit & Commute — only if we have coordinates */}
+              {/* ── 11. TRANSIT & COMMUTE ── */}
               {listing.address.latitude && listing.address.longitude && (
-                <TransitCommuteTool
-                  latitude={listing.address.latitude}
-                  longitude={listing.address.longitude}
-                  borough={borough}
-                />
+                <section className="py-6 border-t border-black/[0.06]">
+                  <TransitCommuteTool
+                    latitude={listing.address.latitude}
+                    longitude={listing.address.longitude}
+                    borough={borough}
+                  />
+                </section>
               )}
 
-              {/* Location Map & Directions */}
-              {listing.address.latitude && listing.address.longitude && (
-                <ListingLocationMap
-                  latitude={listing.address.latitude}
-                  longitude={listing.address.longitude}
-                  address={fullAddress}
-                  borough={borough}
-                />
-              )}
-
-              {/* Building Units & Sale History */}
+              {/* ── 12. BUILDING UNITS & HISTORY ── */}
               {listing.address.streetName !== 'Address Undisclosed' && (
-                <BuildingUnits
-                  streetNumber={listing.address.streetNumber}
-                  streetName={listing.address.streetName}
-                  postalCode={listing.address.postalCode}
-                  currentListingId={listing.id}
-                  buildingName={listing.buildingName}
-                />
+                <section className="py-6 border-t border-black/[0.06]">
+                  <BuildingUnits
+                    streetNumber={listing.address.streetNumber}
+                    streetName={listing.address.streetName}
+                    postalCode={listing.address.postalCode}
+                    currentListingId={listing.id}
+                    buildingName={listing.buildingName}
+                  />
+                </section>
               )}
 
-              {/* Similar Listings Nearby */}
-              <SimilarListings
-                listingType={listing.listingType}
-                beds={listing.bedroomsTotal}
-                listPrice={listing.listPrice}
-                postalCode={listing.address.postalCode}
-                neighborhood={neighborhood}
-                currentListingId={listing.id}
-              />
+              {/* ── 13. SIMILAR LISTINGS ── */}
+              <section className="py-6 border-t border-black/[0.06]">
+                <SimilarListings
+                  listingType={listing.listingType}
+                  beds={listing.bedroomsTotal}
+                  listPrice={listing.listPrice}
+                  postalCode={listing.address.postalCode}
+                  neighborhood={neighborhood}
+                  currentListingId={listing.id}
+                />
+              </section>
             </div>
 
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-6">
-                {/* Contact Card */}
-                <div className="glass-card rounded-3xl p-6">
-                  <h3 className="text-lg font-display font-semibold mb-4">Interested in this property?</h3>
+            {/* ═══════════════════════════════════════
+                SIDEBAR (1/3)
+                ═══════════════════════════════════════ */}
+            <div className="lg:col-span-1 hidden lg:block">
+              <div className="sticky top-24 space-y-5">
 
-                  <div className="space-y-3">
+                {/* Agent Contact Card */}
+                <div className="rounded-3xl p-6 border border-black/[0.06]" style={{ background: 'linear-gradient(180deg, #fff 0%, #F8F7F4 100%)' }}>
+                  <div className="flex items-center gap-4 mb-5">
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))' }}
+                    >
+                      <span className="font-display font-bold text-brand-gold-deep text-lg">MA</span>
+                    </div>
+                    <div>
+                      <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
+                      <p className="text-brand-dark/60 text-[12px]">Licensed NYC Broker</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-brand-gold-deep text-[11px] font-bold">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+                        <span className="text-[10px] text-brand-dark/50">5.0 on Zillow</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2.5">
                     <a
                       href="tel:646-258-4460"
-                      className="block w-full text-center px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors"
+                      className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 font-medium text-sm"
                     >
-                      Contact Mallan Real Estate
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                      (646) 258-4460
+                    </a>
+                    <a
+                      href="#inquiry"
+                      className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-gold text-white rounded-2xl hover:bg-brand-gold-deep font-medium text-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Request a Tour
                     </a>
                   </div>
                 </div>
 
                 {/* Inquiry Form */}
-                <InquiryForm
-                  listingId={listing.id}
-                  listingAddress={fullAddress}
-                  agentEmail="info@mallan.nyc"
-                />
+                <div id="inquiry">
+                  <InquiryForm
+                    listingId={listing.id}
+                    listingAddress={fullAddress}
+                    agentEmail="info@mallan.nyc"
+                  />
+                </div>
 
                 {/* Transit Summary */}
                 {listing.address.latitude && listing.address.longitude && (
@@ -1060,15 +1252,27 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   />
                 )}
 
-                {/* View More Listings */}
-                <div className="glass-card rounded-3xl p-6">
-                  <h3 className="text-lg font-display font-semibold mb-4">Find More Properties</h3>
-                  <Link
-                    href={isRental ? '/rent' : '/buy'}
-                    className="inline-block text-sm text-brand-dark/85 hover:text-brand-gold"
-                  >
-                    View all {isRental ? 'rentals' : 'sales'}
-                  </Link>
+                {/* View More */}
+                <div className="rounded-3xl p-5 bg-[#F8F7F4]">
+                  <p className="font-display font-semibold text-sm mb-3 text-brand-dark">Explore More</p>
+                  <div className="space-y-2">
+                    <Link
+                      href={`/search?tab=${isRental ? 'rent' : 'buy'}-residential`}
+                      className="flex items-center justify-between text-[13px] text-brand-dark/70 hover:text-brand-gold transition-colors py-1"
+                    >
+                      <span>All {isRental ? 'Rentals' : 'Sales'}</span>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </Link>
+                    {neighborhood && (
+                      <Link
+                        href={`/search?tab=${isRental ? 'rent' : 'buy'}-residential&neighborhood=${encodeURIComponent(neighborhood)}`}
+                        className="flex items-center justify-between text-[13px] text-brand-dark/70 hover:text-brand-gold transition-colors py-1"
+                      >
+                        <span>More in {neighborhood}</span>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1076,21 +1280,36 @@ export default async function ListingPage({ params, searchParams }: Props) {
         </div>
       </main>
 
-      {/* Listing Courtesy Attribution (REBNY compliance) */}
-      <section className="border-t border-black/5 py-6 px-4">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-sm text-brand-dark/85">
-            Courtesy of {listing.listAgentFullName || 'Listing Agent'}, {listing.listOfficeName || 'Listing Office'}
+      {/* ═══ Listing Courtesy Attribution (REBNY compliance) ═══ */}
+      <section className="border-t border-black/[0.06] py-5 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
+          <p className="text-[13px] text-brand-dark/70">
+            Listing courtesy of <span className="font-medium text-brand-dark/85">{listing.listAgentFullName || 'Listing Agent'}</span>, {listing.listOfficeName || 'Listing Office'}
+          </p>
+          <span className="text-brand-dark/30">|</span>
+          <p className="text-[13px] text-brand-dark/50">
+            Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}
           </p>
         </div>
       </section>
 
-      {/* REBNY RLS Disclaimer */}
-      <section className="bg-gray-50/50 border-t border-black/5 py-6 px-4">
+      {/* ═══ REBNY RLS Disclaimer ═══ */}
+      <section className="bg-[#F8F7F4] border-t border-black/[0.06] py-6 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <IDXDisclaimer
             variant="full"
             lastUpdated={listing.modificationTimestamp}
+          />
+        </div>
+      </section>
+
+      {/* ═══ Mobile Inquiry Form (below footer on mobile, since sidebar is hidden) ═══ */}
+      <section id="inquiry" className="lg:hidden px-4 py-8 bg-white border-t border-black/[0.06]">
+        <div className="max-w-lg mx-auto">
+          <InquiryForm
+            listingId={listing.id}
+            listingAddress={fullAddress}
+            agentEmail="info@mallan.nyc"
           />
         </div>
       </section>
