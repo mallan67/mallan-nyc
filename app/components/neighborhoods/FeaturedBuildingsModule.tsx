@@ -31,30 +31,30 @@ export default function FeaturedBuildingsModule({
                 {bldg.name}
               </h3>
               {bldg.nickname && (
-                <p className="text-sm text-brand-dark/50 italic">{bldg.nickname}</p>
+                <p className="text-sm text-brand-dark/85 italic">{bldg.nickname}</p>
               )}
 
-              <dl className="mt-3 space-y-1.5 text-sm text-brand-dark/60">
+              <dl className="mt-3 space-y-1.5 text-sm text-brand-dark/90">
                 {bldg.architect && (
                   <div className="flex justify-between">
-                    <dt className="text-brand-dark/50">Architect</dt>
+                    <dt className="text-brand-dark/85">Architect</dt>
                     <dd className="font-medium text-right">{bldg.architect}</dd>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <dt className="text-brand-dark/50">Built</dt>
+                  <dt className="text-brand-dark/85">Built</dt>
                   <dd className="font-medium">{bldg.yearBuilt}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-brand-dark/50">Type</dt>
+                  <dt className="text-brand-dark/85">Type</dt>
                   <dd className="font-medium">{bldg.type}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-brand-dark/50">Units</dt>
+                  <dt className="text-brand-dark/85">Units</dt>
                   <dd className="font-medium">{bldg.units}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-brand-dark/50">Price Range</dt>
+                  <dt className="text-brand-dark/85">Price Range</dt>
                   <dd className="font-medium">{bldg.priceRange}</dd>
                 </div>
               </dl>

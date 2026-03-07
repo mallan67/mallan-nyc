@@ -42,7 +42,7 @@ export default function FavoritesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl font-display font-semibold">Saved Properties</h1>
-              <p className="text-brand-dark/50 text-sm mt-1">
+              <p className="text-brand-dark/85 text-sm mt-1">
                 {loaded ? `${favorites.length} saved listing${favorites.length !== 1 ? 's' : ''}` : 'Loading...'}
               </p>
             </div>
@@ -69,8 +69,8 @@ export default function FavoritesPage() {
               <svg className="w-16 h-16 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
               </svg>
-              <h2 className="text-lg font-medium text-brand-dark/40 mb-2">No saved properties yet</h2>
-              <p className="text-brand-dark/30 text-sm mb-6">
+              <h2 className="text-lg font-medium text-brand-dark/90 mb-2">No saved properties yet</h2>
+              <p className="text-brand-dark/85 text-sm mb-6">
                 Click the heart icon on any listing to save it here.
               </p>
               <div className="flex gap-3 justify-center">
@@ -126,14 +126,14 @@ export default function FavoritesPage() {
                     <p className="font-semibold text-lg">
                       {formatPrice(fav.price, fav.listingType === 'rent')}
                     </p>
-                    <p className="text-brand-dark/60 text-sm mt-1 truncate">
+                    <p className="text-brand-dark/90 text-sm mt-1 truncate">
                       {fav.address}
                     </p>
-                    <p className="text-brand-dark/40 text-xs mt-1">
+                    <p className="text-brand-dark/90 text-xs mt-1">
                       {fav.beds} bed &middot; {fav.baths} bath
                     </p>
                     {fav.savedAt && (
-                      <p className="text-brand-dark/30 text-[10px] mt-2">
+                      <p className="text-brand-dark/85 text-[10px] mt-2">
                         Saved {new Date(fav.savedAt).toLocaleDateString()}
                       </p>
                     )}

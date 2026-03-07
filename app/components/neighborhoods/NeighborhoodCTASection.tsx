@@ -19,7 +19,7 @@ export default function NeighborhoodCTASection({
         <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-3">
           Ready to Explore {name}?
         </h2>
-        <p className="text-brand-dark/50 mb-8 max-w-xl mx-auto">
+        <p className="text-brand-dark/85 mb-8 max-w-xl mx-auto">
           Whether you&rsquo;re buying, renting, or investing, our team knows
           every block. Let us help you find your place.
         </p>
@@ -39,7 +39,7 @@ export default function NeighborhoodCTASection({
           </Link>
           <Link
             href={ctas.rental.href}
-            className="inline-block px-8 py-3 border border-black/5 text-brand-dark/70 font-medium rounded-2xl hover:border-brand-dark hover:text-brand-dark transition-colors text-sm sm:text-base tracking-wide"
+            className="inline-block px-8 py-3 border border-black/5 text-brand-dark/95 font-medium rounded-2xl hover:border-brand-dark hover:text-brand-dark transition-colors text-sm sm:text-base tracking-wide"
           >
             {ctas.rental.label}
           </Link>

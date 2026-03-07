@@ -41,12 +41,12 @@ export default function MicroFAQ({ name, faqs }: MicroFAQProps) {
                 {faq.question}
                 <span
                   aria-hidden="true"
-                  className="shrink-0 text-brand-dark/40 group-open:rotate-45 transition-transform text-lg"
+                  className="shrink-0 text-brand-dark/75 group-open:rotate-45 transition-transform text-lg"
                 >
                   +
                 </span>
               </summary>
-              <div className="px-5 pb-4 text-sm sm:text-base text-brand-dark/60 leading-relaxed">
+              <div className="px-5 pb-4 text-sm sm:text-base text-brand-dark/90 leading-relaxed">
                 {faq.answer}
               </div>
             </details>

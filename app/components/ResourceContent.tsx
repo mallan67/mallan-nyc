@@ -92,7 +92,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
       <div className="py-16 text-center">
         <div className="max-w-xl mx-auto px-4">
           <h1 className="text-2xl font-display font-semibold mb-4">Resource Not Found</h1>
-          <p className="text-brand-dark/60 mb-8">
+          <p className="text-brand-dark/90 mb-8">
             The resource you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link
@@ -129,7 +129,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
       {/* Table of Contents */}
       <section className="py-8 bg-gray-50/50 border-b border-black/5">
         <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-sm font-medium text-brand-dark/50 uppercase tracking-wide mb-3">
+          <h2 className="text-sm font-medium text-brand-dark/85 uppercase tracking-wide mb-3">
             In This Guide
           </h2>
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
@@ -155,7 +155,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
                 {section.title}
               </h2>
               <div
-                className="text-brand-dark/70 leading-relaxed"
+                className="text-brand-dark/95 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}
               />
             </div>

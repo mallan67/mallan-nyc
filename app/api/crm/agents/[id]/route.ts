@@ -79,6 +79,19 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.status = body.status as string;
   }
 
+  // --- Public profile fields ---
+  if (body.title !== undefined) update.title = body.title as string | null;
+  if (body.bio !== undefined) update.bio = body.bio as string | null;
+  if (body.photo !== undefined) update.photo = body.photo as string | null;
+  if (body.public_slug !== undefined) update.public_slug = body.public_slug as string | null;
+  if (body.featured !== undefined) update.featured = Boolean(body.featured);
+  if (body.specialties !== undefined) {
+    update.specialties = Array.isArray(body.specialties) ? body.specialties.map(String) : [];
+  }
+  if (body.languages !== undefined) {
+    update.languages = Array.isArray(body.languages) ? body.languages.map(String) : [];
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json(
       { error: "No valid fields to update" },

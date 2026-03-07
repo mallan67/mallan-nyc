@@ -14,7 +14,7 @@ export default function BackButton({ fallbackHref }: { fallbackHref: string }) {
           router.push(fallbackHref);
         }
       }}
-      className="inline-flex items-center gap-1.5 text-sm text-brand-dark/60 hover:text-brand-dark transition-colors mr-3"
+      className="inline-flex items-center gap-1.5 text-sm text-brand-dark/90 hover:text-brand-dark transition-colors mr-3"
       aria-label="Go back"
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

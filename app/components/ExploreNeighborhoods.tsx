@@ -72,7 +72,7 @@ function NeighborhoodCard({ neighborhood }: { neighborhood: Neighborhood }) {
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-5">
         <p className="font-display font-semibold text-white text-sm">{neighborhood.name}</p>
-        <p className="text-white/40 text-[11px] font-extralight">
+        <p className="text-white/40 text-[11px] font-light">
           {neighborhood.listingCount} listings
         </p>
       </div>
@@ -94,7 +94,7 @@ export default function ExploreNeighborhoods() {
             <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Explore</p>
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Neighborhoods</h2>
           </div>
-          <Link href="/neighborhoods" className="text-[13px] font-light text-brand-dark/30 hover:text-brand-dark transition-all duration-500 hidden sm:block">
+          <Link href="/neighborhoods" className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500 hidden sm:block">
             All 59 &rarr;
           </Link>
         </div>
@@ -109,7 +109,7 @@ export default function ExploreNeighborhoods() {
         <div className="mt-10 sm:mt-12 text-center sm:hidden">
           <Link
             href="/neighborhoods"
-            className="text-[13px] font-light text-brand-dark/30 hover:text-brand-dark transition-all duration-500"
+            className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500"
           >
             All 59 &rarr;
           </Link>

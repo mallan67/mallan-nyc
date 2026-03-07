@@ -16,7 +16,7 @@ function TrendArrow({ trend }: { trend: 'up' | 'down' | 'flat' }) {
     return <span className="text-green-600" aria-label="trending up">&#9650;</span>;
   if (trend === 'down')
     return <span className="text-red-500" aria-label="trending down">&#9660;</span>;
-  return <span className="text-brand-dark/40" aria-label="flat">&#8212;</span>;
+  return <span className="text-brand-dark/75" aria-label="flat">&#8212;</span>;
 }
 
 export default function MarketStatsModule({
@@ -61,7 +61,7 @@ export default function MarketStatsModule({
         </div>
 
         {/* REBNY Statistical Data Disclaimer - REQUIRED per UCBA Art. VIII Sec. 4 */}
-        <p className="mt-6 text-xs text-brand-dark/50 leading-relaxed max-w-4xl">
+        <p className="mt-6 text-xs text-brand-dark/85 leading-relaxed max-w-4xl">
           Based on information from the REBNY Listing Service for the period
           January 2025 through December 2025. The REBNY Listing Service makes
           no representations or warranties with respect to the accuracy or
@@ -85,10 +85,10 @@ function StatCard({
 }) {
   return (
     <div className="glass-card rounded-2xl p-4">
-      <dt className="text-xs text-brand-dark/40 uppercase tracking-wide">{label}</dt>
+      <dt className="text-xs text-brand-dark/75 uppercase tracking-wide">{label}</dt>
       <dd className="mt-1 text-xl font-display font-semibold text-brand-dark">{value}</dd>
       {sub && (
-        <dd className="mt-0.5 text-xs text-brand-dark/50 flex items-center gap-1">
+        <dd className="mt-0.5 text-xs text-brand-dark/85 flex items-center gap-1">
           {sub}
         </dd>
       )}

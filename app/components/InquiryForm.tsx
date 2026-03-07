@@ -162,7 +162,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
 
         {/* NYC-Specific Note for Co-ops */}
         {listingId && (
-          <p className="text-xs text-brand-dark/50">
+          <p className="text-xs text-brand-dark/85">
             Note: Inquiries for co-op and condo listings may require board approval.
             Your agent will provide details on the application process.
           </p>
@@ -178,7 +178,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
               required
               className="mt-1"
             />
-            <span className="text-sm text-brand-dark/60">
+            <span className="text-sm text-brand-dark/90">
               I agree to the{' '}
               <a href="/terms" className="text-brand-gold hover:underline">
                 Terms of Service
@@ -199,7 +199,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
               onChange={handleChange}
               className="mt-1"
             />
-            <span className="text-sm text-brand-dark/60">
+            <span className="text-sm text-brand-dark/90">
               Send me updates about similar listings and market news
             </span>
           </label>

@@ -178,11 +178,11 @@ export default function InvestorCalculator({
           </div>
           <div className="text-left">
             <h3 className="font-display font-semibold text-brand-dark">Investment Analysis</h3>
-            <p className="text-sm text-brand-dark/50">ROI, Cash on Cash, Cap Rate</p>
+            <p className="text-sm text-brand-dark/85">ROI, Cash on Cash, Cap Rate</p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-brand-dark/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-brand-dark/90 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -194,23 +194,23 @@ export default function InvestorCalculator({
           {/* Key Metrics Summary */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">Cap Rate</p>
+              <p className="text-xs text-brand-dark/85 mb-1">Cap Rate</p>
               <p className="text-xl font-display font-bold text-brand-dark">{calculations.capRate}%</p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">Cash on Cash</p>
+              <p className="text-xs text-brand-dark/85 mb-1">Cash on Cash</p>
               <p className={`text-xl font-display font-bold ${Number(calculations.cashOnCash) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculations.cashOnCash}%
               </p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">Monthly Cash Flow</p>
+              <p className="text-xs text-brand-dark/85 mb-1">Monthly Cash Flow</p>
               <p className={`text-xl font-display font-bold ${isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}`}>
                 ${calculations.monthlyCashFlow.toLocaleString()}
               </p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">Total ROI (Yr 1)</p>
+              <p className="text-xs text-brand-dark/85 mb-1">Total ROI (Yr 1)</p>
               <p className={`text-xl font-display font-bold ${Number(calculations.totalROI) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {calculations.totalROI}%
               </p>
@@ -243,9 +243,9 @@ export default function InvestorCalculator({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Est. Monthly Rent</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Est. Monthly Rent</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/40">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/90">$</span>
                   <input
                     type="number"
                     value={estimatedRent}
@@ -255,7 +255,7 @@ export default function InvestorCalculator({
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Down Payment</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Down Payment</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -265,11 +265,11 @@ export default function InvestorCalculator({
                     min={10}
                     max={100}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Interest Rate</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Interest Rate</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -280,11 +280,11 @@ export default function InvestorCalculator({
                     min={3}
                     max={12}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Vacancy Rate</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Vacancy Rate</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -294,11 +294,11 @@ export default function InvestorCalculator({
                     min={0}
                     max={20}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Annual Appreciation</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Annual Appreciation</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -309,11 +309,11 @@ export default function InvestorCalculator({
                     min={-5}
                     max={10}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90">%</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-brand-dark/50 mb-1">Holding Period</label>
+                <label className="block text-xs text-brand-dark/85 mb-1">Holding Period</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -323,7 +323,7 @@ export default function InvestorCalculator({
                     min={1}
                     max={30}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40 text-xs">yrs</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/90 text-xs">yrs</span>
                 </div>
               </div>
             </div>
@@ -334,19 +334,19 @@ export default function InvestorCalculator({
             <h4 className="font-display font-medium text-brand-dark text-sm mb-3">Monthly Breakdown</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Effective Rent (after vacancy)</span>
+                <span className="text-brand-dark/85">Effective Rent (after vacancy)</span>
                 <span className="text-green-600">+${calculations.effectiveMonthlyRent.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Mortgage (P&I)</span>
+                <span className="text-brand-dark/85">Mortgage (P&I)</span>
                 <span className="text-red-600">-${calculations.monthlyMortgage.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Taxes + Maint + Insurance</span>
+                <span className="text-brand-dark/85">Taxes + Maint + Insurance</span>
                 <span className="text-red-600">-${calculations.monthlyExpenses.toLocaleString()}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
-                <span className="text-brand-dark/70">Monthly Cash Flow</span>
+                <span className="text-brand-dark/95">Monthly Cash Flow</span>
                 <span className={isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}>
                   ${calculations.monthlyCashFlow.toLocaleString()}
                 </span>
@@ -359,35 +359,35 @@ export default function InvestorCalculator({
             <h4 className="font-display font-medium text-brand-dark text-sm mb-3">{holdingPeriod}-Year Projection</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Total Cash Invested</span>
+                <span className="text-brand-dark/85">Total Cash Invested</span>
                 <span className="font-medium">${calculations.totalCashInvested.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Cumulative Cash Flow</span>
+                <span className="text-brand-dark/85">Cumulative Cash Flow</span>
                 <span className={calculations.cumulativeCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
                   ${calculations.cumulativeCashFlow.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Equity Built (principal paydown)</span>
+                <span className="text-brand-dark/85">Equity Built (principal paydown)</span>
                 <span className="text-green-600">${calculations.totalEquityBuilt.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Appreciation Gain</span>
+                <span className="text-brand-dark/85">Appreciation Gain</span>
                 <span className="text-green-600">${calculations.totalAppreciation.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">Future Property Value</span>
+                <span className="text-brand-dark/85">Future Property Value</span>
                 <span className="font-medium">${calculations.futureValue.toLocaleString()}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
-                <span className="text-brand-dark/70">Total Profit (after sale)</span>
+                <span className="text-brand-dark/95">Total Profit (after sale)</span>
                 <span className={calculations.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
                   ${calculations.totalProfit.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between font-medium">
-                <span className="text-brand-dark/70">Annualized Return</span>
+                <span className="text-brand-dark/95">Annualized Return</span>
                 <span className={Number(calculations.annualizedReturn) >= 0 ? 'text-green-600' : 'text-red-600'}>
                   {calculations.annualizedReturn}%
                 </span>
@@ -400,17 +400,17 @@ export default function InvestorCalculator({
             <h4 className="font-display font-medium text-brand-dark text-sm mb-3">Additional Metrics</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">NOI (Annual)</span>
+                <span className="text-brand-dark/85">NOI (Annual)</span>
                 <span className="font-medium">${calculations.noi.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/50">GRM</span>
+                <span className="text-brand-dark/85">GRM</span>
                 <span className="font-medium">{calculations.grm}x</span>
               </div>
             </div>
           </div>
 
-          <p className="mt-4 text-xs text-brand-dark/40">
+          <p className="mt-4 text-xs text-brand-dark/90">
             *Estimates only. Assumes 4% closing costs, 6% selling costs, 3% annual rent growth, 2% expense growth.
             Consult a financial advisor and tax professional for investment decisions.
           </p>

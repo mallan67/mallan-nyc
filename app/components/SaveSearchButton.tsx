@@ -34,7 +34,7 @@ export default function SaveSearchButton({ type, filters }: SaveSearchButtonProp
       <button
         onClick={() => setShowModal(true)}
         disabled={!hasFilters}
-        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl ring-1 ring-black/5 bg-white/60 text-brand-dark/70 hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl ring-1 ring-black/5 bg-white/60 text-brand-dark/95 hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         title={hasFilters ? 'Save this search' : 'Set filters first'}
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -63,7 +63,7 @@ export default function SaveSearchButton({ type, filters }: SaveSearchButtonProp
                 <h3 className="text-lg font-display font-semibold mb-4">Save This Search</h3>
                 <div className="space-y-3">
                   <div>
-                    <label htmlFor="ss-name" className="block text-xs font-medium text-brand-dark/50 mb-1">
+                    <label htmlFor="ss-name" className="block text-xs font-medium text-brand-dark/85 mb-1">
                       Search Name
                     </label>
                     <input
@@ -77,7 +77,7 @@ export default function SaveSearchButton({ type, filters }: SaveSearchButtonProp
                       onKeyDown={e => e.key === 'Enter' && handleSave()}
                     />
                   </div>
-                  <div className="text-xs text-brand-dark/40 space-y-0.5">
+                  <div className="text-xs text-brand-dark/90 space-y-0.5">
                     <p>Type: {type === 'buy' ? 'Sale' : 'Rental'}</p>
                     {filters.beds != null && <p>Beds: {filters.beds}+</p>}
                     {filters.minPrice != null && filters.minPrice > 0 && (
@@ -91,7 +91,7 @@ export default function SaveSearchButton({ type, filters }: SaveSearchButtonProp
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => setShowModal(false)}
-                      className="flex-1 px-4 py-2 text-sm font-medium rounded-xl ring-1 ring-black/10 text-brand-dark/60 hover:bg-gray-50"
+                      className="flex-1 px-4 py-2 text-sm font-medium rounded-xl ring-1 ring-black/10 text-brand-dark/90 hover:bg-gray-50"
                     >
                       Cancel
                     </button>

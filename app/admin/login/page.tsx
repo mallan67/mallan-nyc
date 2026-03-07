@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, Suspense } from 'react';
 
-export default function BrokerLoginPage() {
+function BrokerLoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -48,8 +49,14 @@ export default function BrokerLoginPage() {
       }
 
       setSuccess(true);
+      // Use redirect param if provided and safe, otherwise default to CRM
+      const redirectParam = searchParams.get('redirect');
+      const safeRedirect = redirectParam && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(redirectParam)
+        ? redirectParam
+        : null;
+      const destination = safeRedirect || '/crm/MALLAN-NYC-CRM-FINAL2.html';
       setTimeout(() => {
-        router.push('/crm/MALLAN-NYC-CRM-FINAL2.html');
+        router.push(destination);
       }, 1000);
     } catch {
       setError('Network error.');
@@ -202,5 +209,13 @@ export default function BrokerLoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function BrokerLoginPage() {
+  return (
+    <Suspense>
+      <BrokerLoginContent />
+    </Suspense>
   );
 }

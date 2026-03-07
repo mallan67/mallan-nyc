@@ -67,7 +67,7 @@ export default function BoroughHubPage({
         {/* Intro */}
         <section className="py-10 sm:py-14">
           <div className="max-w-3xl mx-auto px-4">
-            <p className="text-brand-dark/60 text-base sm:text-lg leading-relaxed">
+            <p className="text-brand-dark/90 text-base sm:text-lg leading-relaxed">
               {intro}
             </p>
           </div>
@@ -92,12 +92,12 @@ export default function BoroughHubPage({
                     {faq.name}
                     <span
                       aria-hidden="true"
-                      className="shrink-0 text-brand-dark/40 group-open:rotate-45 transition-transform text-lg"
+                      className="shrink-0 text-brand-dark/75 group-open:rotate-45 transition-transform text-lg"
                     >
                       +
                     </span>
                   </summary>
-                  <div className="px-5 pb-4 text-sm sm:text-base text-brand-dark/60 leading-relaxed">
+                  <div className="px-5 pb-4 text-sm sm:text-base text-brand-dark/90 leading-relaxed">
                     {faq.acceptedAnswer.text}
                   </div>
                 </details>
@@ -112,7 +112,7 @@ export default function BoroughHubPage({
             <h2 className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-3">
               Find Your {borough} Home
             </h2>
-            <p className="text-brand-dark/50 mb-8 max-w-xl mx-auto">
+            <p className="text-brand-dark/85 mb-8 max-w-xl mx-auto">
               Search all active {borough} listings or speak with our team for
               personalized guidance.
             </p>

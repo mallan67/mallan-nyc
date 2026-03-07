@@ -56,7 +56,7 @@ function MediaTabBar({ active, onSelect, listing }: { active: MediaTab; onSelect
           className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all ${
             active === tab.key
               ? 'bg-brand-dark text-white'
-              : 'text-brand-dark/50 hover:bg-black/5'
+              : 'text-brand-dark/85 hover:bg-black/5'
           }`}
         >
           {tab.icon}
@@ -136,35 +136,35 @@ function MortgageCalc({ price }: { price: number }) {
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="text-[10px] text-brand-dark/40 uppercase tracking-wide">Down %</label>
+          <label className="text-[10px] text-brand-dark/90 uppercase tracking-wide">Down %</label>
           <input
             type="range" min={5} max={50} value={downPct}
             onChange={(e) => setDownPct(Number(e.target.value))}
             className="w-full accent-brand-gold h-1"
           />
-          <span className="text-[11px] text-brand-dark/60 font-medium">{downPct}% (${(downPayment / 1000).toFixed(0)}K)</span>
+          <span className="text-[11px] text-brand-dark/90 font-medium">{downPct}% (${(downPayment / 1000).toFixed(0)}K)</span>
         </div>
         <div className="flex-1">
-          <label className="text-[10px] text-brand-dark/40 uppercase tracking-wide">Rate %</label>
+          <label className="text-[10px] text-brand-dark/90 uppercase tracking-wide">Rate %</label>
           <input
             type="range" min={3} max={10} step={0.25} value={rate}
             onChange={(e) => setRate(Number(e.target.value))}
             className="w-full accent-brand-gold h-1"
           />
-          <span className="text-[11px] text-brand-dark/60 font-medium">{rate}%</span>
+          <span className="text-[11px] text-brand-dark/90 font-medium">{rate}%</span>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-brand-gold/10 rounded-xl p-2.5 text-center">
-          <p className="text-[10px] text-brand-dark/40 uppercase">Monthly</p>
+          <p className="text-[10px] text-brand-dark/90 uppercase">Monthly</p>
           <p className="font-display font-bold text-brand-dark">${monthly.toLocaleString()}</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-2.5 text-center">
-          <p className="text-[10px] text-brand-dark/40 uppercase">Closing Costs</p>
+          <p className="text-[10px] text-brand-dark/90 uppercase">Closing Costs</p>
           <p className="font-display font-bold text-brand-dark">${(totalClosing / 1000).toFixed(0)}K</p>
         </div>
       </div>
-      <div className="text-[10px] text-brand-dark/40 space-y-0.5">
+      <div className="text-[10px] text-brand-dark/90 space-y-0.5">
         <p>Transfer tax: ${transferTax.toLocaleString(undefined, { maximumFractionDigits: 0 })} | Attorney: ${attorneyFee.toLocaleString()} | Title: ${titleInsurance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
       </div>
     </div>
@@ -186,20 +186,20 @@ function RentVsBuyCalc({ monthlyRent }: { monthlyRent: number }) {
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-brand-gold/10 rounded-xl p-2.5 text-center">
-          <p className="text-[10px] text-brand-dark/40 uppercase">5yr Rent Cost</p>
+          <p className="text-[10px] text-brand-dark/90 uppercase">5yr Rent Cost</p>
           <p className="font-display font-bold text-brand-dark">${(fiveYearRent / 1000).toFixed(0)}K</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-2.5 text-center">
-          <p className="text-[10px] text-brand-dark/40 uppercase">Buy Equivalent</p>
+          <p className="text-[10px] text-brand-dark/90 uppercase">Buy Equivalent</p>
           <p className="font-display font-bold text-brand-dark">${(equivalentBuy / 1000000).toFixed(1)}M</p>
         </div>
       </div>
       <div className="flex justify-between text-[11px]">
-        <span className="text-brand-dark/50">Mortgage for equivalent</span>
-        <span className="text-brand-dark/70 font-medium">${monthlyMortgage.toLocaleString()}/mo</span>
+        <span className="text-brand-dark/85">Mortgage for equivalent</span>
+        <span className="text-brand-dark/95 font-medium">${monthlyMortgage.toLocaleString()}/mo</span>
       </div>
       <div className="flex justify-between text-[11px]">
-        <span className="text-brand-dark/50">{monthlySavings > 0 ? 'Renting saves' : 'Buying saves'}</span>
+        <span className="text-brand-dark/85">{monthlySavings > 0 ? 'Renting saves' : 'Buying saves'}</span>
         <span className={`font-medium ${monthlySavings > 0 ? 'text-green-600' : 'text-brand-gold-deep'}`}>${Math.abs(monthlySavings).toLocaleString()}/mo</span>
       </div>
     </div>
@@ -289,7 +289,7 @@ function ListingCard({ listing }: { listing: Listing }) {
               <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">
                 {listing.address.neighborhoodDisplay}
               </h3>
-              <p className="text-brand-dark/60 text-[13px] font-light">
+              <p className="text-brand-dark/90 text-[13px] font-light">
                 {listing.propertyInfo.propertyType}
               </p>
             </div>
@@ -297,17 +297,17 @@ function ListingCard({ listing }: { listing: Listing }) {
               {formatPrice(listing.price.listPrice, isRental)}
             </p>
           </div>
-          <p className="text-brand-dark/60 text-[13px] font-light">
+          <p className="text-brand-dark/90 text-[13px] font-light">
             {beds} bd &middot; {baths}{halfBaths > 0 ? `.${halfBaths}` : ''} ba
             {sqft > 0 && ` \u00B7 ${sqft.toLocaleString()} sf`}
           </p>
           {!isRental && listing.nycSpecific.maintenanceFee && (
-            <p className="text-brand-dark/50 text-[12px] font-light mt-1">
+            <p className="text-brand-dark/85 text-[12px] font-light mt-1">
               {listing.propertyInfo.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.nycSpecific.maintenanceFee.toLocaleString()}/mo
             </p>
           )}
           {listing.agent?.listOfficeName && (
-            <p className="text-[10px] text-brand-dark/50 mt-1.5 font-light">
+            <p className="text-[10px] text-brand-dark/85 mt-1.5 font-light">
               Listing Courtesy of {listing.agent.listOfficeName}
             </p>
           )}
@@ -319,11 +319,11 @@ function ListingCard({ listing }: { listing: Listing }) {
             onClick={(e) => { e.stopPropagation(); setCalcOpen(!calcOpen); }}
             className="flex items-center justify-between w-full text-[12px] group/calc"
           >
-            <span className="flex items-center gap-1.5 text-brand-dark/50 group-hover/calc:text-brand-dark transition-colors">
+            <span className="flex items-center gap-1.5 text-brand-dark/85 group-hover/calc:text-brand-dark transition-colors">
               <svg className="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               {isRental ? 'Rent vs Buy Calculator' : 'Mortgage + Closing Costs'}
             </span>
-            <svg className={`w-4 h-4 text-brand-dark/30 transition-transform ${calcOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <svg className={`w-4 h-4 text-brand-dark/85 transition-transform ${calcOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </button>
           {calcOpen && (
             <div className="mt-3 animate-in">
@@ -365,7 +365,7 @@ export default function FeaturedListings() {
             <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Featured</p>
             <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Properties</h2>
           </div>
-          <Link href="/buy" className="text-[13px] font-light text-brand-dark/50 hover:text-brand-dark transition-all duration-500 hidden sm:block">
+          <Link href="/buy" className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500 hidden sm:block">
             View All &rarr;
           </Link>
         </div>
@@ -377,7 +377,7 @@ export default function FeaturedListings() {
         </div>
 
         <div className="mt-10 sm:mt-12 text-center sm:hidden">
-          <Link href="/buy" className="text-[13px] font-light text-brand-dark/50 hover:text-brand-dark transition-all duration-500">
+          <Link href="/buy" className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500">
             View All &rarr;
           </Link>
         </div>

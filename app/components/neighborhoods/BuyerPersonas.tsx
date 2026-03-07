@@ -27,16 +27,16 @@ export default function BuyerPersonas({ name, personas }: BuyerPersonasProps) {
               <h3 className="text-base font-display font-semibold text-brand-dark mb-2">
                 {persona.type}
               </h3>
-              <p className="text-sm text-brand-dark/60 mb-3">{persona.description}</p>
+              <p className="text-sm text-brand-dark/90 mb-3">{persona.description}</p>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-brand-dark/50">Budget</dt>
+                  <dt className="text-brand-dark/85">Budget</dt>
                   <dd className="font-medium text-brand-dark">
                     {persona.budgetRange}
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-brand-dark/50">Looking for</dt>
+                  <dt className="text-brand-dark/85">Looking for</dt>
                   <dd className="font-medium text-brand-dark">
                     {persona.propertyType}
                   </dd>
@@ -47,7 +47,7 @@ export default function BuyerPersonas({ name, personas }: BuyerPersonasProps) {
         </div>
 
         {/* Fair Housing Disclaimer - REQUIRED per UCBA Exhibit C / C18 */}
-        <p className="mt-6 text-xs text-brand-dark/50 max-w-3xl">
+        <p className="mt-6 text-xs text-brand-dark/85 max-w-3xl">
           Neighborhood profiles are for informational purposes only and do not
           represent or target any protected class under Fair Housing law.
           Lifestyle descriptions are based on market and financial

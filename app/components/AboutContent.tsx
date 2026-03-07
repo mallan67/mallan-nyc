@@ -57,7 +57,7 @@ export default function AboutContent() {
   if (!data) {
     return (
       <div className="py-16 text-center">
-        <p className="text-brand-dark/60">Unable to load content.</p>
+        <p className="text-brand-dark/90">Unable to load content.</p>
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function AboutContent() {
       <section className="py-16">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-xl md:text-2xl font-display font-semibold mb-6">{data.mission.title}</h2>
-          <p className="text-lg text-brand-dark/70 leading-relaxed">{data.mission.content}</p>
+          <p className="text-lg text-brand-dark/95 leading-relaxed">{data.mission.content}</p>
         </div>
       </section>
 
@@ -93,7 +93,7 @@ export default function AboutContent() {
       <section className="py-16">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-xl md:text-2xl font-display font-semibold mb-6 text-center">{data.story.title}</h2>
-          <div className="text-brand-dark/70 leading-relaxed space-y-4">
+          <div className="text-brand-dark/95 leading-relaxed space-y-4">
             {data.story.content.split('\n\n').map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
@@ -111,7 +111,7 @@ export default function AboutContent() {
                 <h3 className="text-xl font-display font-semibold mb-3 text-brand-dark">
                   {value.title}
                 </h3>
-                <p className="text-brand-dark/60 leading-relaxed">{value.description}</p>
+                <p className="text-brand-dark/90 leading-relaxed">{value.description}</p>
               </div>
             ))}
           </div>

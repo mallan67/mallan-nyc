@@ -112,7 +112,7 @@ export default function OpenHousesList() {
       <section className="py-16">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <h1 className="text-2xl md:text-3xl font-display font-semibold mb-4">Open Houses</h1>
-          <p className="text-lg text-brand-dark/60 max-w-2xl mx-auto">
+          <p className="text-lg text-brand-dark/90 max-w-2xl mx-auto">
             Visit our upcoming open houses to explore available properties in person.
             No appointment needed—just stop by during the scheduled times.
           </p>
@@ -124,8 +124,8 @@ export default function OpenHousesList() {
         <div className="max-w-6xl mx-auto px-4">
           {upcomingOpenHouses.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-brand-dark/50 text-lg mb-4">No upcoming open houses scheduled.</p>
-              <p className="text-brand-dark/40">
+              <p className="text-brand-dark/85 text-lg mb-4">No upcoming open houses scheduled.</p>
+              <p className="text-brand-dark/90">
                 Check back soon or contact us for private showings.
               </p>
             </div>
@@ -169,8 +169,8 @@ export default function OpenHousesList() {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h3 className="text-xl font-display font-semibold">{formatPrice(oh.price)}</h3>
-                              <p className="text-brand-dark/60">{oh.address}</p>
-                              <p className="text-brand-dark/50 text-sm">{oh.neighborhood}</p>
+                              <p className="text-brand-dark/90">{oh.address}</p>
+                              <p className="text-brand-dark/85 text-sm">{oh.neighborhood}</p>
                             </div>
                             <span className="px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-xs rounded-full">
                               {oh.type}
@@ -178,14 +178,14 @@ export default function OpenHousesList() {
                           </div>
 
                           {/* Details */}
-                          <div className="flex gap-4 text-sm text-brand-dark/60 my-3">
+                          <div className="flex gap-4 text-sm text-brand-dark/90 my-3">
                             <span>{oh.beds} bed{oh.beds !== 1 ? 's' : ''}</span>
                             <span>{oh.baths} bath{oh.baths !== 1 ? 's' : ''}</span>
                             {oh.sqft > 0 && <span>{oh.sqft.toLocaleString()} sqft</span>}
                           </div>
 
                           {oh.description && (
-                            <p className="text-brand-dark/60 text-sm line-clamp-2 mb-3">
+                            <p className="text-brand-dark/90 text-sm line-clamp-2 mb-3">
                               {oh.description}
                             </p>
                           )}
@@ -219,7 +219,7 @@ export default function OpenHousesList() {
           <h2 className="text-xl md:text-2xl font-display font-semibold mb-4">
             Can&apos;t Make It to an Open House?
           </h2>
-          <p className="text-brand-dark/60 mb-8">
+          <p className="text-brand-dark/90 mb-8">
             Contact us to schedule a private showing at your convenience.
           </p>
           <a

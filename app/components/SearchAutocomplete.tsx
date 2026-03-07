@@ -148,7 +148,7 @@ export default function SearchAutocomplete({
         {!loading && value && (
           <button
             onClick={() => { onChange(''); setSuggestions([]); setIsOpen(false); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/30 hover:text-brand-dark/60"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/85 hover:text-brand-dark/90"
             aria-label="Clear search"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -179,7 +179,7 @@ export default function SearchAutocomplete({
               <p className="text-sm font-medium text-brand-dark">
                 {suggestion.address}
               </p>
-              <p className="text-xs text-brand-dark/50">
+              <p className="text-xs text-brand-dark/85">
                 {suggestion.neighborhood ? `${suggestion.neighborhood}, ` : ''}
                 {suggestion.borough}
                 {suggestion.postalCode ? ` ${suggestion.postalCode}` : ''}

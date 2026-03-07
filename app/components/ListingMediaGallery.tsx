@@ -94,7 +94,7 @@ export default function ListingMediaGallery({
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] md:text-[13px] font-medium transition-all ${
                   activeTab === tab.key
                     ? 'bg-brand-dark text-white'
-                    : 'text-brand-dark/50 hover:bg-black/5'
+                    : 'text-brand-dark/85 hover:bg-black/5'
                 }`}
               >
                 {tab.icon}
@@ -205,7 +205,7 @@ export default function ListingMediaGallery({
 
             {/* Caption below photo on mobile, not overlaid */}
             {currentImage?.caption && (
-              <div className="md:hidden px-4 py-2 bg-white/80 text-brand-dark/50 text-[12px] font-light">
+              <div className="md:hidden px-4 py-2 bg-white/80 text-brand-dark/85 text-[12px] font-light">
                 {currentImage.caption}
               </div>
             )}

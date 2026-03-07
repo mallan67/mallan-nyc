@@ -69,11 +69,11 @@ export default function AffordabilityCalculator() {
           </div>
           <div className="text-left">
             <h3 className="font-display font-semibold text-brand-dark">What Can I Afford?</h3>
-            <p className="text-sm text-brand-dark/50">Estimate your max purchase price for NYC</p>
+            <p className="text-sm text-brand-dark/85">Estimate your max purchase price for NYC</p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-brand-dark/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-brand-dark/90 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -84,11 +84,11 @@ export default function AffordabilityCalculator() {
         <div className="px-6 pb-6 border-t border-black/5">
           {/* Result */}
           <div className="mt-4 bg-blue-50/60 rounded-2xl p-4 text-center">
-            <p className="text-xs text-brand-dark/50 uppercase tracking-wide mb-1">Estimated Max Purchase Price</p>
+            <p className="text-xs text-brand-dark/85 uppercase tracking-wide mb-1">Estimated Max Purchase Price</p>
             <p className="text-3xl font-display font-bold text-brand-dark">
               ${calculations.maxPrice.toLocaleString()}
             </p>
-            <p className="text-sm text-brand-dark/50 mt-1">
+            <p className="text-sm text-brand-dark/85 mt-1">
               ${calculations.maxLoan.toLocaleString()} loan + ${downPayment.toLocaleString()} down
             </p>
           </div>
@@ -96,30 +96,30 @@ export default function AffordabilityCalculator() {
           {/* Monthly breakdown */}
           <div className="mt-4 grid grid-cols-3 gap-3">
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">Monthly Housing</p>
+              <p className="text-xs text-brand-dark/85 mb-1">Monthly Housing</p>
               <p className="text-lg font-display font-bold text-brand-dark">${calculations.maxMonthlyHousing.toLocaleString()}</p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">Est. Mortgage</p>
+              <p className="text-xs text-brand-dark/85 mb-1">Est. Mortgage</p>
               <p className="text-lg font-display font-bold text-brand-dark">${calculations.estMortgage.toLocaleString()}</p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
-              <p className="text-xs text-brand-dark/50 mb-1">DTI Ratio</p>
+              <p className="text-xs text-brand-dark/85 mb-1">DTI Ratio</p>
               <p className="text-lg font-display font-bold text-brand-dark">{calculations.dtiPercent}%</p>
-              <p className="text-xs text-brand-dark/40">of {calculations.dtiLimit}% max</p>
+              <p className="text-xs text-brand-dark/90">of {calculations.dtiLimit}% max</p>
             </div>
           </div>
 
           {/* Property type toggle */}
           <div className="mt-6">
-            <label className="block text-xs text-brand-dark/50 mb-2">Property Type</label>
+            <label className="block text-xs text-brand-dark/85 mb-2">Property Type</label>
             <div className="flex rounded-2xl overflow-hidden ring-1 ring-black/5">
               <button
                 onClick={() => setPropertyType('condo')}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${
                   propertyType === 'condo'
                     ? 'bg-brand-gold text-white'
-                    : 'bg-white/60 text-brand-dark/60 hover:bg-white/80'
+                    : 'bg-white/60 text-brand-dark/90 hover:bg-white/80'
                 }`}
               >
                 Condo (43% DTI)
@@ -129,7 +129,7 @@ export default function AffordabilityCalculator() {
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${
                   propertyType === 'coop'
                     ? 'bg-brand-gold text-white'
-                    : 'bg-white/60 text-brand-dark/60 hover:bg-white/80'
+                    : 'bg-white/60 text-brand-dark/90 hover:bg-white/80'
                 }`}
               >
                 Co-op (25% DTI)
@@ -141,7 +141,7 @@ export default function AffordabilityCalculator() {
           <div className="mt-5 space-y-4">
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Annual Household Income</label>
+                <label className="text-brand-dark/90">Annual Household Income</label>
                 <span className="font-medium">${annualIncome.toLocaleString()}</span>
               </div>
               <input
@@ -157,7 +157,7 @@ export default function AffordabilityCalculator() {
 
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Monthly Debt Payments</label>
+                <label className="text-brand-dark/90">Monthly Debt Payments</label>
                 <span className="font-medium">${monthlyDebt.toLocaleString()}</span>
               </div>
               <input
@@ -173,7 +173,7 @@ export default function AffordabilityCalculator() {
 
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Down Payment Savings</label>
+                <label className="text-brand-dark/90">Down Payment Savings</label>
                 <span className="font-medium">${downPayment.toLocaleString()}</span>
               </div>
               <input
@@ -189,7 +189,7 @@ export default function AffordabilityCalculator() {
 
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <label className="text-brand-dark/60">Interest Rate</label>
+                <label className="text-brand-dark/90">Interest Rate</label>
                 <span className="font-medium">{interestRate}%</span>
               </div>
               <input
@@ -213,7 +213,7 @@ export default function AffordabilityCalculator() {
             Get Your Buying Power Report
           </Link>
 
-          <p className="mt-3 text-xs text-brand-dark/40">
+          <p className="mt-3 text-xs text-brand-dark/90">
             *Estimates only. Co-op uses 25% front-end DTI (conservative board standard).
             Condo uses 43% back-end DTI (qualified mortgage). Actual approval varies by
             lender and building. Consult a mortgage professional for personalized advice.

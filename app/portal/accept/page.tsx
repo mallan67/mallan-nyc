@@ -80,7 +80,7 @@ function AcceptInviteForm() {
           <div className="h-8 bg-gray-200 rounded w-48 mx-auto" />
           <div className="h-4 bg-gray-100 rounded w-64 mx-auto" />
         </div>
-        <p className="text-brand-dark/40 text-sm mt-4">Validating your invitation...</p>
+        <p className="text-brand-dark/75 text-sm mt-4">Validating your invitation...</p>
       </div>
     );
   }
@@ -94,8 +94,8 @@ function AcceptInviteForm() {
           </svg>
         </div>
         <h1 className="text-2xl font-display font-semibold mb-2">Invite Not Valid</h1>
-        <p className="text-brand-dark/60 mb-6">{error || 'This invitation link is invalid or has expired.'}</p>
-        <p className="text-brand-dark/40 text-sm mb-4">Please contact your agent for a new invitation.</p>
+        <p className="text-brand-dark/90 mb-6">{error || 'This invitation link is invalid or has expired.'}</p>
+        <p className="text-brand-dark/75 text-sm mb-4">Please contact your agent for a new invitation.</p>
         <Link
           href="/sign-in"
           className="inline-block px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors text-sm font-medium"
@@ -115,7 +115,7 @@ function AcceptInviteForm() {
           </svg>
         </div>
         <h1 className="text-2xl font-display font-semibold mb-2">Account Created</h1>
-        <p className="text-brand-dark/60 mb-4">Welcome, {invite.name}! Redirecting to your portal...</p>
+        <p className="text-brand-dark/90 mb-4">Welcome, {invite.name}! Redirecting to your portal...</p>
         <div className="w-full bg-black/5 rounded-full h-1.5">
           <div className="bg-brand-gold h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
         </div>
@@ -132,13 +132,13 @@ function AcceptInviteForm() {
   return (
     <div className="glass-card rounded-3xl p-10">
       <h1 className="text-2xl font-display font-semibold text-center mb-2">Welcome to Mallan</h1>
-      <p className="text-brand-dark/50 text-center text-sm mb-8">
+      <p className="text-brand-dark/85 text-center text-sm mb-8">
         Set up your <strong>{roleLabel} Portal</strong> account
       </p>
 
       <div className="mb-6 p-4 bg-gray-50/50 rounded-2xl">
         <p className="text-sm"><strong>{invite.name}</strong></p>
-        <p className="text-xs text-brand-dark/50">{invite.email}</p>
+        <p className="text-xs text-brand-dark/85">{invite.email}</p>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>

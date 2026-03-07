@@ -107,7 +107,7 @@ export default function AgentsGrid() {
                     src={featured.photo}
                     alt={featured.name}
                     fill
-                    className="object-cover"
+                    className="object-cover object-[center_15%]"
                     sizes="(max-width: 1024px) 100vw, 50vw"
                     priority
                   />
@@ -125,10 +125,10 @@ export default function AgentsGrid() {
                 <h2 className="font-display font-bold text-3xl md:text-4xl tracking-tight text-brand-dark mb-2">
                   {featured.name}
                 </h2>
-                <p className="text-brand-dark/40 text-sm font-light mb-8">{featured.title}</p>
+                <p className="text-brand-dark/90 text-sm font-light mb-8">{featured.title}</p>
 
                 <div className="mb-8">
-                  <div className={`text-brand-dark/60 text-[15px] font-light leading-[1.9] whitespace-pre-line overflow-hidden transition-all duration-500 ${!bioExpanded && bioOverflows ? 'max-h-[280px]' : 'max-h-[2000px]'}`}>
+                  <div className={`text-brand-dark/90 text-[15px] font-light leading-[1.9] whitespace-pre-line overflow-hidden transition-all duration-500 ${!bioExpanded && bioOverflows ? 'max-h-[280px]' : 'max-h-[2000px]'}`}>
                     {featured.bio}
                   </div>
                   {!bioExpanded && bioOverflows && (
@@ -155,16 +155,22 @@ export default function AgentsGrid() {
 
                 {/* Languages */}
                 {featured.languages.length > 0 && (
-                  <p className="text-brand-dark/40 text-[12px] font-light mb-8">
+                  <p className="text-brand-dark/90 text-[12px] font-light mb-8">
                     Languages: {featured.languages.join(', ')}
                   </p>
                 )}
 
-                {/* Contact */}
+                {/* Contact + Profile Link */}
                 <div className="flex flex-col sm:flex-row gap-3">
+                  <Link
+                    href={`/agents/${featured.id}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-dark text-white text-sm font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
+                  >
+                    View Listings & Profile
+                  </Link>
                   <a
                     href={`tel:${featured.phone.replace(/[^0-9+]/g, '')}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-dark text-white text-sm font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 ring-1 ring-black/10 text-brand-dark text-sm font-medium rounded-2xl hover:bg-black/[0.02] transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                     {featured.phone}
@@ -222,9 +228,9 @@ export default function AgentsGrid() {
                     <h3 className="font-display font-bold text-xl md:text-2xl text-brand-dark mb-1">
                       {agent.name}
                     </h3>
-                    <p className="text-brand-dark/40 text-sm font-light mb-4">{agent.title}</p>
+                    <p className="text-brand-dark/90 text-sm font-light mb-4">{agent.title}</p>
 
-                    <p className="text-brand-dark/60 text-[14px] font-light leading-[1.8] mb-5 line-clamp-3">
+                    <p className="text-brand-dark/90 text-[14px] font-light leading-[1.8] mb-5 line-clamp-3">
                       {agent.bio}
                     </p>
 
@@ -239,13 +245,13 @@ export default function AgentsGrid() {
 
                     {/* Contact row */}
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="text-brand-dark/50 font-light">{agent.phone}</span>
+                      <span className="text-brand-dark/85 font-light">{agent.phone}</span>
                       <span className="text-brand-dark/20">|</span>
-                      <span className="text-brand-dark/50 font-light">{agent.email}</span>
+                      <span className="text-brand-dark/85 font-light">{agent.email}</span>
                     </div>
 
                     {agent.languages.length > 0 && (
-                      <p className="text-brand-dark/30 text-[11px] font-light mt-2">
+                      <p className="text-brand-dark/85 text-[11px] font-light mt-2">
                         Languages: {agent.languages.join(', ')}
                       </p>
                     )}
