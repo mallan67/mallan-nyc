@@ -187,7 +187,7 @@ function SearchClient() {
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
-    limit: 200,
+    limit: 500,
   });
 
   // ── Client-side text/zip post-filter ──
