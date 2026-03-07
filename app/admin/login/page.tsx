@@ -97,7 +97,7 @@ function BrokerLoginContent() {
         </div>
 
         {success ? (
-          <div className="bg-[#1a1a1a] rounded-2xl p-8 text-center">
+          <div className="bg-[#141B2D] rounded-2xl p-8 text-center">
             <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -106,10 +106,10 @@ function BrokerLoginContent() {
             <p className="text-white/70 text-sm">Redirecting to CRM...</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="bg-[#1a1a1a] rounded-2xl p-8">
+          <form onSubmit={handleSubmit} className="bg-[#141B2D] rounded-2xl p-8">
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-xs text-white/50 font-medium mb-1.5">
+                <label htmlFor="email" className="block text-xs text-white/70 font-medium mb-1.5">
                   Email
                 </label>
                 <input
@@ -119,13 +119,13 @@ function BrokerLoginContent() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl px-4 py-3 bg-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
+                  className="w-full rounded-xl px-4 py-3 bg-white/15 text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
                   placeholder="broker@mallan.nyc"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-xs text-white/50 font-medium mb-1.5">
+                <label htmlFor="password" className="block text-xs text-white/70 font-medium mb-1.5">
                   Password
                 </label>
                 <input
@@ -135,7 +135,7 @@ function BrokerLoginContent() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl px-4 py-3 bg-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
+                  className="w-full rounded-xl px-4 py-3 bg-white/15 text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
                   placeholder="Password"
                 />
               </div>
@@ -168,15 +168,15 @@ function BrokerLoginContent() {
         )}
 
         {showForgot && !success && (
-          <div className="mt-3 bg-[#1a1a1a] rounded-2xl p-5">
-            <p className="text-xs text-white/50 mb-3">Reset your password</p>
+          <div className="mt-3 bg-[#141B2D] rounded-2xl p-5">
+            <p className="text-xs text-white/70 mb-3">Reset your password</p>
             <form onSubmit={handleForgotPassword} className="space-y-3">
               <input
                 type="email"
                 required
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
-                className="w-full rounded-xl px-4 py-2.5 bg-white/10 text-white text-sm placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
+                className="w-full rounded-xl px-4 py-2.5 bg-white/15 text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
                 placeholder="Enter your email"
               />
               {forgotMessage && (
