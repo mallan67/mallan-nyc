@@ -61,12 +61,13 @@ export default function LiveListingsWidget({
       limit: '6',
       sort: 'price-desc',
     });
-    // Primary: lat/lng bounding box (matches StreetEasy boundaries precisely)
-    // Fallback: ZIP codes (less precise but works)
+    // ZIP codes narrow the Trestle query; bounds post-filter for precision.
+    // Send both when available — ZIPs for OData push, bounds for server-side filter.
+    if (zipCodes && zipCodes.length > 0) {
+      params.set('zipCodes', zipCodes.join(','));
+    }
     if (bounds) {
       params.set('bounds', `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`);
-    } else if (zipCodes && zipCodes.length > 0) {
-      params.set('zipCodes', zipCodes.join(','));
     }
     if (tab.type) params.set('type', tab.type);
     if (tab.propertyType) params.set('propertyType', tab.propertyType);

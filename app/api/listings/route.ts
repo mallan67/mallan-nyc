@@ -236,20 +236,15 @@ export async function GET(request: Request) {
           }
         }
 
-        // Neighborhood geo bounds — lat/lng bounding box for precise filtering
-        // CityRegion in REBNY RLS is borough-level only, not neighborhood.
-        // Bounding boxes match StreetEasy neighborhood boundaries.
+        // Neighborhood filtering strategy:
+        // Trestle IDX Plus does NOT expose Latitude/Longitude for OData filtering.
+        // Step 1: Use ZIP codes to narrow the Trestle query (server-side push).
+        // Step 2: Post-filter results by lat/lng bounding box for precision.
         const boundsParam = searchParams.get('bounds'); // "south,west,north,east"
-        if (boundsParam) {
-          const [south, west, north, east] = boundsParam.split(',').map(Number);
-          if (south && west && north && east) {
-            filterParts.push(`Latitude ge ${south} and Latitude le ${north} and Longitude ge ${west} and Longitude le ${east}`);
-          }
-        }
-
-        // Fallback: ZIP codes (less precise, but works for neighborhoods without bounds)
         const zipCodes = searchParams.get('zipCodes');
-        if (zipCodes && !boundsParam) {
+
+        // Push ZIP filter to Trestle OData
+        if (zipCodes) {
           const zips = zipCodes.split(',').map(z => z.trim()).filter(Boolean);
           if (zips.length === 1) {
             filterParts.push(`PostalCode eq '${zips[0]}'`);
@@ -366,6 +361,21 @@ export async function GET(request: Request) {
           filtered = filtered.filter(
             (l) => l.address.cityRegion?.toLowerCase() === neighborhoodLower
           );
+        }
+
+        // Bounds post-filter: narrow ZIP-based results to precise lat/lng box
+        // Trestle IDX Plus doesn't support Latitude/Longitude OData filters,
+        // so we filter server-side after fetching by ZIP codes.
+        if (boundsParam) {
+          const [south, west, north, east] = boundsParam.split(',').map(Number);
+          if (south && west && north && east) {
+            filtered = filtered.filter((l) => {
+              const lat = l.address.latitude;
+              const lng = l.address.longitude;
+              if (!lat || !lng) return true; // keep listings without coords
+              return lat >= south && lat <= north && lng >= west && lng <= east;
+            });
+          }
         }
 
         // Open House filter — requires separate Trestle OpenHouse resource query
