@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
@@ -171,72 +172,108 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
 
 /** Split-view card — horizontal layout with medium photo for the sidebar */
 export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const photos = listing.media.filter(m => !m.mediaType || m.mediaType === 'Photo');
+  const hasMultiple = photos.length > 1;
+
+  const prev = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPhotoIdx(i => (i > 0 ? i - 1 : photos.length - 1));
+  }, [photos.length]);
+
+  const next = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPhotoIdx(i => (i < photos.length - 1 ? i + 1 : 0));
+  }, [photos.length]);
+
   return (
-    <Link
-      href={listingHref(listing)}
-      className={`glass-card rounded-2xl overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 flex group ${
+    <div
+      className={`glass-card rounded-2xl overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 group ${
         isHighlighted ? 'ring-2 ring-brand-gold shadow-lg' : ''
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="relative w-[240px] flex-shrink-0">
-        <IDXImage
-          src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
-          alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-          aspect="card"
-          className="group-hover:scale-105 transition-transform duration-500"
-        />
+      {/* Photo with carousel */}
+      <div className="relative overflow-hidden">
+        <Link href={listingHref(listing)} className="block w-full">
+          <IDXImage
+            src={photos[photoIdx]?.url || '/images/listing-placeholder.svg'}
+            alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
+            aspect="card"
+            className="group-hover:scale-105 transition-transform duration-500"
+          />
+        </Link>
         {formatComingSoonBadge(listing) && (
           <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-[10px] rounded-lg z-10">
             Coming Soon
           </span>
         )}
-        {listing.media.length > 1 && (
-          <span className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded-lg">
-            {listing.photosCount || listing.media.length}
-          </span>
+        <div className="absolute top-2 right-2 z-10">
+          <FavoriteButton listing={listing} size="sm" />
+        </div>
+        {/* Photo nav arrows */}
+        {hasMultiple && (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-white"
+              aria-label="Previous photo"
+            >
+              <svg className="w-3.5 h-3.5 text-brand-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-white"
+              aria-label="Next photo"
+            >
+              <svg className="w-3.5 h-3.5 text-brand-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+            {/* Dots */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {photos.slice(0, 5).map((_, i) => (
+                <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIdx ? 'bg-white' : 'bg-white/50'}`} />
+              ))}
+              {photos.length > 5 && <span className="text-[8px] text-white/70 ml-0.5">+{photos.length - 5}</span>}
+            </div>
+          </>
         )}
       </div>
-      <div className="flex-1 min-w-0 p-3.5">
+      {/* Info */}
+      <Link href={listingHref(listing)} className="block p-3">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-base font-display font-semibold text-brand-dark">
             {formatPrice(listing.listPrice, isRental)}
           </p>
-          <FavoriteButton listing={listing} size="sm" />
+          <div className="flex gap-2 text-xs text-brand-dark/70">
+            <span>{listing.bedroomsTotal} bd</span>
+            <span className="text-brand-dark/30">·</span>
+            <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} ba</span>
+            {listing.livingArea && listing.livingArea > 0 && (
+              <>
+                <span className="text-brand-dark/30">·</span>
+                <span>{listing.livingArea.toLocaleString()} sf</span>
+              </>
+            )}
+          </div>
         </div>
         <p className="text-sm text-brand-dark truncate mt-0.5">
           {listing.address.streetName === 'Address Undisclosed'
             ? 'Address Undisclosed'
             : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
         </p>
-        {listing.address.neighborhood && (
-          <p className="text-xs text-brand-dark/60 truncate">
-            {listing.address.neighborhood !== listing.address.borough
-              ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
-              : listing.address.borough || 'Manhattan'}
-          </p>
-        )}
-        <div className="flex gap-2.5 text-xs text-brand-dark/80 mt-2">
-          <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
-          <span className="text-brand-dark/30">·</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} bath</span>
-          {listing.livingArea && listing.livingArea > 0 && (
-            <>
-              <span className="text-brand-dark/30">·</span>
-              <span>{listing.livingArea.toLocaleString()} sqft</span>
-            </>
-          )}
-        </div>
-        {!isRental && listing.associationFee && (
-          <p className="text-[11px] text-brand-dark/60 mt-1">
-            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
-          </p>
-        )}
-        <p className="text-[9px] text-brand-dark/50 mt-1.5">
+        <p className="text-xs text-brand-dark/55 truncate">
+          {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
+            ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
+            : listing.address.borough || 'Manhattan'}
+          {!isRental && listing.associationFee ? ` · ${listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: $${listing.associationFee.toLocaleString()}/mo` : ''}
+        </p>
+        <p className="text-[9px] text-brand-dark/40 mt-1">
           <span className="font-semibold tracking-wide">RLS</span> · {listing.listOfficeName}
         </p>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
