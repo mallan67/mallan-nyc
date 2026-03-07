@@ -67,6 +67,7 @@ export default function AgentsGrid() {
   }
 
   const featured = agents.find(a => a.featured && a.id === 'maya-allan') || agents.find(a => a.featured);
+  const team = agents.filter(a => a.id !== featured?.id);
 
   return (
     <>
@@ -191,6 +192,72 @@ export default function AgentsGrid() {
       <div className="max-w-[1200px] mx-auto px-6 md:px-12">
         <div className="border-t border-black/5" />
       </div>
+
+      {/* Team Members */}
+      {team.length > 0 && (
+        <section className="py-20 md:py-28">
+          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+            <div className="mb-14">
+              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Meet</p>
+              <h2 className="font-display font-bold text-2xl md:text-3xl tracking-tight text-brand-dark">The Team</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 md:gap-8">
+              {team.map((agent) => (
+                <Link
+                  key={agent.id}
+                  href={`/agents/${agent.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="group block glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-500"
+                >
+                  {/* Portrait */}
+                  <div className="relative aspect-[4/3] bg-gray-50">
+                    <Image
+                      src={agent.photo}
+                      alt={agent.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-700"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+
+                  {/* Info */}
+                  <div className="p-6">
+                    <h3 className="font-display font-bold text-lg text-brand-dark mb-1">
+                      {agent.name}
+                    </h3>
+                    <p className="text-brand-dark/85 text-sm font-light mb-3">{agent.title}</p>
+
+                    <p className="text-brand-dark/85 text-[13px] font-light leading-[1.8] mb-4 line-clamp-3">
+                      {agent.bio}
+                    </p>
+
+                    {/* Specialties */}
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {agent.specialties.slice(0, 3).map((s, i) => (
+                        <span key={i} className="px-2.5 py-1 bg-brand-gold/8 text-brand-gold-deep text-[11px] font-medium rounded-full">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Contact */}
+                    <div className="text-[12px] text-brand-dark/85 font-light space-y-0.5">
+                      {agent.email && <p>{agent.email}</p>}
+                      {agent.phone && <p>{agent.phone}</p>}
+                    </div>
+
+                    <div className="mt-4">
+                      <span className="text-[13px] text-brand-gold-deep font-medium group-hover:underline">
+                        View Full Profile &rarr;
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="py-20 bg-brand-dark text-white">
