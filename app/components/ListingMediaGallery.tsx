@@ -34,6 +34,7 @@ export default function ListingMediaGallery({
 }: ListingMediaGalleryProps) {
   const [activeTab, setActiveTab] = useState<MediaTab>('photos');
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<number, number>>({});
 
@@ -134,7 +135,8 @@ export default function ListingMediaGallery({
                   loading="eager"
                   decoding="async"
                   onError={() => handleImageError(photoIdx)}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  onClick={() => setFullscreen(true)}
+                  className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
                 />
               )}
 
@@ -270,6 +272,59 @@ export default function ListingMediaGallery({
           </div>
         )}
       </div>
+
+      {/* Fullscreen Lightbox */}
+      {fullscreen && !showPlaceholder && (
+        <div
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+          onClick={() => setFullscreen(false)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setFullscreen(false)}
+            className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Counter */}
+          <span className="absolute top-4 left-4 text-white/70 text-sm z-50">
+            {photoIdx + 1} / {sortedImages.length}
+          </span>
+
+          {/* Photo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={currentImage.url}
+            alt={currentImage.caption || alt}
+            className="max-w-[95vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Nav arrows */}
+          {sortedImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition z-50"
+                aria-label="Previous"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/20 transition z-50"
+                aria-label="Next"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
 }

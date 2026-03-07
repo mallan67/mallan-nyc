@@ -14,14 +14,31 @@
 import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
 
-/** Map Trestle CommonInterest to user-friendly property type */
-function mapCommonInterestToDisplay(commonInterest?: string, fallback?: string): string {
-  switch (commonInterest) {
-    case 'Condominium': return 'Condo';
-    case 'StockCooperative': return 'Co-op';
-    case 'Condop': return 'Condop';
-    default: return fallback || 'Residential';
+/** Map Trestle property fields to user-friendly property type */
+function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
+  // 1. CommonInterest is the most reliable for co-op/condo distinction
+  if (commonInterest) {
+    switch (commonInterest) {
+      case 'Condominium': return 'Condo';
+      case 'StockCooperative': return 'Co-op';
+      case 'Condop': return 'Condop';
+    }
   }
+  // 2. PropertySubType often has the actual type
+  if (propertySubType) {
+    const sub = propertySubType.toLowerCase();
+    if (sub.includes('condo')) return 'Condo';
+    if (sub.includes('co-op') || sub.includes('coop') || sub.includes('stock cooperative')) return 'Co-op';
+    if (sub.includes('condop')) return 'Condop';
+    if (sub.includes('townhouse')) return 'Townhouse';
+    if (sub.includes('single family') || sub.includes('house')) return 'House';
+    if (sub.includes('multi') || sub.includes('multi-family')) return 'Multi-Family';
+    if (sub.includes('loft')) return 'Loft';
+    // "Apartment" is not useful — NYC listings are Co-op, Condo, or Condop
+    if (sub === 'apartment') return fallback || 'Residential';
+    return propertySubType;
+  }
+  return fallback || 'Residential';
 }
 
 /**
@@ -193,7 +210,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     originalListPrice: listing.originalListPrice,
     previousListPrice: listing.previousListPrice,
     closePrice: listing.closePrice,
-    propertyType: mapCommonInterestToDisplay(listing.commonInterest, listing.propertyType),
+    propertyType: mapPropertyTypeToDisplay(listing.commonInterest, listing.propertySubType, listing.propertyType),
     propertySubType: listing.propertySubType,
     bedroomsTotal: listing.bedroomsTotal,
     bathroomsFull: listing.bathroomsFull,

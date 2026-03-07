@@ -425,11 +425,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
         }
       />
 
-      <main className="py-8 md:py-12 px-4">
+      <main className="py-5 md:py-8 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-8 lg:gap-12">
+          <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-5">
               {/* Header */}
               <div>
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
@@ -442,9 +442,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
                       propertyType={listing.propertyType}
                     />
-                    <p className="text-xl text-brand-dark/95 mt-2">{fullAddress}</p>
+                    <p className="text-lg text-brand-dark/95 mt-1">{fullAddress}</p>
                     <p className="text-brand-dark/85">
-                      {neighborhood ? `${neighborhood}, ` : ''}{borough}, NY {listing.address.postalCode}
+                      {neighborhood && neighborhood !== borough ? `${neighborhood}, ` : ''}{borough}, NY {listing.address.postalCode}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -471,13 +471,13 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="flex flex-wrap gap-6 py-4 border-y border-black/5">
+                <div className="flex flex-wrap gap-5 py-3 border-y border-black/5">
                   <div>
-                    <span className="text-xl font-display font-semibold">{listing.bedroomsTotal}</span>
+                    <span className="text-lg font-display font-semibold">{listing.bedroomsTotal}</span>
                     <span className="text-brand-dark/85 ml-1">Beds</span>
                   </div>
                   <div>
-                    <span className="text-xl font-display font-semibold">
+                    <span className="text-lg font-display font-semibold">
                       {listing.bathroomsFull}
                       {listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`}
                     </span>
@@ -485,19 +485,19 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   </div>
                   {listing.livingArea && (
                     <div>
-                      <span className="text-xl font-display font-semibold">{listing.livingArea.toLocaleString()}</span>
+                      <span className="text-lg font-display font-semibold">{listing.livingArea.toLocaleString()}</span>
                       <span className="text-brand-dark/85 ml-1">Sq Ft</span>
                     </div>
                   )}
                   {listing.livingArea && listing.listPrice > 0 && (
                     <div>
-                      <span className="text-xl font-display font-semibold">${Math.round(listing.listPrice / listing.livingArea).toLocaleString()}</span>
+                      <span className="text-lg font-display font-semibold">${Math.round(listing.listPrice / listing.livingArea).toLocaleString()}</span>
                       <span className="text-brand-dark/85 ml-1">/Sq Ft</span>
                     </div>
                   )}
                   {listing.roomsTotal && (
                     <div>
-                      <span className="text-xl font-display font-semibold">{listing.roomsTotal}</span>
+                      <span className="text-lg font-display font-semibold">{listing.roomsTotal}</span>
                       <span className="text-brand-dark/85 ml-1">Rooms</span>
                     </div>
                   )}
@@ -507,7 +507,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {/* Description */}
               {listing.publicRemarks && (
                 <section>
-                  <h2 className="text-xl font-display font-semibold mb-4">About This Property</h2>
+                  <h2 className="text-base font-display font-semibold mb-3">About This Property</h2>
                   <div
                     className="text-brand-dark/95 leading-relaxed prose prose-sm max-w-none [&>p]:mb-3 [&>p:last-child]:mb-0"
                     dangerouslySetInnerHTML={{
@@ -522,11 +522,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
               {/* NYC-Specific Info (Co-op/Condo) */}
               {!isRental && (isCoop || isCondo) && (listing.associationFee || listing.taxAnnualAmount) && (
-                <section className="glass-card rounded-3xl p-6">
-                  <h2 className="text-xl font-display font-semibold mb-4">
+                <section className="glass-card rounded-2xl p-4">
+                  <h2 className="text-sm font-display font-semibold mb-2">
                     {isCoop ? 'Co-op Information' : 'Condo Information'}
                   </h2>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
                     {listing.associationFee && (
                       <div className="flex justify-between py-2 border-b border-black/5">
                         <span className="text-brand-dark/85">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
@@ -550,8 +550,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
               {/* Property Details */}
               <section>
-                <h2 className="text-xl font-display font-semibold mb-4">Property Details</h2>
-                <div className="grid sm:grid-cols-2 gap-4">
+                <h2 className="text-base font-display font-semibold mb-3">Property Details</h2>
+                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
                   <div className="flex justify-between py-2 border-b border-black/5">
                     <span className="text-brand-dark/85">Property Type</span>
                     <span className="font-medium">{listing.propertySubType || listing.propertyType}</span>
@@ -601,10 +601,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
               {/* Last Closed Price for This Unit */}
               {lastUnitSale && lastUnitSale.closePrice > 0 && (
-                <section className="glass-card rounded-3xl p-6">
-                  <h2 className="text-xl font-display font-semibold mb-3">Last Sale — This Unit</h2>
-                  <div className="flex flex-wrap items-baseline gap-4">
-                    <span className="text-2xl font-display font-bold text-brand-dark">
+                <section className="glass-card rounded-2xl p-4">
+                  <h2 className="text-sm font-display font-semibold mb-2">Last Sale — This Unit</h2>
+                  <div className="flex flex-wrap items-baseline gap-3">
+                    <span className="text-lg font-display font-bold text-brand-dark">
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
                     </span>
                     {lastUnitSale.sqft > 0 && (
@@ -633,9 +633,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {/* Interior Features */}
               {(interiorDetails.length > 0 || appliancesList.length > 0 || interiorFeaturesList.length > 0) && (
                 <section>
-                  <h2 className="text-xl font-display font-semibold mb-4">Interior Features</h2>
+                  <h2 className="text-base font-display font-semibold mb-3">Interior Features</h2>
                   {interiorDetails.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0 mb-3">
                       {interiorDetails.map((item) => (
                         <div key={item.label} className="flex justify-between py-2 border-b border-black/5">
                           <span className="text-brand-dark/60">{item.label}</span>
@@ -671,7 +671,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {/* Building Amenities */}
               {(buildingAmenities.length > 0 || securityFeatures.length > 0 || petPolicy) && (
                 <section>
-                  <h2 className="text-xl font-display font-semibold mb-4">Building Amenities</h2>
+                  <h2 className="text-base font-display font-semibold mb-3">Building Amenities</h2>
                   <div className="flex flex-wrap gap-2">
                     {buildingAmenities.map((amenity) => (
                       <span key={amenity} className="px-4 py-2 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
@@ -706,8 +706,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {/* Rental-Specific Info */}
               {isRental && (listing.petsAllowed || listing.furnished || listing.availabilityDate) && (
                 <section>
-                  <h2 className="text-xl font-display font-semibold mb-4">Rental Details</h2>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <h2 className="text-base font-display font-semibold mb-3">Rental Details</h2>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
                     {listing.petsAllowed && (
                       <div className="flex justify-between py-2 border-b border-black/5">
                         <span className="text-brand-dark/85">Pets</span>
