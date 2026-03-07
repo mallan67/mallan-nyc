@@ -6,6 +6,7 @@ import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
+import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
 // ── In-memory cache (same pattern as /api/idx/search) ──
@@ -435,6 +436,9 @@ export async function GET(request: Request) {
             console.warn('[/api/listings] Photo batch fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
+
+        // Step 4c: Geocode listings that lack coordinates (Trestle IDX Plus returns null for Lat/Lng)
+        await geocodeListings(pageListings);
 
         const publicListings = pageListings.map(toPublicDTO);
 

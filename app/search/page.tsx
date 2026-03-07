@@ -7,7 +7,7 @@ import { useListings } from '@/lib/hooks/useListings';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
 import SaveSearchButton from '@/app/components/SaveSearchButton';
-import { GridCard, ListCard, CompactCard } from '@/app/components/SearchListingCard';
+import { GridCard, ListCard } from '@/app/components/SearchListingCard';
 import SearchFilterPanel from '@/app/components/SearchFilterPanel';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { TAB_CONFIG } from '@/lib/search/types';
@@ -431,14 +431,14 @@ function SearchClient() {
             </div>
             {/* Listings — right 55% */}
             <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto">
-              <div className="p-3 space-y-0.5">
+              <div className="p-4 grid grid-cols-2 gap-4">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
                     ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}
                     className={scrollTargetId === listing.id ? 'animate-pulse-highlight rounded-xl' : ''}
                   >
-                    <CompactCard
+                    <GridCard
                       listing={listing}
                       isRental={isRental}
                       isHighlighted={highlightedId === listing.id}
