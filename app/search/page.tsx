@@ -140,6 +140,7 @@ function SearchClient() {
   const typeParam = searchParams?.get('type') || searchParams?.get('tab') || 'buy';
   const queryParam = searchParams?.get('q') || '';
   const neighborhoodParam = searchParams?.get('neighborhood') || '';
+  const boroughParam = searchParams?.get('borough') || '';
   const zipParam = searchParams?.get('zip') || '';
 
   // ── State ──
@@ -182,11 +183,13 @@ function SearchClient() {
     furnished: filters.furnished,
     amenities: filters.amenities,
     openHouse: filters.openHouse,
+    openHouseDate: filters.openHouseDate,
     minSqft: filters.minSqft,
     maxSqft: filters.maxSqft,
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
-    limit: 50,
+    borough: boroughParam || undefined,
+    limit: (viewMode === 'all-map' || viewMode === 'split') ? 200 : 50,
   });
 
   // ── Client-side text/zip post-filter ──
@@ -245,8 +248,21 @@ function SearchClient() {
   // ── Autocomplete select ──
   const handleAutocompleteSelect = useCallback((suggestion: Suggestion) => {
     const params = new URLSearchParams(searchParams?.toString() || '');
-    if (suggestion.type === 'neighborhood') {
-      params.set('neighborhood', suggestion.value);
+    if (suggestion.type === 'location') {
+      // Current location — value is "lat,lng"
+      if (suggestion.value) {
+        params.set('near', suggestion.value);
+        router.push(`/search?${params.toString()}`);
+      }
+    } else if (suggestion.type === 'neighborhood') {
+      // Borough vs neighborhood — sublabel='Borough' means it's a borough
+      if (suggestion.sublabel === 'Borough') {
+        params.delete('neighborhood');
+        params.set('borough', suggestion.value);
+      } else {
+        params.delete('borough');
+        params.set('neighborhood', suggestion.value);
+      }
       router.push(`/search?${params.toString()}`);
     } else if (suggestion.type === 'zip') {
       params.set('zip', suggestion.value);
@@ -287,6 +303,7 @@ function SearchClient() {
   // ── Active filter pills ──
   const activeFilterPills = useMemo(() => {
     const pills: { label: string; key: string }[] = [];
+    if (boroughParam) pills.push({ label: boroughParam, key: 'borough' });
     if (neighborhoodParam) pills.push({ label: neighborhoodParam, key: 'neighborhood' });
     if (zipParam) pills.push({ label: `ZIP: ${zipParam}`, key: 'zip' });
     if (filters.beds != null) pills.push({ label: filters.beds === 0 ? 'Studio' : `${filters.beds}+ beds`, key: 'beds' });
@@ -298,7 +315,12 @@ function SearchClient() {
     if (filters.statuses?.length) pills.push({ label: filters.statuses.map(s => s === 'ComingSoon' ? 'Coming Soon' : s === 'ActiveUnderContract' ? 'Under Contract' : s).join(', '), key: 'statuses' });
     if (filters.yearBuilt && filters.yearBuilt !== 'any') pills.push({ label: filters.yearBuilt === 'pre-war' ? 'Pre-War' : 'Post-War', key: 'yearBuilt' });
     if (filters.furnished) pills.push({ label: 'Furnished', key: 'furnished' });
-    if (filters.openHouse) pills.push({ label: 'Open House', key: 'openHouse' });
+    if (filters.openHouse) {
+      const dateLabel = filters.openHouseDate === 'weekend' ? 'This Weekend'
+        : filters.openHouseDate ? `OH ${filters.openHouseDate}`
+        : 'Any Upcoming';
+      pills.push({ label: `Open House: ${dateLabel}`, key: 'openHouse' });
+    }
     if (filters.amenities?.length) pills.push({ label: `${filters.amenities.length} amenities`, key: 'amenities' });
     return pills;
   }, [filters, neighborhoodParam, zipParam]);
@@ -525,8 +547,8 @@ function SearchClient() {
               />
             </div>
             {/* Listings — right 40% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto">
-              <div className="px-3 pt-4 pb-3 flex flex-col gap-3">
+            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto scroll-pt-2">
+              <div className="px-3 pt-3 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}

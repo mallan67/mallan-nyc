@@ -1,6 +1,24 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import prisma from '@/lib/prisma';
+
+// Neighborhood data for local matching (loaded once at module level)
+import manhattanData from '@/data/manhattan-neighborhoods.json';
+import brooklynData from '@/data/brooklyn-neighborhoods.json';
+import queensData from '@/data/queens-neighborhoods.json';
+import bronxData from '@/data/bronx-neighborhoods.json';
+import statenIslandData from '@/data/staten-island-neighborhoods.json';
+
+type NeighborhoodRow = { slug?: string; id?: string; name: string };
+
+const ALL_NEIGHBORHOODS: { slug: string; name: string; borough: string }[] = [
+  ...manhattanData.neighborhoods.map((n: NeighborhoodRow) => ({ slug: n.slug || n.id || '', name: n.name, borough: 'Manhattan' })),
+  ...brooklynData.neighborhoods.map((n: NeighborhoodRow) => ({ slug: n.slug || n.id || '', name: n.name, borough: 'Brooklyn' })),
+  ...queensData.neighborhoods.map((n: NeighborhoodRow) => ({ slug: n.slug || n.id || '', name: n.name, borough: 'Queens' })),
+  ...bronxData.neighborhoods.map((n: NeighborhoodRow) => ({ slug: n.slug || n.id || '', name: n.name, borough: 'Bronx' })),
+  ...statenIslandData.neighborhoods.map((n: NeighborhoodRow) => ({ slug: n.slug || n.id || '', name: n.name, borough: 'Staten Island' })),
+];
 
 /**
  * Simple in-memory rate limiter (60 requests per minute per IP)
@@ -21,16 +39,24 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+export type SuggestionType = 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
+
+export interface Suggestion {
+  type: SuggestionType;
+  label: string;
+  sublabel: string;
+  value: string;
+}
+
 /**
  * GET /api/listings/suggest?q=...
  *
- * Address autocomplete for frontend search.
- * Returns top 8 matching suggestions with address, neighborhood, borough, zip.
+ * Unified autocomplete for frontend search.
+ * Searches across: address, neighborhood, zip, agent (Mallan only), Web #, RLS #, Listing #.
+ * Returns top 8 categorized suggestions.
  *
- * When IDX_ENABLED=true: queries Trestle OData with contains() on StreetName or PostalCode.
- * When IDX_ENABLED=false: returns empty array (local data doesn't support search well).
- *
- * COMPLIANCE: Same distribution gates as /api/listings. No agent PII returned.
+ * COMPLIANCE: Distribution gates enforced. No agent PII from Trestle. No listing agent info.
+ * Agents returned are Mallan brokerage agents only (from DB, not MLS).
  */
 export async function GET(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -49,86 +75,211 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, suggestions: [] });
     }
 
-    const useIDX = process.env.IDX_ENABLED === 'true';
+    const suggestions: Suggestion[] = [];
+    const queryLower = query.toLowerCase();
 
-    if (!useIDX) {
-      return NextResponse.json({ success: true, suggestions: [] });
+    // ── 1. Borough matches (local, instant) ──
+    const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
+    for (const b of BOROUGHS) {
+      if (b.toLowerCase().includes(queryLower)) {
+        suggestions.push({
+          type: 'neighborhood',
+          label: b,
+          sublabel: 'Borough',
+          value: b, // full name — search page routes to ?borough=
+        });
+      }
     }
 
-    // Build OData filter for address search
-    // Search by street name (contains) or postal code (startsWith)
-    const isZip = /^\d{3,5}$/.test(query);
-    const escapedQuery = query.replace(/'/g, "''");
+    // ── 2. Neighborhood matches (local, instant) ──
+    const neighborhoodMatches = ALL_NEIGHBORHOODS.filter(
+      (n) => n.name.toLowerCase().includes(queryLower)
+    ).slice(0, 3);
 
-    const filterParts = [
-      "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
-    ];
-
-    if (isZip) {
-      filterParts.push(`startswith(PostalCode, '${escapedQuery}')`);
-    } else {
-      filterParts.push(`contains(StreetName, '${escapedQuery}')`);
-    }
-
-    const result = await fetchFromTrestle({
-      filter: filterParts.join(' and '),
-      top: 20,
-      maxTotal: 20,
-    });
-
-    // Apply distribution gates
-    const displayable = result.records.filter(
-      (raw) => checkDistributionGates(raw).displayable
-    );
-
-    // Deduplicate by address and return top 8
-    const seen = new Set<string>();
-    const suggestions: {
-      address: string;
-      neighborhood: string;
-      borough: string;
-      postalCode: string;
-    }[] = [];
-
-    for (const raw of displayable) {
-      if (suggestions.length >= 8) break;
-
-      const streetNumber = String(raw.StreetNumber || '');
-      const streetName = [
-        raw.StreetDirPrefix,
-        raw.StreetName,
-        raw.StreetSuffix,
-        raw.StreetDirSuffix,
-      ].filter(Boolean).map(String).join(' ');
-
-      const fullAddress = `${streetNumber} ${streetName}`.trim();
-
-      // Suppress address when InternetAddressDisplayYN is false
-      if (raw.InternetAddressDisplayYN === false) continue;
-
-      const key = `${fullAddress}-${raw.PostalCode}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      // County → Borough
-      const county = String(raw.CountyOrParish || '').toLowerCase();
-      let borough = String(raw.CountyOrParish || '');
-      if (county.includes('new york')) borough = 'Manhattan';
-      else if (county.includes('kings')) borough = 'Brooklyn';
-      else if (county.includes('queens')) borough = 'Queens';
-      else if (county.includes('bronx')) borough = 'Bronx';
-      else if (county.includes('richmond')) borough = 'Staten Island';
-
+    for (const n of neighborhoodMatches) {
       suggestions.push({
-        address: fullAddress,
-        neighborhood: String(raw.CityRegion || ''),
-        borough,
-        postalCode: String(raw.PostalCode || ''),
+        type: 'neighborhood',
+        label: n.name,
+        sublabel: n.borough,
+        value: n.name, // full name — API filters CityRegion by name
       });
     }
 
+    // ── 2. Agent matches (DB, Mallan agents only) ──
+    try {
+      const agents = await prisma.agent.findMany({
+        where: {
+          status: 'active',
+          OR: [
+            { full_name: { contains: query, mode: 'insensitive' } },
+            { first_name: { contains: query, mode: 'insensitive' } },
+            { last_name: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          public_slug: true,
+          full_name: true,
+          first_name: true,
+          last_name: true,
+          title: true,
+        },
+        take: 2,
+      });
+
+      for (const a of agents) {
+        const name = a.full_name || `${a.first_name} ${a.last_name}`;
+        const slug = a.public_slug || `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-');
+        suggestions.push({
+          type: 'agent',
+          label: name,
+          sublabel: a.title || 'Licensed Real Estate Salesperson',
+          value: slug,
+        });
+      }
+    } catch {
+      // DB unavailable — skip agent results
+    }
+
+    // ── 3. Listing ID matches (Web #, RLS #, Listing #) ──
+    // RLS numbers look like "RLS20059088", Web/Listing # can be numeric or alphanumeric
+    const isListingId = /^(RLS|rls)?\d{3,}$/.test(query) || /^[A-Z]{2,}\d+$/i.test(query);
+
+    const useIDX = process.env.IDX_ENABLED === 'true';
+
+    if (isListingId && useIDX) {
+      try {
+        const escapedQuery = query.replace(/'/g, "''");
+        // Search by ListingId (Web #) or ListingKey (RLS/SourceSystemKey)
+        const result = await fetchFromTrestle({
+          filter: `(ListingId eq '${escapedQuery}' or ListingKey eq '${escapedQuery}')`,
+          top: 3,
+          maxTotal: 3,
+        });
+
+        for (const raw of result.records) {
+          const gates = checkDistributionGates(raw);
+          if (!gates.displayable) continue;
+          if (raw.InternetAddressDisplayYN === false) continue;
+
+          const streetNumber = String(raw.StreetNumber || '');
+          const streetName = [raw.StreetDirPrefix, raw.StreetName, raw.StreetSuffix, raw.StreetDirSuffix]
+            .filter(Boolean).map(String).join(' ');
+          const fullAddress = `${streetNumber} ${streetName}`.trim();
+          const listingId = String(raw.ListingId || '');
+
+          const county = String(raw.CountyOrParish || '').toLowerCase();
+          let borough = String(raw.CountyOrParish || '');
+          if (county.includes('new york')) borough = 'Manhattan';
+          else if (county.includes('kings')) borough = 'Brooklyn';
+          else if (county.includes('queens')) borough = 'Queens';
+          else if (county.includes('bronx')) borough = 'Bronx';
+          else if (county.includes('richmond')) borough = 'Staten Island';
+
+          suggestions.push({
+            type: 'listing',
+            label: fullAddress || `Listing ${listingId}`,
+            sublabel: `${borough}${raw.PostalCode ? ` ${raw.PostalCode}` : ''} — ${listingId}`,
+            value: listingId,
+          });
+        }
+      } catch {
+        // Trestle error — skip listing ID results
+      }
+    }
+
+    // ── 4. Address / Zip search (Trestle IDX) ──
+    if (useIDX && suggestions.length < 8) {
+      const isZip = /^\d{3,5}$/.test(query);
+      const escapedQuery = query.replace(/'/g, "''");
+
+      const filterParts = [
+        "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
+      ];
+
+      if (isZip) {
+        filterParts.push(`startswith(PostalCode, '${escapedQuery}')`);
+      } else if (!isListingId) {
+        // Only search by address if not a listing ID pattern
+        filterParts.push(`contains(StreetName, '${escapedQuery}')`);
+      } else {
+        // Skip address search for listing IDs — already handled above
+      }
+
+      if (!isListingId || isZip) {
+        try {
+          const result = await fetchFromTrestle({
+            filter: filterParts.join(' and '),
+            top: 20,
+            maxTotal: 20,
+          });
+
+          const displayable = result.records.filter(
+            (raw) => checkDistributionGates(raw).displayable
+          );
+
+          const seen = new Set<string>();
+
+          for (const raw of displayable) {
+            if (suggestions.length >= 8) break;
+
+            const streetNumber = String(raw.StreetNumber || '');
+            const streetName = [raw.StreetDirPrefix, raw.StreetName, raw.StreetSuffix, raw.StreetDirSuffix]
+              .filter(Boolean).map(String).join(' ');
+            const fullAddress = `${streetNumber} ${streetName}`.trim();
+
+            if (raw.InternetAddressDisplayYN === false) continue;
+
+            const key = `${fullAddress}-${raw.PostalCode}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            const county = String(raw.CountyOrParish || '').toLowerCase();
+            let borough = String(raw.CountyOrParish || '');
+            if (county.includes('new york')) borough = 'Manhattan';
+            else if (county.includes('kings')) borough = 'Brooklyn';
+            else if (county.includes('queens')) borough = 'Queens';
+            else if (county.includes('bronx')) borough = 'Bronx';
+            else if (county.includes('richmond')) borough = 'Staten Island';
+
+            const neighborhood = String(raw.CityRegion || '');
+
+            if (isZip) {
+              suggestions.push({
+                type: 'zip',
+                label: `${raw.PostalCode}${neighborhood ? ` — ${neighborhood}` : ''}`,
+                sublabel: borough,
+                value: String(raw.PostalCode || ''),
+              });
+              // Deduplicate zip results
+              seen.add(`zip-${raw.PostalCode}`);
+            } else {
+              suggestions.push({
+                type: 'address',
+                label: fullAddress,
+                sublabel: `${neighborhood ? `${neighborhood}, ` : ''}${borough}${raw.PostalCode ? ` ${raw.PostalCode}` : ''}`,
+                value: fullAddress,
+              });
+            }
+          }
+        } catch {
+          // Trestle error — return what we have
+        }
+      }
+    }
+
+    // Deduplicate and limit to 8
+    const uniqueSuggestions: Suggestion[] = [];
+    const seenKeys = new Set<string>();
+    for (const s of suggestions) {
+      const key = `${s.type}-${s.value}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      uniqueSuggestions.push(s);
+      if (uniqueSuggestions.length >= 8) break;
+    }
+
     return NextResponse.json(
-      { success: true, suggestions },
+      { success: true, suggestions: uniqueSuggestions },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',

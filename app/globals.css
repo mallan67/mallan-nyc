@@ -302,7 +302,7 @@
 
 /* Focus visible states for keyboard navigation */
 :focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #C4A052;
   outline-offset: 2px;
 }
 
@@ -318,7 +318,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #C4A052;
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -328,7 +328,7 @@ textarea:focus-visible,
 .bg-brand-dark button:focus-visible,
 header a:focus-visible,
 header button:focus-visible {
-  outline-color: #fbbf24;
+  outline-color: #C4A052;
 }
 
 /* Skip link target - remove focus ring after navigation */
