@@ -85,13 +85,16 @@
                 cb.addEventListener('change', updateSelectedCount);
             });
 
-            // Initialize search tabs — restore saved tab + mode, or default to Sale/Basic
+            // Initialize search tabs — restore saved tab + mode + type, or default to Sale/Basic/General
             var _initTab = 'sale';
             var _initMode = 'basic';
+            var _initType = 'general';
             try { _initTab = sessionStorage.getItem('searchTab') || 'sale'; } catch(e) {}
             try { _initMode = sessionStorage.getItem('searchMode') || 'basic'; } catch(e) {}
+            try { _initType = sessionStorage.getItem('searchType') || 'general'; } catch(e) {}
             toggleSearchMode(_initMode);
             toggleSearchTab(_initTab);
+            if (typeof toggleSearchType === 'function') toggleSearchType(_initType);
         });
 
         // Close modal on escape key

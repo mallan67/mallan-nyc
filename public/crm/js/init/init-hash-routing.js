@@ -32,15 +32,19 @@
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Restore saved search mode + tab on refresh (mode FIRST so tab sees correct state)
+            // Restore saved search mode + tab + type on refresh (mode FIRST so tab sees correct state)
             try {
                 var savedMode = sessionStorage.getItem('searchMode');
                 var savedTab = sessionStorage.getItem('searchTab');
+                var savedType = sessionStorage.getItem('searchType');
                 if (savedMode && typeof toggleSearchMode === 'function') {
                     toggleSearchMode(savedMode);
                 }
                 if (savedTab && typeof toggleSearchTab === 'function') {
                     toggleSearchTab(savedTab);
+                }
+                if (savedType && typeof toggleSearchType === 'function') {
+                    toggleSearchType(savedType);
                 }
             } catch(e) {}
 
@@ -258,8 +262,10 @@
             try {
                 var savedMode = sessionStorage.getItem('searchMode');
                 var savedTab = sessionStorage.getItem('searchTab');
+                var savedType = sessionStorage.getItem('searchType');
                 if (savedMode && typeof toggleSearchMode === 'function') toggleSearchMode(savedMode);
                 if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
+                if (savedType && typeof toggleSearchType === 'function') toggleSearchType(savedType);
             } catch(e) {}
         }
     }

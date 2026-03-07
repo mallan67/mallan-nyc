@@ -17651,6 +17651,7 @@ function manageShowToast(msg) {
         }
 
         function toggleSearchType(type) {
+            try { sessionStorage.setItem('searchType', type); } catch(e) {}
             var btnGeneral = document.getElementById('btnGeneralSearch');
             var btnComparables = document.getElementById('btnComparables');
             var generalSection = document.getElementById('generalSearchSection');
@@ -18290,13 +18291,16 @@ function manageShowToast(msg) {
                 cb.addEventListener('change', updateSelectedCount);
             });
 
-            // Initialize search tabs — restore saved tab + mode, or default to Sale/Basic
+            // Initialize search tabs — restore saved tab + mode + type, or default to Sale/Basic/General
             var _initTab = 'sale';
             var _initMode = 'basic';
+            var _initType = 'general';
             try { _initTab = sessionStorage.getItem('searchTab') || 'sale'; } catch(e) {}
             try { _initMode = sessionStorage.getItem('searchMode') || 'basic'; } catch(e) {}
+            try { _initType = sessionStorage.getItem('searchType') || 'general'; } catch(e) {}
             toggleSearchMode(_initMode);
             toggleSearchTab(_initTab);
+            if (typeof toggleSearchType === 'function') toggleSearchType(_initType);
         });
 
         // Close modal on escape key
@@ -30257,15 +30261,19 @@ function emailCurrentCalc() {
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Restore saved search mode + tab on refresh (mode FIRST so tab sees correct state)
+            // Restore saved search mode + tab + type on refresh (mode FIRST so tab sees correct state)
             try {
                 var savedMode = sessionStorage.getItem('searchMode');
                 var savedTab = sessionStorage.getItem('searchTab');
+                var savedType = sessionStorage.getItem('searchType');
                 if (savedMode && typeof toggleSearchMode === 'function') {
                     toggleSearchMode(savedMode);
                 }
                 if (savedTab && typeof toggleSearchTab === 'function') {
                     toggleSearchTab(savedTab);
+                }
+                if (savedType && typeof toggleSearchType === 'function') {
+                    toggleSearchType(savedType);
                 }
             } catch(e) {}
 
@@ -30483,8 +30491,10 @@ function emailCurrentCalc() {
             try {
                 var savedMode = sessionStorage.getItem('searchMode');
                 var savedTab = sessionStorage.getItem('searchTab');
+                var savedType = sessionStorage.getItem('searchType');
                 if (savedMode && typeof toggleSearchMode === 'function') toggleSearchMode(savedMode);
                 if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
+                if (savedType && typeof toggleSearchType === 'function') toggleSearchType(savedType);
             } catch(e) {}
         }
     }
