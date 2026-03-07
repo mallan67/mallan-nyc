@@ -551,8 +551,8 @@ function SearchClient() {
               />
             </div>
             {/* Listings — right 40% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto px-3">
-              <div className="py-4 flex flex-col gap-3">
+            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto" style={{ paddingTop: 8 }}>
+              <div className="px-3 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
