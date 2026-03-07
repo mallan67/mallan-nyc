@@ -492,12 +492,12 @@ function SearchClient() {
           <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
             {viewMode === 'split' && (
               <>
-                <div className="hidden lg:block w-[45%] h-full bg-gray-100 animate-pulse" />
                 <div className="flex-1 lg:w-[55%] px-3 pt-2 space-y-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="bg-gray-100 rounded-xl h-28 animate-pulse" />
                   ))}
                 </div>
+                <div className="hidden lg:block w-[45%] h-full bg-gray-100 animate-pulse" />
               </>
             )}
             {viewMode !== 'split' && (
@@ -522,16 +522,8 @@ function SearchClient() {
         {/* ── SPLIT VIEW (default desktop) ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
           <div className="flex h-full">
-            {/* Map — left 45% */}
-            <div className="hidden lg:block w-[45%] h-full border-r border-black/5 isolate">
-              <SearchMap
-                listings={sortedListings}
-                highlightedId={highlightedId}
-                onMarkerClick={handleMarkerClick}
-              />
-            </div>
-            {/* Listings — right 40% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto">
+            {/* Listings — left 55% */}
+            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto border-r border-black/5">
               <div className="px-3 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
@@ -559,6 +551,14 @@ function SearchClient() {
                   REBNY RLS · Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable
                 </p>
               </div>
+            </div>
+            {/* Map — right 45% */}
+            <div className="hidden lg:block w-[45%] h-full isolate">
+              <SearchMap
+                listings={sortedListings}
+                highlightedId={highlightedId}
+                onMarkerClick={handleMarkerClick}
+              />
             </div>
           </div>
         )}
