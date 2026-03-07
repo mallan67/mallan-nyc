@@ -65,7 +65,12 @@ function SearchClient() {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
+
+  // ── Dynamic content height for full-viewport modes ──
+  const toolbarRef = useRef<HTMLElement>(null);
+  const [contentHeight, setContentHeight] = useState('calc(100dvh - 160px)');
 
   // ── Filters ──
   const [filters, setFilters] = useState<SearchFilters>({
@@ -184,12 +189,15 @@ function SearchClient() {
     router.push(`/search?tab=${activeTab}`);
   }, [router, activeTab]);
 
-  // ── Map marker click → scroll to card ──
+  // ── Map marker click → scroll to card with highlight pulse ──
   const handleMarkerClick = useCallback((id: string) => {
     setHighlightedId(id);
+    setScrollTargetId(id);
     const cardEl = cardRefs.current.get(id);
-    if (cardEl && listingsRef.current) {
+    if (cardEl) {
       cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Clear scroll-target animation after it plays
+      setTimeout(() => setScrollTargetId(null), 1500);
     }
   }, []);
 
@@ -214,6 +222,23 @@ function SearchClient() {
 
   const filterCount = activeFilterPills.length;
 
+  // ── Measure toolbar bottom for dynamic content height ──
+  useEffect(() => {
+    const measure = () => {
+      if (toolbarRef.current) {
+        const bottom = toolbarRef.current.getBoundingClientRect().bottom;
+        setContentHeight(`calc(100dvh - ${Math.ceil(bottom)}px)`);
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const raf = requestAnimationFrame(measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      cancelAnimationFrame(raf);
+    };
+  }, [activeFilterPills.length, activeTab]);
+
   // ── Show footer only in grid/list modes ──
   const showFooter = viewMode === 'grid' || viewMode === 'list';
   const isFullViewport = viewMode === 'split' || viewMode === 'all-listings' || viewMode === 'all-map';
@@ -221,7 +246,7 @@ function SearchClient() {
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
       {/* ── Search Toolbar (sticky below header) ── */}
-      <section className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
+      <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
         <div className="max-w-[1920px] mx-auto px-4 py-2.5">
           {/* Row 1: Tabs + Search + Price + Filters + View + Sort */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -367,7 +392,7 @@ function SearchClient() {
       </section>
 
       {/* ── Main Area ── */}
-      <div className={isFullViewport ? 'h-[calc(100vh-theme(spacing.16)-theme(spacing.24))] md:h-[calc(100vh-72px-theme(spacing.24))] overflow-hidden' : ''}>
+      <div className={isFullViewport ? 'overflow-hidden' : ''} style={isFullViewport ? { height: contentHeight } : undefined}>
         {/* Error */}
         {error && (
           <div className="text-center py-8 mx-4 mt-4 glass-card rounded-3xl">
@@ -399,7 +424,7 @@ function SearchClient() {
         {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
           <div className="flex h-full">
             {/* Map — left 45% */}
-            <div className="hidden lg:block w-[45%] h-full">
+            <div className="hidden lg:block w-[45%] h-full border-r border-black/5">
               <SearchMap
                 listings={sortedListings}
                 highlightedId={highlightedId}
@@ -407,24 +432,30 @@ function SearchClient() {
               />
             </div>
             {/* Listings — right 55% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto p-4 space-y-1">
-              {sortedListings.map((listing) => (
-                <div key={listing.id} ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}>
-                  <CompactCard
-                    listing={listing}
-                    isRental={isRental}
-                    isHighlighted={highlightedId === listing.id}
-                    onHover={setHighlightedId}
-                  />
-                </div>
-              ))}
-              {hasMore && (
-                <div className="text-center py-4">
-                  <button onClick={loadMore} className="px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors">
-                    Load More
-                  </button>
-                </div>
-              )}
+            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto">
+              <div className="p-3 space-y-0.5">
+                {sortedListings.map((listing) => (
+                  <div
+                    key={listing.id}
+                    ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}
+                    className={scrollTargetId === listing.id ? 'animate-pulse-highlight rounded-xl' : ''}
+                  >
+                    <CompactCard
+                      listing={listing}
+                      isRental={isRental}
+                      isHighlighted={highlightedId === listing.id}
+                      onHover={setHighlightedId}
+                    />
+                  </div>
+                ))}
+                {hasMore && (
+                  <div className="text-center py-4">
+                    <button onClick={loadMore} className="px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors">
+                      Load More
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

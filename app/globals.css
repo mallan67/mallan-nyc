@@ -384,3 +384,31 @@ header button:focus-visible {
 .animate-slide-in-right {
   animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ═══ SEARCH PAGE — Card highlight pulse (marker click → scroll to card) ═══ */
+@keyframes pulseHighlight {
+  0% { box-shadow: 0 0 0 0 rgba(196, 160, 82, 0.5); }
+  40% { box-shadow: 0 0 0 6px rgba(196, 160, 82, 0.2); }
+  100% { box-shadow: 0 0 0 0 rgba(196, 160, 82, 0); }
+}
+.animate-pulse-highlight {
+  animation: pulseHighlight 1.2s ease-out;
+}
+
+/* ═══ SEARCH PAGE — Leaflet overrides ═══ */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important;
+  padding: 0 !important;
+}
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+  font-family: var(--font-sans) !important;
+}
+.leaflet-popup-tip {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+/* Hide the ugly default close button, popup closes on map click */
+.leaflet-popup-close-button {
+  display: none !important;
+}

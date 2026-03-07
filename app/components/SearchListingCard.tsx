@@ -174,13 +174,15 @@ export function CompactCard({ listing, isRental, isHighlighted, onHover }: CardP
   return (
     <Link
       href={listingHref(listing)}
-      className={`flex gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group ${
-        isHighlighted ? 'bg-brand-gold/5 ring-1 ring-brand-gold/30' : ''
+      className={`flex gap-3 p-3 rounded-xl transition-all duration-200 group border-b border-black/[0.03] last:border-b-0 ${
+        isHighlighted
+          ? 'bg-brand-gold/5 ring-1 ring-brand-gold/30 shadow-sm'
+          : 'hover:bg-gray-50/80'
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div className="relative w-28 h-20 flex-shrink-0 rounded-lg overflow-hidden">
+      <div className="relative w-[120px] h-[82px] flex-shrink-0 rounded-lg overflow-hidden">
         <IDXImage
           src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
@@ -192,28 +194,42 @@ export function CompactCard({ listing, isRental, isHighlighted, onHover }: CardP
             Coming Soon
           </span>
         )}
+        {listing.media.length > 1 && (
+          <span className="absolute bottom-1 right-1 bg-black/50 text-white text-[9px] px-1 py-0.5 rounded backdrop-blur-sm">
+            {listing.photosCount || listing.media.length}
+          </span>
+        )}
       </div>
       <div className="flex-1 min-w-0 py-0.5">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-sm font-display font-semibold">
+          <p className="text-sm font-display font-semibold text-brand-dark">
             {formatPrice(listing.listPrice, isRental)}
           </p>
           <FavoriteButton listing={listing} size="sm" />
         </div>
-        <p className="text-xs text-brand-dark truncate">
+        <p className="text-xs text-brand-dark truncate mt-0.5">
           {listing.address.streetName === 'Address Undisclosed'
             ? 'Address Undisclosed'
-            : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
+            : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, Unit ${listing.address.unitNumber}` : ''}`}
         </p>
-        <div className="flex gap-2 text-[11px] text-brand-dark/85 mt-1">
-          <span>{listing.bedroomsTotal}bd</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''}ba</span>
+        {listing.address.neighborhood && (
+          <p className="text-[11px] text-brand-dark/60 truncate">
+            {listing.address.neighborhood}{listing.address.borough ? `, ${listing.address.borough}` : ''}
+          </p>
+        )}
+        <div className="flex gap-2 text-[11px] text-brand-dark/80 mt-1">
+          <span>{listing.bedroomsTotal} bd</span>
+          <span className="text-brand-dark/30">·</span>
+          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} ba</span>
           {listing.livingArea && listing.livingArea > 0 && (
-            <span>{listing.livingArea.toLocaleString()}sf</span>
+            <>
+              <span className="text-brand-dark/30">·</span>
+              <span>{listing.livingArea.toLocaleString()} sf</span>
+            </>
           )}
         </div>
-        <p className="text-[9px] text-brand-dark/85 mt-0.5">
-          <span className="font-semibold">RLS</span> &middot; {listing.listOfficeName}
+        <p className="text-[9px] text-brand-dark/50 mt-0.5">
+          <span className="font-semibold tracking-wide">RLS</span> · {listing.listOfficeName}
         </p>
       </div>
     </Link>
