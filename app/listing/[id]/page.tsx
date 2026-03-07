@@ -263,6 +263,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
     floorPlanTypes.has((m.mediaType || '').toLowerCase())
   );
   const floorPlanUrl = floorPlanMedia?.url || null;
+  const videoMedia = listing.media.find((m) =>
+    videoTypes.has((m.mediaType || '').toLowerCase())
+  );
+  const videoUrl = videoMedia?.url || null;
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -295,7 +299,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <ListingMediaGallery
         images={images}
         floorPlanUrl={floorPlanUrl}
-        videoUrl={null}
+        videoUrl={videoUrl}
         virtualTourUrl={listing.virtualTourURL || null}
         alt={fullAddress}
         badges={

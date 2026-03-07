@@ -314,7 +314,7 @@ export async function fetchListingMedia(
 
   const params = new URLSearchParams();
   params.set("$filter", `${filterField} eq ${filterValue}`);
-  params.set("$select", "MediaURL,MediaType,Order,ShortDescription");
+  params.set("$select", "MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN");
   params.set("$orderby", "Order asc");
   params.set("$top", "50");
 
@@ -334,11 +334,21 @@ export async function fetchListingMedia(
 
   const data = await response.json();
   const records = data.value || [];
-  return records.map((m: Record<string, unknown>, i: number) => ({
-    url: String(m.MediaURL || ""),
-    mediaType: String(m.MediaType || "Photo"),
-    order: Number(m.Order || i),
-  })).filter((m: { url: string }) => m.url);
+  return records.map((m: Record<string, unknown>, i: number) => {
+    // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
+    //          MediaType = file format (jpeg, png) — NOT content type
+    const cat = String(m.MediaCategory || "").toLowerCase();
+    let mediaType = "Photo";
+    if (cat.includes("floor plan")) mediaType = "FloorPlan";
+    else if (cat.includes("video")) mediaType = "Video";
+    else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+    const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+    return {
+      url: String(m.MediaURL || ""),
+      mediaType,
+      order: isPreferred ? -1 : Number(m.Order || i),
+    };
+  }).filter((m: { url: string }) => m.url);
 }
 
 /** Internal: make a single HTTP request to Trestle. */
