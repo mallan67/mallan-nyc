@@ -427,6 +427,14 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Bronx",
     "area": "Throgs Neck, Country Club"
   },
+  "10467": {
+    "neighborhood": "Fordham",
+    "borough": "Bronx",
+    "area": "Norwood, Williamsbridge, Wakefield south",
+    "alternateNames": [
+      "Norwood"
+    ]
+  },
   "10468": {
     "neighborhood": "Fordham",
     "borough": "Bronx",
@@ -477,6 +485,11 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Queens",
     "area": "LIC PO boxes"
   },
+  "11203": {
+    "neighborhood": "East Flatbush",
+    "borough": "Brooklyn",
+    "area": "East Flatbush, Remsen Village"
+  },
   "11201": {
     "neighborhood": "Brooklyn Heights",
     "borough": "Brooklyn",
@@ -498,6 +511,11 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "neighborhood": "Bed-Stuy",
     "borough": "Brooklyn",
     "area": "Williamsburg south border"
+  },
+  "11209": {
+    "neighborhood": "Bay Ridge",
+    "borough": "Brooklyn",
+    "area": "Bay Ridge, Fort Hamilton"
   },
   "11211": {
     "neighborhood": "Williamsburg",
@@ -523,10 +541,36 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
       "Boerum Hill"
     ]
   },
+  "11218": {
+    "neighborhood": "Kensington",
+    "borough": "Brooklyn",
+    "area": "Kensington, Ditmas Park west",
+    "alternateNames": [
+      "Ditmas Park"
+    ]
+  },
   "11221": {
     "neighborhood": "Bed-Stuy",
     "borough": "Brooklyn",
     "area": "Bushwick border"
+  },
+  "11225": {
+    "neighborhood": "Prospect Lefferts Gardens",
+    "borough": "Brooklyn",
+    "area": "PLG, Lefferts Gardens, Prospect Park south",
+    "alternateNames": [
+      "PLG",
+      "Lefferts Gardens"
+    ]
+  },
+  "11226": {
+    "neighborhood": "Flatbush",
+    "borough": "Brooklyn",
+    "area": "Flatbush, Ditmas Park east, Victorian Flatbush",
+    "alternateNames": [
+      "Ditmas Park",
+      "Victorian Flatbush"
+    ]
   },
   "11222": {
     "neighborhood": "Greenpoint",
@@ -546,6 +590,11 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "neighborhood": "Bed-Stuy",
     "borough": "Brooklyn",
     "area": "Ocean Hill border"
+  },
+  "11236": {
+    "neighborhood": "Canarsie",
+    "borough": "Brooklyn",
+    "area": "Canarsie, Bergen Beach"
   },
   "11238": {
     "neighborhood": "Prospect Heights",
@@ -590,6 +639,14 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Queens",
     "area": "Oakland Gardens, Bayside Hills"
   },
+  "11369": {
+    "neighborhood": "Jackson Heights",
+    "borough": "Queens",
+    "area": "East Elmhurst, LaGuardia Airport area",
+    "alternateNames": [
+      "East Elmhurst"
+    ]
+  },
   "11370": {
     "neighborhood": "Jackson Heights",
     "borough": "Queens",
@@ -600,10 +657,46 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Queens",
     "area": "Jackson Heights center"
   },
+  "11373": {
+    "neighborhood": "Elmhurst",
+    "borough": "Queens",
+    "area": "Elmhurst"
+  },
   "11375": {
     "neighborhood": "Forest Hills",
     "borough": "Queens",
     "area": "Forest Hills, Forest Hills Gardens"
+  },
+  "11378": {
+    "neighborhood": "Maspeth",
+    "borough": "Queens",
+    "area": "Maspeth"
+  },
+  "11379": {
+    "neighborhood": "Middle Village",
+    "borough": "Queens",
+    "area": "Middle Village, Juniper Valley"
+  },
+  "11385": {
+    "neighborhood": "Ridgewood",
+    "borough": "Queens",
+    "area": "Ridgewood, Glendale",
+    "alternateNames": [
+      "Glendale"
+    ]
+  },
+  "11417": {
+    "neighborhood": "Ozone Park",
+    "borough": "Queens",
+    "area": "Ozone Park, Howard Beach north"
+  },
+  "11435": {
+    "neighborhood": "Jamaica",
+    "borough": "Queens",
+    "area": "Jamaica, Briarwood",
+    "alternateNames": [
+      "Briarwood"
+    ]
   }
 };
 
