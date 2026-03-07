@@ -32,15 +32,15 @@
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Restore saved search tab + mode on refresh
+            // Restore saved search mode + tab on refresh (mode FIRST so tab sees correct state)
             try {
-                var savedTab = sessionStorage.getItem('searchTab');
                 var savedMode = sessionStorage.getItem('searchMode');
-                if (savedTab && typeof toggleSearchTab === 'function') {
-                    toggleSearchTab(savedTab);
-                }
+                var savedTab = sessionStorage.getItem('searchTab');
                 if (savedMode && typeof toggleSearchMode === 'function') {
                     toggleSearchMode(savedMode);
+                }
+                if (savedTab && typeof toggleSearchTab === 'function') {
+                    toggleSearchTab(savedTab);
                 }
             } catch(e) {}
 
@@ -173,11 +173,15 @@
 
         window._suppressHashUpdate = false;
 
-        // Remove the render-blocking styles now that routing is resolved
-        var routeBlock = document.getElementById('routeBlock');
-        if (routeBlock) routeBlock.remove();
-        var modeBlock = document.getElementById('modeBlock');
-        if (modeBlock) modeBlock.remove();
+        // Reveal page now that routing is resolved (removes body opacity:0)
+        var searchRenderBlock = document.getElementById('searchRenderBlock');
+        if (searchRenderBlock) searchRenderBlock.remove();
+
+        // Safety net: reveal after 500ms even if something above failed
+        setTimeout(function() {
+            var rb = document.getElementById('searchRenderBlock');
+            if (rb) rb.remove();
+        }, 500);
 
         // ── Handle browser back/forward buttons ──
         window.addEventListener('hashchange', function() {
@@ -250,12 +254,12 @@
                 searchFormContainer.style.transition = '';
             }, 200);
 
-            // Restore saved search mode on back-navigation
+            // Restore saved search mode on back-navigation (mode FIRST so tab sees correct state)
             try {
-                var savedTab = sessionStorage.getItem('searchTab');
                 var savedMode = sessionStorage.getItem('searchMode');
-                if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
+                var savedTab = sessionStorage.getItem('searchTab');
                 if (savedMode && typeof toggleSearchMode === 'function') toggleSearchMode(savedMode);
+                if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
             } catch(e) {}
         }
     }

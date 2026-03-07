@@ -85,8 +85,13 @@
                 cb.addEventListener('change', updateSelectedCount);
             });
 
-            // Initialize search tabs - ensure Sales is shown and Rentals is hidden
-            toggleSearchTab('sale');
+            // Initialize search tabs — restore saved tab + mode, or default to Sale/Basic
+            var _initTab = 'sale';
+            var _initMode = 'basic';
+            try { _initTab = sessionStorage.getItem('searchTab') || 'sale'; } catch(e) {}
+            try { _initMode = sessionStorage.getItem('searchMode') || 'basic'; } catch(e) {}
+            toggleSearchMode(_initMode);
+            toggleSearchTab(_initTab);
         });
 
         // Close modal on escape key

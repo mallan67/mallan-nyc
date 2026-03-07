@@ -23,25 +23,8 @@
         return false;
     };
     </script>
-    <script>
-    // Route-aware render blocking — hide search form BEFORE first paint
-    // when restoring results/detail view on refresh. Prevents flash of search form.
-    (function() {
-        var h = location.hash.replace('#','').split('/')[0];
-        if (h === 'detail') {
-            var s = document.createElement('style'); s.id = 'routeBlock'; s.textContent = '#searchFormContainer{display:none!important}'; document.head.appendChild(s);
-        }
-        // Prevent flash of basic mode when user was in advanced mode
-        try {
-            var sm = sessionStorage.getItem('searchMode');
-            if (sm === 'advanced') {
-                var s2 = document.createElement('style'); s2.id = 'modeBlock';
-                s2.textContent = '#searchBasicMode,#searchBasicModeRental,#searchBasicModeBuilding{display:none!important}#searchAdvancedMode{display:block!important}#btnSearchBasic{background:transparent!important;color:rgb(107,114,128)!important}#btnSearchAdvanced{background:rgb(17,24,39)!important;color:white!important}#expandCollapseControls{display:flex!important}';
-                document.head.appendChild(s2);
-            }
-        } catch(e) {}
-    })();
-    </script>
+    <!-- Render-blocking: hide everything until JS restores the correct search state -->
+    <style id="searchRenderBlock">body{opacity:0!important}</style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
     <style type="text/tailwindcss">
         @import "tailwindcss";

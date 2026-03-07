@@ -23,25 +23,8 @@
         return false;
     };
     </script>
-    <script>
-    // Route-aware render blocking — hide search form BEFORE first paint
-    // when restoring results/detail view on refresh. Prevents flash of search form.
-    (function() {
-        var h = location.hash.replace('#','').split('/')[0];
-        if (h === 'detail') {
-            var s = document.createElement('style'); s.id = 'routeBlock'; s.textContent = '#searchFormContainer{display:none!important}'; document.head.appendChild(s);
-        }
-        // Prevent flash of basic mode when user was in advanced mode
-        try {
-            var sm = sessionStorage.getItem('searchMode');
-            if (sm === 'advanced') {
-                var s2 = document.createElement('style'); s2.id = 'modeBlock';
-                s2.textContent = '#searchBasicMode,#searchBasicModeRental,#searchBasicModeBuilding{display:none!important}#searchAdvancedMode{display:block!important}#btnSearchBasic{background:transparent!important;color:rgb(107,114,128)!important}#btnSearchAdvanced{background:rgb(17,24,39)!important;color:white!important}#expandCollapseControls{display:flex!important}';
-                document.head.appendChild(s2);
-            }
-        } catch(e) {}
-    })();
-    </script>
+    <!-- Render-blocking: hide everything until JS restores the correct search state -->
+    <style id="searchRenderBlock">body{opacity:0!important}</style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
     <style type="text/tailwindcss">
         @import "tailwindcss";
@@ -13772,13 +13755,13 @@ if (typeof MallanAPI !== 'undefined') {
             AGENT_PROFILE.company = LOGGED_IN_AGENT.companyName;
             if (u.photo) AGENT_PROFILE.photo = u.photo;
         } else {
-            // Not authenticated — redirect to login
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            // Not authenticated — redirect to admin login
+            window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         }
     });
     // Handle 401 events from API calls
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     });
 }
 
@@ -16931,8 +16914,9 @@ function manageShowToast(msg) {
             if (searchFormContainer) searchFormContainer.style.display = 'block';
 
             // Restore the proper search mode display
-            var btnBasic = document.getElementById('btnSearchBasic');
-            var isBasicMode = btnBasic && btnBasic.classList.contains('bg-gray-900');
+            var _sm;
+            try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var isBasicMode = _sm !== 'advanced';
 
             var basicModeSales = document.getElementById('searchBasicMode');
             var basicModeRental = document.getElementById('searchBasicModeRental');
@@ -17207,8 +17191,9 @@ function manageShowToast(msg) {
             var label = document.getElementById('stickyNavActiveLabel');
             if (label) {
                 var tab = currentSearchTab || 'sale';
-                var btnBasic = document.getElementById('btnSearchBasic');
-                var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
+                var _smode;
+                try { _smode = sessionStorage.getItem('searchMode'); } catch(e) {}
+                var isBasic = _smode !== 'advanced';
                 var mode = isBasic ? 'Basic' : 'Advanced';
                 var tabLabel = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
                 label.textContent = tabLabel + ' · ' + mode;
@@ -17222,8 +17207,9 @@ function manageShowToast(msg) {
                 el.classList.remove('bg-white/15', 'text-white');
                 el.classList.add('text-gray-400');
             });
-            var btnBasic2 = document.getElementById('btnSearchBasic');
-            var basic = btnBasic2 && btnBasic2.classList.contains('bg-gray-900');
+            var _smode2;
+            try { _smode2 = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var basic = _smode2 !== 'advanced';
             var activeId = null;
             if (currentSearchTab === 'sale') activeId = basic ? 'stickyNavSaleBasic' : 'stickyNavSaleAdv';
             else if (currentSearchTab === 'rent') activeId = basic ? 'stickyNavRentBasic' : 'stickyNavRentAdv';
@@ -17290,9 +17276,13 @@ function manageShowToast(msg) {
                 } else if (addrEl && addrEl.value.trim()) {
                     addr = addrEl.value.trim();
                 }
+                // Capture current mode (basic/advanced)
+                var curMode = 'basic';
+                try { curMode = sessionStorage.getItem('searchMode') || 'basic'; } catch(e2) {}
                 sessionStorage.setItem('_searchState', JSON.stringify({
                     filteredIds: ids,
                     tab: currentSearchTab,
+                    mode: curMode,
                     page: searchResultsState.currentPage || 1,
                     address: addr,
                     ts: Date.now()
@@ -17315,6 +17305,11 @@ function manageShowToast(msg) {
                 if (state.ts && (Date.now() - state.ts) > 300000) {
                     sessionStorage.removeItem('_searchState');
                     return false;
+                }
+
+                // Restore the search mode (basic/advanced) FIRST so toggleSearchTab sees correct state
+                if (state.mode && typeof toggleSearchMode === 'function') {
+                    toggleSearchMode(state.mode);
                 }
 
                 // Restore the search tab
@@ -17354,9 +17349,11 @@ function manageShowToast(msg) {
             var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
             var advancedMode = document.getElementById('searchAdvancedMode');
 
-            // Check if we're in Basic mode
-            var btnBasic = document.getElementById('btnSearchBasic');
-            var isBasicMode = btnBasic && btnBasic.classList.contains('bg-gray-900');
+            // Check if we're in Basic mode — use sessionStorage as source of truth
+            // (CSS classes can be stale during init when render-blocking CSS is active)
+            var _storedMode;
+            try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var isBasicMode = _storedMode !== 'advanced';
 
             // Reset all tab buttons
             [btnSale, btnRent, btnBuilding].forEach(btn => {
@@ -18293,8 +18290,13 @@ function manageShowToast(msg) {
                 cb.addEventListener('change', updateSelectedCount);
             });
 
-            // Initialize search tabs - ensure Sales is shown and Rentals is hidden
-            toggleSearchTab('sale');
+            // Initialize search tabs — restore saved tab + mode, or default to Sale/Basic
+            var _initTab = 'sale';
+            var _initMode = 'basic';
+            try { _initTab = sessionStorage.getItem('searchTab') || 'sale'; } catch(e) {}
+            try { _initMode = sessionStorage.getItem('searchMode') || 'basic'; } catch(e) {}
+            toggleSearchMode(_initMode);
+            toggleSearchTab(_initTab);
         });
 
         // Close modal on escape key
@@ -30189,15 +30191,15 @@ function emailCurrentCalc() {
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Restore saved search tab + mode on refresh
+            // Restore saved search mode + tab on refresh (mode FIRST so tab sees correct state)
             try {
-                var savedTab = sessionStorage.getItem('searchTab');
                 var savedMode = sessionStorage.getItem('searchMode');
-                if (savedTab && typeof toggleSearchTab === 'function') {
-                    toggleSearchTab(savedTab);
-                }
+                var savedTab = sessionStorage.getItem('searchTab');
                 if (savedMode && typeof toggleSearchMode === 'function') {
                     toggleSearchMode(savedMode);
+                }
+                if (savedTab && typeof toggleSearchTab === 'function') {
+                    toggleSearchTab(savedTab);
                 }
             } catch(e) {}
 
@@ -30330,11 +30332,15 @@ function emailCurrentCalc() {
 
         window._suppressHashUpdate = false;
 
-        // Remove the render-blocking styles now that routing is resolved
-        var routeBlock = document.getElementById('routeBlock');
-        if (routeBlock) routeBlock.remove();
-        var modeBlock = document.getElementById('modeBlock');
-        if (modeBlock) modeBlock.remove();
+        // Reveal page now that routing is resolved (removes body opacity:0)
+        var searchRenderBlock = document.getElementById('searchRenderBlock');
+        if (searchRenderBlock) searchRenderBlock.remove();
+
+        // Safety net: reveal after 500ms even if something above failed
+        setTimeout(function() {
+            var rb = document.getElementById('searchRenderBlock');
+            if (rb) rb.remove();
+        }, 500);
 
         // ── Handle browser back/forward buttons ──
         window.addEventListener('hashchange', function() {
@@ -30407,12 +30413,12 @@ function emailCurrentCalc() {
                 searchFormContainer.style.transition = '';
             }, 200);
 
-            // Restore saved search mode on back-navigation
+            // Restore saved search mode on back-navigation (mode FIRST so tab sees correct state)
             try {
-                var savedTab = sessionStorage.getItem('searchTab');
                 var savedMode = sessionStorage.getItem('searchMode');
-                if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
+                var savedTab = sessionStorage.getItem('searchTab');
                 if (savedMode && typeof toggleSearchMode === 'function') toggleSearchMode(savedMode);
+                if (savedTab && typeof toggleSearchTab === 'function') toggleSearchTab(savedTab);
             } catch(e) {}
         }
     }
