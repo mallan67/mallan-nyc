@@ -18,6 +18,17 @@ function cacheKey(streetNumber: string, streetName: string, zip: string): string
   return `${streetNumber}|${streetName}|${zip}`.toLowerCase();
 }
 
+/** Deterministic hash-based jitter so same address always gets same offset */
+function hashJitter(str: string): [number, number] {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  const latOff = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.004; // ~200m spread
+  const lngOff = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 0.004;
+  return [latOff, lngOff];
+}
+
 /**
  * Geocode a batch of listings, injecting latitude/longitude into the address objects.
  * Mutates the input array for performance (avoids copying 50+ large objects).
@@ -43,18 +54,19 @@ export async function geocodeListings(
   // Phase 1: Check cache, identify what needs geocoding
   for (const listing of listings) {
     const addr = listing.address;
-    if (addr.latitude && addr.longitude) continue; // Already has coords
+    if (addr.latitude != null && addr.longitude != null && addr.latitude !== 0 && addr.longitude !== 0) continue;
 
     const street = addr.streetName || '';
     const num = addr.streetNumber || '';
-    const zip = addr.postalCode || '';
+    const zip = (addr.postalCode || '').split('-')[0].trim(); // Normalize ZIP+4 to 5-digit
 
     if (!street || street === 'Address Undisclosed') {
       // Can't geocode — use ZIP centroid
       const centroid = ZIP_CENTROIDS[zip];
       if (centroid) {
-        addr.latitude = centroid[0] + (Math.random() - 0.5) * 0.002;
-        addr.longitude = centroid[1] + (Math.random() - 0.5) * 0.002;
+        const jitter = hashJitter(`${num}|${street}|${zip}`);
+        addr.latitude = centroid[0] + jitter[0];
+        addr.longitude = centroid[1] + jitter[1];
       }
       continue;
     }
@@ -95,7 +107,7 @@ export async function geocodeListings(
         const addr = listing.address;
         const num = addr.streetNumber || '';
         const street = addr.streetName || '';
-        const zip = addr.postalCode || '';
+        const zip = (addr.postalCode || '').split('-')[0].trim();
         let result: { lat: number; lng: number } | null = null;
 
         // Try NYC Geoclient first (most precise for NYC)

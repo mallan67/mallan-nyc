@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'rea
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/app/components/Header';
 import { useListings } from '@/lib/hooks/useListings';
-import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
+// IDX disclaimer shown inline in toolbar row 2 (single line for space efficiency)
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
 import SaveSearchButton from '@/app/components/SaveSearchButton';
 import { GridCard, ListCard } from '@/app/components/SearchListingCard';
@@ -365,27 +365,27 @@ function SearchClient() {
               }}
             />
 
-            <IDXSearchDisclaimer />
           </div>
 
-          {/* Row 2: Active filter pills + count */}
-          {(activeFilterPills.length > 0 || sortedListings.length > 0) && (
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <p className="text-xs text-brand-dark/80" aria-live="polite">
-                {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
-              </p>
-              {activeFilterPills.map((pill) => (
-                <span key={pill.key} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-gold/10 text-brand-dark text-xs rounded-full">
-                  {pill.label}
-                </span>
-              ))}
-              {activeFilterPills.length > 0 && (
-                <button onClick={clearFilters} className="text-xs text-brand-dark/70 hover:text-brand-dark underline">
-                  Clear all
-                </button>
-              )}
-            </div>
-          )}
+          {/* Row 2: Count + filter pills + disclaimer */}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <p className="text-xs text-brand-dark/80 font-medium" aria-live="polite">
+              {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
+            </p>
+            {activeFilterPills.map((pill) => (
+              <span key={pill.key} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-gold/10 text-brand-dark text-xs rounded-full">
+                {pill.label}
+              </span>
+            ))}
+            {activeFilterPills.length > 0 && (
+              <button onClick={clearFilters} className="text-xs text-brand-dark/70 hover:text-brand-dark underline">
+                Clear all
+              </button>
+            )}
+            <span className="ml-auto text-[10px] text-brand-dark/40 hidden sm:inline">
+              REBNY RLS · Mallan Real Estate Inc. · Equal Housing Opportunity
+            </span>
+          </div>
         </div>
       </section>
 
@@ -431,7 +431,7 @@ function SearchClient() {
             </div>
             {/* Listings — right 55% */}
             <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto">
-              <div className="p-4 grid grid-cols-2 gap-4">
+              <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-5">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
@@ -447,7 +447,7 @@ function SearchClient() {
                   </div>
                 ))}
                 {hasMore && (
-                  <div className="text-center py-4">
+                  <div className="text-center py-4 col-span-full">
                     <button onClick={loadMore} className="px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors">
                       Load More
                     </button>
