@@ -2,6 +2,7 @@
 
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
@@ -280,7 +281,7 @@ function SignInContent() {
 
             {/* Help */}
             <div className="mt-5 text-center">
-              <div className="flex gap-3 justify-center text-xs">
+              <div className="flex gap-3 justify-center items-center text-xs">
                 <Link href="/agents" className="text-brand-gold hover:underline">
                   Contact an Agent
                 </Link>
@@ -288,6 +289,16 @@ function SignInContent() {
                 <a href="tel:+16462584460" className="text-brand-gold hover:underline">
                   (646) 258-4460
                 </a>
+                <span className="text-brand-dark/20">|</span>
+                <Link href="/crm/login.html" aria-label="Broker Admin">
+                  <Image
+                    src="/images/broker-admin-icon.png"
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="opacity-60 hover:opacity-100 transition-opacity"
+                  />
+                </Link>
               </div>
             </div>
           </div>
