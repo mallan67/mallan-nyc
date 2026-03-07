@@ -16,7 +16,6 @@ import DetailFavoriteButton from '@/app/components/DetailFavoriteButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
-import ListingLocationMap from '@/app/components/ListingLocationMap';
 import NeighborhoodExplorer from '@/app/components/NeighborhoodExplorer';
 import BuildingUnits from '@/app/components/BuildingUnits';
 import SimilarListings from '@/app/components/SimilarListings';
@@ -1145,19 +1144,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 )}
               </section>
 
-              {/* ── 10. MAP ── */}
-              {listing.address.latitude && listing.address.longitude && (
-                <section className="py-6 border-t border-black/[0.06]">
-                  <ListingLocationMap
-                    latitude={listing.address.latitude}
-                    longitude={listing.address.longitude}
-                    address={fullAddress}
-                    borough={borough}
-                  />
-                </section>
-              )}
-
-              {/* ── 11. TRANSIT & COMMUTE ── */}
+              {/* ── 10. TRANSIT & COMMUTE ── */}
               {listing.address.latitude && listing.address.longitude && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <TransitCommuteTool
