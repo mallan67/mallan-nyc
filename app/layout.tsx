@@ -159,6 +159,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* Google Translate */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'en',includedLanguages:'en,es,zh-CN,zh-TW,ko,ru,fr,he,ar,ja,pt,it,de,pl',layout:google.translate.TranslateElement.InlineLayout.HORIZONTAL,autoDisplay:false},'google_translate_element');}`,
+          }}
+        />
+        <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async />
       </head>
       <body className="antialiased font-sans">
         <SkipLink />

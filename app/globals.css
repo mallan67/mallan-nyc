@@ -441,3 +441,33 @@ header button:focus-visible {
 .leaflet-control-zoom a:last-child {
   border-bottom: none !important;
 }
+
+/* Google Translate widget — compact style for nav bar */
+.translate-widget .goog-te-gadget {
+  font-size: 0 !important;
+  color: transparent !important;
+}
+.translate-widget .goog-te-gadget-simple {
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.3) !important;
+  border-radius: 8px !important;
+  padding: 4px 8px !important;
+  line-height: 1 !important;
+}
+.translate-widget .goog-te-gadget-simple .goog-te-menu-value {
+  color: rgba(255,255,255,0.8) !important;
+  font-size: 12px !important;
+}
+.translate-widget .goog-te-gadget-simple .goog-te-menu-value span {
+  color: rgba(255,255,255,0.8) !important;
+}
+.translate-widget .goog-te-gadget-icon {
+  display: none !important;
+}
+/* Hide Google Translate top bar */
+.skiptranslate[style] {
+  display: none !important;
+}
+body {
+  top: 0 !important;
+}

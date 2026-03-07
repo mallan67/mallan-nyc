@@ -260,6 +260,11 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 </Link>
               </li>
 
+              {/* Google Translate */}
+              <li>
+                <div id="google_translate_element" className="translate-widget" />
+              </li>
+
               {isLoggedIn ? (
                 <li className="relative group">
                   <Link
