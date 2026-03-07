@@ -169,10 +169,8 @@
       ],
       "zipCodes": [
         "10021",
-        "10028",
         "10065",
-        "10075",
-        "10128"
+        "10075"
       ],
       "adjacentNeighborhoods": [
         "upper-west-side",
@@ -400,7 +398,6 @@
       "zipCodes": [
         "10023",
         "10024",
-        "10025",
         "10069"
       ],
       "adjacentNeighborhoods": [
@@ -610,7 +607,6 @@
         "E"
       ],
       "zipCodes": [
-        "10007",
         "10013"
       ],
       "adjacentNeighborhoods": [
@@ -825,8 +821,7 @@
         "M"
       ],
       "zipCodes": [
-        "10012",
-        "10013"
+        "10012"
       ],
       "adjacentNeighborhoods": [
         "tribeca",
@@ -1038,8 +1033,7 @@
         "L"
       ],
       "zipCodes": [
-        "10001",
-        "10011"
+        "10001"
       ],
       "adjacentNeighborhoods": [
         "greenwich-village",
@@ -1262,8 +1256,7 @@
         "10004",
         "10005",
         "10006",
-        "10007",
-        "10038"
+        "10007"
       ],
       "adjacentNeighborhoods": [
         "tribeca",
@@ -1480,10 +1473,7 @@
         "L"
       ],
       "zipCodes": [
-        "10003",
-        "10011",
-        "10012",
-        "10014"
+        "10011"
       ],
       "adjacentNeighborhoods": [
         "chelsea",
@@ -1695,9 +1685,7 @@
         "S"
       ],
       "zipCodes": [
-        "10017",
         "10022",
-        "10016",
         "10155"
       ],
       "adjacentNeighborhoods": [
@@ -1895,8 +1883,7 @@
         "W"
       ],
       "zipCodes": [
-        "10019",
-        "10036"
+        "10019"
       ],
       "adjacentNeighborhoods": [
         "midtown-west",
@@ -2439,7 +2426,6 @@
         "10027",
         "10030",
         "10031",
-        "10032",
         "10037",
         "10039"
       ],
@@ -2608,7 +2594,6 @@
         "M"
       ],
       "zipCodes": [
-        "10010",
         "10016"
       ],
       "adjacentNeighborhoods": [
@@ -2782,9 +2767,7 @@
         "5"
       ],
       "zipCodes": [
-        "10003",
-        "10010",
-        "10011"
+        "10010"
       ],
       "adjacentNeighborhoods": [
         "chelsea",
@@ -2954,7 +2937,6 @@
         "W"
       ],
       "zipCodes": [
-        "10003",
         "10010"
       ],
       "adjacentNeighborhoods": [
@@ -3929,8 +3911,7 @@
         "W"
       ],
       "zipCodes": [
-        "10012",
-        "10013"
+        "10012"
       ],
       "adjacentNeighborhoods": [
         "soho",
@@ -4174,7 +4155,6 @@
         "W"
       ],
       "zipCodes": [
-        "10012",
         "10003"
       ],
       "adjacentNeighborhoods": [
@@ -4664,8 +4644,6 @@
         "F"
       ],
       "zipCodes": [
-        "10002",
-        "10013",
         "10038"
       ],
       "adjacentNeighborhoods": [
@@ -4912,8 +4890,7 @@
       ],
       "zipCodes": [
         "10032",
-        "10033",
-        "10040"
+        "10033"
       ],
       "adjacentNeighborhoods": [
         "inwood",
@@ -5384,7 +5361,6 @@
         "S"
       ],
       "zipCodes": [
-        "10016",
         "10017"
       ],
       "adjacentNeighborhoods": [
@@ -5622,7 +5598,6 @@
         "W"
       ],
       "zipCodes": [
-        "10010",
         "10016"
       ],
       "adjacentNeighborhoods": [
@@ -6106,8 +6081,7 @@
         "C"
       ],
       "zipCodes": [
-        "10025",
-        "10027"
+        "10025"
       ],
       "adjacentNeighborhoods": [
         "harlem",
@@ -7065,8 +7039,7 @@
         "Z"
       ],
       "zipCodes": [
-        "10002",
-        "10038"
+        "10002"
       ],
       "adjacentNeighborhoods": [
         "lower-east-side",

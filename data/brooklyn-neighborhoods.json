@@ -880,8 +880,7 @@
         "G"
       ],
       "zipCodes": [
-        "11215",
-        "11217"
+        "11215"
       ],
       "adjacentNeighborhoods": [
         "prospect-heights",
@@ -1119,7 +1118,7 @@
         "C"
       ],
       "zipCodes": [
-        "11201"
+        "11231"
       ],
       "adjacentNeighborhoods": [
         "brooklyn-heights",
@@ -1831,7 +1830,6 @@
         "5"
       ],
       "zipCodes": [
-        "11217",
         "11238"
       ],
       "adjacentNeighborhoods": [
@@ -2288,7 +2286,6 @@
         "Z"
       ],
       "zipCodes": [
-        "11205",
         "11206",
         "11216",
         "11221",
