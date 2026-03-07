@@ -404,6 +404,11 @@ function formatCamelCase(val: string): string {
   return val.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
 }
 
+/** Split comma-separated Trestle field into RAW trimmed tokens (no formatting) */
+function splitRaw(raw: string): string[] {
+  return raw.split(',').map(v => v.trim()).filter(v => v.length > 0);
+}
+
 /** Split comma-separated Trestle field into cleaned values */
 function parseTrestleList(raw: string): string[] {
   return raw.split(',')
@@ -532,27 +537,27 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const hasGarage = parkingList.some(v => v === 'Garage');
 
   // ── Unit Features (pills) ──
-  // Interior features minus building-level items
-  const INTERIOR_EXCLUDE = new Set(['Sauna', 'Elevator', 'CommonArea', 'CommonOnFloor', 'Storage']);
+  // Filter on RAW values (before formatting) to avoid mismatches
+  const INTERIOR_EXCLUDE_RAW = new Set(['Sauna', 'Elevator', 'CommonArea', 'CommonOnFloor', 'Storage']);
   const unitFeatures: string[] = [];
   if (listing.interiorFeatures) {
-    for (const v of parseTrestleList(listing.interiorFeatures)) {
-      if (!INTERIOR_EXCLUDE.has(v)) unitFeatures.push(v);
+    for (const raw of splitRaw(listing.interiorFeatures)) {
+      if (!INTERIOR_EXCLUDE_RAW.has(raw)) unitFeatures.push(formatTrestleValue(raw));
     }
   }
-  // Unit-level exterior features (Balcony, Private Yard, etc.) — exclude building-level
-  const EXTERIOR_BUILDING = new Set(['BuildingBalcony', 'BuildingCourtyard', 'BuildingGarden', 'BuildingRoofDeck', 'BuildingStorage']);
+  // Unit-level exterior features — exclude building-level
+  const EXTERIOR_BUILDING_RAW = new Set(['BuildingBalcony', 'BuildingCourtyard', 'BuildingGarden', 'BuildingRoofDeck', 'BuildingStorage', 'Storage', 'None']);
   if (listing.exteriorFeatures) {
-    for (const v of parseTrestleList(listing.exteriorFeatures)) {
-      if (!EXTERIOR_BUILDING.has(v) && v !== 'Storage') unitFeatures.push(v);
+    for (const raw of splitRaw(listing.exteriorFeatures)) {
+      if (!EXTERIOR_BUILDING_RAW.has(raw)) unitFeatures.push(formatTrestleValue(raw));
     }
   }
   // Add building-level exterior features to building amenities
   if (listing.exteriorFeatures) {
-    for (const v of parseTrestleList(listing.exteriorFeatures)) {
-      if (v === 'BuildingRoofDeck') amenitySet.add('Roof Deck');
-      else if (v === 'BuildingGarden') amenitySet.add('Garden');
-      else if (v === 'BuildingCourtyard') amenitySet.add('Courtyard');
+    for (const raw of splitRaw(listing.exteriorFeatures)) {
+      if (raw === 'BuildingRoofDeck') amenitySet.add('Roof Deck');
+      else if (raw === 'BuildingGarden') amenitySet.add('Garden');
+      else if (raw === 'BuildingCourtyard') amenitySet.add('Courtyard');
     }
   }
   // Rebuild sorted building amenities after exterior additions
@@ -561,8 +566,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
   // ── Unit Details (structured rows) ──
   const unitDetails: { label: string; value: string }[] = [];
   if (listing.flooring) unitDetails.push({ label: 'Flooring', value: parseTrestleList(listing.flooring).join(', ') });
-  const unitLaundryValues = rawLaundry.filter(v => !buildingLaundryValues.has(v) && v !== 'None' && v !== 'BuildingNone' && v !== 'BuildingOther' && v !== 'SeeRemarks');
-  if (unitLaundryValues.length > 0) unitDetails.push({ label: 'Laundry', value: unitLaundryValues.map(v => formatCamelCase(v)).join(', ') });
+  // Only unit-level laundry (In Unit, Washer Hookup) — NOT building-level
+  const unitLaundryRaw = rawLaundry.filter(v => !buildingLaundryValues.has(v) && v !== 'None' && v !== 'BuildingNone' && v !== 'BuildingOther' && v !== 'SeeRemarks');
+  if (unitLaundryRaw.length > 0) unitDetails.push({ label: 'Laundry', value: unitLaundryRaw.map(v => formatTrestleValue(v)).join(', ') });
   if (listing.heating) unitDetails.push({ label: 'Heating', value: parseTrestleList(listing.heating).join(', ') });
   if (listing.cooling) unitDetails.push({ label: 'Cooling', value: parseTrestleList(listing.cooling).join(', ') });
 
@@ -775,52 +781,52 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* Property Details */}
+              {/* ── LEVEL 3: Building Info (compact) ── */}
               <section>
-                <h2 className="text-base font-display font-semibold mb-3">Property Details</h2>
-                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
-                  <div className="flex justify-between py-2 border-b border-black/5">
-                    <span className="text-brand-dark/85">Property Type</span>
-                    <span className="font-medium">{listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType}</span>
+                <h2 className="text-sm font-display font-semibold text-brand-dark/70 mb-2">Building Info</h2>
+                <div className="grid sm:grid-cols-3 gap-x-4 gap-y-0 text-xs">
+                  <div className="flex justify-between py-1 border-b border-black/5">
+                    <span className="text-brand-dark/60">Type</span>
+                    <span className="font-medium text-brand-dark/80">{listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType}</span>
                   </div>
                   {listing.architecturalStyle && (
-                    <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/85">Style</span>
-                      <span className="font-medium">{listing.architecturalStyle}</span>
+                    <div className="flex justify-between py-1 border-b border-black/5">
+                      <span className="text-brand-dark/60">Style</span>
+                      <span className="font-medium text-brand-dark/80">{listing.architecturalStyle}</span>
                     </div>
                   )}
                   {listing.yearBuilt && (
-                    <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/85">Year Built</span>
-                      <span className="font-medium">{listing.yearBuilt}</span>
+                    <div className="flex justify-between py-1 border-b border-black/5">
+                      <span className="text-brand-dark/60">Built</span>
+                      <span className="font-medium text-brand-dark/80">{listing.yearBuilt}</span>
                     </div>
                   )}
                   {listing.storiesTotal && (
-                    <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/85">Stories</span>
-                      <span className="font-medium">{listing.storiesTotal}</span>
+                    <div className="flex justify-between py-1 border-b border-black/5">
+                      <span className="text-brand-dark/60">Stories</span>
+                      <span className="font-medium text-brand-dark/80">{listing.storiesTotal}</span>
                     </div>
                   )}
                   {listing.buildingName && (
-                    <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/85">Building</span>
-                      <span className="font-medium">{listing.buildingName}</span>
+                    <div className="flex justify-between py-1 border-b border-black/5">
+                      <span className="text-brand-dark/60">Building</span>
+                      <span className="font-medium text-brand-dark/80">{listing.buildingName}</span>
                     </div>
                   )}
-                  <div className="flex justify-between py-2 border-b border-black/5">
-                    <span className="text-brand-dark/85">MLS #</span>
-                    <span className="font-medium">{listing.mlsId}</span>
+                  <div className="flex justify-between py-1 border-b border-black/5">
+                    <span className="text-brand-dark/60">MLS #</span>
+                    <span className="font-medium text-brand-dark/80">{listing.mlsId}</span>
                   </div>
                   {listing.onMarketDate && (
-                    <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/85">Listed</span>
-                      <span className="font-medium">{new Date(listing.onMarketDate).toLocaleDateString()}</span>
+                    <div className="flex justify-between py-1 border-b border-black/5">
+                      <span className="text-brand-dark/60">Listed</span>
+                      <span className="font-medium text-brand-dark/80">{new Date(listing.onMarketDate).toLocaleDateString()}</span>
                     </div>
                   )}
                   {listing.status && (
-                    <div className="flex justify-between py-2 border-b border-black/5">
-                      <span className="text-brand-dark/85">Status</span>
-                      <span className="font-medium">{listing.status}</span>
+                    <div className="flex justify-between py-1 border-b border-black/5">
+                      <span className="text-brand-dark/60">Status</span>
+                      <span className="font-medium text-brand-dark/80">{listing.status}</span>
                     </div>
                   )}
                 </div>
@@ -862,21 +868,19 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* ── Unit Features ── */}
-              {(unitFeatures.length > 0 || unitDetails.length > 0) && (
+              {/* ── LEVEL 1: Unit Features ── */}
+              {(unitFeatures.length > 0 || unitDetails.length > 0 || appliancesList.length > 0) && (
                 <section>
                   <h2 className="text-base font-display font-semibold mb-3">Unit Features</h2>
                   {unitFeatures.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {unitFeatures.map((f) => (
-                        <span key={f} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">
-                          {f}
-                        </span>
+                        <span key={f} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">{f}</span>
                       ))}
                     </div>
                   )}
                   {unitDetails.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0 mt-3">
+                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0 mt-2">
                       {unitDetails.map((item) => (
                         <div key={item.label} className="flex justify-between py-1.5 border-b border-black/5">
                           <span className="text-sm text-brand-dark/70">{item.label}</span>
@@ -885,70 +889,49 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       ))}
                     </div>
                   )}
+                  {appliancesList.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider mb-1.5">Appliances</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {appliancesList.map((a) => (
+                          <span key={a} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">{a}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
 
-              {/* ── Appliances ── */}
-              {appliancesList.length > 0 && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">Appliances</h2>
-                  <div className="flex flex-wrap gap-1.5">
-                    {appliancesList.map((a) => (
-                      <span key={a} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* ── Building Amenities ── */}
-              {buildingAmenitiesFinal.length > 0 && (
+              {/* ── LEVEL 2: Building Amenities ── */}
+              {(buildingAmenitiesFinal.length > 0 || hasGarage || petPolicy) && (
                 <section>
                   <h2 className="text-base font-display font-semibold mb-3">Building Amenities</h2>
-                  <div className="flex flex-wrap gap-1.5">
-                    {buildingAmenitiesFinal.map((amenity) => (
-                      <span key={amenity} className="px-2.5 py-1 bg-brand-gold/8 text-brand-dark/80 rounded-md text-xs">
-                        {amenity}
+                  {buildingAmenitiesFinal.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {buildingAmenitiesFinal.map((amenity) => (
+                        <span key={amenity} className="px-2.5 py-1 bg-brand-gold/8 text-brand-dark/80 rounded-md text-xs">{amenity}</span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Parking & Pet Policy — compact inline */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
+                    {hasGarage && (
+                      <span className="inline-flex items-center gap-1 text-sm text-brand-dark/80">
+                        <svg className="w-3.5 h-3.5 text-brand-dark/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8m-8 4h8m-4-8v16M3 21h18M3 3h18" /></svg>
+                        Garage
                       </span>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* ── Parking ── */}
-              {hasGarage && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">Parking</h2>
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">Garage Access</span>
-                    {parkingList.filter(v => v !== 'Garage').map((v) => (
-                      <span key={v} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">
-                        {formatCamelCase(v)}
-                      </span>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* ── Pet Policy ── */}
-              {petPolicy && (
-                <section>
-                  <h2 className="text-base font-display font-semibold mb-3">Pet Policy</h2>
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium ${
-                    petsAllowed ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                  }`}>
-                    {petsAllowed ? (
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
                     )}
-                    {petPolicy}
-                  </span>
+                    {petPolicy && (
+                      <span className={`inline-flex items-center gap-1 text-sm ${petsAllowed ? 'text-green-700' : 'text-red-700'}`}>
+                        {petsAllowed ? (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        {petPolicy}
+                      </span>
+                    )}
+                  </div>
                 </section>
               )}
 
@@ -979,26 +962,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* Transit & Commute — only if we have coordinates */}
-              {listing.address.latitude && listing.address.longitude && (
-                <TransitCommuteTool
-                  latitude={listing.address.latitude}
-                  longitude={listing.address.longitude}
-                  borough={borough}
-                />
-              )}
-
-              {/* Location Map & Directions */}
-              {listing.address.latitude && listing.address.longitude && (
-                <ListingLocationMap
-                  latitude={listing.address.latitude}
-                  longitude={listing.address.longitude}
-                  address={fullAddress}
-                  borough={borough}
-                />
-              )}
-
-              {/* Investment Analysis / Calculators */}
+              {/* Investment Analysis / Calculators — above map */}
               {!isRental && (
                 <section>
                   <InvestorCalculator
@@ -1020,6 +984,25 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     isRental={true}
                   />
                 </section>
+              )}
+
+              {/* Transit & Commute — only if we have coordinates */}
+              {listing.address.latitude && listing.address.longitude && (
+                <TransitCommuteTool
+                  latitude={listing.address.latitude}
+                  longitude={listing.address.longitude}
+                  borough={borough}
+                />
+              )}
+
+              {/* Location Map & Directions */}
+              {listing.address.latitude && listing.address.longitude && (
+                <ListingLocationMap
+                  latitude={listing.address.latitude}
+                  longitude={listing.address.longitude}
+                  address={fullAddress}
+                  borough={borough}
+                />
               )}
 
               {/* Building Units & Sale History */}
