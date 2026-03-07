@@ -66,7 +66,7 @@ export default function BoroughDetailPage({
       <main>
         <AnswerBox neighborhood={n} />
         <MicroFAQ name={n.name} faqs={n.faqs} />
-        <LiveListingsWidget neighborhoodSlug={n.slug} name={n.name} />
+        <LiveListingsWidget neighborhoodSlug={n.slug} name={n.name} zipCodes={n.zipCodes} />
         <MarketStatsModule name={n.name} stats={n.marketStats} />
         {n.featuredBuildings.length > 0 && (
           <FeaturedBuildingsModule name={n.name} buildings={n.featuredBuildings} />

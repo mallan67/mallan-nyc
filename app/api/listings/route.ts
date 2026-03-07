@@ -236,10 +236,17 @@ export async function GET(request: Request) {
           }
         }
 
-        // Neighborhood — push to OData for efficiency
-        if (neighborhood) {
-          const safeNeighborhood = neighborhood.replace(/'/g, "''");
-          filterParts.push(`CityRegion eq '${safeNeighborhood}'`);
+        // Neighborhood ZIP codes — push to OData for precise filtering
+        // CityRegion in REBNY RLS is borough-level, not neighborhood-level.
+        // Use zipCodes param (comma-separated) to filter by postal code.
+        const zipCodes = searchParams.get('zipCodes');
+        if (zipCodes) {
+          const zips = zipCodes.split(',').map(z => z.trim()).filter(Boolean);
+          if (zips.length === 1) {
+            filterParts.push(`PostalCode eq '${zips[0]}'`);
+          } else if (zips.length > 1) {
+            filterParts.push(`(${zips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
+          }
         }
 
         // Borough — push to OData
