@@ -96,45 +96,47 @@ export default function SearchFilterPanel({
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           {/* Price */}
           <FilterSection title="Price">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-xs text-brand-dark/85 mb-1 block">Min</label>
-                <select
-                  value={staged.minPrice || ''}
-                  onChange={(e) => updateStaged({ minPrice: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
-                >
-                  <option value="">No min</option>
-                  {(tabConfig.apiType === 'rent'
-                    ? [1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000]
-                    : [100000, 200000, 300000, 400000, 500000, 600000, 750000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000]
-                  ).map((v) => (
-                    <option key={v} value={v}>
-                      {tabConfig.apiType === 'rent' ? `$${v.toLocaleString()}` : v >= 1000000 ? `$${(v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1)}M` : `$${(v / 1000).toFixed(0)}K`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end pb-2.5 text-brand-dark/40">&ndash;</div>
-              <div className="flex-1">
-                <label className="text-xs text-brand-dark/85 mb-1 block">Max</label>
-                <select
-                  value={staged.maxPrice || ''}
-                  onChange={(e) => updateStaged({ maxPrice: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
-                >
-                  <option value="">No max</option>
-                  {(tabConfig.apiType === 'rent'
-                    ? [1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000, 20000]
-                    : [200000, 300000, 400000, 500000, 600000, 750000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000]
-                  ).map((v) => (
-                    <option key={v} value={v}>
-                      {tabConfig.apiType === 'rent' ? `$${v.toLocaleString()}` : v >= 1000000 ? `$${(v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1)}M` : `$${(v / 1000).toFixed(0)}K`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {(() => {
+              const isRent = tabConfig.apiType === 'rent';
+              const allPrices = isRent
+                ? [1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000, 20000]
+                : [100000, 200000, 300000, 400000, 500000, 600000, 750000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000];
+              const fmtPrice = (v: number) =>
+                isRent ? `$${v.toLocaleString()}` : v >= 1000000 ? `$${(v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1)}M` : `$${(v / 1000).toFixed(0)}K`;
+              const minOptions = allPrices.filter(v => !staged.maxPrice || v < staged.maxPrice);
+              const maxOptions = allPrices.filter(v => !staged.minPrice || v > staged.minPrice);
+              return (
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-brand-dark/85 mb-1 block">Min</label>
+                    <select
+                      value={staged.minPrice || ''}
+                      onChange={(e) => updateStaged({ minPrice: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                    >
+                      <option value="">No min</option>
+                      {minOptions.map((v) => (
+                        <option key={v} value={v}>{fmtPrice(v)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-end pb-2.5 text-brand-dark/40">&ndash;</div>
+                  <div className="flex-1">
+                    <label className="text-xs text-brand-dark/85 mb-1 block">Max</label>
+                    <select
+                      value={staged.maxPrice || ''}
+                      onChange={(e) => updateStaged({ maxPrice: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                    >
+                      <option value="">No max</option>
+                      {maxOptions.map((v) => (
+                        <option key={v} value={v}>{fmtPrice(v)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              );
+            })()}
           </FilterSection>
 
           {/* Beds & Baths */}
@@ -193,35 +195,41 @@ export default function SearchFilterPanel({
 
           {/* Sqft */}
           <FilterSection title="Square Feet">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={staged.minSqft ? staged.minSqft.toLocaleString() : ''}
-                  onChange={(e) => {
-                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                    updateStaged({ minSqft: isNaN(num) ? undefined : num });
-                  }}
-                  placeholder="No min"
-                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                />
-              </div>
-              <div className="flex items-center text-brand-dark/40">&ndash;</div>
-              <div className="flex-1">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={staged.maxSqft ? staged.maxSqft.toLocaleString() : ''}
-                  onChange={(e) => {
-                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                    updateStaged({ maxSqft: isNaN(num) ? undefined : num });
-                  }}
-                  placeholder="No max"
-                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                />
-              </div>
-            </div>
+            {(() => {
+              const allSqft = [300, 500, 700, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000];
+              const fmtSqft = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K sf` : `${v} sf`;
+              const minOptions = allSqft.filter(v => !staged.maxSqft || v < staged.maxSqft);
+              const maxOptions = allSqft.filter(v => !staged.minSqft || v > staged.minSqft);
+              return (
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <select
+                      value={staged.minSqft || ''}
+                      onChange={(e) => updateStaged({ minSqft: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                    >
+                      <option value="">No min</option>
+                      {minOptions.map((v) => (
+                        <option key={v} value={v}>{fmtSqft(v)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center text-brand-dark/40">&ndash;</div>
+                  <div className="flex-1">
+                    <select
+                      value={staged.maxSqft || ''}
+                      onChange={(e) => updateStaged({ maxSqft: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                    >
+                      <option value="">No max</option>
+                      {maxOptions.map((v) => (
+                        <option key={v} value={v}>{fmtSqft(v)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              );
+            })()}
           </FilterSection>
 
           {/* Property Type (includes Condo/Co-op/Condop for residential) */}
