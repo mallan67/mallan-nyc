@@ -56,13 +56,10 @@
                 return res.json();
             }).then(function(data) {
                 var photos = data.photos || {};
-                var media = data.media || {};
                 batch.forEach(function(lid) {
                     _photoCache[lid] = photos[lid] || null;
-                    _mediaCache[lid] = media[lid] || [];
                     delete _photoPending[lid];
                     _applyPhotoToCards(lid, photos[lid]);
-                    _applyMediaToListing(lid, media[lid] || []);
                 });
             }).catch(function(err) {
                 console.warn('[PhotoLoader] Batch fetch failed:', err.message);
@@ -155,6 +152,39 @@
          */
         function getCachedMedia(listingId) {
             return _mediaCache[String(listingId)] || [];
+        }
+
+        /**
+         * Fetch full media (all types) for a single listing on demand.
+         * Called when the detail panel opens. Uses ?detail=true mode.
+         * Returns a Promise that resolves when media is applied.
+         */
+        function fetchDetailMedia(listingId, callback) {
+            var lid = String(listingId);
+
+            // Already cached
+            if (_mediaCache[lid] && _mediaCache[lid].length > 0) {
+                _applyMediaToListing(lid, _mediaCache[lid]);
+                if (callback) callback();
+                return;
+            }
+
+            fetch('/api/media/batch?ids=' + encodeURIComponent(lid) + '&detail=true', {
+                credentials: 'same-origin'
+            }).then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            }).then(function(data) {
+                var media = (data.media && data.media[lid]) || [];
+                var photo = (data.photos && data.photos[lid]) || null;
+                _mediaCache[lid] = media;
+                if (photo) _photoCache[lid] = photo;
+                _applyMediaToListing(lid, media);
+                if (callback) callback();
+            }).catch(function(err) {
+                console.warn('[PhotoLoader] Detail media fetch failed:', err.message);
+                if (callback) callback();
+            });
         }
 
         /**

@@ -39,6 +39,14 @@
             _detailCurrentId = listingId;
             _detailPhotoIdx = 0;
             _detailActiveTab = 'overview';
+
+            // Fetch full media (floor plans, videos, virtual tours) on demand
+            if (typeof fetchDetailMedia === 'function' && listing.lid) {
+                fetchDetailMedia(listing.lid, function() {
+                    // Re-render media sections after data arrives
+                    _refreshDetailMediaSections(listing);
+                });
+            }
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
@@ -1022,6 +1030,74 @@
                 history.pushState(null, '', '#detail/' + listingId);
             }
             } catch(e) { console.error('showListingDetail error:', e); }
+        }
+
+        // Refresh video/virtual tour/floor plan sections after detail media loads
+        function _refreshDetailMediaSections(listing) {
+            if (!listing) return;
+            // Video section
+            var videoContainer = document.querySelector('#detailPanelMedia .fa-video');
+            if (videoContainer) {
+                var videoCard = videoContainer.closest('.lux-card');
+                if (videoCard) {
+                    var vids = listing._videos || [];
+                    if (vids.length > 0) {
+                        var videoUrl = vids[0].url;
+                        var isEmbed = /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl);
+                        var content = videoCard.querySelector('h3').nextElementSibling;
+                        if (content) {
+                            content.outerHTML = isEmbed
+                                ? '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + videoUrl + '" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>'
+                                : '<div class="h-48 rounded-xl overflow-hidden bg-black"><video src="' + videoUrl + '" class="w-full h-full object-contain" controls playsinline preload="metadata"></video></div>';
+                        }
+                    }
+                }
+            }
+            // Virtual Tour section
+            var vtContainer = document.querySelector('#detailPanelMedia .fa-vr-cardboard');
+            if (vtContainer) {
+                var vtCard = vtContainer.closest('.lux-card');
+                if (vtCard) {
+                    var vtMedia = listing._virtualTours || [];
+                    var tourUrl = listing.virtualTourUrl || (vtMedia.length > 0 ? vtMedia[0].url : null);
+                    if (tourUrl) {
+                        var vtContent = vtCard.querySelector('h3').nextElementSibling;
+                        if (vtContent) {
+                            vtContent.outerHTML = '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + tourUrl + '" class="w-full h-full" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>';
+                        }
+                    }
+                }
+            }
+            // Floor Plans section
+            var fpContainer = document.querySelector('#detailPanelMedia .fa-layer-group');
+            if (fpContainer) {
+                var fpCard = fpContainer.closest('.lux-card');
+                if (fpCard) {
+                    var fps = listing._floorPlans || [];
+                    if (fps.length > 0) {
+                        var fpContent = fpCard.querySelector('h3').nextElementSibling;
+                        if (fpContent) {
+                            fpContent.outerHTML = '<div class="grid grid-cols-' + Math.min(fps.length, 3) + ' gap-3">' + fps.map(function(fp, idx) {
+                                return '<div class="lux-media-thumb"><img src="' + fp.url + '" alt="Floor Plan ' + (idx+1) + '" loading="lazy" class="w-full h-36 object-contain bg-white rounded-xl border"></div>';
+                            }).join('') + '</div>';
+                        }
+                    }
+                }
+            }
+            // Also update photo gallery if new photos arrived
+            if (listing.images && listing.images.length > 0) {
+                var grid = document.getElementById('detailMediaFullGrid');
+                if (grid) {
+                    grid.innerHTML = listing.images.map(function(img, idx) {
+                        return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + '); detailSwitchTab(\'overview\')"><img src="' + img.url + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption"><span>' + (img.caption || 'Photo ' + (idx+1)) + '</span><span class="float-right">' + (idx+1) + '/' + listing.images.length + '</span></div></div>';
+                    }).join('');
+                }
+                // Update main photo if still on placeholder
+                var mainImg = document.getElementById('detailMainPhotoImg');
+                if (mainImg && mainImg.src && mainImg.src.indexOf('data:image/svg') !== -1) {
+                    mainImg.src = listing.images[0].url;
+                }
+            }
         }
 
         function closeListingDetail() {
