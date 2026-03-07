@@ -27,6 +27,7 @@ interface SaleRecord {
   closeDate: string | null;
   propertyType: string;
   office: string;
+  source?: 'mls' | 'acris';
 }
 
 interface BuildingUnitsProps {
@@ -143,12 +144,17 @@ export default function BuildingUnits({
                         key={sale.id}
                         className="grid grid-cols-[90px_50px_90px_80px_40px_40px] gap-x-3 py-3 border-b border-black/5 items-center"
                       >
-                        <span className="text-[13px] text-brand-dark/70">{formatDate(sale.closeDate)}</span>
+                        <span className="text-[13px] text-brand-dark/70">
+                          {formatDate(sale.closeDate)}
+                          {sale.source === 'acris' && (
+                            <span className="block text-[9px] text-brand-dark/30 leading-tight">ACRIS</span>
+                          )}
+                        </span>
                         <span className="text-[13px] font-medium text-brand-gold-deep">{sale.unit || '\u2014'}</span>
                         <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
                         <span className="text-[13px] text-brand-dark/70">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</span>
-                        <span className="text-[13px] text-brand-dark/70">{sale.beds}</span>
-                        <span className="text-[13px] text-brand-dark/70">{sale.baths}</span>
+                        <span className="text-[13px] text-brand-dark/70">{sale.beds > 0 ? sale.beds : '\u2014'}</span>
+                        <span className="text-[13px] text-brand-dark/70">{sale.baths > 0 ? sale.baths : '\u2014'}</span>
                       </div>
                     ))}
 
@@ -244,7 +250,7 @@ export default function BuildingUnits({
           )}
 
           <p className="text-[10px] text-brand-dark/30 mt-4">
-            REBNY RLS &middot; Data deemed reliable but not guaranteed
+            REBNY RLS &amp; NYC ACRIS Public Records &middot; Data deemed reliable but not guaranteed
           </p>
         </>
       )}
