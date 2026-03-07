@@ -367,25 +367,24 @@ function SearchClient() {
 
           </div>
 
-          {/* Row 2: Count + filter pills + disclaimer */}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <p className="text-xs text-brand-dark/80 font-medium" aria-live="polite">
-              {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
-            </p>
-            {activeFilterPills.map((pill) => (
-              <span key={pill.key} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-gold/10 text-brand-dark text-xs rounded-full">
-                {pill.label}
-              </span>
-            ))}
-            {activeFilterPills.length > 0 && (
-              <button onClick={clearFilters} className="text-xs text-brand-dark/70 hover:text-brand-dark underline">
-                Clear all
-              </button>
-            )}
-            <span className="ml-auto text-[10px] text-brand-dark/40 hidden sm:inline">
-              REBNY RLS · Mallan Real Estate Inc. · Equal Housing Opportunity
-            </span>
-          </div>
+          {/* Row 2: Count + filter pills */}
+          {(activeFilterPills.length > 0 || (!loading && sortedListings.length > 0)) && (
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <p className="text-xs text-brand-dark/80 font-medium" aria-live="polite">
+                {loading ? 'Searching...' : `${sortedListings.length}${total > sortedListings.length ? ` of ${total}` : ''} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
+              </p>
+              {activeFilterPills.map((pill) => (
+                <span key={pill.key} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-gold/10 text-brand-dark text-xs rounded-full">
+                  {pill.label}
+                </span>
+              ))}
+              {activeFilterPills.length > 0 && (
+                <button onClick={clearFilters} className="text-xs text-brand-dark/70 hover:text-brand-dark underline">
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -421,17 +420,17 @@ function SearchClient() {
         {/* ── SPLIT VIEW (default desktop) ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
           <div className="flex h-full">
-            {/* Map — left 45% */}
-            <div className="hidden lg:block w-[45%] h-full border-r border-black/5">
+            {/* Map — left 60% */}
+            <div className="hidden lg:block w-[60%] h-full border-r border-black/5">
               <SearchMap
                 listings={sortedListings}
                 highlightedId={highlightedId}
                 onMarkerClick={handleMarkerClick}
               />
             </div>
-            {/* Listings — right 55% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto">
-              <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-5">
+            {/* Listings — right 40% */}
+            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto">
+              <div className="p-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
@@ -447,12 +446,16 @@ function SearchClient() {
                   </div>
                 ))}
                 {hasMore && (
-                  <div className="text-center py-4 col-span-full">
+                  <div className="text-center py-4">
                     <button onClick={loadMore} className="px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors">
                       Load More
                     </button>
                   </div>
                 )}
+                {/* REBNY compliance disclaimer — bottom of listings */}
+                <p className="text-[9px] text-brand-dark/30 text-center py-2 leading-relaxed">
+                  REBNY RLS · Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable
+                </p>
               </div>
             </div>
           </div>
