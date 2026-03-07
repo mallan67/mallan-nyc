@@ -187,7 +187,7 @@ function SearchClient() {
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
-    limit: 500,
+    limit: 50,
   });
 
   // ── Client-side text/zip post-filter ──
@@ -492,9 +492,9 @@ function SearchClient() {
           <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
             {viewMode === 'split' && (
               <>
-                <div className="flex-1 lg:w-[55%] px-3 pt-2 space-y-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="bg-gray-100 rounded-xl h-28 animate-pulse" />
+                <div className="flex-1 lg:w-[55%] p-2 grid grid-cols-2 gap-2">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-gray-100 rounded-xl animate-pulse" style={{ aspectRatio: '3/2.5' }} />
                   ))}
                 </div>
                 <div className="hidden lg:block w-[45%] h-full bg-gray-100 animate-pulse" />
