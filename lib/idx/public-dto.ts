@@ -94,9 +94,21 @@ export interface PublicListingDTO {
   listingContractDate: string;
   modificationTimestamp: string;
   onMarketDate?: string;
-  // Building
+  // Building & Amenities
   buildingName?: string;
   architecturalStyle?: string;
+  interiorFeatures?: string;
+  exteriorFeatures?: string;
+  appliances?: string;
+  laundryFeatures?: string;
+  securityFeatures?: string;
+  communityFeatures?: string;
+  associationAmenities?: string;
+  parkingFeatures?: string;
+  heating?: string;
+  cooling?: string;
+  flooring?: string;
+  petsAllowedDetail?: string;
   // Financial
   associationFee?: number;
   associationFeeFrequency?: string;
@@ -204,9 +216,21 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     listingContractDate: listing.listingContractDate,
     modificationTimestamp: listing.modificationTimestamp,
     onMarketDate: listing.onMarketDate,
-    // Building
+    // Building & Amenities
     buildingName: listing.buildingName,
     architecturalStyle: listing.architecturalStyle,
+    interiorFeatures: listing.interiorFeatures,
+    exteriorFeatures: listing.exteriorFeatures,
+    appliances: listing.appliances,
+    laundryFeatures: listing.laundryFeatures,
+    securityFeatures: listing.securityFeatures,
+    communityFeatures: listing.communityFeatures,
+    associationAmenities: listing.associationAmenities,
+    parkingFeatures: listing.parkingFeatures,
+    heating: listing.heating,
+    cooling: listing.cooling,
+    flooring: listing.flooring,
+    petsAllowedDetail: listing.petsAllowed,
     // Financial
     associationFee: listing.associationFee,
     associationFeeFrequency: listing.associationFeeFrequency,
