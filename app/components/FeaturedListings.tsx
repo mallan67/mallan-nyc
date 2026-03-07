@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { isDisplayableInIDX } from '@/lib/compliance/idx-display-gate';
 import { useSidePanel } from '@/lib/contexts/ListingSidePanelContext';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
+import { useSwipe } from '@/lib/hooks/useSwipe';
 import listingsData from '@/data/listings.json';
 import type { Listing } from '@/lib/types/listing';
 
@@ -72,8 +73,17 @@ function PhotoGallery({ listing }: { listing: Listing }) {
   const images = listing.media.images;
   const img = images[idx] || images[0];
 
+  const goPrev = useCallback(() => setIdx(i => i === 0 ? images.length - 1 : i - 1), [images.length]);
+  const goNext = useCallback(() => setIdx(i => i === images.length - 1 ? 0 : i + 1), [images.length]);
+  const swipe = useSwipe(goNext, goPrev);
+
   return (
-    <div className="relative overflow-hidden aspect-[4/3] bg-gray-50">
+    <div
+      className="relative overflow-hidden aspect-[4/3] bg-gray-50 touch-pan-y"
+      onTouchStart={swipe.onTouchStart}
+      onTouchMove={swipe.onTouchMove}
+      onTouchEnd={swipe.onTouchEnd}
+    >
       <IDXImage
         src={img?.url || '/images/listing-placeholder.svg'}
         alt={img?.caption || 'Listing photo'}
@@ -82,14 +92,14 @@ function PhotoGallery({ listing }: { listing: Listing }) {
       {images.length > 1 && (
         <>
           <button
-            onClick={(e) => { e.stopPropagation(); setIdx(i => i === 0 ? images.length - 1 : i - 1); }}
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
             className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
             aria-label="Previous photo"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setIdx(i => i === images.length - 1 ? 0 : i + 1); }}
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
             aria-label="Next photo"
           >

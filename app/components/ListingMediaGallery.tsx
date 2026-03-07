@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
+import { useSwipe } from '@/lib/hooks/useSwipe';
 
 const PLACEHOLDER = '/images/listing-placeholder.svg';
 
@@ -69,6 +70,8 @@ export default function ListingMediaGallery({
     setPhotoIdx(i => i === sortedImages.length - 1 ? 0 : i + 1);
   }, [sortedImages.length]);
 
+  const swipe = useSwipe(nextPhoto, prevPhoto);
+
   const handleImageError = useCallback((idx: number) => {
     const attempts = retryCount[idx] || 0;
     if (attempts < 2) {
@@ -107,8 +110,13 @@ export default function ListingMediaGallery({
         {/* Photo gallery */}
         {activeTab === 'photos' && (
           <div className="relative">
-            {/* Mobile: taller 4:3, Desktop: cinematic 21:9 */}
-            <div className="relative aspect-[4/3] md:aspect-[16/9] lg:aspect-[21/9]">
+            {/* Mobile: taller 4:3, Desktop: cinematic 21:9 — swipeable */}
+            <div
+              className="relative aspect-[4/3] md:aspect-[16/9] lg:aspect-[21/9] touch-pan-y"
+              onTouchStart={swipe.onTouchStart}
+              onTouchMove={swipe.onTouchMove}
+              onTouchEnd={swipe.onTouchEnd}
+            >
               {showPlaceholder ? (
                 <Image
                   src={PLACEHOLDER}
