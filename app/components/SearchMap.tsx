@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
-import { MapContainer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { listingHref } from '@/lib/idx/display-adapter';
@@ -268,8 +268,10 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
         zoom={12}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
-        zoomControl={true}
+        zoomControl={false}
       >
+        {/* Zoom control at bottom-right to avoid overlapping info badge + style switcher */}
+        <ZoomControl position="bottomright" />
         <MapLibreLayer styleUrl={MAP_STYLES[mapStyle].url} />
         <FitBounds coordHash={coordHash} listings={boundsData} />
         {mappable.map((listing) => {
@@ -288,47 +290,44 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
                 click: () => handleMarkerClick(listing.id),
               }}
             >
-              <Popup>
-                <a href={listingHref(listing)} className="block w-[280px] no-underline text-inherit hover:text-inherit">
-                  <div className="flex gap-0">
-                    {listing.media[0]?.url && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={listing.media[0].url}
-                        alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-                        className="w-[110px] h-[100px] object-cover flex-shrink-0"
-                        loading="lazy"
-                      />
-                    )}
-                    <div className="flex-1 p-2 min-w-0">
-                      <p className="font-bold text-sm text-gray-900 leading-tight">
+              <Popup maxWidth={260} minWidth={260} className="map-card-popup">
+                <a href={listingHref(listing)} style={{ display: 'block', width: 260, textDecoration: 'none', color: 'inherit' }}>
+                  {listing.media[0]?.url && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={listing.media[0].url}
+                      alt=""
+                      style={{ width: 260, height: 150, objectFit: 'cover', display: 'block' }}
+                      loading="lazy"
+                    />
+                  )}
+                  <div style={{ padding: '10px 12px 8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>
                         {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
-                      </p>
-                      <p className="text-[11px] text-gray-800 mt-0.5 truncate font-medium">
-                        {listing.address.streetName === 'Address Undisclosed'
-                          ? 'Address Undisclosed'
-                          : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
-                      </p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">
-                        {listing.address.neighborhood ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough || 'Manhattan'}
-                      </p>
-                      <p className="text-[10px] text-gray-600 mt-1">
-                        {listing.bedroomsTotal} bd &middot; {listing.bathroomsFull} ba
+                      </span>
+                      <span style={{ fontSize: 11, color: '#888' }}>
+                        {listing.bedroomsTotal} bd · {listing.bathroomsFull} ba
                         {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sf` : ''}
-                      </p>
-                      {listing.associationFee ? (
-                        <p className="text-[9px] text-gray-400 mt-0.5">
-                          {isRental ? '' : `Maint: $${listing.associationFee.toLocaleString()}/mo`}
-                        </p>
-                      ) : null}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#333', marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {listing.address.streetName === 'Address Undisclosed'
+                        ? 'Address Undisclosed'
+                        : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                      {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
+                        ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
+                        : listing.address.borough || 'Manhattan'}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between px-2 py-1 border-t border-gray-100 bg-gray-50/50">
-                    <p className="text-[9px] text-gray-400 truncate max-w-[160px]">
-                      RLS &middot; {listing.listOfficeName}
-                    </p>
-                    <span className="text-[10px] font-medium text-brand-gold flex-shrink-0">
-                      Details &rarr;
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+                    <span style={{ fontSize: 10, color: '#aaa' }}>
+                      {listing.listOfficeName}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#C4A052' }}>
+                      View &rarr;
                     </span>
                   </div>
                 </a>
