@@ -256,10 +256,8 @@ export async function GET(request: Request) {
             const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
             const listingIds = needsPhotos.map(l => l.listingId);
             const filterParts2 = listingIds.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
-            // Fetch up to 8 media items per listing — enough to find a real photo
-            // even when floor plans or videos occupy the first few Order positions.
-            // Filter by MediaCategory=Photo OR PreferredPhotoYN=true to prioritize actual photos.
-            const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo' and Order le 3`;
+            // Fetch all media types — photos (up to 3), plus all floor plans, videos, virtual tours
+            const mediaFilter = `(${filterParts2.join(' or ')}) and (Order le 3 or MediaCategory ne 'Photo')`;
             const mediaParams = new URLSearchParams();
             mediaParams.set('$filter', mediaFilter);
             mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
@@ -290,9 +288,8 @@ export async function GET(request: Request) {
                 return 'Photo';
               }
 
-              // Group by listing ID — separate photos from floorplans
-              const photosByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-              const floorplansByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+              // Group by listing ID — separate by media type
+              const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
               for (const m of mediaRecords) {
                 const lid = String(m.ResourceRecordID || '');
                 if (!lid || !m.MediaURL) continue;
@@ -301,23 +298,20 @@ export async function GET(request: Request) {
                 const entry = {
                   url: String(m.MediaURL),
                   mediaType,
-                  order: isPreferred ? -1 : Number(m.Order ?? 0), // Preferred photo sorts first
+                  order: isPreferred ? -1 : Number(m.Order ?? 0),
                 };
-                if (mediaType === 'FloorPlan') {
-                  if (!floorplansByListing.has(lid)) floorplansByListing.set(lid, []);
-                  floorplansByListing.get(lid)!.push(entry);
-                } else {
-                  if (!photosByListing.has(lid)) photosByListing.set(lid, []);
-                  photosByListing.get(lid)!.push(entry);
-                }
+                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+                mediaByListing.get(lid)!.push(entry);
               }
-              // Inject: photos first (preferred photo at top), then floorplans at the end
+              // Inject: photos first (preferred at top), then videos/tours, then floor plans
+              const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
               for (const listing of needsPhotos) {
-                const photos = photosByListing.get(listing.listingId) || [];
-                const floorplans = floorplansByListing.get(listing.listingId) || [];
-                const combined = [...photos.sort((a, b) => a.order - b.order), ...floorplans.sort((a, b) => a.order - b.order)];
-                if (combined.length > 0) {
-                  listing.media = combined as typeof listing.media;
+                const media = mediaByListing.get(listing.listingId) || [];
+                if (media.length > 0) {
+                  listing.media = media.sort((a, b) => {
+                    const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+                    return rankDiff !== 0 ? rankDiff : a.order - b.order;
+                  }) as typeof listing.media;
                 }
               }
             }

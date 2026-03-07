@@ -50,7 +50,7 @@ const SEARCH_SELECT_FIELDS = [
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail",
   "ListAgentDirectPhone", "ListOfficeMlsId", "ListOfficeName",
   // Media (Media array needs $expand, not $select — use PhotosCount for now)
-  "PhotosCount", "VirtualTourURLBranded",
+  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
   // Remarks
   "PublicRemarks",
   // Display flags (IDX/VOW/Participant gates pre-filtered by Trestle on IDX Plus feed)
@@ -236,6 +236,16 @@ function escapeOData(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+// RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
+//          MediaType = file format (jpeg, png) — NOT content type
+function classifyMediaCategory(m: Record<string, unknown>): string {
+  const cat = String(m.MediaCategory || "").toLowerCase();
+  if (cat.includes("floor plan")) return "FloorPlan";
+  if (cat.includes("video")) return "Video";
+  if (cat.includes("virtual tour")) return "VirtualTour";
+  return "Photo";
+}
+
 // ── Trestle record → CRM flat shape ───────────────────────────────────
 function mapTrestleToCRM(
   raw: Record<string, unknown>,
@@ -279,7 +289,7 @@ function mapTrestleToCRM(
       url,
       isPrimary: i === 0,
       order: Number(m.Order || i),
-      mediaType: String(m.MediaType || "Photo"),
+      mediaType: classifyMediaCategory(m),
     };
   }).filter((img: { url: string }) => img.url);
 
@@ -363,9 +373,11 @@ function mapTrestleToCRM(
     crossStreet: String(raw.CrossStreet || ""),
     floor: null, // FloorNumber not on IDX Plus feed
     description: String(raw.PublicRemarks || ""),
-    virtualTourUrl: raw.VirtualTourURLBranded
-      ? String(raw.VirtualTourURLBranded)
-      : null,
+    virtualTourUrl: raw.VirtualTourURLUnbranded
+      ? String(raw.VirtualTourURLUnbranded)
+      : raw.VirtualTourURLBranded
+        ? String(raw.VirtualTourURLBranded)
+        : null,
     idxDisplayYN: true, // Pre-filtered by Trestle on IDX Plus feed
     internetDisplayYN: raw.InternetEntireListingDisplayYN !== false,
     addressDisplayYN,

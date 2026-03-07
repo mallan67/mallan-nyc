@@ -14,8 +14,20 @@ const TRESTLE_API =
   process.env.IDX_ENDPOINT ||
   "https://api.cotality.com/trestle";
 
-// In-memory cache for photo URLs (persist across requests within the same serverless instance)
+// RESO DD: MediaCategory = content type classification
+function classifyMediaCategory(m: Record<string, unknown>): "Photo" | "FloorPlan" | "Video" | "VirtualTour" {
+  const cat = String(m.MediaCategory || "").toLowerCase();
+  if (cat.includes("floor plan")) return "FloorPlan";
+  if (cat.includes("video")) return "Video";
+  if (cat.includes("virtual tour")) return "VirtualTour";
+  return "Photo";
+}
+
+type MediaEntry = { url: string; mediaType: string; order: number };
+
+// In-memory cache (persist across requests within the same serverless instance)
 const photoCache = new Map<string, { url: string | null; expiresAt: number }>();
+const mediaCache = new Map<string, { items: MediaEntry[]; expiresAt: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 export async function GET(req: NextRequest) {
@@ -39,124 +51,112 @@ export async function GET(req: NextRequest) {
   }
 
   const now = Date.now();
-  const result: Record<string, string | null> = {};
-  const uncached: string[] = [];
+  const photoResult: Record<string, string | null> = {};
+  const mediaResult: Record<string, MediaEntry[]> = {};
+  const uncachedPhotos: string[] = [];
+  const uncachedMedia: string[] = [];
 
-  // Check cache first
+  // Check caches
   for (const id of ids) {
-    const cached = photoCache.get(id);
-    if (cached && now < cached.expiresAt) {
-      result[id] = cached.url;
+    const cachedPhoto = photoCache.get(id);
+    if (cachedPhoto && now < cachedPhoto.expiresAt) {
+      photoResult[id] = cachedPhoto.url;
     } else {
-      uncached.push(id);
+      uncachedPhotos.push(id);
+    }
+    const cachedMedia = mediaCache.get(id);
+    if (cachedMedia && now < cachedMedia.expiresAt) {
+      mediaResult[id] = cachedMedia.items;
+    } else {
+      uncachedMedia.push(id);
     }
   }
 
-  // Fetch uncached from Trestle Media resource
-  if (uncached.length > 0) {
+  // Fetch ALL media types from Trestle Media resource (photos, floor plans, videos, virtual tours)
+  const toFetch = [...new Set([...uncachedPhotos, ...uncachedMedia])];
+  if (toFetch.length > 0) {
     try {
       const token = await getAccessToken();
 
-      // Build OData filter: ResourceRecordID in ('RLS-12345','RLS-67890')
-      // Trestle Media uses ResourceRecordID to link to Property.ListingId
-      const filterParts = uncached.map(
+      const filterParts = toFetch.map(
         (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
       );
-      // RESO DD: MediaCategory='Photo' for actual photos, 'Floor Plan' for floorplans
-      // Fetch photos only (not floorplans) — prefer PreferredPhotoYN, then lowest Order
-      const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
+      // Fetch all media types — up to 6 items per listing (3 photos + floor plans + videos + tours)
+      const filter = `(${filterParts.join(" or ")}) and (Order le 3 or MediaCategory ne 'Photo')`;
 
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordID,MediaURL,Order,MediaType,MediaCategory,PreferredPhotoYN");
-      params.set("$orderby", "Order asc");
-      params.set("$top", String(uncached.length * 2)); // Allow some extras
+      params.set("$select", "ResourceRecordID,MediaURL,Order,MediaType,MediaCategory,PreferredPhotoYN,ShortDescription");
+      params.set("$orderby", "ResourceRecordID asc,Order asc");
+      params.set("$top", String(Math.min(toFetch.length * 6, 300)));
 
       const url = `${TRESTLE_API}/odata/Media?${params.toString()}`;
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
 
       if (response.ok) {
         const data = await response.json();
         const records = data.value || [];
 
-        // Group by ResourceRecordID, take first (Order=0) photo
-        const byListing = new Map<string, string>();
+        // Group all media by listing
+        const allByListing = new Map<string, MediaEntry[]>();
+        const primaryByListing = new Map<string, string>();
+
         for (const m of records) {
           const lid = String(m.ResourceRecordID || "");
-          if (lid && !byListing.has(lid) && m.MediaURL) {
-            byListing.set(lid, String(m.MediaURL));
+          if (!lid || !m.MediaURL) continue;
+
+          const mediaType = classifyMediaCategory(m);
+          const rawUrl = String(m.MediaURL);
+          const proxiedUrl = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+            ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
+            : rawUrl;
+          const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+
+          if (!allByListing.has(lid)) allByListing.set(lid, []);
+          allByListing.get(lid)!.push({
+            url: proxiedUrl,
+            mediaType,
+            order: isPreferred ? -1 : Number(m.Order ?? 0),
+          });
+
+          // Track primary photo (first photo by order, or preferred)
+          if (mediaType === "Photo" && !primaryByListing.has(lid)) {
+            primaryByListing.set(lid, proxiedUrl);
           }
         }
 
-        // Populate results and cache
-        for (const id of uncached) {
-          const mediaUrl = byListing.get(id) || null;
-          const proxiedUrl = mediaUrl
-            ? `/api/media/proxy?url=${encodeURIComponent(mediaUrl)}`
-            : null;
-          result[id] = proxiedUrl;
-          photoCache.set(id, { url: proxiedUrl, expiresAt: now + CACHE_TTL });
+        // Populate and cache
+        for (const id of toFetch) {
+          const primary = primaryByListing.get(id) || null;
+          photoResult[id] = primary;
+          photoCache.set(id, { url: primary, expiresAt: now + CACHE_TTL });
+
+          const items = allByListing.get(id) || [];
+          mediaResult[id] = items;
+          mediaCache.set(id, { items, expiresAt: now + CACHE_TTL });
         }
       } else {
-        // If Order=0 filter fails, try without it
-        const params2 = new URLSearchParams();
-        const filterParts2 = uncached.map(
-          (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
-        );
-        params2.set("$filter", `(${filterParts2.join(" or ")})`);
-        params2.set("$select", "ResourceRecordID,MediaURL,Order");
-        params2.set("$orderby", "ResourceRecordID asc,Order asc");
-        params2.set("$top", String(uncached.length * 2));
-
-        const url2 = `${TRESTLE_API}/odata/Media?${params2.toString()}`;
-        const response2 = await fetch(url2, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        });
-
-        if (response2.ok) {
-          const data2 = await response2.json();
-          const records2 = data2.value || [];
-          const byListing2 = new Map<string, string>();
-          for (const m of records2) {
-            const lid = String(m.ResourceRecordID || "");
-            if (lid && !byListing2.has(lid) && m.MediaURL) {
-              byListing2.set(lid, String(m.MediaURL));
-            }
-          }
-          for (const id of uncached) {
-            const mediaUrl = byListing2.get(id) || null;
-            const proxiedUrl = mediaUrl
-              ? `/api/media/proxy?url=${encodeURIComponent(mediaUrl)}`
-              : null;
-            result[id] = proxiedUrl;
-            photoCache.set(id, { url: proxiedUrl, expiresAt: now + CACHE_TTL });
-          }
-        } else {
-          // Mark as null to avoid retrying immediately
-          for (const id of uncached) {
-            result[id] = null;
-            photoCache.set(id, { url: null, expiresAt: now + 60_000 }); // Short TTL for failures
-          }
+        // Fallback: mark as empty
+        for (const id of toFetch) {
+          photoResult[id] = null;
+          photoCache.set(id, { url: null, expiresAt: now + 60_000 });
+          mediaResult[id] = [];
+          mediaCache.set(id, { items: [], expiresAt: now + 60_000 });
         }
       }
     } catch (err) {
       console.error("[Media Batch] Error:", err instanceof Error ? err.message : err);
-      for (const id of uncached) {
-        result[id] = null;
+      for (const id of toFetch) {
+        photoResult[id] = null;
+        mediaResult[id] = [];
       }
     }
   }
 
   return NextResponse.json(
-    { photos: result },
+    { photos: photoResult, media: mediaResult },
     { headers: { "Cache-Control": "private, max-age=300" } }
   );
 }

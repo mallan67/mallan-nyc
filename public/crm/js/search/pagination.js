@@ -824,24 +824,46 @@
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="lux-card">
                                 <h3 class="lux-section-title"><i class="fas fa-video text-blue-500"></i> Video Tour</h3>
-                                <div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                                    <div class="text-center text-gray-400"><i class="fas fa-play-circle text-4xl mb-2"></i><div class="text-sm">No video available</div></div>
-                                </div>
+                                ${(function() {
+                                    var vids = listing._videos || [];
+                                    var videoUrl = vids.length > 0 ? vids[0].url : null;
+                                    if (videoUrl) {
+                                        var isEmbed = /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl);
+                                        if (isEmbed) {
+                                            return '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + videoUrl + '" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Video Tour"></iframe></div>';
+                                        } else {
+                                            return '<div class="h-48 rounded-xl overflow-hidden bg-black"><video src="' + videoUrl + '" class="w-full h-full object-contain" controls playsinline preload="metadata" title="Video Tour"></video></div>';
+                                        }
+                                    }
+                                    return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-play-circle text-4xl mb-2"></i><div class="text-sm">No video available</div></div></div>';
+                                })()}
                             </div>
                             <div class="lux-card">
                                 <h3 class="lux-section-title"><i class="fas fa-vr-cardboard text-purple-500"></i> Virtual Tour / 3D</h3>
-                                <div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                                    <div class="text-center text-gray-400"><i class="fas fa-cube text-4xl mb-2"></i><div class="text-sm">No virtual tour available</div></div>
-                                </div>
+                                ${(function() {
+                                    var vtUrl = listing.virtualTourUrl || null;
+                                    var vtMedia = listing._virtualTours || [];
+                                    var tourUrl = vtUrl || (vtMedia.length > 0 ? vtMedia[0].url : null);
+                                    if (tourUrl) {
+                                        return '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + tourUrl + '" class="w-full h-full" allow="fullscreen; xr-spatial-tracking" allowfullscreen title="3D Virtual Tour"></iframe></div>';
+                                    }
+                                    return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-cube text-4xl mb-2"></i><div class="text-sm">No virtual tour available</div></div></div>';
+                                })()}
                             </div>
                         </div>
 
                         <!-- Floor Plans -->
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-layer-group text-green-500"></i> Floor Plans</h3>
-                            <div class="h-36 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200">
-                                <div class="text-center text-gray-400"><i class="fas fa-drafting-compass text-3xl mb-2"></i><div class="text-sm">No floor plans uploaded</div></div>
-                            </div>
+                            ${(function() {
+                                var fps = listing._floorPlans || [];
+                                if (fps.length > 0) {
+                                    return '<div class="grid grid-cols-' + Math.min(fps.length, 3) + ' gap-3">' + fps.map(function(fp, idx) {
+                                        return '<div class="lux-media-thumb"><img src="' + fp.url + '" alt="Floor Plan ' + (idx+1) + '" loading="lazy" class="w-full h-36 object-contain bg-white rounded-xl border"></div>';
+                                    }).join('') + '</div>';
+                                }
+                                return '<div class="h-36 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-drafting-compass text-3xl mb-2"></i><div class="text-sm">No floor plans uploaded</div></div></div>';
+                            })()}
                         </div>
 
                         <!-- Documents -->

@@ -7,6 +7,7 @@
         // ═══════════════════════════════════════════════════════════════════
 
         var _photoCache = {};       // listingId → photoUrl (or null)
+        var _mediaCache = {};       // listingId → [{ url, mediaType, order }]
         var _photoPending = {};     // listingId → true (in-flight)
         var _photoBatchQueue = [];  // listing IDs waiting to be fetched
         var _photoBatchTimer = null;
@@ -55,10 +56,13 @@
                 return res.json();
             }).then(function(data) {
                 var photos = data.photos || {};
+                var media = data.media || {};
                 batch.forEach(function(lid) {
                     _photoCache[lid] = photos[lid] || null;
+                    _mediaCache[lid] = media[lid] || [];
                     delete _photoPending[lid];
                     _applyPhotoToCards(lid, photos[lid]);
+                    _applyMediaToListing(lid, media[lid] || []);
                 });
             }).catch(function(err) {
                 console.warn('[PhotoLoader] Batch fetch failed:', err.message);
@@ -144,4 +148,44 @@
          */
         function getCachedPhoto(listingId) {
             return _photoCache[String(listingId)];
+        }
+
+        /**
+         * Get cached media array for a listing (returns array of { url, mediaType, order }).
+         */
+        function getCachedMedia(listingId) {
+            return _mediaCache[String(listingId)] || [];
+        }
+
+        /**
+         * Apply fetched media to the listing object in mockListings for detail panel use.
+         */
+        function _applyMediaToListing(listingId, mediaItems) {
+            if (!mediaItems || !mediaItems.length) return;
+            if (typeof mockListings === 'undefined') return;
+            var listing = mockListings.find(function(l) { return l.lid === listingId || String(l._listingKey) === listingId; });
+            if (!listing) return;
+
+            // Build typed arrays
+            var photos = [];
+            var floorPlans = [];
+            var videos = [];
+            var virtualTours = [];
+            mediaItems.forEach(function(m) {
+                var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
+                if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
+                else if (m.mediaType === 'Video') videos.push(entry);
+                else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
+                else photos.push(entry);
+            });
+
+            // Update listing.images with photos only (existing behavior)
+            if (photos.length > 0) {
+                listing.images = photos.sort(function(a, b) { return a.order - b.order; });
+                listing.photoCount = photos.length;
+            }
+            // Store typed media for detail panel
+            if (floorPlans.length > 0) listing._floorPlans = floorPlans;
+            if (videos.length > 0) listing._videos = videos;
+            if (virtualTours.length > 0) listing._virtualTours = virtualTours;
         }
