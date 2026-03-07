@@ -31,7 +31,10 @@ const MAP_STYLES = {
 type MapStyleKey = keyof typeof MAP_STYLES;
 
 function formatPrice(price: number, isRental: boolean): string {
-  if (isRental) return `$${price.toLocaleString()}/mo`;
+  if (isRental) {
+    if (price >= 10_000) return `$${(price / 1_000).toFixed(1)}K`;
+    return `$${price.toLocaleString()}`;
+  }
   if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(1)}M`;
   return `$${(price / 1_000).toFixed(0)}K`;
 }

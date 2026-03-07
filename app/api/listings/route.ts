@@ -438,7 +438,12 @@ export async function GET(request: Request) {
         }
 
         // Step 4c: Geocode listings that lack coordinates (Trestle IDX Plus returns null for Lat/Lng)
-        await geocodeListings(pageListings);
+        // Non-blocking: if geocoding is slow, listings still display (just no map pins for some)
+        try {
+          await geocodeListings(pageListings);
+        } catch (geoErr) {
+          console.warn('[/api/listings] Geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
+        }
 
         const publicListings = pageListings.map(toPublicDTO);
 

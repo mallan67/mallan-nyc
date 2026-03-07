@@ -150,11 +150,11 @@ export async function geocodeListings(
 
   if (needsGeocode.length === 0) return;
 
-  // Try Nominatim with 3-second time budget
+  // Try Nominatim with 2-second time budget (keeps page load fast)
   try {
     const results = await batchGeocodeNominatim(
       needsGeocode.map(n => n.listing),
-      3000,
+      2000,
     );
     for (let i = 0; i < needsGeocode.length; i++) {
       if (results[i]) {
