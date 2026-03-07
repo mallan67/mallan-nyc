@@ -189,7 +189,7 @@ function SearchClient() {
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
-    limit: (viewMode === 'all-map' || viewMode === 'split') ? 200 : 50,
+    limit: 200,
   });
 
   // ── Client-side text/zip post-filter ──
@@ -547,8 +547,8 @@ function SearchClient() {
               />
             </div>
             {/* Listings — right 40% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto scroll-pt-2">
-              <div className="px-3 pt-3 pb-3 flex flex-col gap-3">
+            <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto pt-3 px-3">
+              <div className="pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
