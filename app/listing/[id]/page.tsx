@@ -93,7 +93,7 @@ async function fetchLastUnitSale(
   }
 }
 
-/** Fetch last sale from ACRIS (NYC public records) by BBL as fallback */
+/** Fetch last sale from ACRIS (NYC public records) by borough/block/lot as fallback */
 async function fetchLastSaleFromACRIS(
   county: string,
   taxBlock: string | null,
@@ -104,20 +104,19 @@ async function fetchLastSaleFromACRIS(
   const boroCode = BOROUGH_TO_CODE[county.toLowerCase()];
   if (!boroCode) return null;
 
-  // ACRIS BBL format: 1-digit borough + 5-digit block + 4-digit lot
+  // ACRIS uses separate borough, block (5-digit), lot (4-digit) columns
   const block = taxBlock.padStart(5, '0');
   const lot = taxLot.padStart(4, '0');
-  const bbl = `${boroCode}${block}${lot}`;
 
   try {
     const MASTER = process.env.SODA_DATASET_ACRIS_MASTER;
     const REALPROP = process.env.SODA_DATASET_ACRIS_REALPROPERTY;
     if (!MASTER || !REALPROP) return null;
 
-    // Step 1: Get document IDs for this BBL
+    // Step 1: Get document IDs for this property (borough + block + lot)
     const docRows = await soda<{ document_id: string }>({
       resource: REALPROP,
-      where: `bbl='${bbl}'`,
+      where: `borough='${boroCode}' AND block='${block}' AND lot='${lot}'`,
       select: 'document_id',
       order: 'document_id DESC',
       limit: 50,
@@ -125,13 +124,13 @@ async function fetchLastSaleFromACRIS(
 
     if (docRows.length === 0) return null;
 
-    // Step 2: Get deed documents (sale transfers)
+    // Step 2: Get deed documents with sale amounts
     const docIds = docRows.map(r => r.document_id);
-    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')}) AND doc_type in ('DEED','DEEDO','DEED, RP','DEED, TS')`;
+    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')}) AND doc_type in ('DEED','DEEDO') AND document_amt>'0'`;
     const docs = await soda<{
       document_id: string;
       doc_type: string;
-      doc_amount?: string;
+      document_amt?: string;
       recorded_datetime?: string;
       good_through_date?: string;
     }>({
@@ -143,7 +142,7 @@ async function fetchLastSaleFromACRIS(
 
     // Find the most recent deed with a sale amount
     for (const doc of docs) {
-      const amount = Number(doc.doc_amount || 0);
+      const amount = Number(doc.document_amt || 0);
       if (amount > 0) {
         const date = doc.recorded_datetime || doc.good_through_date || '';
         return {
@@ -776,24 +775,24 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* Interior Features */}
+              {/* Interior Features & Appliances */}
               {(interiorDetails.length > 0 || appliancesList.length > 0 || interiorFeaturesList.length > 0) && (
                 <section>
                   <h2 className="text-base font-display font-semibold mb-3">Interior Features</h2>
                   {interiorDetails.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0 mb-3">
+                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
                       {interiorDetails.map((item) => (
-                        <div key={item.label} className="flex justify-between py-2 border-b border-black/5">
-                          <span className="text-brand-dark/60">{item.label}</span>
-                          <span className="font-medium">{item.value}</span>
+                        <div key={item.label} className="flex justify-between py-1.5 border-b border-black/5">
+                          <span className="text-sm text-brand-dark/70">{item.label}</span>
+                          <span className="text-sm font-medium text-brand-dark">{item.value}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   {interiorFeaturesList.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
+                    <div className="flex flex-wrap gap-1.5 mt-3">
                       {interiorFeaturesList.map((f) => (
-                        <span key={f} className="px-3 py-1.5 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
+                        <span key={f} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">
                           {f}
                         </span>
                       ))}
@@ -801,10 +800,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   )}
                   {appliancesList.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-sm text-brand-dark/50 mb-2">Appliances</p>
-                      <div className="flex flex-wrap gap-2">
+                      <p className="text-xs text-brand-dark/50 mb-1.5">Appliances</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {appliancesList.map((a) => (
-                          <span key={a} className="px-3 py-1.5 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
+                          <span key={a} className="px-2.5 py-1 bg-black/[0.04] text-brand-dark/80 rounded-md text-xs">
                             {a}
                           </span>
                         ))}
@@ -818,27 +817,27 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {(buildingAmenities.length > 0 || securityFeatures.length > 0 || petPolicy) && (
                 <section>
                   <h2 className="text-base font-display font-semibold mb-3">Building Amenities</h2>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {buildingAmenities.map((amenity) => (
-                      <span key={amenity} className="px-4 py-2 bg-brand-gold/10 text-brand-gold-deep rounded-full text-sm">
+                      <span key={amenity} className="px-2.5 py-1 bg-brand-gold/8 text-brand-dark/80 rounded-md text-xs">
                         {amenity}
                       </span>
                     ))}
                     {securityFeatures.map((item) => (
-                      <span key={item} className="px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm">
+                      <span key={item} className="px-2.5 py-1 bg-green-50 text-brand-dark/80 rounded-md text-xs">
                         {item}
                       </span>
                     ))}
                     {petPolicy && (
-                      <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium ${
-                        petsAllowed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium ${
+                        petsAllowed ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                       }`}>
                         {petsAllowed ? (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         )}
@@ -895,6 +894,30 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 />
               )}
 
+              {/* Investment Analysis / Calculators */}
+              {!isRental && (
+                <section>
+                  <InvestorCalculator
+                    purchasePrice={listing.listPrice}
+                    maintenanceFee={listing.associationFee || 0}
+                    monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
+                    bedrooms={listing.bedroomsTotal}
+                    neighborhood={neighborhood || borough}
+                  />
+                </section>
+              )}
+              {isRental && (
+                <section>
+                  <RentVsBuyCalculator
+                    purchasePrice={listing.listPrice * 250}
+                    monthlyRent={listing.listPrice}
+                    maintenanceFee={0}
+                    realEstateTaxes={0}
+                    isRental={true}
+                  />
+                </section>
+              )}
+
               {/* Building Units & Sale History */}
               {listing.address.streetName !== 'Address Undisclosed' && (
                 <BuildingUnits
@@ -946,27 +969,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <TransitSidebarSummary
                     latitude={listing.address.latitude}
                     longitude={listing.address.longitude}
-                  />
-                )}
-
-                {/* Calculators */}
-                {!isRental && (
-                  <InvestorCalculator
-                    purchasePrice={listing.listPrice}
-                    maintenanceFee={listing.associationFee || 0}
-                    monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
-                    bedrooms={listing.bedroomsTotal}
-                    neighborhood={neighborhood || borough}
-                  />
-                )}
-
-                {isRental && (
-                  <RentVsBuyCalculator
-                    purchasePrice={listing.listPrice * 250}
-                    monthlyRent={listing.listPrice}
-                    maintenanceFee={0}
-                    realEstateTaxes={0}
-                    isRental={true}
                   />
                 )}
 
