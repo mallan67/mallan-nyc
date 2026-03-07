@@ -225,16 +225,27 @@ export default function ListingMediaGallery({
           </div>
         )}
 
-        {/* Video */}
+        {/* Video — iframe for embeds (YouTube/Vimeo), <video> for direct files */}
         {activeTab === 'video' && videoUrl && (
           <div className="relative aspect-[4/3] md:aspect-[16/9] bg-black">
-            <iframe
-              src={videoUrl}
-              className="absolute inset-0 w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title="Video Tour"
-            />
+            {/youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl) ? (
+              <iframe
+                src={videoUrl}
+                className="absolute inset-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title="Video Tour"
+              />
+            ) : (
+              <video
+                src={videoUrl}
+                className="absolute inset-0 w-full h-full object-contain"
+                controls
+                playsInline
+                preload="metadata"
+                title="Video Tour"
+              />
+            )}
           </div>
         )}
 

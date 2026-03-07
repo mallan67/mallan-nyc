@@ -249,13 +249,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
-  // Separate media by type: photos, floorplans, videos
+  // Separate media by type: photos, floorplans, videos, virtual tours
+  const nonPhotoTypes = new Set(['video', 'mpeg', 'mp4', 'avi', 'floorplan', 'floor plan', 'virtualtour', 'virtual tour']);
   const videoTypes = new Set(['video', 'mpeg', 'mp4', 'avi']);
   const floorPlanTypes = new Set(['floorplan', 'floor plan']);
+  const virtualTourTypes = new Set(['virtualtour', 'virtual tour']);
   const images = listing.media
     .filter((m) => {
       const type = (m.mediaType || '').toLowerCase();
-      return !videoTypes.has(type) && !floorPlanTypes.has(type);
+      return !nonPhotoTypes.has(type);
     })
     .sort((a, b) => a.order - b.order)
     .map((m) => ({ url: m.url }));
@@ -267,6 +269,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
     videoTypes.has((m.mediaType || '').toLowerCase())
   );
   const videoUrl = videoMedia?.url || null;
+  // Virtual tour: prefer Property-level VirtualTourURLUnbranded, fall back to Media resource
+  const virtualTourMedia = listing.media.find((m) =>
+    virtualTourTypes.has((m.mediaType || '').toLowerCase())
+  );
+  const virtualTourUrl = listing.virtualTourURL || virtualTourMedia?.url || null;
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -300,7 +307,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
         images={images}
         floorPlanUrl={floorPlanUrl}
         videoUrl={videoUrl}
-        virtualTourUrl={listing.virtualTourURL || null}
+        virtualTourUrl={virtualTourUrl}
         alt={fullAddress}
         badges={
           listing._displayCompliance.comingSoon ? (
