@@ -404,6 +404,7 @@
       "zipCodes": [
         "10023",
         "10024",
+        "10025",
         "10069"
       ],
       "adjacentNeighborhoods": [
@@ -1057,7 +1058,8 @@
         "L"
       ],
       "zipCodes": [
-        "10001"
+        "10001",
+        "10011"
       ],
       "adjacentNeighborhoods": [
         "greenwich-village",
@@ -1286,7 +1288,8 @@
         "10004",
         "10005",
         "10006",
-        "10007"
+        "10007",
+        "10038"
       ],
       "adjacentNeighborhoods": [
         "tribeca",
@@ -1931,7 +1934,8 @@
         "W"
       ],
       "zipCodes": [
-        "10019"
+        "10019",
+        "10036"
       ],
       "adjacentNeighborhoods": [
         "midtown-west",
@@ -3546,8 +3550,7 @@
       ],
       "zipCodes": [
         "10018",
-        "10019",
-        "10036"
+        "10020"
       ],
       "adjacentNeighborhoods": [
         "hells-kitchen",
@@ -5028,7 +5031,8 @@
       ],
       "zipCodes": [
         "10032",
-        "10033"
+        "10033",
+        "10040"
       ],
       "adjacentNeighborhoods": [
         "inwood",
@@ -5273,8 +5277,7 @@
         "A"
       ],
       "zipCodes": [
-        "10034",
-        "10040"
+        "10034"
       ],
       "adjacentNeighborhoods": [
         "washington-heights"
@@ -5511,7 +5514,7 @@
         "S"
       ],
       "zipCodes": [
-        "10017"
+        "10016"
       ],
       "adjacentNeighborhoods": [
         "midtown-east",
