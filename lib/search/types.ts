@@ -170,7 +170,7 @@ export const TAB_CONFIG: Record<SearchTab, {
 /** Residential property type checkboxes (includes ownership types for NYC) */
 export const RESIDENTIAL_PROPERTY_TYPES = [
   'Condo', 'Co-op', 'Condop',
-  'Apartment', 'Loft', 'Duplex', 'Triplex',
+  'Loft', 'Duplex', 'Triplex',
   'Townhouse', 'Multi-Family', 'Single Family', 'Land', 'Mixed Use',
   'New Development',
 ];

@@ -99,32 +99,40 @@ export default function SearchFilterPanel({
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-xs text-brand-dark/85 mb-1 block">Min</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={staged.minPrice ? `$${staged.minPrice.toLocaleString()}` : ''}
-                  onChange={(e) => {
-                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                    updateStaged({ minPrice: isNaN(num) ? undefined : num });
-                  }}
-                  placeholder="No min"
-                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                />
+                <select
+                  value={staged.minPrice || ''}
+                  onChange={(e) => updateStaged({ minPrice: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                >
+                  <option value="">No min</option>
+                  {(tabConfig.apiType === 'rent'
+                    ? [1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000]
+                    : [100000, 200000, 300000, 400000, 500000, 600000, 750000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000]
+                  ).map((v) => (
+                    <option key={v} value={v}>
+                      {tabConfig.apiType === 'rent' ? `$${v.toLocaleString()}` : v >= 1000000 ? `$${(v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1)}M` : `$${(v / 1000).toFixed(0)}K`}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="flex items-end pb-2.5 text-brand-dark/40">&ndash;</div>
               <div className="flex-1">
                 <label className="text-xs text-brand-dark/85 mb-1 block">Max</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={staged.maxPrice ? `$${staged.maxPrice.toLocaleString()}` : ''}
-                  onChange={(e) => {
-                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                    updateStaged({ maxPrice: isNaN(num) ? undefined : num });
-                  }}
-                  placeholder="No max"
-                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                />
+                <select
+                  value={staged.maxPrice || ''}
+                  onChange={(e) => updateStaged({ maxPrice: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                >
+                  <option value="">No max</option>
+                  {(tabConfig.apiType === 'rent'
+                    ? [1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000, 20000]
+                    : [200000, 300000, 400000, 500000, 600000, 750000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000]
+                  ).map((v) => (
+                    <option key={v} value={v}>
+                      {tabConfig.apiType === 'rent' ? `$${v.toLocaleString()}` : v >= 1000000 ? `$${(v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1)}M` : `$${(v / 1000).toFixed(0)}K`}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </FilterSection>
