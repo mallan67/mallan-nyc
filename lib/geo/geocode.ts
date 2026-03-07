@@ -2,21 +2,13 @@
  * Server-side geocoding for NYC addresses.
  *
  * Trestle IDX Plus feed returns null for Latitude/Longitude.
- * This module geocodes addresses using:
- *   1. In-memory cache (instant)
- *   2. NYC Geoclient API (precise, we have a subscription key)
- *   3. ZIP code centroid fallback (approximate)
+ * This module assigns coordinates using ZIP code centroids with
+ * deterministic address-based jitter for marker spread.
  *
- * COMPLIANCE: Geocoding runs server-side only. No external API calls from browser.
+ * ZERO external API calls — instant, no latency impact on listing queries.
+ *
+ * COMPLIANCE: Geocoding runs server-side only.
  */
-
-// ── In-memory geocode cache (persists across requests in serverless) ──
-const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
-const CACHE_MAX = 5000;
-
-function cacheKey(streetNumber: string, streetName: string, zip: string): string {
-  return `${streetNumber}|${streetName}|${zip}`.toLowerCase();
-}
 
 /** Deterministic hash-based jitter so same address always gets same offset */
 function hashJitter(str: string): [number, number] {
@@ -24,14 +16,16 @@ function hashJitter(str: string): [number, number] {
   for (let i = 0; i < str.length; i++) {
     h = ((h << 5) - h + str.charCodeAt(i)) | 0;
   }
-  const latOff = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.004; // ~200m spread
+  // ~200m spread within the ZIP area
+  const latOff = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.004;
   const lngOff = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 0.004;
   return [latOff, lngOff];
 }
 
 /**
- * Geocode a batch of listings, injecting latitude/longitude into the address objects.
- * Mutates the input array for performance (avoids copying 50+ large objects).
+ * Assign coordinates to listings that lack them.
+ * Uses ZIP code centroids + deterministic jitter. Instant, no external calls.
+ * Mutates the input array for performance.
  */
 export async function geocodeListings(
   listings: Array<{
@@ -45,199 +39,28 @@ export async function geocodeListings(
     };
   }>
 ): Promise<void> {
-  const needsGeo: Array<{
-    listing: typeof listings[0];
-    key: string;
-    query: string;
-  }> = [];
-
-  // Phase 1: Check cache, identify what needs geocoding
   for (const listing of listings) {
     const addr = listing.address;
+
+    // Skip if already has valid coordinates
     if (addr.latitude != null && addr.longitude != null && addr.latitude !== 0 && addr.longitude !== 0) continue;
 
-    const street = addr.streetName || '';
     const num = addr.streetNumber || '';
-    const zip = (addr.postalCode || '').split('-')[0].trim(); // Normalize ZIP+4 to 5-digit
+    const street = addr.streetName || '';
+    const zip = (addr.postalCode || '').split('-')[0].trim(); // Normalize ZIP+4
 
-    if (!street || street === 'Address Undisclosed') {
-      // Can't geocode — use ZIP centroid
-      const centroid = ZIP_CENTROIDS[zip];
-      if (centroid) {
-        const jitter = hashJitter(`${num}|${street}|${zip}`);
-        addr.latitude = centroid[0] + jitter[0];
-        addr.longitude = centroid[1] + jitter[1];
-      }
-      continue;
+    const centroid = ZIP_CENTROIDS[zip];
+    if (centroid) {
+      const jitter = hashJitter(`${num}|${street}|${zip}`);
+      addr.latitude = centroid[0] + jitter[0];
+      addr.longitude = centroid[1] + jitter[1];
     }
-
-    const key = cacheKey(num, street, zip);
-    const cached = geocodeCache.get(key);
-    if (cached !== undefined) {
-      if (cached) {
-        addr.latitude = cached.lat;
-        addr.longitude = cached.lng;
-      } else {
-        // Cached as non-geocodable — use ZIP centroid
-        const centroid = ZIP_CENTROIDS[zip];
-        if (centroid) {
-          addr.latitude = centroid[0] + (Math.random() - 0.5) * 0.002;
-          addr.longitude = centroid[1] + (Math.random() - 0.5) * 0.002;
-        }
-      }
-      continue;
-    }
-
-    // Need to geocode
-    const fullAddr = `${num} ${street}`.trim();
-    needsGeo.push({ listing, key, query: `${fullAddr}, New York, NY ${zip}` });
   }
-
-  if (needsGeo.length === 0) return;
-
-  // Phase 2: Batch geocode via NYC Geoclient or Nominatim
-  const apiKey = process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY;
-
-  // Process in parallel batches of 10 (avoid overwhelming the API)
-  const BATCH_SIZE = 10;
-  for (let i = 0; i < needsGeo.length; i += BATCH_SIZE) {
-    const batch = needsGeo.slice(i, i + BATCH_SIZE);
-    await Promise.all(
-      batch.map(async ({ listing, key, query }) => {
-        const addr = listing.address;
-        const num = addr.streetNumber || '';
-        const street = addr.streetName || '';
-        const zip = (addr.postalCode || '').split('-')[0].trim();
-        let result: { lat: number; lng: number } | null = null;
-
-        // Try NYC Geoclient first (most precise for NYC)
-        if (apiKey && num && street) {
-          try {
-            result = await geoclientLookup(num, street, zip, apiKey);
-          } catch {
-            // Fall through to Nominatim
-          }
-        }
-
-        // Fallback: Nominatim (free, no key needed)
-        if (!result) {
-          try {
-            result = await nominatimLookup(query);
-          } catch {
-            // Fall through to ZIP centroid
-          }
-        }
-
-        // Cache the result (even null to avoid re-querying)
-        if (geocodeCache.size >= CACHE_MAX) {
-          const firstKey = geocodeCache.keys().next().value;
-          if (firstKey !== undefined) geocodeCache.delete(firstKey);
-        }
-        geocodeCache.set(key, result);
-
-        if (result) {
-          addr.latitude = result.lat;
-          addr.longitude = result.lng;
-        } else {
-          // ZIP centroid fallback
-          const centroid = ZIP_CENTROIDS[zip];
-          if (centroid) {
-            addr.latitude = centroid[0] + (Math.random() - 0.5) * 0.002;
-            addr.longitude = centroid[1] + (Math.random() - 0.5) * 0.002;
-          }
-        }
-      })
-    );
-  }
-}
-
-// ── NYC Geoclient API ──
-async function geoclientLookup(
-  houseNumber: string,
-  street: string,
-  zip: string,
-  apiKey: string
-): Promise<{ lat: number; lng: number } | null> {
-  const borough = zipToBorough(zip);
-  if (!borough) return null;
-
-  const params = new URLSearchParams({
-    houseNumber,
-    street,
-    borough,
-  });
-
-  const res = await fetch(
-    `https://api.nyc.gov/geo/geoclient/v1/address.json?${params.toString()}`,
-    {
-      headers: { 'Ocp-Apim-Subscription-Key': apiKey },
-      signal: AbortSignal.timeout(3000),
-    }
-  );
-
-  if (!res.ok) return null;
-  const data = await res.json();
-  const result = data?.address;
-  if (!result) return null;
-
-  const lat = result.latitude || result.latitudeInternalLabel;
-  const lng = result.longitude || result.longitudeInternalLabel;
-
-  if (lat && lng && typeof lat === 'number' && typeof lng === 'number') {
-    return { lat, lng };
-  }
-  return null;
-}
-
-// ── Nominatim (OpenStreetMap) fallback ──
-async function nominatimLookup(query: string): Promise<{ lat: number; lng: number } | null> {
-  const params = new URLSearchParams({
-    q: query,
-    format: 'json',
-    limit: '1',
-    countrycodes: 'us',
-  });
-
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-    {
-      headers: {
-        'User-Agent': 'MallanRealEstate/1.0 (mallan.nyc)',
-      },
-      signal: AbortSignal.timeout(3000),
-    }
-  );
-
-  if (!res.ok) return null;
-  const results = await res.json();
-  if (!results || results.length === 0) return null;
-
-  const lat = parseFloat(results[0].lat);
-  const lng = parseFloat(results[0].lon);
-  if (isNaN(lat) || isNaN(lng)) return null;
-
-  // Sanity check: must be in NYC area
-  if (lat < 40.4 || lat > 41.0 || lng < -74.3 || lng > -73.6) return null;
-
-  return { lat, lng };
-}
-
-// ── ZIP to Borough mapping ──
-function zipToBorough(zip: string): string | null {
-  const z = parseInt(zip, 10);
-  if (z >= 10001 && z <= 10282) return 'Manhattan';
-  if (z >= 10301 && z <= 10314) return 'Staten Island';
-  if (z >= 10451 && z <= 10475) return 'Bronx';
-  if (z >= 11201 && z <= 11256) return 'Brooklyn';
-  if (z >= 11001 && z <= 11109) return 'Queens';
-  if (z >= 11351 && z <= 11697) return 'Queens';
-  if (z >= 11361 && z <= 11386) return 'Queens';
-  return null;
 }
 
 // ── NYC ZIP Code Centroids ──
-// Approximate center coordinates for NYC zip codes.
-// Provides neighborhood-level accuracy when precise geocoding fails.
+// Approximate center coordinates for all NYC zip codes.
+// Provides neighborhood-level accuracy for map display.
 const ZIP_CENTROIDS: Record<string, [number, number]> = {
   // Manhattan
   '10001': [40.7506, -73.9971], '10002': [40.7157, -73.9863], '10003': [40.7317, -73.9893],
