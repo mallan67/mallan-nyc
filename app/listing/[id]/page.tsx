@@ -24,6 +24,7 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
+import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
 
 // Dynamic — listings come from IDX, not static JSON
@@ -77,6 +78,15 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   } catch (mediaErr) {
     console.warn(`[/listing/${debugId}] Media fetch failed:`, mediaErr);
     // Non-fatal — listing displays without photos
+  }
+
+  // Geocode if coordinates are missing (Trestle IDX Plus often returns null lat/lng)
+  if (!dto.address.latitude || !dto.address.longitude) {
+    try {
+      await geocodeListings([dto]);
+    } catch {
+      // Non-fatal — page renders without map/transit sections
+    }
   }
 
   return dto;
@@ -403,9 +413,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {listing.publicRemarks && (
                 <section>
                   <h2 className="text-xl font-display font-semibold mb-4">About This Property</h2>
-                  <p className="text-brand-dark/95 leading-relaxed whitespace-pre-line">
-                    {listing.publicRemarks}
-                  </p>
+                  <div
+                    className="text-brand-dark/95 leading-relaxed prose prose-sm max-w-none [&>p]:mb-3 [&>p:last-child]:mb-0"
+                    dangerouslySetInnerHTML={{
+                      __html: listing.publicRemarks
+                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                        .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+                        .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+                    }}
+                  />
                 </section>
               )}
 
