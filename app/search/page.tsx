@@ -244,7 +244,7 @@ function SearchClient() {
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
       {/* ── Search Toolbar (sticky below header) ── */}
-      <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-[1001]">
+      <section ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-30">
         <div className="max-w-[1920px] mx-auto px-4 py-2">
           {/* Row 1: Tabs + Search */}
           <div className="flex items-center gap-3">
@@ -406,8 +406,8 @@ function SearchClient() {
         {/* ── SPLIT VIEW (default desktop) ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
           <div className="flex h-full">
-            {/* Map — left 60% */}
-            <div className="hidden lg:block w-[60%] h-full border-r border-black/5">
+            {/* Map — left 60% (isolate creates a new stacking context so leaflet z-1000 stays inside) */}
+            <div className="hidden lg:block w-[60%] h-full border-r border-black/5 isolate">
               <SearchMap
                 listings={sortedListings}
                 highlightedId={highlightedId}
@@ -416,7 +416,7 @@ function SearchClient() {
             </div>
             {/* Listings — right 40% */}
             <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto">
-              <div className="p-3 flex flex-col gap-3">
+              <div className="px-3 pt-2 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
