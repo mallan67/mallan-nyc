@@ -68,7 +68,7 @@ function SearchClient() {
 
   // ── Dynamic content height for full-viewport modes ──
   const toolbarRef = useRef<HTMLElement>(null);
-  const [contentHeight, setContentHeight] = useState('calc(100dvh - 160px)');
+  const [contentHeight, setContentHeight] = useState('calc(100dvh - 180px)');
 
   // ── Filters ──
   const [filters, setFilters] = useState<SearchFilters>({
@@ -224,16 +224,19 @@ function SearchClient() {
   useEffect(() => {
     const measure = () => {
       if (toolbarRef.current) {
-        const bottom = toolbarRef.current.getBoundingClientRect().bottom;
+        const rect = toolbarRef.current.getBoundingClientRect();
+        const bottom = rect.top + rect.height;
         setContentHeight(`calc(100dvh - ${Math.ceil(bottom)}px)`);
       }
     };
-    measure();
+    // Measure after layout settles
+    const t1 = setTimeout(measure, 50);
+    const t2 = setTimeout(measure, 200);
     window.addEventListener('resize', measure);
-    const raf = requestAnimationFrame(measure);
     return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
       window.removeEventListener('resize', measure);
-      cancelAnimationFrame(raf);
     };
   }, [activeFilterPills.length, activeTab]);
 
