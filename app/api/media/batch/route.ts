@@ -50,113 +50,146 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ photos: {} });
   }
 
+  // detail=true: fetch all media types (for detail panel — max 5 IDs)
+  // default: fetch primary photo only (for cards — fast, up to 50 IDs)
+  const detail = req.nextUrl.searchParams.get("detail") === "true";
+
   const now = Date.now();
   const photoResult: Record<string, string | null> = {};
   const mediaResult: Record<string, MediaEntry[]> = {};
-  const uncachedPhotos: string[] = [];
-  const uncachedMedia: string[] = [];
 
-  // Check caches
-  for (const id of ids) {
-    const cachedPhoto = photoCache.get(id);
-    if (cachedPhoto && now < cachedPhoto.expiresAt) {
-      photoResult[id] = cachedPhoto.url;
-    } else {
-      uncachedPhotos.push(id);
+  if (detail) {
+    // ── DETAIL MODE: all media types for a small batch (detail panel) ──
+    const detailIds = ids.slice(0, 5); // Limit to 5 for detail
+    const uncached: string[] = [];
+    for (const id of detailIds) {
+      const cached = mediaCache.get(id);
+      if (cached && now < cached.expiresAt) {
+        mediaResult[id] = cached.items;
+        // Also populate primary photo
+        const photo = cached.items.find(m => m.mediaType === "Photo");
+        photoResult[id] = photo?.url || null;
+      } else {
+        uncached.push(id);
+      }
     }
-    const cachedMedia = mediaCache.get(id);
-    if (cachedMedia && now < cachedMedia.expiresAt) {
-      mediaResult[id] = cachedMedia.items;
+
+    if (uncached.length > 0) {
+      try {
+        const token = await getAccessToken();
+        const filterParts = uncached.map(
+          (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
+        );
+        const filter = `(${filterParts.join(" or ")}) and (Order le 3 or MediaCategory ne 'Photo')`;
+        const params = new URLSearchParams();
+        params.set("$filter", filter);
+        params.set("$select", "ResourceRecordID,MediaURL,Order,MediaCategory,PreferredPhotoYN");
+        params.set("$orderby", "ResourceRecordID asc,Order asc");
+        params.set("$top", String(uncached.length * 6));
+
+        const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const allByListing = new Map<string, MediaEntry[]>();
+          for (const m of (data.value || [])) {
+            const lid = String(m.ResourceRecordID || "");
+            if (!lid || !m.MediaURL) continue;
+            const rawUrl = String(m.MediaURL);
+            const proxiedUrl = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+              ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
+            const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+            if (!allByListing.has(lid)) allByListing.set(lid, []);
+            allByListing.get(lid)!.push({
+              url: proxiedUrl,
+              mediaType: classifyMediaCategory(m),
+              order: isPreferred ? -1 : Number(m.Order ?? 0),
+            });
+          }
+          for (const id of uncached) {
+            const items = allByListing.get(id) || [];
+            mediaResult[id] = items;
+            mediaCache.set(id, { items, expiresAt: now + CACHE_TTL });
+            const photo = items.find(m => m.mediaType === "Photo");
+            photoResult[id] = photo?.url || null;
+            photoCache.set(id, { url: photo?.url || null, expiresAt: now + CACHE_TTL });
+          }
+        } else {
+          for (const id of uncached) { mediaResult[id] = []; photoResult[id] = null; }
+        }
+      } catch (err) {
+        console.error("[Media Batch Detail] Error:", err instanceof Error ? err.message : err);
+        for (const id of uncached) { mediaResult[id] = []; photoResult[id] = null; }
+      }
+    }
+    return NextResponse.json(
+      { photos: photoResult, media: mediaResult },
+      { headers: { "Cache-Control": "private, max-age=300" } }
+    );
+  }
+
+  // ── DEFAULT MODE: primary photo only (fast, for card thumbnails) ──
+  const result: Record<string, string | null> = {};
+  const uncached: string[] = [];
+
+  for (const id of ids) {
+    const cached = photoCache.get(id);
+    if (cached && now < cached.expiresAt) {
+      result[id] = cached.url;
     } else {
-      uncachedMedia.push(id);
+      uncached.push(id);
     }
   }
 
-  // Fetch ALL media types from Trestle Media resource (photos, floor plans, videos, virtual tours)
-  const toFetch = [...new Set([...uncachedPhotos, ...uncachedMedia])];
-  if (toFetch.length > 0) {
+  if (uncached.length > 0) {
     try {
       const token = await getAccessToken();
-
-      const filterParts = toFetch.map(
+      const filterParts = uncached.map(
         (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
       );
-      // Fetch all media types — up to 6 items per listing (3 photos + floor plans + videos + tours)
-      const filter = `(${filterParts.join(" or ")}) and (Order le 3 or MediaCategory ne 'Photo')`;
-
+      const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordID,MediaURL,Order,MediaType,MediaCategory,PreferredPhotoYN,ShortDescription");
-      params.set("$orderby", "ResourceRecordID asc,Order asc");
-      params.set("$top", String(Math.min(toFetch.length * 6, 300)));
+      params.set("$select", "ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
+      params.set("$orderby", "Order asc");
+      params.set("$top", String(uncached.length * 2));
 
-      const url = `${TRESTLE_API}/odata/Media?${params.toString()}`;
-      const response = await fetch(url, {
+      const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
 
       if (response.ok) {
         const data = await response.json();
-        const records = data.value || [];
-
-        // Group all media by listing
-        const allByListing = new Map<string, MediaEntry[]>();
-        const primaryByListing = new Map<string, string>();
-
-        for (const m of records) {
+        const byListing = new Map<string, string>();
+        for (const m of (data.value || [])) {
           const lid = String(m.ResourceRecordID || "");
-          if (!lid || !m.MediaURL) continue;
-
-          const mediaType = classifyMediaCategory(m);
-          const rawUrl = String(m.MediaURL);
-          const proxiedUrl = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
-            ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
-            : rawUrl;
-          const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-
-          if (!allByListing.has(lid)) allByListing.set(lid, []);
-          allByListing.get(lid)!.push({
-            url: proxiedUrl,
-            mediaType,
-            order: isPreferred ? -1 : Number(m.Order ?? 0),
-          });
-
-          // Track primary photo (first photo by order, or preferred)
-          if (mediaType === "Photo" && !primaryByListing.has(lid)) {
-            primaryByListing.set(lid, proxiedUrl);
+          if (lid && !byListing.has(lid) && m.MediaURL) {
+            const rawUrl = String(m.MediaURL);
+            byListing.set(lid, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+              ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl);
           }
         }
-
-        // Populate and cache
-        for (const id of toFetch) {
-          const primary = primaryByListing.get(id) || null;
-          photoResult[id] = primary;
-          photoCache.set(id, { url: primary, expiresAt: now + CACHE_TTL });
-
-          const items = allByListing.get(id) || [];
-          mediaResult[id] = items;
-          mediaCache.set(id, { items, expiresAt: now + CACHE_TTL });
+        for (const id of uncached) {
+          const url = byListing.get(id) || null;
+          result[id] = url;
+          photoCache.set(id, { url, expiresAt: now + CACHE_TTL });
         }
       } else {
-        // Fallback: mark as empty
-        for (const id of toFetch) {
-          photoResult[id] = null;
+        for (const id of uncached) {
+          result[id] = null;
           photoCache.set(id, { url: null, expiresAt: now + 60_000 });
-          mediaResult[id] = [];
-          mediaCache.set(id, { items: [], expiresAt: now + 60_000 });
         }
       }
     } catch (err) {
       console.error("[Media Batch] Error:", err instanceof Error ? err.message : err);
-      for (const id of toFetch) {
-        photoResult[id] = null;
-        mediaResult[id] = [];
-      }
+      for (const id of uncached) { result[id] = null; }
     }
   }
 
   return NextResponse.json(
-    { photos: photoResult, media: mediaResult },
+    { photos: result },
     { headers: { "Cache-Control": "private, max-age=300" } }
   );
 }
