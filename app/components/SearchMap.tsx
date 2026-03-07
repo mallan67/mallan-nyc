@@ -2,13 +2,10 @@
 
 import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { MapContainer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { listingHref } from '@/lib/idx/display-adapter';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Fix Leaflet default marker icons in Next.js/webpack
@@ -300,92 +297,67 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
         <ZoomControl position="bottomright" />
         <MapLibreLayer styleUrl={MAP_STYLES[mapStyle].url} />
         <FitBounds coordHash={coordHash} listings={boundsData} />
-        <MarkerClusterGroup
-          chunkedLoading
-          maxClusterRadius={40}
-          spiderfyOnMaxZoom
-          showCoverageOnHover={false}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          iconCreateFunction={(cluster: any) => {
-            const count = cluster.getChildCount();
-            const size = count >= 50 ? 48 : count >= 20 ? 40 : 32;
-            return L.divIcon({
-              html: `<div style="
-                background:#1a1a1a;color:#fff;
-                width:${size}px;height:${size}px;
-                border-radius:50%;
-                display:flex;align-items:center;justify-content:center;
-                font-size:${count >= 100 ? 11 : 12}px;font-weight:700;
-                box-shadow:0 2px 10px rgba(0,0,0,0.3);
-                border:2px solid #C4A052;
-              ">${count}</div>`,
-              className: 'cluster-marker',
-              iconSize: L.point(size, size),
-            });
-          }}
-        >
-          {mappable.map((listing) => {
-            const isHighlighted = highlightedId === listing.id;
-            const isComingSoon = !!listing._displayCompliance.comingSoon;
-            const isRental = listing.listingType === 'rent';
-            const pos = positions.get(listing.id) || [listing.address.latitude!, listing.address.longitude!];
-            const stackCount = stackCounts.get(listing.id) || 1;
-            return (
-              <Marker
-                key={listing.id}
-                position={pos}
-                icon={createPriceIcon(listing.listPrice, isRental, isHighlighted, isComingSoon, stackCount)}
-                zIndexOffset={isHighlighted ? 1000 : 0}
-                eventHandlers={{
-                  click: () => handleMarkerClick(listing.id),
-                }}
-              >
-                <Popup maxWidth={260} minWidth={260} className="map-card-popup">
-                  <a href={listingHref(listing)} style={{ display: 'block', width: 260, textDecoration: 'none', color: 'inherit' }}>
-                    {listing.media[0]?.url && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={listing.media[0].url}
-                        alt=""
-                        style={{ width: 260, height: 150, objectFit: 'cover', display: 'block' }}
-                        loading="lazy"
-                      />
-                    )}
-                    <div style={{ padding: '10px 12px 8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>
-                          {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#888' }}>
-                          {listing.bedroomsTotal} bd · {listing.bathroomsFull} ba
-                          {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sf` : ''}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#333', marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {listing.address.streetName === 'Address Undisclosed'
-                          ? 'Address Undisclosed'
-                          : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                        {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
-                          ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
-                          : listing.address.borough || 'Manhattan'}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
-                      <span style={{ fontSize: 10, color: '#aaa' }}>
-                        {listing.listOfficeName}
+        {mappable.map((listing) => {
+          const isHighlighted = highlightedId === listing.id;
+          const isComingSoon = !!listing._displayCompliance.comingSoon;
+          const isRental = listing.listingType === 'rent';
+          const pos = positions.get(listing.id) || [listing.address.latitude!, listing.address.longitude!];
+          const stackCount = stackCounts.get(listing.id) || 1;
+          return (
+            <Marker
+              key={listing.id}
+              position={pos}
+              icon={createPriceIcon(listing.listPrice, isRental, isHighlighted, isComingSoon, stackCount)}
+              zIndexOffset={isHighlighted ? 1000 : 0}
+              eventHandlers={{
+                click: () => handleMarkerClick(listing.id),
+              }}
+            >
+              <Popup maxWidth={260} minWidth={260} className="map-card-popup">
+                <a href={listingHref(listing)} style={{ display: 'block', width: 260, textDecoration: 'none', color: 'inherit' }}>
+                  {listing.media[0]?.url && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={listing.media[0].url}
+                      alt=""
+                      style={{ width: 260, height: 150, objectFit: 'cover', display: 'block' }}
+                      loading="lazy"
+                    />
+                  )}
+                  <div style={{ padding: '10px 12px 8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>
+                        {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#C4A052' }}>
-                        View &rarr;
+                      <span style={{ fontSize: 11, color: '#888' }}>
+                        {listing.bedroomsTotal} bd · {listing.bathroomsFull} ba
+                        {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sf` : ''}
                       </span>
                     </div>
-                  </a>
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MarkerClusterGroup>
+                    <div style={{ fontSize: 12, color: '#333', marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {listing.address.streetName === 'Address Undisclosed'
+                        ? 'Address Undisclosed'
+                        : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                      {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
+                        ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
+                        : listing.address.borough || 'Manhattan'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+                    <span style={{ fontSize: 10, color: '#aaa' }}>
+                      {listing.listOfficeName}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#C4A052' }}>
+                      View &rarr;
+                    </span>
+                  </div>
+                </a>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
 
       {/* Attribution */}
