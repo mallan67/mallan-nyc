@@ -75,34 +75,62 @@ const RENT_PRICE_PRESETS = [
   { label: '$50,000+', value: '50000' },
 ];
 
-// ── View mode icons (SVG paths) ──
-// split: vertical divider with left/right panels
-// all-listings: 2x2 grid of cards
-// all-map: map icon
-// grid: 3x3 small grid
-// list: horizontal lines (list view)
-const VIEW_ICONS: Record<ViewMode, { paths: string[]; label: string }> = {
-  split: {
-    paths: ['M3 3h7v18H3V3zM14 3h7v18h-7V3z'],
-    label: 'Split',
-  },
-  'all-listings': {
-    paths: ['M3 3h8v8H3V3zM13 3h8v8h-8V3zM3 13h8v8H3v-8zM13 13h8v8h-8v-8z'],
-    label: 'All Listings',
-  },
-  'all-map': {
-    paths: ['M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7'],
-    label: 'Full Map',
-  },
-  grid: {
-    paths: ['M4 5h4v4H4V5zM10 5h4v4h-4V5zM16 5h4v4h-4V5zM4 11h4v4H4v-4zM10 11h4v4h-4v-4zM16 11h4v4h-4v-4zM4 17h4v2H4v-2zM10 17h4v2h-4v-2zM16 17h4v2h-4v-2z'],
-    label: 'Grid',
-  },
-  list: {
-    paths: ['M4 6h16M4 12h16M4 18h16'],
-    label: 'List',
-  },
-};
+// ── View mode icon renderer ──
+function ViewIcon({ mode, size = 16 }: { mode: ViewMode; size?: number }) {
+  const s = size;
+  switch (mode) {
+    case 'split':
+      // Left panel (larger) + right panel — split view
+      return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="1" width="8" height="14" rx="1" />
+          <rect x="11" y="1" width="4" height="14" rx="1" opacity="0.5" />
+        </svg>
+      );
+    case 'all-listings':
+      // 2x2 large cards
+      return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="1" width="6" height="6" rx="1" />
+          <rect x="9" y="1" width="6" height="6" rx="1" />
+          <rect x="1" y="9" width="6" height="6" rx="1" />
+          <rect x="9" y="9" width="6" height="6" rx="1" />
+        </svg>
+      );
+    case 'all-map':
+      // Map pin icon
+      return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M8 1.5a4.5 4.5 0 014.5 4.5c0 3.5-4.5 8.5-4.5 8.5S3.5 9.5 3.5 6A4.5 4.5 0 018 1.5z" />
+          <circle cx="8" cy="6" r="1.5" />
+        </svg>
+      );
+    case 'grid':
+      // 3x3 small grid (the 3-col card view)
+      return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="1" width="3.5" height="3.5" rx="0.5" />
+          <rect x="6.25" y="1" width="3.5" height="3.5" rx="0.5" />
+          <rect x="11.5" y="1" width="3.5" height="3.5" rx="0.5" />
+          <rect x="1" y="6.25" width="3.5" height="3.5" rx="0.5" />
+          <rect x="6.25" y="6.25" width="3.5" height="3.5" rx="0.5" />
+          <rect x="11.5" y="6.25" width="3.5" height="3.5" rx="0.5" />
+          <rect x="1" y="11.5" width="3.5" height="3.5" rx="0.5" />
+          <rect x="6.25" y="11.5" width="3.5" height="3.5" rx="0.5" />
+          <rect x="11.5" y="11.5" width="3.5" height="3.5" rx="0.5" />
+        </svg>
+      );
+    case 'list':
+      // Horizontal lines — list view
+      return (
+        <svg width={s} height={s} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <line x1="1" y1="4" x2="15" y2="4" />
+          <line x1="1" y1="8" x2="15" y2="8" />
+          <line x1="1" y1="12" x2="15" y2="12" />
+        </svg>
+      );
+  }
+}
 
 function SearchClient() {
   const searchParams = useSearchParams();
@@ -304,7 +332,7 @@ function SearchClient() {
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
       {/* ── Search Toolbar (sticky below header) ── */}
-      <div ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-30">
+      <div ref={toolbarRef} className="sticky top-16 md:top-[72px] bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
         <div className="max-w-[1920px] mx-auto px-4 py-2">
           {/* Row 1: Tabs + Search */}
           <div className="flex items-center gap-3">
@@ -323,7 +351,7 @@ function SearchClient() {
                 </button>
               ))}
             </div>
-            <div className="flex-1 min-w-[140px]">
+            <div className="w-64 flex-shrink-0">
               <SearchAutocomplete
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -390,32 +418,20 @@ function SearchClient() {
               )}
             </button>
 
-            <div className="hidden lg:flex bg-gray-100/60 rounded-lg p-0.5">
-              {(Object.entries(VIEW_ICONS) as [ViewMode, typeof VIEW_ICONS[ViewMode]][]).map(([mode, { paths, label }]) => {
-                const useStroke = mode === 'all-map' || mode === 'list';
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => setViewMode(mode)}
-                    className={`p-1.5 rounded transition-colors ${
-                      viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/50 hover:text-brand-dark/80'
-                    }`}
-                    aria-label={`${label} view`}
-                    title={label}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24"
-                      fill={useStroke ? 'none' : 'currentColor'}
-                      stroke={useStroke ? 'currentColor' : 'none'}
-                    >
-                      {paths.map((d, i) => (
-                        <path key={i} d={d}
-                          {...(useStroke ? { strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, strokeWidth: 2 } : {})}
-                        />
-                      ))}
-                    </svg>
-                  </button>
-                );
-              })}
+            <div className="hidden lg:flex bg-gray-100/60 rounded-lg p-0.5 gap-0.5">
+              {(['split', 'all-listings', 'all-map', 'grid', 'list'] as ViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`p-1.5 rounded transition-colors ${
+                    viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark/70'
+                  }`}
+                  aria-label={`${mode} view`}
+                  title={mode === 'split' ? 'Split' : mode === 'all-listings' ? 'All Listings' : mode === 'all-map' ? 'Full Map' : mode === 'grid' ? 'Grid' : 'List'}
+                >
+                  <ViewIcon mode={mode} />
+                </button>
+              ))}
             </div>
 
             <select
@@ -456,7 +472,7 @@ function SearchClient() {
       </div>
 
       {/* ── Main Area ── */}
-      <div className={isFullViewport ? 'overflow-hidden' : ''} style={isFullViewport ? { height: contentHeight } : undefined}>
+      <div className={isFullViewport ? 'overflow-hidden isolate' : ''} style={isFullViewport ? { height: contentHeight } : undefined}>
         {/* Error */}
         {error && (
           <div className="text-center py-8 mx-4 mt-4 glass-card rounded-3xl">
