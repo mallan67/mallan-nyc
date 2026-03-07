@@ -1199,24 +1199,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
             <div className="lg:col-span-1 hidden lg:block">
               <div className="sticky top-24 space-y-5">
 
-                {/* Agent Contact Card */}
+                {/* Contact Card */}
                 <div className="rounded-3xl p-6 border border-black/[0.06]" style={{ background: 'linear-gradient(180deg, #fff 0%, #F8F7F4 100%)' }}>
-                  <div className="flex items-center gap-4 mb-5">
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))' }}
-                    >
-                      <span className="font-display font-bold text-brand-gold-deep text-lg">MA</span>
-                    </div>
-                    <div>
-                      <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
-                      <p className="text-brand-dark/60 text-[12px]">Licensed NYC Broker</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-brand-gold-deep text-[11px] font-bold">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-                        <span className="text-[10px] text-brand-dark/50">5.0 on Zillow</span>
-                      </div>
-                    </div>
-                  </div>
+                  <h3 className="font-display font-semibold text-[15px] text-brand-dark mb-1">Interested in this property?</h3>
+                  <p className="text-brand-dark/50 text-[12px] mb-5">Mallan Real Estate Inc.</p>
                   <div className="space-y-2.5">
                     <a
                       href="tel:646-258-4460"
