@@ -18,6 +18,25 @@ import { checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 
+/** Map Trestle property fields to display type (no "Apartment") */
+function mapDisplayPropertyType(raw: Record<string, unknown>): string {
+  const ci = raw.CommonInterest ? String(raw.CommonInterest) : "";
+  if (ci === "Condominium") return "Condo";
+  if (ci === "StockCooperative") return "Co-op";
+  if (ci === "Condop") return "Condop";
+  const sub = raw.PropertySubType ? String(raw.PropertySubType).toLowerCase() : "";
+  if (sub.includes("condo")) return "Condo";
+  if (sub.includes("co-op") || sub.includes("coop") || sub.includes("stock cooperative")) return "Co-op";
+  if (sub.includes("condop")) return "Condop";
+  if (sub.includes("townhouse")) return "Townhouse";
+  if (sub.includes("loft")) return "Loft";
+  if (sub.includes("single family") || sub.includes("house")) return "House";
+  if (sub.includes("multi")) return "Multi-Family";
+  if (sub === "apartment") return "Residential";
+  if (sub) return String(raw.PropertySubType);
+  return String(raw.PropertyType || "Residential");
+}
+
 // ── Fields we actually need (validated against IDX Plus feed 2026-03-04) ──
 // Fields NOT on IDX Plus removed: SourceSystemModificationTimestamp, ComingSoonDate,
 // BathroomsTotal, FloorNumber, Media, IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN
@@ -341,7 +360,7 @@ function mapTrestleToCRM(
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
     ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
-    propertyType: String(raw.PropertyType || "Residential"),
+    propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
     neighborhood: String(raw.CityRegion || ""),
     borough: String(raw.CountyOrParish || "Manhattan"),
