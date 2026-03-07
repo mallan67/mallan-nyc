@@ -27,7 +27,6 @@ export default function AgentsGrid() {
   const bioRef = useRef<HTMLDivElement>(null);
   const heroRef = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
   const featuredRef = useGsapReveal<HTMLDivElement>({ y: 50, duration: 1 });
-  const teamRef = useGsapReveal<HTMLDivElement>({ children: true, y: 40, scale: 0.98, stagger: 0.12 });
 
   useEffect(() => {
     if (photoRef.current && bioRef.current) {
@@ -68,7 +67,6 @@ export default function AgentsGrid() {
   }
 
   const featured = agents.find(a => a.featured && a.id === 'maya-allan') || agents.find(a => a.featured);
-  const team = agents.filter(a => a.id !== featured?.id);
 
   return (
     <>
@@ -161,25 +159,25 @@ export default function AgentsGrid() {
                 )}
 
                 {/* Contact + Profile Link */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-wrap gap-3">
                   <Link
                     href={`/agents/${featured.id}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-dark text-white text-sm font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-dark text-white text-[13px] font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors whitespace-nowrap"
                   >
                     View Listings & Profile
                   </Link>
                   <a
                     href={`tel:${featured.phone.replace(/[^0-9+]/g, '')}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 ring-1 ring-black/10 text-brand-dark text-sm font-medium rounded-2xl hover:bg-black/[0.02] transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 ring-1 ring-black/10 text-brand-dark text-[13px] font-medium rounded-2xl hover:bg-black/[0.02] transition-colors whitespace-nowrap"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                     {featured.phone}
                   </a>
                   <a
                     href={`mailto:${featured.email}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 ring-1 ring-black/10 text-brand-dark text-sm font-medium rounded-2xl hover:bg-black/[0.02] transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 ring-1 ring-black/10 text-brand-dark text-[13px] font-medium rounded-2xl hover:bg-black/[0.02] transition-colors whitespace-nowrap"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                     {featured.email}
                   </a>
                 </div>
@@ -193,81 +191,6 @@ export default function AgentsGrid() {
       <div className="max-w-[1200px] mx-auto px-6 md:px-12">
         <div className="border-t border-black/5" />
       </div>
-
-      {/* Team Members — Horizontal Cards */}
-      {team.length > 0 && (
-        <section className="py-20 md:py-28">
-          <div className="max-w-[1200px] mx-auto px-6 md:px-12">
-            <div className="mb-14">
-              <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Meet</p>
-              <h2 className="font-display font-bold text-2xl md:text-3xl tracking-tight text-brand-dark">The Team</h2>
-            </div>
-
-            <div ref={teamRef} className="space-y-10">
-              {team.map((agent, idx) => (
-                <Link
-                  key={agent.id}
-                  href={`/agents/${agent.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  className={`group flex flex-col ${idx % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} gap-8 md:gap-12 items-center glass-card rounded-[32px] p-6 md:p-8 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-500`}
-                >
-                  {/* Portrait */}
-                  <div className="w-full md:w-72 flex-shrink-0">
-                    <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-50">
-                      <Image
-                        src={agent.photo}
-                        alt={agent.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-700"
-                        sizes="(max-width: 768px) 100vw, 288px"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-display font-bold text-xl md:text-2xl text-brand-dark mb-1">
-                      {agent.name}
-                    </h3>
-                    <p className="text-brand-dark/90 text-sm font-light mb-4">{agent.title}</p>
-
-                    <p className="text-brand-dark/90 text-[14px] font-light leading-[1.8] mb-5 line-clamp-3">
-                      {agent.bio}
-                    </p>
-
-                    {/* Specialties */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {agent.specialties.slice(0, 4).map((s, i) => (
-                        <span key={i} className="px-3 py-1 bg-brand-gold/8 text-brand-gold-deep text-[11px] font-medium rounded-full">
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Contact row */}
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-brand-dark/85 font-light">{agent.phone}</span>
-                      <span className="text-brand-dark/20">|</span>
-                      <span className="text-brand-dark/85 font-light">{agent.email}</span>
-                    </div>
-
-                    {agent.languages.length > 0 && (
-                      <p className="text-brand-dark/85 text-[11px] font-light mt-2">
-                        Languages: {agent.languages.join(', ')}
-                      </p>
-                    )}
-
-                    <div className="mt-5">
-                      <span className="text-[13px] text-brand-gold-deep font-medium group-hover:underline">
-                        View Full Profile &rarr;
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* CTA */}
       <section className="py-20 bg-brand-dark text-white">
