@@ -29,10 +29,27 @@ import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
 
 import { getAccessToken } from '@/lib/idx/auth';
+import { soda } from '@/lib/soda';
 
 // Dynamic — listings come from IDX, not static JSON
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+/** Borough name → ACRIS borough code (1=Manhattan, 2=Bronx, 3=Brooklyn, 4=Queens, 5=SI) */
+const BOROUGH_TO_CODE: Record<string, string> = {
+  manhattan: '1', 'new york': '1',
+  bronx: '2',
+  brooklyn: '3', kings: '3',
+  queens: '4',
+  'staten island': '5', richmond: '5',
+};
+
+interface LastSaleInfo {
+  closePrice: number;
+  closeDate: string;
+  sqft: number;
+  source: 'trestle' | 'acris';
+}
 
 /** Fetch last closed sale for a specific unit from Trestle */
 async function fetchLastUnitSale(
@@ -40,7 +57,7 @@ async function fetchLastUnitSale(
   streetName: string,
   unitNumber: string | null,
   postalCode: string,
-): Promise<{ closePrice: number; closeDate: string; sqft: number } | null> {
+): Promise<LastSaleInfo | null> {
   if (!streetNumber || !streetName) return null;
   try {
     const token = await getAccessToken();
@@ -69,8 +86,78 @@ async function fetchLastUnitSale(
       closePrice: Number(record.ClosePrice || record.ListPrice || 0),
       closeDate: record.CloseDate ? String(record.CloseDate) : '',
       sqft: Number(record.LivingArea || 0),
+      source: 'trestle' as const,
     };
   } catch {
+    return null;
+  }
+}
+
+/** Fetch last sale from ACRIS (NYC public records) by BBL as fallback */
+async function fetchLastSaleFromACRIS(
+  county: string,
+  taxBlock: string | null,
+  taxLot: string | null,
+): Promise<LastSaleInfo | null> {
+  if (!taxBlock || !taxLot) return null;
+
+  const boroCode = BOROUGH_TO_CODE[county.toLowerCase()];
+  if (!boroCode) return null;
+
+  // ACRIS BBL format: 1-digit borough + 5-digit block + 4-digit lot
+  const block = taxBlock.padStart(5, '0');
+  const lot = taxLot.padStart(4, '0');
+  const bbl = `${boroCode}${block}${lot}`;
+
+  try {
+    const MASTER = process.env.SODA_DATASET_ACRIS_MASTER;
+    const REALPROP = process.env.SODA_DATASET_ACRIS_REALPROPERTY;
+    if (!MASTER || !REALPROP) return null;
+
+    // Step 1: Get document IDs for this BBL
+    const docRows = await soda<{ document_id: string }>({
+      resource: REALPROP,
+      where: `bbl='${bbl}'`,
+      select: 'document_id',
+      order: 'document_id DESC',
+      limit: 50,
+    });
+
+    if (docRows.length === 0) return null;
+
+    // Step 2: Get deed documents (sale transfers)
+    const docIds = docRows.map(r => r.document_id);
+    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')}) AND doc_type in ('DEED','DEEDO','DEED, RP','DEED, TS')`;
+    const docs = await soda<{
+      document_id: string;
+      doc_type: string;
+      doc_amount?: string;
+      recorded_datetime?: string;
+      good_through_date?: string;
+    }>({
+      resource: MASTER,
+      where,
+      order: 'recorded_datetime DESC',
+      limit: 5,
+    });
+
+    // Find the most recent deed with a sale amount
+    for (const doc of docs) {
+      const amount = Number(doc.doc_amount || 0);
+      if (amount > 0) {
+        const date = doc.recorded_datetime || doc.good_through_date || '';
+        return {
+          closePrice: amount,
+          closeDate: date,
+          sqft: 0, // ACRIS doesn't have sqft
+          source: 'acris' as const,
+        };
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.warn('[ACRIS fallback] Error:', err);
     return null;
   }
 }
@@ -93,11 +180,18 @@ function countyToBorough(county: string): string {
   return COUNTY_TO_BOROUGH[county.toLowerCase()] || county;
 }
 
+/** Extra tax fields from Trestle (not in PublicListingDTO but needed for ACRIS lookup) */
+interface TrestleTaxFields {
+  taxBlock: string | null;
+  taxLot: string | null;
+}
+
 /**
  * Resolve a raw Trestle record → PublicListingDTO with media.
+ * Also extracts TaxBlock/TaxLot for ACRIS fallback.
  * Always fetches media separately (we no longer use $expand=Media).
  */
-async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<PublicListingDTO | null> {
+async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<{ dto: PublicListingDTO; tax: TrestleTaxFields } | null> {
   const gateResult = checkDistributionGates(raw);
   if (!gateResult.displayable) return null;
 
@@ -133,17 +227,32 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
     }
   }
 
-  return dto;
+  // Extract tax fields for ACRIS fallback (not part of public DTO)
+  const tax: TrestleTaxFields = {
+    taxBlock: raw.TaxBlock ? String(raw.TaxBlock) : null,
+    taxLot: raw.TaxLot ? String(raw.TaxLot) : null,
+  };
+
+  return { dto, tax };
+}
+
+/** Combined result from Trestle fetch: DTO + extra fields for ACRIS */
+interface ListingFetchResult {
+  listing: PublicListingDTO;
+  tax: TrestleTaxFields;
 }
 
 /**
  * Fetch from Trestle directly (server-side). Returns null on any failure.
  */
-async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
+async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
   // Strategy 1: Explicit key override (?key= param)
   if (keyOverride) {
     const raw = await fetchSingleListing(keyOverride);
-    if (raw) return rawToDTO(raw, keyOverride);
+    if (raw) {
+      const result = await rawToDTO(raw, keyOverride);
+      if (result) return { listing: result.dto, tax: result.tax };
+    }
   }
 
   // Strategy 2: MLS-ID slug (e.g., "listing-RBNY-12345678")
@@ -151,7 +260,10 @@ async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promi
     const mlsId = extractMlsIdFromSlug(slug);
     if (mlsId) {
       const raw = await fetchSingleListing(mlsId);
-      if (raw) return rawToDTO(raw, mlsId);
+      if (raw) {
+        const result = await rawToDTO(raw, mlsId);
+        if (result) return { listing: result.dto, tax: result.tax };
+      }
     }
     return null;
   }
@@ -163,14 +275,17 @@ async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promi
     if (raw) {
       // COMPLIANCE: If the resolved listing has address suppressed, reject.
       if (raw.InternetAddressDisplayYN === false) return null;
-      const dto = await rawToDTO(raw, slug);
-      if (dto) return dto;
+      const result = await rawToDTO(raw, slug);
+      if (result) return { listing: result.dto, tax: result.tax };
     }
   }
 
   // Strategy 4: Treat slug as raw ListingId (backwards compatibility)
   const raw = await fetchSingleListing(slug);
-  if (raw) return rawToDTO(raw, slug);
+  if (raw) {
+    const result = await rawToDTO(raw, slug);
+    if (result) return { listing: result.dto, tax: result.tax };
+  }
 
   return null;
 }
@@ -179,7 +294,7 @@ async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promi
  * Fallback: fetch from our own /api/listings/:id endpoint.
  * This has its own local JSON fallback and won't fail if Trestle is down.
  */
-async function fetchFromApiEndpoint(listingId: string): Promise<PublicListingDTO | null> {
+async function fetchFromApiEndpoint(listingId: string): Promise<ListingFetchResult | null> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
@@ -192,7 +307,8 @@ async function fetchFromApiEndpoint(listingId: string): Promise<PublicListingDTO
     const data = await res.json();
     if (!data.success || !data.listing) return null;
     // The API endpoint returns either PublicListingDTO or sanitized local listing
-    return data.listing as PublicListingDTO;
+    // No tax fields available from API fallback
+    return { listing: data.listing as PublicListingDTO, tax: { taxBlock: null, taxLot: null } };
   } catch {
     return null;
   }
@@ -209,14 +325,14 @@ async function fetchFromApiEndpoint(listingId: string): Promise<PublicListingDTO
  * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
  * preventing address leakage through URLs.
  */
-const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<PublicListingDTO | null> {
+const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
   const useIDX = process.env.IDX_ENABLED === 'true';
 
   // Primary: direct Trestle fetch
   if (useIDX) {
     try {
-      const dto = await fetchFromTrestleDirect(slug, keyOverride);
-      if (dto) return dto;
+      const result = await fetchFromTrestleDirect(slug, keyOverride);
+      if (result) return result;
     } catch (err) {
       console.error(`[/listing/${slug}] Trestle fetch failed, trying API fallback:`, err);
     }
@@ -233,12 +349,13 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const { key } = await searchParams;
-  const listing = await fetchListing(id, key);
+  const result = await fetchListing(id, key);
 
-  if (!listing) {
+  if (!result) {
     return { title: 'Listing Not Found | Mallan Real Estate' };
   }
 
+  const listing = result.listing;
   const isRental = listing.listingType === 'rent';
   const priceDisplay = isRental
     ? `$${listing.listPrice.toLocaleString()}/mo`
@@ -304,11 +421,14 @@ function formatPrice(price: number, isRental: boolean): string {
 export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { key } = await searchParams;
-  const listing = await fetchListing(id, key);
+  const result = await fetchListing(id, key);
 
-  if (!listing) {
+  if (!result) {
     notFound();
   }
+
+  const listing = result.listing;
+  const { tax } = result;
 
   // SEO: The canonical URL (set in generateMetadata) uses the address slug.
   // Google will index the correct URL via <link rel="canonical">.
@@ -325,14 +445,24 @@ export default async function ListingPage({ params, searchParams }: Props) {
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
   // Fetch last closed sale for this specific unit (server-side, cached 1hr)
-  const lastUnitSale = listing.address.streetName !== 'Address Undisclosed'
-    ? await fetchLastUnitSale(
-        listing.address.streetNumber,
-        listing.address.streetName,
-        listing.address.unitNumber,
-        listing.address.postalCode,
-      )
-    : null;
+  // Primary: Trestle closed records. Fallback: ACRIS deed records.
+  let lastUnitSale: LastSaleInfo | null = null;
+  if (listing.address.streetName !== 'Address Undisclosed') {
+    lastUnitSale = await fetchLastUnitSale(
+      listing.address.streetNumber,
+      listing.address.streetName,
+      listing.address.unitNumber,
+      listing.address.postalCode,
+    );
+    // ACRIS fallback when Trestle has no closed data
+    if (!lastUnitSale) {
+      lastUnitSale = await fetchLastSaleFromACRIS(
+        listing.address.county,
+        tax.taxBlock,
+        tax.taxLot,
+      );
+    }
+  }
 
   // Building amenities as gold pills
   const buildingAmenities: string[] = [
@@ -352,9 +482,20 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const appliancesList: string[] = listing.appliances ? parseTrestleList(listing.appliances) : [];
   // Interior features as gold pills
   const interiorFeaturesList: string[] = listing.interiorFeatures ? parseTrestleList(listing.interiorFeatures) : [];
-  // Pet policy
-  const petPolicy = listing.petsAllowedDetail ? parseTrestleList(listing.petsAllowedDetail).join(', ') : '';
-  const petsAllowed = petPolicy && !petPolicy.toLowerCase().includes('no');
+  // Pet policy — format raw values like "CatsOK,DogsOK" → "Cats Ok, Dogs Ok"
+  const rawPetValues = listing.petsAllowedDetail ? parseTrestleList(listing.petsAllowedDetail) : [];
+  const petPolicy = rawPetValues
+    .map(v => {
+      // Convert "Cats OK" / "Dogs OK" → "Cats Ok" / "Dogs Ok"
+      const lower = v.toLowerCase();
+      if (lower.includes('cat')) return 'Cats Ok';
+      if (lower.includes('dog')) return 'Dogs Ok';
+      if (lower === 'allowed' || lower === 'permitted') return 'Pets Allowed';
+      if (lower === 'restricted' || lower === 'conditional') return 'Pets Conditional';
+      return v;
+    })
+    .join(', ');
+  const petsAllowed = petPolicy && !petPolicy.toLowerCase().includes('no pets') && !petPolicy.toLowerCase().includes('not allowed');
 
   // Separate media by type: photos, floorplans, videos, virtual tours
   const nonPhotoTypes = new Set(['video', 'mpeg', 'mp4', 'avi', 'floorplan', 'floor plan', 'virtualtour', 'virtual tour']);
@@ -602,7 +743,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {/* Last Closed Price for This Unit */}
               {lastUnitSale && lastUnitSale.closePrice > 0 && (
                 <section className="glass-card rounded-2xl p-4">
-                  <h2 className="text-sm font-display font-semibold mb-2">Last Sale — This Unit</h2>
+                  <h2 className="text-sm font-display font-semibold mb-2">
+                    Last Sale — This {lastUnitSale.source === 'acris' ? 'Property' : 'Unit'}
+                  </h2>
                   <div className="flex flex-wrap items-baseline gap-3">
                     <span className="text-lg font-display font-bold text-brand-dark">
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
@@ -626,6 +769,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         ? `Current asking is ${Math.round(((lastUnitSale.closePrice - listing.listPrice) / lastUnitSale.closePrice) * 100)}% below last sale`
                         : 'Current asking matches last sale price'}
                     </p>
+                  )}
+                  {lastUnitSale.source === 'acris' && (
+                    <p className="text-[10px] text-brand-dark/40 mt-1">Source: NYC ACRIS Public Records</p>
                   )}
                 </section>
               )}
