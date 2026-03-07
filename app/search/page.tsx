@@ -38,6 +38,43 @@ function formatPriceShort(price: number): string {
   return `$${price.toLocaleString()}`;
 }
 
+// ── Price dropdown presets ──
+const PRICE_PRESETS = [
+  { label: 'Any', value: '' },
+  { label: '$250K', value: '250000' },
+  { label: '$500K', value: '500000' },
+  { label: '$750K', value: '750000' },
+  { label: '$1M', value: '1000000' },
+  { label: '$1.5M', value: '1500000' },
+  { label: '$2.5M', value: '2500000' },
+  { label: '$3.5M', value: '3500000' },
+  { label: '$4.5M', value: '4500000' },
+  { label: '$5M', value: '5000000' },
+  { label: '$7M', value: '7000000' },
+  { label: '$9M', value: '9000000' },
+  { label: '$12M', value: '12000000' },
+  { label: '$20M', value: '20000000' },
+  { label: '$50M+', value: '50000000' },
+];
+
+const RENT_PRICE_PRESETS = [
+  { label: 'Any', value: '' },
+  { label: '$1,500', value: '1500' },
+  { label: '$2,000', value: '2000' },
+  { label: '$2,500', value: '2500' },
+  { label: '$3,000', value: '3000' },
+  { label: '$3,500', value: '3500' },
+  { label: '$4,000', value: '4000' },
+  { label: '$5,000', value: '5000' },
+  { label: '$6,000', value: '6000' },
+  { label: '$7,500', value: '7500' },
+  { label: '$10,000', value: '10000' },
+  { label: '$15,000', value: '15000' },
+  { label: '$20,000', value: '20000' },
+  { label: '$30,000', value: '30000' },
+  { label: '$50,000+', value: '50000' },
+];
+
 // ── View mode icons ──
 const VIEW_ICONS: Record<ViewMode, { d: string; label: string }> = {
   split: { d: 'M9 3v18m12-18H3', label: 'Split' },
@@ -224,18 +261,18 @@ function SearchClient() {
   useEffect(() => {
     const measure = () => {
       if (toolbarRef.current) {
-        // Use offsetTop + offsetHeight for reliable measurement (unaffected by scroll)
-        const toolbarBottom = toolbarRef.current.offsetTop + toolbarRef.current.offsetHeight;
-        setContentHeight(`calc(100dvh - ${toolbarBottom}px)`);
+        const rect = toolbarRef.current.getBoundingClientRect();
+        setContentHeight(`calc(100dvh - ${rect.bottom}px)`);
       }
     };
-    // Measure after layout settles
-    const t1 = setTimeout(measure, 100);
-    const t2 = setTimeout(measure, 500);
+    // Use ResizeObserver for reliable measurement without timeouts
+    const observer = new ResizeObserver(measure);
+    if (toolbarRef.current) observer.observe(toolbarRef.current);
+    // Also measure on initial render
+    requestAnimationFrame(measure);
     window.addEventListener('resize', measure);
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      observer.disconnect();
       window.removeEventListener('resize', measure);
     };
   }, [activeFilterPills.length, activeTab]);
@@ -279,31 +316,42 @@ function SearchClient() {
           {/* Row 2: Price + Filters + Views + Sort + Count */}
           <div className="flex items-center gap-2 mt-1.5">
             <div className="hidden sm:flex items-center gap-1">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={filters.minPrice ? `$${filters.minPrice.toLocaleString()}` : ''}
-                onChange={(e) => {
-                  const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                  setFilters(prev => ({ ...prev, minPrice: isNaN(num) ? undefined : num }));
-                }}
-                placeholder="$ Min"
-                className="w-20 rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                aria-label="Minimum price"
-              />
-              <span className="text-brand-dark/40 text-xs">&ndash;</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={filters.maxPrice ? `$${filters.maxPrice.toLocaleString()}` : ''}
-                onChange={(e) => {
-                  const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                  setFilters(prev => ({ ...prev, maxPrice: isNaN(num) ? undefined : num }));
-                }}
-                placeholder="$ Max"
-                className="w-20 rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-                aria-label="Maximum price"
-              />
+              {(() => {
+                const presets = isRental ? RENT_PRICE_PRESETS : PRICE_PRESETS;
+                return (
+                  <>
+                    <select
+                      value={filters.minPrice?.toString() || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFilters(prev => ({ ...prev, minPrice: val ? Number(val) : undefined }));
+                      }}
+                      className="w-24 rounded-lg px-2 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                      aria-label="Minimum price"
+                    >
+                      <option value="">Min Price</option>
+                      {presets.slice(1).map(p => (
+                        <option key={`min-${p.value}`} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                    <span className="text-brand-dark/40 text-xs">&ndash;</span>
+                    <select
+                      value={filters.maxPrice?.toString() || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFilters(prev => ({ ...prev, maxPrice: val ? Number(val) : undefined }));
+                      }}
+                      className="w-24 rounded-lg px-2 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                      aria-label="Maximum price"
+                    >
+                      <option value="">No Max</option>
+                      {presets.slice(1).map(p => (
+                        <option key={`max-${p.value}`} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                  </>
+                );
+              })()}
             </div>
 
             <button
@@ -387,13 +435,26 @@ function SearchClient() {
           </div>
         )}
 
-        {/* Loading */}
-        {loading && !error && (
-          <div className={`${isFullViewport ? 'h-full flex items-center justify-center' : 'py-16'}`}>
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-brand-dark border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-brand-dark/85">Loading properties...</p>
-            </div>
+        {/* Loading skeleton — no spinner, shows layout immediately */}
+        {loading && !error && sortedListings.length === 0 && (
+          <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
+            {viewMode === 'split' && (
+              <>
+                <div className="hidden lg:block w-[60%] h-full bg-gray-100 animate-pulse" />
+                <div className="flex-1 lg:w-[40%] px-3 pt-2 space-y-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-gray-100 rounded-xl h-28 animate-pulse" />
+                  ))}
+                </div>
+              </>
+            )}
+            {viewMode !== 'split' && (
+              <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-gray-100 rounded-2xl h-64 animate-pulse" />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -419,7 +480,7 @@ function SearchClient() {
             </div>
             {/* Listings — right 40% */}
             <div ref={listingsRef} className="flex-1 lg:w-[40%] overflow-y-auto">
-              <div className="px-3 pt-2 pb-3 flex flex-col gap-3">
+              <div className="px-3 pt-3 pb-3 flex flex-col gap-3">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
@@ -584,10 +645,11 @@ function SearchClient() {
 
 function SearchLoading() {
   return (
-    <div className="min-h-screen bg-[#FEFEFE] pt-20 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-4 border-brand-dark border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-brand-dark/85">Loading properties...</p>
+    <div className="min-h-screen bg-[#FEFEFE] pt-20 px-4">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-8">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-gray-100 rounded-2xl h-64 animate-pulse" />
+        ))}
       </div>
     </div>
   );
