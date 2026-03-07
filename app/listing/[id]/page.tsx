@@ -17,6 +17,7 @@ import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import ListingLocationMap from '@/app/components/ListingLocationMap';
+import BuildingUnits from '@/app/components/BuildingUnits';
 import PublicRecordsPanel from '@/app/components/PublicRecordsPanel';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -530,6 +531,17 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   longitude={listing.address.longitude}
                   address={fullAddress}
                   borough={borough}
+                />
+              )}
+
+              {/* Building Units & Sale History */}
+              {listing.address.streetName !== 'Address Undisclosed' && (
+                <BuildingUnits
+                  streetNumber={listing.address.streetNumber}
+                  streetName={listing.address.streetName}
+                  postalCode={listing.address.postalCode}
+                  currentListingId={listing.id}
+                  buildingName={listing.buildingName}
                 />
               )}
             </div>
