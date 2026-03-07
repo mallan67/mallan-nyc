@@ -562,15 +562,17 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   // ── Unit Details (structured rows) ──
   const unitDetails: { label: string; value: string }[] = [];
-  if (listing.flooring) unitDetails.push({ label: 'Flooring', value: parseTrestleList(listing.flooring).join(', ') });
   // Only unit-level laundry (In Unit, Washer Hookup) — NOT building-level
   const unitLaundryRaw = rawLaundry.filter(v => !buildingLaundryValues.has(v) && v !== 'None' && v !== 'BuildingNone' && v !== 'BuildingOther' && v !== 'SeeRemarks');
   if (unitLaundryRaw.length > 0) unitDetails.push({ label: 'Laundry', value: unitLaundryRaw.map(v => formatTrestleValue(v)).join(', ') });
   if (listing.heating) unitDetails.push({ label: 'Heating', value: parseTrestleList(listing.heating).join(', ') });
   if (listing.cooling) unitDetails.push({ label: 'Cooling', value: parseTrestleList(listing.cooling).join(', ') });
 
-  // ── Appliances (pills) ──
-  const appliancesList: string[] = listing.appliances ? parseTrestleList(listing.appliances) : [];
+  // ── Appliances — only Dishwasher, Washer, Dryer (key appliances buyers care about) ──
+  const APPLIANCE_SHOW = new Set(['dishwasher', 'washer', 'dryer', 'washer dryer stacked', 'washer dryer combo']);
+  const appliancesList: string[] = listing.appliances
+    ? parseTrestleList(listing.appliances).filter(a => APPLIANCE_SHOW.has(a.toLowerCase()))
+    : [];
   // Pet policy — format raw values like "CatsOK,DogsOK" → "Cats Ok, Dogs Ok"
   const rawPetValues = listing.petsAllowedDetail ? parseTrestleList(listing.petsAllowedDetail) : [];
   const petPolicy = rawPetValues
