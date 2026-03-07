@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
   const price = Number(searchParams.get('price') || 0);
   const postalCode = searchParams.get('postalCode') || '';
   const excludeId = searchParams.get('excludeId') || '';
+  const neighborhood = searchParams.get('neighborhood') || '';
 
   if (!postalCode || !price) {
     return NextResponse.json({ listings: [] });
@@ -46,14 +47,17 @@ export async function GET(request: NextRequest) {
       ? "PropertyType eq 'Residential Lease'"
       : "PropertyType eq 'Residential'";
 
-    // Build filter: same ZIP, similar price, active, same type (no bed filter — too restrictive)
-    const filter = `PostalCode eq '${postalCode}' and MlsStatus eq 'Active' and ${propertyClass} and ListPrice ge ${minPrice} and ListPrice le ${maxPrice}`;
+    const priceFilter = `ListPrice ge ${minPrice} and ListPrice le ${maxPrice}`;
+    const selectFields = 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,PropertyType,CommonInterest,ListOfficeName,CityRegion';
+
+    // Build filter: same ZIP, similar price, active, same type
+    const zipFilter = `PostalCode eq '${postalCode}' and MlsStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
 
     const params = new URLSearchParams({
-      $filter: filter,
-      $select: 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,PropertyType,CommonInterest,ListOfficeName,CityRegion',
+      $filter: zipFilter,
+      $select: selectFields,
       $orderby: 'ListPrice desc',
-      $top: '7', // fetch 7 so we have 6 after excluding current
+      $top: '7',
     });
 
     const res = await fetch(`${TRESTLE_URL}/odata/Property?${params}`, {
@@ -66,7 +70,39 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await res.json();
-    const listings = (data.value || [])
+    let allResults = data.value || [];
+
+    // If ZIP-based search returned fewer than 4 results, widen to neighborhood
+    if (allResults.length < 4 && neighborhood) {
+      const escapedNeighborhood = neighborhood.replace(/'/g, "''");
+      const neighborhoodFilter = `CityRegion eq '${escapedNeighborhood}' and MlsStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
+      const nhParams = new URLSearchParams({
+        $filter: neighborhoodFilter,
+        $select: selectFields,
+        $orderby: 'ListPrice desc',
+        $top: '10',
+      });
+      try {
+        const nhRes = await fetch(`${TRESTLE_URL}/odata/Property?${nhParams}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          next: { revalidate: 3600 },
+        });
+        if (nhRes.ok) {
+          const nhData = await nhRes.json();
+          // Merge, dedup by ListingId
+          const existingIds = new Set(allResults.map((r: Record<string, unknown>) => String(r.ListingId || r.ListingKey)));
+          for (const r of (nhData.value || [])) {
+            const rid = String(r.ListingId || r.ListingKey);
+            if (!existingIds.has(rid)) {
+              allResults.push(r);
+              existingIds.add(rid);
+            }
+          }
+        }
+      } catch { /* non-fatal — use ZIP results only */ }
+    }
+
+    const listings = allResults
       .filter((r: Record<string, unknown>) => {
         const id = String(r.ListingId || r.ListingKey || '');
         return id !== excludeId;
