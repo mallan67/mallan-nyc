@@ -14,29 +14,45 @@ async function trestleFetch(url: string, token: string) {
   });
 }
 
-/** Look up BBL from address via NYC Geoclient or Planning Labs fallback */
+/** Look up BBL from address — calls NYC Geoclient v2 or Planning Labs directly (no self-referencing API call) */
 async function lookupBBL(streetNumber: string, streetName: string, borough: string): Promise<string | null> {
   try {
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const params = new URLSearchParams({
-      houseNumber: streetNumber,
-      street: streetName,
-      borough: borough || 'MANHATTAN',
-    });
-    const res = await fetch(`${baseUrl}/api/geoclient/address?${params}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.ok && data.bbl) {
-      // Format BBL as borough-block-lot (e.g., "1-01234-0056")
-      const bbl = String(data.bbl);
-      if (bbl.length === 10) {
-        return `${bbl[0]}-${bbl.substring(1, 6)}-${bbl.substring(6, 10)}`;
+    let bbl: string | null = null;
+
+    // 1) Try NYC Geoclient v2 (if subscription key available)
+    const v2Key = process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY || process.env.GEOCLIENT_PRIMARY_KEY || '';
+    if (v2Key) {
+      const v2Url = `https://api.nyc.gov/geo/geoclient/v2/address.json?houseNumber=${encodeURIComponent(streetNumber)}&street=${encodeURIComponent(streetName)}&borough=${encodeURIComponent(borough || 'MANHATTAN')}`;
+      const res = await fetch(v2Url, {
+        headers: { 'Ocp-Apim-Subscription-Key': v2Key, Accept: 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        bbl = data?.address?.bbl || null;
       }
-      return bbl;
+    }
+
+    // 2) Fallback: Planning Labs geosearch (free, no key)
+    if (!bbl) {
+      const oneLine = `${streetNumber} ${streetName} ${borough}`.trim();
+      const planUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(oneLine)}&size=1`;
+      const planRes = await fetch(planUrl, { signal: AbortSignal.timeout(5000) });
+      if (planRes.ok) {
+        const planData = await planRes.json();
+        const props = planData?.features?.[0]?.properties;
+        if (props?.addendum?.pad?.bbl) {
+          bbl = String(props.addendum.pad.bbl);
+        }
+      }
+    }
+
+    if (!bbl) return null;
+
+    // Format as borough-block-lot (e.g., "1-01234-0056")
+    const raw = String(bbl).replace(/[^0-9]/g, '');
+    if (raw.length === 10) {
+      return `${raw[0]}-${raw.substring(1, 6)}-${raw.substring(6, 10)}`;
     }
     return null;
   } catch {

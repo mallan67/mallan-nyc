@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * GET /api/nearby-poi?lat=40.77&lng=-73.96&radius=800
  *
  * Fetches nearby points of interest from OpenStreetMap via Overpass API.
- * Groups results into categories: Shopping, Groceries, Restaurants, Cafes,
- * Daycares, Primary Schools, High Schools, Transit.
+ * Uses nwr (node/way/relation) queries with `out center` for complete coverage.
+ * Groups results into categories: Shopping, Groceries, Restaurants, Cafes, etc.
  *
  * Cached for 7 days — POI data changes infrequently.
  */
@@ -52,23 +52,24 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Single Overpass query fetching all POI types within radius
+    // Use nwr (node/way/relation) to catch POIs mapped as buildings/areas.
+    // `out center` gives us a center point for way/relation elements.
     const query = `
-[out:json][timeout:15];
+[out:json][timeout:25];
 (
-  node["shop"~"supermarket|grocery|convenience|deli|greengrocer|butcher|bakery"](around:${radius},${lat},${lng});
-  node["shop"~"clothes|department_store|mall|shoes|boutique|jewelry|gift|electronics|furniture|hardware"](around:${radius},${lat},${lng});
-  node["amenity"="restaurant"](around:${radius},${lat},${lng});
-  node["amenity"="cafe"](around:${radius},${lat},${lng});
-  node["amenity"~"childcare|kindergarten"](around:${radius},${lat},${lng});
-  node["amenity"="school"](around:${radius},${lat},${lng});
-  node["amenity"~"pharmacy|hospital|clinic|doctors"](around:${radius},${lat},${lng});
-  node["railway"~"station|subway_entrance"](around:${radius},${lat},${lng});
-  node["public_transport"="station"](around:${radius},${lat},${lng});
-  node["amenity"~"bank|atm"](around:${radius},${lat},${lng});
-  node["leisure"~"park|playground|fitness_centre|sports_centre"](around:${radius},${lat},${lng});
+  nwr["shop"~"supermarket|grocery|convenience|deli|greengrocer|butcher|bakery"](around:${radius},${lat},${lng});
+  nwr["shop"~"clothes|department_store|mall|shoes|boutique|jewelry|gift|electronics|furniture|hardware"](around:${radius},${lat},${lng});
+  nwr["amenity"="restaurant"](around:${radius},${lat},${lng});
+  nwr["amenity"="cafe"](around:${radius},${lat},${lng});
+  nwr["amenity"~"childcare|kindergarten"](around:${radius},${lat},${lng});
+  nwr["amenity"="school"](around:${radius},${lat},${lng});
+  nwr["amenity"~"pharmacy|hospital|clinic|doctors"](around:${radius},${lat},${lng});
+  nwr["railway"~"station|subway_entrance"](around:${radius},${lat},${lng});
+  nwr["public_transport"="station"](around:${radius},${lat},${lng});
+  nwr["amenity"~"bank|atm"](around:${radius},${lat},${lng});
+  nwr["leisure"~"park|playground|fitness_centre|sports_centre"](around:${radius},${lat},${lng});
 );
-out body 500;
+out center 500;
 `;
 
     const response = await fetch(OVERPASS_URL, {
@@ -99,12 +100,19 @@ out body 500;
       'Parks & Fitness': [],
     };
 
+    // Deduplicate by name+category (same POI can appear as node + way)
+    const seen = new Set<string>();
+
     for (const el of elements) {
-      if (!el.tags || !el.lat || !el.lon) continue;
+      if (!el.tags) continue;
+
+      // Extract coordinates: nodes have lat/lon directly, ways/relations have center
+      const elLat = el.lat ?? el.center?.lat;
+      const elLon = el.lon ?? el.center?.lon;
+      if (!elLat || !elLon) continue;
+
       const name = el.tags.name || el.tags['name:en'] || '';
       if (!name) continue;
-
-      const poi: POIResult = { id: el.id, name, lat: el.lat, lng: el.lon, category: '' };
 
       const amenity = el.tags.amenity || '';
       const shop = el.tags.shop || '';
@@ -112,40 +120,46 @@ out body 500;
       const publicTransport = el.tags.public_transport || '';
       const leisure = el.tags.leisure || '';
 
+      let category = '';
       if (amenity === 'restaurant') {
-        poi.category = 'Restaurants';
-        categorized['Restaurants'].push(poi);
+        category = 'Restaurants';
       } else if (amenity === 'cafe') {
-        poi.category = 'Cafes';
-        categorized['Cafes'].push(poi);
+        category = 'Cafes';
       } else if (['supermarket', 'grocery', 'convenience', 'deli', 'greengrocer', 'butcher', 'bakery'].includes(shop)) {
-        poi.category = 'Groceries';
-        categorized['Groceries'].push(poi);
+        category = 'Groceries';
       } else if (['clothes', 'department_store', 'mall', 'shoes', 'boutique', 'jewelry', 'gift', 'electronics', 'furniture', 'hardware'].includes(shop)) {
-        poi.category = 'Shopping';
-        categorized['Shopping'].push(poi);
+        category = 'Shopping';
       } else if (amenity === 'school') {
-        poi.category = 'Schools';
-        categorized['Schools'].push(poi);
+        category = 'Schools';
       } else if (['childcare', 'kindergarten'].includes(amenity)) {
-        poi.category = 'Daycares';
-        categorized['Daycares'].push(poi);
+        category = 'Daycares';
       } else if (['pharmacy', 'hospital', 'clinic', 'doctors'].includes(amenity)) {
-        poi.category = 'Health & Medical';
-        categorized['Health & Medical'].push(poi);
+        category = 'Health & Medical';
       } else if (railway || publicTransport) {
-        poi.category = 'Transit';
-        categorized['Transit'].push(poi);
+        category = 'Transit';
       } else if (['bank', 'atm'].includes(amenity)) {
-        poi.category = 'Banks';
-        categorized['Banks'].push(poi);
+        category = 'Banks';
       } else if (leisure) {
-        poi.category = 'Parks & Fitness';
-        categorized['Parks & Fitness'].push(poi);
+        category = 'Parks & Fitness';
       }
+
+      if (!category) continue;
+
+      // Deduplicate: same name in same category within ~50m
+      const dedupeKey = `${category}:${name.toLowerCase()}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      categorized[category].push({
+        id: el.id,
+        name,
+        lat: elLat,
+        lng: elLon,
+        category,
+      });
     }
 
-    // Build output with counts, sorted by count descending within each group
+    // Build output
     const groupMap: Record<string, { group: string; icon: string }> = {
       'Shopping':        { group: 'Amenities', icon: 'shopping' },
       'Groceries':       { group: 'Amenities', icon: 'groceries' },
@@ -166,7 +180,7 @@ out body 500;
         group: groupMap[cat]?.group || 'Other',
         icon: groupMap[cat]?.icon || 'default',
         count: items.length,
-        items: items.slice(0, 20), // Cap at 20 per category
+        items: items.slice(0, 25),
       }));
 
     // Cache result
