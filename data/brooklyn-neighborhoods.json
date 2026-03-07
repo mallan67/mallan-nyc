@@ -234,7 +234,13 @@
         "brooklyn heights condos",
         "brooklyn bridge park apartments",
         "brooklyn heights promenade"
-      ]
+      ],
+      "bounds": {
+        "north": 40.699,
+        "south": 40.689,
+        "east": -73.987,
+        "west": -74.002
+      }
     },
     {
       "slug": "williamsburg",
@@ -467,7 +473,13 @@
         "williamsburg luxury condos",
         "bedford avenue apartments",
         "williamsburg brooklyn rentals"
-      ]
+      ],
+      "bounds": {
+        "north": 40.719,
+        "south": 40.699,
+        "east": -73.938,
+        "west": -73.964
+      }
     },
     {
       "slug": "dumbo",
@@ -699,7 +711,13 @@
         "dumbo brooklyn for sale",
         "brooklyn bridge park apartments",
         "dumbo luxury apartments"
-      ]
+      ],
+      "bounds": {
+        "north": 40.706,
+        "south": 40.699,
+        "east": -73.979,
+        "west": -73.993
+      }
     },
     {
       "slug": "park-slope",
@@ -939,7 +957,13 @@
         "park slope condos",
         "prospect park apartments",
         "park slope brooklyn homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.681,
+        "south": 40.66,
+        "east": -73.969,
+        "west": -73.983
+      }
     },
     {
       "slug": "cobble-hill",
@@ -1177,7 +1201,13 @@
         "cobble hill condos",
         "court street brooklyn apartments",
         "cobble hill co-ops"
-      ]
+      ],
+      "bounds": {
+        "north": 40.689,
+        "south": 40.681,
+        "east": -73.989,
+        "west": -73.999
+      }
     },
     {
       "slug": "carroll-gardens",
@@ -1403,7 +1433,13 @@
         "smith street brooklyn apartments",
         "carroll gardens co-ops",
         "carroll gardens family homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.683,
+        "south": 40.674,
+        "east": -73.992,
+        "west": -74.002
+      }
     },
     {
       "slug": "fort-greene",
@@ -1649,7 +1685,13 @@
         "bam brooklyn apartments",
         "fort greene co-ops",
         "fort greene park real estate"
-      ]
+      ],
+      "bounds": {
+        "north": 40.695,
+        "south": 40.683,
+        "east": -73.97,
+        "west": -73.983
+      }
     },
     {
       "slug": "prospect-heights",
@@ -1889,7 +1931,13 @@
         "barclays center apartments",
         "brooklyn museum area real estate",
         "vanderbilt avenue brooklyn"
-      ]
+      ],
+      "bounds": {
+        "north": 40.685,
+        "south": 40.674,
+        "east": -73.959,
+        "west": -73.972
+      }
     },
     {
       "slug": "greenpoint",
@@ -2111,7 +2159,13 @@
         "greenpoint landing",
         "franklin street brooklyn apartments",
         "greenpoint brooklyn rentals"
-      ]
+      ],
+      "bounds": {
+        "north": 40.734,
+        "south": 40.719,
+        "east": -73.937,
+        "west": -73.959
+      }
     },
     {
       "slug": "bed-stuy",
@@ -2348,7 +2402,13 @@
         "bed-stuy condos",
         "bed-stuy brooklyn homes",
         "bedford stuyvesant investment property"
-      ]
+      ],
+      "bounds": {
+        "north": 40.693,
+        "south": 40.673,
+        "east": -73.928,
+        "west": -73.953
+      }
     }
   ]
 }

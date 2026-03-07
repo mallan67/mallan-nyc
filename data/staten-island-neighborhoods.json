@@ -228,7 +228,13 @@
         "st george homes for sale",
         "staten island commuter neighborhood",
         "st george rentals"
-      ]
+      ],
+      "bounds": {
+        "north": 40.648,
+        "south": 40.635,
+        "east": -74.07,
+        "west": -74.09
+      }
     },
     {
       "slug": "todt-hill",
@@ -458,7 +464,13 @@
         "staten island single family homes",
         "todt hill property values",
         "nyc suburban living"
-      ]
+      ],
+      "bounds": {
+        "north": 40.608,
+        "south": 40.585,
+        "east": -74.1,
+        "west": -74.13
+      }
     },
     {
       "slug": "great-kills",
@@ -687,7 +699,13 @@
         "great kills park neighborhood",
         "staten island family homes",
         "great kills marina homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.56,
+        "south": 40.535,
+        "east": -74.13,
+        "west": -74.16
+      }
     },
     {
       "slug": "new-brighton",
@@ -917,7 +935,13 @@
         "north shore staten island",
         "new brighton condos",
         "staten island historic homes"
-      ]
+      ],
+      "bounds": {
+        "north": 40.645,
+        "south": 40.63,
+        "east": -74.085,
+        "west": -74.105
+      }
     }
   ]
 }
