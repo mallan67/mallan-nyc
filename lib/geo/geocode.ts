@@ -53,15 +53,13 @@ async function geocodeViaCensus(
 ): Promise<[number, number] | null> {
   try {
     const street = `${streetNumber} ${streetName}`.trim();
+    const address = `${street}, ${city || 'New York'}, ${state || 'NY'} ${zip}`;
     const params = new URLSearchParams({
-      street,
-      city: city || 'New York',
-      state: state || 'NY',
-      zip,
+      address,
       benchmark: 'Public_AR_Current',
       format: 'json',
     });
-    const url = `https://geocoding.geo.census.gov/geocoder/addresses/onelineaddress?${params.toString()}`;
+    const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${params.toString()}`;
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(3000),
