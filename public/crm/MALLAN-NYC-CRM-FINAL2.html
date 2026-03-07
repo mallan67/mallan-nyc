@@ -102,6 +102,8 @@
         ]
     }
     </script>
+    <!-- Render-blocking: hide everything until JS restores the correct tab + portal -->
+    <style id="crmRenderBlock">body{opacity:0!important}</style>
     <!-- Tailwind CSS v4.1.18 — Browser CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
     <style type="text/tailwindcss">
@@ -11621,7 +11623,7 @@
             <!-- BROKER PORTAL - Full System Access (MOCKUP)                    -->
             <!-- IDX Data is READ-ONLY - Cannot be modified, only viewed/shared -->
             <!-- ============================================================== -->
-            <div id="broker-portal" class="tab-content active p-6" style="display:block;">
+            <div id="broker-portal" class="tab-content p-6">
                 <div class="mb-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -27490,6 +27492,8 @@ Equal Housing Opportunity
             }
 
             currentPortal = portal;
+            // Persist portal across refreshes
+            try { sessionStorage.setItem('crm_active_portal', portal); } catch(e) {}
 
             // Hide all portal views
             document.querySelectorAll('.tab-content').forEach(tab => {
@@ -27534,6 +27538,10 @@ Equal Housing Opportunity
                     userRole.textContent = 'Landlord';
                     break;
             }
+
+            // Reveal page (removes render-blocking body opacity)
+            var _rb = document.getElementById('crmRenderBlock');
+            if (_rb) _rb.remove();
 
             // Enforce internal section visibility based on portal
             enforceInternalAccess();
@@ -28306,6 +28314,7 @@ Equal Housing Opportunity
 
         function completeSwitchToAgent(agent) {
             currentPortal = 'agent';
+            try { sessionStorage.setItem('crm_active_portal', 'agent'); } catch(e) {}
 
             // Hide all portal views
             document.querySelectorAll('.tab-content').forEach(function(tab) {
@@ -28349,6 +28358,7 @@ Equal Housing Opportunity
 
         function switchBackToBroker() {
             currentPortal = 'broker';
+            try { sessionStorage.setItem('crm_active_portal', 'broker'); } catch(e) {}
 
             // Restore broker identity from server context if available, else dev defaults
             var ctx = (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) ? MallanAPI.getContext() : null;
@@ -28573,6 +28583,9 @@ Equal Housing Opportunity
             }
             // Persist active tab across refreshes
             try { sessionStorage.setItem('crm_active_tab', tabName); } catch(e) {}
+            // Reveal page (removes render-blocking body opacity)
+            var _rb = document.getElementById('crmRenderBlock');
+            if (_rb) _rb.remove();
             // Highlight active link - use passed event or fallback to window.event
             var e = evt || window.event;
             var activeBtn = null;
@@ -34417,28 +34430,37 @@ Equal Housing Opportunity
         document.addEventListener('DOMContentLoaded', function() {
             var hash = window.location.hash.replace('#', '');
 
-            // No hash — restore last active tab from session (survives refresh)
+            // No hash — restore last active tab + portal from session (survives refresh)
             if (!hash) {
                 var savedTab = null;
+                var savedPortal = null;
                 try { savedTab = sessionStorage.getItem('crm_active_tab'); } catch(e) {}
-                if (savedTab) {
-                    // If saved tab is a portal home, restore via switchPortal instead of showTab
-                    // so currentPortal, sidebar, and header all update correctly
-                    var portalTabMap = {
-                        'client-portal': 'client', 'tenant-portal': 'tenant',
-                        'seller-portal': 'seller', 'landlord-portal': 'landlord',
-                        'broker-portal': 'broker'
-                    };
-                    if (portalTabMap[savedTab] && typeof switchPortal === 'function') {
-                        // Defer until auth resolves so role check in switchPortal works
-                        if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
-                            MallanAPI.onReady(function() { switchPortal(portalTabMap[savedTab]); });
-                        } else {
-                            switchPortal(portalTabMap[savedTab]);
-                        }
+                try { savedPortal = sessionStorage.getItem('crm_active_portal'); } catch(e) {}
+
+                // Restore portal context first (so sidebar, header, access control are correct)
+                if (savedPortal && typeof currentPortal !== 'undefined') {
+                    currentPortal = savedPortal;
+                }
+
+                // If saved tab is a portal home, restore via switchPortal instead of showTab
+                // so currentPortal, sidebar, and header all update correctly
+                var portalTabMap = {
+                    'client-portal': 'client', 'tenant-portal': 'tenant',
+                    'seller-portal': 'seller', 'landlord-portal': 'landlord',
+                    'broker-portal': 'broker'
+                };
+                if (savedTab && portalTabMap[savedTab] && typeof switchPortal === 'function') {
+                    // Defer until auth resolves so role check in switchPortal works
+                    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+                        MallanAPI.onReady(function() { switchPortal(portalTabMap[savedTab]); });
                     } else {
-                        showTab(savedTab);
+                        switchPortal(portalTabMap[savedTab]);
                     }
+                } else if (savedTab) {
+                    showTab(savedTab);
+                } else {
+                    // First visit — no saved state, show broker portal as default
+                    showTab('broker-portal');
                 }
                 return;
             }
@@ -34449,13 +34471,19 @@ Equal Housing Opportunity
 
             if (hash === 'search-comparables') {
                 openSearch('cma');
-                return;
             } else if (hash === 'search') {
                 openSearch();
-                return;
             } else {
                 showTab(hash);
             }
+        });
+
+        // Safety net: reveal page after DOMContentLoaded even if showTab/switchPortal didn't run
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                var rb = document.getElementById('crmRenderBlock');
+                if (rb) rb.remove();
+            }, 300);
         });
     </script>
 

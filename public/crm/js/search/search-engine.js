@@ -1105,8 +1105,9 @@
             if (searchFormContainer) searchFormContainer.style.display = 'block';
 
             // Restore the proper search mode display
-            var btnBasic = document.getElementById('btnSearchBasic');
-            var isBasicMode = btnBasic && btnBasic.classList.contains('bg-gray-900');
+            var _sm;
+            try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var isBasicMode = _sm !== 'advanced';
 
             var basicModeSales = document.getElementById('searchBasicMode');
             var basicModeRental = document.getElementById('searchBasicModeRental');
@@ -1381,8 +1382,9 @@
             var label = document.getElementById('stickyNavActiveLabel');
             if (label) {
                 var tab = currentSearchTab || 'sale';
-                var btnBasic = document.getElementById('btnSearchBasic');
-                var isBasic = btnBasic && btnBasic.classList.contains('bg-gray-900');
+                var _smode;
+                try { _smode = sessionStorage.getItem('searchMode'); } catch(e) {}
+                var isBasic = _smode !== 'advanced';
                 var mode = isBasic ? 'Basic' : 'Advanced';
                 var tabLabel = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
                 label.textContent = tabLabel + ' · ' + mode;
@@ -1396,8 +1398,9 @@
                 el.classList.remove('bg-white/15', 'text-white');
                 el.classList.add('text-gray-400');
             });
-            var btnBasic2 = document.getElementById('btnSearchBasic');
-            var basic = btnBasic2 && btnBasic2.classList.contains('bg-gray-900');
+            var _smode2;
+            try { _smode2 = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var basic = _smode2 !== 'advanced';
             var activeId = null;
             if (currentSearchTab === 'sale') activeId = basic ? 'stickyNavSaleBasic' : 'stickyNavSaleAdv';
             else if (currentSearchTab === 'rent') activeId = basic ? 'stickyNavRentBasic' : 'stickyNavRentAdv';
@@ -1464,9 +1467,13 @@
                 } else if (addrEl && addrEl.value.trim()) {
                     addr = addrEl.value.trim();
                 }
+                // Capture current mode (basic/advanced)
+                var curMode = 'basic';
+                try { curMode = sessionStorage.getItem('searchMode') || 'basic'; } catch(e2) {}
                 sessionStorage.setItem('_searchState', JSON.stringify({
                     filteredIds: ids,
                     tab: currentSearchTab,
+                    mode: curMode,
                     page: searchResultsState.currentPage || 1,
                     address: addr,
                     ts: Date.now()
@@ -1489,6 +1496,11 @@
                 if (state.ts && (Date.now() - state.ts) > 300000) {
                     sessionStorage.removeItem('_searchState');
                     return false;
+                }
+
+                // Restore the search mode (basic/advanced) FIRST so toggleSearchTab sees correct state
+                if (state.mode && typeof toggleSearchMode === 'function') {
+                    toggleSearchMode(state.mode);
                 }
 
                 // Restore the search tab
@@ -1528,9 +1540,11 @@
             var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
             var advancedMode = document.getElementById('searchAdvancedMode');
 
-            // Check if we're in Basic mode
-            var btnBasic = document.getElementById('btnSearchBasic');
-            var isBasicMode = btnBasic && btnBasic.classList.contains('bg-gray-900');
+            // Check if we're in Basic mode — use sessionStorage as source of truth
+            // (CSS classes can be stale during init when render-blocking CSS is active)
+            var _storedMode;
+            try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var isBasicMode = _storedMode !== 'advanced';
 
             // Reset all tab buttons
             [btnSale, btnRent, btnBuilding].forEach(btn => {
