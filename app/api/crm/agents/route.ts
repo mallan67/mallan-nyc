@@ -29,6 +29,14 @@ export async function GET(req: NextRequest) {
       status: true,
       last_login: true,
       created_at: true,
+      // Public profile fields
+      title: true,
+      bio: true,
+      photo: true,
+      public_slug: true,
+      featured: true,
+      specialties: true,
+      languages: true,
     },
   });
 
@@ -89,6 +97,10 @@ export async function POST(req: NextRequest) {
   const tempPassword = `Mallan${Date.now().toString(36)}!`;
   const passwordHash = await hashPassword(tempPassword);
 
+  const slug =
+    (body.public_slug as string) ||
+    `${firstName}-${lastName}`.toLowerCase().replace(/\s+/g, "-");
+
   const agent = await prisma.agent.create({
     data: {
       first_name: firstName,
@@ -103,6 +115,14 @@ export async function POST(req: NextRequest) {
       rental_split: body.rental_split != null ? Number(body.rental_split) : null,
       role: "AGENT",
       status: "active",
+      // Public profile fields
+      title: (body.title as string) ?? null,
+      bio: (body.bio as string) ?? null,
+      photo: (body.photo as string) ?? null,
+      public_slug: slug,
+      featured: body.featured === true,
+      specialties: Array.isArray(body.specialties) ? body.specialties.map(String) : [],
+      languages: Array.isArray(body.languages) ? body.languages.map(String) : [],
     },
   });
 
