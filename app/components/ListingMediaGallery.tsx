@@ -111,9 +111,9 @@ export default function ListingMediaGallery({
         {/* Photo gallery */}
         {activeTab === 'photos' && (
           <div className="relative">
-            {/* Mobile: taller 4:3, Desktop: cinematic 21:9 — swipeable */}
+            {/* Mobile: 4:3, Desktop: 16:9 — not ultra-wide, preserves photo detail */}
             <div
-              className="relative aspect-[4/3] md:aspect-[16/9] lg:aspect-[21/9] touch-pan-y"
+              className="relative aspect-[4/3] md:aspect-[3/2] lg:aspect-[16/9] touch-pan-y"
               onTouchStart={swipe.onTouchStart}
               onTouchMove={swipe.onTouchMove}
               onTouchEnd={swipe.onTouchEnd}
@@ -224,7 +224,7 @@ export default function ListingMediaGallery({
 
         {/* Floor plan */}
         {activeTab === 'floorplan' && floorPlanUrl && (
-          <div className="relative aspect-[4/3] md:aspect-[16/9] lg:aspect-[21/9] bg-white">
+          <div className="relative aspect-[4/3] md:aspect-[3/2] lg:aspect-[16/9] bg-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={floorPlanUrl}
