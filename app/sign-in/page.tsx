@@ -290,7 +290,7 @@ function SignInContent() {
                   (646) 258-4460
                 </a>
                 <span className="text-brand-dark/20">|</span>
-                <Link href="/crm/login.html" aria-label="Broker Admin">
+                <Link href="/admin/login" aria-label="Broker Admin">
                   <Image
                     src="/images/broker-admin-icon.png"
                     alt=""
