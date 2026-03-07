@@ -524,7 +524,7 @@ function SearchClient() {
           <div className="flex h-full">
             {/* Listings — left 55% */}
             <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto border-r border-black/5">
-              <div className="px-3 pb-3 flex flex-col gap-3">
+              <div className="p-2 grid grid-cols-2 gap-2">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
