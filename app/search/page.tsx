@@ -160,7 +160,7 @@ function SearchClient() {
     maxPrice: searchParams?.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
     beds: searchParams?.get('beds') ? Number(searchParams.get('beds')) : null,
     baths: searchParams?.get('baths') ? Number(searchParams.get('baths')) : null,
-    sort: 'newest',
+    sort: 'price-desc',
   });
 
   const tabConfig = TAB_CONFIG[activeTab];
@@ -286,7 +286,7 @@ function SearchClient() {
   // ── Clear all ──
   const clearFilters = useCallback(() => {
     setSearchQuery('');
-    setFilters({ sort: 'newest' });
+    setFilters({ sort: 'price-desc' });
     router.push(`/search?tab=${activeTab}`);
   }, [router, activeTab]);
 
@@ -441,14 +441,14 @@ function SearchClient() {
             </div>
 
             <select
-              value={filters.sort || 'newest'}
+              value={filters.sort || 'price-desc'}
               onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
               className="rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
               aria-label="Sort order"
             >
-              <option value="newest">Newest</option>
-              <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
+              <option value="price-asc">Price: Low → High</option>
+              <option value="newest">Newest</option>
               <option value="sqft-desc">Largest</option>
             </select>
 
