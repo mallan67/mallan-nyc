@@ -1,13 +1,5 @@
-import { Suspense } from 'react';
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
-import SocialShareBar from '@/app/components/SocialShareBar';
-import PropertySearch from '@/app/components/PropertySearch';
-import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
-import { getListingsServer } from '@/lib/idx/get-listings-server';
-
-export const revalidate = 3600;
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Buy Property in NYC | Mallan Real Estate',
@@ -25,85 +17,17 @@ export const metadata: Metadata = {
   },
 };
 
-const buyFaqSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What types of properties can I buy in NYC?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'In New York City you can purchase condos, co-ops (cooperative apartments), condops, townhouses, multi-family homes, and commercial properties. Each ownership type has different rules — for example, co-op purchases require board approval while condos do not.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How much does it cost to buy an apartment in Manhattan?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Manhattan apartment prices vary widely by neighborhood and property type. Studios can start around $400,000, one-bedrooms from $600,000, and two-bedrooms from $1,000,000. Luxury and premium properties range from $2 million to $20 million and above. Additional costs include closing costs (typically 2-5% for condos, 1-2% for co-ops), attorney fees, and monthly maintenance or common charges.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Do I need a buyer\'s agent in NYC?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'While not legally required, having a licensed buyer\'s agent in NYC is highly recommended. A buyer\'s agent represents your interests exclusively, helps negotiate price and terms, guides you through board applications (for co-ops), coordinates with attorneys, and provides access to listings including exclusive and pre-market properties.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What is the difference between a condo and a co-op in NYC?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'With a condo, you own the physical unit as real property and pay common charges and real estate taxes separately. With a co-op, you own shares in a corporation that owns the building, and your monthly maintenance includes property taxes. Co-ops typically require board approval, have stricter financial requirements, and may limit subletting. Condos generally offer more flexibility but may have higher purchase prices.',
-      },
-    },
-  ],
-};
+export default async function BuyPage(props: { searchParams: Promise<Record<string, string>> }) {
+  const searchParams = await props.searchParams;
+  // Preserve any query params (e.g. ?type=commercial, ?neighborhood=...)
+  const params = new URLSearchParams();
+  const isCommercial = searchParams.type === 'commercial';
+  params.set('tab', isCommercial ? 'buy-commercial' : 'buy-residential');
 
-function SearchLoading() {
-  return (
-    <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-4 border-brand-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-brand-dark/85">Loading properties...</p>
-      </div>
-    </div>
-  );
-}
+  // Forward known filter params
+  for (const key of ['neighborhood', 'zip', 'q', 'minPrice', 'maxPrice', 'beds', 'baths', 'exclusive']) {
+    if (searchParams[key]) params.set(key, searchParams[key]);
+  }
 
-export default async function BuyPage() {
-  // Fetch listings server-side — ISR caches this for 1 hour at the edge.
-  // All visitors get instant results; only revalidation triggers a Trestle call.
-  const data = await getListingsServer('sale', 50);
-
-  return (
-    <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buyFaqSchema) }}
-      />
-      <Header dark />
-      <main>
-        <Suspense fallback={<SearchLoading />}>
-          <PropertySearch
-            type="buy"
-            initialListings={data.listings}
-            initialTotal={data.total}
-            initialHasMore={data.hasMore}
-          />
-        </Suspense>
-      </main>
-      <section className="py-8 px-4 bg-gray-50/50 border-t border-black/5">
-        <div className="max-w-xl mx-auto">
-          <AffordabilityCalculator />
-        </div>
-      </section>
-      <SocialShareBar title="Buy Property in NYC | Mallan Real Estate" />
-      <Footer />
-    </div>
-  );
+  redirect(`/search?${params.toString()}`);
 }
