@@ -363,12 +363,20 @@ export async function GET(request: Request) {
           );
         }
 
-        // Bounds post-filter: narrow ZIP-based results to precise lat/lng box
-        // Trestle IDX Plus doesn't support Latitude/Longitude OData filters,
-        // so we filter server-side after fetching by ZIP codes.
+        // Bounds post-filter: narrow ZIP-based results to precise lat/lng box.
+        // Trestle IDX Plus returns Latitude/Longitude as null AND blocks OData
+        // geo filters (400 error). We must geocode first, then filter by bounds.
         if (boundsParam) {
           const [south, west, north, east] = boundsParam.split(',').map(Number);
           if (south && west && north && east) {
+            // Geocode all filtered listings BEFORE bounds check
+            // (Trestle gives null lat/lng — Census geocoder fills them in)
+            try {
+              await geocodeListings(filtered);
+            } catch (geoErr) {
+              console.warn('[/api/listings] Pre-bounds geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
+            }
+
             filtered = filtered.filter((l) => {
               const lat = l.address.latitude;
               const lng = l.address.longitude;
@@ -402,8 +410,11 @@ export async function GET(request: Request) {
         }
 
         // Step 4: Apply skip + limit and convert to public DTO
-        // Use OData count for true total when available; fall back to filtered.length
-        const totalCount = result.odataCount ?? filtered.length;
+        // When post-filtering (bounds, borough, neighborhood), use filtered.length as total
+        // because OData count doesn't account for server-side filtering.
+        const totalCount = (boundsParam || borough || neighborhood)
+          ? filtered.length
+          : (result.odataCount ?? filtered.length);
         const pageListings = filtered.slice(skip, skip + limit);
 
         // Step 4b: Batch-fetch primary photos in chunks of 50 (Trestle OData filter length limit)
@@ -484,11 +495,13 @@ export async function GET(request: Request) {
         }
 
         // Step 4c: Geocode listings that lack coordinates (Trestle IDX Plus returns null for Lat/Lng)
-        // Non-blocking: if geocoding is slow, listings still display (just no map pins for some)
-        try {
-          await geocodeListings(pageListings);
-        } catch (geoErr) {
-          console.warn('[/api/listings] Geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
+        // Skip if we already geocoded the full set for bounds filtering above.
+        if (!boundsParam) {
+          try {
+            await geocodeListings(pageListings);
+          } catch (geoErr) {
+            console.warn('[/api/listings] Geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
+          }
         }
 
         const publicListings = pageListings.map(toPublicDTO);
