@@ -17,6 +17,7 @@ import SocialShareBar from '@/app/components/SocialShareBar';
 import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import ListingLocationMap from '@/app/components/ListingLocationMap';
+import NeighborhoodExplorer from '@/app/components/NeighborhoodExplorer';
 import BuildingUnits from '@/app/components/BuildingUnits';
 import SimilarListings from '@/app/components/SimilarListings';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
@@ -1167,7 +1168,19 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
-              {/* ── 12. BUILDING UNITS & HISTORY ── */}
+              {/* ── 12. NEIGHBORHOOD EXPLORER (POI + Community Portrait) ── */}
+              {listing.address.latitude && listing.address.longitude && (
+                <section className="py-6 border-t border-black/[0.06]">
+                  <NeighborhoodExplorer
+                    latitude={listing.address.latitude}
+                    longitude={listing.address.longitude}
+                    address={fullAddress}
+                    borough={borough}
+                  />
+                </section>
+              )}
+
+              {/* ── 13. BUILDING UNITS & HISTORY ── */}
               {listing.address.streetName !== 'Address Undisclosed' && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <BuildingUnits
@@ -1176,6 +1189,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     postalCode={listing.address.postalCode}
                     currentListingId={listing.id}
                     buildingName={listing.buildingName}
+                    currentUnit={listing.address.unitNumber || undefined}
                   />
                 </section>
               )}

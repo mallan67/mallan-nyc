@@ -35,12 +35,19 @@ interface BuildingUnitsProps {
   postalCode: string;
   currentListingId: string;
   buildingName?: string;
+  currentUnit?: string;
 }
 
 function formatPrice(price: number): string {
-  if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(2)}M`;
   return `$${price.toLocaleString()}`;
 }
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '\u2014';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+}
+
+const INITIAL_ROWS = 3;
 
 export default function BuildingUnits({
   streetNumber,
@@ -48,11 +55,13 @@ export default function BuildingUnits({
   postalCode,
   currentListingId,
   buildingName,
+  currentUnit,
 }: BuildingUnitsProps) {
-  const [tab, setTab] = useState<'active' | 'history'>('active');
   const [activeUnits, setActiveUnits] = useState<ActiveUnit[]>([]);
   const [saleHistory, setSaleHistory] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams({
@@ -71,170 +80,174 @@ export default function BuildingUnits({
       .catch(() => setLoading(false));
   }, [streetNumber, streetName, postalCode, currentListingId]);
 
-  // Don't render section if nothing to show
   if (!loading && activeUnits.length === 0 && saleHistory.length === 0) return null;
+
+  const buildingLabel = buildingName || `${streetNumber} ${streetName}`;
+  const unitHistoryForCurrent = currentUnit
+    ? saleHistory.filter((s) => s.unit && s.unit.toLowerCase() === currentUnit.toLowerCase())
+    : [];
+  const visibleHistory = expanded ? saleHistory : saleHistory.slice(0, INITIAL_ROWS);
+  const hasMoreRows = saleHistory.length > INITIAL_ROWS;
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-display font-semibold">
-          {buildingName || `${streetNumber} ${streetName}`}
-        </h2>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-0.5 mb-4 w-fit">
+      {/* Header bar */}
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-[0.15em]">
+          Building Sales History
+        </p>
         <button
-          onClick={() => setTab('active')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            tab === 'active' ? 'bg-white text-brand-dark shadow-sm' : 'text-brand-dark/60 hover:text-brand-dark'
-          }`}
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-7 h-7 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-colors"
+          aria-label={collapsed ? 'Expand' : 'Collapse'}
         >
-          Available Units{activeUnits.length > 0 && ` (${activeUnits.length})`}
-        </button>
-        <button
-          onClick={() => setTab('history')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            tab === 'history' ? 'bg-white text-brand-dark shadow-sm' : 'text-brand-dark/60 hover:text-brand-dark'
-          }`}
-        >
-          Sale History{saleHistory.length > 0 && ` (${saleHistory.length})`}
+          <svg className={`w-3.5 h-3.5 text-brand-dark/50 transition-transform ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
         </button>
       </div>
 
-      {loading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      )}
-
-      {/* Active Units */}
-      {!loading && tab === 'active' && (
-        <div className="space-y-2">
-          {activeUnits.length === 0 ? (
-            <div className="glass-card rounded-2xl p-6 text-center">
-              <p className="text-brand-dark/70 mb-3">No other units currently listed in this building.</p>
-              <p className="text-sm text-brand-dark/50">
-                Interested in units here?
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center mt-3">
-                <a
-                  href="tel:646-258-4460"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  Call 646-258-4460
-                </a>
-                <a
-                  href="mailto:info@mallan.nyc?subject=Inquiry about units at ${streetNumber} ${streetName}"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 ring-1 ring-black/10 text-brand-dark text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email Us
-                </a>
-              </div>
-            </div>
-          ) : (
-            activeUnits.map((unit) => (
-              <Link
-                key={unit.id}
-                href={`/listing/${unit.mlsId}`}
-                className="flex items-center justify-between glass-card rounded-xl p-4 hover:shadow-md transition-all group"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-display font-semibold text-brand-dark">
-                      {formatPrice(unit.listPrice)}
-                    </span>
-                    {unit.unit && (
-                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-brand-dark/70 rounded-md">
-                        Unit {unit.unit}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex gap-3 text-sm text-brand-dark/70 mt-1">
-                    <span>{unit.beds} bd</span>
-                    <span>{unit.baths}{unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''} ba</span>
-                    {unit.sqft > 0 && <span>{unit.sqft.toLocaleString()} sf</span>}
-                    {unit.propertyType && <span>{unit.propertyType}</span>}
-                  </div>
-                  <p className="text-[10px] text-brand-dark/40 mt-1">
-                    RLS · {unit.office}
-                  </p>
-                </div>
-                <svg className="w-4 h-4 text-brand-dark/30 group-hover:text-brand-gold transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Sale History */}
-      {!loading && tab === 'history' && (
-        <div className="space-y-2">
-          {saleHistory.length === 0 ? (
-            <div className="glass-card rounded-2xl p-6 text-center">
-              <p className="text-brand-dark/70">No recent sale history found for this building.</p>
-              <p className="text-sm text-brand-dark/50 mt-1">
-                For past transaction data, contact us at{' '}
-                <a href="tel:646-258-4460" className="text-brand-gold-deep hover:underline">646-258-4460</a>
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-0.5 px-4 py-2 text-[11px] font-medium text-brand-dark/50 uppercase tracking-wider">
-                <span>Unit</span>
-                <span>Sale Price</span>
-                <span>Size</span>
-                <span>Date</span>
-              </div>
-              {saleHistory.map((sale) => (
-                <div
-                  key={sale.id}
-                  className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 items-center glass-card rounded-xl px-4 py-3"
-                >
-                  <div>
-                    <span className="text-sm font-medium text-brand-dark">
-                      {sale.unit ? `Unit ${sale.unit}` : 'Unit —'}
-                    </span>
-                    <span className="text-xs text-brand-dark/50 ml-2">
-                      {sale.beds}bd/{sale.baths}ba
-                    </span>
-                  </div>
-                  <span className="font-display font-semibold text-sm text-brand-dark">
-                    {formatPrice(sale.closePrice)}
-                  </span>
-                  <span className="text-sm text-brand-dark/70">
-                    {sale.sqft > 0 ? `${sale.sqft.toLocaleString()} sf` : '—'}
-                  </span>
-                  <span className="text-sm text-brand-dark/60">
-                    {sale.closeDate ? new Date(sale.closeDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
-                  </span>
-                </div>
+      {!collapsed && (
+        <>
+          {loading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-12 bg-gray-50 rounded animate-pulse" />
               ))}
-              {saleHistory.length > 0 && saleHistory[0].closePrice > 0 && saleHistory[0].sqft > 0 && (
-                <p className="text-xs text-brand-dark/40 px-4 pt-2">
-                  Last sold: {formatPrice(saleHistory[0].closePrice)}
-                  {saleHistory[0].sqft > 0 && ` ($${Math.round(saleHistory[0].closePrice / saleHistory[0].sqft)}/sf)`}
-                  {saleHistory[0].closeDate && ` on ${new Date(saleHistory[0].closeDate).toLocaleDateString()}`}
-                </p>
-              )}
-            </>
+            </div>
           )}
-        </div>
-      )}
 
-      <p className="text-[9px] text-brand-dark/30 mt-3">
-        REBNY RLS · Data deemed reliable but not guaranteed
-      </p>
+          {!loading && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+              {/* ── LEFT: Building-wide sales history ── */}
+              <div>
+                <h3 className="font-display text-lg font-semibold text-brand-dark mb-4 leading-snug">
+                  Sales History for {buildingLabel}
+                </h3>
+
+                {saleHistory.length === 0 ? (
+                  <p className="text-sm text-brand-dark/50">No recent sales found for this building.</p>
+                ) : (
+                  <>
+                    {/* Table header */}
+                    <div className="grid grid-cols-[90px_50px_90px_80px_40px_40px] gap-x-3 pb-2 border-b border-black/10">
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Date</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Approx. Sq. Ft.</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Beds</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Baths</span>
+                    </div>
+
+                    {/* Rows */}
+                    {visibleHistory.map((sale) => (
+                      <div
+                        key={sale.id}
+                        className="grid grid-cols-[90px_50px_90px_80px_40px_40px] gap-x-3 py-3 border-b border-black/5 items-center"
+                      >
+                        <span className="text-[13px] text-brand-dark/70">{formatDate(sale.closeDate)}</span>
+                        <span className="text-[13px] font-medium text-brand-gold-deep">{sale.unit || '\u2014'}</span>
+                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
+                        <span className="text-[13px] text-brand-dark/70">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</span>
+                        <span className="text-[13px] text-brand-dark/70">{sale.beds}</span>
+                        <span className="text-[13px] text-brand-dark/70">{sale.baths}</span>
+                      </div>
+                    ))}
+
+                    {/* See more / less */}
+                    {hasMoreRows && (
+                      <button
+                        onClick={() => setExpanded(!expanded)}
+                        className="mt-3 text-[12px] font-semibold text-brand-gold-deep uppercase tracking-wider hover:text-brand-gold transition-colors flex items-center gap-1.5"
+                      >
+                        {expanded ? (
+                          <>Show Less <span className="text-sm">&minus;</span></>
+                        ) : (
+                          <>See {saleHistory.length - INITIAL_ROWS} More Rows <span className="text-sm">+</span></>
+                        )}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* ── RIGHT: Unit-specific history OR active units ── */}
+              <div>
+                {currentUnit && unitHistoryForCurrent.length > 0 ? (
+                  <>
+                    <h3 className="font-display text-lg font-semibold text-brand-dark mb-1 leading-snug">
+                      Sales History for {streetNumber} {streetName}, {currentUnit}
+                    </h3>
+                    <div className="w-8 h-0.5 bg-brand-dark mb-4" />
+
+                    {/* Table header */}
+                    <div className="grid grid-cols-[100px_100px_1fr] gap-x-4 pb-2 border-b border-black/10">
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Date</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Listing Status</span>
+                    </div>
+
+                    {unitHistoryForCurrent.map((sale) => (
+                      <div
+                        key={sale.id}
+                        className="grid grid-cols-[100px_100px_1fr] gap-x-4 py-3 border-b border-black/5 items-center"
+                      >
+                        <span className="text-[13px] text-brand-dark/70">{formatDate(sale.closeDate)}</span>
+                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
+                        <span className="text-[13px] text-brand-dark/70">Sold</span>
+                      </div>
+                    ))}
+                  </>
+                ) : activeUnits.length > 0 ? (
+                  <>
+                    <h3 className="font-display text-lg font-semibold text-brand-dark mb-1 leading-snug">
+                      Available Units in {buildingLabel}
+                    </h3>
+                    <div className="w-8 h-0.5 bg-brand-dark mb-4" />
+
+                    {/* Table header */}
+                    <div className="grid grid-cols-[50px_90px_40px_40px_70px] gap-x-3 pb-2 border-b border-black/10">
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Beds</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Baths</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Status</span>
+                    </div>
+
+                    {activeUnits.map((unit) => (
+                      <Link
+                        key={unit.id}
+                        href={`/listing/${unit.mlsId}`}
+                        className="grid grid-cols-[50px_90px_40px_40px_70px] gap-x-3 py-3 border-b border-black/5 items-center hover:bg-black/[0.02] transition-colors"
+                      >
+                        <span className="text-[13px] font-medium text-brand-gold-deep">{unit.unit || '\u2014'}</span>
+                        <span className="text-[13px] text-brand-dark">{formatPrice(unit.listPrice)}</span>
+                        <span className="text-[13px] text-brand-dark/70">{unit.beds}</span>
+                        <span className="text-[13px] text-brand-dark/70">{unit.baths}{unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''}</span>
+                        <span className="text-[13px] text-blue-600">Active</span>
+                      </Link>
+                    ))}
+
+                    <p className="text-[10px] text-brand-dark/40 mt-2">
+                      {activeUnits.map((u) => `Courtesy of ${u.office}`).filter((v, i, a) => a.indexOf(v) === i).join(' | ')}
+                    </p>
+                  </>
+                ) : currentUnit ? (
+                  <>
+                    <h3 className="font-display text-lg font-semibold text-brand-dark mb-1 leading-snug">
+                      Sales History for {streetNumber} {streetName}, {currentUnit}
+                    </h3>
+                    <div className="w-8 h-0.5 bg-brand-dark mb-4" />
+                    <p className="text-sm text-brand-dark/50">No prior sales found for this unit.</p>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[10px] text-brand-dark/30 mt-4">
+            REBNY RLS &middot; Data deemed reliable but not guaranteed
+          </p>
+        </>
+      )}
     </section>
   );
 }
