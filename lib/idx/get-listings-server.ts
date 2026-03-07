@@ -90,20 +90,21 @@ export async function getListingsServer(
     // Take page
     const pageListings = mapped.slice(0, limit);
 
-    // Batch-fetch primary photos (just 1 per listing for cards)
+    // Batch-fetch media (photos, floor plans, videos) for listings
     if (pageListings.length > 0) {
       try {
         const token = await getAccessToken();
         const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
-        const needsPhotos = pageListings.filter(l => l.media.length === 0);
-        if (needsPhotos.length > 0) {
-          const filterParts2 = needsPhotos.map(l => `ResourceRecordID eq '${l.listingId.replace(/'/g, "''")}'`);
-          const mediaFilter = `(${filterParts2.join(' or ')}) and MediaCategory eq 'Photo' and Order le 3`;
+        const needsMedia = pageListings.filter(l => l.media.length === 0);
+        if (needsMedia.length > 0) {
+          const filterParts2 = needsMedia.map(l => `ResourceRecordID eq '${l.listingId.replace(/'/g, "''")}'`);
+          // Fetch all media types — photos (up to 3), plus all floor plans, videos, virtual tours
+          const mediaFilter = `(${filterParts2.join(' or ')}) and (Order le 3 or MediaCategory ne 'Photo')`;
           const mediaParams = new URLSearchParams();
           mediaParams.set('$filter', mediaFilter);
           mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
           mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-          mediaParams.set('$top', String(Math.min(needsPhotos.length * 4, 250)));
+          mediaParams.set('$top', String(Math.min(needsMedia.length * 6, 400)));
 
           const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
             headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -113,31 +114,39 @@ export async function getListingsServer(
             const mediaData = await mediaResponse.json();
             const mediaRecords = mediaData.value || [];
 
-            // Group by listing — pick best photo per listing
-            const photosByListing = new Map<string, { url: string; mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour'; order: number }[]>();
+            // Group by listing with proper media type classification
+            const mediaByListing = new Map<string, { url: string; mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour'; order: number }[]>();
             for (const m of mediaRecords) {
               const lid = String(m.ResourceRecordID || '');
               if (!lid || !m.MediaURL) continue;
               const cat = String(m.MediaCategory || '').toLowerCase();
-              if (cat.includes('floor plan') || cat.includes('video') || cat.includes('virtual tour')) continue;
+              let mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' = 'Photo';
+              if (cat.includes('floor plan')) mediaType = 'FloorPlan';
+              else if (cat.includes('video')) mediaType = 'Video';
+              else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-              if (!photosByListing.has(lid)) photosByListing.set(lid, []);
-              photosByListing.get(lid)!.push({
+              if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+              mediaByListing.get(lid)!.push({
                 url: String(m.MediaURL),
-                mediaType: 'Photo' as const,
+                mediaType,
                 order: isPreferred ? -1 : Number(m.Order ?? 0),
               });
             }
-            for (const listing of needsPhotos) {
-              const photos = photosByListing.get(listing.listingId);
-              if (photos && photos.length > 0) {
-                listing.media = photos.sort((a, b) => a.order - b.order);
+            for (const listing of needsMedia) {
+              const media = mediaByListing.get(listing.listingId);
+              if (media && media.length > 0) {
+                // Sort: photos first (preferred=-1), then videos/tours, then floor plans
+                const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
+                listing.media = media.sort((a, b) => {
+                  const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+                  return rankDiff !== 0 ? rankDiff : a.order - b.order;
+                });
               }
             }
           }
         }
       } catch {
-        // Non-fatal — listings display without photos
+        // Non-fatal — listings display without media
       }
     }
 

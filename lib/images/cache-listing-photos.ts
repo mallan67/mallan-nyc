@@ -20,9 +20,10 @@ import { getAccessToken } from '@/lib/idx/auth';
 
 const MAX_CONCURRENT = 10;
 
-function photoKey(listingId: string, order: number): string {
+function mediaKey(listingId: string, mediaType: string, order: number): string {
   const safe = listingId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `photos/${safe}/${order}.jpg`;
+  const folder = mediaType === 'FloorPlan' ? 'floorplans' : 'photos';
+  return `${folder}/${safe}/${order}.jpg`;
 }
 
 interface MediaItem {
@@ -37,8 +38,10 @@ interface ListingWithMedia {
 }
 
 /**
- * Cache listing photos to R2. Mutates media URLs in-place
+ * Cache listing photos and floor plans to R2. Mutates media URLs in-place
  * from Trestle URLs to permanent R2 public URLs.
+ * Videos and virtual tours are typically external URLs (YouTube, Matterport)
+ * and don't need caching.
  */
 export async function cacheListingPhotosToR2(
   listings: ListingWithMedia[],
@@ -52,15 +55,17 @@ export async function cacheListingPhotosToR2(
     return;
   }
 
-  // Collect photos that need caching (Trestle URLs only)
+  // Collect photos + floor plans that need caching (Trestle URLs only)
+  // Videos/virtual tours are typically external (YouTube, Matterport) — skip
+  const cacheableTypes = new Set<string>(['Photo', 'FloorPlan']);
   const tasks: { listing: ListingWithMedia; idx: number; key: string }[] = [];
   for (const listing of listings) {
     for (let i = 0; i < listing.media.length; i++) {
       const m = listing.media[i];
-      if (!m.url || m.mediaType !== 'Photo') continue;
+      if (!m.url || !cacheableTypes.has(m.mediaType)) continue;
       // Skip URLs already on R2 or our own domain
       if (m.url.includes('r2.dev') || m.url.includes('mallan.nyc')) continue;
-      tasks.push({ listing, idx: i, key: photoKey(listing.listingId, m.order) });
+      tasks.push({ listing, idx: i, key: mediaKey(listing.listingId, m.mediaType, m.order) });
     }
   }
 
