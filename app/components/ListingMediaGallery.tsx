@@ -87,7 +87,7 @@ export default function ListingMediaGallery({
 
   return (
     <section className="bg-stone-100">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto">
         {/* Tab bar */}
         {availableTabs.length > 1 && (
           <div className="flex items-center gap-1 px-4 py-2 bg-white/80 backdrop-blur-sm border-b border-black/5">
@@ -111,9 +111,9 @@ export default function ListingMediaGallery({
         {/* Photo gallery */}
         {activeTab === 'photos' && (
           <div className="relative">
-            {/* Mobile: 4:3, Desktop: 16:9 — not ultra-wide, preserves photo detail */}
+            {/* Taller aspect ratio = less cropping = sharper photos */}
             <div
-              className="relative aspect-[4/3] md:aspect-[3/2] lg:aspect-[16/9] touch-pan-y"
+              className="relative aspect-[4/3] md:aspect-[3/2] touch-pan-y"
               onTouchStart={swipe.onTouchStart}
               onTouchMove={swipe.onTouchMove}
               onTouchEnd={swipe.onTouchEnd}
@@ -133,7 +133,8 @@ export default function ListingMediaGallery({
                   src={failed.has(photoIdx) ? PLACEHOLDER : currentImage.url}
                   alt={currentImage.caption || alt}
                   loading="eager"
-                  decoding="async"
+                  decoding="sync"
+                  fetchPriority="high"
                   onError={() => handleImageError(photoIdx)}
                   onClick={() => setFullscreen(true)}
                   className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
@@ -192,10 +193,10 @@ export default function ListingMediaGallery({
                   <button
                     key={i}
                     onClick={() => setPhotoIdx(i)}
-                    className={`relative flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden transition-all ${
+                    className={`relative flex-shrink-0 w-[88px] h-[60px] rounded-lg overflow-hidden transition-all ${
                       i === photoIdx
                         ? 'ring-2 ring-brand-gold opacity-100'
-                        : 'opacity-50 hover:opacity-80'
+                        : 'opacity-60 hover:opacity-90'
                     }`}
                     aria-label={img.caption || `Photo ${i + 1}`}
                   >
@@ -295,12 +296,14 @@ export default function ListingMediaGallery({
             {photoIdx + 1} / {sortedImages.length}
           </span>
 
-          {/* Photo */}
+          {/* Photo — full resolution, no cropping */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={currentImage.url}
             alt={currentImage.caption || alt}
-            className="max-w-[95vw] max-h-[90vh] object-contain"
+            className="max-w-[95vw] max-h-[92vh] object-contain select-none"
+            decoding="sync"
+            fetchPriority="high"
             onClick={(e) => e.stopPropagation()}
           />
 
