@@ -429,7 +429,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-5">
+            <div className="lg:col-span-2 space-y-5 divide-y divide-black/5 [&>*]:pt-5 [&>*:first-child]:pt-0">
               {/* Header */}
               <div>
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
@@ -449,7 +449,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-block px-3 py-1 bg-brand-gold/10 text-brand-gold-deep text-sm rounded-full">
-                      {listing.propertySubType || listing.propertyType}
+                      {listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType}
                     </span>
                     {listing.previousListPrice && listing.listPrice < listing.previousListPrice && (
                       <span className="inline-block px-3 py-1 bg-green-50 text-green-700 text-sm font-medium rounded-full">
@@ -509,7 +509,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <section>
                   <h2 className="text-base font-display font-semibold mb-3">About This Property</h2>
                   <div
-                    className="text-brand-dark/95 leading-relaxed prose prose-sm max-w-none [&>p]:mb-3 [&>p:last-child]:mb-0"
+                    className="text-brand-dark/90 text-sm leading-relaxed prose prose-sm max-w-none text-justify [&>p]:mb-3 [&>p:last-child]:mb-0"
                     dangerouslySetInnerHTML={{
                       __html: listing.publicRemarks
                         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -554,7 +554,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0">
                   <div className="flex justify-between py-2 border-b border-black/5">
                     <span className="text-brand-dark/85">Property Type</span>
-                    <span className="font-medium">{listing.propertySubType || listing.propertyType}</span>
+                    <span className="font-medium">{listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType}</span>
                   </div>
                   {listing.architecturalStyle && (
                     <div className="flex justify-between py-2 border-b border-black/5">
