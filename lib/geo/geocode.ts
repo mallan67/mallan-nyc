@@ -2,10 +2,31 @@
  * Server-side geocoding for NYC addresses.
  *
  * Trestle IDX Plus feed returns null for Latitude/Longitude.
- * This module assigns coordinates using ZIP code centroids — instant, no API calls.
+ * This module assigns coordinates using:
+ *   1. Neon DB cache — instant lookup (address geocoded once, cached forever)
+ *   2. US Census Geocoder — free, accurate, no API key needed
+ *   3. ZIP code centroids — instant fallback if Census is slow/unavailable
+ *
+ * Background strategy: geocodeListings() returns instantly with ZIP centroids,
+ * then fires off Census geocoding in the background to fill the cache for
+ * subsequent requests. First page load uses ZIP, second load uses accurate coords.
  *
  * COMPLIANCE: Geocoding runs server-side only.
  */
+
+import { PrismaClient } from '@prisma/client';
+
+// Reuse single PrismaClient instance across hot reloads
+const globalForPrisma = globalThis as unknown as { _geocodePrisma?: PrismaClient };
+const prisma = globalForPrisma._geocodePrisma ?? (globalForPrisma._geocodePrisma = new PrismaClient());
+
+// ── In-memory cache layer (warm serverless invocations) ──
+const memCache = new Map<string, [number, number]>();
+
+/** Normalize address into cache key */
+function addressKey(streetNumber: string, streetName: string, zip: string): string {
+  return `${streetNumber.trim()}|${streetName.trim().toUpperCase()}|${zip}`;
+}
 
 /** Deterministic hash-based jitter so same address always gets same offset */
 function hashJitter(str: string): [number, number] {
@@ -13,15 +34,115 @@ function hashJitter(str: string): [number, number] {
   for (let i = 0; i < str.length; i++) {
     h = ((h << 5) - h + str.charCodeAt(i)) | 0;
   }
-  // ~100m spread within the ZIP area
   const latOff = ((h & 0xFFFF) / 0xFFFF - 0.5) * 0.002;
   const lngOff = (((h >> 16) & 0xFFFF) / 0xFFFF - 0.5) * 0.002;
   return [latOff, lngOff];
 }
 
 /**
+ * Geocode a single address via US Census Geocoder.
+ * Free, no API key, accurate for US addresses.
+ * https://geocoding.geo.census.gov/geocoder/
+ */
+async function geocodeViaCensus(
+  streetNumber: string,
+  streetName: string,
+  city: string,
+  state: string,
+  zip: string,
+): Promise<[number, number] | null> {
+  try {
+    const street = `${streetNumber} ${streetName}`.trim();
+    const params = new URLSearchParams({
+      street,
+      city: city || 'New York',
+      state: state || 'NY',
+      zip,
+      benchmark: 'Public_AR_Current',
+      format: 'json',
+    });
+    const url = `https://geocoding.geo.census.gov/geocoder/addresses/onelineaddress?${params.toString()}`;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const match = data?.result?.addressMatches?.[0];
+    if (match?.coordinates?.x != null && match?.coordinates?.y != null) {
+      const lat = match.coordinates.y;
+      const lng = match.coordinates.x;
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        return [lat, lng];
+      }
+    }
+  } catch {
+    // Census API timeout or error — fall through
+  }
+  return null;
+}
+
+/**
+ * Background geocoding: fetch from Census and save to DB cache.
+ * Does NOT block the response. Runs fire-and-forget.
+ */
+async function backgroundGeocode(
+  listings: Array<{
+    address: {
+      streetNumber?: string;
+      streetName?: string;
+      postalCode?: string;
+      city?: string;
+      stateOrProvince?: string;
+    };
+  }>,
+): Promise<void> {
+  for (const listing of listings) {
+    const addr = listing.address;
+    const num = addr.streetNumber || '';
+    const street = addr.streetName || '';
+    const zip = (addr.postalCode || '').split('-')[0].trim();
+    if (!num || !street || !zip) continue;
+
+    const key = addressKey(num, street, zip);
+    // Skip if already in memory cache (means DB has it too)
+    if (memCache.has(key)) continue;
+
+    const coords = await geocodeViaCensus(
+      num, street,
+      addr.city || 'New York',
+      addr.stateOrProvince || 'NY',
+      zip,
+    );
+
+    if (coords) {
+      // Save to DB
+      try {
+        await prisma.geocodeCache.upsert({
+          where: { address_key: key },
+          create: { address_key: key, latitude: coords[0], longitude: coords[1], source: 'census' },
+          update: { latitude: coords[0], longitude: coords[1], source: 'census' },
+        });
+        memCache.set(key, coords);
+      } catch {
+        // DB write failed — non-fatal
+      }
+    }
+
+    // Rate limit: Census doesn't have a strict limit but be polite
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+
+/**
  * Assign coordinates to listings that lack them.
- * Uses ZIP code centroids with deterministic jitter — instant, zero API calls.
+ *
+ * Strategy (instant, non-blocking):
+ *   1. Check in-memory cache (warm serverless)
+ *   2. Batch lookup from Neon DB cache
+ *   3. Apply ZIP centroid fallback for any still missing
+ *   4. Fire background Census geocoding for cache misses (doesn't block response)
+ *
  * Mutates the input array for performance.
  */
 export async function geocodeListings(
@@ -31,20 +152,72 @@ export async function geocodeListings(
       streetName?: string;
       postalCode?: string;
       city?: string;
+      stateOrProvince?: string;
       latitude?: number | null;
       longitude?: number | null;
     };
   }>
 ): Promise<void> {
+  // Collect listings needing geocoding
+  const needsGeocode: typeof listings = [];
   for (const listing of listings) {
     const addr = listing.address;
-    // Skip if already has valid coordinates
     if (addr.latitude != null && addr.longitude != null && addr.latitude !== 0 && addr.longitude !== 0) continue;
+    needsGeocode.push(listing);
+  }
+  if (needsGeocode.length === 0) return;
 
+  // Step 1: Check in-memory cache
+  const stillNeedDb: typeof listings = [];
+  for (const listing of needsGeocode) {
+    const addr = listing.address;
+    const key = addressKey(addr.streetNumber || '', addr.streetName || '', (addr.postalCode || '').split('-')[0].trim());
+    const cached = memCache.get(key);
+    if (cached) {
+      addr.latitude = cached[0];
+      addr.longitude = cached[1];
+    } else {
+      stillNeedDb.push(listing);
+    }
+  }
+  if (stillNeedDb.length === 0) return;
+
+  // Step 2: Batch lookup from DB cache
+  const keys = stillNeedDb.map(l => {
+    const a = l.address;
+    return addressKey(a.streetNumber || '', a.streetName || '', (a.postalCode || '').split('-')[0].trim());
+  });
+
+  const needsCensus: typeof listings = [];
+  try {
+    const dbResults = await prisma.geocodeCache.findMany({
+      where: { address_key: { in: keys } },
+    });
+    const dbMap = new Map(dbResults.map(r => [r.address_key, [r.latitude, r.longitude] as [number, number]]));
+
+    for (let i = 0; i < stillNeedDb.length; i++) {
+      const listing = stillNeedDb[i];
+      const key = keys[i];
+      const coords = dbMap.get(key);
+      if (coords) {
+        listing.address.latitude = coords[0];
+        listing.address.longitude = coords[1];
+        memCache.set(key, coords);
+      } else {
+        needsCensus.push(listing);
+      }
+    }
+  } catch {
+    // DB read failed — all go to ZIP fallback + Census background
+    needsCensus.push(...stillNeedDb);
+  }
+
+  // Step 3: ZIP centroid fallback for anything still missing (instant)
+  for (const listing of needsCensus) {
+    const addr = listing.address;
     const num = addr.streetNumber || '';
     const street = addr.streetName || '';
     const zip = (addr.postalCode || '').split('-')[0].trim();
-
     const centroid = ZIP_CENTROIDS[zip];
     if (centroid) {
       const jitter = hashJitter(`${num}|${street}|${zip}`);
@@ -52,9 +225,17 @@ export async function geocodeListings(
       addr.longitude = centroid[1] + jitter[1];
     }
   }
+
+  // Step 4: Fire-and-forget background Census geocoding for cache misses
+  // This populates the DB cache so next request has accurate coords
+  if (needsCensus.length > 0) {
+    backgroundGeocode(needsCensus).catch(() => {
+      // Non-fatal — ZIP centroids are already assigned
+    });
+  }
 }
 
-// ── NYC ZIP Code Centroids (fallback) ──
+// ── NYC ZIP Code Centroids (instant fallback) ──
 const ZIP_CENTROIDS: Record<string, [number, number]> = {
   // Manhattan
   '10001': [40.7506, -73.9971], '10002': [40.7157, -73.9863], '10003': [40.7317, -73.9893],

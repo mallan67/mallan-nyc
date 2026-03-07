@@ -137,7 +137,7 @@ export default function SearchAutocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => suggestions.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 pr-10"
+          className="w-full rounded-lg px-3 py-1.5 text-sm bg-white/60 ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 pr-8"
           aria-label="Search by address, neighborhood, zip, or borough"
           autoComplete="off"
           role="combobox"

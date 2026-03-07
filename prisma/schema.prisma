@@ -400,3 +400,20 @@ model FamilyMember {
   @@index([member_lead_id])
   @@map("family_members")
 }
+
+// ═══════════════════════════════════════════════════════════
+// GEOCODE CACHE — Permanent lat/lng cache for addresses
+// US Census Geocoder results cached here so each address
+// is geocoded only once. ZIP centroid fallback if API fails.
+// ═══════════════════════════════════════════════════════════
+model GeocodeCache {
+  id          BigInt    @id @default(autoincrement())
+  address_key String    @unique @map("address_key")   // normalized "123|MAIN ST|10001"
+  latitude    Float
+  longitude   Float
+  source      String    @default("census")              // "census" | "zip_centroid"
+  created_at  DateTime  @default(now()) @map("created_at")
+
+  @@index([address_key])
+  @@map("geocode_cache")
+}
