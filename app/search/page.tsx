@@ -681,15 +681,15 @@ function SearchClient() {
 
       {/* ── Footer (grid/list only) ── */}
       {showFooter && (
-        <section className="py-16 bg-gray-50/50 border-t border-black/5">
+        <section className="py-6 bg-gray-50/50 border-t border-black/5">
           <div className="max-w-3xl mx-auto px-4 text-center">
-            <h2 className="text-xl sm:text-2xl font-display font-semibold mb-4">
+            <h2 className="text-base sm:text-lg font-display font-semibold mb-1.5">
               Need Help Finding Your Perfect Property?
             </h2>
-            <p className="text-brand-dark/85 mb-8">
+            <p className="text-brand-dark/70 text-sm mb-4">
               Our agents have access to exclusive listings and can help you find exactly what you&apos;re looking for.
             </p>
-            <a href="/agents" className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors">
+            <a href="/agents" className="inline-block px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors">
               Contact an Agent
             </a>
           </div>
