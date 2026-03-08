@@ -187,7 +187,7 @@ function SearchClient() {
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
-    limit: 24,
+    limit: 200,
   });
 
   // ── Client-side text/zip post-filter ──
@@ -469,7 +469,7 @@ function SearchClient() {
 
             {/* Count */}
             <p className="text-[11px] text-brand-dark/60 ml-auto whitespace-nowrap" aria-live="polite">
-              {loading ? 'Searching...' : `${total > sortedListings.length ? total.toLocaleString() : sortedListings.length} ${(total > sortedListings.length ? total : sortedListings.length) === 1 ? 'property' : 'properties'}`}
+              {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
             </p>
 
             {activeFilterPills.length > 0 && (
