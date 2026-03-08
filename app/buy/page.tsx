@@ -25,7 +25,7 @@ export default async function BuyPage(props: { searchParams: Promise<Record<stri
   params.set('tab', isCommercial ? 'buy-commercial' : 'buy-residential');
 
   // Forward known filter params
-  for (const key of ['neighborhood', 'zip', 'q', 'minPrice', 'maxPrice', 'beds', 'baths', 'exclusive']) {
+  for (const key of ['neighborhood', 'zip', 'q', 'minPrice', 'maxPrice', 'beds', 'baths']) {
     if (searchParams[key]) params.set(key, searchParams[key]);
   }
 

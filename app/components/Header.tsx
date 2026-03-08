@@ -93,7 +93,6 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   const [buyOpen, setBuyOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
-  const [exclusivesOpen, setExclusivesOpen] = useState(false);
   const [neighborhoodsOpen, setNeighborhoodsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [resources, setResources] = useState<ResourceItem[]>([
@@ -146,12 +145,6 @@ export default function Header({ dark = false }: HeaderProps = {}) {
   const sellItems = [
     { title: 'Residential', href: '/sell?type=residential' },
     { title: 'Commercial', href: '/sell?type=commercial' },
-  ];
-
-  const exclusivesItems = [
-    { title: 'Mallan Exclusives', href: '/buy?exclusive=mallan' },
-    { title: 'Private Exclusives', href: '/sign-in' },
-    { title: 'Coming Soon', href: '/sign-in' },
   ];
 
   const neighborhoodItems = [
@@ -231,7 +224,6 @@ export default function Header({ dark = false }: HeaderProps = {}) {
               <li><NavDropdown label="Buy" items={buyItems} dark={dark} /></li>
               <li><NavDropdown label="Rent" items={rentItems} dark={dark} /></li>
               <li><NavDropdown label="Sell" items={sellItems} dark={dark} /></li>
-              <li><NavDropdown label="Exclusives" items={exclusivesItems} dark={dark} /></li>
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
 
               <li>
@@ -373,23 +365,6 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 {sellOpen && (
                   <div className="pl-4 pb-2 flex flex-col">
                     {sellItems.map(mobileDropdownItem)}
-                  </div>
-                )}
-              </div>
-
-              {/* Exclusives */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setExclusivesOpen(!exclusivesOpen)}
-                  className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
-                >
-                  Exclusives
-                  <ChevronIcon open={exclusivesOpen} />
-                </button>
-                {exclusivesOpen && (
-                  <div className="pl-4 pb-2 flex flex-col">
-                    {exclusivesItems.map(mobileDropdownItem)}
                   </div>
                 )}
               </div>
