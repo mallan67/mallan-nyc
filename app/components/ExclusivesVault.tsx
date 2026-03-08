@@ -80,43 +80,14 @@ export default function ExclusivesVault() {
           </div>
         </div>
       ) : (
-        /* Unlocked state — exclusive listing cards */
-        <div className="relative z-10 px-6 md:px-12 lg:px-20 max-w-[1440px] mx-auto">
-          <div className="flex items-center gap-2 mb-12">
+        /* Unlocked state — no listings yet */
+        <div className="relative z-10 px-6 md:px-12 lg:px-20 max-w-[1440px] mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-8">
             <div className="w-2 h-2 rounded-full bg-brand-gold-deep gold-pulse" />
-            <span className="text-brand-gold-deep text-[13px] font-medium gold-glow-text">Exclusive Listings Unlocked</span>
+            <span className="text-brand-gold-deep text-[13px] font-medium gold-glow-text">Private Collection</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7 md:gap-8">
-            {/* Placeholder exclusive cards */}
-            {[
-              { title: 'West Village Townhouse', hood: 'West Village', type: 'Townhouse', price: '$8,250,000', spec: '5 Bed \u00B7 4.5 Bath \u00B7 4,200 SF', tag: 'Pocket Listing' },
-              { title: 'SoHo Penthouse', hood: 'SoHo', type: 'Loft', price: '$5,750,000', spec: '3 Bed \u00B7 3 Bath \u00B7 3,100 SF', tag: 'Pre-Launch' },
-              { title: 'Tribeca Full-Floor Loft', hood: 'Tribeca', type: 'Loft', price: '$4,100,000', spec: '3 Bed \u00B7 2.5 Bath \u00B7 2,800 SF', tag: 'Exclusive' },
-            ].map((exc) => (
-              <div key={exc.title} className="group cursor-pointer rounded-3xl overflow-hidden">
-                <div className="relative overflow-hidden aspect-[4/3] bg-stone-800">
-                  <div className="w-full h-full bg-gradient-to-br from-stone-700 to-stone-900" />
-                  <span
-                    className="absolute top-4 left-4 bg-brand-gold-deep text-white text-[11px] font-medium px-3.5 py-1.5 rounded-full"
-                    style={{ boxShadow: 'var(--gold-glow)' }}
-                  >
-                    {exc.tag}
-                  </span>
-                </div>
-                <div className="p-5">
-                  <p className="text-white/50 text-[12px] font-light mb-1">{exc.hood} &middot; {exc.type}</p>
-                  <h3 className="font-display font-semibold text-white text-base">{exc.title}</h3>
-                  <p className="font-display font-bold text-white text-lg mt-1">{exc.price}</p>
-                  <p className="text-white/50 text-[12px] font-light mt-1.5">{exc.spec}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-white/50 text-sm font-light mt-12">
-            Showing 3 of 12 &middot; <Link href="/buy?exclusive=true" className="text-brand-gold-deep hover:underline">View All</Link>
-          </p>
-          <p className="text-center text-white/30 text-[10px] font-light mt-4">
-            Listing Courtesy of Mallan Real Estate Inc. &middot; Commission rates are not set by law and are fully negotiable.
+          <p className="text-white/60 text-sm font-light max-w-md mx-auto">
+            No exclusive listings at this time. Check back soon for new opportunities.
           </p>
         </div>
       )}
