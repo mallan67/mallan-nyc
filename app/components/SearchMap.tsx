@@ -313,43 +313,41 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
                 click: () => handleMarkerClick(listing.id),
               }}
             >
-              <Popup maxWidth={280} minWidth={280} className="map-card-popup">
-                <a href={listingHref(listing)} style={{ display: 'block', width: 280, textDecoration: 'none', color: 'inherit', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+              <Popup maxWidth={260} minWidth={260} className="map-card-popup">
+                <a href={listingHref(listing)} style={{ display: 'block', width: 260, textDecoration: 'none', color: 'inherit' }}>
                   {listing.media[0]?.url && (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={listing.media[0].url}
                       alt=""
-                      style={{ width: 280, height: 160, objectFit: 'cover', display: 'block' }}
+                      style={{ width: 260, height: 150, objectFit: 'cover', display: 'block' }}
                       loading="lazy"
                     />
                   )}
-                  <div style={{ padding: '10px 14px 10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a', letterSpacing: '-0.01em' }}>
+                  <div style={{ padding: '10px 12px 8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>
                         {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
                       </span>
-                      <span style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                      <span style={{ fontSize: 11, color: '#888' }}>
                         {listing.bedroomsTotal} bd · {listing.bathroomsFull} ba
                         {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sf` : ''}
                       </span>
                     </div>
-                    <div style={{ fontSize: 13, color: '#1a1a1a', marginTop: 5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 12, color: '#333', marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {listing.address.streetName === 'Address Undisclosed'
                         ? 'Address Undisclosed'
-                        : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
+                        : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`}
                     </div>
-                    <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
                       {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
-                        ? listing.address.neighborhood
+                        ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
                         : listing.address.borough || 'Manhattan'}
-                      {listing.propertyType ? ` · ${listing.propertyType}` : ''}
-                      {!isRental && listing.associationFee ? ` · ${listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: $${listing.associationFee.toLocaleString()}/mo` : ''}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 14px', borderTop: '1px solid #eee', background: '#fafafa' }}>
-                    <span style={{ fontSize: 10, color: '#999', fontWeight: 600, letterSpacing: '0.3px' }}>
-                      RLS · {listing.listOfficeName}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+                    <span style={{ fontSize: 10, color: '#aaa' }}>
+                      {listing.listOfficeName}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#C4A052' }}>
                       View &rarr;
