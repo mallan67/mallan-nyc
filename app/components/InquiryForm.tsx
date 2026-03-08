@@ -37,22 +37,26 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
     setError(null);
 
     try {
-      // In production, this would submit to an API endpoint
-      // For now, we'll simulate a successful submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Log the inquiry (in production, send to API/email)
-      console.log('Inquiry submitted:', {
-        ...formData,
-        listingId,
-        listingAddress,
-        agentEmail,
-        timestamp: new Date().toISOString(),
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          listingId,
+          listingAddress,
+        }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to submit inquiry. Please try again.');
+        return;
+      }
 
       setIsSubmitted(true);
     } catch {
-      setError('Failed to submit inquiry. Please try again or contact us directly.');
+      setError('Failed to submit inquiry. Please try again or call us at (646) 258-4460.');
     } finally {
       setIsSubmitting(false);
     }
