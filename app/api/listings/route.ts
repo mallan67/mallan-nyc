@@ -274,7 +274,7 @@ export async function GET(request: Request) {
         }
 
         // Fetch extra to account for gate filtering + post-filters
-        const fetchTop = Math.min((limit + skip) * 2 + 20, 1000);
+        const fetchTop = Math.min(Math.ceil((limit + skip) * 1.5) + 10, 500);
 
         // Skip $expand=Media for bulk queries — it's extremely slow (2+ min for 500 records).
         // Photos are batch-fetched separately below for just the page of results.
@@ -417,9 +417,11 @@ export async function GET(request: Request) {
           : (result.odataCount ?? filtered.length);
         const pageListings = filtered.slice(skip, skip + limit);
 
-        // Step 4b: Batch-fetch primary photos in chunks of 50 (Trestle OData filter length limit)
-        const needsPhotos = pageListings.filter(l => l.media.length === 0);
-        if (needsPhotos.length > 0) {
+        // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
+        // Previously these ran sequentially (3-6s). Now they overlap (~2-4s total).
+        const photoPromise = (async () => {
+          const needsPhotos = pageListings.filter(l => l.media.length === 0);
+          if (needsPhotos.length === 0) return;
           try {
             const token = await getAccessToken();
             const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
@@ -435,7 +437,6 @@ export async function GET(request: Request) {
               return 'Photo';
             }
 
-            // Chunk into batches of 50 to keep OData filter length reasonable
             const MEDIA_BATCH = 50;
             const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
             const chunks: typeof needsPhotos[] = [];
@@ -443,7 +444,6 @@ export async function GET(request: Request) {
               chunks.push(needsPhotos.slice(i, i + MEDIA_BATCH));
             }
 
-            // Fetch chunks in parallel (max 4 concurrent)
             const fetchChunk = async (chunk: typeof needsPhotos) => {
               const ids = chunk.map(l => l.listingId);
               const idFilter = ids.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(' or ');
@@ -492,17 +492,17 @@ export async function GET(request: Request) {
           } catch (mediaErr) {
             console.warn('[/api/listings] Photo batch fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
-        }
+        })();
 
-        // Step 4c: Geocode listings that lack coordinates (Trestle IDX Plus returns null for Lat/Lng)
-        // Skip if we already geocoded the full set for bounds filtering above.
-        if (!boundsParam) {
-          try {
-            await geocodeListings(pageListings);
-          } catch (geoErr) {
-            console.warn('[/api/listings] Geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
-          }
-        }
+        // Geocode only if we didn't already geocode the full set for bounds filtering
+        const geocodePromise = !boundsParam
+          ? geocodeListings(pageListings).catch(geoErr => {
+              console.warn('[/api/listings] Geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
+            })
+          : Promise.resolve();
+
+        // Wait for both to finish in parallel
+        await Promise.allSettled([photoPromise, geocodePromise]);
 
         const publicListings = pageListings.map(toPublicDTO);
 
