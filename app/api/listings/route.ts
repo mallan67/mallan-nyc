@@ -274,7 +274,9 @@ export async function GET(request: Request) {
         }
 
         // Fetch extra to account for gate filtering + post-filters
-        const fetchTop = Math.min(Math.ceil((limit + skip) * 1.5) + 10, 500);
+        // Neighborhood/borough/bounds queries need more headroom (heavy post-filtering)
+        const hasPostFilter = !!(boundsParam || borough || neighborhood);
+        const fetchTop = Math.min((limit + skip) * (hasPostFilter ? 3 : 1.5) + 20, 1000);
 
         // Skip $expand=Media for bulk queries — it's extremely slow (2+ min for 500 records).
         // Photos are batch-fetched separately below for just the page of results.
