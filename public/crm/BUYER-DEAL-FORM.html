@@ -70,18 +70,20 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/core/api-client.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
+// NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
+// Use MallanAPI.init() which calls /api/auth/me with credentials: 'include'.
 (function() {
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.hasToken) {
+    if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            if (!d.authenticated) window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         }).catch(function() {
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         });
     } else {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     });
 })();
 </script>
@@ -1633,7 +1635,16 @@ function submitBuyerCommissionRequest() {
     var agentPayout = (document.getElementById('commBuyerAgentPayout') || {}).textContent || '$0';
     var companyShare = (document.getElementById('commBuyerCompanyShare') || {}).textContent || '$0';
 
-    // Store submission in sessionStorage for persistence
+    var propertyAddress = (document.getElementById('buyerStreetAddress') || {}).value || '';
+    var ourSidePct = parseFloat((document.getElementById('commBuyerOurSidePct') || {}).value) || 0;
+    var agentSplitPct = parseFloat((document.getElementById('commBuyerAgentSplitPct') || {}).value) || 0;
+    var parsedPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
+    var parsedTotalPct = parseFloat(totalPct) || 0;
+    var grossAmt = parsedPrice * (parsedTotalPct / 100);
+    var agentFee = grossAmt * (ourSidePct / 100) * (agentSplitPct / 100);
+    var companyFee = grossAmt * (ourSidePct / 100) - agentFee;
+
+    // Build request data for local state
     var requestData = {
         requestId: 'CR-' + Date.now().toString(36).toUpperCase(),
         status: 'Submitted',
@@ -1646,6 +1657,27 @@ function submitBuyerCommissionRequest() {
         closingDate: closingDate
     };
     sessionStorage.setItem('buyerCommRequest', JSON.stringify(requestData));
+
+    // Persist to API
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.deals) {
+        MallanAPI.deals.create({
+            representation_code: 'buyer',
+            property_address: propertyAddress,
+            price_usd: parsedPrice,
+            commission_rate_percent: parsedTotalPct,
+            split_percent: agentSplitPct,
+            agent_fee_usd: agentFee,
+            company_fee_usd: companyFee,
+            gross_commission_usd: grossAmt,
+            contract_signed: closingDate || null
+        }).then(function(data) {
+            requestData.dbId = data.id;
+            sessionStorage.setItem('buyerCommRequest', JSON.stringify(requestData));
+        }).catch(function(err) {
+            console.error('[BuyerDeal] API save failed:', err);
+            showToast('Warning: Saved locally but failed to sync to server', 'warning');
+        });
+    }
 
     // Update stepper to step 2
     updateBuyerCommStepper(2);

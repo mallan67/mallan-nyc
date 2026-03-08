@@ -68,12 +68,12 @@ if (typeof MallanAPI !== 'undefined') {
             AGENT_PROFILE.company = LOGGED_IN_AGENT.companyName;
             if (u.photo) AGENT_PROFILE.photo = u.photo;
         } else {
-            // Not authenticated — redirect to login
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            // Not authenticated — redirect to admin login
+            window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         }
     });
     // Handle 401 events from API calls
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     });
 }

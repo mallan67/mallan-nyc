@@ -105,18 +105,20 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/core/api-client.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
+// NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
+// Use MallanAPI.init() which calls /api/auth/me with credentials: 'include'.
 (function() {
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.hasToken) {
+    if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            if (!d.authenticated) window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         }).catch(function() {
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         });
     } else {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     });
 })();
 </script>

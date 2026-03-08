@@ -60,18 +60,20 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/core/api-client.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
+// NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
+// Use MallanAPI.init() which calls /api/auth/me with credentials: 'include'.
 (function() {
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.hasToken) {
+    if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            if (!d.authenticated) window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         }).catch(function() {
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+            window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
         });
     } else {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
     });
 })();
 </script>
@@ -1175,17 +1177,56 @@ function submitTenantCommissionRequest() {
         return;
     }
 
+    var agentPayout = (document.getElementById('commTenantAgentPayout') || {}).textContent || '$0';
+    var companyShare = (document.getElementById('commTenantCompanyShare') || {}).textContent || '$0';
+
+    var propertyAddress = (document.getElementById('tenantStreetAddress') || {}).value || '';
+    var ourSidePct = parseFloat((document.getElementById('commTenantOurSidePct') || {}).value) || 0;
+    var agentSplitPct = parseFloat((document.getElementById('commTenantAgentSplitPct') || {}).value) || 0;
+    var parsedRent = parseFloat(rent) || 0;
+    var parsedCommValue = parseFloat(commValue) || 0;
+    var basis = (document.getElementById('commTenantBasis') || {}).value || 'months';
+    var grossAmt = 0;
+    if (basis === 'months') grossAmt = parsedRent * parsedCommValue;
+    else if (basis === 'percent') grossAmt = (parsedRent * 12) * (parsedCommValue / 100);
+    else if (basis === 'flat') grossAmt = parsedCommValue;
+    var commRatePct = parsedRent > 0 ? (grossAmt / (parsedRent * 12)) * 100 : 0;
+    var agentFee = grossAmt * (ourSidePct / 100) * (agentSplitPct / 100);
+    var companyFee = grossAmt * (ourSidePct / 100) - agentFee;
+
     var requestData = {
         requestId: 'CR-' + Date.now().toString(36).toUpperCase(),
         status: 'Submitted',
         submittedDate: new Date().toLocaleString(),
         rlsId: (document.getElementById('commTenantRlsId') || {}).value || '',
         rent: rent,
-        agentPayout: (document.getElementById('commTenantAgentPayout') || {}).textContent || '$0',
+        agentPayout: agentPayout,
+        companyShare: companyShare,
         payMethod: payMethod.value,
         leaseStart: leaseStart
     };
     sessionStorage.setItem('tenantCommRequest', JSON.stringify(requestData));
+
+    // Persist to API
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.deals) {
+        MallanAPI.deals.create({
+            representation_code: 'tenant',
+            property_address: propertyAddress,
+            price_usd: parsedRent * 12,
+            commission_rate_percent: commRatePct,
+            split_percent: agentSplitPct,
+            agent_fee_usd: agentFee,
+            company_fee_usd: companyFee,
+            gross_commission_usd: grossAmt,
+            contract_signed: leaseStart || null
+        }).then(function(data) {
+            requestData.dbId = data.id;
+            sessionStorage.setItem('tenantCommRequest', JSON.stringify(requestData));
+        }).catch(function(err) {
+            console.error('[TenantDeal] API save failed:', err);
+            showToast('Warning: Saved locally but failed to sync to server', 'warning');
+        });
+    }
 
     updateTenantCommStepper(2);
     document.getElementById('commTenantSubmitDate').textContent = requestData.submittedDate;
