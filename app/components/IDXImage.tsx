@@ -83,8 +83,7 @@ export default function IDXImage({
         onError={() => setFailed(true)}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
-          animation: loaded ? 'liquidMotion 10s ease-in-out infinite' : undefined,
-          transformOrigin: '50% 60%',
+          willChange: loaded ? undefined : 'opacity',
         }}
       />
     </div>
