@@ -2,6 +2,7 @@ import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
 import FeaturedListings from './components/FeaturedListings';
 import ExploreNeighborhoods from './components/ExploreNeighborhoods';
+import ExclusivesVault from './components/ExclusivesVault';
 import ZillowTestimonials from './components/ZillowTestimonials';
 import AboutSection from './components/AboutSection';
 import ValueProposition from './components/ValueProposition';
@@ -23,6 +24,7 @@ export default function HomePage() {
           <HeroSearch />
           <FeaturedListings />
           <ExploreNeighborhoods />
+          <ExclusivesVault />
           <ZillowTestimonials />
           <AboutSection />
           <ValueProposition />
