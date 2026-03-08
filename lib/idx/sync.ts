@@ -52,9 +52,15 @@ export async function syncListings(
 
   console.log(`[IDX Sync] Starting sync with filter: ${filter}`);
 
+  const maxRecords = options.maxRecords || 1000;
+  // Disable $expand=Media for large syncs (>200 records) to avoid Trestle timeouts.
+  // Media will be batch-fetched separately after property sync.
+  const useExpandMedia = maxRecords <= 200;
+
   const fetchResult = await fetchFromTrestle({
     filter,
-    maxTotal: options.maxRecords || 1000,
+    maxTotal: maxRecords,
+    expandMedia: useExpandMedia,
   });
 
   console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Trestle`);
@@ -140,6 +146,72 @@ export async function syncListings(
       errors++;
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
       console.error(`[IDX Sync] Error upserting listing ${listingId}:`, err);
+    }
+  }
+
+  // ── Batch-fetch media for listings that didn't get inline media ──
+  // When $expand=Media was disabled (large syncs), fetch photos separately
+  // and update DB records. Uses Trestle Media endpoint (separate quota: 18K req/hr).
+  if (!useExpandMedia && upserted > 0) {
+    try {
+      const listingsNeedMedia = fetchResult.records
+        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0)
+        .map((r) => String(r.ListingId || r.SourceSystemKey || ""));
+
+      if (listingsNeedMedia.length > 0) {
+        console.log(`[IDX Sync] Batch-fetching media for ${listingsNeedMedia.length} listings`);
+        const { getAccessToken } = await import("./auth");
+        const token = await getAccessToken();
+        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+        const BATCH_SIZE = 50;
+
+        for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
+          const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
+          if (batch.length === 0) continue;
+
+          const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
+          const mediaFilter = `(${idFilter}) and (Order le 3 or MediaCategory ne 'Photo')`;
+          const mediaParams = new URLSearchParams();
+          mediaParams.set("$filter", mediaFilter);
+          mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+          mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
+          mediaParams.set("$top", String(batch.length * 4));
+
+          try {
+            const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            });
+            if (!res.ok) continue;
+            const data = await res.json();
+
+            // Group media by listing ID
+            const mediaByListing = new Map<string, { MediaURL: string; MediaCategory: string; Order: number }[]>();
+            for (const m of data.value || []) {
+              const lid = String(m.ResourceRecordID || "");
+              if (!lid || !m.MediaURL) continue;
+              if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+              mediaByListing.get(lid)!.push({
+                MediaURL: String(m.MediaURL),
+                MediaCategory: String(m.MediaCategory || "Photo"),
+                Order: Number(m.Order ?? 0),
+              });
+            }
+
+            // Update DB records with media
+            for (const [listingId, media] of mediaByListing) {
+              await prisma.listing.updateMany({
+                where: { listing_id: listingId },
+                data: { media: media as unknown as Prisma.InputJsonValue },
+              });
+            }
+          } catch (mediaErr) {
+            console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
+          }
+        }
+        console.log("[IDX Sync] Media batch-fetch complete");
+      }
+    } catch (mediaSyncErr) {
+      console.warn("[IDX Sync] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
     }
   }
 
