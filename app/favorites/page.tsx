@@ -47,14 +47,27 @@ export default function FavoritesPage() {
               </p>
             </div>
             {favorites.length > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm('Remove all saved properties?')) clearAll();
-                }}
-                className="text-sm text-red-500 hover:text-red-600 transition-colors"
-              >
-                Clear All
-              </button>
+              <div className="flex items-center gap-4">
+                {favorites.length >= 2 && (
+                  <Link
+                    href="/compare"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-brand-dark text-white rounded-2xl text-sm font-medium hover:bg-brand-dark/90 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                    </svg>
+                    Compare
+                  </Link>
+                )}
+                <button
+                  onClick={() => {
+                    if (confirm('Remove all saved properties?')) clearAll();
+                  }}
+                  className="text-sm text-red-500 hover:text-red-600 transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
             )}
           </div>
 

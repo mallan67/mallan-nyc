@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
     const params = new URLSearchParams({
       $filter: zipFilter,
       $select: selectFields,
+      $expand: 'Media($select=MediaURL,MediaCategory,Order;$top=1;$orderby=Order)',
       $orderby: 'ListPrice desc',
       $top: '7',
     });
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
       const nhParams = new URLSearchParams({
         $filter: neighborhoodFilter,
         $select: selectFields,
+        $expand: 'Media($select=MediaURL,MediaCategory,Order;$top=1;$orderby=Order)',
         $orderby: 'ListPrice desc',
         $top: '10',
       });
@@ -123,7 +125,10 @@ export async function GET(request: NextRequest) {
           sqft: Number(r.LivingArea || 0),
           address: `${streetNum} ${streetName}${unit}`,
           neighborhood: String(r.CityRegion || ''),
-          photoUrl: null, // Photos require separate Media fetch — client will show placeholder
+          photoUrl: Array.isArray(r.Media) && r.Media.length > 0
+            ? String((r.Media as Record<string, unknown>[])[0].MediaURL || '')
+            : null,
+          photosCount: Array.isArray(r.Media) ? (r.Media as unknown[]).length : 0,
           propertyType: mapPropertyType(r),
           office: String(r.ListOfficeName || ''),
         };

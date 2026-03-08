@@ -12,8 +12,9 @@ type HeroSettings = {
 };
 
 type SearchSuggestion = {
-  type: 'address' | 'neighborhood' | 'zip' | 'agent';
+  type: 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
   label: string;
+  sublabel: string;
   value: string;
 };
 
@@ -22,26 +23,13 @@ const DEFAULT_HERO: HeroSettings = {
   heroTagline: 'New York Real Estate, Reimagined.',
 };
 
-// Static suggestions — will be replaced with /api/search/suggest once backend search is complete
-const MOCK_SUGGESTIONS: SearchSuggestion[] = [
-  { type: 'neighborhood', label: 'Upper East Side', value: 'upper-east-side' },
-  { type: 'neighborhood', label: 'Upper West Side', value: 'upper-west-side' },
-  { type: 'neighborhood', label: 'Tribeca', value: 'tribeca' },
-  { type: 'neighborhood', label: 'SoHo', value: 'soho' },
-  { type: 'neighborhood', label: 'Chelsea', value: 'chelsea' },
-  { type: 'neighborhood', label: 'Midtown', value: 'midtown' },
-  { type: 'neighborhood', label: 'Financial District', value: 'fidi' },
-  { type: 'neighborhood', label: 'Greenwich Village', value: 'greenwich-village' },
-  { type: 'zip', label: '10001 - Chelsea', value: '10001' },
-  { type: 'zip', label: '10002 - Lower East Side', value: '10002' },
-  { type: 'zip', label: '10003 - East Village', value: '10003' },
-  { type: 'zip', label: '10010 - Gramercy', value: '10010' },
-  { type: 'zip', label: '10021 - Upper East Side', value: '10021' },
-  { type: 'zip', label: '10024 - Upper West Side', value: '10024' },
-  { type: 'address', label: '432 Park Avenue, New York, NY', value: '432-park-avenue' },
-  { type: 'address', label: '15 Central Park West, New York, NY', value: '15-central-park-west' },
-  { type: 'address', label: '56 Leonard Street, New York, NY', value: '56-leonard-street' },
-  { type: 'agent', label: 'Maya Allan', value: 'maya-allan' },
+// Default suggestions shown before user types (popular neighborhoods)
+const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
+  { type: 'neighborhood', label: 'Upper East Side', sublabel: 'Manhattan', value: 'upper-east-side' },
+  { type: 'neighborhood', label: 'Upper West Side', sublabel: 'Manhattan', value: 'upper-west-side' },
+  { type: 'neighborhood', label: 'Tribeca', sublabel: 'Manhattan', value: 'tribeca' },
+  { type: 'neighborhood', label: 'Chelsea', sublabel: 'Manhattan', value: 'chelsea' },
+  { type: 'neighborhood', label: 'Williamsburg', sublabel: 'Brooklyn', value: 'williamsburg' },
 ];
 
 export default function HeroSearch() {
@@ -84,25 +72,47 @@ export default function HeroSearch() {
     })();
   }, []);
 
-  // Filter suggestions client-side
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Fetch suggestions from API (debounced)
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
       setSuggestions([]);
       return;
     }
-    const filtered = MOCK_SUGGESTIONS.filter(s =>
-      s.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.value.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 8);
-    setSuggestions(filtered);
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const res = await fetch(
+        `/api/listings/suggest?q=${encodeURIComponent(searchQuery)}`,
+        { signal: controller.signal }
+      );
+      const data = await res.json();
+      if (data.success && data.suggestions?.length > 0) {
+        setSuggestions(data.suggestions);
+      } else {
+        setSuggestions([]);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setSuggestions([]);
+    }
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchSuggestions(query);
-    }, 150);
+    }, 250);
     return () => clearTimeout(timer);
   }, [query, fetchSuggestions]);
+
+  // Cleanup abort controller
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   // Click outside to close suggestions
   useEffect(() => {
@@ -130,9 +140,28 @@ export default function HeroSearch() {
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     setQuery(suggestion.label);
     setShowSuggestions(false);
+
+    if (suggestion.type === 'agent') {
+      // Navigate to agent profile page
+      router.push(`/agents/${suggestion.value}`);
+      return;
+    }
+
+    if (suggestion.type === 'listing') {
+      // Navigate to listing detail page
+      router.push(`/listings/${suggestion.value}`);
+      return;
+    }
+
     const params = new URLSearchParams();
     params.set('type', activeTab);
-    params.set(suggestion.type, suggestion.value);
+    if (suggestion.type === 'neighborhood') {
+      params.set('neighborhood', suggestion.value);
+    } else if (suggestion.type === 'zip') {
+      params.set('zip', suggestion.value);
+    } else if (suggestion.type === 'address') {
+      params.set('q', suggestion.value);
+    }
     router.push(`/search?${params.toString()}`);
   };
 
@@ -191,6 +220,12 @@ export default function HeroSearch() {
         return (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        );
+      case 'listing':
+        return (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
           </svg>
         );
     }
@@ -272,9 +307,16 @@ export default function HeroSearch() {
                 setShowSuggestions(true);
                 setSelectedIndex(-1);
               }}
-              onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+              onFocus={() => {
+                if (query.length >= 2) {
+                  setShowSuggestions(true);
+                } else if (query.length === 0) {
+                  setSuggestions(DEFAULT_SUGGESTIONS);
+                  setShowSuggestions(true);
+                }
+              }}
               onKeyDown={handleKeyDown}
-              placeholder="Search by neighborhood, address, or building..."
+              placeholder="Address, neighborhood, zip, agent, or listing #..."
               className="flex-1 min-w-0 px-3 md:px-4 py-3 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/85 font-light tracking-wide"
               autoComplete="off"
               role="combobox"
@@ -318,11 +360,18 @@ export default function HeroSearch() {
                   <span className="text-brand-dark/85">
                     {getTypeIcon(suggestion.type)}
                   </span>
-                  <span className="flex-1 text-brand-dark font-light text-sm">
-                    {suggestion.label}
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-brand-dark font-light text-sm truncate">
+                      {suggestion.label}
+                    </span>
+                    {suggestion.sublabel && (
+                      <span className="block text-[11px] text-brand-dark/50 font-light truncate">
+                        {suggestion.sublabel}
+                      </span>
+                    )}
                   </span>
-                  <span className="text-[11px] text-brand-dark/85 capitalize font-light">
-                    {suggestion.type}
+                  <span className="text-[10px] text-brand-dark/40 capitalize font-light flex-shrink-0">
+                    {suggestion.type === 'listing' ? 'listing #' : suggestion.type}
                   </span>
                 </button>
               ))}

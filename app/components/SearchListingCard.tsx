@@ -65,33 +65,39 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         )}
       </div>
       <div className="p-5">
-        <p className="text-xl font-display font-semibold mb-1">
+        <p className="text-xl font-display font-bold text-brand-dark">
           {formatPrice(listing.listPrice, isRental)}
         </p>
-        <p className="text-brand-dark">
+        <div className="flex gap-3 text-sm text-brand-dark/90 mt-1">
+          <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
+          <span className="text-brand-dark/30">&middot;</span>
+          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} Bath</span>
+          {listing.livingArea && listing.livingArea > 0 && (
+            <>
+              <span className="text-brand-dark/30">&middot;</span>
+              <span>{listing.livingArea.toLocaleString()} SF</span>
+            </>
+          )}
+        </div>
+        <p className="text-sm text-brand-dark mt-2">
           {listing.address.streetName === 'Address Undisclosed' ? (
             <span className="italic text-brand-dark/85">Address Undisclosed</span>
           ) : (
             <>{listing.address.streetNumber} {listing.address.streetName}{listing.address.unitNumber && `, ${listing.address.unitNumber}`}</>
           )}
         </p>
-        <p className="text-brand-dark/85 text-sm">
-          {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
-          {listing.propertyType ? ` · ${listing.propertyType}` : ''}
+        <p className="text-sm text-brand-dark/85 mt-0.5">
+          {listing.propertyType && <>{listing.propertyType}</>}
+          {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
+            ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough}</>
+            : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough}</>}
         </p>
-        <div className="flex gap-4 text-sm text-brand-dark mt-3 pt-3 border-t border-black/5">
-          <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`} bath</span>
-          {listing.livingArea && listing.livingArea > 0 && (
-            <span>{listing.livingArea.toLocaleString()} sqft</span>
-          )}
-        </div>
         {!isRental && listing.associationFee && (
-          <p className="text-xs text-brand-dark mt-2">
+          <p className="text-xs text-brand-dark/80 mt-1.5">
             {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
         )}
-        <p className="text-[10px] text-brand-dark/75 mt-2 pt-2 border-t border-black/5">
+        <p className="text-[10px] text-brand-dark/70 mt-2 pt-2 border-t border-black/5">
           <span className="font-semibold tracking-wide">RLS</span>
           {' '}&middot;{' '}{listing.listOfficeName}
           {listing.modificationTimestamp && (
@@ -134,19 +140,32 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
       <div className="p-4 flex-1 min-w-0">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-lg font-display font-semibold">
+            <p className="text-lg font-display font-bold text-brand-dark">
               {formatPrice(listing.listPrice, isRental)}
             </p>
-            <p className="text-brand-dark truncate">
+            <div className="flex gap-3 text-sm text-brand-dark/90 mt-0.5">
+              <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
+              <span className="text-brand-dark/30">&middot;</span>
+              <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} Bath</span>
+              {listing.livingArea && listing.livingArea > 0 && (
+                <>
+                  <span className="text-brand-dark/30">&middot;</span>
+                  <span>{listing.livingArea.toLocaleString()} SF</span>
+                </>
+              )}
+            </div>
+            <p className="text-sm text-brand-dark truncate mt-1.5">
               {listing.address.streetName === 'Address Undisclosed' ? (
                 <span className="italic text-brand-dark/85">Address Undisclosed</span>
               ) : (
                 <>{listing.address.streetNumber} {listing.address.streetName}{listing.address.unitNumber && `, ${listing.address.unitNumber}`}</>
               )}
             </p>
-            <p className="text-brand-dark/85 text-sm">
-              {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough ? `${listing.address.neighborhood}, ` : ''}{listing.address.borough}
-              {listing.propertyType ? ` · ${listing.propertyType}` : ''}
+            <p className="text-sm text-brand-dark/85 mt-0.5">
+              {listing.propertyType && <>{listing.propertyType}</>}
+              {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
+                ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough}</>
+                : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough}</>}
             </p>
           </div>
           {listing.propertySubType && (
@@ -155,15 +174,12 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
             </span>
           )}
         </div>
-        <div className="flex gap-4 text-sm text-brand-dark mt-2">
-          <span>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`} bath</span>
-          {listing.livingArea && listing.livingArea > 0 && <span>{listing.livingArea.toLocaleString()} sqft</span>}
-          {!isRental && listing.associationFee && (
-            <span>{listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo</span>
-          )}
-        </div>
-        <p className="text-[10px] text-brand-dark/75 mt-2">
+        {!isRental && listing.associationFee && (
+          <p className="text-xs text-brand-dark/80 mt-1.5">
+            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
+          </p>
+        )}
+        <p className="text-[10px] text-brand-dark/70 mt-2">
           <span className="font-semibold tracking-wide">RLS</span>
           {' '}&middot;{' '}{listing.listOfficeName}
           {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
@@ -263,31 +279,37 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
       </div>
       {/* Info */}
       <Link href={listingHref(listing)} className="block px-3 py-2.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[15px] font-display font-semibold text-brand-dark">
-            {formatPrice(listing.listPrice, isRental)}
-          </p>
-          <div className="flex gap-2 text-xs text-brand-dark/85">
-            <span>{listing.bedroomsTotal} bd</span>
-            <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} ba</span>
-            {listing.livingArea && listing.livingArea > 0 && (
-              <span>{listing.livingArea.toLocaleString()} sf</span>
-            )}
-          </div>
+        <p className="text-[15px] font-display font-bold text-brand-dark">
+          {formatPrice(listing.listPrice, isRental)}
+        </p>
+        <div className="flex gap-2 text-xs text-brand-dark/90 mt-0.5">
+          <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
+          <span className="text-brand-dark/30">&middot;</span>
+          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} Bath</span>
+          {listing.livingArea && listing.livingArea > 0 && (
+            <>
+              <span className="text-brand-dark/30">&middot;</span>
+              <span>{listing.livingArea.toLocaleString()} SF</span>
+            </>
+          )}
         </div>
-        <p className="text-sm text-brand-dark truncate mt-0.5">
+        <p className="text-sm text-brand-dark truncate mt-1">
           {listing.address.streetName === 'Address Undisclosed'
             ? 'Address Undisclosed'
             : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
         </p>
-        <p className="text-xs text-brand-dark/75 truncate">
+        <p className="text-xs text-brand-dark/85 truncate mt-0.5">
+          {listing.propertyType && <>{listing.propertyType}</>}
           {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
-            ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
-            : listing.address.borough || 'Manhattan'}
-          {listing.propertyType ? ` · ${listing.propertyType}` : ''}
-          {!isRental && listing.associationFee ? ` · ${listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: $${listing.associationFee.toLocaleString()}/mo` : ''}
+            ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough || 'Manhattan'}</>
+            : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough || 'Manhattan'}</>}
         </p>
-        <p className="text-[10px] text-brand-dark/60 mt-1">
+        {!isRental && listing.associationFee && (
+          <p className="text-[11px] text-brand-dark/80 mt-0.5">
+            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
+          </p>
+        )}
+        <p className="text-[10px] text-brand-dark/70 mt-1">
           <span className="font-semibold tracking-wide">RLS</span> · {listing.listOfficeName}
         </p>
       </Link>
