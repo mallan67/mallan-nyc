@@ -524,8 +524,8 @@ function SearchClient() {
         )}
 
         {/* ── SPLIT VIEW (default desktop) ── */}
-        {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
-          <div className="flex h-full">
+        {!error && sortedListings.length > 0 && viewMode === 'split' && (
+          <div className={`flex h-full transition-opacity duration-300 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
             {/* Listings — left 55% */}
             <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto border-r border-black/5">
               <div className="p-2 grid grid-cols-2 gap-2">
@@ -568,7 +568,7 @@ function SearchClient() {
         )}
 
         {/* ── ALL LISTINGS VIEW ── */}
-        {!loading && !error && sortedListings.length > 0 && viewMode === 'all-listings' && (
+        {!error && sortedListings.length > 0 && viewMode === 'all-listings' && (
           <div ref={listingsRef} className="h-full overflow-y-auto p-4">
             <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6">
               {sortedListings.map((listing) => (
@@ -588,7 +588,7 @@ function SearchClient() {
         )}
 
         {/* ── ALL MAP VIEW ── */}
-        {!loading && !error && sortedListings.length > 0 && viewMode === 'all-map' && (
+        {!error && sortedListings.length > 0 && viewMode === 'all-map' && (
           <div className="h-full isolate">
             <SearchMap
               listings={sortedListings}
@@ -599,7 +599,7 @@ function SearchClient() {
         )}
 
         {/* ── GRID VIEW (traditional scroll) ── */}
-        {!loading && !error && sortedListings.length > 0 && viewMode === 'grid' && (
+        {!error && sortedListings.length > 0 && viewMode === 'grid' && (
           <section className="py-6">
             <div className="max-w-7xl mx-auto px-4">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -619,7 +619,7 @@ function SearchClient() {
         )}
 
         {/* ── LIST VIEW (traditional scroll) ── */}
-        {!loading && !error && sortedListings.length > 0 && viewMode === 'list' && (
+        {!error && sortedListings.length > 0 && viewMode === 'list' && (
           <section className="py-6">
             <div className="max-w-7xl mx-auto px-4">
               <div className="flex flex-col gap-4">

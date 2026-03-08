@@ -262,12 +262,12 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         )}
       </div>
       {/* Info */}
-      <Link href={listingHref(listing)} className="block px-3 py-2.5">
+      <Link href={listingHref(listing)} className="block px-3.5 py-3">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[15px] font-display font-semibold text-brand-dark">
+          <p className="text-base font-display font-semibold text-brand-dark">
             {formatPrice(listing.listPrice, isRental)}
           </p>
-          <div className="flex gap-2 text-xs text-brand-dark/85">
+          <div className="flex gap-2.5 text-xs text-brand-dark/80">
             <span>{listing.bedroomsTotal} bd</span>
             <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} ba</span>
             {listing.livingArea && listing.livingArea > 0 && (
@@ -275,19 +275,19 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
             )}
           </div>
         </div>
-        <p className="text-sm text-brand-dark truncate mt-0.5">
+        <p className="text-[13px] text-brand-dark truncate mt-1">
           {listing.address.streetName === 'Address Undisclosed'
             ? 'Address Undisclosed'
             : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
         </p>
-        <p className="text-xs text-brand-dark/75 truncate">
+        <p className="text-xs text-brand-dark/70 truncate mt-0.5">
           {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
             ? `${listing.address.neighborhood}, ${listing.address.borough || 'Manhattan'}`
             : listing.address.borough || 'Manhattan'}
           {listing.propertyType ? ` · ${listing.propertyType}` : ''}
           {!isRental && listing.associationFee ? ` · ${listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: $${listing.associationFee.toLocaleString()}/mo` : ''}
         </p>
-        <p className="text-[10px] text-brand-dark/60 mt-1">
+        <p className="text-[10px] text-brand-dark/50 mt-1.5">
           <span className="font-semibold tracking-wide">RLS</span> · {listing.listOfficeName}
         </p>
       </Link>
