@@ -114,43 +114,51 @@
             if (amountEl) amountEl.textContent = fmt(agentAmount);
         }
 
-        // Auto-fill commission request form from deal selection
+        // Auto-fill commission request form from deal selection (API-driven)
+        var _commReqDealsCache = null;
+
         function autoFillCommissionRequest(selectEl) {
-            var val = selectEl.value;
+            var dealId = selectEl.value;
+            if (!dealId || !_commReqDealsCache) return;
+
             var addrEl = document.getElementById('commReqAddress');
-            var clientEl = document.getElementById('commReqClient');
-            var emailEl = document.getElementById('commReqClientEmail');
-            var phoneEl = document.getElementById('commReqClientPhone');
             var typeEl = document.getElementById('commReqDealType');
             var dateEl = document.getElementById('commReqCloseDate');
             var roleEl = document.getElementById('commReqRole');
-            var paidByEl = document.getElementById('commReqPaidBy');
 
-            var deals = {
-                'deal1': { address: '200 E 66th St #A1506', client: 'Emily Rodriguez', email: 'emily.rodriguez@email.com', phone: '(212) 555-1234', type: 'sale', date: '2026-01-15', role: 'listing', paidBy: 'seller' },
-                'deal2': { address: '45 W 34th St #12B', client: 'James Chen', email: 'james.chen@email.com', phone: '(917) 555-5678', type: 'sale', date: '2026-01-28', role: 'buyer', paidBy: 'co-broke' },
-                'deal3': { address: '180 E 88th St #4A', client: 'Sarah Kim', email: 'sarah.kim@email.com', phone: '(646) 555-9012', type: 'rental', date: '2026-02-01', role: 'tenant', paidBy: 'owner' },
-                'deal4': { address: '320 E 72nd St #8D', client: 'Michael Park', email: 'michael.park@email.com', phone: '(347) 555-3456', type: 'rental', date: '2026-02-03', role: 'landlord', paidBy: 'owner' }
-            };
+            var deal = null;
+            for (var i = 0; i < _commReqDealsCache.length; i++) {
+                if (_commReqDealsCache[i].id === dealId) { deal = _commReqDealsCache[i]; break; }
+            }
 
-            if (deals[val]) {
-                if (addrEl) addrEl.value = deals[val].address;
-                if (clientEl) clientEl.value = deals[val].client;
-                if (emailEl) emailEl.value = deals[val].email;
-                if (phoneEl) phoneEl.value = deals[val].phone;
-                if (typeEl) typeEl.value = deals[val].type;
-                if (dateEl) dateEl.value = deals[val].date;
-                if (roleEl) roleEl.value = deals[val].role;
-                if (paidByEl) paidByEl.value = deals[val].paidBy;
+            if (deal) {
+                if (addrEl) addrEl.value = deal.property_address || '';
+                if (typeEl) typeEl.value = deal.representation_code === 'tenant' ? 'rental' : 'sale';
+                if (dateEl) dateEl.value = deal.contract_signed ? deal.contract_signed.split('T')[0] : '';
+                if (roleEl) roleEl.value = deal.representation_code || 'buyer';
                 updateCommReqFields();
             } else {
                 if (addrEl) addrEl.value = '';
-                if (clientEl) clientEl.value = '';
-                if (emailEl) emailEl.value = '';
-                if (phoneEl) phoneEl.value = '';
                 if (dateEl) dateEl.value = '';
                 if (roleEl) roleEl.value = '';
             }
+        }
+
+        // Load deals into commission request dropdown
+        function loadCommReqDeals() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.deals) return;
+            MallanAPI.deals.list({ limit: 50 }).then(function(res) {
+                _commReqDealsCache = res.deals || [];
+                var selectEl = document.getElementById('commReqDeal');
+                if (!selectEl) return;
+                selectEl.innerHTML = '<option value="">-- Select Deal --</option>';
+                _commReqDealsCache.forEach(function(d) {
+                    var opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = (d.property_address || 'No address') + ' (' + (d.representation_code || 'buyer') + ')';
+                    selectEl.appendChild(opt);
+                });
+            }).catch(function() {});
         }
 
         // Update form fields based on agent role and commission source

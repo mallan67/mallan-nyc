@@ -5431,7 +5431,7 @@ function initLoggedInAgent() {
                 }
             } else {
                 // Not authenticated — redirect to login
-                window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+                window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
                 return;
             }
         });
@@ -5439,7 +5439,7 @@ function initLoggedInAgent() {
 }
 // Handle 401 events from API calls
 window.addEventListener('mallan:auth:unauthorized', function() {
-    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+    window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname);
 });
 
 function cancelSaleForm() { /* No-op — viewer only */ }

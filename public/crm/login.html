@@ -307,14 +307,12 @@
             MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
         }
 
-        // ── Check if already logged in ──
-        if (MallanAPI.hasToken) {
-            MallanAPI.init().then(function (data) {
-                if (data.authenticated) {
-                    redirectAfterLogin();
-                }
-            }).catch(function () { /* not logged in */ });
-        }
+        // ── Check if already logged in (always try — httpOnly cookie not visible to JS) ──
+        MallanAPI.init().then(function (data) {
+            if (data.authenticated) {
+                redirectAfterLogin();
+            }
+        }).catch(function () { /* not logged in */ });
 
         // ── Redirect target (role-aware, safe against open redirect) ──
         function getRedirectTarget() {
