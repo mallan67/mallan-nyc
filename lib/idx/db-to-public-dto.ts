@@ -39,10 +39,6 @@ interface DbAddress {
   Neighborhood?: string;
   BuildingName?: string;
   UnparsedAddress?: string;
-  Latitude?: number | null;
-  Longitude?: number | null;
-  CityRegion?: string;
-  CountyOrParish?: string;
 }
 
 interface DbFeatures {
@@ -103,26 +99,6 @@ export interface DbListing {
   updated_at: string | Date;
 }
 
-/** Map property type using CommonInterest (most reliable for NYC) */
-function mapPropertyType(propertyType: string | null, subType: string | null, features: DbFeatures): string {
-  const ci = String(features.CommonInterest || '');
-  if (ci === 'Condominium') return 'Condo';
-  if (ci === 'StockCooperative') return 'Co-op';
-  if (ci === 'Condop') return 'Condop';
-  if (subType) {
-    const sub = subType.toLowerCase();
-    if (sub.includes('condo')) return 'Condo';
-    if (sub.includes('co-op') || sub.includes('coop') || sub.includes('stock cooperative')) return 'Co-op';
-    if (sub.includes('condop')) return 'Condop';
-    if (sub.includes('townhouse')) return 'Townhouse';
-    if (sub.includes('single family') || sub.includes('house')) return 'House';
-    if (sub.includes('multi')) return 'Multi-Family';
-    if (sub === 'apartment') return propertyType || 'Residential';
-    return subType;
-  }
-  return propertyType || 'Residential';
-}
-
 /** RESO StandardStatus values that are publicly displayable */
 const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
 
@@ -178,11 +154,6 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const suppressAddress = listing.internet_address_display_yn === false;
   const isComingSoon = listing.status === 'ComingSoon';
 
-  // Lat/lng from Trestle (stored in address JSON during sync)
-  const latitude = addr.Latitude != null ? Number(addr.Latitude) : undefined;
-  const longitude = addr.Longitude != null ? Number(addr.Longitude) : undefined;
-  const hasCoords = latitude && longitude && latitude !== 0 && longitude !== 0;
-
   const slug = generateListingSlug({
     address: {
       streetNumber,
@@ -223,8 +194,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
           stateOrProvince: 'NY',
           postalCode,
           county,
-          neighborhood: addr.Neighborhood || addr.CityRegion || listing.neighborhood || undefined,
-          // No lat/lng when address is suppressed — prevents map pin leaking location
+          neighborhood: addr.Neighborhood || listing.neighborhood || undefined,
         }
       : {
           streetNumber,
@@ -234,13 +204,12 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
           stateOrProvince: 'NY',
           postalCode,
           county,
-          neighborhood: addr.Neighborhood || addr.CityRegion || listing.neighborhood || undefined,
-          ...(hasCoords ? { latitude, longitude } : {}),
+          neighborhood: addr.Neighborhood || listing.neighborhood || undefined,
         },
     listPrice,
     originalListPrice: listPrice,
     closePrice: features.ClosePrice ? Number(features.ClosePrice) : null,
-    propertyType: mapPropertyType(listing.property_type, listing.property_sub_type, features),
+    propertyType: listing.property_type || 'Residential',
     propertySubType: listing.property_sub_type,
     bedroomsTotal: listing.bedrooms_total || 0,
     bathroomsFull: listing.bathrooms_full || 0,
