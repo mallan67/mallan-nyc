@@ -1,7 +1,5 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { ALL_BOROUGH_SLUGS, getBoroughConfig, loadNeighborhoods } from '@/lib/neighborhoods/boroughs';
@@ -45,8 +43,6 @@ export default function NeighborhoodsIndexPage() {
 
   return (
     <>
-      <Header dark />
-
       {/* Hero */}
       <section className="relative h-[340px] sm:h-[400px] md:h-[440px] overflow-hidden">
         <div
@@ -149,7 +145,6 @@ export default function NeighborhoodsIndexPage() {
       </div>
 
       <SocialShareBar title="NYC Neighborhoods | Mallan Real Estate" />
-      <Footer />
 
       <script
         type="application/ld+json"

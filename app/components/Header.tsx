@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from './AuthProvider';
 
 type ResourceItem = { title: string; href: string };
 
@@ -77,18 +78,10 @@ function NavDropdown({ label, items, dark: _dark }: { label: string; items: { ti
   );
 }
 
-type AuthState = {
-  authenticated: boolean;
-  principalType?: 'agent' | 'lead';
-  userName?: string;
-};
-
-type HeaderProps = {
-  dark?: boolean;
-};
-
-export default function Header({ dark = false }: HeaderProps = {}) {
+export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
+  const auth = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
@@ -102,25 +95,13 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'Investors Guide', href: '/resources/investors-guide' },
   ]);
 
-  // Auth state for showing portal/CRM link
-  const [auth, setAuth] = useState<AuthState>({ authenticated: false });
-  const [authChecked, setAuthChecked] = useState(false);
+  // Homepage: absolute (overlays hero). Inner pages: fixed.
+  const dark = pathname !== '/';
 
+  // Close mobile menu on navigation
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.authenticated) {
-          setAuth({
-            authenticated: true,
-            principalType: data.principalType,
-            userName: data.user?.name?.split(' ')[0],
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setAuthChecked(true));
-  }, []);
+    setMobileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     fetch('/api/resources')
@@ -163,7 +144,6 @@ export default function Header({ dark = false }: HeaderProps = {}) {
     { title: 'View All', href: '/neighborhoods' },
   ];
 
-  // Homepage: absolute (overlays hero). Inner pages: fixed.
   const positionClass = dark ? 'fixed' : 'absolute';
   const bgClass = mobileOpen
     ? 'bg-[rgba(20,27,45,0.95)] backdrop-blur-2xl'
@@ -286,8 +266,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                     </Link>
                     <button
                       onClick={async () => {
-                        await fetch('/api/auth/logout', { method: 'POST' });
-                        setAuth({ authenticated: false });
+                        await auth.logout();
                         router.push('/sign-in');
                       }}
                       className="block w-full text-left px-4 py-2.5 text-sm text-red-500/70 hover:bg-red-50/50 hover:text-red-600 transition-colors whitespace-nowrap"
@@ -499,8 +478,7 @@ export default function Header({ dark = false }: HeaderProps = {}) {
                 {/* Always show Sign Out — if not logged in it just clears any stale cookie */}
                 <button
                   onClick={async () => {
-                    await fetch('/api/auth/logout', { method: 'POST' });
-                    setAuth({ authenticated: false });
+                    await auth.logout();
                     setMobileOpen(false);
                     router.push('/sign-in');
                   }}

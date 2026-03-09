@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import AgentsGrid from '@/app/components/AgentsGrid';
 
@@ -25,12 +23,10 @@ export const metadata: Metadata = {
 export default function AgentsPage() {
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-20">
         <AgentsGrid />
       </main>
       <SocialShareBar title="Our Agents | Mallan Real Estate" />
-      <Footer />
     </div>
   );
 }

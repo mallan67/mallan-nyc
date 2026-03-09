@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
@@ -112,7 +110,6 @@ export default function SignUpPage() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
-        <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
             <div className="glass-card rounded-3xl p-8 sm:p-10">
@@ -150,14 +147,12 @@ export default function SignUpPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
           <div className="glass-card rounded-3xl p-8 sm:p-10">
@@ -456,7 +451,6 @@ export default function SignUpPage() {
           </p>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
 
@@ -36,7 +34,6 @@ export default function FavoritesPage() {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-24 pb-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -157,7 +154,6 @@ export default function FavoritesPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

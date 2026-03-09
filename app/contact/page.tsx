@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 
 /**
  * Contact Page - TCPA-Safe Implementation
@@ -126,7 +124,6 @@ export default function ContactPage() {
 
   return (
     <>
-      <Header dark />
       <main id="main-content" className="min-h-screen bg-[#FEFEFE] pt-20">
         {/* Hero */}
         <section className="relative text-white py-20 md:py-28 overflow-hidden">
@@ -426,7 +423,6 @@ export default function ContactPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

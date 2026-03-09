@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import ServerLegalPage from '@/app/components/ServerLegalPage';
 import accommodationsData from '@/data/pages/reasonable-accommodations.json';
 
@@ -18,7 +16,6 @@ export const metadata: Metadata = {
 export default function ReasonableAccommodationsPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header dark />
       <main className="pt-20">
         <ServerLegalPage
           title={accommodationsData.title}
@@ -26,7 +23,6 @@ export default function ReasonableAccommodationsPage() {
           content={accommodationsData.content}
         />
       </main>
-      <Footer />
     </div>
   );
 }

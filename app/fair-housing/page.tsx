@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import ServerLegalPage from '@/app/components/ServerLegalPage';
 import fairHousingData from '@/data/pages/fair-housing.json';
 
@@ -20,7 +18,6 @@ export const metadata: Metadata = {
 export default function FairHousingPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header dark />
       <main className="pt-20">
         <ServerLegalPage
           title={fairHousingData.title}
@@ -28,7 +25,6 @@ export default function FairHousingPage() {
           content={fairHousingData.content}
         />
       </main>
-      <Footer />
     </div>
   );
 }

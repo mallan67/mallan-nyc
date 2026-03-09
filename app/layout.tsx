@@ -6,6 +6,9 @@ import CookieConsent from './components/CookieConsent';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
 import ErrorBoundary from './components/ErrorBoundary';
+import AuthProvider from './components/AuthProvider';
+import Header from './components/Header';
+import Footer from './components/Footer';
 
 // Bright & Liquid design system fonts
 const urbanist = Urbanist({
@@ -169,9 +172,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased font-sans">
         <SkipLink />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <AuthProvider>
+          <ErrorBoundary>
+            <Header />
+            <main id="main-content">
+              {children}
+            </main>
+            <Footer />
+          </ErrorBoundary>
+        </AuthProvider>
         <CookieConsent />
         <Analytics />
       </body>

@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import OpenHousesList from '@/app/components/OpenHousesList';
 
@@ -23,12 +21,10 @@ export const metadata: Metadata = {
 export default function OpenHousesPage() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header dark />
       <main className="pt-20">
         <OpenHousesList />
       </main>
       <SocialShareBar title="Open Houses | Mallan Real Estate" />
-      <Footer />
     </div>
   );
 }

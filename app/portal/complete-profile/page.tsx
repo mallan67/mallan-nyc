@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -88,7 +86,6 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
           <div className="glass-card rounded-3xl p-8 sm:p-10">
@@ -176,7 +173,6 @@ export default function CompleteProfilePage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

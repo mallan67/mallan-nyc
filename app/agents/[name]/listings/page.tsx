@@ -2,8 +2,6 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import prisma from '@/lib/prisma';
 import agentsJson from '@/data/agents.json';
 import ActiveListingsTabs from './ActiveListingsTabs';
@@ -138,7 +136,6 @@ export default async function AgentListingsPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-20">
         {/* Compact Agent Header — face-focused photo + short bio */}
         <section className="border-b border-black/5">
@@ -266,7 +263,6 @@ export default async function AgentListingsPage({ params }: Props) {
           </div>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

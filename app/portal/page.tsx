@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
@@ -394,7 +392,6 @@ export default function PortalPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
-        <Header dark />
         <main className="pt-32 pb-20 px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-pulse space-y-4">
@@ -446,7 +443,6 @@ export default function PortalPage() {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-24 pb-20 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -1020,7 +1016,6 @@ export default function PortalPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
