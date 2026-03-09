@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * /rent is served via next.config.js rewrite → /search?tab=rent-residential.
+ * This page only fires as a fallback (e.g., ?type=commercial query param).
+ */
 export default async function RentPage(props: { searchParams: Promise<Record<string, string>> }) {
   const searchParams = await props.searchParams;
   const params = new URLSearchParams();

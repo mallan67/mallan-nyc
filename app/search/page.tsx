@@ -12,7 +12,7 @@ import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { TAB_CONFIG } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
 
-export const dynamic = 'force-dynamic';
+// Client component — data fetched via useListings hook (no force-dynamic needed)
 
 const SearchMap = nextDynamic(() => import('@/app/components/SearchMap'), { ssr: false });
 
@@ -233,10 +233,12 @@ function SearchClient() {
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const listingsRef = useRef<HTMLDivElement>(null);
 
-  // ── Default to all-listings on mobile ──
+  // ── Default to all-listings on mobile (run once at mount) ──
+  const initialViewSet = useRef(false);
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    if (!initialViewSet.current && window.innerWidth < 1024) {
       setViewMode('all-listings');
+      initialViewSet.current = true;
     }
   }, []);
 
