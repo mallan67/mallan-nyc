@@ -39,6 +39,19 @@
 
     /* Gold glow accents */
     --gold-glow: 0 0 40px rgba(184,134,11,0.12), 0 0 80px rgba(184,134,11,0.06);
+
+    /* Liquid motion — single source of truth for Ken Burns durations */
+    --motion-duration: 10s;
+    --motion-duration-slow: 14s;
+
+    /* Z-index layer system */
+    --z-base: 1;
+    --z-card-overlay: 2;
+    --z-dropdown: 50;
+    --z-header: 100;
+    --z-skip-link: 100;
+    --z-modal: 1000;
+    --z-lightbox: 1100;
   }
 
   ::selection { background: #B8860B; color: white; }
@@ -145,13 +158,13 @@
 
 /* Utility: apply to any image wrapper for liquid motion */
 .liquid-img img {
-  animation: liquidMotion 12s ease-in-out infinite;
+  animation: liquidMotion var(--motion-duration) ease-in-out infinite;
   transform-origin: 50% 60%;
 }
 
 /* About section image */
 .float-shadow img {
-  animation: liquidMotion 16s ease-in-out infinite;
+  animation: liquidMotion var(--motion-duration-slow) ease-in-out infinite;
   transform-origin: 50% 50%;
 }
 
@@ -168,10 +181,10 @@
 }
 .prop-card img {
   transform-origin: 50% 60%;
-  animation: liquidMotion 8s ease-in-out infinite;
+  animation: liquidMotion var(--motion-duration) ease-in-out infinite;
 }
-.prop-card:nth-child(2n) img { animation-duration: 11s; animation-delay: -3s; }
-.prop-card:nth-child(3n) img { animation-duration: 9s; animation-delay: -5s; }
+.prop-card:nth-child(2n) img { animation-delay: -3s; }
+.prop-card:nth-child(3n) img { animation-delay: -5s; }
 .prop-card .card-overlay {
   opacity: 0;
   transition: opacity 0.6s var(--liquid);
@@ -198,10 +211,10 @@
   box-shadow: var(--float-shadow-hover);
 }
 .hood-card img {
-  animation: liquidMotion 14s ease-in-out infinite;
+  animation: liquidMotion var(--motion-duration-slow) ease-in-out infinite;
 }
-.hood-card:nth-child(2n) img { animation-duration: 12s; animation-delay: -3s; }
-.hood-card:nth-child(3n) img { animation-duration: 16s; animation-delay: -6s; }
+.hood-card:nth-child(2n) img { animation-delay: -3s; }
+.hood-card:nth-child(3n) img { animation-delay: -6s; }
 
 @media (hover: hover) {
   .hood-card:hover img {
@@ -291,6 +304,15 @@
   .rev-card:hover { transform: none; }
   .btn-liquid:hover { transform: none; }
   .btn-gold:hover { transform: none; }
+
+  /* Disable Ken Burns animations on touch devices (battery savings) */
+  .prop-card img,
+  .hood-card img,
+  .liquid-img img,
+  .float-shadow img {
+    animation: none;
+    transform: scale(1.03);
+  }
 }
 
 /* ═══ LEGACY LAYOUT CLASSES (kept for non-homepage pages) ═══ */
