@@ -90,6 +90,10 @@ export default function BuildingUnits({
   const visibleHistory = expanded ? saleHistory : saleHistory.slice(0, INITIAL_ROWS);
   const hasMoreRows = saleHistory.length > INITIAL_ROWS;
 
+  // Determine which columns have actual data (hide empty columns from ACRIS-only results)
+  const hasUnitData = saleHistory.some((s) => s.unit && s.unit.length > 0);
+  const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0 || s.baths > 0);
+
   return (
     <section>
       {/* Header bar */}
@@ -117,7 +121,11 @@ export default function BuildingUnits({
           )}
 
           {!loading && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            <div className={`grid gap-8 lg:gap-12 ${
+              (currentUnit && unitHistoryForCurrent.length > 0) || activeUnits.length > 0
+                ? 'grid-cols-1 lg:grid-cols-2'
+                : 'grid-cols-1'
+            }`}>
               {/* ── LEFT: Building-wide sales history ── */}
               <div>
                 <h3 className="font-display text-lg font-semibold text-brand-dark mb-4 leading-snug">
@@ -128,21 +136,37 @@ export default function BuildingUnits({
                   <p className="text-sm text-brand-dark/50">No recent sales found for this building.</p>
                 ) : (
                   <>
-                    {/* Table header */}
-                    <div className="grid grid-cols-[90px_50px_90px_80px_40px_40px] gap-x-3 pb-2 border-b border-black/10">
+                    {/* Table header — hide columns that have no data */}
+                    <div className={`grid gap-x-3 pb-2 border-b border-black/10 ${
+                      hasDetailData
+                        ? 'grid-cols-[90px_50px_90px_80px_40px_40px]'
+                        : hasUnitData
+                          ? 'grid-cols-[100px_60px_1fr]'
+                          : 'grid-cols-[100px_1fr]'
+                    }`}>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Date</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>
+                      {hasUnitData && <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>}
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Approx. Sq. Ft.</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Beds</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Baths</span>
+                      {hasDetailData && (
+                        <>
+                          <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Sq. Ft.</span>
+                          <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Beds</span>
+                          <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Baths</span>
+                        </>
+                      )}
                     </div>
 
                     {/* Rows */}
                     {visibleHistory.map((sale) => (
                       <div
                         key={sale.id}
-                        className="grid grid-cols-[90px_50px_90px_80px_40px_40px] gap-x-3 py-3 border-b border-black/5 items-center"
+                        className={`grid gap-x-3 py-3 border-b border-black/5 items-center ${
+                          hasDetailData
+                            ? 'grid-cols-[90px_50px_90px_80px_40px_40px]'
+                            : hasUnitData
+                              ? 'grid-cols-[100px_60px_1fr]'
+                              : 'grid-cols-[100px_1fr]'
+                        }`}
                       >
                         <span className="text-[13px] text-brand-dark/70">
                           {formatDate(sale.closeDate)}
@@ -150,11 +174,15 @@ export default function BuildingUnits({
                             <span className="block text-[9px] text-brand-dark/30 leading-tight">ACRIS</span>
                           )}
                         </span>
-                        <span className="text-[13px] font-medium text-brand-gold-deep">{sale.unit || '\u2014'}</span>
+                        {hasUnitData && <span className="text-[13px] font-medium text-brand-gold-deep">{sale.unit || '\u2014'}</span>}
                         <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
-                        <span className="text-[13px] text-brand-dark/70">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</span>
-                        <span className="text-[13px] text-brand-dark/70">{sale.beds > 0 ? sale.beds : '\u2014'}</span>
-                        <span className="text-[13px] text-brand-dark/70">{sale.baths > 0 ? sale.baths : '\u2014'}</span>
+                        {hasDetailData && (
+                          <>
+                            <span className="text-[13px] text-brand-dark/70">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</span>
+                            <span className="text-[13px] text-brand-dark/70">{sale.beds > 0 ? sale.beds : '\u2014'}</span>
+                            <span className="text-[13px] text-brand-dark/70">{sale.baths > 0 ? sale.baths : '\u2014'}</span>
+                          </>
+                        )}
                       </div>
                     ))}
 
@@ -235,14 +263,6 @@ export default function BuildingUnits({
                     <p className="text-[10px] text-brand-dark/40 mt-2">
                       {activeUnits.map((u) => `Courtesy of ${u.office}`).filter((v, i, a) => a.indexOf(v) === i).join(' | ')}
                     </p>
-                  </>
-                ) : currentUnit ? (
-                  <>
-                    <h3 className="font-display text-lg font-semibold text-brand-dark mb-1 leading-snug">
-                      Sales History for {streetNumber} {streetName}, {currentUnit}
-                    </h3>
-                    <div className="w-8 h-0.5 bg-brand-dark mb-4" />
-                    <p className="text-sm text-brand-dark/50">No prior sales found for this unit.</p>
                   </>
                 ) : null}
               </div>
