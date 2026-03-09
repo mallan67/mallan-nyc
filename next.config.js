@@ -33,6 +33,14 @@ const nextConfig = {
 
 
 
+  // /buy and /rent serve the search page directly (no redirect round-trip)
+  async rewrites() {
+    return [
+      { source: '/buy', destination: '/search?tab=buy-residential' },
+      { source: '/rent', destination: '/search?tab=rent-residential' },
+    ];
+  },
+
   // Restrict CORS on API routes to same-origin
   async headers() {
     return [

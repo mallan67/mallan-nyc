@@ -17,14 +17,16 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * /buy is served via next.config.js rewrite → /search?tab=buy-residential.
+ * This page only fires as a fallback (e.g., ?type=commercial query param).
+ */
 export default async function BuyPage(props: { searchParams: Promise<Record<string, string>> }) {
   const searchParams = await props.searchParams;
-  // Preserve any query params (e.g. ?type=commercial, ?neighborhood=...)
   const params = new URLSearchParams();
   const isCommercial = searchParams.type === 'commercial';
   params.set('tab', isCommercial ? 'buy-commercial' : 'buy-residential');
 
-  // Forward known filter params
   for (const key of ['neighborhood', 'zip', 'q', 'minPrice', 'maxPrice', 'beds', 'baths']) {
     if (searchParams[key]) params.set(key, searchParams[key]);
   }
