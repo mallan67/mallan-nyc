@@ -230,6 +230,12 @@ export function useListings(params: UseListingsParams): UseListingsResult {
 
     if (timerRef.current) clearTimeout(timerRef.current);
 
+    // Skip debounce on initial fetch — fire immediately for fast first paint
+    if (!hasClientFetched.current) {
+      fetchListings(qs, id);
+      return;
+    }
+
     timerRef.current = setTimeout(() => {
       fetchListings(qs, id);
     }, DEBOUNCE_MS);
