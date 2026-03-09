@@ -95,13 +95,13 @@ async function fetchAcrisSales(bbl: string): Promise<Array<{
       .map((doc) => {
         const amt = parseFloat(doc.document_amt || '0');
         const dateStr = doc.recorded_datetime || doc.document_date || null;
-        // Extract unit from property records if available
-        const unit = rpData.find((r) => r.document_id === doc.document_id)?.easement || '';
+        // ACRIS Real Property `easement` is a Y/N flag, NOT a unit number.
+        // ACRIS deed records don't reliably carry unit numbers.
         return {
           id: `acris-${doc.document_id}`,
           closePrice: amt,
           closeDate: dateStr ? new Date(dateStr).toISOString().split('T')[0] : null,
-          unit: unit || '',
+          unit: '',
           source: 'acris' as const,
         };
       });
