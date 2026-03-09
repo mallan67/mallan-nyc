@@ -456,23 +456,23 @@ export default async function ListingPage({ params, searchParams }: Props) {
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
   // Fetch last closed sale for this specific unit (server-side, cached 1hr)
-  // Primary: Trestle closed records. Fallback: ACRIS deed records.
+  // Run Trestle + ACRIS in parallel, prefer Trestle result
   let lastUnitSale: LastSaleInfo | null = null;
   if (listing.address.streetName !== 'Address Undisclosed') {
-    lastUnitSale = await fetchLastUnitSale(
-      listing.address.streetNumber,
-      listing.address.streetName,
-      listing.address.unitNumber,
-      listing.address.postalCode,
-    );
-    // ACRIS fallback when Trestle has no closed data
-    if (!lastUnitSale) {
-      lastUnitSale = await fetchLastSaleFromACRIS(
+    const [trestleSale, acrisSale] = await Promise.all([
+      fetchLastUnitSale(
+        listing.address.streetNumber,
+        listing.address.streetName,
+        listing.address.unitNumber,
+        listing.address.postalCode,
+      ),
+      fetchLastSaleFromACRIS(
         listing.address.county,
         tax.taxBlock,
         tax.taxLot,
-      );
-    }
+      ),
+    ]);
+    lastUnitSale = trestleSale || acrisSale;
   }
 
   // ── Building amenities ──
