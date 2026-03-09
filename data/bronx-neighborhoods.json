@@ -24,7 +24,7 @@
         },
         {
           "question": "What parks and schools are near Riverdale?",
-          "answer": "Riverdale is one of NYC's most family-oriented neighborhoods. It is home to top private schools including Horace Mann, Riverdale Country School, and Ethical Culture Fieldston. Public schools like PS 81 also rank well. The area offers abundant green space through Wave Hill and Van Cortlandt Park."
+          "answer": "Riverdale is home to notable private schools including Horace Mann, Riverdale Country School, and Ethical Culture Fieldston. Public schools include PS 81. The area offers abundant green space through Wave Hill and Van Cortlandt Park."
         },
         {
           "question": "How do you get to Manhattan from Riverdale?",
@@ -116,7 +116,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring top schools, green space, and a safe suburban environment without leaving NYC. Riverdale's school options and parks are a major draw.",
+          "description": "Properties featuring proximity to Horace Mann and Riverdale Country School, green space, and a residential suburban character without leaving NYC. Riverdale's parks are a major draw.",
           "budgetRange": "$400K - $1.2M",
           "propertyType": "3-bedroom co-op or single-family home"
         },

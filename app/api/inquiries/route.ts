@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendEmail } from '@/lib/email/sendgrid';
 
 /**
  * POST /api/inquiries
@@ -86,6 +87,32 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Send email notification (non-fatal — don't fail the API response if email fails)
+    try {
+      const subjectLine = listingAddress
+        ? `New Inquiry: ${listingAddress}`
+        : 'New Inquiry: General Inquiry';
+
+      const emailBody = `
+        <h2>New Listing Inquiry</h2>
+        <table style="border-collapse:collapse;font-family:sans-serif;">
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${name}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${email}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Phone:</td><td>${sanitizedPhone}</td></tr>
+          ${listingId ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Listing ID:</td><td>${listingId}</td></tr>` : ''}
+          ${listingAddress ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Address:</td><td>${listingAddress}</td></tr>` : ''}
+          ${preferredDate ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Preferred Date:</td><td>${preferredDate}</td></tr>` : ''}
+          ${message ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Message:</td><td>${message}</td></tr>` : ''}
+        </table>
+      `.trim();
+
+      console.log('[/api/inquiries] Sending email notification...');
+      const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
+      console.log(`[/api/inquiries] Email ${emailResult.success ? 'sent' : 'failed'}:`, emailResult.messageId || emailResult.error);
+    } catch (emailErr) {
+      console.error('[/api/inquiries] Email notification error (non-fatal):', emailErr);
+    }
 
     return NextResponse.json({
       success: true,

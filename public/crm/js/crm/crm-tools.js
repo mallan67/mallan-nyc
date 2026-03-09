@@ -358,20 +358,17 @@
             var sel = document.getElementById('refOurAgent').value;
             var titleEl = document.getElementById('refOurAgentTitle');
             var licenseEl = document.getElementById('refOurAgentLicense');
-            var agentData = {
-                jane:    { title: 'Licensed Real Estate Salesperson', license: '#10401234567', name: 'Jane Doe', email: 'jane@mallan.nyc' },
-                michael: { title: 'Licensed Real Estate Salesperson', license: '#10401234568', name: 'Michael Smith', email: 'michael@mallan.nyc' },
-                sarah:   { title: 'Associate Real Estate Broker',     license: '#10401234569', name: 'Sarah Chen', email: 'sarah@mallan.nyc' },
-                david:   { title: 'Licensed Real Estate Salesperson', license: '#10401234570', name: 'David Park', email: 'david@mallan.nyc' }
-            };
+            // Agent data loaded from API via MallanAPI.agents.list()
+            // Fallback removed — referral form requires authenticated session
+            var agentData = (window._cachedAgentData) ? window._cachedAgentData : {};
             if (sel && agentData[sel]) {
-                titleEl.value = agentData[sel].title;
-                licenseEl.value = agentData[sel].license;
+                titleEl.value = agentData[sel].title || '';
+                licenseEl.value = agentData[sel].license || '';
                 // Update signer info in signature section
                 var sigName = document.getElementById('refSignAgentName');
                 var sigEmail = document.getElementById('refSignAgentEmail');
-                if (sigName) sigName.innerHTML = agentData[sel].name + ' <span class="text-gray-400 font-normal">(' + agentData[sel].title + ')</span>';
-                if (sigEmail) sigEmail.textContent = agentData[sel].email;
+                if (sigName) sigName.innerHTML = agentData[sel].name + ' <span class="text-gray-400 font-normal">(' + (agentData[sel].title || '') + ')</span>';
+                if (sigEmail) sigEmail.textContent = agentData[sel].email || '—';
             } else {
                 titleEl.value = '';
                 licenseEl.value = '';

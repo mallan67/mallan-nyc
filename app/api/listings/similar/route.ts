@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -114,6 +115,9 @@ export async function GET(request: NextRequest) {
         }
       } catch { /* non-fatal — use ZIP results only */ }
     }
+
+    // Distribution gate check — filter out listings that fail REBNY RLS display rules
+    allResults = allResults.filter((r: Record<string, unknown>) => checkDistributionGates(r).displayable);
 
     // Filter out the current listing and take up to 6
     const filtered = allResults

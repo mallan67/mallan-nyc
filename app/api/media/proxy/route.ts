@@ -14,6 +14,8 @@ import { getAccessToken } from "@/lib/idx/auth";
 // Only allow proxying from Trestle/Cotality media domain
 const ALLOWED_HOSTS = new Set([
   "api.cotality.com",
+  "api-trestle.corelogic.com",
+  "api-prod.corelogic.com",
 ]);
 
 function isAllowedUrl(url: string): boolean {

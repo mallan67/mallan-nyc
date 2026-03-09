@@ -453,6 +453,35 @@ export function getFieldProfile(fieldName: string): DistProfile {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PRIVATE FIELD FILTER — strip before DB storage
+// These fields must never be persisted in raw_data (compliance).
+// ═══════════════════════════════════════════════════════════
+const PRIVATE_FIELDS = new Set([
+  'PrivateRemarks', 'PrivateOfficeRemarks', 'SyndicationRemarks',
+  'ShowingInstructions', 'ShowingContactPhone', 'ShowingContactPhoneExt',
+  'ShowingContactName', 'ShowingContactType', 'ShowingRequirements',
+  'LockBoxType', 'LockBoxLocation', 'LockBoxSerialNumber',
+  'ListAgentEmail', 'ListAgentDirectPhone', 'ListAgentHomePhone',
+  'ListAgentMlsId', 'ListAgentURL',
+  'CoListAgentEmail', 'CoListAgentDirectPhone', 'CoListAgentMlsId',
+  'BuyerAgentEmail', 'BuyerAgentDirectPhone', 'BuyerAgentMlsId',
+  'CoBuyerAgentEmail', 'CoBuyerAgentDirectPhone', 'CoBuyerAgentMlsId',
+  'ListAgentAOR', 'BuyerAgentAOR',
+  'ClosePrice', 'BuyerFinancing', 'ConcessionComments',
+  'ListingContractDate', 'ExpirationDate',
+]);
+
+function stripPrivateFields(raw: Record<string, unknown>): Record<string, unknown> {
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!PRIVATE_FIELDS.has(key)) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+}
+
+// ═══════════════════════════════════════════════════════════
 // MAPPER: Raw Trestle → Prisma Listing
 // ═══════════════════════════════════════════════════════════
 
@@ -570,8 +599,8 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
   const internetAddress = raw.InternetAddressDisplayYN !== false;
   const participantOnly = raw.ParticipantOnlyYN === true;
-  // Owner opt-out: if IDXEntireListingDisplayYN explicitly false
-  const ownerOptOut = raw.IDXEntireListingDisplayYN === false;
+  // Owner opt-out: if IDXEntireListingDisplayYN or IDXParticipationYN explicitly false
+  const ownerOptOut = raw.IDXEntireListingDisplayYN === false || raw.IDXParticipationYN === false;
 
   // JSONB columns — pick fields by category
   const address = pick(raw, B1_ADDRESS);
@@ -643,7 +672,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     media,
     compliance,
     agent_info: agentInfo,
-    raw_data: rawInput, // Preserve complete raw response for audit
+    raw_data: stripPrivateFields(rawInput), // Filtered — private fields stripped for compliance
     modification_timestamp: modTimestamp,
     listing_contract_date: contractDate,
     last_synced_from_trestle: new Date(),

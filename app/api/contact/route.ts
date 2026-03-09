@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { sendEmail } from '@/lib/email/sendgrid';
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -112,6 +113,27 @@ export async function POST(request: NextRequest) {
 
     // Log for Vercel dashboard visibility (redacted PII)
     console.log(`[CONTACT] New submission id=${submission.id} at ${submission.receivedAt}`);
+
+    // Send email notification (non-fatal — don't fail the API response if email fails)
+    try {
+      const subjectLine = `New Contact Form: ${submission.name}`;
+      const emailBody = `
+        <h2>New Contact Form Submission</h2>
+        <table style="border-collapse:collapse;font-family:sans-serif;">
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${submission.name}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${submission.email}</td></tr>
+          ${submission.phone ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Phone:</td><td>${submission.phone}</td></tr>` : ''}
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Message:</td><td>${submission.message}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Received:</td><td>${submission.receivedAt}</td></tr>
+        </table>
+      `.trim();
+
+      console.log('[CONTACT] Sending email notification...');
+      const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
+      console.log(`[CONTACT] Email ${emailResult.success ? 'sent' : 'failed'}:`, emailResult.messageId || emailResult.error);
+    } catch (emailErr) {
+      console.error('[CONTACT] Email notification error (non-fatal):', emailErr);
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
