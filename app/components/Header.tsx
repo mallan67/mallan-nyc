@@ -89,11 +89,11 @@ export default function Header() {
   const [exclusivesOpen, setExclusivesOpen] = useState(false);
   const [neighborhoodsOpen, setNeighborhoodsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
-  const [resources, setResources] = useState<ResourceItem[]>([
+  const resources: ResourceItem[] = [
     { title: "Buyer's Guide", href: '/resources/buyers-guide' },
     { title: "Seller's Guide", href: '/resources/sellers-guide' },
     { title: 'Investors Guide', href: '/resources/investors-guide' },
-  ]);
+  ];
 
   // Homepage: absolute (overlays hero). Inner pages: fixed.
   const dark = pathname !== '/';
@@ -103,16 +103,7 @@ export default function Header() {
     setMobileOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    fetch('/api/resources')
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setResources(data);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // Resources are static — no fetch needed (avoids 100-200ms per navigation)
 
   const buyItems = [
     { title: 'Residential', href: '/buy?type=residential' },

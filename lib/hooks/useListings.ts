@@ -48,6 +48,39 @@ interface UseListingsResult {
 }
 
 const DEBOUNCE_MS = 300;
+const CACHE_PREFIX = 'mallan_search_';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface CachedResult {
+  listings: DisplayListing[];
+  total: number;
+  hasMore: boolean;
+  source: string;
+  ts: number;
+}
+
+function getCachedSearch(key: string): CachedResult | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_PREFIX + key);
+    if (!raw) return null;
+    const cached: CachedResult = JSON.parse(raw);
+    if (Date.now() - cached.ts > CACHE_TTL_MS) {
+      sessionStorage.removeItem(CACHE_PREFIX + key);
+      return null;
+    }
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedSearch(key: string, data: CachedResult): void {
+  try {
+    sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify(data));
+  } catch {
+    // Storage full — silently ignore
+  }
+}
 
 function buildQueryString(params: UseListingsParams): string {
   const qs = new URLSearchParams();
@@ -204,6 +237,15 @@ export function useListings(params: UseListingsParams): UseListingsResult {
       setHasMore(data.hasMore || false);
       setSource(data._compliance?.source || 'unknown');
       hasClientFetched.current = true;
+
+      // Cache for instant back-navigation
+      setCachedSearch(queryString, {
+        listings: mapped,
+        total: data.total || mapped.length,
+        hasMore: data.hasMore || false,
+        source: data._compliance?.source || 'unknown',
+        ts: Date.now(),
+      });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (id !== fetchIdRef.current) return;
@@ -230,8 +272,18 @@ export function useListings(params: UseListingsParams): UseListingsResult {
 
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Skip debounce on initial fetch — fire immediately for fast first paint
+    // On initial load, try sessionStorage cache for instant paint
     if (!hasClientFetched.current) {
+      const cached = getCachedSearch(qs);
+      if (cached) {
+        setListings(cached.listings);
+        setTotal(cached.total);
+        setHasMore(cached.hasMore);
+        setSource(cached.source);
+        setLoading(false);
+        hasClientFetched.current = true;
+        return;
+      }
       fetchListings(qs, id);
       return;
     }
