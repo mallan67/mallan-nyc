@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
+import { fetchListingMedia } from '@/lib/idx/fetch';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -17,10 +18,20 @@ function mapPropertyType(r: Record<string, unknown>): string {
   return r.PropertySubType ? String(r.PropertySubType) : '';
 }
 
+/** Proxy Trestle media URLs so they load in the browser */
+function proxyUrl(url: string): string {
+  if (!url) return '';
+  if (url.includes('cotality.com') || url.includes('corelogic.com') || url.includes('trestle.com')) {
+    return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 /**
  * GET /api/listings/similar?type=sale&beds=1&price=715000&postalCode=10011&excludeId=xxx
  *
  * Returns up to 6 similar listings nearby (same ZIP, similar beds/price).
+ * Fetches media separately per listing (Trestle $expand=Media is unreliable).
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -38,9 +49,9 @@ export async function GET(request: NextRequest) {
   try {
     const token = await getAccessToken();
 
-    // Price range: 50% below to 50% above
-    const minPrice = Math.round(price * 0.5);
-    const maxPrice = Math.round(price * 1.5);
+    // Price range: 30% below to 70% above (wider for luxury to find enough results)
+    const minPrice = Math.round(price * 0.3);
+    const maxPrice = Math.round(price * 1.7);
 
     const isRental = type === 'rent';
     const propertyClass = isRental
@@ -51,12 +62,13 @@ export async function GET(request: NextRequest) {
     const selectFields = 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,PropertyType,CommonInterest,ListOfficeName,CityRegion';
 
     // Build filter: same ZIP, similar price, active, same type
+    // Do NOT use $expand=Media — Trestle often rejects it with 400.
+    // Instead, fetch media separately per listing after getting property results.
     const zipFilter = `PostalCode eq '${postalCode}' and MlsStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
 
     const params = new URLSearchParams({
       $filter: zipFilter,
       $select: selectFields,
-      $expand: 'Media($select=MediaURL,MediaCategory,Order;$top=1;$orderby=Order)',
       $orderby: 'ListPrice desc',
       $top: '7',
     });
@@ -67,6 +79,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!res.ok) {
+      console.error(`[/api/listings/similar] Trestle ZIP query failed: ${res.status}`);
       return NextResponse.json({ listings: [] });
     }
 
@@ -80,7 +93,6 @@ export async function GET(request: NextRequest) {
       const nhParams = new URLSearchParams({
         $filter: neighborhoodFilter,
         $select: selectFields,
-        $expand: 'Media($select=MediaURL,MediaCategory,Order;$top=1;$orderby=Order)',
         $orderby: 'ListPrice desc',
         $top: '10',
       });
@@ -91,7 +103,6 @@ export async function GET(request: NextRequest) {
         });
         if (nhRes.ok) {
           const nhData = await nhRes.json();
-          // Merge, dedup by ListingId
           const existingIds = new Set(allResults.map((r: Record<string, unknown>) => String(r.ListingId || r.ListingKey)));
           for (const r of (nhData.value || [])) {
             const rid = String(r.ListingId || r.ListingKey);
@@ -104,17 +115,35 @@ export async function GET(request: NextRequest) {
       } catch { /* non-fatal — use ZIP results only */ }
     }
 
-    const listings = allResults
+    // Filter out the current listing and take up to 6
+    const filtered = allResults
       .filter((r: Record<string, unknown>) => {
         const id = String(r.ListingId || r.ListingKey || '');
         return id !== excludeId;
       })
-      .slice(0, 6)
-      .map((r: Record<string, unknown>) => {
+      .slice(0, 6);
+
+    // Fetch primary photo for each listing in parallel (separate media calls)
+    const listings = await Promise.all(
+      filtered.map(async (r: Record<string, unknown>) => {
         const mlsId = String(r.ListingId || '');
+        const listingKey = String(r.SourceSystemKey || r.ListingKey || r.ListingId || '');
         const streetNum = String(r.StreetNumber || '');
         const streetName = String(r.StreetName || '');
         const unit = r.UnitNumber ? `, ${r.UnitNumber}` : '';
+
+        // Fetch primary photo via separate media call
+        let photoUrl: string | null = null;
+        let photosCount = 0;
+        try {
+          const media = await fetchListingMedia(listingKey);
+          const photos = media.filter(m => m.mediaType === 'Photo' || !m.mediaType);
+          photosCount = photos.length;
+          if (photos.length > 0) {
+            photoUrl = proxyUrl(photos[0].url);
+          }
+        } catch { /* non-fatal */ }
+
         return {
           id: String(r.ListingKey || r.ListingId),
           mlsId,
@@ -125,14 +154,13 @@ export async function GET(request: NextRequest) {
           sqft: Number(r.LivingArea || 0),
           address: `${streetNum} ${streetName}${unit}`,
           neighborhood: String(r.CityRegion || ''),
-          photoUrl: Array.isArray(r.Media) && r.Media.length > 0
-            ? String((r.Media as Record<string, unknown>[])[0].MediaURL || '')
-            : null,
-          photosCount: Array.isArray(r.Media) ? (r.Media as unknown[]).length : 0,
+          photoUrl,
+          photosCount,
           propertyType: mapPropertyType(r),
           office: String(r.ListOfficeName || ''),
         };
-      });
+      })
+    );
 
     return NextResponse.json({
       listings,
