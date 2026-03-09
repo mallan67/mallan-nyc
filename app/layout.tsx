@@ -175,9 +175,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AuthProvider>
           <ErrorBoundary>
             <Header />
-            <main id="main-content">
+            <div id="main-content">
               {children}
-            </main>
+            </div>
             <Footer />
           </ErrorBoundary>
         </AuthProvider>
