@@ -458,10 +458,8 @@ export async function GET(request: Request) {
         // Fetch extra to account for gate filtering + post-filters
         // Neighborhood/borough/bounds queries need more headroom (heavy post-filtering)
         const hasPostFilter = !!(boundsParam || borough || neighborhood);
-        const fetchTop = Math.min((limit + skip) * (hasPostFilter ? 3 : 1.5) + 20, 1000);
+        const fetchTop = Math.min((limit + skip) * (hasPostFilter ? 2.5 : 1.2) + 10, 1000);
 
-        // Use $expand=Media for result sets under 200 records (works per Trestle docs).
-        // For large bulk queries (200+), disable expand and batch-fetch photos separately.
         // When amenity filters are active, add the required fields to $select
         const amenityFields = amenitiesParam ? [
           'BuildingFeatures', 'InteriorFeatures', 'ExteriorFeatures',
@@ -470,7 +468,8 @@ export async function GET(request: Request) {
         ] : [];
         const selectFields = [...CARD_SELECT_FIELDS, ...amenityFields.filter(f => !CARD_SELECT_FIELDS.includes(f))];
 
-        // Enable inline media for reasonable result sets (eliminates separate Media API call)
+        // $expand=Media eliminates separate photo batch-fetch (saves 5-10s).
+        // Trestle supports it for $top ≤ ~200. For larger queries, batch-fetch separately.
         const useExpandMedia = fetchTop <= 200;
 
         const result = await fetchFromTrestle({
