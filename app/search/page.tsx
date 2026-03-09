@@ -166,7 +166,7 @@ function SearchClient() {
   const isRental = tabConfig.apiType === 'rent';
 
   // ── Listings hook ──
-  const { listings, loading, error, total, hasMore, loadMore } = useListings({
+  const { listings, loading, loadingMore, error, total, hasMore, loadMore } = useListings({
     type: tabConfig.apiType === 'sale' ? 'buy' : 'rent',
     commercial: tabConfig.commercial,
     minPrice: filters.minPrice,
@@ -546,8 +546,8 @@ function SearchClient() {
                 ))}
                 {hasMore && (
                   <div className="text-center py-4">
-                    <button onClick={loadMore} className="px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors">
-                      Load More
+                    <button onClick={loadMore} disabled={loadingMore} className="px-6 py-2 bg-brand-dark text-white text-sm font-medium rounded-xl hover:bg-brand-dark/90 transition-colors disabled:opacity-60 disabled:cursor-wait">
+                      {loadingMore ? 'Loading...' : 'Load More'}
                     </button>
                   </div>
                 )}
@@ -580,8 +580,8 @@ function SearchClient() {
             </div>
             {hasMore && (
               <div className="text-center py-8">
-                <button onClick={loadMore} className="px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors">
-                  Load More Properties
+                <button onClick={loadMore} disabled={loadingMore} className="px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors disabled:opacity-60 disabled:cursor-wait">
+                  {loadingMore ? 'Loading...' : 'Load More Properties'}
                 </button>
               </div>
             )}

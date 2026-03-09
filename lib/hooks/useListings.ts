@@ -38,6 +38,7 @@ export interface UseListingsParams {
 interface UseListingsResult {
   listings: DisplayListing[];
   loading: boolean;
+  loadingMore: boolean;
   error: string | null;
   source: string;
   total: number;
@@ -112,11 +113,13 @@ export function useListings(params: UseListingsParams): UseListingsResult {
   const hasInitial = !!(params.initialListings && params.initialListings.length > 0);
   const [listings, setListings] = useState<DisplayListing[]>(params.initialListings || []);
   const [loading, setLoading] = useState(!hasInitial);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState(hasInitial ? 'idx+exclusive' : '');
   const [total, setTotal] = useState(params.initialTotal || 0);
   const [hasMore, setHasMore] = useState(params.initialHasMore || false);
   const abortRef = useRef<AbortController | null>(null);
+  const appendAbortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchIdRef = useRef(0);
   const skipRef = useRef(params.skip || 0);
@@ -124,12 +127,55 @@ export function useListings(params: UseListingsParams): UseListingsResult {
   const hasClientFetched = useRef(false);
 
   const fetchListings = useCallback(async (queryString: string, id: number, append = false) => {
-    // Cancel any in-flight request
+    // Use separate abort controllers for initial vs append fetches
+    // so a filter change doesn't silently kill a loadMore in-flight
+    if (append) {
+      appendAbortRef.current?.abort();
+      const controller = new AbortController();
+      appendAbortRef.current = controller;
+
+      setLoadingMore(true);
+      setError(null);
+
+      try {
+        const res = await fetch(`/api/listings?${queryString}`, {
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error(res.status === 429 ? 'Too many requests. Please wait.' : `Failed to load listings (${res.status})`);
+        }
+
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load listings');
+        }
+
+        const mapped = (data.listings || []).map(toDisplayListing);
+        setListings((prev) => [...prev, ...mapped]);
+        setTotal(data.total || mapped.length);
+        setHasMore(data.hasMore || false);
+        setSource(data._compliance?.source || 'unknown');
+        hasClientFetched.current = true;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        // On append failure, don't clear listings — just show error
+        setError(err instanceof Error ? err.message : 'Failed to load more listings');
+      } finally {
+        setLoadingMore(false);
+      }
+      return;
+    }
+
+    // Non-append: cancel any in-flight request (including loadMore)
     abortRef.current?.abort();
+    appendAbortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
-    if (!append) setLoading(true);
+    setLoading(true);
+    setLoadingMore(false);
     setError(null);
 
     try {
@@ -153,13 +199,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
       }
 
       const mapped = (data.listings || []).map(toDisplayListing);
-
-      if (append) {
-        setListings((prev) => [...prev, ...mapped]);
-      } else {
-        setListings(mapped);
-      }
-
+      setListings(mapped);
       setTotal(data.total || mapped.length);
       setHasMore(data.hasMore || false);
       setSource(data._compliance?.source || 'unknown');
@@ -168,7 +208,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (id !== fetchIdRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to load listings');
-      if (!append) setListings([]);
+      setListings([]);
     } finally {
       if (id === fetchIdRef.current) {
         setLoading(false);
@@ -231,13 +271,13 @@ export function useListings(params: UseListingsParams): UseListingsResult {
   ]);
 
   const loadMore = useCallback(() => {
-    if (loading || !hasMore) return;
+    if (loading || loadingMore || !hasMore) return;
     const nextSkip = skipRef.current + (params.limit || 50);
     skipRef.current = nextSkip;
     const qs = buildQueryString({ ...params, skip: nextSkip });
     const id = ++fetchIdRef.current;
     fetchListings(qs, id, true);
-  }, [params, loading, hasMore, fetchListings]);
+  }, [params, loading, loadingMore, hasMore, fetchListings]);
 
   const refetch = useCallback(() => {
     skipRef.current = 0;
@@ -246,5 +286,5 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     fetchListings(qs, id);
   }, [params, fetchListings]);
 
-  return { listings, loading, error, source, total, hasMore, loadMore, refetch };
+  return { listings, loading, loadingMore, error, source, total, hasMore, loadMore, refetch };
 }
