@@ -122,7 +122,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring top public schools, safe tree-lined streets, and proximity to Brooklyn Bridge Park's playgrounds and green space.",
+          "description": "Properties featuring tree-lined streets, proximity to Brooklyn Bridge Park's playgrounds and green space, and well-regarded public schools.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom co-op or brownstone"
         },
@@ -724,7 +724,7 @@
       "name": "Park Slope",
       "fullName": "Park Slope, Brooklyn",
       "borough": "Brooklyn",
-      "tagline": "Brooklyn's Premier Family Neighborhood",
+      "tagline": "Brooklyn's Premier Brownstone Neighborhood",
       "heroImage": "https://images.unsplash.com/photo-1684803873503-f335c07eb95c?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1684803873503-f335c07eb95c?w=1200&q=80",
       "summary": "Park Slope is one of Brooklyn's most desirable residential neighborhoods, renowned for its pristine brownstones, top-rated schools, and direct access to Prospect Park. Average price per square foot is approximately $1,100. The neighborhood consistently ranks among New York City's best for families, food, and quality of life.",
@@ -751,7 +751,7 @@
         },
         {
           "question": "What parks and schools are near Park Slope?",
-          "answer": "Park Slope is widely considered Brooklyn's best neighborhood for families. PS 321 and PS 107 are among Brooklyn's top-rated public schools. Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive family-oriented retail and dining."
+          "answer": "Park Slope features well-regarded public schools including PS 321 and PS 107. Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive retail and dining options."
         },
         {
           "question": "What subway lines serve Park Slope?",
@@ -823,7 +823,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Park Slope is organized around two commercial corridors: Fifth Avenue (trendy, diverse dining) and Seventh Avenue (upscale, family-oriented). The blocks between the two avenues on the park-side (east of 7th Avenue) are the most coveted. Prospect Park West commands the highest brownstone prices.",
+        "description": "Park Slope is organized around two commercial corridors: Fifth Avenue (trendy, diverse dining) and Seventh Avenue (upscale, residential). The blocks between the two avenues on the park-side (east of 7th Avenue) are the most coveted. Prospect Park West commands the highest brownstone prices.",
         "bestBlocksForParks": [
           "1st through 5th Streets between 7th and 8th Avenues",
           "Prospect Park West",
@@ -843,7 +843,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Top public schools, Prospect Park access, and a walkable neighborhood with strong community feel.",
+          "description": "Well-regarded public schools including PS 321, Prospect Park access, and a walkable neighborhood with strong community feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone or co-op"
         },

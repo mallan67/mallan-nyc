@@ -985,7 +985,7 @@
         },
         {
           "question": "What parks and schools are near Forest Hills?",
-          "answer": "Forest Hills is one of Queens' best family neighborhoods, with highly regarded public schools (PS 196, PS 144, and Forest Hills High School), abundant parks, safe streets, and a walkable shopping district. The neighborhood has a strong community focus."
+          "answer": "Forest Hills offers highly regarded public schools including PS 196, PS 144, and Forest Hills High School, along with abundant parks and a walkable shopping district on Austin Street. The neighborhood has a strong community focus."
         },
         {
           "question": "What is there to do in Forest Hills?",
@@ -1069,7 +1069,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Top schools, safe tree-lined streets, and access to Forest Park in a community-focused neighborhood.",
+          "description": "Well-regarded schools including PS 196 and Forest Hills High School, tree-lined streets, and access to Forest Park in a community-focused neighborhood.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-3 bedroom co-op"
         },
@@ -1425,7 +1425,7 @@
       "tagline": "Suburban Serenity with City Convenience",
       "heroImage": "https://images.unsplash.com/photo-1768038711160-b62ade8127c8?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1768038711160-b62ade8127c8?w=1200&q=80",
-      "summary": "Bayside is one of Queens' most desirable residential neighborhoods, prized for its tree-lined streets, excellent schools, waterfront access along Little Neck Bay, and a suburban character rarely found in New York City. With strong housing stock and a dedicated commuter base, it offers stability and quality of life. Average price per square foot is approximately $480.",
+      "summary": "Bayside is one of Queens' most desirable residential neighborhoods, prized for its tree-lined streets, well-regarded schools including PS 169 and Bayside High School, waterfront access along Little Neck Bay, and a suburban character rarely found in New York City. With strong housing stock and a dedicated commuter base, it offers stability and quality of life. Average price per square foot is approximately $480.",
       "avgPricePerSqft": 480,
       "dominantPropertyType": "Single-Family",
       "walkScore": 74,
@@ -1449,7 +1449,7 @@
         },
         {
           "question": "What parks and schools are near Bayside?",
-          "answer": "Bayside is widely considered one of NYC's best family neighborhoods. It offers excellent schools, safe tree-lined streets, waterfront parks, low-density housing, and a strong community identity. Many families specifically target Bayside for its quality of life."
+          "answer": "Bayside offers well-regarded schools including PS 169 and Bayside High School, tree-lined streets, waterfront parks along Little Neck Bay, low-density housing, and a strong community identity. The neighborhood is known for its quality of life and suburban character."
         },
         {
           "question": "What is Bell Boulevard like?",
@@ -1533,7 +1533,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Top public schools, a safe suburban environment, and outdoor space while remaining within New York City.",
+          "description": "Well-regarded public schools, a residential suburban character, and outdoor space while remaining within New York City.",
           "budgetRange": "$650K - $1.3M",
           "propertyType": "Single-family detached"
         },

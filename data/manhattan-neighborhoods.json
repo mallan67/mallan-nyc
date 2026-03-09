@@ -118,7 +118,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring top schools, park access, and quiet residential streets with classic pre-war apartments.",
+          "description": "Properties featuring park access, quiet residential streets, and classic pre-war apartments near notable schools including Brearley and Chapin.",
           "budgetRange": "$1.5M - $5M",
           "propertyType": "3-4 bedroom co-op"
         },
@@ -273,7 +273,7 @@
         },
         {
           "question": "How does the Upper West Side compare to the Upper East Side?",
-          "answer": "The UWS has a more relaxed, intellectual, and family-oriented atmosphere compared to the more formal UES. UWS prices are about 10% lower on average. The UWS has more green space (Riverside Park) but fewer luxury retail options."
+          "answer": "The UWS has a more relaxed, intellectual, and community-focused atmosphere compared to the more formal UES. UWS prices are about 10% lower on average. The UWS has more green space (Riverside Park) but fewer luxury retail options."
         },
         {
           "question": "What subway lines serve the Upper West Side?",
@@ -357,7 +357,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering top schools, dual-park access, and the neighborhood's intellectual, community-oriented atmosphere.",
+          "description": "Properties offering dual-park access, proximity to Trinity School and Columbia University, and the neighborhood's intellectual, community-oriented atmosphere.",
           "budgetRange": "$1.2M - $4M",
           "propertyType": "3-bedroom pre-war co-op"
         },
@@ -492,7 +492,7 @@
       "faqs": [
         {
           "question": "Why is Tribeca so expensive?",
-          "answer": "Tribeca commands Manhattan's highest price per square foot due to its spacious loft apartments (many over 2,000 sq ft), cobblestone-street charm, excellent schools, low density, and celebrity cachet. Limited new construction keeps supply tight."
+          "answer": "Tribeca commands Manhattan's highest price per square foot due to its spacious loft apartments (many over 2,000 sq ft), cobblestone-street charm, well-regarded schools including PS 234, low density, and celebrity cachet. Limited new construction keeps supply tight."
         },
         {
           "question": "What type of apartments are in Tribeca?",
@@ -500,7 +500,7 @@
         },
         {
           "question": "What parks and schools are near Tribeca?",
-          "answer": "Tribeca is one of Manhattan's top family neighborhoods. PS 234 is highly rated, the neighborhood has excellent parks (Hudson River Park, Washington Market Park), and the low-rise character provides a village atmosphere."
+          "answer": "Tribeca offers convenient access to PS 234 (highly rated), Hudson River Park, and Washington Market Park. The low-rise character provides a village atmosphere with ample green space and recreation."
         },
         {
           "question": "What is the average price in Tribeca?",
@@ -574,7 +574,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering spacious loft living, top schools, and a village feel within walking distance of Hudson River Park.",
+          "description": "Properties offering spacious loft living, proximity to PS 234, and a village feel within walking distance of Hudson River Park.",
           "budgetRange": "$3M - $10M",
           "propertyType": "3+ bedroom loft or townhouse"
         },
@@ -1160,7 +1160,7 @@
         },
         {
           "question": "What parks and schools are near FiDi?",
-          "answer": "Yes, especially since the Brookfield Place development added family amenities. PS 89 and PS 234 are excellent schools, and the waterfront parks provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities."
+          "answer": "The area features well-regarded schools including PS 89 and PS 234, along with waterfront parks that provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities and amenities."
         },
         {
           "question": "What is the commute from the Financial District?",
@@ -1823,8 +1823,8 @@
       ],
       "faqs": [
         {
-          "question": "Is Hell's Kitchen safe?",
-          "answer": "Yes, Hell's Kitchen is a safe, thriving neighborhood. It has seen significant residential development and investment, and is a popular choice for buyers who value walkability and cultural access."
+          "question": "What is living in Hell's Kitchen like?",
+          "answer": "Hell's Kitchen is a thriving, vibrant neighborhood. It has seen significant residential development and investment, and is a popular choice for buyers who value walkability and cultural access."
         },
         {
           "question": "Why is it called Hell's Kitchen?",
@@ -3098,7 +3098,7 @@
       "faqs": [
         {
           "question": "Is Battery Park City a good place to live?",
-          "answer": "Battery Park City is one of Manhattan's most livable neighborhoods for families, offering waterfront parks, excellent schools, modern buildings, and a peaceful atmosphere."
+          "answer": "Battery Park City is one of Manhattan's most livable neighborhoods, offering waterfront parks, well-regarded schools including PS 276 and Stuyvesant High School, modern buildings, and a peaceful atmosphere."
         },
         {
           "question": "What are BPC apartment prices?",
@@ -3159,7 +3159,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring space, safety, waterfront parks, and excellent schools at below-Tribeca prices.",
+          "description": "Properties featuring spacious layouts, waterfront parks, and well-regarded schools at below-Tribeca prices.",
           "budgetRange": "$1M - $3M",
           "propertyType": "2-3 bedroom condo"
         },

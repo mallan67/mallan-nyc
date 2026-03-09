@@ -352,7 +352,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring spacious estate-style homes with large yards, excellent schools, and a safe residential environment.",
+          "description": "Properties featuring spacious estate-style homes with large yards, well-regarded schools, and a quiet residential setting.",
           "budgetRange": "$900K - $2M",
           "propertyType": "4-5 bedroom single family"
         },
@@ -480,7 +480,7 @@
       "tagline": "Coastal Living with Neighborhood Charm",
       "heroImage": "https://images.unsplash.com/photo-1649139410335-b3243cdfcfa3?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1649139410335-b3243cdfcfa3?w=1200&q=80",
-      "summary": "Great Kills is a family-oriented South Shore neighborhood known for its beach access, marina, and tight-knit community character. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
+      "summary": "Great Kills is a South Shore neighborhood known for its beach access, marina, and tight-knit community character. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
       "avgPricePerSqft": 425,
       "dominantPropertyType": "Single Family",
       "walkScore": 62,
@@ -496,7 +496,7 @@
         },
         {
           "question": "What parks and schools are near Great Kills?",
-          "answer": "Yes, Great Kills is one of Staten Island's most popular family neighborhoods. It has well-regarded public schools, youth sports programs, a marina for boating, and Great Kills Park with beaches and playgrounds. The neighborhood has a strong community feel with active civic associations."
+          "answer": "Great Kills offers well-regarded public schools, youth sports programs, a marina for boating, and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has a strong community feel with active civic associations."
         },
         {
           "question": "What is Great Kills Park?",
