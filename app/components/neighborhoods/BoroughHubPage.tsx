@@ -1,6 +1,4 @@
 import Link from 'next/link';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from './NeighborhoodBreadcrumb';
@@ -35,8 +33,6 @@ export default function BoroughHubPage({
 }: BoroughHubPageProps) {
   return (
     <>
-      <Header dark />
-
       {/* Hero */}
       <section className="relative h-[340px] sm:h-[400px] md:h-[440px] overflow-hidden">
         <div
@@ -139,7 +135,6 @@ export default function BoroughHubPage({
       </div>
 
       <SocialShareBar title={`${borough} Neighborhoods | Mallan Real Estate`} />
-      <Footer />
 
       {/* JSON-LD */}
       <script

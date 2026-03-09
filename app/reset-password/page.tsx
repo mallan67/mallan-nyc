@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, Suspense } from 'react';
@@ -165,7 +163,6 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
           <Suspense fallback={
@@ -178,7 +175,6 @@ export default function ResetPasswordPage() {
           </Suspense>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import ResourceContent from '@/app/components/ResourceContent';
 
@@ -43,12 +41,10 @@ export default async function ResourcePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-white font-sans">
-      <Header dark />
       <main className="pt-20">
         <ResourceContent slug={slug} />
       </main>
       <SocialShareBar title={`${slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} | Mallan Real Estate`} />
-      <Footer />
     </div>
   );
 }

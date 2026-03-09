@@ -1,11 +1,8 @@
 import Link from 'next/link';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 
 export default function ListingNotFound() {
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-32 pb-20 px-4">
         <div className="max-w-xl mx-auto text-center">
           <h1 className="text-3xl font-display font-semibold mb-4">
@@ -39,7 +36,6 @@ export default function ListingNotFound() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

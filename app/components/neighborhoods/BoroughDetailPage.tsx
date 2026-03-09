@@ -1,5 +1,3 @@
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from './NeighborhoodBreadcrumb';
@@ -53,7 +51,6 @@ export default function BoroughDetailPage({
 
   return (
     <>
-      <Header dark />
       <NeighborhoodHero
         name={n.name}
         tagline={n.tagline}
@@ -91,7 +88,6 @@ export default function BoroughDetailPage({
       </div>
 
       <SocialShareBar title={`${n.name} Real Estate | Mallan Real Estate`} />
-      <Footer />
 
       {/* JSON-LD structured data */}
       <script

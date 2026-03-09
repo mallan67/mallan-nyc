@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import Image from 'next/image';
 import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
@@ -208,7 +206,6 @@ export default function SellPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(sellFaqSchema) }}
       />
-      <Header dark />
       <main>
         {/* ═══════════════════════════════════════════════
             1. HERO — Cinematic full-viewport
@@ -689,7 +686,6 @@ export default function SellPage() {
         </section>
       </main>
       <SocialShareBar title="Sell Your Property | Mallan Real Estate" />
-      <Footer />
     </div>
   );
 }

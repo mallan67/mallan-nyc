@@ -1,7 +1,5 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from '@/app/components/neighborhoods/NeighborhoodBreadcrumb';
@@ -83,8 +81,6 @@ export const revalidate = 3600;
 export default function ManhattanHubPage() {
   return (
     <>
-      <Header dark />
-
       {/* Hero */}
       <section className="relative h-[340px] sm:h-[400px] md:h-[440px] overflow-hidden">
         <div
@@ -189,7 +185,6 @@ export default function ManhattanHubPage() {
       </div>
 
       <SocialShareBar title="Manhattan Neighborhoods | Mallan Real Estate" />
-      <Footer />
 
       {/* JSON-LD */}
       <script

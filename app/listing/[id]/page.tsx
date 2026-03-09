@@ -1,8 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
@@ -33,9 +31,8 @@ import { cache } from 'react';
 import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
 
-// Dynamic — listings come from IDX, not static JSON
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
+export const revalidate = 300;
 
 /** Borough name → ACRIS borough code (1=Manhattan, 2=Bronx, 3=Brooklyn, 4=Queens, 5=SI) */
 const BOROUGH_TO_CODE: Record<string, string> = {
@@ -664,8 +661,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
       />
-      <Header dark />
-
       {/* ═══ Breadcrumb ═══ */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-[68px]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
@@ -1383,7 +1378,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
       </section>
 
       <SocialShareBar title={`${fullAddress} | ${formatPrice(listing.listPrice, isRental)}`} />
-      <Footer />
     </div>
   );
 }

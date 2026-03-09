@@ -2,8 +2,6 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { Neighborhood } from '@/lib/types/neighborhood';
 import { loadNeighborhoods, findNeighborhood } from '@/lib/neighborhoods/boroughs';
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import NeighborhoodBreadcrumb from '@/app/components/neighborhoods/NeighborhoodBreadcrumb';
@@ -86,7 +84,6 @@ export default async function NeighborhoodPage({
 
   return (
     <>
-      <Header dark />
       <NeighborhoodHero
         name={n.name}
         tagline={n.tagline}
@@ -124,7 +121,6 @@ export default async function NeighborhoodPage({
       </div>
 
       <SocialShareBar title={`${n.name} Real Estate | Mallan Real Estate`} />
-      <Footer />
 
       {/* JSON-LD structured data */}
       <script

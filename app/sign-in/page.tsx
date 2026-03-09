@@ -1,7 +1,5 @@
 'use client';
 
-import Header from '@/app/components/Header';
-import Footer from '@/app/components/Footer';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -97,7 +95,6 @@ function SignInContent() {
     const isAgent = userType === 'agent' || userRole?.toUpperCase() === 'BROKER' || userRole?.toUpperCase() === 'AGENT';
     return (
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
-        <Header dark />
         <main className="pt-20 py-16">
           <div className="max-w-md mx-auto px-4 text-center">
             <div className="glass-card rounded-3xl p-10">
@@ -118,14 +115,12 @@ function SignInContent() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <Header dark />
       <main className="pt-20 py-16">
         <div className="max-w-md mx-auto px-4">
           <div className="glass-card rounded-3xl p-8 sm:p-10">
@@ -311,7 +306,6 @@ function SignInContent() {
           </p>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

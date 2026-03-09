@@ -2,7 +2,6 @@
 
 import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Header from '@/app/components/Header';
 import { useListings } from '@/lib/hooks/useListings';
 // IDX disclaimer shown inline in toolbar row 2 (single line for space efficiency)
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
@@ -714,7 +713,6 @@ function SearchLoading() {
 export default function SearchPage() {
   return (
     <div className="h-screen flex flex-col bg-[#FEFEFE] font-sans overflow-hidden">
-      <Header dark />
       {/* Spacer for fixed header (h-16 mobile, h-[72px] desktop) */}
       <div className="flex-shrink-0 h-16 md:h-[72px]" />
       <main className="flex-1 min-h-0 flex flex-col">
