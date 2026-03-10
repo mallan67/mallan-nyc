@@ -31,6 +31,7 @@ import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlu
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
+import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 
 import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
@@ -664,6 +665,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <ListingViewTracker />
+      <RecentlyViewedTracker
+        id={listing.id}
+        slug={listing.slug}
+        address={fullAddress}
+        price={listing.listPrice}
+        photo={images[0]?.url || ''}
+        beds={listing.bedroomsTotal}
+        baths={listing.bathroomsFull}
+        type={isRental ? 'rent' : 'sale'}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
