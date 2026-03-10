@@ -115,6 +115,20 @@ This project handles **licensed MLS/IDX data from REBNY RLS via Trestle/Cotality
 
 ---
 
+## Commercial Property Classification
+
+Commercial listings are **website-only** (mallan.nyc). They are NOT distributed to REBNY RLS/IDX feeds.
+
+- **`rls_eligible: false`** on the Listing model bypasses all 6 distribution gates
+- CRM listing POST detects commercial property type, skips RLS enforcement gate
+- Public search uses `OR` query: (RLS listings with gate checks) OR (website-only listings)
+- Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner
+- Fields: `commercial_sub_type`, `commercial_ownership` on Listing model
+
+**Important:** RLS compliance rules (distribution gates, attribution, disclaimers) apply ONLY to `rls_eligible: true` listings. Website-only listings still must comply with Fair Housing, NY DOS advertising laws, and TCPA.
+
+---
+
 ## Compliance Requirements
 
 All code and technical work must comply with:
