@@ -160,18 +160,18 @@ const VALUE_DRIVERS = [
 ];
 
 const NEIGHBORHOODS = [
-  { name: 'Upper East Side', borough: 'Manhattan', style: 'Limestone & brownstone townhouses' },
-  { name: 'Upper West Side', borough: 'Manhattan', style: 'Brownstone row houses' },
-  { name: 'West Village', borough: 'Manhattan', style: 'Federal & Greek Revival' },
-  { name: 'Greenwich Village', borough: 'Manhattan', style: 'Historic brownstones' },
-  { name: 'Chelsea', borough: 'Manhattan', style: 'Row houses & carriage houses' },
-  { name: 'Harlem', borough: 'Manhattan', style: 'Brownstone renaissance' },
-  { name: 'Brooklyn Heights', borough: 'Brooklyn', style: 'Landmarked brownstones' },
-  { name: 'Park Slope', borough: 'Brooklyn', style: 'Victorian brownstones' },
-  { name: 'Carroll Gardens', borough: 'Brooklyn', style: 'Wide-stoop brownstones' },
-  { name: 'Bed-Stuy', borough: 'Brooklyn', style: 'Renaissance Revival' },
-  { name: 'Fort Greene', borough: 'Brooklyn', style: 'Historic row houses' },
-  { name: 'Prospect Heights', borough: 'Brooklyn', style: 'Restored brownstones' },
+  { name: 'Upper East Side', borough: 'Manhattan', style: 'Limestone & brownstone townhouses', href: '/manhattan' },
+  { name: 'Upper West Side', borough: 'Manhattan', style: 'Brownstone row houses', href: '/sell/townhouses/upper-west-side', featured: true },
+  { name: 'West Village', borough: 'Manhattan', style: 'Federal & Greek Revival', href: '/manhattan' },
+  { name: 'Greenwich Village', borough: 'Manhattan', style: 'Historic brownstones', href: '/manhattan' },
+  { name: 'Chelsea', borough: 'Manhattan', style: 'Row houses & carriage houses', href: '/manhattan' },
+  { name: 'Harlem', borough: 'Manhattan', style: 'Brownstone renaissance', href: '/manhattan' },
+  { name: 'Brooklyn Heights', borough: 'Brooklyn', style: 'Landmarked brownstones', href: '/brooklyn' },
+  { name: 'Park Slope', borough: 'Brooklyn', style: 'Victorian brownstones', href: '/brooklyn' },
+  { name: 'Carroll Gardens', borough: 'Brooklyn', style: 'Wide-stoop brownstones', href: '/brooklyn' },
+  { name: 'Bed-Stuy', borough: 'Brooklyn', style: 'Renaissance Revival', href: '/brooklyn' },
+  { name: 'Fort Greene', borough: 'Brooklyn', style: 'Historic row houses', href: '/brooklyn' },
+  { name: 'Prospect Heights', borough: 'Brooklyn', style: 'Restored brownstones', href: '/brooklyn' },
 ];
 
 const SELLING_ADVANTAGES = [
@@ -382,12 +382,23 @@ export default function TownhouseSellerPage() {
               {NEIGHBORHOODS.map((n) => (
                 <Link
                   key={n.name}
-                  href={`/${n.borough.toLowerCase().replace(' ', '-')}`}
-                  className="group rounded-2xl p-5 border border-black/[0.04] hover:border-brand-gold/20 hover:shadow-md transition-all"
+                  href={n.href}
+                  className={`group rounded-2xl p-5 border hover:shadow-md transition-all ${
+                    n.featured
+                      ? 'border-brand-gold/30 bg-brand-gold/[0.03] ring-1 ring-brand-gold/10'
+                      : 'border-black/[0.04] hover:border-brand-gold/20'
+                  }`}
                 >
-                  <p className="font-display font-semibold text-brand-dark group-hover:text-brand-gold-deep transition-colors">
-                    {n.name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-semibold text-brand-dark group-hover:text-brand-gold-deep transition-colors">
+                      {n.name}
+                    </p>
+                    {n.featured && (
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-brand-gold/10 text-brand-gold-deep uppercase tracking-wider">
+                        Our Specialty
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[12px] text-brand-dark/40 mt-0.5">{n.borough}</p>
                   <p className="text-[12px] text-brand-dark/60 mt-2 font-light">{n.style}</p>
                 </Link>
