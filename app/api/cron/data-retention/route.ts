@@ -82,6 +82,25 @@ export async function GET(req: NextRequest) {
   });
   results.expired_portal_tokens_cleared = expiredTokens.count;
 
+  // 5. Clean up read notifications older than 90 days
+  const notifCutoff = new Date();
+  notifCutoff.setDate(notifCutoff.getDate() - 90);
+  const oldNotifications = await prisma.notification.deleteMany({
+    where: {
+      read: true,
+      created_at: { lt: notifCutoff },
+    },
+  });
+  results.read_notifications_purged = oldNotifications.count;
+
+  // 6. Clean up stale geocode cache entries older than 1 year
+  const geoCutoff = new Date();
+  geoCutoff.setFullYear(geoCutoff.getFullYear() - 1);
+  const oldGeoEntries = await prisma.geocodeCache.deleteMany({
+    where: { created_at: { lt: geoCutoff } },
+  });
+  results.stale_geocode_cache_purged = oldGeoEntries.count;
+
   // Log the retention run
   await prisma.auditEvent.create({
     data: {
