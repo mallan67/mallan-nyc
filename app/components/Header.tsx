@@ -119,6 +119,7 @@ export default function Header() {
   const sellItems = [
     { title: 'Residential', href: '/sell?type=residential' },
     { title: 'Commercial', href: '/sell?type=commercial' },
+    { title: 'Townhouses', href: '/sell/townhouses' },
     { title: 'Home Value', href: '/sell#valuation' },
     { title: 'Our Results', href: '/results' },
   ];
