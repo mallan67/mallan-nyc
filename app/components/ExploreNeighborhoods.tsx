@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import neighborhoodsData from '@/data/neighborhoods.json';
 
 type Neighborhood = {
@@ -50,23 +51,28 @@ function NeighborhoodCard({ neighborhood }: { neighborhood: Neighborhood }) {
   return (
     <Link
       href={getNeighborhoodHref(neighborhood.id)}
-      className="group block relative overflow-hidden rounded-lg aspect-[4/3]"
+      className="hood-card group block relative overflow-hidden rounded-3xl aspect-[3/4] cursor-pointer"
     >
       <div className="absolute inset-0 bg-gray-300">
         <Image
           src={neighborhood.thumbnail}
           alt={neighborhood.name}
           fill
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
+          className="object-cover"
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 16vw"
+          loading="lazy"
+          style={{
+            animation: 'liquidMotion 14s ease-in-out infinite',
+            transformOrigin: '50% 50%',
+          }}
         />
       </div>
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
       {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-        <h3 className="text-lg sm:text-xl font-sans font-medium">{neighborhood.name}</h3>
-        <p className="text-sm text-white/80 mt-1">
+      <div className="absolute bottom-0 left-0 right-0 p-5">
+        <p className="font-display font-semibold text-white text-sm">{neighborhood.name}</p>
+        <p className="text-white/40 text-[11px] font-light">
           {neighborhood.listingCount} listings
         </p>
       </div>
@@ -75,31 +81,37 @@ function NeighborhoodCard({ neighborhood }: { neighborhood: Neighborhood }) {
 }
 
 export default function ExploreNeighborhoods() {
+  const gridRef = useGsapReveal<HTMLDivElement>({ children: true, y: 40, scale: 0.96, ease: 'back.out(1.4)', stagger: 0.06 });
+
   const neighborhoods = (neighborhoodsData.neighborhoods as Neighborhood[]).slice(0, 6);
 
   return (
-    <section className="py-12 sm:py-16 md:py-20 px-4 bg-white">
-      <div className="max-w-7xl mx-auto">
-        {/* Section header - centered, consistent with other sections */}
-        <div className="text-center mb-8 sm:mb-10">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-sans font-light tracking-tight text-gray-900">
-            Explore Neighborhoods
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-gray-500">
-            Discover NYC neighborhoods across all five boroughs
-          </p>
+    <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+      <div className="max-w-[1440px] mx-auto">
+        {/* Section header — left-aligned */}
+        <div className="flex items-end justify-between mb-12 md:mb-16">
+          <div>
+            <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Explore</p>
+            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Neighborhoods</h2>
+          </div>
+          <Link href="/neighborhoods" className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500 hidden sm:block">
+            All 59 &rarr;
+          </Link>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+
+        {/* Portrait card grid */}
+        <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
           {neighborhoods.map((neighborhood) => (
             <NeighborhoodCard key={neighborhood.id} neighborhood={neighborhood} />
           ))}
         </div>
-        <div className="mt-10 sm:mt-12 text-center">
+
+        <div className="mt-10 sm:mt-12 text-center sm:hidden">
           <Link
             href="/neighborhoods"
-            className="inline-block px-8 py-3 border border-gray-900 text-gray-900 font-medium rounded-lg hover:bg-gray-900 hover:text-white transition-colors text-sm sm:text-base tracking-wide"
+            className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500"
           >
-            View All Neighborhoods
+            All 59 &rarr;
           </Link>
         </div>
       </div>
