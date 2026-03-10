@@ -74,8 +74,10 @@ export async function POST(request: NextRequest) {
         roles: ["buyer"],
         status: "new",
         source: "search_alert",
+        consent_captured_at: new Date(),
       },
       update: {
+        consent_captured_at: new Date(),
         updated_at: new Date(),
       },
     });

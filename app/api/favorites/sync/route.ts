@@ -70,11 +70,13 @@ export async function POST(request: NextRequest) {
         roles,
         status: 'new',
         source: 'favorites',
+        consent_captured_at: new Date(),
       },
       update: {
         // Update name only if provided and lead has no name yet
         ...(firstName ? { first_name: firstName } : {}),
         ...(lastName ? { last_name: lastName } : {}),
+        consent_captured_at: new Date(),
         updated_at: new Date(),
       },
     });

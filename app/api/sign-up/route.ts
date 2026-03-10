@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
         portal_role: portalRole,
         status: 'new',
         source: 'website',
+        consent_captured_at: new Date(),
       },
     });
 

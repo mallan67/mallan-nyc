@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     const lastName = nameParts.slice(1).join(' ') || '';
 
     // Upsert lead — if email already exists, update; otherwise create new
+    const consentNow = new Date();
     const lead = await prisma.lead.upsert({
       where: { email: email.toLowerCase().trim() },
       create: {
@@ -65,11 +66,13 @@ export async function POST(request: NextRequest) {
         roles: ['buyer'],
         status: 'new',
         source: isCalculatorLead ? 'calculator' : 'website',
+        consent_captured_at: consentNow,
       },
       update: {
         // Update phone if provided (lead may have changed number)
         ...(sanitizedPhone ? { phone: sanitizedPhone } : {}),
-        // Don't overwrite existing status — only update if still 'new'
+        // Record consent timestamp if not already set
+        consent_captured_at: consentNow,
         updated_at: new Date(),
       },
     });
