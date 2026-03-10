@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -150,7 +151,7 @@ export async function GET(request: Request) {
         const isRental = type === 'rent';
         const propertyClass = isRental ? "PropertyType eq 'Residential Lease'" : "PropertyType eq 'Residential'";
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
-        const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode';
+        const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN';
 
         // Active listings from Trestle
         const activeParams = new URLSearchParams({
@@ -190,6 +191,10 @@ export async function GET(request: Request) {
       } catch (err) {
         console.warn('[/api/market] Trestle fallback failed:', err instanceof Error ? err.message : err);
       }
+
+      // Distribution gate check — filter out non-displayable listings
+      trestleActive = trestleActive.filter(r => checkDistributionGates(r).displayable);
+      trestleClosed = trestleClosed.filter(r => checkDistributionGates(r).displayable);
     }
 
     // Merge DB + Trestle active data for stats

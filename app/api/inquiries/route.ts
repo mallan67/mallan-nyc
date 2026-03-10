@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { inquiryAutoResponseEmail } from '@/lib/email/templates';
+import { escapeHtml } from '@/lib/sanitize';
 
 /**
  * POST /api/inquiries
@@ -99,16 +100,17 @@ export async function POST(request: NextRequest) {
         ? `New Inquiry: ${listingAddress}`
         : 'New Inquiry: General Inquiry';
 
+      const td = 'padding:4px 12px 4px 0;font-weight:bold;';
       const emailBody = `
         <h2>New Listing Inquiry</h2>
         <table style="border-collapse:collapse;font-family:sans-serif;">
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${name}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${email}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Phone:</td><td>${sanitizedPhone}</td></tr>
-          ${listingId ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Listing ID:</td><td>${listingId}</td></tr>` : ''}
-          ${listingAddress ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Address:</td><td>${listingAddress}</td></tr>` : ''}
-          ${preferredDate ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Preferred Date:</td><td>${preferredDate}</td></tr>` : ''}
-          ${message ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Message:</td><td>${message}</td></tr>` : ''}
+          <tr><td style="${td}">Name:</td><td>${escapeHtml(name)}</td></tr>
+          <tr><td style="${td}">Email:</td><td>${escapeHtml(email)}</td></tr>
+          <tr><td style="${td}">Phone:</td><td>${escapeHtml(sanitizedPhone)}</td></tr>
+          ${listingId ? `<tr><td style="${td}">Listing ID:</td><td>${escapeHtml(String(listingId))}</td></tr>` : ''}
+          ${listingAddress ? `<tr><td style="${td}">Address:</td><td>${escapeHtml(String(listingAddress))}</td></tr>` : ''}
+          ${preferredDate ? `<tr><td style="${td}">Preferred Date:</td><td>${escapeHtml(String(preferredDate))}</td></tr>` : ''}
+          ${message ? `<tr><td style="${td}">Message:</td><td>${escapeHtml(String(message))}</td></tr>` : ''}
         </table>
       `.trim();
 

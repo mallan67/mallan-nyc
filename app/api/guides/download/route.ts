@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
+import { escapeHtml } from '@/lib/sanitize';
 
 /**
  * POST /api/guides/download
@@ -89,13 +90,14 @@ export async function POST(request: NextRequest) {
     // Notify broker (non-fatal)
     try {
       const guideTitle = guideType === 'buyer' ? "NYC Buyer's Guide" : "NYC Seller's Guide";
+      const td = 'padding:4px 12px 4px 0;font-weight:bold;';
       const emailBody = `
         <h2>Guide Download Lead</h2>
         <table style="border-collapse:collapse;font-family:sans-serif;">
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Guide:</td><td>${guideTitle}</td></tr>
-          ${name ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${name}</td></tr>` : ''}
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${email}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Time:</td><td>${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</td></tr>
+          <tr><td style="${td}">Guide:</td><td>${escapeHtml(guideTitle)}</td></tr>
+          ${name ? `<tr><td style="${td}">Name:</td><td>${escapeHtml(String(name))}</td></tr>` : ''}
+          <tr><td style="${td}">Email:</td><td>${escapeHtml(email)}</td></tr>
+          <tr><td style="${td}">Time:</td><td>${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</td></tr>
         </table>
       `.trim();
 

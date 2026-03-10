@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { openHouseRsvpEmail } from '@/lib/email/templates';
+import { escapeHtml } from '@/lib/sanitize';
 
 /**
  * POST /api/open-houses/rsvp
@@ -108,17 +109,18 @@ export async function POST(request: NextRequest) {
 
     // Send email notification to agent (non-fatal)
     try {
+      const td = 'padding:4px 12px 4px 0;font-weight:bold;';
       const emailBody = `
         <h2>New Open House RSVP</h2>
         <table style="border-collapse:collapse;font-family:sans-serif;">
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${name}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${email}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Phone:</td><td>${sanitizedPhone}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Property:</td><td>${listingAddress}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Date:</td><td>${formattedDate}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Time:</td><td>${openHouseTime}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Party Size:</td><td>${validPartySize}</td></tr>
-          ${message ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Notes:</td><td>${message}</td></tr>` : ''}
+          <tr><td style="${td}">Name:</td><td>${escapeHtml(name)}</td></tr>
+          <tr><td style="${td}">Email:</td><td>${escapeHtml(email)}</td></tr>
+          <tr><td style="${td}">Phone:</td><td>${escapeHtml(sanitizedPhone)}</td></tr>
+          <tr><td style="${td}">Property:</td><td>${escapeHtml(String(listingAddress))}</td></tr>
+          <tr><td style="${td}">Date:</td><td>${escapeHtml(formattedDate)}</td></tr>
+          <tr><td style="${td}">Time:</td><td>${escapeHtml(String(openHouseTime))}</td></tr>
+          <tr><td style="${td}">Party Size:</td><td>${validPartySize}</td></tr>
+          ${message ? `<tr><td style="${td}">Notes:</td><td>${escapeHtml(String(message))}</td></tr>` : ''}
         </table>
       `.trim();
 
