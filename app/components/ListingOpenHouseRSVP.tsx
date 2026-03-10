@@ -29,11 +29,20 @@ export default function ListingOpenHouseRSVP({ listingAddress }: ListingOpenHous
       .then(res => res.json())
       .then(data => {
         const allOH = (data.openHouses || []) as OpenHouseData[];
-        // Filter to open houses matching this listing address (case-insensitive partial match)
-        const normalized = listingAddress.toLowerCase().replace(/[,.\s]+/g, ' ').trim();
+
+        // Normalize addresses for comparison — strip punctuation, extra spaces, and lowercase
+        const normalize = (s: string) => s.toLowerCase().replace(/[,.\s#]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const normalized = normalize(listingAddress);
+
+        // Extract the core street address (number + street name) for matching
+        // e.g. "157 w 57th street" from "157 W 57th Street, Apt 42A, New York, NY 10019"
+        const streetPart = normalized.split(/\b(?:apt|unit|suite|fl|floor|new york|ny|manhattan|brooklyn|queens|bronx|staten)\b/)[0]?.trim() || normalized;
+
         const matching = allOH.filter(oh => {
-          const ohAddr = oh.address.toLowerCase().replace(/[,.\s]+/g, ' ').trim();
-          return ohAddr === normalized || normalized.includes(ohAddr) || ohAddr.includes(normalized);
+          const ohNorm = normalize(oh.address);
+          const ohStreet = ohNorm.split(/\b(?:apt|unit|suite|fl|floor|new york|ny|manhattan|brooklyn|queens|bronx|staten)\b/)[0]?.trim() || ohNorm;
+          // Match on street portion only (ignoring unit, city, state)
+          return ohStreet === streetPart || streetPart.includes(ohStreet) || ohStreet.includes(streetPart);
         });
 
         // Only show upcoming open houses
@@ -44,7 +53,18 @@ export default function ListingOpenHouseRSVP({ listingAddress }: ListingOpenHous
           return ohDate >= today;
         });
 
-        setOpenHouses(upcoming);
+        // Deduplicate by date + time (Trestle can return multiple entries for same slot)
+        const seen = new Set<string>();
+        const deduped = upcoming.filter(oh => {
+          const key = `${oh.date}|${oh.startTime}|${oh.endTime}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        // Sort by date ascending and limit to 4 entries
+        deduped.sort((a, b) => a.date.localeCompare(b.date));
+        setOpenHouses(deduped.slice(0, 4));
       })
       .catch(() => { /* silently fail — this is an enhancement */ });
   }, [listingAddress]);

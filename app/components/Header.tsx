@@ -90,6 +90,7 @@ export default function Header() {
   const [neighborhoodsOpen, setNeighborhoodsOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const resources: ResourceItem[] = [
+    { title: 'Market Report', href: '/market' },
     { title: "Buyer's Guide", href: '/resources/buyers-guide' },
     { title: "Seller's Guide", href: '/resources/sellers-guide' },
     { title: 'Investors Guide', href: '/resources/investors-guide' },
@@ -209,12 +210,6 @@ export default function Header() {
               <li>
                 <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
                   Open Houses
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/market" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
-                  Market
                 </Link>
               </li>
 
@@ -401,14 +396,6 @@ export default function Header() {
                 className={`py-3 min-h-[44px] ${mobileTextColor}`}
               >
                 Open Houses
-              </Link>
-
-              <Link
-                href="/market"
-                onClick={() => setMobileOpen(false)}
-                className={`py-3 min-h-[44px] ${mobileTextColor}`}
-              >
-                Market
               </Link>
 
               <div>
