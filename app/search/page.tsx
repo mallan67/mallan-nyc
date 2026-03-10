@@ -398,10 +398,10 @@ function SearchClient() {
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
                     activeTab === tab
                       ? 'bg-white text-brand-dark shadow-sm'
-                      : 'text-brand-dark/80 hover:text-brand-dark'
+                      : 'text-brand-dark/70 hover:text-brand-dark'
                   }`}
                 >
                   {config.label}
