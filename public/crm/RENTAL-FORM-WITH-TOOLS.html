@@ -5909,6 +5909,104 @@ function showToast(message, type) {
 }
 window.alert = function(msg) { showToast(String(msg)); };
 
+// ═══════════════════════════════════════════════════════════
+// AGENT INFO SHEET — Print / Email professional agent card
+// ═══════════════════════════════════════════════════════════
+function generateAgentInfoSheet() {
+    var gv = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '').trim() : ''; };
+    var agentName = gv('rentalUpdatingAgentName') || gv('rentalListingAgentId') || '--';
+    var agentPhone = gv('rentalUpdatingAgentPhone') || gv('rentalListingAgentPhone') || '--';
+    var agentEmail = gv('rentalUpdatingAgentEmail') || gv('rentalListingAgentEmail') || '--';
+    var agentLicense = gv('rentalUpdatingAgentLicense') || gv('rentalListingAgentLicense') || '--';
+    var address = gv('rentalStreetAddress') || '--';
+    var unit = gv('rentalUnitNumber');
+    var borough = (document.getElementById('rentalBorough') || {}).selectedOptions ? ((document.getElementById('rentalBorough').selectedOptions[0] || {}).text || '') : '';
+    var zip = gv('rentalZipCode');
+    var rent = gv('rentalMonthlyRent');
+    var beds = gv('rentalBedrooms');
+    var baths = gv('rentalBathroomsTotal');
+    var fullAddr = address + (unit ? ', Unit ' + unit : '') + (borough ? ', ' + borough : '') + (zip ? ' ' + zip : '');
+    var priceStr = rent ? '$' + Number(rent).toLocaleString() + '/mo' : '--';
+    var details = [];
+    if (beds && beds !== '0') details.push(beds + ' BD');
+    if (baths && baths !== '0') details.push(baths + ' BA');
+    var detailStr = details.length ? details.join(' | ') : '';
+    var now = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Agent Info Sheet</title>' +
+        '<style>' +
+        'body { font-family: Manrope, -apple-system, sans-serif; margin: 0; padding: 40px; color: #1a1a1a; }' +
+        '.sheet { max-width: 680px; margin: 0 auto; }' +
+        '.header { display: flex; align-items: center; gap: 24px; padding-bottom: 24px; border-bottom: 3px solid #B8860B; margin-bottom: 28px; }' +
+        '.logo-block { text-align: center; }' +
+        '.logo-block h1 { font-size: 22px; font-weight: 800; color: #1a1a1a; margin: 0; letter-spacing: -0.5px; }' +
+        '.logo-block p { font-size: 11px; color: #6b7280; margin: 2px 0 0; }' +
+        '.agent-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 24px; }' +
+        '.agent-card h2 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }' +
+        '.agent-card .title { font-size: 13px; color: #B8860B; font-weight: 600; margin-bottom: 12px; }' +
+        '.agent-detail { display: flex; gap: 32px; flex-wrap: wrap; font-size: 13px; }' +
+        '.agent-detail div { min-width: 140px; }' +
+        '.agent-detail .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }' +
+        '.agent-detail .value { font-weight: 600; margin-top: 2px; }' +
+        '.brokerage { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 24px; }' +
+        '.brokerage h3 { font-size: 14px; font-weight: 700; margin: 0 0 8px; }' +
+        '.brokerage p { font-size: 12px; color: #4b5563; margin: 3px 0; }' +
+        '.listing-ref { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 24px; }' +
+        '.listing-ref h3 { font-size: 14px; font-weight: 700; color: #1e40af; margin: 0 0 8px; }' +
+        '.listing-ref p { font-size: 13px; color: #374151; margin: 3px 0; }' +
+        '.listing-ref .price { font-size: 20px; font-weight: 800; color: #1a1a1a; }' +
+        '.compliance { margin-top: 32px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; line-height: 1.6; }' +
+        '.compliance p { margin: 4px 0; }' +
+        '.fair-housing { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 10px; color: #6b7280; }' +
+        '.actions { margin-top: 24px; display: flex; gap: 12px; }' +
+        '.actions button { padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }' +
+        '.btn-print { background: #B8860B; color: #fff; }' +
+        '.btn-print:hover { background: #9A7209; }' +
+        '.btn-email { background: #2563eb; color: #fff; }' +
+        '.btn-email:hover { background: #1d4ed8; }' +
+        '@media print { .actions { display: none !important; } body { padding: 20px; } }' +
+        '</style></head><body>' +
+        '<div class="sheet">' +
+        '<div class="header"><div class="logo-block"><h1>MALLAN</h1><p>REAL ESTATE</p></div></div>' +
+        '<div class="agent-card">' +
+        '<h2>' + agentName + '</h2>' +
+        '<div class="title">Licensed Real Estate Agent</div>' +
+        '<div class="agent-detail">' +
+        '<div><div class="label">Phone</div><div class="value">' + agentPhone + '</div></div>' +
+        '<div><div class="label">Email</div><div class="value">' + agentEmail + '</div></div>' +
+        '<div><div class="label">License #</div><div class="value">' + agentLicense + '</div></div>' +
+        '</div></div>' +
+        '<div class="brokerage"><h3>Mallan Real Estate Inc.</h3>' +
+        '<p>NY DOS License #10991205323</p>' +
+        '<p>400 East 90th Street, Suite 17C, New York, NY 10128</p>' +
+        '<p>646-258-4460 | info@mallan.nyc</p></div>' +
+        '<div class="listing-ref"><h3>Current Listing</h3>' +
+        '<p style="font-weight:600;">' + fullAddr + '</p>' +
+        '<p class="price">' + priceStr + '</p>' +
+        (detailStr ? '<p>' + detailStr + '</p>' : '') +
+        '</div>' +
+        '<div class="compliance">' +
+        '<p>Listing data provided by the REBNY Listing Service. Information is deemed reliable but not guaranteed. ' +
+        'Data last updated ' + now + '. All information should be independently verified.</p>' +
+        '<p>&copy; ' + new Date().getFullYear() + ' The Real Estate Board of New York, Inc. All rights reserved.</p>' +
+        '<div class="fair-housing">Equal Housing Opportunity. We are pledged to the letter and spirit of U.S. policy for the achievement of equal housing opportunity. ' +
+        'Commission rates are not set by law and are fully negotiable.</div>' +
+        '</div>' +
+        '<div class="actions">' +
+        '<button class="btn-print" onclick="window.print()">Print</button>' +
+        '<button class="btn-email" onclick="emailAgentSheet()">Email</button>' +
+        '</div>' +
+        '</div>' +
+        '<script>function emailAgentSheet(){var s="Agent Info Sheet - "+document.querySelector(".agent-card h2").textContent;' +
+        'var b="Please find the attached agent info sheet for "+s+".";' +
+        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}</script>' +
+        '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+    else { showToast('Pop-up blocked. Please allow pop-ups for this site.', 'error'); }
+}
+
 function submitRentalListing() { /* No-op — viewer only */ }
 
 function toggleRentalRequiredFields() {

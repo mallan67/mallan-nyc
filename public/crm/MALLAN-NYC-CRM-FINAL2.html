@@ -15943,6 +15943,7 @@
                                     <th class="text-left p-3 text-xs font-semibold text-gray-600 uppercase">Buyer</th>
                                     <th class="text-left p-3 text-xs font-semibold text-gray-600 uppercase">Feedback</th>
                                     <th class="text-left p-3 text-xs font-semibold text-gray-600 uppercase">Interest Level</th>
+                                    <th class="text-left p-3 text-xs font-semibold text-gray-600 uppercase">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="seller-showing-log-body">
@@ -15960,6 +15961,7 @@
                                             <i class="fas fa-fire mr-1"></i> Hot
                                         </span>
                                     </td>
+                                    <td class="p-3"><button onclick="captureShowingFeedback('SH-1001')" class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded hover:bg-blue-100 transition font-semibold"><i class="fas fa-comment-dots mr-1"></i>Feedback</button></td>
                                 </tr>
                                 <tr class="border-b hover:bg-gray-50 transition">
                                     <td class="p-3 font-medium">Feb 5, 2026</td>
@@ -15975,6 +15977,7 @@
                                             <i class="fas fa-temperature-half mr-1"></i> Warm
                                         </span>
                                     </td>
+                                    <td class="p-3"><button onclick="captureShowingFeedback('SH-1002')" class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded hover:bg-blue-100 transition font-semibold"><i class="fas fa-comment-dots mr-1"></i>Feedback</button></td>
                                 </tr>
                                 <tr class="border-b hover:bg-gray-50 transition">
                                     <td class="p-3 font-medium">Feb 1, 2026</td>
@@ -15990,6 +15993,7 @@
                                             <i class="fas fa-snowflake mr-1"></i> Cold
                                         </span>
                                     </td>
+                                    <td class="p-3"><button onclick="captureShowingFeedback('SH-1003')" class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded hover:bg-blue-100 transition font-semibold"><i class="fas fa-comment-dots mr-1"></i>Feedback</button></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -37555,6 +37559,148 @@ Equal Housing Opportunity
 
     })();
     </script>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SHOWING FEEDBACK MODAL                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="showingFeedbackModal" class="fixed inset-0 bg-black/50 z-[9999] hidden" onclick="if(event.target===this)closeShowingFeedbackModal()">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-5 border-b">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900"><i class="fas fa-comment-dots text-green-600 mr-2"></i>Showing Feedback</h2>
+                    <p class="text-xs text-gray-500 mt-1">Showing ID: <span id="feedbackShowingId">--</span></p>
+                </div>
+                <button onclick="closeShowingFeedbackModal()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"><i class="fas fa-times text-gray-500"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <!-- Rating -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-2">Rating</label>
+                    <div id="feedbackStars" class="flex gap-1">
+                        <button type="button" onclick="setFeedbackRating(1)" class="feedback-star text-2xl text-gray-300 hover:text-yellow-400 transition"><i class="fas fa-star"></i></button>
+                        <button type="button" onclick="setFeedbackRating(2)" class="feedback-star text-2xl text-gray-300 hover:text-yellow-400 transition"><i class="fas fa-star"></i></button>
+                        <button type="button" onclick="setFeedbackRating(3)" class="feedback-star text-2xl text-gray-300 hover:text-yellow-400 transition"><i class="fas fa-star"></i></button>
+                        <button type="button" onclick="setFeedbackRating(4)" class="feedback-star text-2xl text-gray-300 hover:text-yellow-400 transition"><i class="fas fa-star"></i></button>
+                        <button type="button" onclick="setFeedbackRating(5)" class="feedback-star text-2xl text-gray-300 hover:text-yellow-400 transition"><i class="fas fa-star"></i></button>
+                    </div>
+                    <input type="hidden" id="feedbackRatingValue" value="0">
+                </div>
+                <!-- Interest Level -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Client Interest Level</label>
+                    <select id="feedbackInterestLevel" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select...</option>
+                        <option value="not-interested">Not Interested</option>
+                        <option value="somewhat">Somewhat Interested</option>
+                        <option value="very-interested">Very Interested</option>
+                        <option value="making-offer">Making Offer</option>
+                    </select>
+                </div>
+                <!-- Pros -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Pros</label>
+                    <textarea id="feedbackPros" rows="2" placeholder="What did the client like about the property?" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+                <!-- Cons -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Cons</label>
+                    <textarea id="feedbackCons" rows="2" placeholder="What concerns or objections were raised?" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+                <!-- Follow-up Action -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Follow-Up Action</label>
+                    <select id="feedbackFollowUp" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="none">None</option>
+                        <option value="schedule-2nd">Schedule 2nd Showing</option>
+                        <option value="make-offer">Make Offer</option>
+                        <option value="remove-from-list">Remove from List</option>
+                    </select>
+                </div>
+                <!-- Notes -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Additional Notes</label>
+                    <textarea id="feedbackNotes" rows="2" placeholder="Any other observations or follow-up items..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 p-5 border-t bg-gray-50 rounded-b-xl">
+                <button onclick="closeShowingFeedbackModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-100 transition">Cancel</button>
+                <button onclick="saveShowingFeedback()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition"><i class="fas fa-check mr-1"></i> Save Feedback</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// SHOWING FEEDBACK CAPTURE
+// ═══════════════════════════════════════════════════════════
+var _currentFeedbackShowingId = null;
+
+function captureShowingFeedback(showingId) {
+    _currentFeedbackShowingId = showingId;
+    document.getElementById('feedbackShowingId').textContent = showingId;
+    // Reset form
+    setFeedbackRating(0);
+    document.getElementById('feedbackInterestLevel').value = '';
+    document.getElementById('feedbackPros').value = '';
+    document.getElementById('feedbackCons').value = '';
+    document.getElementById('feedbackFollowUp').value = 'none';
+    document.getElementById('feedbackNotes').value = '';
+    document.getElementById('showingFeedbackModal').classList.remove('hidden');
+}
+
+function closeShowingFeedbackModal() {
+    document.getElementById('showingFeedbackModal').classList.add('hidden');
+    _currentFeedbackShowingId = null;
+}
+
+function setFeedbackRating(rating) {
+    document.getElementById('feedbackRatingValue').value = rating;
+    var stars = document.querySelectorAll('.feedback-star');
+    stars.forEach(function(star, i) {
+        star.className = 'feedback-star text-2xl transition ' + (i < rating ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-400');
+    });
+}
+
+function saveShowingFeedback() {
+    var rating = parseInt(document.getElementById('feedbackRatingValue').value) || 0;
+    var interest = document.getElementById('feedbackInterestLevel').value;
+    var pros = document.getElementById('feedbackPros').value.trim();
+    var cons = document.getElementById('feedbackCons').value.trim();
+    var followUp = document.getElementById('feedbackFollowUp').value;
+    var notes = document.getElementById('feedbackNotes').value.trim();
+
+    if (!interest) {
+        showToast('Please select a client interest level.', 'error');
+        return;
+    }
+    if (rating === 0) {
+        showToast('Please provide a star rating.', 'error');
+        return;
+    }
+
+    var feedbackData = {
+        showingId: _currentFeedbackShowingId,
+        rating: rating,
+        interestLevel: interest,
+        pros: pros,
+        cons: cons,
+        followUpAction: followUp,
+        notes: notes,
+        capturedAt: new Date().toISOString()
+    };
+
+    // Store feedback (will be wired to API in production)
+    console.log('[ShowingFeedback] Saved:', feedbackData);
+
+    var interestLabels = { 'not-interested': 'Not Interested', 'somewhat': 'Somewhat Interested', 'very-interested': 'Very Interested', 'making-offer': 'Making Offer' };
+    var followUpLabels = { 'none': 'None', 'schedule-2nd': 'Schedule 2nd Showing', 'make-offer': 'Make Offer', 'remove-from-list': 'Remove from List' };
+
+    closeShowingFeedbackModal();
+    showToast('Feedback saved for showing ' + _currentFeedbackShowingId + ' (' + (interestLabels[interest] || interest) + ', ' + rating + ' stars). Follow-up: ' + (followUpLabels[followUp] || followUp), 'success', 5000);
+}
+</script>
 
 </body>
 </html>
