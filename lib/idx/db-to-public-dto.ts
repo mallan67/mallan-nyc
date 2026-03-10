@@ -88,6 +88,9 @@ export interface DbListing {
   features: unknown;
   media: unknown;
   agent_info: unknown;
+  rls_eligible?: boolean;
+  commercial_sub_type?: string | null;
+  commercial_ownership?: string | null;
   idx_display_yn: boolean;
   internet_entire_listing_display_yn?: boolean;
   internet_address_display_yn?: boolean;
@@ -120,6 +123,8 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
   return listings.filter((l) => {
     // Gate 1: Must be an active/displayable status
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
+    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates
+    if (l.rls_eligible === false) return true;
     // Gate 2: IDX display must be enabled
     if (l.idx_display_yn === false) return false;
     // Gate 3: Internet display must be enabled
