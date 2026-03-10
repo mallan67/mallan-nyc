@@ -6003,7 +6003,7 @@ function generateAgentInfoSheet() {
         '</body></html>';
 
     var win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    if (win) { win.opener = null; win.document.write(html); win.document.close(); }
     else { showToast('Pop-up blocked. Please allow pop-ups for this site.', 'error'); }
 }
 
