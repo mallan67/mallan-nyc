@@ -87,3 +87,16 @@ export function sanitizeDocumentId(input: string): string | null {
   if (!/^[a-zA-Z0-9_-]+$/.test(clean)) return null;
   return clean;
 }
+
+/**
+ * Escape HTML special characters to prevent XSS in email templates.
+ * Converts &, <, >, ", and ' to their HTML entity equivalents.
+ */
+export function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
