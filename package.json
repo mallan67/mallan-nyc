@@ -13,7 +13,7 @@
         "build": "next build",
         "db:migrate": "prisma migrate deploy",
         "start": "next start",
-        "lint": "next lint",
+        "lint": "eslint app lib",
         "type-check": "tsc --noEmit",
         "ci": "npm run -s lint && npm run -s type-check && npm run -s compliance-check && npm run -s build",
         "compliance-check": "node scripts/ci-compliance-check.js",
