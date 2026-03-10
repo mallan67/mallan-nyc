@@ -1,4 +1,5 @@
 import HeroSearch from './components/HeroSearch';
+import SmartSearch from './components/SmartSearch';
 import FeaturedListings from './components/FeaturedListings';
 import ExploreNeighborhoods from './components/ExploreNeighborhoods';
 import ExclusivesVault from './components/ExclusivesVault';
@@ -20,6 +21,15 @@ export default function HomePage() {
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
         <main role="main" tabIndex={-1}>
           <HeroSearch />
+          {/* AI-powered natural language property search */}
+          <section className="bg-gradient-to-b from-[#F8F7F4] to-[#FEFEFE] py-8 md:py-12">
+            <div className="max-w-2xl mx-auto px-4">
+              <h2 className="text-center font-display text-lg md:text-xl font-bold text-brand-dark mb-4">
+                Find Your Perfect Home
+              </h2>
+              <SmartSearch />
+            </div>
+          </section>
           <FeaturedListings />
           <ExploreNeighborhoods />
           <ExclusivesVault />
