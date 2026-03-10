@@ -154,13 +154,57 @@ function SearchClient() {
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // ── Filters ──
-  const [filters, setFilters] = useState<SearchFilters>({
-    minPrice: searchParams?.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
-    maxPrice: searchParams?.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
-    beds: searchParams?.get('beds') ? Number(searchParams.get('beds')) : null,
-    baths: searchParams?.get('baths') ? Number(searchParams.get('baths')) : null,
-    sort: 'price-desc',
+  const [filters, setFilters] = useState<SearchFilters>(() => {
+    const sp = searchParams;
+    const csv = (key: string) => {
+      const v = sp?.get(key);
+      return v ? v.split(',') : undefined;
+    };
+    return {
+      minPrice: sp?.get('minPrice') ? Number(sp.get('minPrice')) : undefined,
+      maxPrice: sp?.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
+      beds: sp?.get('beds') ? Number(sp.get('beds')) : null,
+      baths: sp?.get('baths') ? Number(sp.get('baths')) : null,
+      propertySubTypes: csv('subTypes'),
+      ownershipTypes: csv('ownership'),
+      statuses: csv('statuses'),
+      yearBuilt: (sp?.get('yearBuilt') as SearchFilters['yearBuilt']) || undefined,
+      furnished: sp?.get('furnished') === 'true' || undefined,
+      amenities: csv('amenities') as SearchFilters['amenities'],
+      openHouse: sp?.get('openHouse') === 'true' || undefined,
+      openHouseDate: sp?.get('openHouseDate') || undefined,
+      minSqft: sp?.get('minSqft') ? Number(sp.get('minSqft')) : undefined,
+      maxSqft: sp?.get('maxSqft') ? Number(sp.get('maxSqft')) : undefined,
+      sort: sp?.get('sort') || 'price-desc',
+      neighborhood: sp?.get('filterNeighborhood') || undefined,
+    };
   });
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    const setOrDel = (key: string, val: string | undefined | null) => {
+      if (val) params.set(key, val); else params.delete(key);
+    };
+    setOrDel('minPrice', filters.minPrice?.toString());
+    setOrDel('maxPrice', filters.maxPrice?.toString());
+    setOrDel('beds', filters.beds != null ? filters.beds.toString() : undefined);
+    setOrDel('baths', filters.baths != null ? filters.baths.toString() : undefined);
+    setOrDel('subTypes', filters.propertySubTypes?.length ? filters.propertySubTypes.join(',') : undefined);
+    setOrDel('ownership', filters.ownershipTypes?.length ? filters.ownershipTypes.join(',') : undefined);
+    setOrDel('statuses', filters.statuses?.length ? filters.statuses.join(',') : undefined);
+    setOrDel('yearBuilt', filters.yearBuilt && filters.yearBuilt !== 'any' ? filters.yearBuilt : undefined);
+    setOrDel('furnished', filters.furnished ? 'true' : undefined);
+    setOrDel('amenities', filters.amenities?.length ? filters.amenities.join(',') : undefined);
+    setOrDel('openHouse', filters.openHouse ? 'true' : undefined);
+    setOrDel('openHouseDate', filters.openHouse ? filters.openHouseDate : undefined);
+    setOrDel('minSqft', filters.minSqft?.toString());
+    setOrDel('maxSqft', filters.maxSqft?.toString());
+    setOrDel('sort', filters.sort && filters.sort !== 'price-desc' ? filters.sort : undefined);
+    setOrDel('filterNeighborhood', filters.neighborhood);
+    router.replace(`/search?${params.toString()}`, { scroll: false });
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabConfig = TAB_CONFIG[activeTab];
   const isRental = tabConfig.apiType === 'rent';
