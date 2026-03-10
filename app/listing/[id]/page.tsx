@@ -9,6 +9,7 @@ import agentsData from '@/data/agents.json';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
 import BackButton from '@/app/components/BackButton';
+import MarketSnapshot from '@/app/components/MarketSnapshot';
 import ShareButton from '@/app/components/ShareButton';
 import DetailFavoriteButton from '@/app/components/DetailFavoriteButton';
 import SocialShareBar from '@/app/components/SocialShareBar';
@@ -1362,6 +1363,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     agentEmail="info@mallan.nyc"
                   />
                 </div>
+
+                {/* Market Context */}
+                <MarketSnapshot
+                  neighborhood={neighborhood}
+                  borough={borough}
+                  listPrice={listing.listPrice}
+                  pricePerSqft={listing.livingArea ? listing.listPrice / listing.livingArea : null}
+                  listingType={isRental ? 'rent' : 'sale'}
+                />
 
                 {/* Transit Summary */}
                 {listing.address.latitude && listing.address.longitude && (
