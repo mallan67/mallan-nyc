@@ -5,7 +5,7 @@ import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 
 export default function HomeValueWidget() {
   const ref = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
-  const [formData, setFormData] = useState({ name: '', address: '', email: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', address: '', email: '', phone: '', tcpaConsent: false });
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -18,6 +18,11 @@ export default function HomeValueWidget() {
     if (!formData.name.trim() || !formData.address.trim() || !formData.email.trim() || !formData.phone.trim()) {
       setStatus('error');
       setErrorMsg('All fields are required.');
+      return;
+    }
+    if (!formData.tcpaConsent) {
+      setStatus('error');
+      setErrorMsg('Please agree to be contacted regarding your valuation.');
       return;
     }
 
@@ -42,7 +47,7 @@ export default function HomeValueWidget() {
       }
 
       setStatus('success');
-      setFormData({ name: '', address: '', email: '', phone: '' });
+      setFormData({ name: '', address: '', email: '', phone: '', tcpaConsent: false });
     } catch (err) {
       setStatus('error');
       setErrorMsg(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -134,11 +139,20 @@ export default function HomeValueWidget() {
         )}
 
         {status !== 'success' && (
-          <p className="mt-4 text-brand-dark/40 text-[11px] font-light text-center leading-relaxed">
-            By submitting, you consent to receive communications from Mallan Real Estate Inc.
-            regarding your property valuation. Message and data rates may apply.
-            You can opt out at any time.
-          </p>
+          <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.tcpaConsent}
+              onChange={(e) => setFormData((prev) => ({ ...prev, tcpaConsent: e.target.checked }))}
+              className="mt-0.5 accent-brand-gold-deep"
+              required
+            />
+            <span className="text-brand-dark/50 text-[11px] font-light leading-relaxed">
+              I agree to receive communications from Mallan Real Estate Inc.
+              regarding my property valuation. Message and data rates may apply.
+              I can opt out at any time.
+            </span>
+          </label>
         )}
       </div>
     </div>
