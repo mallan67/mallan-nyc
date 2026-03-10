@@ -15,7 +15,11 @@ export default function HomeValueWidget() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.address.trim() || !formData.email.trim() || !formData.phone.trim()) return;
+    if (!formData.name.trim() || !formData.address.trim() || !formData.email.trim() || !formData.phone.trim()) {
+      setStatus('error');
+      setErrorMsg('All fields are required.');
+      return;
+    }
 
     setStatus('loading');
     setErrorMsg('');
