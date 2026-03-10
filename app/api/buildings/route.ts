@@ -43,6 +43,17 @@ function parseList(raw: string | null | undefined): string[] {
 
 interface TrestleRecord {
   [key: string]: unknown;
+  Media?: Array<{ MediaURL?: string; MediaCategory?: string; Order?: number; PreferredPhotoYN?: boolean }>;
+}
+
+/** Get the primary photo URL from a Trestle record's expanded Media */
+function getPhotoUrl(record: TrestleRecord): string | null {
+  const media = record.Media;
+  if (!media || !Array.isArray(media) || media.length === 0) return null;
+  const photo = media[0];
+  if (!photo?.MediaURL) return null;
+  // Proxy through our server to avoid exposing Trestle Bearer tokens
+  return `/api/media/proxy?url=${encodeURIComponent(String(photo.MediaURL))}`;
 }
 
 /**
@@ -244,9 +255,11 @@ export async function GET(request: NextRequest) {
       const dirFilter = dirPrefix ? ` and StreetDirPrefix eq '${dirPrefix}'` : '';
       const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${dirFilter}${zipFilter}`;
 
+      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=1;$orderby=Order)";
       const allParams = new URLSearchParams({
         $filter: addressFilter,
         $select: BUILDING_SELECT,
+        $expand: MEDIA_EXPAND,
         $orderby: 'ListPrice desc',
         $top: '60',
       });
@@ -267,6 +280,7 @@ export async function GET(request: NextRequest) {
           const fallbackParams = new URLSearchParams({
             $filter: fallbackFilter,
             $select: BUILDING_SELECT,
+            $expand: MEDIA_EXPAND,
             $orderby: 'ListPrice desc',
             $top: '60',
           });
@@ -288,6 +302,7 @@ export async function GET(request: NextRequest) {
           const noZipParams = new URLSearchParams({
             $filter: noZipFilter,
             $select: BUILDING_SELECT,
+            $expand: MEDIA_EXPAND,
             $orderby: 'ListPrice desc',
             $top: '60',
           });
@@ -306,6 +321,7 @@ export async function GET(request: NextRequest) {
         const simpleParams = new URLSearchParams({
           $filter: simpleFilter,
           $select: BUILDING_SELECT,
+          $expand: MEDIA_EXPAND,
           $orderby: 'ListPrice desc',
           $top: '60',
         });
@@ -358,6 +374,7 @@ export async function GET(request: NextRequest) {
       office: string;
       status: string;
       listingType: string;
+      photoUrl: string | null;
     }> = [];
 
     for (const r of trestleActive) {
@@ -380,6 +397,7 @@ export async function GET(request: NextRequest) {
         office: String(r.ListOfficeName || ''),
         status: String(r.StandardStatus || r.MlsStatus || 'Active'),
         listingType,
+        photoUrl: getPhotoUrl(r),
       });
     }
 
@@ -400,6 +418,13 @@ export async function GET(request: NextRequest) {
         office: '',
         status: l.status,
         listingType: l.listing_type || 'sale',
+        photoUrl: (() => {
+          const media = l.media as unknown[];
+          if (!Array.isArray(media) || media.length === 0) return null;
+          const first = media[0] as Record<string, unknown>;
+          const url = first?.url || first?.MediaURL;
+          return url ? `/api/media/proxy?url=${encodeURIComponent(String(url))}` : null;
+        })(),
       });
 
       // Extract building info from DB

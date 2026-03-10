@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
@@ -29,6 +30,7 @@ interface ActiveUnit {
   office: string;
   status: string;
   listingType: string;
+  photoUrl: string | null;
 }
 
 interface SaleRecord {
@@ -356,50 +358,61 @@ export default async function BuildingPage({ searchParams }: Props) {
                   <Link
                     key={unit.id}
                     href={`/listing/${unit.mlsId}`}
-                    className="glass-card rounded-2xl p-5 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 group border border-black/[0.04]"
+                    className="glass-card rounded-2xl overflow-hidden hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 group border border-black/[0.04]"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-xl font-display font-bold text-brand-dark">
-                          {formatPrice(unit.listPrice)}
-                        </p>
-                        {unit.unit && (
-                          <p className="text-[13px] text-brand-gold-deep font-medium">
-                            Unit {unit.unit}
-                          </p>
-                        )}
-                      </div>
-                      <span className="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-600 text-[11px] font-semibold rounded-full uppercase tracking-wider">
+                    {/* Photo */}
+                    <div className="relative aspect-[16/10] bg-gray-100">
+                      {unit.photoUrl ? (
+                        <Image
+                          src={unit.photoUrl}
+                          alt={`Unit ${unit.unit || ''} at ${buildingLabel}`}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                          </svg>
+                        </div>
+                      )}
+                      <span className="absolute top-2.5 right-2.5 inline-flex items-center px-2.5 py-1 bg-blue-600 text-white text-[11px] font-semibold rounded-full uppercase tracking-wider shadow-sm">
                         {unit.status}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-sm text-brand-dark/70">
-                      <span>{unit.beds} Bed{unit.beds !== 1 ? 's' : ''}</span>
-                      <span className="text-brand-dark/20">&middot;</span>
-                      <span>
-                        {unit.baths}
-                        {unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''} Bath
-                      </span>
-                      {unit.sqft > 0 && (
-                        <>
-                          <span className="text-brand-dark/20">&middot;</span>
-                          <span>{unit.sqft.toLocaleString()} SF</span>
-                        </>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-1.5">
+                        <p className="text-lg font-display font-bold text-brand-dark">
+                          {formatPrice(unit.listPrice)}
+                        </p>
+                        {unit.unit && (
+                          <p className="text-[12px] text-brand-gold-deep font-medium mt-0.5">
+                            Unit {unit.unit}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2.5 text-[13px] text-brand-dark/70 mb-1">
+                        <span>{unit.beds} Bed{unit.beds !== 1 ? 's' : ''}</span>
+                        <span className="text-brand-dark/20">&middot;</span>
+                        <span>
+                          {unit.baths}
+                          {unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''} Bath
+                        </span>
+                        {unit.sqft > 0 && (
+                          <>
+                            <span className="text-brand-dark/20">&middot;</span>
+                            <span>{unit.sqft.toLocaleString()} SF</span>
+                          </>
+                        )}
+                      </div>
+
+                      {unit.propertyType && (
+                        <p className="text-[11px] text-brand-dark/50">{unit.propertyType}</p>
                       )}
-                    </div>
-
-                    {unit.propertyType && (
-                      <p className="text-[12px] text-brand-dark/50 mt-2">{unit.propertyType}</p>
-                    )}
-
-                    <div className="mt-3 pt-3 border-t border-black/5">
-                      <span className="text-[12px] font-medium text-brand-gold-deep group-hover:text-brand-gold transition-colors flex items-center gap-1">
-                        View Listing
-                        <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                      </span>
                     </div>
                   </Link>
                 ))}
@@ -434,46 +447,61 @@ export default async function BuildingPage({ searchParams }: Props) {
                   <Link
                     key={unit.id}
                     href={`/listing/${unit.mlsId}`}
-                    className="glass-card rounded-2xl p-5 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 group border border-black/[0.04]"
+                    className="glass-card rounded-2xl overflow-hidden hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 group border border-black/[0.04]"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-xl font-display font-bold text-brand-dark">
-                          {formatPrice(unit.listPrice)}<span className="text-[13px] font-normal text-brand-dark/50">/mo</span>
-                        </p>
-                        {unit.unit && (
-                          <p className="text-[13px] text-brand-gold-deep font-medium">
-                            Unit {unit.unit}
-                          </p>
-                        )}
-                      </div>
-                      <span className="inline-flex items-center px-2.5 py-1 bg-purple-50 text-purple-600 text-[11px] font-semibold rounded-full uppercase tracking-wider">
+                    {/* Photo */}
+                    <div className="relative aspect-[16/10] bg-gray-100">
+                      {unit.photoUrl ? (
+                        <Image
+                          src={unit.photoUrl}
+                          alt={`Unit ${unit.unit || ''} at ${buildingLabel}`}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                          </svg>
+                        </div>
+                      )}
+                      <span className="absolute top-2.5 right-2.5 inline-flex items-center px-2.5 py-1 bg-purple-600 text-white text-[11px] font-semibold rounded-full uppercase tracking-wider shadow-sm">
                         Rental
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-sm text-brand-dark/70">
-                      <span>{unit.beds} Bed{unit.beds !== 1 ? 's' : ''}</span>
-                      <span className="text-brand-dark/20">&middot;</span>
-                      <span>
-                        {unit.baths}
-                        {unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''} Bath
-                      </span>
-                      {unit.sqft > 0 && (
-                        <>
-                          <span className="text-brand-dark/20">&middot;</span>
-                          <span>{unit.sqft.toLocaleString()} SF</span>
-                        </>
-                      )}
-                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-1.5">
+                        <p className="text-lg font-display font-bold text-brand-dark">
+                          {formatPrice(unit.listPrice)}<span className="text-[13px] font-normal text-brand-dark/50">/mo</span>
+                        </p>
+                        {unit.unit && (
+                          <p className="text-[12px] text-brand-gold-deep font-medium mt-0.5">
+                            Unit {unit.unit}
+                          </p>
+                        )}
+                      </div>
 
-                    <div className="mt-3 pt-3 border-t border-black/5">
-                      <span className="text-[12px] font-medium text-brand-gold-deep group-hover:text-brand-gold transition-colors flex items-center gap-1">
-                        View Listing
-                        <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                      </span>
+                      <div className="flex items-center gap-2.5 text-[13px] text-brand-dark/70 mb-1">
+                        <span>{unit.beds} Bed{unit.beds !== 1 ? 's' : ''}</span>
+                        <span className="text-brand-dark/20">&middot;</span>
+                        <span>
+                          {unit.baths}
+                          {unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''} Bath
+                        </span>
+                        {unit.sqft > 0 && (
+                          <>
+                            <span className="text-brand-dark/20">&middot;</span>
+                            <span>{unit.sqft.toLocaleString()} SF</span>
+                          </>
+                        )}
+                      </div>
+
+                      {unit.propertyType && (
+                        <p className="text-[11px] text-brand-dark/50">{unit.propertyType}</p>
+                      )}
                     </div>
                   </Link>
                 ))}
