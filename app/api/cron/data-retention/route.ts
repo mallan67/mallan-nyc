@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
   notifCutoff.setDate(notifCutoff.getDate() - 90);
   const oldNotifications = await prisma.notification.deleteMany({
     where: {
-      read: true,
+      read_at: { not: null },
       created_at: { lt: notifCutoff },
     },
   });
