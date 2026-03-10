@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import Image from 'next/image';
 import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
-import CMARequestForm from '@/app/components/CMARequestForm';
+import HomeValueWidget from '@/app/components/HomeValueWidget';
 
 export const revalidate = 86400;
 
@@ -427,58 +427,11 @@ export default function SellPage() {
         </section>
 
         {/* ═══════════════════════════════════════════════
-            4. VALUATION FORM — Editorial 2-column
+            4. VALUATION FORM — Centered card
             ═══════════════════════════════════════════════ */}
         <section id="valuation" className="px-6 md:px-12 lg:px-20 py-20 md:py-32">
-          <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 md:gap-28 items-center">
-            <div>
-              <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">Free Valuation</p>
-              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight mb-6 leading-snug text-brand-dark">
-                What&apos;s Your Property Worth?
-              </h2>
-              <p className="text-brand-dark/95 text-[15px] font-light leading-[2] mb-10">
-                Get a complimentary property valuation from a licensed NYC broker.
-                We&apos;ll evaluate your property, your neighborhood, and current market
-                conditions to give you an accurate price range &mdash; no obligation, no pressure.
-              </p>
-              <div className="glass-card rounded-2xl p-6 flex items-center gap-5">
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05))', boxShadow: 'var(--gold-glow)' }}
-                >
-                  <span className="font-display font-bold text-brand-gold-deep text-lg">MA</span>
-                </div>
-                <div>
-                  <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
-                  <p className="text-brand-dark/95 text-[12px] font-light">Founder &middot; Licensed NYC Broker</p>
-                </div>
-              </div>
-            </div>
-            <div>
-              <CMARequestForm />
-
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-8">
-                <span className="flex items-center gap-2 text-[13px] text-brand-dark/70 font-light">
-                  <svg className="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  Licensed NY Broker
-                </span>
-                <span className="flex items-center gap-2 text-[13px] text-brand-dark/70 font-light">
-                  <svg className="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Free, No Obligation
-                </span>
-                <span className="flex items-center gap-2 text-[13px] text-brand-dark/70 font-light">
-                  <svg className="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Delivered in 24 Hours
-                </span>
-              </div>
-            </div>
+          <div className="max-w-[1440px] mx-auto">
+            <HomeValueWidget />
           </div>
         </section>
 

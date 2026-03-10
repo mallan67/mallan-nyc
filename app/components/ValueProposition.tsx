@@ -2,7 +2,6 @@ import Link from 'next/link';
 import AffordabilityCalculator from '@/app/components/AffordabilityCalculator';
 import RentVsBuyStandalone from '@/app/components/RentVsBuyStandalone';
 import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
-import HomeValueWidget from '@/app/components/HomeValueWidget';
 
 /**
  * Value Proposition Section
@@ -107,11 +106,6 @@ export default function ValueProposition() {
             </div>
             <SellerClosingCostCalculator />
           </div>
-        </div>
-
-        {/* Home Value Widget */}
-        <div className="mb-12 sm:mb-14">
-          <HomeValueWidget />
         </div>
 
         {/* Primary CTA */}
