@@ -251,6 +251,7 @@ export async function GET(request: Request) {
             case 'price-desc': dbOrderBy = { list_price: 'desc' }; break;
             case 'newest': dbOrderBy = { modification_timestamp: 'desc' }; break;
             case 'sqft-desc': dbOrderBy = { living_area: 'desc' }; break;
+            case 'beds-desc': dbOrderBy = { bedrooms_total: 'desc' }; break;
           }
 
           const [dbListings, dbTotal] = await Promise.all([
@@ -526,6 +527,7 @@ export async function GET(request: Request) {
           case 'price-asc': orderby = 'ListPrice asc'; break;
           case 'price-desc': orderby = 'ListPrice desc'; break;
           case 'sqft-desc': orderby = 'LivingArea desc'; break;
+          case 'beds-desc': orderby = 'BedroomsTotal desc'; break;
           case 'newest': default: orderby = 'ModificationTimestamp desc'; break;
         }
 

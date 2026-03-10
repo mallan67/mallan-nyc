@@ -55,25 +55,37 @@ const BLOCKED_BOTS =
   /AhrefsBot|SemrushBot|DotBot|MJ12bot|GPTBot|CCBot|ClaudeBot|ChatGPT-User|Bytespider|PetalBot|Sogou|YandexBot|BLEXBot|DataForSeoBot|serpstatbot|Amazonbot|anthropic-ai|FacebookBot|Applebot-Extended|PerplexityBot|YouBot|Diffbot|Webzio|img2dataset|omgili|CriteoBot|MegaIndex|Zoominfobot/i;
 
 /**
- * Edge-level rate limiter using a simple sliding window.
- * This runs per-edge-region so limits are approximate but effective.
+ * Edge-level rate limiter using a sliding window with LRU eviction.
+ * Runs per-edge-region so limits are approximate but effective.
  * 120 requests per minute per IP for general pages.
  * 30 requests per minute per IP for API routes.
+ *
+ * MAX_ENTRIES cap prevents unbounded memory growth under DDoS.
+ * When full, oldest entries are evicted (LRU via insertion order).
  */
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const GENERAL_RATE_LIMIT = 120;
 const API_RATE_LIMIT = 30;
-const LOGIN_RATE_LIMIT = 5; // Strict: 5 login attempts per minute per IP
+const LOGIN_RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60_000;
+const MAX_ENTRIES = 10_000;
 
-// Periodic cleanup to prevent memory leak (every 5 minutes)
 let lastCleanup = Date.now();
 function cleanupRateLimits() {
   const now = Date.now();
-  if (now - lastCleanup < 300_000) return;
+  if (now - lastCleanup < 60_000) return; // cleanup every minute
   lastCleanup = now;
   for (const [key, entry] of rateLimitMap) {
     if (now > entry.resetAt) rateLimitMap.delete(key);
+  }
+  // LRU eviction if still over capacity
+  if (rateLimitMap.size > MAX_ENTRIES) {
+    const toDelete = rateLimitMap.size - MAX_ENTRIES;
+    const iter = rateLimitMap.keys();
+    for (let i = 0; i < toDelete; i++) {
+      const k = iter.next().value;
+      if (k) rateLimitMap.delete(k);
+    }
   }
 }
 
@@ -82,6 +94,11 @@ function checkRateLimit(key: string, limit: number): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(key);
   if (!entry || now > entry.resetAt) {
+    // Evict oldest if at capacity
+    if (rateLimitMap.size >= MAX_ENTRIES) {
+      const oldest = rateLimitMap.keys().next().value;
+      if (oldest) rateLimitMap.delete(oldest);
+    }
     rateLimitMap.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
     return true;
   }

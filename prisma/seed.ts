@@ -5,10 +5,9 @@
  *   or via package.json prisma.seed config.
  *
  * Creates:
- *   - Maya Allan (broker) + 2 test agents
- *   - 26 mock listings matching search-modular/js/core/mock-data.js
- *   - Sample clients
- *   - Sample deals
+ *   - Maya Allan (broker) + Leda Gorgone + Julia Djaafar (agents)
+ *   - Maya's exclusive listings
+ *   - Maya's closed deals
  */
 
 import path from "node:path";
@@ -72,8 +71,59 @@ async function main() {
   });
   console.log("  Agent: Maya Allan (BROKER) id=" + maya.id);
 
-  // NOTE: Real agents (Leda Gorgone, Julia Djaafar) are created via the
-  // /api/auth/agent/register endpoint by the broker. No fake test agents seeded.
+  const agentHash = await hashPassword(process.env.SEED_AGENT_PASSWORD!);
+
+  const leda = await prisma.agent.upsert({
+    where: { email: "leda@mallan.nyc" },
+    update: {
+      first_name: "Leda",
+      last_name: "Gorgone",
+      full_name: "Leda Gorgone",
+      password_hash: agentHash,
+      phone: "(917) 207-5903",
+      license_type: "salesperson",
+      role: "AGENT",
+      status: "active",
+    },
+    create: {
+      first_name: "Leda",
+      last_name: "Gorgone",
+      full_name: "Leda Gorgone",
+      email: "leda@mallan.nyc",
+      password_hash: agentHash,
+      phone: "(917) 207-5903",
+      license_type: "salesperson",
+      role: "AGENT",
+      status: "active",
+    },
+  });
+  console.log("  Agent: Leda Gorgone (AGENT) id=" + leda.id);
+
+  const julia = await prisma.agent.upsert({
+    where: { email: "julia@mallan.nyc" },
+    update: {
+      first_name: "Julia",
+      last_name: "Djaafar",
+      full_name: "Julia Djaafar",
+      password_hash: agentHash,
+      phone: "(646) 258-4460",
+      license_type: "salesperson",
+      role: "AGENT",
+      status: "active",
+    },
+    create: {
+      first_name: "Julia",
+      last_name: "Djaafar",
+      full_name: "Julia Djaafar",
+      email: "julia@mallan.nyc",
+      password_hash: agentHash,
+      phone: "(646) 258-4460",
+      license_type: "salesperson",
+      role: "AGENT",
+      status: "active",
+    },
+  });
+  console.log("  Agent: Julia Djaafar (AGENT) id=" + julia.id);
 
   // ═══════════════════════════════════════════════════════════
   // CLIENTS (Leads)
