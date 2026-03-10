@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -48,13 +49,67 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const token = await getAccessToken();
-
-    // Price range: 30% below to 70% above (wider for luxury to find enough results)
+    // ── DB-first: query local listings for similar properties ──
     const minPrice = Math.round(price * 0.3);
     const maxPrice = Math.round(price * 1.7);
-
     const isRental = type === 'rent';
+    const listingTypeFilter = isRental ? 'rent' : 'sale';
+
+    const dbResults = await prisma.listing.findMany({
+      where: {
+        status: 'Active',
+        listing_type: listingTypeFilter,
+        list_price: { gte: minPrice, lte: maxPrice },
+        listing_id: { not: excludeId },
+        idx_display_yn: true,
+        owner_opt_out: false,
+        internet_entire_listing_display_yn: true,
+        participant_only: false,
+        OR: [
+          { address: { path: ['PostalCode'], equals: postalCode } },
+          ...(neighborhood ? [{ neighborhood }] : []),
+        ],
+      },
+      orderBy: { list_price: 'desc' },
+      take: 8,
+    });
+
+    if (dbResults.length >= 3) {
+      // Enough results from DB — use those (faster, no Trestle dependency)
+      const listings = dbResults.slice(0, 6).map(l => {
+        const addr = l.address as Record<string, string> | null;
+        const streetNum = addr?.StreetNumber || '';
+        const streetName = addr?.StreetName || '';
+        const unit = addr?.UnitNumber ? `, ${addr.UnitNumber}` : '';
+        const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
+        const firstPhoto = mediaArr.find(m => !m.mediaType || m.mediaType === 'Photo');
+
+        return {
+          id: String(l.id),
+          mlsId: l.listing_id,
+          slug: l.listing_id,
+          listPrice: Number(l.list_price),
+          beds: l.bedrooms_total || 0,
+          baths: l.bathrooms_full || 0,
+          sqft: l.living_area ? Number(l.living_area) : 0,
+          address: `${streetNum} ${streetName}${unit}`.trim(),
+          neighborhood: l.neighborhood || '',
+          photoUrl: firstPhoto?.url ? proxyUrl(firstPhoto.url) : null,
+          photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
+          propertyType: l.property_sub_type || l.property_type || '',
+          office: (l.agent_info as Record<string, string> | null)?.company || '',
+        };
+      });
+
+      return NextResponse.json({
+        listings,
+        _compliance: { source: 'idx', attribution: 'REBNY RLS' },
+      });
+    }
+
+    // ── Trestle fallback if DB has fewer than 3 results ──
+    const token = await getAccessToken();
+
     const propertyClass = isRental
       ? "PropertyType eq 'Residential Lease'"
       : "PropertyType eq 'Residential'";
