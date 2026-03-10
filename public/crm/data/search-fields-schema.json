@@ -948,7 +948,7 @@
 
   "trestleCompliance": {
     "apiUrl": "api.cotality.com/trestle",
-    "oldUrls": ["api-trestle.corelogic.com", "api-prod.corelogic.com"],
+    "oldUrlsNote": "Deprecated hosts removed (ceased March 31, 2026)",
     "migrationDeadline": "2026-03-31",
     "dataStandard": "RESO DD 2.0",
     "lmp": "RealPlus",
