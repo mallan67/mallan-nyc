@@ -15,6 +15,7 @@ import nextDynamic from 'next/dynamic';
 // Client component — data fetched via useListings hook (no force-dynamic needed)
 
 const SearchMap = nextDynamic(() => import('@/app/components/SearchMap'), { ssr: false });
+const RecentlyViewed = nextDynamic(() => import('@/app/components/RecentlyViewed'), { ssr: false });
 
 // ── Tab backward-compat mapping ──
 function resolveTab(typeParam: string): SearchTab {
@@ -145,7 +146,12 @@ function SearchClient() {
   // ── State ──
   const [activeTab, setActiveTab] = useState<SearchTab>(resolveTab(typeParam));
   const [searchQuery, setSearchQuery] = useState(queryParam);
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
+  const viewParam = searchParams?.get('view') as ViewMode | null;
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    viewParam && ['split', 'all-listings', 'all-map', 'grid', 'list'].includes(viewParam)
+      ? viewParam
+      : 'split'
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
@@ -203,8 +209,11 @@ function SearchClient() {
     setOrDel('maxSqft', filters.maxSqft?.toString());
     setOrDel('sort', filters.sort && filters.sort !== 'price-desc' ? filters.sort : undefined);
     setOrDel('filterNeighborhood', filters.neighborhood);
+    // Persist view mode and search query in URL so back-navigation restores them
+    setOrDel('view', viewMode !== 'split' ? viewMode : undefined);
+    setOrDel('q', searchQuery || undefined);
     router.replace(`/search?${params.toString()}`, { scroll: false });
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters, viewMode, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabConfig = TAB_CONFIG[activeTab];
   const isRental = tabConfig.apiType === 'rent';
@@ -279,14 +288,47 @@ function SearchClient() {
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const listingsRef = useRef<HTMLDivElement>(null);
 
-  // ── Default to all-listings on mobile (run once at mount) ──
+  // ── Scroll position persistence ──
+  // Save scroll position to sessionStorage before navigating away;
+  // restore it when returning via browser back button.
+  const SCROLL_KEY = 'mallan_search_scroll';
+  useEffect(() => {
+    const container = listingsRef.current;
+    // Restore saved scroll position on mount (after listings have loaded)
+    if (loading) return;
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (saved && container) {
+      requestAnimationFrame(() => { container.scrollTop = parseInt(saved, 10); });
+      sessionStorage.removeItem(SCROLL_KEY);
+    }
+    // Save scroll position before unload (back/forward navigation)
+    const handleBeforeUnload = () => {
+      if (container) sessionStorage.setItem(SCROLL_KEY, String(container.scrollTop));
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    // Also save on visibility change (covers SPA navigation via Link)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && container) {
+        sessionStorage.setItem(SCROLL_KEY, String(container.scrollTop));
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      // Save on unmount (SPA navigation to listing detail)
+      if (container) sessionStorage.setItem(SCROLL_KEY, String(container.scrollTop));
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loading]); // Re-attach after listings finish loading
+
+  // ── Default to all-listings on mobile (run once at mount, only if no URL preference) ──
   const initialViewSet = useRef(false);
   useEffect(() => {
-    if (!initialViewSet.current && window.innerWidth < 1024) {
+    if (!initialViewSet.current && window.innerWidth < 1024 && !viewParam) {
       setViewMode('all-listings');
       initialViewSet.current = true;
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Tab change ──
   const handleTabChange = useCallback((tab: SearchTab) => {
@@ -527,6 +569,8 @@ function SearchClient() {
           </div>
         </div>
       </div>
+
+      <RecentlyViewed />
 
       {/* ── Main Area ── */}
       <div className={`flex-1 min-h-0 ${isFullViewport ? 'overflow-hidden isolate' : 'overflow-y-auto'}`}>
