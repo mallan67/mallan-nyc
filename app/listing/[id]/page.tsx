@@ -1338,7 +1338,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </div>
 
                 {/* Open House RSVP (shows only if upcoming open houses exist for this address) */}
-                <ListingOpenHouseRSVP listingAddress={fullAddress} />
+                <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} />
 
                 {/* Inquiry Form */}
                 <div id="inquiry">
@@ -1411,7 +1411,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       {/* ═══ Mobile Open House RSVP + Inquiry Form ═══ */}
       <section className="lg:hidden px-4 py-8 bg-white border-t border-black/[0.06]">
         <div className="max-w-lg mx-auto space-y-6">
-          <ListingOpenHouseRSVP listingAddress={fullAddress} />
+          <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} />
           <div id="inquiry">
             <InquiryForm
               listingId={listing.id}
