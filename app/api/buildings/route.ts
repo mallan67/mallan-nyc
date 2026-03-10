@@ -45,7 +45,12 @@ interface TrestleRecord {
   [key: string]: unknown;
 }
 
-/** Common $select fields for building queries */
+/**
+ * Common $select fields for building queries.
+ * NOTE: IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN do NOT exist
+ * on Trestle's IDX Plus feed — including them causes OData 400 errors.
+ * Trestle IDX feed pre-filters non-displayable listings, so gate fields are unnecessary.
+ */
 const BUILDING_SELECT = [
   'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'ClosePrice',
   'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
@@ -53,8 +58,6 @@ const BUILDING_SELECT = [
   'ListOfficeName', 'BuildingName', 'YearBuilt', 'StoriesTotal',
   'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
   'ParkingFeatures', 'PetsAllowed', 'CloseDate',
-  'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
-  'OwnerOptOut', 'ParticipantOnlyYN',
 ].join(',');
 
 /** Extract building-level info from a set of Trestle records */
@@ -125,17 +128,17 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     amenitySet.add('Garage');
   }
 
-  const petPolicy = buildingInfo.petsAllowed
-    .map((v) => {
-      const lower = v.toLowerCase();
-      if (lower.includes('cat')) return 'Cats Ok';
-      if (lower.includes('dog')) return 'Dogs Ok';
-      if (lower === 'no') return 'No Pets';
-      return formatFeatureLabel(v);
-    })
-    .filter((v) => v.length > 0);
+  const petPolicySet = new Set<string>();
+  for (const v of buildingInfo.petsAllowed) {
+    const lower = v.toLowerCase();
+    if (lower.includes('cat')) petPolicySet.add('Cats Ok');
+    else if (lower.includes('dog')) petPolicySet.add('Dogs Ok');
+    else if (lower === 'no') petPolicySet.add('No Pets');
+    else if (lower === 'yes' || lower === 'buildingyes' || lower === 'building yes') petPolicySet.add('Pets Allowed');
+    else { const label = formatFeatureLabel(v); if (label) petPolicySet.add(label); }
+  }
 
-  return { amenities: [...amenitySet].sort(), petPolicy };
+  return { amenities: [...amenitySet].sort(), petPolicy: [...petPolicySet] };
 }
 
 /**
@@ -189,35 +192,40 @@ export async function GET(request: NextRequest) {
     // Trestle stores street names in UPPERCASE — OData contains() is case-sensitive
     const coreStreetNameUpper = coreStreetName.toUpperCase();
 
-    // ── 1. Query DB for all listings at this address ──
-    const addressConditions: Record<string, unknown>[] = [
-      { path: ['StreetNumber'], equals: cleanStreetNumber },
-    ];
-    if (cleanPostalCode) {
-      addressConditions.push({ path: ['PostalCode'], equals: cleanPostalCode });
-    }
+    // ── 1. Query DB for all listings at this address (non-blocking) ──
+    let dbListings: Awaited<ReturnType<typeof prisma.listing.findMany>> = [];
+    try {
+      const addressConditions: Record<string, unknown>[] = [
+        { path: ['StreetNumber'], equals: cleanStreetNumber },
+      ];
+      if (cleanPostalCode) {
+        addressConditions.push({ path: ['PostalCode'], equals: cleanPostalCode });
+      }
 
-    const dbListings = await prisma.listing.findMany({
-      where: {
-        AND: [
-          { idx_display_yn: true },
-          { owner_opt_out: false },
-          { internet_entire_listing_display_yn: true },
-          { participant_only: false },
-          ...addressConditions.map((cond) => ({
-            address: { ...cond },
-          })),
-          {
-            address: {
-              path: ['StreetName'],
-              string_contains: coreStreetNameUpper,
+      dbListings = await prisma.listing.findMany({
+        where: {
+          AND: [
+            { idx_display_yn: true },
+            { owner_opt_out: false },
+            { internet_entire_listing_display_yn: true },
+            { participant_only: false },
+            ...addressConditions.map((cond) => ({
+              address: { ...cond },
+            })),
+            {
+              address: {
+                path: ['StreetName'],
+                string_contains: coreStreetNameUpper,
+              },
             },
-          },
-        ],
-      },
-      orderBy: { list_price: 'desc' },
-      take: 50,
-    });
+          ],
+        },
+        orderBy: { list_price: 'desc' },
+        take: 50,
+      });
+    } catch (dbErr) {
+      console.warn('[/api/buildings] DB query failed, continuing with Trestle only:', dbErr);
+    }
 
     const activeStatuses = new Set(['Active', 'ActiveUnderContract', 'Coming Soon']);
     const closedStatuses = new Set(['Closed']);
@@ -311,13 +319,13 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Count gated records before filtering
-      const totalBeforeGates = allTrestleRecords.length;
-      const displayable = allTrestleRecords.filter(
+      // Trestle IDX feed pre-filters non-displayable listings (owner opt-out,
+      // participant-only), so distribution gate fields are not available here.
+      // Run gates for Closed > 24h filtering only.
+      allTrestleRecords = allTrestleRecords.filter(
         (r) => checkDistributionGates(r as Record<string, unknown>).displayable
       );
-      gatedRecordsCount = totalBeforeGates - displayable.length;
-      allTrestleRecords = displayable;
+      // gatedRecordsCount stays 0 — IDX feed already excludes gated listings
     } catch (trestleErr) {
       console.warn('[/api/buildings] Trestle fetch error:', trestleErr);
     }
