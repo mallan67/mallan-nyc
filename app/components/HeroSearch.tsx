@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
 
 type SearchTab = 'buy' | 'rent';
 
@@ -131,9 +132,35 @@ export default function HeroSearch() {
   }, []);
 
   const handleSearch = () => {
+    const q = query.trim();
+
+    // Detect natural language intent: has price, beds, amenity, or neighborhood keywords
+    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pet|laundry|gym|furnished|pool|parking)/i;
+    if (q && nlSignals.test(q)) {
+      const parsed = parseNaturalLanguageSearch(q);
+      const params = new URLSearchParams();
+      params.set('tab', parsed.tab || (activeTab === 'rent' ? 'rent-residential' : 'buy-residential'));
+      if (parsed.filters.minPrice) params.set('minPrice', parsed.filters.minPrice.toString());
+      if (parsed.filters.maxPrice) params.set('maxPrice', parsed.filters.maxPrice.toString());
+      if (parsed.filters.beds != null) params.set('beds', parsed.filters.beds.toString());
+      if (parsed.filters.baths != null) params.set('baths', parsed.filters.baths.toString());
+      if (parsed.filters.propertySubTypes?.length) params.set('subTypes', parsed.filters.propertySubTypes.join(','));
+      if (parsed.filters.yearBuilt && parsed.filters.yearBuilt !== 'any') params.set('yearBuilt', parsed.filters.yearBuilt);
+      if (parsed.filters.furnished) params.set('furnished', 'true');
+      if (parsed.filters.amenities?.length) params.set('amenities', parsed.filters.amenities.join(','));
+      if (parsed.filters.openHouse) params.set('openHouse', 'true');
+      if (parsed.filters.minSqft) params.set('minSqft', parsed.filters.minSqft.toString());
+      if (parsed.neighborhood) params.set('neighborhood', parsed.neighborhood);
+      if (parsed.borough) params.set('borough', parsed.borough);
+      if (parsed.remainingQuery) params.set('q', parsed.remainingQuery);
+      router.push(`/search?${params.toString()}`);
+      return;
+    }
+
+    // Standard search
     const params = new URLSearchParams();
     params.set('type', activeTab);
-    if (query) params.set('q', query);
+    if (q) params.set('q', q);
     router.push(`/search?${params.toString()}`);
   };
 
@@ -316,7 +343,7 @@ export default function HeroSearch() {
                 }
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Address, neighborhood, zip, agent, or listing #..."
+              placeholder="Search by address, neighborhood, or try &quot;2BR condo under $2M in Tribeca&quot;"
               className="flex-1 min-w-0 px-3 md:px-4 py-3 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/85 font-light tracking-wide"
               autoComplete="off"
               role="combobox"
