@@ -5,6 +5,7 @@ import OpenHouseRSVP from '@/app/components/OpenHouseRSVP';
 
 interface OpenHouseData {
   id: string;
+  listingId: string;
   address: string;
   date: string;
   startTime: string;
@@ -12,38 +13,29 @@ interface OpenHouseData {
 }
 
 interface ListingOpenHouseRSVPProps {
+  listingId: string;
   listingAddress: string;
 }
 
 /**
- * Fetches upcoming open houses for a given listing address and renders
+ * Fetches upcoming open houses for a given listing and renders
  * RSVP buttons if any are found. Used on the listing detail page sidebar.
+ *
+ * Matches by listingId (exact MLS ID match) — no fuzzy address matching.
  */
-export default function ListingOpenHouseRSVP({ listingAddress }: ListingOpenHouseRSVPProps) {
+export default function ListingOpenHouseRSVP({ listingId, listingAddress }: ListingOpenHouseRSVPProps) {
   const [openHouses, setOpenHouses] = useState<OpenHouseData[]>([]);
 
   useEffect(() => {
-    if (!listingAddress) return;
+    if (!listingId) return;
 
     fetch('/api/open-houses')
       .then(res => res.json())
       .then(data => {
         const allOH = (data.openHouses || []) as OpenHouseData[];
 
-        // Normalize addresses for comparison — strip punctuation, extra spaces, and lowercase
-        const normalize = (s: string) => s.toLowerCase().replace(/[,.\s#]+/g, ' ').replace(/\s+/g, ' ').trim();
-        const normalized = normalize(listingAddress);
-
-        // Extract the core street address (number + street name) for matching
-        // e.g. "157 w 57th street" from "157 W 57th Street, Apt 42A, New York, NY 10019"
-        const streetPart = normalized.split(/\b(?:apt|unit|suite|fl|floor|new york|ny|manhattan|brooklyn|queens|bronx|staten)\b/)[0]?.trim() || normalized;
-
-        const matching = allOH.filter(oh => {
-          const ohNorm = normalize(oh.address);
-          const ohStreet = ohNorm.split(/\b(?:apt|unit|suite|fl|floor|new york|ny|manhattan|brooklyn|queens|bronx|staten)\b/)[0]?.trim() || ohNorm;
-          // Match on street portion only (ignoring unit, city, state)
-          return ohStreet === streetPart || streetPart.includes(ohStreet) || ohStreet.includes(streetPart);
-        });
+        // Exact match by listing ID (MLS ID)
+        const matching = allOH.filter(oh => oh.listingId === listingId);
 
         // Only show upcoming open houses
         const today = new Date();
@@ -67,7 +59,7 @@ export default function ListingOpenHouseRSVP({ listingAddress }: ListingOpenHous
         setOpenHouses(deduped.slice(0, 4));
       })
       .catch(() => { /* silently fail — this is an enhancement */ });
-  }, [listingAddress]);
+  }, [listingId]);
 
   if (openHouses.length === 0) return null;
 

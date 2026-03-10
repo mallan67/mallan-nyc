@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 interface OpenHouseDTO {
   id: string;
+  listingId: string;
   address: string;
   neighborhood: string;
   date: string;
@@ -96,6 +97,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
 
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
+        listingId: (r.ListingId as string) || (r.ListingKey as string) || '',
         address: `${street}${unit}`,
         neighborhood: ((prop.City as string) || 'New York').replace('New York City', 'New York'),
         date: (r.OpenHouseDate as string || '').split('T')[0],
@@ -174,6 +176,7 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
 
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
+        listingId: (r.ListingId as string) || (r.ListingKey as string) || '',
         address: `${street}${unit}`,
         neighborhood: ((prop.City as string) || 'New York').replace('New York City', 'New York'),
         date: (r.OpenHouseDate as string || '').split('T')[0],
@@ -212,6 +215,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       include: {
         listing: {
           select: {
+            listing_id: true,
             address: true,
             city: true,
             neighborhood: true,
@@ -254,6 +258,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
 
       return {
         id: `local-${s.id.toString()}`,
+        listingId: l.listing_id || '',
         address: addr,
         neighborhood: l.neighborhood || l.city || 'New York',
         date: s.date.toISOString().split('T')[0],
