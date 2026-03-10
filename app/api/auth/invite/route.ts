@@ -12,6 +12,7 @@ import { generatePortalToken } from "@/lib/auth/portal-token";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { portalInviteEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { escapeHtml } from "@/lib/sanitize";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     const agentName = agent?.full_name || `${agent?.first_name || ""} ${agent?.last_name || ""}`.trim() || "Your Agent";
     const clientName = `${lead.first_name} ${lead.last_name}`;
 
-    const emailHtml = portalInviteEmail(clientName, rawToken, agentName, portalRole);
+    const emailHtml = portalInviteEmail(escapeHtml(clientName), rawToken, escapeHtml(agentName), portalRole);
     const emailResult = await sendEmail(
       lead.email,
       "You're Invited to Your Client Portal — Mallan Real Estate",

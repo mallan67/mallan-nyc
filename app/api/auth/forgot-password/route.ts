@@ -7,6 +7,7 @@ import { generateResetToken } from "@/lib/auth/reset-token";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { passwordResetEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { escapeHtml } from "@/lib/sanitize";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     if (agent) {
       const token = generateResetToken(agent.id, "agent", agent.password_hash);
-      const html = passwordResetEmail(token, agent.first_name);
+      const html = passwordResetEmail(token, escapeHtml(agent.first_name));
       await sendEmail(email, "Reset Your Password — Mallan Real Estate", html);
       return successResponse;
     }
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     if (lead?.password_hash) {
       const token = generateResetToken(lead.id, "lead", lead.password_hash);
-      const html = passwordResetEmail(token, lead.first_name);
+      const html = passwordResetEmail(token, escapeHtml(lead.first_name));
       await sendEmail(email, "Reset Your Password — Mallan Real Estate", html);
     }
 

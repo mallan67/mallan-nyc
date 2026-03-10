@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
 import type { Prisma } from "@prisma/client";
+import { escapeHtml } from "@/lib/sanitize";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
 
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Send email
-        const html = listingAlertEmail(formattedListings, clientName || "there");
+        const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"));
         const subject = `${newListings.length} New Listing${newListings.length !== 1 ? "s" : ""} Matching "${search.name}"`;
         const result = await sendEmail(email, subject, html);
 

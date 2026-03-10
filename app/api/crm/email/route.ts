@@ -16,6 +16,7 @@ import {
   passwordResetEmail,
 } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { escapeHtml } from "@/lib/sanitize";
 
 // Template registry — maps template names to generator functions
 const TEMPLATE_GENERATORS: Record<
@@ -105,7 +106,12 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      const generated = generator(vars || {});
+      // Escape user-provided string values in vars before passing to templates
+      const sanitizedVars: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(vars || {})) {
+        sanitizedVars[key] = typeof val === "string" ? escapeHtml(val) : val;
+      }
+      const generated = generator(sanitizedVars);
       emailSubject = subject || generated.subject;
       emailHtml = generated.html;
     } else if (subject && html) {

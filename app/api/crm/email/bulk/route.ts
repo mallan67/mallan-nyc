@@ -11,6 +11,7 @@ import {
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { escapeHtml } from "@/lib/sanitize";
 
 // Simple in-memory rate limit for bulk email (per user, per hour)
 const bulkRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
     const errors: string[] = [];
 
     for (const client of cappedClients) {
-      const clientName = `${client.first_name} ${client.last_name}`;
+      const clientName = escapeHtml(`${client.first_name} ${client.last_name}`);
       const html = listingAlertEmail(listings, clientName);
       const emailSubject = subject || `${listings.length} New Listing${listings.length !== 1 ? "s" : ""} — Mallan Real Estate`;
 
