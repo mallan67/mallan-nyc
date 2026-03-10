@@ -73,13 +73,13 @@ export default function Footer() {
   });
 
   return (
-    <footer className="px-6 md:px-12 lg:px-20 py-10 md:py-14">
+    <footer className="px-6 md:px-12 lg:px-20 py-6 md:py-8">
       <div className="max-w-[1440px] mx-auto">
         {/* Main grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 md:gap-12 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-10 mb-6">
           {/* Company */}
           <div>
-            <p className="font-display font-bold text-sm mb-5 text-brand-dark">
+            <p className="font-display font-bold text-sm mb-3 text-brand-dark">
               MALLAN<span className="font-light text-brand-gold-deep">NYC</span>
             </p>
             <p className="text-brand-dark/90 text-[13px] font-light leading-relaxed">
@@ -109,7 +109,7 @@ export default function Footer() {
 
           {/* Search */}
           <div>
-            <p className="text-[11px] font-medium text-brand-dark/90 uppercase tracking-widest mb-5">Search</p>
+            <p className="text-[11px] font-medium text-brand-dark/90 uppercase tracking-widest mb-3">Search</p>
             {settings.quickLinks.map((link) => (
               <Link key={link.href} href={link.href} className="block text-[13px] font-light text-brand-dark/90 hover:text-brand-dark mb-3 transition-all duration-500">
                 {link.title}
@@ -125,7 +125,7 @@ export default function Footer() {
 
           {/* Company */}
           <div>
-            <p className="text-[11px] font-medium text-brand-dark/90 uppercase tracking-widest mb-5">Company</p>
+            <p className="text-[11px] font-medium text-brand-dark/90 uppercase tracking-widest mb-3">Company</p>
             <Link href="/about" className="block text-[13px] font-light text-brand-dark/90 hover:text-brand-dark mb-3 transition-all duration-500">About</Link>
             <Link href="/agents" className="block text-[13px] font-light text-brand-dark/90 hover:text-brand-dark mb-3 transition-all duration-500">Agents</Link>
             {settings.resourceLinks.map((link) => (
@@ -138,7 +138,7 @@ export default function Footer() {
 
           {/* Legal */}
           <div>
-            <p className="text-[11px] font-medium text-brand-dark/90 uppercase tracking-widest mb-5">Legal</p>
+            <p className="text-[11px] font-medium text-brand-dark/90 uppercase tracking-widest mb-3">Legal</p>
             {settings.legalLinks.map((link) => (
               <Link key={link.href} href={link.href} className="block text-[13px] font-light text-brand-dark/90 hover:text-brand-dark mb-3 transition-all duration-500">
                 {link.title}
@@ -148,7 +148,7 @@ export default function Footer() {
         </div>
 
         {/* Fair Housing & REBNY Compliance — compact */}
-        <div className="border-t border-black/5 pt-6 mb-6">
+        <div className="border-t border-black/5 pt-4 mb-4">
           <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
             <Image src="/images/equal-housing-logo.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
             <p className="text-[11px] text-brand-dark/85 font-light">Equal Housing Opportunity</p>
@@ -166,7 +166,7 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3">
           <p className="text-[11px] font-light text-brand-dark/85">
             &copy; {currentYear} {settings.companyName} &middot; License #{settings.license}
           </p>
