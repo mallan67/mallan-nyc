@@ -37,37 +37,59 @@ export function useGsapReveal<T extends HTMLElement>(options: RevealOptions = {}
     let cleanup: (() => void) | undefined;
 
     (async () => {
-      const { gsap } = await import('gsap');
-      const { ScrollTrigger } = await import('gsap/ScrollTrigger');
-      gsap.registerPlugin(ScrollTrigger);
+      try {
+        const { gsap } = await import('gsap');
+        const { ScrollTrigger } = await import('gsap/ScrollTrigger');
+        gsap.registerPlugin(ScrollTrigger);
 
-      if (opts.children) {
-        const children = el.children;
-        if (children.length === 0) return;
+        if (opts.children) {
+          const children = el.children;
+          if (children.length === 0) return;
 
-        Array.from(children).forEach((child, i) => {
-          gsap.from(child, {
-            scrollTrigger: { trigger: child, start: opts.start, once: true },
-            opacity: 0,
-            y: opts.y,
-            scale: opts.scale,
-            duration: opts.duration,
-            delay: i * (opts.stagger ?? 0.08),
-            ease: opts.ease,
+          // Set initial hidden state synchronously, then animate on scroll
+          gsap.set(Array.from(children), { opacity: 0, y: opts.y, scale: opts.scale });
+
+          Array.from(children).forEach((child, i) => {
+            ScrollTrigger.create({
+              trigger: child,
+              start: opts.start,
+              once: true,
+              onEnter: () => {
+                gsap.to(child, {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  duration: opts.duration,
+                  delay: i * (opts.stagger ?? 0.08),
+                  ease: opts.ease,
+                });
+              },
+            });
           });
-        });
-      } else {
-        gsap.from(el, {
-          scrollTrigger: { trigger: el, start: opts.start, once: true },
-          opacity: 0,
-          y: opts.y,
-          scale: opts.scale,
-          duration: opts.duration,
-          ease: opts.ease,
-        });
-      }
+        } else {
+          gsap.set(el, { opacity: 0, y: opts.y, scale: opts.scale });
 
-      cleanup = () => ScrollTrigger.getAll().forEach(t => t.kill());
+          ScrollTrigger.create({
+            trigger: el,
+            start: opts.start,
+            once: true,
+            onEnter: () => {
+              gsap.to(el, {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: opts.duration,
+                ease: opts.ease,
+              });
+            },
+          });
+        }
+
+        cleanup = () => ScrollTrigger.getAll().forEach(t => t.kill());
+      } catch {
+        // GSAP failed to load — ensure elements stay visible
+        el.style.opacity = '1';
+      }
     })();
 
     return () => cleanup?.();
