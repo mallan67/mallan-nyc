@@ -28,6 +28,7 @@ interface ActiveUnit {
   propertyType: string;
   office: string;
   status: string;
+  listingType: string;
 }
 
 interface SaleRecord {
@@ -64,6 +65,7 @@ interface BuildingData {
     avgSqft: number | null;
     avgPricePerSqft: number | null;
   };
+  gatedRecordsCount: number;
   _compliance: {
     source: string;
     attribution: string;
@@ -213,9 +215,12 @@ export default async function BuildingPage({ searchParams }: Props) {
     notFound();
   }
 
-  const { building, activeUnits, saleHistory, stats } = data;
+  const { building, activeUnits, saleHistory, stats, gatedRecordsCount } = data;
   const buildingLabel = building.name || building.address;
   const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
+  const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
+  const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
+  const hasAnyData = activeUnits.length > 0 || saleHistory.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal;
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -332,8 +337,8 @@ export default async function BuildingPage({ searchParams }: Props) {
       <main className="py-8 md:py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto space-y-10">
 
-          {/* Available Units */}
-          {activeUnits.length > 0 && (
+          {/* Available Units — Sales */}
+          {saleUnits.length > 0 && (
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -342,12 +347,12 @@ export default async function BuildingPage({ searchParams }: Props) {
                   </svg>
                 </div>
                 <h2 className="font-display text-xl font-bold text-brand-dark">
-                  Available Units ({activeUnits.length})
+                  For Sale ({saleUnits.length})
                 </h2>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {activeUnits.map((unit) => (
+                {saleUnits.map((unit) => (
                   <Link
                     key={unit.id}
                     href={`/listing/${unit.mlsId}`}
@@ -400,9 +405,82 @@ export default async function BuildingPage({ searchParams }: Props) {
                 ))}
               </div>
 
-              {/* Courtesy attribution */}
               <p className="text-[10px] text-brand-dark/40 mt-3">
-                {activeUnits
+                {saleUnits
+                  .map((u) => u.office)
+                  .filter((v, i, a) => v && a.indexOf(v) === i)
+                  .map((office) => `Courtesy of ${office}`)
+                  .join(' | ')}
+              </p>
+            </section>
+          )}
+
+          {/* Available Units — Rentals */}
+          {rentalUnits.length > 0 && (
+            <section>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                  </svg>
+                </div>
+                <h2 className="font-display text-xl font-bold text-brand-dark">
+                  For Rent ({rentalUnits.length})
+                </h2>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {rentalUnits.map((unit) => (
+                  <Link
+                    key={unit.id}
+                    href={`/listing/${unit.mlsId}`}
+                    className="glass-card rounded-2xl p-5 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 group border border-black/[0.04]"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-xl font-display font-bold text-brand-dark">
+                          {formatPrice(unit.listPrice)}<span className="text-[13px] font-normal text-brand-dark/50">/mo</span>
+                        </p>
+                        {unit.unit && (
+                          <p className="text-[13px] text-brand-gold-deep font-medium">
+                            Unit {unit.unit}
+                          </p>
+                        )}
+                      </div>
+                      <span className="inline-flex items-center px-2.5 py-1 bg-purple-50 text-purple-600 text-[11px] font-semibold rounded-full uppercase tracking-wider">
+                        Rental
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-brand-dark/70">
+                      <span>{unit.beds} Bed{unit.beds !== 1 ? 's' : ''}</span>
+                      <span className="text-brand-dark/20">&middot;</span>
+                      <span>
+                        {unit.baths}
+                        {unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''} Bath
+                      </span>
+                      {unit.sqft > 0 && (
+                        <>
+                          <span className="text-brand-dark/20">&middot;</span>
+                          <span>{unit.sqft.toLocaleString()} SF</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-black/5">
+                      <span className="text-[12px] font-medium text-brand-gold-deep group-hover:text-brand-gold transition-colors flex items-center gap-1">
+                        View Listing
+                        <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                        </svg>
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              <p className="text-[10px] text-brand-dark/40 mt-3">
+                {rentalUnits
                   .map((u) => u.office)
                   .filter((v, i, a) => v && a.indexOf(v) === i)
                   .map((office) => `Courtesy of ${office}`)
@@ -534,8 +612,38 @@ export default async function BuildingPage({ searchParams }: Props) {
             </section>
           )}
 
-          {/* Empty State */}
-          {activeUnits.length === 0 && saleHistory.length === 0 && (
+          {/* VOW Login Prompt — gated listings exist but require login */}
+          {gatedRecordsCount > 0 && (
+            <section className="py-6 border-t border-black/[0.06]">
+              <div className="rounded-2xl border border-brand-gold/20 bg-brand-gold/[0.04] p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-brand-gold/15 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[14px] font-semibold text-brand-dark mb-0.5">
+                    {gatedRecordsCount} additional listing{gatedRecordsCount !== 1 ? 's' : ''} available with sign-in
+                  </p>
+                  <p className="text-[13px] text-brand-dark/60">
+                    Some listings in this building are only visible to registered users per REBNY RLS rules.
+                  </p>
+                </div>
+                <Link
+                  href="/about#contact"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep transition-colors text-sm whitespace-nowrap"
+                >
+                  Contact Us
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </Link>
+              </div>
+            </section>
+          )}
+
+          {/* Empty State — no listings, no history, no building info */}
+          {!hasAnyData && (
             <section className="py-16 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-50 flex items-center justify-center">
                 <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -559,7 +667,7 @@ export default async function BuildingPage({ searchParams }: Props) {
           )}
 
           {/* CTA Section */}
-          {(activeUnits.length > 0 || saleHistory.length > 0) && (
+          {hasAnyData && (
             <section className="py-8 border-t border-black/[0.06]">
               <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] rounded-3xl p-8 md:p-10 text-center">
                 <h2 className="font-display text-2xl md:text-3xl font-bold text-white mb-3">
