@@ -507,6 +507,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
     MediaRoom: "Residents' Lounge",
     ScreeningRoom: "Residents' Lounge",
     GolfSimulation: 'Golf Simulation',
+    MaidService: 'Maid Service',
   };
 
   const amenitySet = new Set<string>();
@@ -540,6 +541,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const parkingList = listing.parkingFeatures ? parseTrestleList(listing.parkingFeatures) : [];
   const hasGarage = parkingList.some(v => v === 'Garage');
   if (hasGarage) amenitySet.add('Parking Garage');
+
+  // AttendanceType → Doorman / 24hr Doorman / Attended Lobby
+  const attendanceValues = listing.attendanceType ? parseTrestleList(listing.attendanceType) : [];
+  for (const val of attendanceValues) {
+    if (val === 'DoormanFullTime') amenitySet.add('24hr Doorman');
+    else if (val === 'DoormanPartTime' || val === 'DoormanYes') amenitySet.add('Doorman');
+    else if (val === 'LobbyAttendantFullTime' || val === 'LobbyAttendantPartTime' || val === 'LobbyAttendantYes') amenitySet.add('Attended Lobby');
+    else if (val === 'VideoDoormanFullTime' || val === 'VideoDoormanPartTime' || val === 'VideoDoormanYes') amenitySet.add('Virtual Doorman');
+    else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
+  }
 
   const buildingAmenitiesFinal = [...amenitySet].sort();
 
