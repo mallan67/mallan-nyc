@@ -479,68 +479,69 @@ export default async function ListingPage({ params, searchParams }: Props) {
     lastUnitSale = trestleSale || acrisSale;
   }
 
-  // ── Building amenities ──
-  // Primary source: BuildingFeatures (Trestle IDX Plus)
-  // Also merge: AssociationAmenities, CommunityFeatures, SecurityFeatures, PoolFeatures, SpaFeatures
-  // Map Trestle values → human-readable labels
-  const BUILDING_FEATURE_LABELS: Record<string, string> = {
+  // ── Building amenities ── STRICT WHITELIST
+  // Only approved amenities are displayed. Trestle raw value → display label.
+  const APPROVED_AMENITIES: Record<string, string> = {
+    // Lobby & Services
+    SecurityGuard: 'Doorman',
     Concierge: 'Concierge',
-    Elevators: 'Elevator',
-    HealthClub: 'Gym',
-    FitnessCenter: 'Gym',
-    YogaStudio: 'Yoga Studio',
-    IndoorPool: 'Pool',
-    CommonPlayroom: "Children's Room",
-    GameRoom: 'Recreation Room',
-    ScreeningRoom: 'Screening Room',
+    LiveInSuper: 'Live-in Super',
+    VirtualDoorman: 'Virtual Doorman',
+    ResidentManager: 'Live-in Super',
+    // Common Areas
+    HealthClub: 'Gym/Fitness',
+    FitnessCenter: 'Gym/Fitness',
+    YogaStudio: 'Gym/Fitness',
     Sauna: 'Sauna',
     SteamRoom: 'Steam Room',
-    KitchenFacilities: 'Kitchen Facilities',
-    PackageRoom: 'Package Room',
-    GreenBuilding: 'Green Building',
-    ColdStorage: 'Cold Storage',
+    BuildingRoofDeck: 'Roof Deck',
+    BuildingGarden: 'Common Garden',
+    Storage: 'Storage',
+    BikeStorage: 'Bike Room',
+    BicycleStorage: 'Bike Room',
+    // Building Features
+    CommonPlayroom: "Children's Playroom",
+    Elevators: 'Elevator',
+    BusinessCenter: 'Business Center',
+    GameRoom: "Residents' Lounge",
+    MediaRoom: "Residents' Lounge",
+    ScreeningRoom: "Residents' Lounge",
+    GolfSimulation: 'Golf Simulation',
   };
-  // Values to EXCLUDE from building amenities (user request: no storage, no bike room)
-  const BUILDING_EXCLUDE = new Set(['Storage', 'BikeStorage', 'BicycleStorage']);
 
+  const amenitySet = new Set<string>();
+
+  // Scan all Trestle feature sources but ONLY add whitelisted values
   const rawBuildingFeatures = listing.buildingFeatures ? parseTrestleList(listing.buildingFeatures) : [];
   const rawAssocAmenities = listing.associationAmenities ? parseTrestleList(listing.associationAmenities) : [];
   const rawCommunity = listing.communityFeatures ? parseTrestleList(listing.communityFeatures) : [];
-  const rawPool = listing.poolFeatures ? parseTrestleList(listing.poolFeatures) : [];
-  const rawSpa = listing.spaFeatures ? parseTrestleList(listing.spaFeatures) : [];
-
-  const amenitySet = new Set<string>();
-  for (const val of rawBuildingFeatures) {
-    if (BUILDING_EXCLUDE.has(val)) continue;
-    amenitySet.add(BUILDING_FEATURE_LABELS[val] || formatCamelCase(val));
-  }
-  for (const val of rawAssocAmenities) {
-    if (BUILDING_EXCLUDE.has(val)) continue;
-    amenitySet.add(BUILDING_FEATURE_LABELS[val] || formatCamelCase(val));
-  }
-  for (const val of rawCommunity) {
-    if (BUILDING_EXCLUDE.has(val)) continue;
-    amenitySet.add(BUILDING_FEATURE_LABELS[val] || formatCamelCase(val));
-  }
-  // Pool & Spa from dedicated fields
-  if (rawPool.length > 0) amenitySet.add('Pool');
-  if (rawSpa.length > 0) amenitySet.add('Spa');
-  // Security → Doorman mapping
   const securityFeatures: string[] = listing.securityFeatures ? parseTrestleList(listing.securityFeatures) : [];
-  for (const val of securityFeatures) {
-    if (val === 'SecurityGuard') amenitySet.add('Doorman');
-    else if (val === 'SecurityGate') amenitySet.add('Security Gate');
-    else amenitySet.add(formatCamelCase(val));
+  const allSources = [...rawBuildingFeatures, ...rawAssocAmenities, ...rawCommunity, ...securityFeatures];
+  // Add exterior features for building-level items
+  if (listing.exteriorFeatures) allSources.push(...splitRaw(listing.exteriorFeatures));
+  for (const val of allSources) {
+    if (APPROVED_AMENITIES[val]) amenitySet.add(APPROVED_AMENITIES[val]);
   }
-  // Laundry in building (not unit-level)
+
+  // Pool — any pool feature → "Pool"
+  const rawPool = listing.poolFeatures ? parseTrestleList(listing.poolFeatures) : [];
+  if (rawPool.length > 0) amenitySet.add('Pool');
+
+  // Spa — any spa feature → "Spa Room"
+  const rawSpa = listing.spaFeatures ? parseTrestleList(listing.spaFeatures) : [];
+  if (rawSpa.length > 0) amenitySet.add('Spa Room');
+
+  // Laundry — building-level only → "Laundry Room"
   const rawLaundry = listing.laundryFeatures ? parseTrestleList(listing.laundryFeatures) : [];
   const buildingLaundryValues = new Set(['CommonArea', 'CommonOnFloor', 'LaundryRoom', 'BuildingInside', 'BuildingMultipleLocations']);
-  const hasBuildingLaundry = rawLaundry.some(v => buildingLaundryValues.has(v));
-  if (hasBuildingLaundry) amenitySet.add('Laundry');
+  if (rawLaundry.some(v => buildingLaundryValues.has(v))) amenitySet.add('Laundry Room');
 
-  // Garage — separate from building amenities
+  // Parking — garage → "Parking Garage"
   const parkingList = listing.parkingFeatures ? parseTrestleList(listing.parkingFeatures) : [];
   const hasGarage = parkingList.some(v => v === 'Garage');
+  if (hasGarage) amenitySet.add('Parking Garage');
+
+  const buildingAmenitiesFinal = [...amenitySet].sort();
 
   // ── Unit Features (pills) ──
   // Filter on RAW values (before formatting) to avoid mismatches
@@ -558,16 +559,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
       if (!EXTERIOR_BUILDING_RAW.has(raw)) unitFeatures.push(formatTrestleValue(raw));
     }
   }
-  // Add building-level exterior features to building amenities
-  if (listing.exteriorFeatures) {
-    for (const raw of splitRaw(listing.exteriorFeatures)) {
-      if (raw === 'BuildingRoofDeck') amenitySet.add('Roof Deck');
-      else if (raw === 'BuildingGarden') amenitySet.add('Garden');
-      else if (raw === 'BuildingCourtyard') amenitySet.add('Courtyard');
-    }
-  }
-  // Rebuild sorted building amenities after exterior additions
-  const buildingAmenitiesFinal = [...amenitySet].sort();
 
   // ── Unit Details (structured rows) ──
   const unitDetails: { label: string; value: string }[] = [];

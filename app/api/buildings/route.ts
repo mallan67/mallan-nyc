@@ -175,113 +175,64 @@ function extractBuildingInfo(records: TrestleRecord[]) {
   return info;
 }
 
-/** Format amenities from raw building info into display-ready categorized data */
+/** Format amenities from raw building info into display-ready categorized data.
+ *  STRICT WHITELIST — only approved building amenities are shown. */
 function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
-  const FEATURE_LABELS: Record<string, string> = {
+  // Trestle raw value → approved display label (whitelist)
+  const APPROVED: Record<string, string> = {
+    // Lobby & Services
+    SecurityGuard: 'Doorman',
     Concierge: 'Concierge',
-    Elevators: 'Elevator',
-    HealthClub: 'Gym',
-    FitnessCenter: 'Gym',
-    YogaStudio: 'Yoga Studio',
-    IndoorPool: 'Indoor Pool',
-    OutdoorPool: 'Outdoor Pool',
-    CommonPlayroom: "Children's Playroom",
-    GameRoom: 'Game Room',
-    ScreeningRoom: 'Screening Room',
+    LiveInSuper: 'Live-in Super',
+    VirtualDoorman: 'Virtual Doorman',
+    ResidentManager: 'Live-in Super',
+    // Common Areas
+    HealthClub: 'Gym/Fitness',
+    FitnessCenter: 'Gym/Fitness',
+    YogaStudio: 'Gym/Fitness',
     Sauna: 'Sauna',
     SteamRoom: 'Steam Room',
-    KitchenFacilities: 'Residents\' Kitchen',
-    PackageRoom: 'Package Room',
-    GreenBuilding: 'Green Building',
-    ColdStorage: 'Cold Storage',
-    SecurityGuard: 'Doorman',
-    SecurityGate: 'Security Gate',
     BuildingRoofDeck: 'Roof Deck',
-    BuildingGarden: 'Garden',
-    BuildingCourtyard: 'Courtyard',
-    BikeStorage: 'Bike Storage',
-    BicycleStorage: 'Bike Storage',
+    BuildingGarden: 'Common Garden',
     Storage: 'Storage',
-    LiveInSuper: 'Live-In Super',
-    MediaRoom: 'Media Room',
+    BikeStorage: 'Bike Room',
+    BicycleStorage: 'Bike Room',
+    // Building Features
+    CommonPlayroom: "Children's Playroom",
+    Elevators: 'Elevator',
     BusinessCenter: 'Business Center',
-    ResidentManager: 'Resident Manager',
-    VirtualDoorman: 'Virtual Doorman',
-    LaundryRoom: 'Laundry Room',
-    CommonArea: 'Common Laundry',
-    BuildingInside: 'In-Building Laundry',
-    InUnit: 'In-Unit Laundry',
+    GameRoom: "Residents' Lounge",
+    MediaRoom: "Residents' Lounge",
+    ScreeningRoom: "Residents' Lounge",
+    GolfSimulation: 'Golf Simulation',
   };
 
   const amenitySet = new Set<string>();
 
-  // BuildingFeatures — primary source
-  for (const f of buildingInfo.buildingFeatures) {
-    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-  }
-  // AssociationAmenities
-  for (const f of buildingInfo.associationAmenities) {
-    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-  }
-  // CommunityFeatures
-  for (const f of buildingInfo.communityFeatures) {
-    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-  }
-  // SecurityFeatures
-  for (const f of buildingInfo.securityFeatures) {
-    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-  }
-  // Exterior — building-level only
-  for (const f of buildingInfo.exteriorFeatures) {
-    if (f.startsWith('Building') || f.includes('RoofDeck') || f.includes('Garden') || f.includes('Courtyard')) {
-      amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-    }
-  }
-  // PatioAndPorch — building-level
-  for (const f of buildingInfo.patioAndPorchFeatures) {
-    if (f.toLowerCase().includes('building') || f.toLowerCase().includes('common') || f.toLowerCase().includes('roof')) {
-      amenitySet.add(formatFeatureLabel(f));
-    }
-  }
-  // Pool
-  for (const f of buildingInfo.poolFeatures) {
-    const label = f.toLowerCase().includes('indoor') ? 'Indoor Pool' : f.toLowerCase().includes('outdoor') ? 'Outdoor Pool' : 'Pool';
-    amenitySet.add(label);
-  }
-  // Spa
-  for (const f of buildingInfo.spaFeatures) {
-    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-  }
-  // Laundry — building-level only
-  for (const f of buildingInfo.laundryFeatures) {
-    const lower = f.toLowerCase();
-    if (lower.includes('inunit') || lower === 'in unit' || lower === 'inunit') continue; // Skip unit-level
-    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-  }
-  // Accessibility
-  for (const f of buildingInfo.accessibilityFeatures) {
-    amenitySet.add(formatFeatureLabel(f));
-  }
-  // Parking
-  if (buildingInfo.parkingFeatures.some((f) => f.toLowerCase().includes('garage'))) {
-    amenitySet.add('Garage');
-  }
-  if (buildingInfo.parkingFeatures.some((f) => f.toLowerCase().includes('valet'))) {
-    amenitySet.add('Valet Parking');
-  }
-  // Green
-  for (const f of buildingInfo.greenFeatures) {
-    amenitySet.add(formatFeatureLabel(f));
-  }
-  // Waterfront
-  for (const f of buildingInfo.waterfrontFeatures) {
-    amenitySet.add(formatFeatureLabel(f));
+  // Scan all feature sources but ONLY add whitelisted values
+  const allSources = [
+    ...buildingInfo.buildingFeatures,
+    ...buildingInfo.associationAmenities,
+    ...buildingInfo.communityFeatures,
+    ...buildingInfo.securityFeatures,
+    ...buildingInfo.exteriorFeatures,
+  ];
+  for (const f of allSources) {
+    if (APPROVED[f]) amenitySet.add(APPROVED[f]);
   }
 
-  // Remove noise entries
-  amenitySet.delete('None');
-  amenitySet.delete('Other');
-  amenitySet.delete('');
+  // Pool — any pool feature → "Pool"
+  if (buildingInfo.poolFeatures.length > 0) amenitySet.add('Pool');
+
+  // Spa — any spa feature → "Spa Room"
+  if (buildingInfo.spaFeatures.length > 0) amenitySet.add('Spa Room');
+
+  // Laundry — building-level only → "Laundry Room"
+  const buildingLaundry = new Set(['CommonArea', 'CommonOnFloor', 'LaundryRoom', 'BuildingInside', 'BuildingMultipleLocations']);
+  if (buildingInfo.laundryFeatures.some(f => buildingLaundry.has(f))) amenitySet.add('Laundry Room');
+
+  // Parking — garage → "Parking Garage"
+  if (buildingInfo.parkingFeatures.some(f => f.toLowerCase().includes('garage'))) amenitySet.add('Parking Garage');
 
   // Pet policy
   const petPolicySet = new Set<string>();

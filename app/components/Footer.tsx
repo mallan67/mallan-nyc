@@ -73,7 +73,7 @@ export default function Footer() {
   });
 
   return (
-    <footer className="px-6 md:px-12 lg:px-20 py-6 md:py-8 border-t border-black/5">
+    <footer className="px-6 md:px-12 lg:px-20 pt-6 md:pt-8 pb-3 md:pb-4 border-t border-black/5">
       <div className="max-w-[1440px] mx-auto">
         {/* Main grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-10 mb-6">
@@ -148,8 +148,8 @@ export default function Footer() {
         </div>
 
         {/* Fair Housing & REBNY Compliance — compact */}
-        <div className="border-t border-black/5 pt-4 mb-4">
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
+        <div className="border-t border-black/5 pt-3 mb-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
             <Image src="/images/equal-housing-logo.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
             <p className="text-[11px] text-brand-dark/85 font-light">Equal Housing Opportunity</p>
             <span className="text-brand-dark/20">|</span>
@@ -166,7 +166,7 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
           <p className="text-[11px] font-light text-brand-dark/85">
             &copy; {currentYear} {settings.companyName} &middot; License #{settings.license}
           </p>

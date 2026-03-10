@@ -12220,13 +12220,13 @@ function toggleSection(header) {
                     <div class="agent-only p-4 mx-6 mt-4 bg-amber-50 border border-amber-200 rounded-lg text-xs">
                         <p class="font-semibold text-amber-800 mb-2">Agent-Only Data</p>
                         <div class="grid grid-cols-3 gap-3 text-gray-700">
-                            <div><span class="font-medium">Listing Type:</span> Exclusive</div>
-                            <div><span class="font-medium">Listing ID:</span> MOCK-S001</div>
-                            <div><span class="font-medium">Web ID:</span> MOCK-W001</div>
-                            <div><span class="font-medium">Co-Broke Agent:</span> Demo Agent A</div>
-                            <div><span class="font-medium">Co-Broke Co.:</span> Demo Brokerage A</div>
-                            <div><span class="font-medium">Agent Phone:</span> (212) 555-0101</div>
-                            <div><span class="font-medium">Private Remarks:</span> Owner motivated. Will accept 10% below ask.</div>
+                            <div><span class="font-medium">Listing Type:</span> <span id="rpt-listing-type">--</span></div>
+                            <div><span class="font-medium">Listing ID:</span> <span id="rpt-listing-id">--</span></div>
+                            <div><span class="font-medium">Web ID:</span> <span id="rpt-web-id">--</span></div>
+                            <div><span class="font-medium">Co-Broke Agent:</span> <span id="rpt-cobroke-agent">--</span></div>
+                            <div><span class="font-medium">Co-Broke Co.:</span> <span id="rpt-cobroke-company">--</span></div>
+                            <div><span class="font-medium">Agent Phone:</span> <span id="rpt-agent-phone">--</span></div>
+                            <div><span class="font-medium">Private Remarks:</span> <span id="rpt-private-remarks">--</span></div>
                         </div>
                     </div>
 
@@ -18662,120 +18662,8 @@ function manageShowToast(msg) {
         // Apply to all current listings (before async aliases load — sets identity)
         mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
 
-        // ── Cinematic Minimalism Photo URLs (Unsplash real estate interiors) ──
-        var LISTING_PHOTOS = [
-            'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00',  // 0  bright living room
-            'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688',  // 1  open living room
-            'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2',  // 2  open kitchen
-            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267',  // 3  grand living room
-            'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c',  // 4  modern exterior
-            'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1',  // 5  modern kitchen
-            'https://images.unsplash.com/photo-1600585154340-be6161a56a0c',  // 6  gourmet kitchen
-            'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9',  // 7  sun-drenched living
-            'https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e',  // 8  bedroom
-            'https://images.unsplash.com/photo-1631049307264-da0ec9d70304',  // 9  second bedroom
-            'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8',  // 10 primary bedroom
-            'https://images.unsplash.com/photo-1540518614846-7eded433c457',  // 11 bedroom
-            'https://images.unsplash.com/photo-1484154218962-a197022b5858',  // 12 chef kitchen
-            'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14',  // 13 dining area
-            'https://images.unsplash.com/photo-1613545325278-f24b0cae1224',  // 14 bathroom
-            'https://images.unsplash.com/photo-1617104678098-de229db51175',  // 15 primary bedroom alt
-            'https://images.unsplash.com/photo-1600210492493-0946911123ea',  // 16 view / kitchen
-            'https://images.unsplash.com/photo-1584622650111-993a426fbf0a',  // 17 bathroom alt
-            'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3',  // 18 city view
-            'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136'   // 19 kitchen
-        ];
-        // RESO ImageOf categories — maps to Trestle Media entity enum values
-        // Each photo gets a proper RESO category + display caption
-        var PHOTO_ROOMS = [
-            { imageOf: 'LivingRoom',      caption: 'Living Room' },        // 0
-            { imageOf: 'Kitchen',         caption: 'Kitchen' },            // 1
-            { imageOf: 'PrimaryBedroom',  caption: 'Primary Bedroom' },    // 2
-            { imageOf: 'PrimaryBathroom', caption: 'Primary Bathroom' },   // 3
-            { imageOf: 'DiningArea',      caption: 'Dining Area' },        // 4
-            { imageOf: 'Bedroom',         caption: 'Second Bedroom' },     // 5
-            { imageOf: 'Bathroom',        caption: 'Bathroom' },           // 6
-            { imageOf: 'Kitchen',         caption: 'Kitchen Detail' },     // 7
-            { imageOf: 'EntranceFoyer',   caption: 'Entry Foyer' },        // 8
-            { imageOf: 'View',            caption: 'View' },               // 9
-            { imageOf: 'Closet',          caption: 'Walk-In Closet' },     // 10
-            { imageOf: 'LivingRoom',      caption: 'Living Room Detail' }, // 11
-            { imageOf: 'Lobby',           caption: 'Building Lobby' },     // 12
-            { imageOf: 'CommonAmenity',   caption: 'Building Amenity' },   // 13
-            { imageOf: 'FrontOfStructure',caption: 'Building Exterior' },  // 14
-            { imageOf: 'FloorPlan',       caption: 'Floor Plan' },         // 15
-            { imageOf: 'Laundry',         caption: 'Laundry' },            // 16
-            { imageOf: 'Balcony',         caption: 'Balcony / Terrace' }   // 17
-        ];
-        var PHOTO_PARAM = '?w=800&q=85&auto=format&fit=crop';
-        var PHOTO_PARAM_THUMB = '?w=400&q=80&auto=format&fit=crop';
-
-        // Generate 12-18 photos per listing (industry optimal: 22-27, MLS minimum: 1, recommended: 10-15)
-        // Uses all 20 Unsplash URLs rotated per listing, with proper RESO ImageOf + sort order
-        mockListings.forEach(function(l, i) {
-            var pi = i % LISTING_PHOTOS.length;
-            // Photo count varies by listing: studios get 12, 1BR 14, 2BR+ 16-18
-            var beds = l.beds || 0;
-            var count = beds === 0 ? 12 : beds === 1 ? 14 : beds === 2 ? 16 : 18;
-            l.images = [];
-            for (var p = 0; p < count; p++) {
-                var photoIdx = (pi + p * 3) % LISTING_PHOTOS.length;
-                var room = PHOTO_ROOMS[p % PHOTO_ROOMS.length];
-                l.images.push({
-                    url: LISTING_PHOTOS[photoIdx] + PHOTO_PARAM,
-                    caption: room.caption,
-                    imageOf: room.imageOf,     // RESO ImageOf enum
-                    order: p + 1,              // Trestle sort order (1-based)
-                    isPrimary: p === 0,        // PreferredPhotoYN
-                    mediaType: 'Jpeg',         // RESO MediaType
-                    mediaCategory: (p === count - 1) ? 'FloorPlan' : 'Photo'  // RESO MediaCategory — last photo is always floor plan
-                });
-            }
-            // Update photoCount to match actual images
-            l.photoCount = l.images.length;
-        });
-
-        // Diversify ownership: make listings 2, 5 Co-op; listing 4 Condop (only if still default Condominium)
-        if (mockListings[1] && mockListings[1].ownership === 'Condominium') { mockListings[1].ownership = 'StockCooperative'; mockListings[1].propertySubType = 'Cooperative'; }
-        if (mockListings[4] && mockListings[4].ownership === 'Condominium') { mockListings[4].ownership = 'StockCooperative'; mockListings[4].propertySubType = 'Cooperative'; }
-
-        // Diversify statuses: make listing 3 PENDING, listing 6 CLOSED
-        if (mockListings[2] && mockListings[2].status === 'ACTIVE') { mockListings[2].status = 'PENDING'; }
-        if (mockListings[5] && mockListings[5].status === 'ACTIVE') { mockListings[5].status = 'CLOSED'; }
-
-        // ── Add detail-page fields not in base records ──
-        // Condition: RLS PropertyCondition (Trestle-only, not in RLS CSV)
-        mockListings.forEach(function(l) {
-            if (!l.condition) {
-                var yr = l.yearBuilt || 1960;
-                if (yr >= 2015) l.condition = 'New Construction';
-                else if (yr >= 2000) l.condition = 'Recently Renovated';
-                else if (yr >= 1960) l.condition = 'Good';
-                else l.condition = 'Original';
-            }
-        });
-        // Showing Instructions / Open House: populated from API data
-
-        // Virtual Tour & Video Tour URLs: populated from API data
-
-        // Building contact info: populated from API data
-
-        // ── FARE Act Compliance (NYC Local Law, effective June 11, 2025) ──
-        // All rental listings MUST disclose: who pays broker fee, application fee, move-in fees.
-        // Per REBNY guidance: landlord-pays-compensation = Standard Active (syndicated);
-        // landlord-does-not-pay = InternetEntireListingDisplayYN = No (non-syndicated).
-        mockListings.forEach(function(l) {
-            if (l.listingCategory === 'rental') {
-                if (!l.fareActFees) {
-                    l.fareActFees = {
-                        brokerFeePaidBy: l.company === 'Mallan Real Estate Inc.' ? 'Landlord' : 'Tenant',
-                        applicationFee: 20,
-                        moveInFees: 'First month + security deposit',
-                        otherFees: null
-                    };
-                }
-            }
-        });
+        // Photos and listing data come from API (Trestle IDX / Prisma DB)
+        // No mock photo URLs or mock listing mutations needed
 
         // State Management
         var searchResultsState = {

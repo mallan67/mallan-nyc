@@ -12149,16 +12149,8 @@
                                 </div>
                                 <span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] rounded font-medium flex-shrink-0">Done</span>
                             </div>
-                            <div class="flex items-start gap-3 rls-log-entry" data-type="submission">
-                                <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-file-alt text-blue-500 text-[10px]"></i></div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between">
-                                        <p class="text-xs font-medium text-gray-800">New listing draft: John Smith</p>
-                                        <span class="text-[10px] text-gray-400 flex-shrink-0">Jan 31, 10:15 AM</span>
-                                    </div>
-                                    <p class="text-[10px] text-gray-500">Draft saved · 47 REBNY required fields · Validation: 38/47 complete</p>
-                                </div>
-                                <span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] rounded font-medium flex-shrink-0">Draft</span>
+                            <div class="flex items-start gap-3 rls-log-entry" data-type="submission" id="rls-log-latest-draft">
+                                <p class="text-xs text-gray-400 py-2">No recent submissions</p>
                             </div>
                         </div>
                     </div>
@@ -19818,8 +19810,7 @@
                                             </div>
                                         </td>
                                     </tr>
-                                    <!-- Jane Doe -->
-                            <!-- 2 more rows trimmed -->
+                            <!-- Agent rows populated dynamically -->
                                 </tbody>
                             </table>
                         </div>
@@ -19875,8 +19866,7 @@
                                         </td>
                                         <td class="px-3 py-2 text-center"><button onclick="if(confirm('Delete this CE record?')) this.closest('tr').remove()" class="text-red-400 hover:text-red-600 text-xs" title="Delete" aria-label="Delete"><i class="fas fa-trash-alt"></i></button></td>
                                     </tr>
-                                    <!-- Jane Doe -->
-                            <!-- 2 more rows trimmed -->
+                            <!-- Agent rows populated dynamically -->
                                 </tbody>
                             </table>
                         </div>
@@ -29387,31 +29377,8 @@ Equal Housing Opportunity
         // SEARCH REMOVED — All search functionality now in index-built.html
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        var mockListings = [
-            // Sale listings
-            { id: 1, address: '140 HILLSIDE AVENUE', unit: '2C', price: 500000, totalMonthly: 1304, rooms: 2, beds: 1, baths: 1, reTaxes: 694, maintCC: 610, intSqft: 675, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Fort George', borough: 'Manhattan', zip: '10040', era: 'Post-War', listingType: 'Exclusive', lid: 'MOCK-S001', wid: 'MOCK-W001', dom: 13, listedDate: '01/22/2026', updatedDate: '01/24/2026', company: '--', agentName: '--', agentEmail: null, priceChange: null, photoCount: 17 },
-            { id: 2, address: '581 ACADEMY STREET', unit: '2F', price: 500000, totalMonthly: 1124, rooms: 4, beds: 2, baths: 1, reTaxes: 371, maintCC: 753, intSqft: 900, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Inwood', borough: 'Manhattan', zip: '10034', era: 'Pre-War', listingType: 'Exclusive', lid: 'MOCK-S002', wid: 'MOCK-W002', dom: 145, listedDate: '09/12/2025', updatedDate: '01/30/2026', company: '--', agentName: '--', agentEmail: null, agentPhone: '', priceChange: 'down', originalPrice: 525000, photoCount: 11 },
-            { id: 3, address: '516 WEST 112TH STREET', unit: '4B', price: 509900, totalMonthly: 998, rooms: 3, beds: 1, baths: 1, reTaxes: 323, maintCC: 675, intSqft: 650, status: 'PENDING', ownership: 'Condo', neighborhood: 'Morningside Heights', borough: 'Manhattan', zip: '10025', era: 'Post-War', listingType: 'Exclusive', lid: 'MOCK-S003', wid: null, dom: 30, listedDate: '01/05/2026', updatedDate: '02/04/2026', company: '--', agentName: '--', agentEmail: null, agentPhone: '', priceChange: 'down', originalPrice: 524900, photoCount: 10 },
-            { id: 4, address: '350 EAST 62ND STREET', unit: '1M', price: 519000, totalMonthly: 959, rooms: 3, beds: 1, baths: 1, reTaxes: 234.17, maintCC: 724.44, intSqft: 472, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Lenox Hill', borough: 'Manhattan', zip: '10065', era: 'Pre-War', listingType: 'Exclusive', lid: 'MOCK-S004', wid: 'MOCK-W004', dom: 78, listedDate: '11/18/2025', updatedDate: null, company: '--', agentName: '--', agentEmail: null, agentPhone: '', priceChange: null, photoCount: 18 },
-            { id: 5, address: '504 WEST 136TH STREET', unit: '6A', price: 525000, totalMonthly: 789, rooms: 4, beds: 1, baths: 1, reTaxes: 4.25, maintCC: 785, intSqft: 636, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Hamilton Heights', borough: 'Manhattan', zip: '10031', era: 'Pre-War', listingType: 'Exclusive', lid: null, wid: null, dom: 45, listedDate: '12/20/2025', priceChange: 'down', photoCount: 8 },
-            { id: 6, address: '753 ST NICHOLAS AVENUE', unit: '5B', price: 525000, totalMonthly: 1393, rooms: 3, beds: 1, baths: 1, reTaxes: 535, maintCC: 858, intSqft: null, status: 'CLOSED', ownership: 'Condo', neighborhood: 'Sugar Hill', borough: 'Manhattan', zip: '10031', era: 'Pre-War', listingType: 'Open', lid: null, wid: null, dom: 22, listedDate: '01/13/2026', priceChange: null, photoCount: 6 },
-            { id: 7, address: '250 MANHATTAN AVENUE', unit: '1A', price: 525000, totalMonthly: 1055, rooms: 3, beds: 1, baths: 1, reTaxes: 291, maintCC: 764, intSqft: 654, status: 'ACTIVE', ownership: 'Condop', neighborhood: 'Harlem', borough: 'Manhattan', zip: '10026', era: 'New Construction', listingType: 'Exclusive', lid: null, wid: null, dom: 60, listedDate: '12/05/2025', priceChange: 'down', photoCount: 12 },
-            { id: 8, address: '1420 YORK AVENUE', unit: '7B', price: 530000, totalMonthly: 1370, rooms: 3, beds: 1, baths: 1, reTaxes: 733, maintCC: 637, intSqft: null, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Upper East Side', borough: 'Manhattan', zip: '10021', era: 'Post-War', listingType: 'Exclusive', lid: null, wid: null, dom: 15, listedDate: '01/20/2026', priceChange: null, photoCount: 9 },
-            { id: 9, address: '456 WEST 167TH STREET', unit: '4D', price: 535000, totalMonthly: 1662, rooms: 5, beds: 3, baths: 2, reTaxes: 924, maintCC: 738, intSqft: 1228, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Washington Heights', borough: 'Manhattan', zip: '10032', era: 'Pre-War', listingType: 'Exclusive', lid: null, wid: null, dom: 8, listedDate: '01/27/2026', priceChange: null, photoCount: 14, newListing: true },
-            { id: 10, address: '140 HILLSIDE AVENUE', unit: '2A', price: 535000, totalMonthly: 1304, rooms: 3, beds: 0, baths: 1, reTaxes: 694, maintCC: 610, intSqft: 486, status: 'PENDING', ownership: 'Condo', neighborhood: 'Fort George', borough: 'Manhattan', zip: '10040', era: 'Post-War', listingType: 'Exclusive', lid: null, wid: null, dom: 20, listedDate: '01/15/2026', priceChange: 'down', photoCount: 15 },
-            // Rental listings
-            { id: 11, address: '301 EAST 79TH STREET', unit: '4B', price: 4500, totalMonthly: 4500, rooms: 4, beds: 2, baths: 1, reTaxes: 0, maintCC: 0, intSqft: 850, status: 'ACTIVE', ownership: 'Rental Building', neighborhood: 'Upper East Side', borough: 'Manhattan', zip: '10075', era: 'Pre-War', listingType: 'Exclusive', lid: '23800001', wid: null, dom: 5, listedDate: '02/01/2026', updatedDate: '02/05/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', agentPhone: '', priceChange: null, photoCount: 12, listingCategory: 'rental' },
-            { id: 12, address: '100 BARCLAY STREET', unit: '22F', price: 12500, totalMonthly: 12500, rooms: 6, beds: 3, baths: 2.5, reTaxes: 0, maintCC: 0, intSqft: 1800, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Tribeca', borough: 'Manhattan', zip: '10007', era: 'New Construction', listingType: 'Exclusive', lid: '23800002', wid: null, dom: 12, listedDate: '01/25/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', priceChange: null, photoCount: 20, listingCategory: 'rental' },
-            { id: 13, address: '450 WEST 42ND STREET', unit: '28B', price: 5200, totalMonthly: 5200, rooms: 3, beds: 1, baths: 1, reTaxes: 0, maintCC: 0, intSqft: 720, status: 'ACTIVE', ownership: 'Rental Building', neighborhood: 'Hell\'s Kitchen', borough: 'Manhattan', zip: '10036', era: 'Post-War', listingType: 'Open', lid: '23800003', wid: null, dom: 18, listedDate: '01/20/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', priceChange: 'down', originalPrice: 5500, photoCount: 8, listingCategory: 'rental' },
-            { id: 14, address: '200 EAST 82ND STREET', unit: '6A', price: 3800, totalMonthly: 3800, rooms: 3, beds: 1, baths: 1, reTaxes: 0, maintCC: 0, intSqft: 680, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Upper East Side', borough: 'Manhattan', zip: '10028', era: 'Pre-War', listingType: 'Exclusive', lid: '23800004', wid: null, dom: 3, listedDate: '02/04/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', agentPhone: '', priceChange: null, photoCount: 10, listingCategory: 'rental', newListing: true },
-            { id: 15, address: '15 CENTRAL PARK WEST', unit: '14D', price: 18500, totalMonthly: 18500, rooms: 7, beds: 3, baths: 3, reTaxes: 0, maintCC: 0, intSqft: 2400, status: 'PENDING', ownership: 'Condo', neighborhood: 'Lincoln Square', borough: 'Manhattan', zip: '10023', era: 'New Construction', listingType: 'Exclusive', lid: '23800005', wid: null, dom: 28, listedDate: '01/10/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', priceChange: null, photoCount: 24, listingCategory: 'rental' },
-            { id: 16, address: '55 WALL STREET', unit: '34F', price: 7200, totalMonthly: 7200, rooms: 5, beds: 2, baths: 2, reTaxes: 0, maintCC: 0, intSqft: 1100, status: 'ACTIVE', ownership: 'Condo', neighborhood: 'Financial District', borough: 'Manhattan', zip: '10005', era: 'Pre-War', listingType: 'Open', lid: '23800006', wid: null, dom: 10, listedDate: '01/28/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', priceChange: null, photoCount: 15, listingCategory: 'rental' },
-            // Additional sale listings for test coverage
-            { id: 17, address: '200 WEST 86TH STREET', unit: '12A', price: 1850000, totalMonthly: 3245, rooms: 7, beds: 3, baths: 2, reTaxes: 1120, maintCC: 2125, intSqft: 1450, status: 'ACTIVE', ownership: 'Co-op', neighborhood: 'Upper West Side', borough: 'Manhattan', zip: '10024', era: 'Pre-War', listingType: 'Exclusive', lid: '23820001', wid: '20090001', dom: 10, listedDate: '02/03/2026', updatedDate: '02/10/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', agentPhone: '', priceChange: null, photoCount: 22 },
-            { id: 18, address: '330 EAST 75TH STREET', unit: '3F', price: 395000, totalMonthly: 892, rooms: 2, beds: 0, baths: 1, reTaxes: 312, maintCC: 580, intSqft: 486, status: 'PENDING', ownership: 'Co-op', neighborhood: 'Upper East Side', borough: 'Manhattan', zip: '10021', era: 'Post-War', listingType: 'Exclusive', lid: '23820002', wid: '20090002', dom: 35, listedDate: '01/08/2026', updatedDate: '02/12/2026', company: 'Corcoran Group', agentName: '--', agentEmail: '', agentPhone: '', priceChange: null, photoCount: 9 },
-            { id: 19, address: '88 GREENWICH STREET', unit: '22H', price: 1200000, totalMonthly: 2150, rooms: 4, beds: 1, baths: 1, reTaxes: 850, maintCC: 1300, intSqft: 820, status: 'CLOSED', ownership: 'Condo', neighborhood: 'Financial District', borough: 'Manhattan', zip: '10006', era: 'New Construction', listingType: 'Exclusive', lid: '23820003', wid: '20090003', dom: 62, listedDate: '12/01/2025', updatedDate: '02/01/2026', company: 'Mallan Real Estate Inc', agentName: '--', agentEmail: '', agentPhone: '', priceChange: 'down', originalPrice: 1295000, photoCount: 16 },
-            { id: 20, address: '1760 SECOND AVENUE', unit: '9C', price: 575000, totalMonthly: 1100, rooms: 3, beds: 1, baths: 1, reTaxes: 400, maintCC: 700, intSqft: 710, status: 'ACTIVE', ownership: 'Condop', neighborhood: 'Upper East Side', borough: 'Manhattan', zip: '10128', era: 'Post-War', listingType: 'Open', lid: '23820004', wid: null, dom: 25, listedDate: '01/18/2026', company: 'Compass', agentName: '--', agentEmail: '', agentPhone: '', priceChange: null, photoCount: 10 },
-        ];
+        // Listings populated from API — no mock data
+        var mockListings = [];
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // END SEARCH REMOVAL — Search results UI, view modes, render functions,
