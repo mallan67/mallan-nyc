@@ -416,7 +416,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 2. All requests authenticate via cookie only
 3. CORS is same-origin in production (localhost origins allowed in dev only)
 
-### API Endpoints (42 total)
+### API Endpoints (75+ total)
 
 #### Auth (7)
 | Route | Method | Purpose |
@@ -472,6 +472,45 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 | `/api/portal/showings` | GET/POST | List + request showings |
 | `/api/portal/offers` | GET | Incoming offers (seller/landlord) |
 
+#### CRM Analytics & Tools (32 routes — Systems G-Q)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/crm/demand` | GET/POST | Demand indices — list + trigger collection |
+| `/api/crm/demand/[neighborhood]` | GET | Neighborhood demand detail |
+| `/api/crm/demand/alerts` | GET/POST | Agent demand alerts |
+| `/api/crm/demand/heatmap` | GET | All neighborhoods for heatmap viz |
+| `/api/crm/demand/stats` | GET | Aggregate demand stats |
+| `/api/crm/intent/profiles` | GET | Buyer intent profiles (agent-scoped) |
+| `/api/crm/intent/profiles/[id]` | GET/POST | Intent profile detail + recompute |
+| `/api/crm/intent/events` | POST | Record behavioral event |
+| `/api/crm/intent/recommendations/[id]` | GET | Personalized listing recommendations |
+| `/api/crm/intent/stats` | GET | Intent aggregate stats |
+| `/api/crm/performance` | GET | Performance indices (anonymized for agents) |
+| `/api/crm/performance/[id]` | GET | Agent performance detail |
+| `/api/crm/performance/leaderboard` | GET | Ranked leaderboard |
+| `/api/crm/performance/stats` | GET | Performance stats (broker-only) |
+| `/api/crm/cma` | GET/POST | CMA reports — list + create |
+| `/api/crm/cma/[id]` | GET/PATCH | CMA report detail + update |
+| `/api/crm/showings/[id]/feedback` | GET/POST | Showing feedback — get + submit |
+| `/api/crm/notifications` | GET/POST/PATCH | Notifications — list, create, mark read |
+| `/api/crm/notifications/preferences` | GET/PUT | Notification preferences |
+| `/api/crm/documents` | GET/POST | Document vault — list + upload |
+| `/api/crm/documents/[id]` | GET/PATCH | Document detail + status update |
+| `/api/crm/documents/[id]/signatures` | POST | Record signature |
+| `/api/crm/market-pulse` | GET | Market snapshots by neighborhood |
+| `/api/crm/market-pulse/[neighborhood]` | GET | Neighborhood market detail + history |
+| `/api/crm/market-pulse/stats` | GET | Market aggregate stats |
+| `/api/crm/lead-scoring` | GET | Lead scores list |
+| `/api/crm/lead-scoring/[id]` | GET/POST | Lead score detail + rescore |
+| `/api/crm/lead-scoring/assign` | POST | Auto-assign lead (broker-only) |
+| `/api/crm/lead-scoring/rules` | GET/POST | Assignment rules (broker-only) |
+| `/api/crm/lead-scoring/stats` | GET | Scoring stats |
+| `/api/crm/commissions` | GET/POST | Commission payments — list + record |
+| `/api/crm/commissions/[id]` | PATCH | Update payment status (broker-only) |
+| `/api/crm/commissions/stats` | GET | Commission P&L stats |
+| `/api/crm/listing-audit` | GET/POST | Listing audits — history + run audit |
+| `/api/crm/listing-audit/[listingId]` | GET | Listing audit detail |
+
 #### Media (2)
 | Route | Method | Purpose |
 |-------|--------|---------|
@@ -484,6 +523,18 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 | `/api/idx/search` | GET | CRM search — agent/broker only, full listing data with proxied media URLs |
 | `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
 | `/api/idx/status` | GET | IDX connection status + sync stats |
+
+#### Cron Jobs (10)
+| Route | Schedule | Purpose |
+|-------|----------|---------|
+| `/api/cron/dom-reset` | Daily | Reset DOM for Withdrawn/Cancelled ≥30 days |
+| `/api/cron/sync-listings` | Daily | IDX listing sync |
+| `/api/cron/listing-alerts` | Daily | Saved search email alerts |
+| `/api/cron/demand-signals` | Daily 10am | Demand index recompute |
+| `/api/cron/intent-profiles` | Daily 11am | Buyer intent profile recompute |
+| `/api/cron/agent-metrics` | Weekly Mon 12pm | Agent performance reindex |
+| `/api/cron/market-snapshots` | Monthly 1st 6am | Market snapshot computation |
+| `/api/cron/lead-scoring` | Daily 1pm | Lead score batch recompute |
 
 ### Media Pipeline
 
@@ -546,6 +597,7 @@ The listing detail page (`app/listing/[id]/page.tsx`) displays property data in 
 
 ## Last Work Completed
 
+- **2026-03-10:** CRM Analytics & Tools (Systems D-Q) — 14 systems built: Seller Outreach, Pricing Experiments, Pipeline, Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor. 11 new Prisma models, 32+ API routes, 10 cron jobs, 11 CRM JS modules, all wired into CRM sidebar. TypeScript: 0 errors.
 - **2026-03-07:** Amenity pipeline + listing detail restructure — `BuildingFeatures`, `PoolFeatures`, `SpaFeatures` added to IDX pipeline (types → mapping → public-dto → page). Listing detail page restructured into 5 clean sections: Unit Features, Appliances, Building Amenities, Parking, Pet Policy. Pets removed from building amenities. Storage/BikeRoom excluded. Garage separate. ACRIS fallback for last sale price via borough/block/lot.
 - **2026-03-07:** Media pipeline fix — VirtualTour items no longer leak into photo carousel, videos render as `<video>` tag for direct files (iframe for YouTube/Vimeo), virtual tour fallback from Media resource when `VirtualTourURLUnbranded` is empty.
 - **2026-03-06:** CRM mock data cleanup — removed ALL fake names, stats, prices, addresses from rendered HTML. See [CRM Mock Data Cleanup](#crm-mock-data-cleanup-2026-03-06) below. Commit `5638ef05` (-1,068 lines net).
@@ -704,6 +756,16 @@ client-portal, tenant-portal, seller-portal, landlord-portal
 ---
 
 ## Sprint Progress
+
+### Sprint 11 — CRM Analytics & Tools (2026-03-10)
+
+**Completed:**
+- 14 CRM tool systems (D through Q) — full stack: Prisma models, library engines, API routes, cron jobs, CRM JS modules, sidebar wiring
+- 11 new Prisma models (CmaReport, ShowingFeedback, Notification, NotificationPreference, Document, DocumentSignature, MarketSnapshot, LeadScore, LeadAssignmentRule, CommissionPayment, ListingAudit)
+- 32+ new API routes across 8 system groups
+- 10 cron jobs in vercel.json (demand signals, intent profiles, agent metrics, market snapshots, lead scoring, DOM reset, sync, alerts)
+- 11 CRM JS frontend modules with sidebar buttons, content divs, and compliance banners
+- TypeScript: 0 errors
 
 ### Sprint 9 — Wire Mockups to Live Backend (2026-03-01)
 
