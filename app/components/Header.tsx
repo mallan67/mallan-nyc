@@ -107,19 +107,20 @@ export default function Header() {
   // Resources are static — no fetch needed (avoids 100-200ms per navigation)
 
   const buyItems = [
-    { title: 'Residential', href: '/buy?type=residential' },
+    { title: 'Search All', href: '/buy' },
+    { title: 'Townhouses', href: '/buy/townhouses' },
     { title: 'Commercial', href: '/buy?type=commercial' },
+    { title: "Buyer's Guide", href: '/resources/buyers-guide' },
   ];
 
   const rentItems = [
-    { title: 'Residential', href: '/rent?type=residential' },
+    { title: 'Search All', href: '/rent' },
     { title: 'Commercial', href: '/rent?type=commercial' },
   ];
 
   const sellItems = [
-    { title: 'Residential', href: '/sell?type=residential' },
-    { title: 'Commercial', href: '/sell?type=commercial' },
-    { title: 'Townhouses', href: '/sell/townhouses' },
+    { title: 'Sell Your Home', href: '/sell' },
+    { title: 'Sell a Townhouse', href: '/sell/townhouses' },
     { title: 'Home Value', href: '/sell#valuation' },
     { title: 'Our Results', href: '/results' },
   ];
