@@ -77,6 +77,16 @@ export async function GET(request: NextRequest) {
     const cleanStreetName = sanitizeOData(streetName);
     const cleanPostalCode = postalCode ? sanitizeOData(postalCode) : '';
 
+    // Parse the street name into components for Trestle's decomposed fields
+    // e.g. "W 57th Street" → dirPrefix: "W", coreName: "57th", suffix: "Street"
+    const DIR_PREFIXES = /^(N|S|E|W|North|South|East|West)\b\s*/i;
+    const SUFFIXES = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?$/i;
+    let coreStreetName = cleanStreetName;
+    const dirMatch = coreStreetName.match(DIR_PREFIXES);
+    const parsedDirPrefix = dirMatch ? dirMatch[1].toUpperCase().charAt(0) : '';
+    if (dirMatch) coreStreetName = coreStreetName.replace(DIR_PREFIXES, '');
+    coreStreetName = coreStreetName.replace(SUFFIXES, '').trim();
+
     // ── 1. Query DB for all listings at this address ──
     // Active + Closed listings, respecting distribution gates
 
@@ -85,7 +95,6 @@ export async function GET(request: NextRequest) {
       { path: ['StreetNumber'], equals: cleanStreetNumber },
     ];
 
-    // For street name, use string_contains for partial match
     // PostalCode for precision
     if (cleanPostalCode) {
       addressConditions.push({ path: ['PostalCode'], equals: cleanPostalCode });
@@ -102,8 +111,9 @@ export async function GET(request: NextRequest) {
             address: { ...cond },
           })),
           {
+            // Match on core street name (without dir prefix / suffix)
             address: {
-              string_contains: cleanStreetName,
+              string_contains: coreStreetName,
             },
           },
         ],
@@ -144,9 +154,10 @@ export async function GET(request: NextRequest) {
 
     try {
       const token = await getAccessToken();
-      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${cleanStreetName}')${
-        cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : ''
-      }`;
+      // Use decomposed address fields — Trestle stores StreetDirPrefix, StreetName, StreetSuffix separately
+      const dirFilter = parsedDirPrefix ? ` and StreetDirPrefix eq '${parsedDirPrefix}'` : '';
+      const zipFilter = cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : '';
+      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetName}')${dirFilter}${zipFilter}`;
 
       // Active listings
       const activeParams = new URLSearchParams({

@@ -128,10 +128,10 @@ export default function MarketReportContent() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* ── Header ── */}
       <div className="mb-8 sm:mb-10">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-dark tracking-tight">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black tracking-tight font-display">
           NYC Market Report
         </h1>
-        <p className="mt-2 text-base sm:text-lg text-gray-500 font-light">
+        <p className="mt-2 text-base sm:text-lg text-brand-dark/70">
           Real estate market data and trends across New York City
         </p>
       </div>
