@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     where: {
       status: { in: ["Closed", "Sold", "Leased", "Rented"] },
       status_changed_at: { lt: closedCutoff },
-      idx_display: true, // still marked for IDX display
+      idx_display_yn: true, // still marked for IDX display
     },
     select: { id: true, listing_id: true, status: true, status_changed_at: true },
   });
@@ -48,12 +48,12 @@ export async function GET(req: NextRequest) {
   if (staleClosedListings.length > 0) {
     await prisma.listing.updateMany({
       where: { id: { in: staleClosedListings.map((l) => l.id) } },
-      data: { idx_display: false },
+      data: { idx_display_yn: false },
     });
 
     await prisma.auditEvent.createMany({
       data: staleClosedListings.map((l) => ({
-        action: "idx_display_disabled",
+        action: "idx_display_yn_disabled",
         entity_type: "listing",
         entity_id: l.id.toString(),
         user_type: "system",
