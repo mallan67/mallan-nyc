@@ -83,9 +83,10 @@ export async function GET(request: NextRequest) {
     const SUFFIXES = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?$/i;
     let coreStreetName = cleanStreetName;
     const dirMatch = coreStreetName.match(DIR_PREFIXES);
-    const parsedDirPrefix = dirMatch ? dirMatch[1].toUpperCase().charAt(0) : '';
     if (dirMatch) coreStreetName = coreStreetName.replace(DIR_PREFIXES, '');
     coreStreetName = coreStreetName.replace(SUFFIXES, '').trim();
+    // Trestle stores street names in UPPERCASE — OData contains() is case-sensitive
+    const coreStreetNameUpper = coreStreetName.toUpperCase();
 
     // ── 1. Query DB for all listings at this address ──
     // Active + Closed listings, respecting distribution gates
@@ -111,9 +112,10 @@ export async function GET(request: NextRequest) {
             address: { ...cond },
           })),
           {
-            // Match on core street name (without dir prefix / suffix)
+            // Match on StreetName key in the address JSON (Trestle stores uppercase)
             address: {
-              string_contains: coreStreetName,
+              path: ['StreetName'],
+              string_contains: coreStreetNameUpper,
             },
           },
         ],
@@ -157,7 +159,7 @@ export async function GET(request: NextRequest) {
       // Building query: StreetNumber + PostalCode is usually unique enough for a building.
       // Adding StreetName contains as refinement (but NOT dir prefix — Trestle stores it inconsistently).
       const zipFilter = cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : '';
-      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetName}')${zipFilter}`;
+      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${zipFilter}`;
 
       // Active listings
       const activeParams = new URLSearchParams({

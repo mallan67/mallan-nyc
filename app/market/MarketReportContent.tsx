@@ -327,6 +327,41 @@ export default function MarketReportContent() {
         </section>
       )}
 
+      {/* ── CTA: Personalized Market Analysis ── */}
+      {data && !loading && (data.active.totalCount > 0 || data.closed.totalCount > 0) && (
+        <section className="mb-10 sm:mb-12">
+          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] rounded-3xl p-8 md:p-10">
+            <div className="max-w-2xl">
+              <h2 className="font-display text-2xl md:text-3xl font-bold text-white mb-3">
+                What does this mean for your property?
+              </h2>
+              <p className="text-white/70 text-sm md:text-base leading-relaxed mb-6">
+                {type === 'sale'
+                  ? 'Whether you\'re buying or selling, these numbers only tell part of the story. Get a personalized analysis of your target neighborhood — pricing strategy, timing, and comparable sales tailored to your goals.'
+                  : 'Rental markets move fast. Get expert guidance on pricing, timing, and neighborhood selection to maximize your investment or find the right apartment.'}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="tel:+16462584460"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-brand-gold text-white font-semibold rounded-full hover:bg-brand-gold-deep transition-colors text-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  Call (646) 258-4460
+                </a>
+                <a
+                  href="/about#contact"
+                  className="inline-flex items-center gap-2 px-6 py-3 border border-white/30 text-white font-medium rounded-full hover:bg-white/10 transition-colors text-sm"
+                >
+                  Request a Free Market Analysis
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Empty state ── */}
       {data && !loading && data.active.totalCount === 0 && data.closed.totalCount === 0 && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center mb-8">

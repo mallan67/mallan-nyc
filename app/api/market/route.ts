@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { getAccessToken } from '@/lib/idx/auth';
+
+const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 /**
  * GET /api/market
@@ -137,23 +140,87 @@ export async function GET(request: Request) {
       },
     });
 
-    const activePrices = activeListings
-      .map(l => Number(l.list_price))
-      .filter(p => p > 0);
+    // ── If DB has few results, supplement with live Trestle data ──
+    let trestleActive: Record<string, unknown>[] = [];
+    let trestleClosed: Record<string, unknown>[] = [];
 
-    const activePricesPerSqft = activeListings
-      .filter(l => l.living_area && Number(l.living_area) > 0)
-      .map(l => Number(l.list_price) / Number(l.living_area));
+    if (activeListings.length < 10) {
+      try {
+        const token = await getAccessToken();
+        const isRental = type === 'rent';
+        const propertyClass = isRental ? "PropertyType eq 'Residential Lease'" : "PropertyType eq 'Residential'";
+        const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
+        const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode';
 
-    const activeDom = activeListings
-      .map(l => {
-        if (l.days_on_market > 0) return l.days_on_market;
-        if (l.first_active_date) {
-          return Math.floor((now.getTime() - l.first_active_date.getTime()) / (1000 * 60 * 60 * 24));
+        // Active listings from Trestle
+        const activeParams = new URLSearchParams({
+          $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
+          $select: selectFields,
+          $top: '200',
+          $count: 'true',
+        });
+
+        const activeRes = await fetch(`${TRESTLE_URL}/odata/Property?${activeParams}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          next: { revalidate: 1800 },
+        });
+
+        if (activeRes.ok) {
+          const data = await activeRes.json();
+          trestleActive = data.value || [];
         }
+
+        // Closed listings from Trestle (within period)
+        const periodStartISO = periodStart.toISOString().split('T')[0];
+        const closedParams = new URLSearchParams({
+          $filter: `(MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
+          $select: `${selectFields},ClosePrice,CloseDate`,
+          $top: '200',
+        });
+
+        const closedRes = await fetch(`${TRESTLE_URL}/odata/Property?${closedParams}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          next: { revalidate: 1800 },
+        });
+
+        if (closedRes.ok) {
+          const data = await closedRes.json();
+          trestleClosed = data.value || [];
+        }
+      } catch (err) {
+        console.warn('[/api/market] Trestle fallback failed:', err instanceof Error ? err.message : err);
+      }
+    }
+
+    // Merge DB + Trestle active data for stats
+    const allActivePrices = [
+      ...activeListings.map(l => Number(l.list_price)),
+      ...trestleActive.map(r => Number(r.ListPrice || 0)),
+    ].filter(p => p > 0);
+
+    const allActiveSqft = [
+      ...activeListings.filter(l => l.living_area && Number(l.living_area) > 0).map(l => ({ price: Number(l.list_price), sqft: Number(l.living_area) })),
+      ...trestleActive.filter(r => r.LivingArea && Number(r.LivingArea) > 0).map(r => ({ price: Number(r.ListPrice || 0), sqft: Number(r.LivingArea) })),
+    ];
+
+    const allActiveDom = [
+      ...activeListings.map(l => {
+        if (l.days_on_market > 0) return l.days_on_market;
+        if (l.first_active_date) return Math.floor((now.getTime() - l.first_active_date.getTime()) / (1000 * 60 * 60 * 24));
         return Math.floor((now.getTime() - l.created_at.getTime()) / (1000 * 60 * 60 * 24));
-      })
-      .filter(d => d >= 0);
+      }),
+      ...trestleActive.map(r => Number(r.DaysOnMarket || 0)),
+    ].filter(d => d >= 0 && d < 3650);
+
+    const totalActiveCount = activeListings.length + trestleActive.length;
+
+    const activePrices = allActivePrices;
+
+    const activePricesPerSqft = allActiveSqft
+      .filter(d => d.price > 0 && d.sqft > 0)
+      .map(d => d.price / d.sqft);
+
+    const activeDom = allActiveDom;
 
     // Count new listings in the period
     const newListingsCount = await prisma.listing.count({
@@ -183,29 +250,47 @@ export async function GET(request: Request) {
       },
     });
 
-    const closedPrices = closedListings
+    const closedPricesDb = closedListings
       .map(l => {
-        // Try to get close_price from features JSON, fall back to list_price
         const features = l.features as Record<string, unknown> | null;
         const closePrice = features?.closePrice ? Number(features.closePrice) : null;
         return closePrice && closePrice > 0 ? closePrice : Number(l.list_price);
       })
       .filter(p => p > 0);
 
+    const closedPricesTrestle = trestleClosed
+      .map(r => Number(r.ClosePrice || r.ListPrice || 0))
+      .filter(p => p > 0);
+
+    const closedPrices = [...closedPricesDb, ...closedPricesTrestle];
+    const totalClosedCount = closedListings.length + trestleClosed.length;
+
     // Sale-to-list ratio
-    const saleToListRatios = closedListings
+    const saleToListRatiosDb = closedListings
       .map(l => {
         const features = l.features as Record<string, unknown> | null;
         const closePrice = features?.closePrice ? Number(features.closePrice) : null;
         const listPrice = Number(l.list_price);
-        if (closePrice && closePrice > 0 && listPrice > 0) {
-          return closePrice / listPrice;
-        }
+        if (closePrice && closePrice > 0 && listPrice > 0) return closePrice / listPrice;
         return null;
       })
       .filter((r): r is number => r !== null);
 
-    // ── Neighborhood breakdown (top neighborhoods by listing count) ──
+    const saleToListRatiosTrestle = trestleClosed
+      .map(r => {
+        const close = Number(r.ClosePrice || 0);
+        const list = Number(r.ListPrice || 0);
+        if (close > 0 && list > 0) return close / list;
+        return null;
+      })
+      .filter((r): r is number => r !== null);
+
+    const saleToListRatios = [...saleToListRatiosDb, ...saleToListRatiosTrestle];
+
+    // ── Neighborhood breakdown (merge DB + Trestle) ──
+    const neighborhoodMap = new Map<string, { count: number; totalPrice: number }>();
+
+    // DB neighborhoods
     const neighborhoodStats = await prisma.listing.groupBy({
       by: ['neighborhood'],
       where: activeWhere,
@@ -215,13 +300,32 @@ export async function GET(request: Request) {
       take: 15,
     });
 
-    const neighborhoodBreakdown = neighborhoodStats
-      .filter(n => n.neighborhood)
-      .map(n => ({
-        name: n.neighborhood!,
+    for (const n of neighborhoodStats) {
+      if (!n.neighborhood) continue;
+      neighborhoodMap.set(n.neighborhood, {
         count: n._count.id,
-        avgPrice: n._avg.list_price ? Math.round(Number(n._avg.list_price)) : null,
-      }));
+        totalPrice: n._avg.list_price ? Number(n._avg.list_price) * n._count.id : 0,
+      });
+    }
+
+    // Trestle neighborhoods
+    for (const r of trestleActive) {
+      const nh = String(r.CityRegion || '').trim();
+      if (!nh) continue;
+      const existing = neighborhoodMap.get(nh) || { count: 0, totalPrice: 0 };
+      existing.count++;
+      existing.totalPrice += Number(r.ListPrice || 0);
+      neighborhoodMap.set(nh, existing);
+    }
+
+    const neighborhoodBreakdown = [...neighborhoodMap.entries()]
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        avgPrice: data.count > 0 ? Math.round(data.totalPrice / data.count) : null,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
 
     // Find max count for bar chart percentages
     const maxNeighborhoodCount = neighborhoodBreakdown.length > 0
@@ -248,17 +352,20 @@ export async function GET(request: Request) {
         neighborhood: neighborhood || null,
       },
       active: {
-        totalCount: activeListings.length,
+        totalCount: totalActiveCount,
         medianPrice: median(activePrices),
         avgPricePerSqft: activePricesPerSqft.length > 0
           ? Math.round(activePricesPerSqft.reduce((a, b) => a + b, 0) / activePricesPerSqft.length)
           : null,
         medianDaysOnMarket: median(activeDom),
-        newListings: newListingsCount,
-        underContract: underContractCount,
+        newListings: newListingsCount + trestleActive.filter(r => {
+          const mod = r.ModificationTimestamp || r.OnMarketTimestamp;
+          return mod && new Date(String(mod)) >= periodStart;
+        }).length,
+        underContract: underContractCount + trestleActive.filter(r => String(r.StandardStatus) === 'ActiveUnderContract').length,
       },
       closed: {
-        totalCount: closedListings.length,
+        totalCount: totalClosedCount,
         medianSoldPrice: median(closedPrices),
         saleToListRatio: saleToListRatios.length > 0
           ? Math.round((saleToListRatios.reduce((a, b) => a + b, 0) / saleToListRatios.length) * 1000) / 1000
