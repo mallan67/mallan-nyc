@@ -28,6 +28,7 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
+import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
@@ -1143,7 +1144,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     <div className="flex justify-between py-2.5 border-b border-black/5">
                       <span className="text-[13px] text-brand-dark/60">Building Page</span>
                       <Link
-                        href={`/building?streetNumber=${encodeURIComponent(listing.address.streetNumber)}&streetName=${encodeURIComponent(listing.address.streetName)}&postalCode=${encodeURIComponent(listing.address.postalCode)}${listing.buildingName ? `&buildingName=${encodeURIComponent(listing.buildingName)}` : ''}`}
+                        href={buildingHref({ streetNumber: listing.address.streetNumber, streetName: listing.address.streetName, postalCode: listing.address.postalCode, buildingName: listing.buildingName || undefined })}
                         className="text-[13px] font-medium text-brand-gold-deep hover:text-brand-gold transition-colors flex items-center gap-1"
                       >
                         View Building
