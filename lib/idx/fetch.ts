@@ -60,7 +60,7 @@ export async function fetchFromTrestle(
     // $expand=Media works for result sets under ~200 records (verified against Trestle docs).
     // For bulk queries (500+), set expandMedia: false and batch-fetch photos separately.
     if (options.expandMedia !== false) {
-      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=3;$orderby=Order)");
+      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription;$top=8;$orderby=Order)");
     }
     if (options.count) params.set("$count", "true");
     params.set("$top", String(options.top || MAX_PAGE_SIZE));
