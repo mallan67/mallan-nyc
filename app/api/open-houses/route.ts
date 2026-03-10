@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -70,7 +71,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
-    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListAgentOfficePhone,ListOfficeName,PublicRemarks,PhotosCount)');
+    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListAgentOfficePhone,ListOfficeName,PublicRemarks,PhotosCount,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN)');
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -82,7 +83,10 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     }
 
     const data = await res.json();
-    const records = data.value || [];
+    const records = (data.value || []).filter((r: Record<string, unknown>) => {
+      const prop = (r.Property || {}) as Record<string, unknown>;
+      return checkDistributionGates(prop).displayable;
+    });
 
     return records.map((r: Record<string, unknown>) => {
       const prop = (r.Property || {}) as Record<string, unknown>;
@@ -153,7 +157,7 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
       const filterParts = listingKeys.map(k => `ListingKey eq '${k}'`);
       const propParams = new URLSearchParams();
       propParams.set('$filter', `(${filterParts.join(' or ')})`);
-      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListOfficeName,PublicRemarks');
+      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListOfficeName,PublicRemarks,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN');
       propParams.set('$top', String(listingKeys.length));
 
       const propRes = await fetch(`${base}/odata/Property?${propParams}`, {
@@ -167,7 +171,14 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
       }
     }
 
-    return ohRecords.map((r: Record<string, unknown>) => {
+    // Filter out non-displayable listings
+    const displayableOH = ohRecords.filter((r: Record<string, unknown>) => {
+      const prop = propMap.get(r.ListingKey as string);
+      if (!prop) return true; // No property data — allow (open house record exists)
+      return checkDistributionGates(prop as Record<string, unknown>).displayable;
+    });
+
+    return displayableOH.map((r: Record<string, unknown>) => {
       const prop = propMap.get(r.ListingKey as string) || {};
       const street = [prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]
         .filter(Boolean).join(' ');

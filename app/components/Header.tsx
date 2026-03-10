@@ -158,6 +158,13 @@ export default function Header() {
       }}
       role="button"
       tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setMobileOpen(false);
+          router.push(item.href);
+        }
+      }}
       className="block py-3 min-h-[44px] text-base cursor-pointer select-none text-white/60 active:text-white"
       style={{
         WebkitTouchCallout: 'none',

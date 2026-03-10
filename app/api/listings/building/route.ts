@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
 import { sanitizeOData, sanitizeNumeric, sanitizeDocumentId } from '@/lib/sanitize';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -185,7 +186,7 @@ export async function GET(request: NextRequest) {
     const activeFilter = `${addressFilter} and MlsStatus eq 'Active'`;
     const activeParams = new URLSearchParams({
       $filter: activeFilter,
-      $select: 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName',
+      $select: 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN',
       $orderby: 'ListPrice desc',
       $top: '20',
     });
@@ -195,7 +196,7 @@ export async function GET(request: NextRequest) {
     const closedFilter = `${addressFilter} and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`;
     const closedParams = new URLSearchParams({
       $filter: closedFilter,
-      $select: 'ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName',
+      $select: 'ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN',
       $orderby: 'CloseDate desc',
       $top: '20',
     });
@@ -214,8 +215,16 @@ export async function GET(request: NextRequest) {
     const activeData = activeRes.ok ? await activeRes.json() : { value: [] };
     const closedData = closedRes.ok ? await closedRes.json() : { value: [] };
 
+    // Distribution gate check — filter out non-displayable listings
+    const displayableActive = (activeData.value || []).filter(
+      (r: Record<string, unknown>) => checkDistributionGates(r).displayable
+    );
+    const displayableClosed = (closedData.value || []).filter(
+      (r: Record<string, unknown>) => checkDistributionGates(r).displayable
+    );
+
     // Map active units
-    const activeUnits = (activeData.value || [])
+    const activeUnits = displayableActive
       .filter((r: Record<string, unknown>) => String(r.ListingId || r.ListingKey) !== excludeId)
       .map((r: Record<string, unknown>) => ({
         id: String(r.ListingKey || r.ListingId),
@@ -231,7 +240,7 @@ export async function GET(request: NextRequest) {
       }));
 
     // Map Trestle closed sales
-    const trestleSales = (closedData.value || []).map((r: Record<string, unknown>) => ({
+    const trestleSales = displayableClosed.map((r: Record<string, unknown>) => ({
       id: String(r.ListingKey || r.ListingId),
       mlsId: String(r.ListingId || ''),
       closePrice: Number(r.ClosePrice || r.ListPrice || 0),
