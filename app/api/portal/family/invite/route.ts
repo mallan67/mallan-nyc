@@ -8,6 +8,7 @@ import { generatePortalToken } from "@/lib/auth/portal-token";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { portalInviteEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { escapeHtml } from "@/lib/sanitize";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -93,14 +94,14 @@ export async function POST(req: NextRequest) {
     // Send invite email
     const inviterName = `${inviter.first_name} ${inviter.last_name}`;
     const html = portalInviteEmail(
-      firstName,
+      escapeHtml(firstName),
       rawToken,
-      inviterName,
+      escapeHtml(inviterName),
       inviter.portal_role || "buyer"
     );
     await sendEmail(
       email,
-      `${inviterName} invited you to Mallan Real Estate`,
+      `${escapeHtml(inviterName)} invited you to Mallan Real Estate`,
       html
     );
   }

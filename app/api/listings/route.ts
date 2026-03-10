@@ -8,6 +8,7 @@ import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { logTrestleAccess } from '@/lib/audit/trestle-logger';
 
 // ── In-memory cache (same pattern as /api/idx/search) ──
 interface CacheEntry { data: unknown; expiresAt: number }
@@ -802,6 +803,19 @@ export async function GET(request: Request) {
         };
 
         setCache(cacheKey, responseBody);
+
+        // Async audit log (non-blocking)
+        logTrestleAccess({
+          endpoint: '/api/listings',
+          method: 'GET',
+          trestleResource: 'Property',
+          filter: filterParts.join(' and '),
+          recordCount: publicListings.length,
+          gateFilteredCount: result.totalFetched - displayable.length,
+          caller: { ip },
+          durationMs: Date.now() - (performance.now() | 0),
+          statusCode: 200,
+        }).catch(() => {});
 
         return NextResponse.json(responseBody, {
           headers: {
