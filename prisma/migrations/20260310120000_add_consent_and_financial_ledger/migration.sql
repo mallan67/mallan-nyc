@@ -18,7 +18,13 @@ CREATE TABLE "financial_ledger" (
     CONSTRAINT "financial_ledger_pkey" PRIMARY KEY ("id")
 );
 
+-- AlterTable: Add commercial classification to listings
+ALTER TABLE "listings" ADD COLUMN "rls_eligible" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "listings" ADD COLUMN "commercial_sub_type" TEXT;
+ALTER TABLE "listings" ADD COLUMN "commercial_ownership" TEXT;
+
 -- CreateIndex
+CREATE INDEX "listings_rls_eligible_idx" ON "listings"("rls_eligible");
 CREATE INDEX "financial_ledger_deal_id_idx" ON "financial_ledger"("deal_id");
 CREATE INDEX "financial_ledger_payment_id_idx" ON "financial_ledger"("payment_id");
 CREATE INDEX "financial_ledger_entry_type_idx" ON "financial_ledger"("entry_type");

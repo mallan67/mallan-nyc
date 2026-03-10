@@ -168,12 +168,24 @@ export async function GET(request: Request) {
         });
 
         if (syncedCount > 0) {
+          // Two display paths: RLS listings (must pass 6 distribution gates) OR
+          // website-only listings (commercial, rls_eligible=false — bypass gates)
           const dbWhere: Prisma.ListingWhereInput = {
             status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
-            idx_display_yn: true,
-            internet_entire_listing_display_yn: true,
-            owner_opt_out: false,
-            participant_only: false,
+            OR: [
+              // Path 1: RLS-eligible listings — must pass all distribution gates
+              {
+                rls_eligible: true,
+                idx_display_yn: true,
+                internet_entire_listing_display_yn: true,
+                owner_opt_out: false,
+                participant_only: false,
+              },
+              // Path 2: Website-only listings (commercial) — no RLS gates
+              {
+                rls_eligible: false,
+              },
+            ],
           };
 
           // Type filter
@@ -183,11 +195,16 @@ export async function GET(request: Request) {
             dbWhere.listing_type = 'rent';
           }
 
-          // Commercial filter
+          // Commercial filter — restrict to commercial property types
           if (commercial) {
-            dbWhere.property_sub_type = {
-              in: ['Commercial', 'Office', 'Retail', 'Industrial', 'MixedUse', 'MultiFamily'],
-            };
+            dbWhere.AND = [
+              {
+                OR: [
+                  { property_sub_type: { in: ['Commercial', 'Office', 'Retail', 'Industrial', 'MixedUse', 'MultiFamily'] } },
+                  { commercial_sub_type: { not: null } },
+                ],
+              },
+            ];
           }
 
           // Price range

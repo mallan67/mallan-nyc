@@ -195,6 +195,11 @@ model Listing {
   city                    String?
   postal_code             String?   @map("postal_code")
 
+  // --- RLS eligibility ---
+  rls_eligible            Boolean   @default(true) @map("rls_eligible")     // false = website-only (commercial, off-RLS)
+  commercial_sub_type     String?   @map("commercial_sub_type")             // e.g. "RetailStore", "OfficeSpace", "Restaurant"
+  commercial_ownership    String?   @map("commercial_ownership")            // e.g. "CommercialCondo", "CommercialCoop"
+
   // --- Distribution gates (6 REBNY RLS gates) ---
   idx_display_yn          Boolean   @default(true) @map("idx_display_yn")
   internet_entire_listing_display_yn Boolean @default(true) @map("internet_entire_listing_display_yn")
@@ -235,6 +240,7 @@ model Listing {
   @@index([list_price])
   @@index([borough, neighborhood])
   @@index([property_type])
+  @@index([rls_eligible])
   @@index([bedrooms_total])
   @@index([modification_timestamp])
   @@index([idx_display_yn, owner_opt_out])

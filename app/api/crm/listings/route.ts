@@ -54,6 +54,9 @@ export async function GET(req: NextRequest) {
         features: true,
         media: true,
         agent_info: true,
+        rls_eligible: true,
+        commercial_sub_type: true,
+        commercial_ownership: true,
         idx_display_yn: true,
         internet_entire_listing_display_yn: true,
         owner_opt_out: true,
@@ -130,40 +133,49 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Run REBNY RLS compliance validation (existing validator)
-  const validation = validateListing(body);
-  if (!validation.valid) {
-    return NextResponse.json(
-      {
-        error: "Listing failed compliance validation",
-        validation: {
-          errors: validation.errors,
-          warnings: validation.warnings,
-          suggestions: validation.suggestions,
-          compliance: validation.compliance,
-        },
-      },
-      { status: 422 }
-    );
-  }
+  // Determine if this is a website-only commercial listing (not RLS-eligible)
+  const isCommercial = body.PropertyType === "Commercial" ||
+    body.commercial_sub_type !== undefined ||
+    body.rls_eligible === false;
+  const rlsEligible = !isCommercial;
 
-  // RLS Enforcement Gate — hard gate on UCBA/RLS rules for write path
-  // This is the backend enforcement layer that ensures compliance on live payloads,
-  // not just mockup HTML (addresses the "validator exists ≠ enforcement exists" gap).
-  const enforcement = assertRlsCompliantPayload(body, {
-    listingType: listingType as "sale" | "rent",
-    isNewDevelopment: body.NewDevelopmentYN === true,
-    currentStatus: (body.MlsStatus as string) || undefined,
-  });
-  if (!enforcement.passed) {
-    return NextResponse.json(
-      {
-        error: "Listing blocked by RLS enforcement gate",
-        blockers: enforcement.blockers,
-        warnings: enforcement.warnings,
-      },
-      { status: 422 }
-    );
+  // Run REBNY RLS compliance validation (only for RLS-eligible listings)
+  let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
+    valid: true, errors: [], warnings: [], suggestions: [], compliance: {},
+  };
+  if (rlsEligible) {
+    validation = validateListing(body);
+    if (!validation.valid) {
+      return NextResponse.json(
+        {
+          error: "Listing failed compliance validation",
+          validation: {
+            errors: validation.errors,
+            warnings: validation.warnings,
+            suggestions: validation.suggestions,
+            compliance: validation.compliance,
+          },
+        },
+        { status: 422 }
+      );
+    }
+
+    // RLS Enforcement Gate — hard gate on UCBA/RLS rules for write path
+    const enforcement = assertRlsCompliantPayload(body, {
+      listingType: listingType as "sale" | "rent",
+      isNewDevelopment: body.NewDevelopmentYN === true,
+      currentStatus: (body.MlsStatus as string) || undefined,
+    });
+    if (!enforcement.passed) {
+      return NextResponse.json(
+        {
+          error: "Listing blocked by RLS enforcement gate",
+          blockers: enforcement.blockers,
+          warnings: enforcement.warnings,
+        },
+        { status: 422 }
+      );
+    }
   }
 
   // Generate listing ID
@@ -235,7 +247,10 @@ export async function POST(req: NextRequest) {
       neighborhood: (body.Neighborhood as string) ?? (body.SubdivisionName as string) ?? null,
       city: (body.City as string) ?? null,
       postal_code: (body.PostalCode as string) ?? null,
-      idx_display_yn: body.IDXEntireListingDisplayYN !== false,
+      rls_eligible: rlsEligible,
+      commercial_sub_type: (body.commercial_sub_type as string) ?? null,
+      commercial_ownership: (body.commercial_ownership as string) ?? null,
+      idx_display_yn: rlsEligible ? body.IDXEntireListingDisplayYN !== false : false,
       internet_entire_listing_display_yn: body.InternetEntireListingDisplayYN !== false,
       internet_address_display_yn: body.InternetAddressDisplayYN !== false,
       participant_only: body.ParticipantOnly === true,
