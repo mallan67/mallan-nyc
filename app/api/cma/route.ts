@@ -8,8 +8,19 @@ import { cmaAutoResponseEmail } from '@/lib/email/templates';
  *
  * Handles Comparative Market Analysis (CMA) requests from the public /sell page.
  * Creates/updates a Lead record and logs an audit event.
- * TCPA/CTIA: form includes explicit consent checkbox.
+ * TCPA/CTIA: form includes explicit consent checkbox (required affirmative action).
  */
+
+/** Escape HTML entities to prevent injection in email templates */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -88,24 +99,27 @@ export async function POST(request: NextRequest) {
 
     // Send email notification to broker (non-fatal)
     try {
-      const subjectLine = `CMA Request: ${address}${unit ? ` #${unit}` : ''}`;
+      const safeAddress = address.replace(/[<>"]/g, '');
+      const safeUnit = unit ? unit.replace(/[<>"]/g, '') : '';
+      const subjectLine = `CMA Request: ${safeAddress}${safeUnit ? ` #${safeUnit}` : ''}`;
       const boroughLabel = borough
         ? borough.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
         : '';
 
+      const td = 'padding:4px 12px 4px 0;font-weight:bold;';
       const emailBody = `
         <h2>New CMA Request</h2>
         <table style="border-collapse:collapse;font-family:sans-serif;">
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${name}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${email}</td></tr>
-          ${sanitizedPhone ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Phone:</td><td>${sanitizedPhone}</td></tr>` : ''}
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Address:</td><td>${address}${unit ? ` #${unit}` : ''}</td></tr>
-          ${boroughLabel ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Borough:</td><td>${boroughLabel}</td></tr>` : ''}
-          ${propertyType ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Property Type:</td><td>${propertyType}</td></tr>` : ''}
-          ${bedrooms ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Bedrooms:</td><td>${bedrooms}</td></tr>` : ''}
-          ${bathrooms ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Bathrooms:</td><td>${bathrooms}</td></tr>` : ''}
-          ${sqft ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Sq Ft:</td><td>${sqft}</td></tr>` : ''}
-          ${notes ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;vertical-align:top;">Notes:</td><td>${notes}</td></tr>` : ''}
+          <tr><td style="${td}">Name:</td><td>${escapeHtml(name)}</td></tr>
+          <tr><td style="${td}">Email:</td><td>${escapeHtml(email)}</td></tr>
+          ${sanitizedPhone ? `<tr><td style="${td}">Phone:</td><td>${escapeHtml(sanitizedPhone)}</td></tr>` : ''}
+          <tr><td style="${td}">Address:</td><td>${escapeHtml(address)}${unit ? ` #${escapeHtml(unit)}` : ''}</td></tr>
+          ${boroughLabel ? `<tr><td style="${td}">Borough:</td><td>${escapeHtml(boroughLabel)}</td></tr>` : ''}
+          ${propertyType ? `<tr><td style="${td}">Property Type:</td><td>${escapeHtml(String(propertyType))}</td></tr>` : ''}
+          ${bedrooms ? `<tr><td style="${td}">Bedrooms:</td><td>${escapeHtml(String(bedrooms))}</td></tr>` : ''}
+          ${bathrooms ? `<tr><td style="${td}">Bathrooms:</td><td>${escapeHtml(String(bathrooms))}</td></tr>` : ''}
+          ${sqft ? `<tr><td style="${td}">Sq Ft:</td><td>${escapeHtml(String(sqft))}</td></tr>` : ''}
+          ${notes ? `<tr><td style="${td}vertical-align:top;">Notes:</td><td>${escapeHtml(String(notes))}</td></tr>` : ''}
         </table>
       `.trim();
 
