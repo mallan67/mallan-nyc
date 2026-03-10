@@ -44,6 +44,14 @@ model Agent {
   past_deals     PastDeal[]
   showings       Showing[]
   saved_searches SavedSearch[]
+  seller_leads        SellerLead[]
+  pricing_experiments PricingExperiment[]
+  demand_alerts       DemandAlert[]
+  agent_metrics       AgentMetrics[]
+  performance_index   AgentPerformanceIndex?
+  cma_reports         CmaReport[]
+  documents           Document[]
+  assignment_rules    LeadAssignmentRule[]
 
   created_at     DateTime  @default(now()) @map("created_at")
   updated_at     DateTime  @updatedAt @map("updated_at")
@@ -113,6 +121,8 @@ model Deal {
   status                  String    @default("draft")  // "draft" | "submitted" | "approved" | "rejected" | "closed"
   contract_signed         DateTime? @map("contract_signed")
   contract_closed         DateTime? @map("contract_closed")
+  documents               Document[]
+  commission_payments     CommissionPayment[]
   created_at              DateTime  @default(now()) @map("created_at")
   updated_at              DateTime  @updatedAt @map("updated_at")
 
@@ -146,6 +156,10 @@ model Lead {
   comments        Comment[]
   family_members  FamilyMember[]
   family_of       FamilyMember[] @relation("FamilyOf")
+  intent_events   IntentEvent[]
+  intent_profile  BuyerIntentProfile?
+  lead_score      LeadScore?
+  showing_feedback ShowingFeedback[]
   created_at      DateTime @default(now()) @map("created_at")
   updated_at      DateTime @updatedAt @map("updated_at")
 
@@ -330,6 +344,7 @@ model Showing {
   type        String    @default("private") // "private" | "openhouse" | "brokersopen" | "virtual"
   status      String    @default("requested") // "requested" | "confirmed" | "completed" | "cancelled"
   notes       String?   @db.Text
+  feedback    ShowingFeedback?
   created_at  DateTime  @default(now()) @map("created_at")
   updated_at  DateTime  @updatedAt @map("updated_at")
 
@@ -421,4 +436,604 @@ model GeocodeCache {
 
   @@index([address_key])
   @@map("geocode_cache")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELLER LEAD — Predictive seller readiness scoring
+// Tracks addresses with public-data signals to estimate sell likelihood.
+// Uses ONLY non-MLS public data (ACRIS, DOB, first-party behavior).
+// ═══════════════════════════════════════════════════════════
+model SellerLead {
+  id                BigInt    @id @default(autoincrement())
+  address           String                                   // Full street address
+  unit              String    @default("")
+  borough           String?
+  neighborhood      String?
+  postal_code       String?   @map("postal_code")
+  bbl               String?                                  // 10-digit BBL (borough-block-lot)
+  bin               String?                                  // BIN (building ID number)
+
+  // --- Owner info (from ACRIS / public records) ---
+  owner_name        String?   @map("owner_name")
+  owner_email       String?   @map("owner_email")
+  owner_phone       String?   @map("owner_phone")
+
+  // --- Scoring ---
+  readiness_score   Int       @default(0) @map("readiness_score")   // 0-100
+  score_grade       String    @default("F") @map("score_grade")     // A/B/C/D/F
+  last_scored_at    DateTime? @map("last_scored_at")
+
+  // --- Pipeline status ---
+  status            String    @default("new")                        // new | contacted | replied | meeting | signed | declined
+  assigned_agent_id BigInt?   @map("assigned_agent_id")
+  assigned_agent    Agent?    @relation(fields: [assigned_agent_id], references: [id])
+
+  // --- Consent ---
+  consent_given     Boolean   @default(false) @map("consent_given")
+  consent_date      DateTime? @map("consent_date")
+  consent_method    String?   @map("consent_method")                 // "web_form" | "email_reply" | "verbal"
+
+  // --- Notes ---
+  notes             String?   @db.Text
+
+  // --- Relations ---
+  signals           ReadinessSignal[]
+  outreach_events   OutreachEvent[]
+
+  created_at        DateTime  @default(now()) @map("created_at")
+  updated_at        DateTime  @updatedAt @map("updated_at")
+
+  @@unique([address, unit])
+  @@index([readiness_score])
+  @@index([status])
+  @@index([assigned_agent_id])
+  @@index([bbl])
+  @@map("seller_leads")
+}
+
+// ═══════════════════════════════════════════════════════════
+// READINESS SIGNAL — Individual scoring signals per address
+// ═══════════════════════════════════════════════════════════
+model ReadinessSignal {
+  id              BigInt    @id @default(autoincrement())
+  seller_lead_id  BigInt    @map("seller_lead_id")
+  seller_lead     SellerLead @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
+
+  signal_type     String    @map("signal_type")    // ownership_duration | mortgage_age | equity_estimate | dob_permits | renovation_signal | building_risk | page_visit | cma_request | valuation_form
+  raw_value       String?   @map("raw_value")      // Original value (e.g., "12 years", "$450000")
+  normalized      Float     @default(0)             // 0.0 – 1.0 normalized score
+  source          String    @default("system")      // "acris" | "dob" | "first_party" | "manual"
+  metadata        Json?                              // Extra context (document IDs, dates, etc.)
+
+  collected_at    DateTime  @default(now()) @map("collected_at")
+
+  @@index([seller_lead_id])
+  @@index([signal_type])
+  @@map("readiness_signals")
+}
+
+// ═══════════════════════════════════════════════════════════
+// OUTREACH EVENT — Audit trail for seller outreach
+// ═══════════════════════════════════════════════════════════
+model OutreachEvent {
+  id              BigInt    @id @default(autoincrement())
+  seller_lead_id  BigInt    @map("seller_lead_id")
+  seller_lead     SellerLead @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
+
+  channel         String                              // "email" | "letter" | "phone" | "door_knock"
+  direction       String    @default("outbound")      // "outbound" | "inbound"
+  template_id     String?   @map("template_id")       // Reference to outreach template used
+  subject         String?
+  body_preview    String?   @db.Text @map("body_preview")  // First 500 chars for audit
+  outcome         String?                              // "sent" | "delivered" | "opened" | "replied" | "bounced" | "declined"
+
+  // --- TCPA compliance ---
+  consent_verified Boolean  @default(false) @map("consent_verified")
+
+  agent_id        BigInt    @map("agent_id")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@index([seller_lead_id])
+  @@index([agent_id])
+  @@index([created_at])
+  @@map("outreach_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRICING EXPERIMENT — A/B marketing strategy experiments
+// Compares two arms (control + treatment) on internal listings.
+// Uses buyer engagement signals only — NO MLS data manipulation.
+// ═══════════════════════════════════════════════════════════
+model PricingExperiment {
+  id                    BigInt    @id @default(autoincrement())
+  name                  String
+  description           String?   @db.Text
+  experiment_type       String    @map("experiment_type")     // exposure_level | showing_strategy | photo_order | description_variant
+  status                String    @default("draft")           // draft | active | concluded | archived
+  created_by_id         BigInt    @map("created_by_id")
+  created_by            Agent     @relation(fields: [created_by_id], references: [id])
+  start_date            DateTime? @map("start_date")
+  end_date              DateTime? @map("end_date")
+  target_sample_size    Int?      @map("target_sample_size")
+  significance_threshold Decimal  @db.Decimal(4,3) @default(0.95) @map("significance_threshold")
+  conclusion_notes      String?   @db.Text @map("conclusion_notes")
+  result_summary        Json?     @map("result_summary")      // Final ExperimentResult JSON
+
+  arms                  ExperimentArm[]
+
+  created_at            DateTime  @default(now()) @map("created_at")
+  updated_at            DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([created_by_id])
+  @@index([experiment_type])
+  @@map("pricing_experiments")
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPERIMENT ARM — Control or treatment variant
+// ═══════════════════════════════════════════════════════════
+model ExperimentArm {
+  id              BigInt    @id @default(autoincrement())
+  experiment_id   BigInt    @map("experiment_id")
+  experiment      PricingExperiment @relation(fields: [experiment_id], references: [id], onDelete: Cascade)
+  name            String                                      // "Control", "Extended Exposure", etc.
+  is_control      Boolean   @default(false) @map("is_control")
+  config          Json      @default("{}")                     // Strategy-specific config
+  summary_metrics Json      @default("{}") @map("summary_metrics") // Aggregated KPIs (computed by cron)
+
+  listings        ExperimentListing[]
+
+  @@index([experiment_id])
+  @@map("experiment_arms")
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPERIMENT LISTING — Listing assignment to an arm
+// ═══════════════════════════════════════════════════════════
+model ExperimentListing {
+  id                    BigInt    @id @default(autoincrement())
+  arm_id                BigInt    @map("arm_id")
+  arm                   ExperimentArm @relation(fields: [arm_id], references: [id], onDelete: Cascade)
+  listing_id            String    @map("listing_id")           // Listing.listing_id (string key)
+  listing_address       String?   @map("listing_address")      // Denormalized for display
+  seller_consent        Boolean   @default(false) @map("seller_consent")
+  consent_timestamp     DateTime? @map("consent_timestamp")
+  consent_method        String?   @map("consent_method")       // seller_portal | email | in_person
+  consent_terms_version String?   @map("consent_terms_version")
+  enrolled_at           DateTime  @default(now()) @map("enrolled_at")
+  withdrawn_at          DateTime? @map("withdrawn_at")
+
+  engagement_events     EngagementEvent[]
+
+  @@unique([arm_id, listing_id])
+  @@index([listing_id])
+  @@map("experiment_listings")
+}
+
+// ═══════════════════════════════════════════════════════════
+// ENGAGEMENT EVENT — Buyer engagement signals per experiment listing
+// ═══════════════════════════════════════════════════════════
+model EngagementEvent {
+  id                    BigInt    @id @default(autoincrement())
+  experiment_listing_id BigInt    @map("experiment_listing_id")
+  experiment_listing    ExperimentListing @relation(fields: [experiment_listing_id], references: [id], onDelete: Cascade)
+  event_type            String    @map("event_type")           // page_view | inquiry | showing_request | save_favorite | time_on_page | cta_click
+  value                 Decimal?  @db.Decimal(14,2)            // Numeric value (seconds for time, 1 for counts)
+  metadata              Json?                                   // Extra context (no PII)
+  recorded_at           DateTime  @default(now()) @map("recorded_at")
+
+  @@index([experiment_listing_id])
+  @@index([event_type])
+  @@index([recorded_at])
+  @@map("engagement_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// G. DEMAND HEATMAP — Hyperlocal demand signals
+// ═══════════════════════════════════════════════════════════
+
+model DemandSignal {
+  id              BigInt    @id @default(autoincrement())
+  signal_type     String    @map("signal_type")
+  neighborhood    String
+  borough         String?
+  postal_code     String?   @map("postal_code")
+  value           Float     @default(0)
+  normalized      Float     @default(0)
+  source          String    @default("soda")
+  metadata        Json?
+  period_start    DateTime  @map("period_start")
+  period_end      DateTime  @map("period_end")
+  collected_at    DateTime  @default(now()) @map("collected_at")
+
+  @@index([neighborhood, signal_type])
+  @@index([signal_type])
+  @@index([collected_at])
+  @@map("demand_signals")
+}
+
+model DemandIndex {
+  id              BigInt    @id @default(autoincrement())
+  neighborhood    String    @unique
+  borough         String?
+  score           Int       @default(0)
+  trend           String    @default("stable")
+  trend_delta     Float     @default(0) @map("trend_delta")
+  components      Json      @default("{}")
+  signal_count    Int       @default(0) @map("signal_count")
+  last_computed   DateTime  @default(now()) @map("last_computed")
+
+  alerts          DemandAlert[]
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([score])
+  @@index([borough])
+  @@map("demand_indices")
+}
+
+model DemandAlert {
+  id              BigInt    @id @default(autoincrement())
+  agent_id        BigInt    @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  demand_index_id BigInt    @map("demand_index_id")
+  demand_index    DemandIndex @relation(fields: [demand_index_id], references: [id], onDelete: Cascade)
+  neighborhood    String
+  alert_type      String    @map("alert_type")
+  threshold       Int       @default(70)
+  enabled         Boolean   @default(true)
+  last_triggered  DateTime? @map("last_triggered")
+  last_value      Int?      @map("last_value")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([agent_id, demand_index_id, alert_type])
+  @@index([agent_id])
+  @@index([enabled])
+  @@map("demand_alerts")
+}
+
+// ═══════════════════════════════════════════════════════════
+// H. BUYER INTENT — First-party behavioral graph
+// ═══════════════════════════════════════════════════════════
+
+model IntentEvent {
+  id              BigInt    @id @default(autoincrement())
+  lead_id         BigInt    @map("lead_id")
+  lead            Lead      @relation(fields: [lead_id], references: [id])
+  event_type      String    @map("event_type")
+  payload         Json      @default("{}")
+  session_id      String?   @map("session_id")
+  recorded_at     DateTime  @default(now()) @map("recorded_at")
+
+  @@index([lead_id])
+  @@index([event_type])
+  @@index([recorded_at])
+  @@index([lead_id, event_type])
+  @@map("intent_events")
+}
+
+model BuyerIntentProfile {
+  id                      BigInt    @id @default(autoincrement())
+  lead_id                 BigInt    @unique @map("lead_id")
+  lead                    Lead      @relation(fields: [lead_id], references: [id])
+  intent_strength         Int       @default(0) @map("intent_strength")
+  intent_stage            String    @default("browsing") @map("intent_stage")
+  price_min               Decimal?  @db.Decimal(14,2) @map("price_min")
+  price_max               Decimal?  @db.Decimal(14,2) @map("price_max")
+  preferred_neighborhoods String[]  @map("preferred_neighborhoods")
+  preferred_types         String[]  @map("preferred_types")
+  preferred_beds          Int[]     @map("preferred_beds")
+  amenity_preferences     String[]  @map("amenity_preferences")
+  preferred_boroughs      String[]  @map("preferred_boroughs")
+  top_features            Json      @default("{}") @map("top_features")
+  event_count             Int       @default(0) @map("event_count")
+  last_event_at           DateTime? @map("last_event_at")
+  last_computed           DateTime  @default(now()) @map("last_computed")
+
+  created_at              DateTime  @default(now()) @map("created_at")
+  updated_at              DateTime  @updatedAt @map("updated_at")
+
+  @@index([intent_strength])
+  @@index([intent_stage])
+  @@map("buyer_intent_profiles")
+}
+
+// ═══════════════════════════════════════════════════════════
+// I. AGENT PERFORMANCE — Marketplace & performance index
+// ═══════════════════════════════════════════════════════════
+
+model AgentMetrics {
+  id              BigInt    @id @default(autoincrement())
+  agent_id        BigInt    @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  month           DateTime
+  metrics         Json      @default("{}")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([agent_id, month])
+  @@index([agent_id])
+  @@index([month])
+  @@map("agent_metrics")
+}
+
+model AgentPerformanceIndex {
+  id              BigInt    @id @default(autoincrement())
+  agent_id        BigInt    @unique @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  index_score     Int       @default(0) @map("index_score")
+  rank            Int?
+  tier            String    @default("bronze")
+  components      Json      @default("{}")
+  months_included Int       @default(0) @map("months_included")
+  last_computed   DateTime  @default(now()) @map("last_computed")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([index_score])
+  @@index([tier])
+  @@map("agent_performance_indices")
+}
+
+// ═══════════════════════════════════════════════════════════
+// J. CMA REPORT — Comparable Market Analysis
+// ═══════════════════════════════════════════════════════════
+model CmaReport {
+  id              BigInt    @id @default(autoincrement())
+  agent_id        BigInt    @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  property_address String   @map("property_address")
+  borough         String?
+  neighborhood    String?
+  subject_details Json      @default("{}") @map("subject_details")   // beds, baths, sqft, type, floor, etc.
+  comps           Json      @default("[]")                             // array of comparable listings
+  adjustments     Json      @default("[]")                             // array of adjustments per comp
+  estimated_value Decimal?  @db.Decimal(14,2) @map("estimated_value")
+  price_range_low Decimal?  @db.Decimal(14,2) @map("price_range_low")
+  price_range_high Decimal? @db.Decimal(14,2) @map("price_range_high")
+  status          String    @default("draft")   // "draft" | "final" | "sent"
+  notes           String?   @db.Text
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([agent_id])
+  @@index([neighborhood])
+  @@map("cma_reports")
+}
+
+// ═══════════════════════════════════════════════════════════
+// K. SHOWING FEEDBACK
+// ═══════════════════════════════════════════════════════════
+model ShowingFeedback {
+  id              BigInt    @id @default(autoincrement())
+  showing_id      BigInt    @map("showing_id")
+  showing         Showing   @relation(fields: [showing_id], references: [id])
+  lead_id         BigInt?   @map("lead_id")
+  lead            Lead?     @relation(fields: [lead_id], references: [id])
+  rating          Int       @default(3)           // 1-5
+  interest_level  String    @default("neutral")   // "not_interested" | "neutral" | "interested" | "very_interested" | "ready_to_offer"
+  liked           String[]  @default([])           // ["layout","light","location"]
+  disliked        String[]  @default([])           // ["size","price","condition"]
+  objections      String[]  @default([])
+  notes           String?   @db.Text
+  submitted_by    String    @default("agent")      // "agent" | "client"
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([showing_id])
+  @@index([lead_id])
+  @@index([interest_level])
+  @@map("showing_feedback")
+}
+
+// ═══════════════════════════════════════════════════════════
+// L. NOTIFICATION ENGINE
+// ═══════════════════════════════════════════════════════════
+model Notification {
+  id              BigInt    @id @default(autoincrement())
+  recipient_type  String    @map("recipient_type")  // "agent" | "lead"
+  recipient_id    BigInt    @map("recipient_id")
+  channel         String    @default("in_app")       // "in_app" | "email" | "sms"
+  type            String                              // "new_match" | "price_drop" | "showing_confirmed" | "offer_status" | "listing_update" | "system"
+  title           String
+  body            String    @db.Text
+  data            Json?                                // { listing_id, deal_id, etc. }
+  read_at         DateTime? @map("read_at")
+  sent_at         DateTime? @map("sent_at")
+  status          String    @default("pending")        // "pending" | "sent" | "delivered" | "failed"
+
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@index([recipient_type, recipient_id])
+  @@index([type])
+  @@index([status])
+  @@index([created_at])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id              BigInt    @id @default(autoincrement())
+  recipient_type  String    @map("recipient_type")  // "agent" | "lead"
+  recipient_id    BigInt    @map("recipient_id")
+  new_match       Boolean   @default(true) @map("new_match")
+  price_drop      Boolean   @default(true) @map("price_drop")
+  showing_updates Boolean   @default(true) @map("showing_updates")
+  offer_updates   Boolean   @default(true) @map("offer_updates")
+  email_digest    String    @default("daily")       // "none" | "instant" | "daily" | "weekly"
+  sms_enabled     Boolean   @default(false) @map("sms_enabled")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([recipient_type, recipient_id])
+  @@map("notification_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════
+// M. DOCUMENT VAULT
+// ═══════════════════════════════════════════════════════════
+model Document {
+  id              BigInt    @id @default(autoincrement())
+  deal_id         BigInt?   @map("deal_id")
+  deal            Deal?     @relation(fields: [deal_id], references: [id])
+  agent_id        BigInt    @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  name            String
+  doc_type        String    @map("doc_type")        // "contract" | "disclosure" | "co_broke" | "rider" | "amendment" | "other"
+  file_url        String    @map("file_url")
+  file_size       Int?      @map("file_size")        // bytes
+  mime_type       String?   @map("mime_type")
+  status          String    @default("uploaded")      // "uploaded" | "sent" | "viewed" | "signed" | "countersigned" | "expired"
+  requires_signature Boolean @default(false) @map("requires_signature")
+  notes           String?   @db.Text
+
+  signatures      DocumentSignature[]
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([deal_id])
+  @@index([agent_id])
+  @@index([doc_type])
+  @@index([status])
+  @@map("documents")
+}
+
+model DocumentSignature {
+  id              BigInt    @id @default(autoincrement())
+  document_id     BigInt    @map("document_id")
+  document        Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  signer_name     String    @map("signer_name")
+  signer_email    String    @map("signer_email")
+  signer_role     String    @map("signer_role")      // "buyer" | "seller" | "agent" | "broker" | "attorney"
+  signed_at       DateTime? @map("signed_at")
+  ip_address      String?   @map("ip_address")
+  status          String    @default("pending")        // "pending" | "signed" | "declined"
+
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@index([document_id])
+  @@map("document_signatures")
+}
+
+// ═══════════════════════════════════════════════════════════
+// N. MARKET SNAPSHOT (for Market Pulse Dashboard)
+// ═══════════════════════════════════════════════════════════
+model MarketSnapshot {
+  id              BigInt    @id @default(autoincrement())
+  neighborhood    String
+  borough         String?
+  period          String                              // "2026-03" (YYYY-MM)
+  listing_type    String    @map("listing_type")      // "sale" | "rent"
+  median_price    Decimal?  @db.Decimal(14,2) @map("median_price")
+  avg_price       Decimal?  @db.Decimal(14,2) @map("avg_price")
+  avg_dom         Int?      @map("avg_dom")            // average days on market
+  inventory       Int       @default(0)                // active listing count
+  price_per_sqft  Decimal?  @db.Decimal(10,2) @map("price_per_sqft")
+  new_listings    Int       @default(0) @map("new_listings")
+  closed_sales    Int       @default(0) @map("closed_sales")
+  metrics         Json      @default("{}")              // additional metrics
+
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@unique([neighborhood, period, listing_type])
+  @@index([borough])
+  @@index([period])
+  @@map("market_snapshots")
+}
+
+// ═══════════════════════════════════════════════════════════
+// O. LEAD SCORE + ASSIGNMENT RULES
+// ═══════════════════════════════════════════════════════════
+model LeadScore {
+  id              BigInt    @id @default(autoincrement())
+  lead_id         BigInt    @unique @map("lead_id")
+  lead            Lead      @relation(fields: [lead_id], references: [id])
+  score           Int       @default(0)                // 0-100
+  grade           String    @default("C")              // A/B/C/D/F
+  source_score    Int       @default(0) @map("source_score")
+  engagement_score Int      @default(0) @map("engagement_score")
+  recency_score   Int       @default(0) @map("recency_score")
+  fit_score       Int       @default(0) @map("fit_score")
+  last_computed   DateTime  @default(now()) @map("last_computed")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([score])
+  @@index([grade])
+  @@map("lead_scores")
+}
+
+model LeadAssignmentRule {
+  id              BigInt    @id @default(autoincrement())
+  agent_id        BigInt    @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  criteria        Json      @default("{}")              // { min_score, source, borough, lead_type }
+  priority        Int       @default(50)                // higher = first pick
+  max_leads_per_month Int   @default(50) @map("max_leads_per_month")
+  current_month_count Int   @default(0) @map("current_month_count")
+  active          Boolean   @default(true)
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([agent_id])
+  @@index([active])
+  @@map("lead_assignment_rules")
+}
+
+// ═══════════════════════════════════════════════════════════
+// P. COMMISSION TRACKER
+// ═══════════════════════════════════════════════════════════
+model CommissionPayment {
+  id              BigInt    @id @default(autoincrement())
+  deal_id         BigInt    @map("deal_id")
+  deal            Deal      @relation(fields: [deal_id], references: [id])
+  payment_type    String    @map("payment_type")        // "received" | "agent_split" | "company_split" | "referral" | "adjustment"
+  amount          Decimal   @db.Decimal(14,2)
+  date            DateTime?
+  status          String    @default("pending")          // "pending" | "received" | "paid" | "void"
+  reference       String?                                 // check #, wire ref, etc.
+  notes           String?   @db.Text
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([deal_id])
+  @@index([payment_type])
+  @@index([status])
+  @@map("commission_payments")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Q. LISTING QUALITY AUDIT
+// ═══════════════════════════════════════════════════════════
+model ListingAudit {
+  id              BigInt    @id @default(autoincrement())
+  listing_id      String    @map("listing_id")
+  agent_id        BigInt?   @map("agent_id")
+  score           Int       @default(0)                  // 0-100 completeness
+  passed          Boolean   @default(false)
+  issues          Json      @default("[]")               // array of { field, severity, message }
+  warnings        Json      @default("[]")
+  field_count     Int       @default(0) @map("field_count")
+  filled_count    Int       @default(0) @map("filled_count")
+  photo_count     Int       @default(0) @map("photo_count")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@index([listing_id])
+  @@index([agent_id])
+  @@index([score])
+  @@map("listing_audits")
 }

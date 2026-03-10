@@ -1381,6 +1381,46 @@
                             <i class="fas fa-comment-dots text-xs text-gray-400"></i> Feedback
                         </button>
 
+                        <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-chart-line text-xs text-gray-400"></i> Seller Readiness
+                        </button>
+                        <button onclick="showTab('pricing-experiments'); initPricingExperiments();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-flask text-xs text-gray-400"></i> Pricing Experiments
+                        </button>
+                        <button onclick="showTab('demand-heatmap'); initDemandHeatmap();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-fire text-xs text-gray-400"></i> Demand Heatmap
+                        </button>
+                        <button onclick="showTab('buyer-intent'); initBuyerIntent();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-bullseye text-xs text-gray-400"></i> Buyer Intent
+                        </button>
+                        <button onclick="showTab('agent-performance'); initAgentPerformance();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-trophy text-xs text-gray-400"></i> Agent Performance
+                        </button>
+                        <button onclick="showTab('cma-engine'); initCmaEngine();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-balance-scale text-xs text-gray-400"></i> CMA Engine
+                        </button>
+                        <button onclick="showTab('showing-feedback'); initShowingFeedback();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-comment-dots text-xs text-gray-400"></i> Showing Feedback
+                        </button>
+                        <button onclick="showTab('notification-center'); initNotificationCenter();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-bell text-xs text-gray-400"></i> Notifications
+                        </button>
+                        <button onclick="showTab('document-vault'); initDocumentVault();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-folder-open text-xs text-gray-400"></i> Document Vault
+                        </button>
+                        <button onclick="showTab('market-pulse'); initMarketPulse();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-chart-line text-xs text-gray-400"></i> Market Pulse
+                        </button>
+                        <button onclick="showTab('lead-scoring'); initLeadScoring();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-star-half-alt text-xs text-gray-400"></i> Lead Scoring
+                        </button>
+                        <button onclick="showTab('commission-tracker'); initCommissionTracker();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-dollar-sign text-xs text-gray-400"></i> Commission Tracker
+                        </button>
+                        <button onclick="showTab('listing-auditor'); initListingAuditor();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-clipboard-check text-xs text-gray-400"></i> Listing Auditor
+                        </button>
+
                         <div class="sidebar-divider" style="margin:4px 12px"></div>
 
                         <!-- Marketing Hub (expandable) -->
@@ -24938,6 +24978,139 @@
             <!-- ══════════════════════════════════════════════════════════════════ -->
             <!-- MARKETING HUB TAB -->
             <!-- ══════════════════════════════════════════════════════════════════ -->
+            <div id="seller-outreach" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Seller Readiness & Outreach</h2>
+                    <p class="text-gray-600">Predictive scoring using public data (ACRIS, DOB) + first-party behavior. No MLS data used.</p>
+                </div>
+                <div id="seller-outreach-content">
+                    <div style="text-align:center;padding:40px;color:#888;">Click to load seller leads...</div>
+                </div>
+            </div>
+
+            <div id="pricing-experiments" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-flask text-purple-500 mr-2"></i>Pricing Experiments</h2>
+                    <p class="text-gray-600">A/B testing for listing marketing strategies. Internal only — seller consent required.</p>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-red-800"><i class="fas fa-exclamation-triangle mr-1"></i><strong>Compliance:</strong> Experiments are marketing-strategy only. NO MLS data manipulation. NO guarantees to sellers. NO demographic targeting. All data internal-only.</p>
+                </div>
+                <div id="pricing-experiments-content">
+                    <div style="text-align:center;padding:40px;color:#888;">Click to load experiments...</div>
+                </div>
+            </div>
+
+            <div id="demand-heatmap" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-fire text-orange-500 mr-2"></i>Demand Heatmap</h2>
+                    <p class="text-gray-600">Hyperlocal demand index per neighborhood from public data (NYC Open Data) + first-party signals.</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-1"></i><strong>Data Sources:</strong> NYC DCA business licenses, DOB building permits, first-party saved searches & page views. NO MLS data used.</p>
+                </div>
+            </div>
+
+            <div id="buyer-intent" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-bullseye text-green-500 mr-2"></i>Buyer Intent Graph</h2>
+                    <p class="text-gray-600">First-party behavioral signals to build buyer intent profiles and serve personalized recommendations.</p>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-green-800"><i class="fas fa-shield-alt mr-1"></i><strong>Privacy:</strong> Uses ONLY first-party behavioral events (searches, favorites, inquiries). NO third-party tracking. NO MLS data in profiling.</p>
+                </div>
+            </div>
+
+            <div id="agent-performance" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-trophy text-yellow-500 mr-2"></i>Agent Performance Index</h2>
+                    <p class="text-gray-600">Performance metrics, tier badges, and anonymized leaderboard from internal CRM data.</p>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-yellow-800"><i class="fas fa-lock mr-1"></i><strong>Privacy:</strong> Agents see anonymized leaderboard. Only broker sees agent names. Computed from deals, showings, leads, and compliance events.</p>
+                </div>
+            </div>
+
+            <div id="cma-engine" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-balance-scale text-indigo-500 mr-2"></i>CMA Engine</h2>
+                    <p class="text-gray-600">Generate Comparative Market Analysis reports with automated comp selection and adjustments.</p>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-indigo-800"><i class="fas fa-info-circle mr-1"></i><strong>Data:</strong> Comps sourced from closed listings in database. Adjustments based on bedrooms, bathrooms, living area, and floor level.</p>
+                </div>
+            </div>
+
+            <div id="showing-feedback" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-comment-dots text-teal-500 mr-2"></i>Showing Feedback</h2>
+                    <p class="text-gray-600">Collect and track client feedback from property showings. Auto-bridges to buyer intent profiles.</p>
+                </div>
+                <div class="bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-teal-800"><i class="fas fa-link mr-1"></i><strong>Integration:</strong> Feedback automatically creates intent events for buyer profiling and recommendation engine.</p>
+                </div>
+            </div>
+
+            <div id="notification-center" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-bell text-blue-500 mr-2"></i>Notification Center</h2>
+                    <p class="text-gray-600">In-app notifications, email digests, and SMS alerts with per-type preferences.</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-blue-800"><i class="fas fa-cog mr-1"></i><strong>Settings:</strong> Configure which notification types you receive and how (in-app, email digest, SMS).</p>
+                </div>
+            </div>
+
+            <div id="document-vault" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-folder-open text-amber-500 mr-2"></i>Document Vault</h2>
+                    <p class="text-gray-600">Document management with signature tracking and compliance checking for deal documents.</p>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-amber-800"><i class="fas fa-shield-alt mr-1"></i><strong>Compliance:</strong> Tracks required disclosures (Agency Disclosure, Fair Housing, Lead Paint, PCDS) per deal.</p>
+                </div>
+            </div>
+
+            <div id="market-pulse" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-chart-line text-emerald-500 mr-2"></i>Market Pulse</h2>
+                    <p class="text-gray-600">Neighborhood market stats, pricing trends, inventory levels, and days-on-market analysis.</p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-emerald-800"><i class="fas fa-info-circle mr-1"></i><strong>Data:</strong> Computed monthly from listing database. Filtered by distribution gates (no unlisted data). Statistical data disclaimer applies.</p>
+                </div>
+            </div>
+
+            <div id="lead-scoring" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-star-half-alt text-purple-500 mr-2"></i>Lead Scoring</h2>
+                    <p class="text-gray-600">Automated lead quality scoring with weighted components and grade assignments.</p>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-purple-800"><i class="fas fa-robot mr-1"></i><strong>Scoring:</strong> Weighted composite — Source (15%), Engagement (35%), Recency (25%), Fit (25%). Grades A through F. Daily cron recompute.</p>
+                </div>
+            </div>
+
+            <div id="commission-tracker" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-dollar-sign text-green-500 mr-2"></i>Commission Tracker</h2>
+                    <p class="text-gray-600">Deal commission tracking, payment recording, and agent P&L reporting.</p>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-green-800"><i class="fas fa-lock mr-1"></i><strong>Access:</strong> Agents see own commissions. Broker sees all. Payment status updates are broker-only.</p>
+                </div>
+            </div>
+
+            <div id="listing-auditor" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-clipboard-check text-red-500 mr-2"></i>Listing Auditor</h2>
+                    <p class="text-gray-600">Pre-submission quality and compliance checker for REBNY RLS listings.</p>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-red-800"><i class="fas fa-exclamation-triangle mr-1"></i><strong>REBNY:</strong> Checks required fields, photo count, Fair Housing language, address validation, and distribution gate consistency. Score ≥80 = PASS.</p>
+                </div>
+            </div>
+
             <div id="marketing-hub" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
                     <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-bullhorn text-amber-500 mr-2"></i>Marketing Hub</h2>
@@ -37701,6 +37874,19 @@ function saveShowingFeedback() {
     showToast('Feedback saved for showing ' + _currentFeedbackShowingId + ' (' + (interestLabels[interest] || interest) + ', ' + rating + ' stars). Follow-up: ' + (followUpLabels[followUp] || followUp), 'success', 5000);
 }
 </script>
+<script src="js/crm/seller-outreach.js"></script>
+<script src="js/crm/pricing-experiments.js"></script>
+<script src="js/crm/demand-heatmap.js"></script>
+<script src="js/crm/buyer-intent.js"></script>
+<script src="js/crm/agent-performance.js"></script>
+<script src="js/crm/cma-engine.js"></script>
+<script src="js/crm/showing-feedback.js"></script>
+<script src="js/crm/notifications.js"></script>
+<script src="js/crm/document-vault.js"></script>
+<script src="js/crm/market-pulse.js"></script>
+<script src="js/crm/lead-scoring.js"></script>
+<script src="js/crm/commission-tracker.js"></script>
+<script src="js/crm/listing-auditor.js"></script>
 
 </body>
 </html>

@@ -183,6 +183,7 @@ const B13_BUILDING = [
 
 // B14: Building Amenities (20 fields)
 const B14_BUILDING_AMENITIES = [
+  "BuildingFeatures",
   "AssociationAmenities", "CommunityFeatures",
   "SecurityFeatures", "AccessibilityFeatures",
   "BuildingAccessibilityFeatures",
