@@ -55,8 +55,22 @@ interface BuildingData {
     postalCode: string;
     yearBuilt: number | null;
     storiesTotal: number | null;
+    totalUnits: number | null;
+    commonInterest: string | null;
+    ownershipType: string | null;
     amenities: string[];
     petPolicy: string[];
+    view: string[];
+    parking: {
+      features: string[];
+      garageSpaces: number | null;
+      totalSpaces: number | null;
+    };
+    heating: string[];
+    cooling: string[];
+    associationFee: number | null;
+    associationFeeFrequency: string | null;
+    associationFeeIncludes: string[];
   };
   activeUnits: ActiveUnit[];
   saleHistory: SaleRecord[];
@@ -222,6 +236,10 @@ export default async function BuildingPage({ searchParams }: Props) {
   const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
+  const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType;
+  const hasParking = building.parking.features.length > 0 || building.parking.garageSpaces || building.parking.totalSpaces;
+  const hasHvac = building.heating.length > 0 || building.cooling.length > 0;
+  const hasFeeInfo = building.associationFee && building.associationFee > 0;
   const hasAnyData = activeUnits.length > 0 || saleHistory.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal;
 
   return (
@@ -320,6 +338,15 @@ export default async function BuildingPage({ searchParams }: Props) {
                 <div className="px-4 md:px-6 py-2">
                   <span className="text-xl font-display font-bold text-brand-dark">{building.storiesTotal}</span>
                   <span className="text-brand-dark/60 text-[13px] ml-1.5">Stories</span>
+                </div>
+              </>
+            )}
+            {building.totalUnits && (
+              <>
+                <div className="w-px h-8 bg-black/10" />
+                <div className="px-4 md:px-6 py-2">
+                  <span className="text-xl font-display font-bold text-brand-dark">{building.totalUnits}</span>
+                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Units</span>
                 </div>
               </>
             )}
@@ -514,8 +541,8 @@ export default async function BuildingPage({ searchParams }: Props) {
             </section>
           )}
 
-          {/* Building Amenities */}
-          {building.amenities.length > 0 && (
+          {/* Building Details & Amenities */}
+          {(building.amenities.length > 0 || hasBuildingDetails || hasParking || hasHvac || hasFeeInfo || building.view.length > 0) && (
             <section className="py-6 border-t border-black/[0.06]">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center">
@@ -523,32 +550,143 @@ export default async function BuildingPage({ searchParams }: Props) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                   </svg>
                 </div>
-                <h2 className="font-display text-xl font-bold text-brand-dark">Building Amenities</h2>
+                <h2 className="font-display text-xl font-bold text-brand-dark">Building Details</h2>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {building.amenities.map((amenity) => (
-                  <div
-                    key={amenity}
-                    className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#F8F7F4] border border-black/[0.03]"
-                  >
-                    <AmenityIcon label={amenity} />
-                    <span className="text-[13px] font-medium text-brand-dark">{amenity}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pet Policy */}
-              {building.petPolicy.length > 0 && (
-                <div className="mt-4 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-brand-dark/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
-                  </svg>
-                  <span className="text-[13px] text-brand-dark/60">
-                    Pets: {building.petPolicy.join(', ')}
-                  </span>
+              {/* Building Info Row */}
+              {hasBuildingDetails && (
+                <div className="flex flex-wrap gap-x-8 gap-y-2 mb-6 text-[13px]">
+                  {building.ownershipType && (
+                    <div>
+                      <span className="text-brand-dark/50">Ownership:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.ownershipType}</span>
+                    </div>
+                  )}
+                  {building.commonInterest && (
+                    <div>
+                      <span className="text-brand-dark/50">Type:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.commonInterest}</span>
+                    </div>
+                  )}
+                  {building.totalUnits && (
+                    <div>
+                      <span className="text-brand-dark/50">Total Units:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.totalUnits}</span>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Amenities Grid */}
+              {building.amenities.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider mb-3">Amenities</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {building.amenities.map((amenity) => (
+                      <div
+                        key={amenity}
+                        className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#F8F7F4] border border-black/[0.03]"
+                      >
+                        <AmenityIcon label={amenity} />
+                        <span className="text-[13px] font-medium text-brand-dark">{amenity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Detail Rows */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-[13px]">
+                {/* Pet Policy */}
+                {building.petPolicy.length > 0 && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="w-4 h-4 text-brand-gold-deep mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
+                    </svg>
+                    <div>
+                      <span className="text-brand-dark/50">Pets:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.petPolicy.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Parking */}
+                {hasParking && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="w-4 h-4 text-brand-gold-deep mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                    </svg>
+                    <div>
+                      <span className="text-brand-dark/50">Parking:</span>{' '}
+                      <span className="font-medium text-brand-dark">
+                        {building.parking.features.join(', ')}
+                        {building.parking.garageSpaces ? ` (${building.parking.garageSpaces} garage spaces)` : ''}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* View */}
+                {building.view.length > 0 && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="w-4 h-4 text-brand-gold-deep mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <div>
+                      <span className="text-brand-dark/50">Views:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.view.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Heating */}
+                {building.heating.length > 0 && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="w-4 h-4 text-brand-gold-deep mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 6.51 6.51 0 009 4.5a4.97 4.97 0 01.656 2.426 3.75 3.75 0 002.115 2.455A3.75 3.75 0 0015.362 5.214z" />
+                    </svg>
+                    <div>
+                      <span className="text-brand-dark/50">Heating:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.heating.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cooling */}
+                {building.cooling.length > 0 && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="w-4 h-4 text-brand-gold-deep mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                    </svg>
+                    <div>
+                      <span className="text-brand-dark/50">Cooling:</span>{' '}
+                      <span className="font-medium text-brand-dark">{building.cooling.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Association Fee */}
+                {hasFeeInfo && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="w-4 h-4 text-brand-gold-deep mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <span className="text-brand-dark/50">HOA/Common Charges:</span>{' '}
+                      <span className="font-medium text-brand-dark">
+                        {formatPrice(building.associationFee!)}
+                        {building.associationFeeFrequency ? `/${building.associationFeeFrequency.toLowerCase()}` : ''}
+                      </span>
+                      {building.associationFeeIncludes.length > 0 && (
+                        <p className="text-brand-dark/50 text-[12px] mt-0.5">
+                          Includes: {building.associationFeeIncludes.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </section>
           )}
 
