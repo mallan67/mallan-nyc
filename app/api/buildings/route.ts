@@ -73,7 +73,7 @@ const BUILDING_SELECT = [
   'CommonInterest', 'OwnershipType',
   // Building amenities (all IDX Plus available fields)
   'BuildingFeatures', 'AssociationAmenities', 'CommunityFeatures',
-  'SecurityFeatures', 'AccessibilityFeatures',
+  'SecurityFeatures', 'AttendanceType', 'AccessibilityFeatures',
   'ExteriorFeatures', 'PatioAndPorchFeatures',
   'PoolFeatures', 'SpaFeatures', 'LaundryFeatures',
   'ParkingFeatures', 'GarageSpaces', 'ParkingTotal',
@@ -102,6 +102,7 @@ function extractBuildingInfo(records: TrestleRecord[]) {
     associationAmenities: [] as string[],
     communityFeatures: [] as string[],
     securityFeatures: [] as string[],
+    attendanceType: [] as string[],
     accessibilityFeatures: [] as string[],
     exteriorFeatures: [] as string[],
     patioAndPorchFeatures: [] as string[],
@@ -149,6 +150,7 @@ function extractBuildingInfo(records: TrestleRecord[]) {
     setList('associationAmenities', r.AssociationAmenities);
     setList('communityFeatures', r.CommunityFeatures);
     setList('securityFeatures', r.SecurityFeatures);
+    setList('attendanceType', r.AttendanceType);
     setList('accessibilityFeatures', r.AccessibilityFeatures);
     setList('exteriorFeatures', r.ExteriorFeatures);
     setList('patioAndPorchFeatures', r.PatioAndPorchFeatures);
@@ -205,6 +207,7 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     MediaRoom: "Residents' Lounge",
     ScreeningRoom: "Residents' Lounge",
     GolfSimulation: 'Golf Simulation',
+    MaidService: 'Maid Service',
   };
 
   const amenitySet = new Set<string>();
@@ -233,6 +236,15 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
 
   // Parking — garage → "Parking Garage"
   if (buildingInfo.parkingFeatures.some(f => f.toLowerCase().includes('garage'))) amenitySet.add('Parking Garage');
+
+  // AttendanceType → Doorman / 24hr Doorman / Attended Lobby
+  for (const val of buildingInfo.attendanceType) {
+    if (val === 'DoormanFullTime') amenitySet.add('24hr Doorman');
+    else if (val === 'DoormanPartTime' || val === 'DoormanYes') amenitySet.add('Doorman');
+    else if (val === 'LobbyAttendantFullTime' || val === 'LobbyAttendantPartTime' || val === 'LobbyAttendantYes') amenitySet.add('Attended Lobby');
+    else if (val === 'VideoDoormanFullTime' || val === 'VideoDoormanPartTime' || val === 'VideoDoormanYes') amenitySet.add('Virtual Doorman');
+    else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
+  }
 
   // Pet policy
   const petPolicySet = new Set<string>();

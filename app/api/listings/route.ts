@@ -541,7 +541,7 @@ export async function GET(request: Request) {
         const amenityFields = amenitiesParam ? [
           'BuildingFeatures', 'InteriorFeatures', 'ExteriorFeatures',
           'Appliances', 'Cooling', 'View', 'ParkingFeatures', 'LaundryFeatures',
-          'GarageYN',
+          'GarageYN', 'AttendanceType',
         ] : [];
         const selectFields = [...CARD_SELECT_FIELDS, ...amenityFields.filter(f => !CARD_SELECT_FIELDS.includes(f))];
 

@@ -121,6 +121,7 @@ export interface PublicListingDTO {
   appliances?: string;
   laundryFeatures?: string;
   securityFeatures?: string;
+  attendanceType?: string;
   communityFeatures?: string;
   associationAmenities?: string;
   parkingFeatures?: string;
@@ -247,6 +248,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     appliances: listing.appliances,
     laundryFeatures: listing.laundryFeatures,
     securityFeatures: listing.securityFeatures,
+    attendanceType: listing.attendanceType,
     communityFeatures: listing.communityFeatures,
     associationAmenities: listing.associationAmenities,
     parkingFeatures: listing.parkingFeatures,
