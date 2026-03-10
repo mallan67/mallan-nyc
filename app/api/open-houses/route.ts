@@ -33,12 +33,12 @@ export async function GET() {
       fetchLocalOpenHouses(),
     ]);
 
-    // Dedupe: if same address + date exists in both, prefer Trestle
+    // Dedupe: if same address + date + startTime exists in both, prefer Trestle
     const trestleKeys = new Set(
-      trestleOH.map(oh => `${oh.address}|${oh.date}`.toLowerCase())
+      trestleOH.map(oh => `${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase())
     );
     const uniqueLocal = localOH.filter(
-      oh => !trestleKeys.has(`${oh.address}|${oh.date}`.toLowerCase())
+      oh => !trestleKeys.has(`${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase())
     );
 
     const allOpenHouses = [...trestleOH, ...uniqueLocal].sort((a, b) => {

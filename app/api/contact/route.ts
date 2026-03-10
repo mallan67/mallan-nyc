@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { sendEmail } from '@/lib/email/sendgrid';
 import prisma from '@/lib/prisma';
+import { escapeHtml } from '@/lib/sanitize';
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -159,14 +160,15 @@ export async function POST(request: NextRequest) {
     // Send email notification (non-fatal — don't fail the API response if email fails)
     try {
       const subjectLine = `New Contact Form: ${submission.name}`;
+      const td = 'padding:4px 12px 4px 0;font-weight:bold;';
       const emailBody = `
         <h2>New Contact Form Submission</h2>
         <table style="border-collapse:collapse;font-family:sans-serif;">
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Name:</td><td>${submission.name}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Email:</td><td>${submission.email}</td></tr>
-          ${submission.phone ? `<tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Phone:</td><td>${submission.phone}</td></tr>` : ''}
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Message:</td><td>${submission.message}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;font-weight:bold;">Received:</td><td>${submission.receivedAt}</td></tr>
+          <tr><td style="${td}">Name:</td><td>${escapeHtml(submission.name)}</td></tr>
+          <tr><td style="${td}">Email:</td><td>${escapeHtml(submission.email)}</td></tr>
+          ${submission.phone ? `<tr><td style="${td}">Phone:</td><td>${escapeHtml(submission.phone)}</td></tr>` : ''}
+          <tr><td style="${td}">Message:</td><td>${escapeHtml(submission.message)}</td></tr>
+          <tr><td style="${td}">Received:</td><td>${submission.receivedAt}</td></tr>
         </table>
       `.trim();
 

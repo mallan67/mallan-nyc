@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { cmaAutoResponseEmail } from '@/lib/email/templates';
+import { escapeHtml } from '@/lib/sanitize';
 
 /**
  * POST /api/cma
@@ -10,16 +11,6 @@ import { cmaAutoResponseEmail } from '@/lib/email/templates';
  * Creates/updates a Lead record and logs an audit event.
  * TCPA/CTIA: form includes explicit consent checkbox (required affirmative action).
  */
-
-/** Escape HTML entities to prevent injection in email templates */
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 export async function POST(request: NextRequest) {
   try {
