@@ -437,7 +437,13 @@ function formatPrice(price: number, isRental: boolean): string {
 export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { key } = await searchParams;
-  const result = await fetchListing(id, key);
+
+  let result: ListingFetchResult | null = null;
+  try {
+    result = await fetchListing(id, key);
+  } catch (err) {
+    console.error(`[/listing/${id}] Fatal fetch error:`, err);
+  }
 
   if (!result) {
     notFound();
@@ -462,24 +468,29 @@ export default async function ListingPage({ params, searchParams }: Props) {
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
-  // Fetch last closed sale for this specific unit (server-side, cached 1hr)
+  // Fetch last closed sale for this specific unit (server-side)
   // Run Trestle + ACRIS in parallel, prefer Trestle result
+  // Wrapped in try/catch to prevent page crash if these supplementary APIs fail
   let lastUnitSale: LastSaleInfo | null = null;
-  if (listing.address.streetName !== 'Address Undisclosed') {
-    const [trestleSale, acrisSale] = await Promise.all([
-      fetchLastUnitSale(
-        listing.address.streetNumber,
-        listing.address.streetName,
-        listing.address.unitNumber,
-        listing.address.postalCode,
-      ),
-      fetchLastSaleFromACRIS(
-        listing.address.county,
-        tax.taxBlock,
-        tax.taxLot,
-      ),
-    ]);
-    lastUnitSale = trestleSale || acrisSale;
+  try {
+    if (listing.address.streetName !== 'Address Undisclosed') {
+      const [trestleSale, acrisSale] = await Promise.all([
+        fetchLastUnitSale(
+          listing.address.streetNumber,
+          listing.address.streetName,
+          listing.address.unitNumber,
+          listing.address.postalCode,
+        ),
+        fetchLastSaleFromACRIS(
+          listing.address.county,
+          tax.taxBlock,
+          tax.taxLot,
+        ),
+      ]);
+      lastUnitSale = trestleSale || acrisSale;
+    }
+  } catch (err) {
+    console.warn(`[/listing/${id}] Last sale fetch failed (non-fatal):`, err);
   }
 
   // ── Building amenities ── STRICT WHITELIST
