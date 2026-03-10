@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import FavoriteEmailPrompt from '@/app/components/FavoriteEmailPrompt';
@@ -27,6 +28,61 @@ function RemoveButton({ fav }: { fav: FavoriteEntry }) {
         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
       </svg>
     </button>
+  );
+}
+
+function NoteEditor({ id, note }: { id: string; note?: string }) {
+  const { updateNote } = useFavorites();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note || '');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  if (!editing && !note) {
+    return (
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}
+        className="text-[11px] text-brand-dark/40 hover:text-brand-gold transition-colors mt-1 flex items-center gap-1"
+      >
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        Add note
+      </button>
+    );
+  }
+
+  if (!editing && note) {
+    return (
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(true); }}
+        className="text-[11px] text-brand-dark/60 mt-1 text-left line-clamp-2 hover:text-brand-dark transition-colors italic"
+      >
+        &ldquo;{note}&rdquo;
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+      <textarea
+        ref={inputRef}
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); updateNote(id, text); setEditing(false); }
+          if (e.key === 'Escape') { setText(note || ''); setEditing(false); }
+        }}
+        placeholder="Your private note..."
+        rows={2}
+        className="w-full text-[11px] p-2 rounded-lg ring-1 ring-black/10 focus:ring-brand-gold/40 focus:outline-none resize-none"
+      />
+      <div className="flex gap-1.5 mt-1">
+        <button onClick={() => { updateNote(id, text); setEditing(false); }} className="text-[10px] px-2 py-0.5 bg-brand-gold text-white rounded font-medium">Save</button>
+        <button onClick={() => { setText(note || ''); setEditing(false); }} className="text-[10px] px-2 py-0.5 text-brand-dark/50 hover:text-brand-dark">Cancel</button>
+        {note && <button onClick={() => { updateNote(id, ''); setEditing(false); setText(''); }} className="text-[10px] px-2 py-0.5 text-red-400 hover:text-red-600 ml-auto">Delete</button>}
+      </div>
+    </div>
   );
 }
 
@@ -157,6 +213,7 @@ export default function FavoritesPage() {
                         Saved {new Date(fav.savedAt).toLocaleDateString()}
                       </p>
                     )}
+                    <NoteEditor id={fav.id} note={fav.note} />
                   </Link>
                 </div>
               ))}

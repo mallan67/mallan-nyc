@@ -14,6 +14,7 @@ export interface FavoriteEntry {
   baths: number;
   photoUrl?: string;
   savedAt: string;
+  note?: string;
 }
 
 function loadFavorites(): Map<string, FavoriteEntry> {
@@ -64,11 +65,24 @@ export function useFavorites() {
     saveFavorites(new Map());
   }, []);
 
+  const updateNote = useCallback((id: string, note: string) => {
+    setFavorites(prev => {
+      const next = new Map(prev);
+      const entry = next.get(id);
+      if (entry) {
+        next.set(id, { ...entry, note: note || undefined });
+        saveFavorites(next);
+      }
+      return next;
+    });
+  }, []);
+
   return {
     favorites: [...favorites.values()],
     count: favorites.size,
     isFavorite,
     toggleFavorite,
+    updateNote,
     clearAll,
     loaded,
   };
