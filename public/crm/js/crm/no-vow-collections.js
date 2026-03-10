@@ -462,7 +462,7 @@
             html += '<div class="p-3 border rounded-lg flex items-start gap-3">';
             html += '<span class="text-xs font-bold text-gray-400 pt-1">' + (i + 1) + '</span>';
             html += '<div class="flex-1 min-w-0">';
-            html += '<div class="flex items-center gap-2 mb-0.5"><p class="text-sm font-medium text-gray-900 truncate">' + addr + '</p>' + statusBadge + '</div>';
+            html += '<div class="flex items-center gap-2 mb-0.5"><p class="text-sm font-medium text-gray-900 truncate">' + escapeHtml(addr) + '</p>' + statusBadge + '</div>';
             html += '<p class="text-xs text-gray-600">' + (s.price || '') + '</p>';
             var details = [];
             if (s.beds) details.push(s.beds + ' BR');
@@ -477,7 +477,7 @@
 
         var container = document.getElementById('wsCollectionsPanel');
         if (container) {
-            container.innerHTML = '<div class="mb-3 flex items-center gap-2"><button onclick="renderClientCollections(\'' + col.clientId + '\')" class="text-xs text-blue-600 hover:underline"><i class="fas fa-arrow-left mr-1"></i>Back to collections</button><h4 class="text-sm font-bold text-gray-700">' + col.title + '</h4><span class="text-[10px] px-2 py-0.5 rounded-full bg-' + (col.status === 'SENT' ? 'green' : 'gray') + '-100 text-' + (col.status === 'SENT' ? 'green' : 'gray') + '-700">' + col.status + '</span></div>' + html;
+            container.innerHTML = '<div class="mb-3 flex items-center gap-2"><button onclick="renderClientCollections(\'' + col.clientId + '\')" class="text-xs text-blue-600 hover:underline"><i class="fas fa-arrow-left mr-1"></i>Back to collections</button><h4 class="text-sm font-bold text-gray-700">' + escapeHtml(col.title) + '</h4><span class="text-[10px] px-2 py-0.5 rounded-full bg-' + (col.status === 'SENT' ? 'green' : 'gray') + '-100 text-' + (col.status === 'SENT' ? 'green' : 'gray') + '-700">' + col.status + '</span></div>' + html;
         }
     };
 

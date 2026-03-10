@@ -118,6 +118,7 @@ export default function Header() {
   const sellItems = [
     { title: 'Residential', href: '/sell?type=residential' },
     { title: 'Commercial', href: '/sell?type=commercial' },
+    { title: 'Home Value', href: '/sell#valuation' },
   ];
 
   const exclusivesItems = [
@@ -208,6 +209,12 @@ export default function Header() {
               <li>
                 <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
                   Open Houses
+                </Link>
+              </li>
+
+              <li>
+                <Link href="/market" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
+                  Market
                 </Link>
               </li>
 
@@ -394,6 +401,14 @@ export default function Header() {
                 className={`py-3 min-h-[44px] ${mobileTextColor}`}
               >
                 Open Houses
+              </Link>
+
+              <Link
+                href="/market"
+                onClick={() => setMobileOpen(false)}
+                className={`py-3 min-h-[44px] ${mobileTextColor}`}
+              >
+                Market
               </Link>
 
               <div>

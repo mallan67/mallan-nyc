@@ -237,7 +237,37 @@
         "south": 40.758,
         "east": -73.892,
         "west": -73.928
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "N",
+          "W",
+          "M",
+          "R"
+        ],
+        "majorStations": [
+          "Astoria-Ditmars Boulevard (N/W)",
+          "Astoria Boulevard (N/W)",
+          "30th Avenue (N/W)",
+          "Broadway (N/W)",
+          "Steinway Street (M/R)"
+        ]
+      },
+      "localVibe": "A grid-plan neighborhood of two-story row houses and low-rise apartment buildings, with a lively commercial strip culture and waterfront access along the East River.",
+      "notableStreets": [
+        "Ditmars Boulevard",
+        "Broadway",
+        "30th Avenue",
+        "Steinway Street",
+        "31st Street"
+      ],
+      "parkAndGreen": [
+        "Astoria Park",
+        "Rainey Park",
+        "Socrates Sculpture Park",
+        "Halletts Point Playground"
+      ],
+      "diningScene": "One of the city's most varied dining districts, with Greek tavernas, Egyptian bakeries, Colombian restaurants, and craft beer gardens concentrated along Broadway, 30th Avenue, and Ditmars Boulevard."
     },
     {
       "slug": "long-island-city",
@@ -478,7 +508,38 @@
         "south": 40.735,
         "east": -73.93,
         "west": -73.96
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "7",
+          "E",
+          "M",
+          "G",
+          "N",
+          "W"
+        ],
+        "majorStations": [
+          "Court Square (E/M/G/7)",
+          "Queensboro Plaza (N/W/7)",
+          "Hunters Point Avenue (7)",
+          "Long Island City-Court Square (G)"
+        ]
+      },
+      "localVibe": "A rapidly developed waterfront district of glass-tower residences and converted industrial lofts, with views of the Manhattan skyline across the East River.",
+      "notableStreets": [
+        "Vernon Boulevard",
+        "Jackson Avenue",
+        "Center Boulevard",
+        "Thomson Avenue",
+        "Queens Boulevard"
+      ],
+      "parkAndGreen": [
+        "Gantry Plaza State Park",
+        "Hunter's Point South Park",
+        "Queensbridge Park",
+        "Murray Playground"
+      ],
+      "diningScene": "Vernon Boulevard and Jackson Avenue feature a growing restaurant scene, from waterfront dining to artisanal food halls and contemporary eateries."
     },
     {
       "slug": "jackson-heights",
@@ -717,7 +778,36 @@
         "south": 40.742,
         "east": -73.865,
         "west": -73.896
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "7",
+          "E",
+          "F",
+          "M",
+          "R"
+        ],
+        "majorStations": [
+          "Jackson Heights-Roosevelt Avenue (7/E/F/M/R)",
+          "82nd Street-Jackson Heights (7)",
+          "74th Street-Broadway (7)"
+        ]
+      },
+      "localVibe": "A planned garden community of pre-war co-op buildings with interior courtyards, recognized as a National Historic District for its distinctive Tudor and Romanesque architecture.",
+      "notableStreets": [
+        "Roosevelt Avenue",
+        "Broadway (37th Avenue)",
+        "74th Street",
+        "82nd Street",
+        "Northern Boulevard"
+      ],
+      "parkAndGreen": [
+        "Diversity Plaza",
+        "Travers Park",
+        "Jackson Heights Green Alliance gardens",
+        "34th Avenue Open Street"
+      ],
+      "diningScene": "Roosevelt Avenue and 74th Street form one of the city's most concentrated international food corridors, featuring South Asian, Tibetan, Colombian, Mexican, and Ecuadorian cuisines."
     },
     {
       "slug": "flushing",
@@ -948,7 +1038,31 @@
         "south": 40.75,
         "east": -73.79,
         "west": -73.83
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "7"
+        ],
+        "majorStations": [
+          "Flushing-Main Street (7)",
+          "Mets-Willets Point (7)"
+        ]
+      },
+      "localVibe": "A major commercial center at the eastern terminus of the 7 train, with dense retail corridors, multilingual signage, and a mix of high-rise condos and row houses.",
+      "notableStreets": [
+        "Main Street",
+        "Roosevelt Avenue",
+        "Northern Boulevard",
+        "Union Street",
+        "Kissena Boulevard"
+      ],
+      "parkAndGreen": [
+        "Flushing Meadows-Corona Park",
+        "Kissena Park",
+        "Queens Botanical Garden",
+        "Bowne Park"
+      ],
+      "diningScene": "One of the largest and most concentrated Asian dining destinations in the Western Hemisphere, featuring Sichuan, Cantonese, Shanghainese, Korean, and Southeast Asian cuisines."
     },
     {
       "slug": "forest-hills",
@@ -1184,7 +1298,34 @@
         "south": 40.71,
         "east": -73.835,
         "west": -73.86
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "E",
+          "F",
+          "M",
+          "R"
+        ],
+        "majorStations": [
+          "Forest Hills-71st Avenue (E/F/M/R)",
+          "67th Avenue (M/R)"
+        ]
+      },
+      "localVibe": "A residential neighborhood anchored by the Tudor-style Forest Hills Gardens enclave, with a walkable commercial strip along Austin Street and a mix of co-ops and single-family homes.",
+      "notableStreets": [
+        "Austin Street",
+        "Queens Boulevard",
+        "Continental Avenue",
+        "108th Street",
+        "Metropolitan Avenue"
+      ],
+      "parkAndGreen": [
+        "Forest Park",
+        "Yellowstone Park",
+        "Annadale Playground",
+        "Forest Hills Gardens (private streets)"
+      ],
+      "diningScene": "Austin Street is the main dining corridor, with a range of steakhouses, sushi restaurants, Uzbek cuisine, Italian trattorias, and neighborhood cafes."
     },
     {
       "slug": "sunnyside",
@@ -1415,7 +1556,31 @@
         "south": 40.735,
         "east": -73.898,
         "west": -73.923
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "7"
+        ],
+        "majorStations": [
+          "46th Street-Bliss (7)",
+          "40th Street-Lowery (7)",
+          "33rd Street-Rawson (7)"
+        ]
+      },
+      "localVibe": "A compact, walkable neighborhood of brick row houses and garden-style apartment buildings, with a lively commercial strip along Queens Boulevard and Skillman Avenue.",
+      "notableStreets": [
+        "Queens Boulevard",
+        "Skillman Avenue",
+        "Greenpoint Avenue",
+        "46th Street",
+        "43rd Avenue"
+      ],
+      "parkAndGreen": [
+        "Sunnyside Gardens Park (private community park)",
+        "Lou Lodati Playground",
+        "Noonan Playground"
+      ],
+      "diningScene": "Queens Boulevard and Skillman Avenue feature a mix of Turkish, Romanian, Korean, Mexican, and Irish pub dining, reflecting the neighborhood's layered commercial character."
     },
     {
       "slug": "bayside",
@@ -1646,7 +1811,31 @@
         "south": 40.755,
         "east": -73.75,
         "west": -73.783
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "7"
+        ],
+        "majorStations": [
+          "Flushing-Main Street (7, then bus)",
+          "Bayside LIRR station"
+        ]
+      },
+      "localVibe": "A tree-lined residential neighborhood of single-family homes and garden-style co-ops, with a walkable downtown along Bell Boulevard and proximity to Little Neck Bay.",
+      "notableStreets": [
+        "Bell Boulevard",
+        "Northern Boulevard",
+        "Francis Lewis Boulevard",
+        "35th Avenue"
+      ],
+      "parkAndGreen": [
+        "Fort Totten Park",
+        "Crocheron Park",
+        "Cunningham Park",
+        "Little Bay Park",
+        "Alley Pond Park"
+      ],
+      "diningScene": "Bell Boulevard is the main restaurant strip, featuring Korean BBQ, Italian restaurants, steakhouses, and waterfront seafood options near Little Neck Bay."
     }
   ]
 }

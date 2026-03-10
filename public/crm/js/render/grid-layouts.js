@@ -152,7 +152,7 @@
 
             savedLayouts.forEach(function(layout, i) {
                 html += '<div class="p-3 border rounded-lg flex items-center justify-between bg-white hover:bg-gray-50 cursor-pointer" onclick="loadSavedLayout(' + i + ')">';
-                html += '<div><div class="text-sm font-medium">' + layout.name + '</div>';
+                html += '<div><div class="text-sm font-medium">' + escapeHtml(layout.name) + '</div>';
                 html += '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">' + layout.columns.length + ' columns</span></div>';
                 html += '<button class="text-gray-400 hover:text-red-500" onclick="event.stopPropagation(); deleteSavedLayout(' + i + ')" title="Delete"><i class="fas fa-trash-alt text-xs"></i></button>';
                 html += '</div>';

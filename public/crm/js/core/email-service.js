@@ -206,7 +206,7 @@ function testEmailSettings() {
     }).catch(function(err) {
         if (status) {
             status.style.cssText = 'margin-bottom:16px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;';
-            status.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Error: ' + (err.text || err.message || JSON.stringify(err));
+            status.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Error: ' + escapeHtml(err.text || err.message || JSON.stringify(err));
         }
     });
 }

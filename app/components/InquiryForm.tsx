@@ -75,7 +75,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
         </div>
         <p className="text-green-700 text-sm">
           Thank you for your inquiry! An agent will contact you shortly.
-          {listingAddress && ` We&apos;ll be in touch about ${listingAddress}.`}
+          {listingAddress && ` We'll be in touch about ${listingAddress}.`}
         </p>
       </div>
     );

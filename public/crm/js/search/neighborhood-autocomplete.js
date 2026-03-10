@@ -92,11 +92,11 @@
         dropdown.innerHTML = matches.map(function(item) {
             var boroughBadge = item.isBoroughLevel
                 ? '<span class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-semibold">Borough</span>'
-                : '<span class="ml-auto text-xs text-gray-600 font-medium">' + item.borough + '</span>';
+                : '<span class="ml-auto text-xs text-gray-600 font-medium">' + escapeHtml(item.borough) + '</span>';
             return '<div class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-2" ' +
                    'onclick="selectNeighborhood(\'' + item.name.replace(/'/g, "\\'") + '\',\'' + item.borough + '\',' + item.isBoroughLevel + ',\'' + dropdownId + '\',\'' + tagsId + '\')">' +
                    '<i class="fas fa-map-pin text-blue-500 text-xs"></i>' +
-                   '<span class="text-sm font-medium text-gray-900">' + item.name + '</span>' +
+                   '<span class="text-sm font-medium text-gray-900">' + escapeHtml(item.name) + '</span>' +
                    boroughBadge + '</div>';
         }).join('');
 
@@ -141,7 +141,7 @@
 
         container.innerHTML = selected.map(function(item) {
             var label = item.isBoroughLevel ? item.name : item.name;
-            var boroughHint = item.borough ? ' <span class="text-[11px] text-gray-500 font-normal">(' + item.borough + ')</span>' : '';
+            var boroughHint = item.borough ? ' <span class="text-[11px] text-gray-500 font-normal">(' + escapeHtml(item.borough) + ')</span>' : '';
             return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200">' +
                    '<i class="fas fa-map-pin text-blue-500 text-[10px]"></i>' +
                    label + boroughHint +

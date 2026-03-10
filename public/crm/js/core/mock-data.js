@@ -540,7 +540,7 @@
             banner.id = 'dataLoadBanner';
             banner.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;padding:10px 20px;border-radius:8px;font-size:13px;max-width:600px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);' + colors;
             banner.innerHTML = '<i class="fas ' + (level === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle') + '"></i>' +
-                '<span style="flex:1;">' + msg + '</span>' +
+                '<span style="flex:1;">' + escapeHtml(msg) + '</span>' +
                 '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:0.6;padding:0 4px;">&times;</button>';
             document.body.appendChild(banner);
             // Auto-dismiss warnings after 8 seconds
@@ -552,7 +552,7 @@
             if (resultsEl) {
                 resultsEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280;">' +
                     '<i class="fas fa-exclamation-circle" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db;"></i>' +
-                    '<p style="font-size:15px;font-weight:600;">' + msg + '</p></div>';
+                    '<p style="font-size:15px;font-weight:600;">' + escapeHtml(msg) + '</p></div>';
             }
         }
 

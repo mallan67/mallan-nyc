@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
 
 type PropertyType = 'condo' | 'coop' | 'townhouse' | 'multifamily' | 'commercial';
 type Timeline = '0-30' | '30-60' | '60-90';
@@ -244,6 +245,12 @@ export default function SellerClosingCostCalculator() {
             Flip tax rates vary by building (1–3%). Actual costs depend on your property
             and transaction terms. Consult a real estate attorney for exact figures.
           </p>
+
+          <CalculatorLeadCapture
+            calculatorType="closing-cost"
+            hasCalculated={isExpanded}
+            resultsSummary={`Sale price: $${salePrice.toLocaleString()} (${propertyType}). Net proceeds: $${calculations.netProceeds.toLocaleString()}. Total closing costs: $${Math.round(calculations.totalClosingCosts).toLocaleString()}.`}
+          />
         </div>
       )}
     </div>

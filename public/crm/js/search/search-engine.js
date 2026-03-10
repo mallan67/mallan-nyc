@@ -450,13 +450,13 @@
                                 'bg-gray-100 text-gray-600';
                 return '<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0" ' +
                     'onclick="selectSearchAddress(this, \'' + resultsDivId + '\')"' +
-                    ' data-address="' + b.address + '" data-name="' + (b.name || '') + '" data-zip="' + (b.zip || '') + '" data-neighborhood="' + (b.neighborhood || '') + '">' +
+                    ' data-address="' + escapeHtml(b.address) + '" data-name="' + escapeHtml(b.name || '') + '" data-zip="' + escapeHtml(b.zip || '') + '" data-neighborhood="' + escapeHtml(b.neighborhood || '') + '">' +
                     '<div class="flex justify-between items-center">' +
                     '<div>' +
-                    '<p class="font-medium text-gray-800">' + b.address + '</p>' +
-                    '<p class="text-gray-500">' + (b.name ? b.name + ' | ' : '') + b.neighborhood + ', ' + b.borough + '</p>' +
+                    '<p class="font-medium text-gray-800">' + escapeHtml(b.address) + '</p>' +
+                    '<p class="text-gray-500">' + (b.name ? escapeHtml(b.name) + ' | ' : '') + escapeHtml(b.neighborhood) + ', ' + escapeHtml(b.borough) + '</p>' +
                     '</div>' +
-                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + b.type + '</span>' : '') +
+                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + escapeHtml(b.type) + '</span>' : '') +
                     '</div></div>';
             }).join('');
             resultsDiv.classList.remove('hidden');

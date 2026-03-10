@@ -47,8 +47,8 @@
                     _refreshDetailMediaSections(listing);
                 });
             }
-            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
+            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
             var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
             var isSale = listing.listingCategory !== 'rental';
             var transitScore = computeTransitScore(listing);
@@ -60,7 +60,7 @@
             var thumbGrid = '';
             for (var ti = 0; ti < 4; ti++) {
                 if (secondaryPhotos[ti]) {
-                    thumbGrid += '<div class="cm-photo-wrap rounded-lg cursor-pointer" onclick="openPhotoLightbox(' + (ti+1) + ')"><img src="' + secondaryPhotos[ti].url + '" alt="' + (secondaryPhotos[ti].caption || '') + '" class="cm-photo rounded-lg" loading="lazy"></div>';
+                    thumbGrid += '<div class="cm-photo-wrap rounded-lg cursor-pointer" onclick="openPhotoLightbox(' + (ti+1) + ')"><img src="' + secondaryPhotos[ti].url + '" alt="' + escapeHtml(secondaryPhotos[ti].caption || '') + '" class="cm-photo rounded-lg" loading="lazy"></div>';
                 } else {
                     thumbGrid += '<div class="bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-image text-gray-300"></i></div>';
                 }
@@ -114,14 +114,14 @@
                 </div>
 
                 <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
-                    <span>${listing.neighborhood}</span>
+                    <span>${escapeHtml(listing.neighborhood)}</span>
                     <span class="text-gray-300">&bull;</span>
-                    <span>${listing.borough || 'Manhattan'}, NY ${listing.zip}</span>
-                    ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + listing.era + '</span>' : ''}
+                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
+                    ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
                     <span class="text-gray-300">&bull;</span>
                     <span>${ownershipLabel(listing.ownership)}</span>
-                    ${listing.buildingName ? '<span class="text-gray-300">&bull;</span><span>' + listing.buildingName + '</span>' : ''}
-                    ${listing.crossStreet ? '<span class="text-gray-300">&bull;</span><span class="text-gray-400"><i class="fas fa-arrows-alt-h text-[10px] mr-0.5"></i>' + listing.crossStreet + '</span>' : ''}
+                    ${listing.buildingName ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.buildingName) + '</span>' : ''}
+                    ${listing.crossStreet ? '<span class="text-gray-300">&bull;</span><span class="text-gray-400"><i class="fas fa-arrows-alt-h text-[10px] mr-0.5"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
                 </div>
 
                 <!-- Stats Bar -->
@@ -178,21 +178,21 @@
                         </div>
 
                         <!-- Description -->
-                        ${listing.description ? '<div class="lux-card mb-4"><h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Description</h3><p class="text-sm text-gray-600 leading-relaxed">' + listing.description + '</p></div>' : ''}
+                        ${listing.description ? '<div class="lux-card mb-4"><h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Description</h3><p class="text-sm text-gray-600 leading-relaxed">' + escapeHtml(listing.description) + '</p></div>' : ''}
 
                         <!-- Key Features Grid (only show items with data) -->
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-star text-gray-400"></i> Key Features</h3>
                             <div class="grid grid-cols-3 gap-2">
-                                ${listing.propertySubType ? '<div class="lux-feature-item"><i class="fas fa-building"></i><div><div class="feature-label">Type</div><div class="feature-value">' + listing.propertySubType + '</div></div></div>' : ''}
-                                ${listing.floor ? '<div class="lux-feature-item"><i class="fas fa-layer-group"></i><div><div class="feature-label">Floor</div><div class="feature-value">' + listing.floor + '</div></div></div>' : ''}
-                                ${listing.exposures ? '<div class="lux-feature-item"><i class="fas fa-compass"></i><div><div class="feature-label">Exposure</div><div class="feature-value">' + listing.exposures + '</div></div></div>' : ''}
-                                ${listing.condition ? '<div class="lux-feature-item"><i class="fas fa-tools"></i><div><div class="feature-label">Condition</div><div class="feature-value">' + listing.condition + '</div></div></div>' : ''}
+                                ${listing.propertySubType ? '<div class="lux-feature-item"><i class="fas fa-building"></i><div><div class="feature-label">Type</div><div class="feature-value">' + escapeHtml(listing.propertySubType) + '</div></div></div>' : ''}
+                                ${listing.floor ? '<div class="lux-feature-item"><i class="fas fa-layer-group"></i><div><div class="feature-label">Floor</div><div class="feature-value">' + escapeHtml(listing.floor) + '</div></div></div>' : ''}
+                                ${listing.exposures ? '<div class="lux-feature-item"><i class="fas fa-compass"></i><div><div class="feature-label">Exposure</div><div class="feature-value">' + escapeHtml(listing.exposures) + '</div></div></div>' : ''}
+                                ${listing.condition ? '<div class="lux-feature-item"><i class="fas fa-tools"></i><div><div class="feature-label">Condition</div><div class="feature-value">' + escapeHtml(listing.condition) + '</div></div></div>' : ''}
                                 ${listing.yearBuilt ? '<div class="lux-feature-item"><i class="fas fa-calendar-alt"></i><div><div class="feature-label">Year Built</div><div class="feature-value">' + listing.yearBuilt + '</div></div></div>' : ''}
-                                ${listing.era ? '<div class="lux-feature-item"><i class="fas fa-landmark"></i><div><div class="feature-label">Era</div><div class="feature-value">' + listing.era + '</div></div></div>' : ''}
+                                ${listing.era ? '<div class="lux-feature-item"><i class="fas fa-landmark"></i><div><div class="feature-label">Era</div><div class="feature-value">' + escapeHtml(listing.era) + '</div></div></div>' : ''}
                                 ${listing.walkScore ? '<div class="lux-feature-item"><i class="fas fa-walking"></i><div><div class="feature-label">Walk Score</div><div class="feature-value">' + listing.walkScore + '</div></div></div>' : ''}
                                 <div class="lux-feature-item"><i class="fas fa-home"></i><div><div class="feature-label">Ownership</div><div class="feature-value">${ownershipLabel(listing.ownership)}</div></div></div>
-                                ${listing.buildingName ? '<div class="lux-feature-item"><i class="fas fa-city"></i><div><div class="feature-label">Building</div><div class="feature-value">' + listing.buildingName + '</div></div></div>' : ''}
+                                ${listing.buildingName ? '<div class="lux-feature-item"><i class="fas fa-city"></i><div><div class="feature-label">Building</div><div class="feature-value">' + escapeHtml(listing.buildingName) + '</div></div></div>' : ''}
                             </div>
                         </div>
 
@@ -207,7 +207,7 @@
                             </div>
                             <div class="grid grid-cols-4 gap-3">
                                 ${(listing.images || []).slice(0, 4).map(function(img, idx) {
-                                    return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + ')"><img src="' + img.url.replace('w=800', 'w=400') + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption">' + (img.caption || 'Photo ' + (idx+1)) + '</div></div>';
+                                    return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + ')"><img src="' + img.url.replace('w=800', 'w=400') + '" alt="' + escapeHtml(img.caption || '') + '" loading="lazy"><div class="caption">' + escapeHtml(img.caption || 'Photo ' + (idx+1)) + '</div></div>';
                                 }).join('')}
                             </div>
                         </div>
@@ -258,14 +258,14 @@
                                     </div>
                                     <!-- Col 2: Type / Classification / Requirements -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Property Type</span><span class="font-semibold">${listing.propertySubType || listing.propertyType || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Property Type</span><span class="font-semibold">${escapeHtml(listing.propertySubType || listing.propertyType || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Ownership</span><span class="font-semibold">${ownershipLabel(listing.ownership)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building Status</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Listing Type</span><span class="font-semibold">${listing.listingType || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Era</span><span class="font-semibold">${listing.era || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Listing Type</span><span class="font-semibold">${escapeHtml(listing.listingType || '---')}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Era</span><span class="font-semibold">${escapeHtml(listing.era || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Year Built</span><span class="font-semibold">${listing.yearBuilt || '---'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Condition</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Unit Condition</span><span class="font-semibold">${listing.condition || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Unit Condition</span><span class="font-semibold">${escapeHtml(listing.condition || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Kitchen Condition</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Appliance Condition</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Bathroom Condition</span><span class="font-semibold">---</span></div>
@@ -310,7 +310,7 @@
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Dimensions / Room Counts -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Unit Type</span><span class="font-semibold">${listing.propertySubType || 'Residential'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Unit Type</span><span class="font-semibold">${escapeHtml(listing.propertySubType || 'Residential')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Floors in Unit</span><span class="font-semibold">Single Floor</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Approx Interior SqFt</span><span class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Approx Exterior SqFt</span><span class="font-semibold">---</span></div>
@@ -342,9 +342,9 @@
                                     </div>
                                     <!-- Col 3: Location / Exposure / Views -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Floor in Building</span><span class="font-semibold">${listing.floor || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Floor in Building</span><span class="font-semibold">${escapeHtml(listing.floor || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Line in Building</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Exposure</span><span class="font-semibold">${listing.exposures || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Exposure</span><span class="font-semibold">${escapeHtml(listing.exposures || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Light</span><span class="font-semibold">---</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Views</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Has Views</span><span class="font-semibold">---</span></div>
@@ -913,15 +913,15 @@
                                 <span class="sidebar-section-label">Listing Agent</span>
                                 <span class="sidebar-badge-agent"><i class="fas fa-lock text-[7px]"></i> Agent Only</span>
                             </div>
-                            <div class="text-[14px] font-bold text-gray-900 tracking-tight">${listing.agentName || '---'}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">${listing.company || '---'}</div>
+                            <div class="text-[14px] font-bold text-gray-900 tracking-tight">${escapeHtml(listing.agentName || '---')}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">${escapeHtml(listing.company || '---')}</div>
                             <div class="flex items-center gap-2 mt-2 mb-2.5">
-                                <span class="px-2 py-0.5 border border-gray-200 rounded-full text-[10px] text-gray-500 font-semibold">${listing.listingType || 'Exclusive'}</span>
+                                <span class="px-2 py-0.5 border border-gray-200 rounded-full text-[10px] text-gray-500 font-semibold">${escapeHtml(listing.listingType || 'Exclusive')}</span>
                             </div>
                             <div class="space-y-1.5">
-                                ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + listing.agentPhone + '</a>' : ''}
-                                ${listing.agentEmail ? '<a href="mailto:' + listing.agentEmail + '?subject=' + encodeURIComponent('Agent Inquiry - ' + (listing.address || '') + (listing.unit ? ', ' + listing.unit : '')) + '&body=' + encodeURIComponent(buildAgentMailtoBody(listing)) + '" class="sidebar-contact-link"><i class="fas fa-envelope text-[9px]"></i>' + listing.agentEmail + '</a>' : ''}
-                                ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + listing.agentLicense + '</div>' : ''}
+                                ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + escapeHtml(listing.agentPhone) + '</a>' : ''}
+                                ${listing.agentEmail ? '<a href="mailto:' + escapeHtml(listing.agentEmail) + '?subject=' + encodeURIComponent('Agent Inquiry - ' + (listing.address || '') + (listing.unit ? ', ' + listing.unit : '')) + '&body=' + encodeURIComponent(buildAgentMailtoBody(listing)) + '" class="sidebar-contact-link"><i class="fas fa-envelope text-[9px]"></i>' + escapeHtml(listing.agentEmail) + '</a>' : ''}
+                                ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + escapeHtml(listing.agentLicense) + '</div>' : ''}
                             </div>
 
                             <!-- Showing Instructions (inline, no separate card) -->
@@ -932,7 +932,7 @@
                                     <i class="fas fa-chevron-up si-chevron ml-auto text-gray-300 text-[9px]"></i>
                                 </button>
                                 <div class="mt-2 text-[12px] text-gray-600 leading-relaxed">
-                                    ${listing.showingInstructions || '(UCOM) ' + (listing.agentName || '---') + ' ' + (listing.agentPhone || '')}
+                                    ${escapeHtml(listing.showingInstructions || '(UCOM) ' + (listing.agentName || '---') + ' ' + (listing.agentPhone || ''))}
                                 </div>
                             </div>
                         </div>
@@ -999,7 +999,7 @@
                 </div>
 
                 <!-- Attribution footer -->
-                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
+                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
             `;
 
             // Populate similar listings (neighborhood + nearby)
@@ -1007,18 +1007,18 @@
             var neighborhoodListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood === listing.neighborhood; }).slice(0, 3);
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
-                var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : l.address;
+                var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
                 var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(' + l.id + ')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
-                    + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + l.unit : '') + '</div>'
-                    + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + l.neighborhood + '</div>'
+                    + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
+                    + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
                     + '<div class="text-xs mt-1"><strong>' + l.beds + '</strong> Beds &nbsp; <strong>' + l.baths + '</strong> Baths</div>'
                     + '<div class="flex items-center justify-between mt-2"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 ' + getStatusBadgeClasses(l.status) + ' rounded text-[10px] font-semibold">' + st + '</span><span class="font-bold text-sm">$' + l.price.toLocaleString() + '</span></div>'
                     + '<div class="text-[10px] text-gray-400">Listed<br>' + l.listedDate + '</div></div></div></div>';
             };
             var nhEl = document.getElementById('detailSimilarNeighborhood');
-            if (nhEl) nhEl.innerHTML = neighborhoodListings.length > 0 ? neighborhoodListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No similar listings in ' + listing.neighborhood + '</div>';
+            if (nhEl) nhEl.innerHTML = neighborhoodListings.length > 0 ? neighborhoodListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No similar listings in ' + escapeHtml(listing.neighborhood) + '</div>';
             var nbEl = document.getElementById('detailSimilarNearby');
             if (nbEl) nbEl.innerHTML = nearbyListings.length > 0 ? nearbyListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No nearby listings</div>';
 
@@ -1485,7 +1485,7 @@
             // Dual agent blocks — prepared by (our agent) + listing agent (from RLS)
             h += '<div class="dual-agent">';
             h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '#10991205323') + '<br>' + (_agent.address || '400 East 90th St, Suite 17C, NY 10128') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
-            h += '<div><div class="label">Listing Agent</div><div class="name">' + (listing.agentName || '---') + '</div><div class="info">' + (listing.company || '---') + '<br>' + (listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + listing.agentEmail : '') + '<br>' + (listing.listingType || 'Exclusive') + '</div></div>';
+            h += '<div><div class="label">Listing Agent</div><div class="name">' + escapeHtml(listing.agentName || '---') + '</div><div class="info">' + escapeHtml(listing.company || '---') + '<br>' + escapeHtml(listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + escapeHtml(listing.agentEmail) : '') + '<br>' + escapeHtml(listing.listingType || 'Exclusive') + '</div></div>';
             h += '</div>';
 
             // Hero: photo + title/price
@@ -1494,7 +1494,7 @@
             else h += '<div style="width:100%;height:280px;background:#f0f0f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#ccc"><i class="fas fa-camera" style="font-size:48px"></i></div>';
             h += '<div style="display:flex;flex-direction:column;justify-content:center">';
             h += '<div class="print-title">' + displayAddress + displayUnit + '</div>';
-            h += '<div class="print-subtitle">' + (listing.era || '') + ' &middot; ' + ownershipLabel(listing.ownership) + ' &middot; ' + listing.neighborhood + ', NY ' + listing.zip + '</div>';
+            h += '<div class="print-subtitle">' + escapeHtml(listing.era || '') + ' &middot; ' + ownershipLabel(listing.ownership) + ' &middot; ' + escapeHtml(listing.neighborhood) + ', NY ' + escapeHtml(listing.zip) + '</div>';
             h += '<div class="print-price">$' + listing.price.toLocaleString() + '</div>';
             h += '<div class="print-price-sub">' + (isSale ? 'Maint/CC: $' + listing.maintCC.toLocaleString() + '/mo' : 'Monthly Rent') + ' &middot; Est. Monthly: $' + listing.totalMonthly.toLocaleString() + '</div>';
             h += '<div class="print-specs"><span><strong>' + listing.rooms + '</strong> Rooms</span><span><strong>' + listing.beds + '</strong> Beds</span><span><strong>' + listing.baths + '</strong> Baths</span><span><strong>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</strong> SqFt</span></div>';
@@ -1505,7 +1505,7 @@
             h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + listing.listedDate + '</strong></div><div><div class="label">DOM</div><strong>' + listing.dom + '</strong></div><div><div class="label">CDOM</div><strong>' + (listing.cdom || listing.dom) + '</strong></div></div>';
 
             // Description
-            if (listing.description) h += '<div class="print-desc">' + listing.description + '</div>';
+            if (listing.description) h += '<div class="print-desc">' + escapeHtml(listing.description) + '</div>';
 
             // Financial Details
             h += '<div class="print-section"><h3><i class="fas fa-dollar-sign" style="margin-right:6px"></i> Financial</h3><div class="print-grid">';

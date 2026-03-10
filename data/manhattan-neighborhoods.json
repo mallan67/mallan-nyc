@@ -236,7 +236,36 @@
         "south": 40.761,
         "east": -73.95,
         "west": -73.968
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "5",
+          "6",
+          "Q"
+        ],
+        "majorStations": [
+          "86th Street (4/5/6)",
+          "77th Street (6)",
+          "72nd Street (Q)",
+          "96th Street (Q/6)"
+        ]
+      },
+      "localVibe": "Tree-lined blocks of pre-war limestone and brick buildings give way to Museum Mile's cultural institutions and Central Park's eastern edge.",
+      "notableStreets": [
+        "Fifth Avenue",
+        "Madison Avenue",
+        "Park Avenue",
+        "Lexington Avenue",
+        "East End Avenue"
+      ],
+      "parkAndGreen": [
+        "Central Park (East Meadow, Conservatory Garden)",
+        "Carl Schurz Park",
+        "John Jay Park",
+        "Andrew Haswell Green Park"
+      ],
+      "diningScene": "Known for its refined dining establishments along Madison Avenue and a growing collection of wine bars and bistros on the Upper East Side's side streets."
     },
     {
       "slug": "upper-west-side",
@@ -466,7 +495,38 @@
         "south": 40.77,
         "east": -73.97,
         "west": -73.982
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "B",
+          "C"
+        ],
+        "majorStations": [
+          "72nd Street (1/2/3)",
+          "79th Street (1)",
+          "86th Street (1)",
+          "96th Street (1/2/3)",
+          "81st Street-Museum of Natural History (B/C)"
+        ]
+      },
+      "localVibe": "A walkable stretch of brownstone-lined streets between Central Park and Riverside Park, anchored by Lincoln Center and the American Museum of Natural History.",
+      "notableStreets": [
+        "Broadway",
+        "Columbus Avenue",
+        "Amsterdam Avenue",
+        "West End Avenue",
+        "Riverside Drive"
+      ],
+      "parkAndGreen": [
+        "Central Park (Great Lawn, Belvedere Castle)",
+        "Riverside Park",
+        "Theodore Roosevelt Park",
+        "Straus Park"
+      ],
+      "diningScene": "Features a mix of longstanding neighborhood restaurants along Columbus and Amsterdam Avenues, with numerous brunch spots and international cuisines."
     },
     {
       "slug": "tribeca",
@@ -682,7 +742,37 @@
         "south": 40.713,
         "east": -74,
         "west": -74.013
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "A",
+          "C",
+          "E"
+        ],
+        "majorStations": [
+          "Chambers Street (1/2/3)",
+          "Franklin Street (1)",
+          "Canal Street (A/C/E)"
+        ]
+      },
+      "localVibe": "Cast-iron loft buildings and cobblestone streets define this former industrial district, now home to converted warehouse residences and ground-floor galleries.",
+      "notableStreets": [
+        "Greenwich Street",
+        "Hudson Street",
+        "West Broadway",
+        "Church Street",
+        "Reade Street"
+      ],
+      "parkAndGreen": [
+        "Hudson River Park (Pier 25, Pier 26)",
+        "Washington Market Park",
+        "Teardrop Park",
+        "City Hall Park"
+      ],
+      "diningScene": "A destination for acclaimed restaurants and chef-driven concepts, with notable establishments along Greenwich and Hudson Streets."
     },
     {
       "slug": "soho",
@@ -902,7 +992,39 @@
         "south": 40.721,
         "east": -73.996,
         "west": -74.005
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "C",
+          "E",
+          "R",
+          "W",
+          "N",
+          "Q",
+          "6"
+        ],
+        "majorStations": [
+          "Spring Street (C/E)",
+          "Prince Street (R/W)",
+          "Broadway-Lafayette Street (B/D/F/M)",
+          "Canal Street (N/Q/R/W/6)"
+        ]
+      },
+      "localVibe": "Cast-iron architecture and cobblestone streets form the backdrop for a commercial district of flagship stores, galleries, and loft-style residences.",
+      "notableStreets": [
+        "Broadway",
+        "West Broadway",
+        "Prince Street",
+        "Spring Street",
+        "Mercer Street",
+        "Greene Street"
+      ],
+      "parkAndGreen": [
+        "Vesuvio Playground",
+        "DeSalvio Playground",
+        "Spring Street Park"
+      ],
+      "diningScene": "Features a concentration of global cuisine and stylish cafes along West Broadway and side streets, with sidewalk dining throughout warmer months."
     },
     {
       "slug": "chelsea",
@@ -1121,7 +1243,37 @@
         "south": 40.738,
         "east": -73.992,
         "west": -74.007
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "A",
+          "C",
+          "E",
+          "L"
+        ],
+        "majorStations": [
+          "14th Street (A/C/E/1/2/3/L)",
+          "23rd Street (C/E/1)",
+          "28th Street (1)"
+        ]
+      },
+      "localVibe": "A gallery district along the West 20s meets the elevated High Line park, with pre-war walk-ups and converted industrial lofts lining the avenues.",
+      "notableStreets": [
+        "Tenth Avenue",
+        "Ninth Avenue",
+        "Eighth Avenue",
+        "West 20th-27th Streets (Gallery Row)"
+      ],
+      "parkAndGreen": [
+        "The High Line",
+        "Hudson River Park (Chelsea Piers, Pier 62)",
+        "Chelsea Park",
+        "Clement Clarke Moore Park"
+      ],
+      "diningScene": "Anchored by Chelsea Market's food hall and a corridor of restaurants along Ninth and Tenth Avenues, with numerous international options."
     },
     {
       "slug": "financial-district",
@@ -1349,7 +1501,42 @@
         "south": 40.7,
         "east": -73.998,
         "west": -74.017
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "J",
+          "Z",
+          "R",
+          "W"
+        ],
+        "majorStations": [
+          "Fulton Street (2/3/4/5/A/C/J/Z)",
+          "Wall Street (2/3/4/5)",
+          "Whitehall Street (R/W)",
+          "Broad Street (J/Z)"
+        ]
+      },
+      "localVibe": "Historic stone-facade buildings and narrow streets of the original city grid, with converted office towers offering open-plan residences amid waterfront promenades.",
+      "notableStreets": [
+        "Wall Street",
+        "Broadway",
+        "Water Street",
+        "Fulton Street",
+        "Stone Street"
+      ],
+      "parkAndGreen": [
+        "Battery Park",
+        "Bowling Green",
+        "Zuccotti Park",
+        "The Battery Esplanade",
+        "Elevated Acre"
+      ],
+      "diningScene": "Stone Street's pedestrian alley offers outdoor dining in warmer months, complemented by waterfront restaurants along the East River and South Street Seaport."
     },
     {
       "slug": "greenwich-village",
@@ -1574,7 +1761,41 @@
         "south": 40.7264,
         "east": -73.989,
         "west": -74.007
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "A",
+          "C",
+          "E",
+          "B",
+          "D",
+          "F",
+          "M"
+        ],
+        "majorStations": [
+          "West 4th Street-Washington Square (A/B/C/D/E/F/M)",
+          "Christopher Street (1)",
+          "14th Street (1/2/3)"
+        ]
+      },
+      "localVibe": "Winding, tree-shaded streets break from the Manhattan grid around Washington Square Park, lined with 19th-century townhouses and low-rise brick buildings.",
+      "notableStreets": [
+        "Bleecker Street",
+        "MacDougal Street",
+        "Christopher Street",
+        "Washington Square North",
+        "Fifth Avenue"
+      ],
+      "parkAndGreen": [
+        "Washington Square Park",
+        "Father Demo Square",
+        "Minetta Green",
+        "Jefferson Market Garden"
+      ],
+      "diningScene": "Bleecker Street and the surrounding blocks feature a dense collection of Italian restaurants, bakeries, jazz venues, and neighborhood trattorias."
     },
     {
       "slug": "midtown-east",
@@ -1793,7 +2014,38 @@
         "south": 40.7549,
         "east": -73.964,
         "west": -73.978
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "5",
+          "6",
+          "7",
+          "E",
+          "M",
+          "S"
+        ],
+        "majorStations": [
+          "Grand Central-42nd Street (4/5/6/7/S)",
+          "51st Street (6)",
+          "Lexington Avenue-53rd Street (E/M)"
+        ]
+      },
+      "localVibe": "Corporate towers and Art Deco landmarks anchor this stretch east of Fifth Avenue, with residential pockets along the quieter side streets between the avenues.",
+      "notableStreets": [
+        "Park Avenue",
+        "Lexington Avenue",
+        "Third Avenue",
+        "East 42nd Street",
+        "East 57th Street"
+      ],
+      "parkAndGreen": [
+        "Tudor City Greens",
+        "Dag Hammarskjold Plaza",
+        "Greenacre Park",
+        "St. Vartan Park"
+      ],
+      "diningScene": "Business dining destinations and steakhouses along the avenues, with a growing collection of ramen shops, sushi counters, and international eateries on the cross streets."
     },
     {
       "slug": "hells-kitchen",
@@ -1989,7 +2241,40 @@
         "south": 40.7549,
         "east": -73.988,
         "west": -74.002
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "A",
+          "C",
+          "E",
+          "N",
+          "Q",
+          "R",
+          "W",
+          "1",
+          "2",
+          "3",
+          "7"
+        ],
+        "majorStations": [
+          "42nd Street-Port Authority (A/C/E)",
+          "Times Square-42nd Street (1/2/3/7/N/Q/R/W)",
+          "50th Street (C/E)"
+        ]
+      },
+      "localVibe": "A theater district-adjacent neighborhood of tenement-style walk-ups and newer high-rises, with a lively restaurant row along Ninth Avenue.",
+      "notableStreets": [
+        "Ninth Avenue",
+        "Tenth Avenue",
+        "Restaurant Row (46th Street)",
+        "42nd Street"
+      ],
+      "parkAndGreen": [
+        "Hudson River Park (Clinton Cove, Pier 84)",
+        "DeWitt Clinton Park",
+        "Hell's Kitchen Park"
+      ],
+      "diningScene": "Ninth Avenue is one of Manhattan's most concentrated restaurant corridors, with cuisines spanning Thai, Ethiopian, Mexican, Greek, and contemporary American."
     },
     {
       "slug": "east-village",
@@ -2177,7 +2462,37 @@
         "south": 40.723,
         "east": -73.972,
         "west": -73.99
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6",
+          "L",
+          "N",
+          "R",
+          "W"
+        ],
+        "majorStations": [
+          "Astor Place (6)",
+          "First Avenue (L)",
+          "8th Street-NYU (R/W)",
+          "14th Street-Union Square (4/5/6/L/N/Q/R/W)"
+        ]
+      },
+      "localVibe": "Walk-up tenement buildings and converted townhouses line a grid of avenues known for independent shops, music venues, and a dense concentration of restaurants.",
+      "notableStreets": [
+        "St. Marks Place",
+        "Avenue A",
+        "Avenue B",
+        "First Avenue",
+        "Second Avenue"
+      ],
+      "parkAndGreen": [
+        "Tompkins Square Park",
+        "Stuyvesant Square",
+        "First Park",
+        "La Plaza Cultural"
+      ],
+      "diningScene": "One of Manhattan's densest dining districts, with ramen shops, izakayas, pierogis, pizza counters, and cocktail bars concentrated along First and Second Avenues."
     },
     {
       "slug": "lower-east-side",
@@ -2357,7 +2672,34 @@
         "south": 40.712,
         "east": -73.975,
         "west": -73.99
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "F",
+          "J",
+          "M",
+          "Z"
+        ],
+        "majorStations": [
+          "Delancey Street-Essex Street (F/J/M/Z)",
+          "East Broadway (F)"
+        ]
+      },
+      "localVibe": "Tenement-era brick buildings mix with modern glass towers along the blocks south of Houston Street, a neighborhood shaped by its layered architectural history.",
+      "notableStreets": [
+        "Orchard Street",
+        "Ludlow Street",
+        "Rivington Street",
+        "Delancey Street",
+        "Essex Street"
+      ],
+      "parkAndGreen": [
+        "Sara D. Roosevelt Park",
+        "Seward Park",
+        "East River Park",
+        "Hester Street Playground"
+      ],
+      "diningScene": "A concentrated mix of traditional delis, dim sum parlors, modern cocktail bars, and new American restaurants along Orchard and Ludlow Streets."
     },
     {
       "slug": "harlem",
@@ -2544,7 +2886,37 @@
         "south": 40.8008,
         "east": -73.936,
         "west": -73.96
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "2",
+          "3",
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "majorStations": [
+          "125th Street (2/3/A/B/C/D)",
+          "116th Street (2/3/B/C)",
+          "135th Street (2/3/B/C)"
+        ]
+      },
+      "localVibe": "Brownstone-lined blocks and wide boulevards define this historic neighborhood, with landmark theaters, churches, and cultural institutions along 125th Street.",
+      "notableStreets": [
+        "125th Street (Martin Luther King Jr. Boulevard)",
+        "Lenox Avenue (Malcolm X Boulevard)",
+        "Adam Clayton Powell Jr. Boulevard",
+        "Frederick Douglass Boulevard",
+        "Convent Avenue"
+      ],
+      "parkAndGreen": [
+        "Marcus Garvey Park (Mount Morris Park)",
+        "St. Nicholas Park",
+        "Morningside Park",
+        "Riverbank State Park"
+      ],
+      "diningScene": "Frederick Douglass Boulevard and Lenox Avenue host a growing restaurant scene featuring Southern-inspired cuisine, West African dishes, and contemporary American fare."
     },
     {
       "slug": "nomad",
@@ -2719,7 +3091,36 @@
         "south": 40.7422,
         "east": -73.984,
         "west": -73.991
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "N",
+          "R",
+          "W",
+          "6",
+          "B",
+          "D",
+          "F",
+          "M"
+        ],
+        "majorStations": [
+          "28th Street (N/R/W/6)",
+          "Herald Square-34th Street (B/D/F/M/N/Q/R/W)"
+        ]
+      },
+      "localVibe": "A compact district of loft conversions and boutique hotels centered around the intersection of Broadway and Fifth Avenue, near Madison Square Park.",
+      "notableStreets": [
+        "Broadway",
+        "Fifth Avenue",
+        "Park Avenue South",
+        "Madison Avenue",
+        "28th Street"
+      ],
+      "parkAndGreen": [
+        "Madison Square Park",
+        "Worth Square"
+      ],
+      "diningScene": "Anchored by notable restaurants around Madison Square Park and along Broadway, featuring rooftop bars, Korean cuisine on 32nd Street, and artisanal coffee shops."
     },
     {
       "slug": "flatiron",
@@ -2898,7 +3299,36 @@
         "south": 40.7358,
         "east": -73.986,
         "west": -73.994
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "N",
+          "R",
+          "W",
+          "6",
+          "L",
+          "4",
+          "5"
+        ],
+        "majorStations": [
+          "23rd Street (N/R/W/6)",
+          "14th Street-Union Square (4/5/6/L/N/Q/R/W)"
+        ]
+      },
+      "localVibe": "Named for the iconic triangular Flatiron Building, this district features loft-style residences in converted commercial buildings along broad, sunlit avenues.",
+      "notableStreets": [
+        "Broadway",
+        "Fifth Avenue",
+        "Park Avenue South",
+        "23rd Street",
+        "Lexington Avenue"
+      ],
+      "parkAndGreen": [
+        "Madison Square Park",
+        "Union Square Park",
+        "Gramercy Park (private, key access)"
+      ],
+      "diningScene": "Eataly and the restaurants ringing Madison Square Park anchor the dining scene, complemented by a mix of upscale and casual options along Park Avenue South."
     },
     {
       "slug": "gramercy",
@@ -3074,7 +3504,34 @@
         "south": 40.734,
         "east": -73.979,
         "west": -73.987
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6",
+          "L",
+          "N",
+          "R",
+          "W"
+        ],
+        "majorStations": [
+          "23rd Street (6)",
+          "14th Street-Union Square (4/5/6/L/N/Q/R/W)"
+        ]
+      },
+      "localVibe": "A residential enclave centered on Gramercy Park, one of Manhattan's two remaining private parks, surrounded by pre-war co-ops and townhouses on gas-lit blocks.",
+      "notableStreets": [
+        "Irving Place",
+        "Gramercy Park South",
+        "Gramercy Park North",
+        "Lexington Avenue",
+        "Third Avenue"
+      ],
+      "parkAndGreen": [
+        "Gramercy Park (private, key-holder access)",
+        "Stuyvesant Square",
+        "Peter Cooper Village green spaces"
+      ],
+      "diningScene": "Irving Place and the surrounding blocks offer a selection of wine bars, Italian trattorias, and neighborhood bistros in a residential setting."
     },
     {
       "slug": "battery-park-city",
@@ -3244,7 +3701,34 @@
         "south": 40.705,
         "east": -74.013,
         "west": -74.021
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "R",
+          "W"
+        ],
+        "majorStations": [
+          "Rector Street (1/R/W)",
+          "Cortlandt Street (1/R/W)",
+          "Chambers Street (1/2/3/A/C)"
+        ]
+      },
+      "localVibe": "A master-planned waterfront community of modern residential towers lining the Hudson River esplanade, with manicured parks and river views throughout.",
+      "notableStreets": [
+        "South End Avenue",
+        "North End Avenue",
+        "West Street",
+        "River Terrace"
+      ],
+      "parkAndGreen": [
+        "Battery Park City Esplanade",
+        "Rockefeller Park",
+        "Nelson A. Rockefeller Park Playground",
+        "Teardrop Park",
+        "Irish Hunger Memorial"
+      ],
+      "diningScene": "Waterfront dining along the esplanade and Brookfield Place's food hall, Le District, offering French-inspired market dining and Hudson River views."
     },
     {
       "slug": "hudson-yards",
@@ -3407,7 +3891,28 @@
         "south": 40.75,
         "east": -73.994,
         "west": -74.005
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "7"
+        ],
+        "majorStations": [
+          "34th Street-Hudson Yards (7)"
+        ]
+      },
+      "localVibe": "A recently developed district of glass-and-steel towers above an active rail yard, anchored by a public plaza, observation deck, and retail center.",
+      "notableStreets": [
+        "Hudson Boulevard",
+        "Eleventh Avenue",
+        "30th Street",
+        "33rd Street"
+      ],
+      "parkAndGreen": [
+        "Hudson Yards Public Square",
+        "The High Line (northern terminus)",
+        "Hudson River Park (nearby)"
+      ],
+      "diningScene": "A curated collection of restaurants within the Hudson Yards development, plus dining options along the High Line and extending into nearby Hell's Kitchen."
     },
     {
       "slug": "midtown-west",
@@ -3599,7 +4104,44 @@
         "south": 40.749,
         "east": -73.983,
         "west": -73.999
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "A",
+          "C",
+          "E",
+          "N",
+          "Q",
+          "R",
+          "W",
+          "B",
+          "D",
+          "F",
+          "M"
+        ],
+        "majorStations": [
+          "Penn Station-34th Street (1/2/3/A/C/E)",
+          "Times Square-42nd Street (1/2/3/7/N/Q/R/W/S)",
+          "Herald Square (B/D/F/M/N/Q/R/W)"
+        ]
+      },
+      "localVibe": "The commercial core of Manhattan with Penn Station and Times Square, featuring post-war residential towers on the quieter side streets west of Eighth Avenue.",
+      "notableStreets": [
+        "Broadway",
+        "Seventh Avenue",
+        "Eighth Avenue",
+        "34th Street",
+        "42nd Street"
+      ],
+      "parkAndGreen": [
+        "Bryant Park",
+        "Herald Square",
+        "Hudson River Park"
+      ],
+      "diningScene": "Koreatown on 32nd Street and the blocks around Times Square offer a wide range of international cuisines, from Korean BBQ to Broadway pre-theater dining."
     },
     {
       "slug": "west-village",
@@ -3854,7 +4396,40 @@
         "south": 40.7264,
         "east": -73.999,
         "west": -74.011
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "2",
+          "3",
+          "A",
+          "C",
+          "E",
+          "L"
+        ],
+        "majorStations": [
+          "Christopher Street-Sheridan Square (1)",
+          "14th Street (A/C/E/L/1/2/3)",
+          "West 4th Street (A/B/C/D/E/F/M)"
+        ]
+      },
+      "localVibe": "Narrow, winding streets lined with Federal and Greek Revival townhouses, leafy courtyards, and small-scale brick buildings along the Hudson River's edge.",
+      "notableStreets": [
+        "Bleecker Street",
+        "Hudson Street",
+        "West 4th Street",
+        "Perry Street",
+        "Charles Street",
+        "Bank Street",
+        "Greenwich Avenue"
+      ],
+      "parkAndGreen": [
+        "Hudson River Park (Christopher Street Pier, Pier 45, Pier 46)",
+        "Abingdon Square",
+        "Jackson Square Park",
+        "Bleecker Playground"
+      ],
+      "diningScene": "Intimate restaurants, bakeries, and wine bars line Bleecker, Hudson, and the side streets, with a strong tradition of Italian-American and French-inspired dining."
     },
     {
       "slug": "nolita",
@@ -4104,7 +4679,40 @@
         "south": 40.719,
         "east": -73.99,
         "west": -73.996
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6",
+          "J",
+          "Z",
+          "N",
+          "R",
+          "W",
+          "B",
+          "D",
+          "F",
+          "M"
+        ],
+        "majorStations": [
+          "Spring Street (6)",
+          "Bowery (J/Z)",
+          "Broadway-Lafayette (B/D/F/M)"
+        ]
+      },
+      "localVibe": "A compact district of old-law tenements and narrow streets north of Little Italy, with boutique storefronts and outdoor dining along Mott and Elizabeth Streets.",
+      "notableStreets": [
+        "Mott Street",
+        "Elizabeth Street",
+        "Mulberry Street",
+        "Prince Street",
+        "Spring Street"
+      ],
+      "parkAndGreen": [
+        "Elizabeth Street Garden",
+        "DeSalvio Playground",
+        "Petrosino Square"
+      ],
+      "diningScene": "Sidewalk cafes and small-plate restaurants concentrate along Elizabeth and Mott Streets, featuring Italian, Mediterranean, and contemporary cuisine."
     },
     {
       "slug": "noho",
@@ -4349,7 +4957,39 @@
         "south": 40.725,
         "east": -73.988,
         "west": -73.996
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6",
+          "B",
+          "D",
+          "F",
+          "M",
+          "N",
+          "R",
+          "W"
+        ],
+        "majorStations": [
+          "Bleecker Street (6)",
+          "Broadway-Lafayette Street (B/D/F/M)",
+          "Astor Place (6)",
+          "8th Street-NYU (N/R/W)"
+        ]
+      },
+      "localVibe": "A small cluster of landmarked 19th-century commercial buildings and converted lofts between the Bowery and Broadway, with a gallery and design-studio character.",
+      "notableStreets": [
+        "Bond Street",
+        "Great Jones Street",
+        "Lafayette Street",
+        "Bleecker Street",
+        "The Bowery"
+      ],
+      "parkAndGreen": [
+        "Merchant's House Museum garden",
+        "Colonnade Row",
+        "nearby Tompkins Square Park"
+      ],
+      "diningScene": "Bond and Great Jones Streets host a collection of notable restaurants and wine bars in converted loft spaces and ground-floor storefronts."
     },
     {
       "slug": "little-italy",
@@ -4600,7 +5240,37 @@
         "south": 40.718,
         "east": -73.994,
         "west": -73.999
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6",
+          "J",
+          "Z",
+          "N",
+          "R",
+          "W",
+          "B",
+          "D"
+        ],
+        "majorStations": [
+          "Canal Street (6/J/Z/N/R/W)",
+          "Spring Street (6)",
+          "Bowery (J/Z)"
+        ]
+      },
+      "localVibe": "A compact stretch of Mulberry Street defined by its red-sauce restaurants, bakeries, and seasonal street festivals, flanked by old-law tenement buildings.",
+      "notableStreets": [
+        "Mulberry Street",
+        "Grand Street",
+        "Hester Street",
+        "Mott Street"
+      ],
+      "parkAndGreen": [
+        "Columbus Park",
+        "DeSalvio Playground",
+        "Petrosino Square"
+      ],
+      "diningScene": "Mulberry Street between Canal and Broome is the traditional restaurant row, featuring Italian-American trattorias, pastry shops, and gelaterias."
     },
     {
       "slug": "chinatown",
@@ -4861,7 +5531,41 @@
         "south": 40.7085,
         "east": -73.99,
         "west": -74.001
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "J",
+          "Z",
+          "N",
+          "Q",
+          "R",
+          "W",
+          "6",
+          "B",
+          "D"
+        ],
+        "majorStations": [
+          "Canal Street (J/Z/N/Q/R/W/6)",
+          "Grand Street (B/D)",
+          "East Broadway (F)"
+        ]
+      },
+      "localVibe": "Dense, bustling streets with open-air markets, herbal shops, and produce stands under fire-escape-fronted tenement buildings, one of the city's oldest commercial districts.",
+      "notableStreets": [
+        "Canal Street",
+        "Mott Street",
+        "Baxter Street",
+        "Doyers Street",
+        "East Broadway",
+        "Bowery"
+      ],
+      "parkAndGreen": [
+        "Columbus Park",
+        "Kimlau Square",
+        "Chatham Square",
+        "Sara D. Roosevelt Park"
+      ],
+      "diningScene": "One of the most concentrated dining districts in the city, featuring hand-pulled noodle shops, dim sum halls, Cantonese seafood restaurants, and Fujianese bakeries."
     },
     {
       "slug": "washington-heights",
@@ -5109,7 +5813,36 @@
         "south": 40.834,
         "east": -73.924,
         "west": -73.946
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "A",
+          "C"
+        ],
+        "majorStations": [
+          "168th Street (1/A/C)",
+          "175th Street (A)",
+          "181st Street (1/A)",
+          "190th Street (A)",
+          "George Washington Bridge Bus Station"
+        ]
+      },
+      "localVibe": "Hilly, elevated terrain with pre-war apartment buildings and Art Deco facades, offering Hudson River views and proximity to Fort Tryon Park and The Cloisters museum.",
+      "notableStreets": [
+        "Broadway",
+        "Fort Washington Avenue",
+        "St. Nicholas Avenue",
+        "181st Street",
+        "Cabrini Boulevard"
+      ],
+      "parkAndGreen": [
+        "Fort Tryon Park (The Cloisters)",
+        "Highbridge Park",
+        "J. Hood Wright Park",
+        "Bennett Park (Manhattan's highest point)"
+      ],
+      "diningScene": "Broadway and St. Nicholas Avenue feature Dominican and Caribbean cuisine, empanada shops, bakeries, and a growing number of contemporary restaurants."
     },
     {
       "slug": "inwood",
@@ -5343,7 +6076,33 @@
         "south": 40.855,
         "east": -73.913,
         "west": -73.933
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1",
+          "A"
+        ],
+        "majorStations": [
+          "Inwood-207th Street (A)",
+          "Dyckman Street (1/A)",
+          "215th Street (1)"
+        ]
+      },
+      "localVibe": "Manhattan's northernmost neighborhood, where pre-war apartment buildings sit adjacent to old-growth forest in Inwood Hill Park and the Harlem River waterfront.",
+      "notableStreets": [
+        "Broadway",
+        "Dyckman Street",
+        "Seaman Avenue",
+        "Indian Road",
+        "Payson Avenue"
+      ],
+      "parkAndGreen": [
+        "Inwood Hill Park",
+        "Isham Park",
+        "Sherman Creek Park",
+        "The Muscota Marsh"
+      ],
+      "diningScene": "Dyckman Street is the main dining corridor, with Dominican restaurants, seafood spots, and a growing selection of contemporary cafes and bars."
     },
     {
       "slug": "murray-hill",
@@ -5588,7 +6347,32 @@
         "south": 40.749,
         "east": -73.968,
         "west": -73.983
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6",
+          "S"
+        ],
+        "majorStations": [
+          "33rd Street (6)",
+          "Grand Central-42nd Street (4/5/6/7/S)",
+          "28th Street (6)"
+        ]
+      },
+      "localVibe": "A residential enclave of brownstones and mid-rise apartment buildings between the commercial corridors of Park Avenue South and Third Avenue.",
+      "notableStreets": [
+        "Park Avenue",
+        "Lexington Avenue",
+        "Third Avenue",
+        "Madison Avenue",
+        "34th Street"
+      ],
+      "parkAndGreen": [
+        "St. Vartan Park",
+        "Murray Hill Playground",
+        "nearby Bryant Park"
+      ],
+      "diningScene": "Third and Lexington Avenues host a concentration of Indian restaurants (Curry Hill around 28th Street), along with Korean BBQ, Japanese izakayas, and pub-style dining."
     },
     {
       "slug": "kips-bay",
@@ -5830,7 +6614,31 @@
         "south": 40.74,
         "east": -73.97,
         "west": -73.981
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6"
+        ],
+        "majorStations": [
+          "28th Street (6)",
+          "33rd Street (6)",
+          "23rd Street (6)"
+        ]
+      },
+      "localVibe": "A residential stretch along the East River featuring post-war tower complexes and mid-rise buildings, with a quieter character than neighboring Midtown.",
+      "notableStreets": [
+        "Second Avenue",
+        "Third Avenue",
+        "First Avenue",
+        "34th Street"
+      ],
+      "parkAndGreen": [
+        "Asser Levy Park",
+        "Kips Bay Playground",
+        "Bellevue South Park",
+        "NYC Ferry landing at East 34th Street"
+      ],
+      "diningScene": "Second and Third Avenues offer a range of casual eateries including Indian, Thai, and Japanese restaurants, extending from the Curry Hill dining strip."
     },
     {
       "slug": "sutton-place",
@@ -6083,7 +6891,36 @@
         "south": 40.756,
         "east": -73.958,
         "west": -73.966
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "5",
+          "6",
+          "E",
+          "M"
+        ],
+        "majorStations": [
+          "51st Street (6)",
+          "Lexington Avenue-53rd Street (E/M)",
+          "59th Street (4/5/6/N/R/W)"
+        ]
+      },
+      "localVibe": "A quiet residential enclave of mid-century co-ops and townhouses on the East River, with cul-de-sac streets and private gardens overlooking the Queensboro Bridge.",
+      "notableStreets": [
+        "Sutton Place",
+        "Sutton Place South",
+        "East 57th Street",
+        "East 59th Street",
+        "York Avenue"
+      ],
+      "parkAndGreen": [
+        "Sutton Place Park",
+        "Bridgemarket Plaza",
+        "Andrew Haswell Green Park",
+        "East River Esplanade"
+      ],
+      "diningScene": "A selection of neighborhood restaurants and cafes along First and Second Avenues, with fine dining options concentrated near East 57th Street."
     },
     {
       "slug": "morningside-heights",
@@ -6330,7 +7167,31 @@
         "south": 40.8008,
         "east": -73.954,
         "west": -73.968
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1"
+        ],
+        "majorStations": [
+          "116th Street-Columbia University (1)",
+          "Cathedral Parkway-110th Street (1)",
+          "125th Street (1)"
+        ]
+      },
+      "localVibe": "A hilltop neighborhood defined by Columbia University's campus, the Cathedral of St. John the Divine, and Riverside Church, with pre-war apartment buildings along Broadway.",
+      "notableStreets": [
+        "Broadway",
+        "Amsterdam Avenue",
+        "Morningside Drive",
+        "Riverside Drive",
+        "116th Street"
+      ],
+      "parkAndGreen": [
+        "Morningside Park",
+        "Riverside Park (northern section)",
+        "Sakura Park"
+      ],
+      "diningScene": "Broadway near Columbia University features a mix of international restaurants, cafes, bookstore-cafes, and takeout spots catering to a bustling campus neighborhood."
     },
     {
       "slug": "east-harlem",
@@ -6582,7 +7443,35 @@
         "south": 40.7908,
         "east": -73.935,
         "west": -73.95
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "5",
+          "6"
+        ],
+        "majorStations": [
+          "125th Street (4/5/6)",
+          "116th Street (6)",
+          "103rd Street (6)",
+          "110th Street (6)"
+        ]
+      },
+      "localVibe": "A neighborhood of pre-war tenements and public housing alongside new-construction condos, centered on the commercial corridors of Lexington Avenue and 116th Street.",
+      "notableStreets": [
+        "Lexington Avenue",
+        "Third Avenue",
+        "116th Street",
+        "125th Street",
+        "Pleasant Avenue"
+      ],
+      "parkAndGreen": [
+        "Marcus Garvey Park",
+        "Thomas Jefferson Park",
+        "Randalls Island (via footbridge)",
+        "Harlem River Park"
+      ],
+      "diningScene": "Lexington Avenue and the surrounding blocks feature Puerto Rican and Latin American cuisine, with a growing number of contemporary eateries and bakeries."
     },
     {
       "slug": "roosevelt-island",
@@ -6816,7 +7705,29 @@
         "south": 40.75,
         "east": -73.938,
         "west": -73.953
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "F"
+        ],
+        "majorStations": [
+          "Roosevelt Island (F)",
+          "Roosevelt Island Tramway (to 59th Street/Lexington)"
+        ]
+      },
+      "localVibe": "A narrow, car-limited island in the East River with modernist residential towers, a waterfront promenade, and views of both the Manhattan and Queens skylines.",
+      "notableStreets": [
+        "Main Street",
+        "West Road",
+        "East Road"
+      ],
+      "parkAndGreen": [
+        "Franklin D. Roosevelt Four Freedoms State Park",
+        "Southpoint Park",
+        "Lighthouse Park",
+        "Octagon Park"
+      ],
+      "diningScene": "A small collection of cafes and restaurants along Main Street, with most residents accessing Manhattan and Queens dining via the F train or aerial tramway."
     },
     {
       "slug": "yorkville",
@@ -7063,7 +7974,33 @@
         "south": 40.781,
         "east": -73.943,
         "west": -73.958
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "5",
+          "6",
+          "Q"
+        ],
+        "majorStations": [
+          "86th Street (4/5/6/Q)",
+          "96th Street (6/Q)"
+        ]
+      },
+      "localVibe": "A residential section of the Upper East Side between Lexington Avenue and the East River, with a mix of pre-war walk-ups, post-war towers, and newer condo developments.",
+      "notableStreets": [
+        "Second Avenue",
+        "First Avenue",
+        "York Avenue",
+        "East 86th Street"
+      ],
+      "parkAndGreen": [
+        "Carl Schurz Park",
+        "John Jay Park",
+        "Asphalt Green",
+        "East River Esplanade"
+      ],
+      "diningScene": "Second Avenue is the main dining strip, with a mix of German-heritage restaurants, neighborhood pubs, sushi bars, and contemporary cafes."
     },
     {
       "slug": "two-bridges",
@@ -7309,7 +8246,33 @@
         "south": 40.705,
         "east": -73.977,
         "west": -73.992
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "F",
+          "J",
+          "Z"
+        ],
+        "majorStations": [
+          "East Broadway (F)",
+          "Fulton Street (J/Z/2/3/4/5)"
+        ]
+      },
+      "localVibe": "A waterfront district between the Brooklyn Bridge and Manhattan Bridge, featuring a mix of public housing towers, tenement walk-ups, and new-construction high-rises along the East River.",
+      "notableStreets": [
+        "Cherry Street",
+        "Monroe Street",
+        "Madison Street",
+        "Pike Street",
+        "Market Street"
+      ],
+      "parkAndGreen": [
+        "Cherry Clinton Playground",
+        "Corlears Hook Park",
+        "East River Park (nearby)",
+        "Rutgers Slip Park"
+      ],
+      "diningScene": "A mix of traditional Chinese bakeries and seafood restaurants alongside newer cafes, with proximity to the dining options of Chinatown and the Lower East Side."
     }
   ]
 }

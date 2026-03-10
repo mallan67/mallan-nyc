@@ -1,6 +1,7 @@
 'use client';
 
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
+import { useFavoriteEmailPrompt } from './FavoriteEmailProvider';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 
 interface FavoriteButtonProps {
@@ -10,7 +11,8 @@ interface FavoriteButtonProps {
 }
 
 export default function FavoriteButton({ listing, size = 'sm', className = '' }: FavoriteButtonProps) {
-  const { isFavorite, toggleFavorite, loaded } = useFavorites();
+  const { favorites, isFavorite, toggleFavorite, loaded } = useFavorites();
+  const { notifyFavoriteAdded } = useFavoriteEmailPrompt();
 
   if (!loaded) return null;
 
@@ -38,6 +40,14 @@ export default function FavoriteButton({ listing, size = 'sm', className = '' }:
         e.preventDefault();
         e.stopPropagation();
         toggleFavorite(entry);
+        // Notify provider when adding (not removing)
+        if (!active) {
+          const allFavs = [...favorites, entry];
+          notifyFavoriteAdded(
+            allFavs.length,
+            allFavs.map(f => ({ id: f.id, listingType: f.listingType }))
+          );
+        }
       }}
       className={`${padding} rounded-full transition-all ${
         active

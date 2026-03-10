@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
 
 interface InvestorCalculatorProps {
   purchasePrice: number;
@@ -414,6 +415,12 @@ export default function InvestorCalculator({
             *Estimates only. Assumes 4% closing costs, 6% selling costs, 3% annual rent growth, 2% expense growth.
             Consult a financial advisor and tax professional for investment decisions.
           </p>
+
+          <CalculatorLeadCapture
+            calculatorType="investor"
+            hasCalculated={isExpanded}
+            resultsSummary={`Price: $${purchasePrice.toLocaleString()}. Cap rate: ${calculations.capRate}%. Cash on cash: ${calculations.cashOnCash}%. Monthly cash flow: $${calculations.monthlyCashFlow.toLocaleString()}.`}
+          />
         </div>
       )}
     </div>

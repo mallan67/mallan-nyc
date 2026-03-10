@@ -344,20 +344,25 @@ model Showing {
 // SAVED SEARCH — Persisted search criteria
 // ═══════════════════════════════════════════════════════════
 model SavedSearch {
-  id           BigInt    @id @default(autoincrement())
-  lead_id      BigInt?   @map("lead_id")
-  lead         Lead?     @relation(fields: [lead_id], references: [id])
-  agent_id     BigInt?   @map("agent_id")
-  agent        Agent?    @relation(fields: [agent_id], references: [id])
-  name         String
-  criteria     Json      // { type, minPrice, maxPrice, beds, neighborhoods, ... }
-  last_run     DateTime? @map("last_run")
-  result_count Int?      @map("result_count")
-  created_at   DateTime  @default(now()) @map("created_at")
-  updated_at   DateTime  @updatedAt @map("updated_at")
+  id              BigInt    @id @default(autoincrement())
+  lead_id         BigInt?   @map("lead_id")
+  lead            Lead?     @relation(fields: [lead_id], references: [id])
+  agent_id        BigInt?   @map("agent_id")
+  agent           Agent?    @relation(fields: [agent_id], references: [id])
+  name            String
+  criteria        Json      // { type, minPrice, maxPrice, beds, neighborhoods, ... }
+  last_run        DateTime? @map("last_run")
+  result_count    Int?      @map("result_count")
+  alert_frequency String?   @map("alert_frequency") // 'daily' | 'weekly' | null (disabled)
+  alert_enabled   Boolean   @default(false) @map("alert_enabled")
+  last_alert_sent DateTime? @map("last_alert_sent")
+  alert_email     String?   @map("alert_email") // Override email; if null, uses lead/agent email
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
 
   @@index([lead_id])
   @@index([agent_id])
+  @@index([alert_enabled, alert_frequency])
   @@map("saved_searches")
 }
 

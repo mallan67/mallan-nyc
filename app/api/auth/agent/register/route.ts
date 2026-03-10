@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate temporary password
-    const tempPassword = `Mallan-${Date.now().toString(36)}`;
+    const crypto = await import('crypto');
+    const tempPassword = `Mallan-${crypto.randomBytes(12).toString('hex')}`;
     const hash = await hashPassword(tempPassword);
 
     const agent = await prisma.agent.create({

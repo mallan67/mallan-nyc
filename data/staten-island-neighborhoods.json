@@ -234,7 +234,31 @@
         "south": 40.635,
         "east": -74.07,
         "west": -74.09
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "SIR"
+        ],
+        "majorStations": [
+          "St. George SIR Terminal",
+          "Staten Island Ferry Terminal (to Whitehall, Manhattan)"
+        ]
+      },
+      "localVibe": "Staten Island's civic center at the ferry terminal, with Victorian-era hillside homes offering harbor views and a waterfront esplanade lined with new mixed-use development.",
+      "notableStreets": [
+        "Bay Street",
+        "Stuyvesant Place",
+        "Richmond Terrace",
+        "Victory Boulevard",
+        "St. Marks Place"
+      ],
+      "parkAndGreen": [
+        "St. George Esplanade",
+        "Tompkinsville Park",
+        "Snug Harbor Cultural Center (nearby)",
+        "National Lighthouse Museum grounds"
+      ],
+      "diningScene": "Bay Street and Stuyvesant Place host a growing collection of restaurants, cafes, and bars, with waterfront dining options near the ferry terminal and esplanade."
     },
     {
       "slug": "todt-hill",
@@ -470,7 +494,28 @@
         "south": 40.585,
         "east": -74.1,
         "west": -74.13
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [],
+        "majorStations": [
+          "Bus routes S74, S76, S78 to St. George Ferry Terminal"
+        ]
+      },
+      "localVibe": "Staten Island's highest elevation, a residential enclave of large single-family homes set on wooded lots, with mature landscaping and winding, hilly roads.",
+      "notableStreets": [
+        "Todt Hill Road",
+        "Four Corners Road",
+        "Ocean Terrace",
+        "Benedict Road",
+        "Flagg Place"
+      ],
+      "parkAndGreen": [
+        "Reed's Basket Willow Swamp Park",
+        "High Rock Park",
+        "Willowbrook Park (nearby)",
+        "Greenbelt Nature Center (nearby)"
+      ],
+      "diningScene": "Dining options are concentrated along Hylan Boulevard and Victory Boulevard, with Italian-American restaurants and neighborhood eateries accessible by short drive."
     },
     {
       "slug": "great-kills",
@@ -705,7 +750,29 @@
         "south": 40.535,
         "east": -74.13,
         "west": -74.16
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "SIR"
+        ],
+        "majorStations": [
+          "Great Kills SIR station"
+        ]
+      },
+      "localVibe": "A waterfront residential neighborhood of single-family homes and low-rise buildings on the southeastern shore, with access to a harbor marina and the Gateway National Recreation Area.",
+      "notableStreets": [
+        "Hylan Boulevard",
+        "Nelson Avenue",
+        "Hillside Terrace",
+        "Amboy Road"
+      ],
+      "parkAndGreen": [
+        "Great Kills Park (Gateway National Recreation Area)",
+        "Great Kills Harbor",
+        "Wolfe's Pond Park (nearby)",
+        "Blue Heron Park (nearby)"
+      ],
+      "diningScene": "Hylan Boulevard and Nelson Avenue feature Italian-American restaurants, pizza shops, seafood spots, and neighborhood delis."
     },
     {
       "slug": "new-brighton",
@@ -941,7 +1008,30 @@
         "south": 40.63,
         "east": -74.085,
         "west": -74.105
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "SIR"
+        ],
+        "majorStations": [
+          "St. George SIR Terminal (adjacent)"
+        ]
+      },
+      "localVibe": "A hillside neighborhood adjacent to St. George, with Victorian and Colonial Revival houses, views of the Kill Van Kull waterway, and proximity to the Snug Harbor Cultural Center.",
+      "notableStreets": [
+        "Richmond Terrace",
+        "Jersey Street",
+        "Castleton Avenue",
+        "Brighton Avenue",
+        "Henderson Avenue"
+      ],
+      "parkAndGreen": [
+        "Snug Harbor Cultural Center & Botanical Garden",
+        "Silver Lake Park",
+        "Clove Lakes Park (nearby)",
+        "Sailors' Snug Harbor grounds"
+      ],
+      "diningScene": "Richmond Terrace and Castleton Avenue offer a selection of neighborhood restaurants, including Sri Lankan cuisine, Italian-American eateries, and waterfront dining."
     }
   ]
 }

@@ -124,7 +124,7 @@ export default function ContactPage() {
 
   return (
     <>
-      <main id="main-content" className="min-h-screen bg-[#FEFEFE] pt-20">
+      <main className="min-h-screen bg-[#FEFEFE] pt-20">
         {/* Hero */}
         <section className="relative text-white py-20 md:py-28 overflow-hidden">
           <div className="absolute inset-0">

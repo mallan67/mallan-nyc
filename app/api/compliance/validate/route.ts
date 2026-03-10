@@ -12,13 +12,18 @@
  * Output: { valid: boolean, errors: string[], suggestions: string[], enhancedData?: Record }
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { validateListing, getRequiredFields, generatePublicRemarks } from '@/lib/compliance/rebny-validator';
+import { requireAgentOrBroker } from '@/lib/auth/middleware';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // Auth required — only agents/broker can validate listings
+    const authResult = await requireAgentOrBroker(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const body = await request.json();
 
     // Validate request structure
@@ -85,8 +90,12 @@ export async function POST(request: Request) {
  *
  * Returns list of required fields for the given property type
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // Auth required — only agents/broker can access compliance rules
+    const authResult = await requireAgentOrBroker(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { searchParams } = new URL(request.url);
     const propertyType = searchParams.get('propertyType') || 'Residential';
     const commonInterest = searchParams.get('commonInterest') || undefined;

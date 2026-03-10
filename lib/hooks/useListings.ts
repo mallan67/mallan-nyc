@@ -29,6 +29,8 @@ export interface UseListingsParams {
   amenities?: string[];
   openHouse?: boolean;
   openHouseDate?: string;
+  zipCodes?: string;
+  address?: string;
   /** Pre-fetched listings from server (ISR) — skips initial client fetch */
   initialListings?: DisplayListing[];
   initialTotal?: number;
@@ -109,6 +111,8 @@ function buildQueryString(params: UseListingsParams): string {
   if (params.amenities?.length) qs.set('amenities', params.amenities.join(','));
   if (params.openHouse) qs.set('openHouse', 'true');
   if (params.openHouseDate) qs.set('openHouseDate', params.openHouseDate);
+  if (params.zipCodes) qs.set('zipCodes', params.zipCodes);
+  if (params.address) qs.set('address', params.address);
 
   qs.set('limit', String(params.limit || 50));
 
@@ -138,6 +142,8 @@ function hasActiveFilters(params: UseListingsParams): boolean {
     params.amenities?.length ||
     params.openHouse ||
     params.openHouseDate ||
+    params.zipCodes ||
+    params.address ||
     (params.sort && params.sort !== 'newest')
   );
 }
@@ -324,6 +330,8 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     params.amenities?.join(','),
     params.openHouse,
     params.openHouseDate,
+    params.zipCodes,
+    params.address,
     fetchListings,
     hasInitial,
   ]);

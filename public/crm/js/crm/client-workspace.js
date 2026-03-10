@@ -476,7 +476,7 @@
                 statusBadge.textContent = 'Active';
                 statusBadge.classList.remove('hidden');
             }
-            document.getElementById('wsClientSubtitle').innerHTML = c.email + (c.phone ? ' &bull; ' + c.phone : '');
+            document.getElementById('wsClientSubtitle').innerHTML = escapeHtml(c.email) + (c.phone ? ' &bull; ' + escapeHtml(c.phone) : '');
 
             // Deal Stage dropdown
             var stageEl = document.getElementById('wsDealStage');
@@ -1784,7 +1784,7 @@
             var pill = document.createElement('span');
             pill.className = 'inline-flex items-center gap-1 text-xs px-2 py-1 bg-' + color + '-100 text-' + color + '-700 rounded-lg font-medium border border-' + color + '-200';
             pill.dataset.tag = val;
-            pill.innerHTML = val + '<button type="button" onclick="prefRemoveTag(\'' + sectionId + '\',this)" class="text-' + color + '-400 hover:text-red-500 ml-0.5 text-sm leading-none">&times;</button>';
+            pill.innerHTML = escapeHtml(val) + '<button type="button" onclick="prefRemoveTag(\'' + sectionId + '\',this)" class="text-' + color + '-400 hover:text-red-500 ml-0.5 text-sm leading-none">&times;</button>';
             container.appendChild(pill);
             input.value = '';
             input.focus();

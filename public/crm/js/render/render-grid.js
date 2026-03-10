@@ -68,7 +68,7 @@
                             tbodyHTML += '</tr>';
                         } catch(rowErr) {
                             console.error('[Render] Row failed for listing ' + listing.id + ':', rowErr);
-                            tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-2 py-1 text-red-400 text-xs">Error rendering listing ' + (listing.id || '?') + ': ' + rowErr.message + '</td></tr>';
+                            tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-2 py-1 text-red-400 text-xs">Error rendering listing ' + (listing.id || '?') + ': ' + escapeHtml(rowErr.message) + '</td></tr>';
                         }
                     });
                 }
@@ -81,7 +81,7 @@
             } catch(e) {
                 console.error('[Render] Grid view FAILED:', e);
                 var table = document.getElementById('resultsTable');
-                if (table) table.innerHTML = '<tbody><tr><td class="p-4 text-red-500">Render error: ' + e.message + '</td></tr></tbody>';
+                if (table) table.innerHTML = '<tbody><tr><td class="p-4 text-red-500">Render error: ' + escapeHtml(e.message) + '</td></tr></tbody>';
             }
         }
 

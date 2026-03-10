@@ -5,6 +5,7 @@ import ExclusivesVault from './components/ExclusivesVault';
 import ZillowTestimonials from './components/ZillowTestimonials';
 import AboutSection from './components/AboutSection';
 import ValueProposition from './components/ValueProposition';
+import NewsletterSignup from './components/NewsletterSignup';
 import CTASection from './components/CTASection';
 import TrustMarkers from './components/TrustMarkers';
 import SocialShareBar from './components/SocialShareBar';
@@ -17,7 +18,7 @@ export default function HomePage() {
   return (
     <SidePanelProvider>
       <div className="min-h-screen bg-[#FEFEFE] font-sans">
-        <main id="main-content" role="main" tabIndex={-1}>
+        <main role="main" tabIndex={-1}>
           <HeroSearch />
           <FeaturedListings />
           <ExploreNeighborhoods />
@@ -25,6 +26,7 @@ export default function HomePage() {
           <ZillowTestimonials />
           <AboutSection />
           <ValueProposition />
+          <NewsletterSignup />
           <CTASection />
           <TrustMarkers />
         </main>
