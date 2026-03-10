@@ -440,26 +440,26 @@ function SearchClient() {
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[#FEFEFE]">
       {/* ── Search Toolbar ── */}
-      <div ref={toolbarRef} className="flex-shrink-0 bg-white/95 backdrop-blur-xl border-b border-black/5 z-40">
-        <div className="max-w-[1920px] mx-auto px-4 py-2">
+      <div ref={toolbarRef} className="flex-shrink-0 bg-white border-b border-black/8 z-40">
+        <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-3">
           {/* Row 1: Tabs + Search */}
-          <div className="flex items-center gap-3">
-            <div className="flex gap-0.5 bg-gray-100/60 rounded-xl p-0.5 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1 flex-shrink-0">
               {(Object.entries(TAB_CONFIG) as [SearchTab, typeof TAB_CONFIG[SearchTab]][]).map(([tab, config]) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className={`px-3.5 py-2 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                  className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
                     activeTab === tab
                       ? 'bg-white text-brand-dark shadow-sm'
-                      : 'text-brand-dark/70 hover:text-brand-dark'
+                      : 'text-brand-dark/60 hover:text-brand-dark'
                   }`}
                 >
                   {config.label}
                 </button>
               ))}
             </div>
-            <div className="w-64 flex-shrink-0">
+            <div className="w-80 flex-shrink-0">
               <SearchAutocomplete
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -470,8 +470,8 @@ function SearchClient() {
           </div>
 
           {/* Row 2: Price + Filters + Views + Sort + Count */}
-          <div className="flex items-center gap-2 mt-1.5">
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-1.5">
               {(() => {
                 const presets = isRental ? RENT_PRICE_PRESETS : PRICE_PRESETS;
                 return (
@@ -482,7 +482,7 @@ function SearchClient() {
                         const val = e.target.value;
                         setFilters(prev => ({ ...prev, minPrice: val ? Number(val) : undefined }));
                       }}
-                      className="w-24 rounded-lg px-2 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                      className="w-28 rounded-lg px-3 py-2 bg-white ring-1 ring-black/10 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
                       aria-label="Minimum price"
                     >
                       <option value="">Min Price</option>
@@ -490,14 +490,14 @@ function SearchClient() {
                         <option key={`min-${p.value}`} value={p.value}>{p.label}</option>
                       ))}
                     </select>
-                    <span className="text-brand-dark/40 text-xs">&ndash;</span>
+                    <span className="text-brand-dark/40 text-sm">&ndash;</span>
                     <select
                       value={filters.maxPrice?.toString() || ''}
                       onChange={(e) => {
                         const val = e.target.value;
                         setFilters(prev => ({ ...prev, maxPrice: val ? Number(val) : undefined }));
                       }}
-                      className="w-24 rounded-lg px-2 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                      className="w-28 rounded-lg px-3 py-2 bg-white ring-1 ring-black/10 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
                       aria-label="Maximum price"
                     >
                       <option value="">No Max</option>
@@ -512,32 +512,32 @@ function SearchClient() {
 
             <button
               onClick={() => setShowFilters(true)}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-medium ring-1 ring-black/5 bg-white/60 text-brand-dark/95 hover:bg-white transition-colors flex items-center gap-1 flex-shrink-0"
+              className="rounded-lg px-3.5 py-2 text-sm font-medium ring-1 ring-black/10 bg-white text-brand-dark hover:bg-gray-50 transition-colors flex items-center gap-1.5 flex-shrink-0"
               aria-label="Open filters"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               Filters
               {filterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-brand-gold text-white text-[10px] flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-brand-gold text-white text-xs flex items-center justify-center font-semibold">
                   {filterCount}
                 </span>
               )}
             </button>
 
-            <div className="hidden lg:flex bg-gray-100/60 rounded-lg p-0.5 gap-0.5">
+            <div className="hidden lg:flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
               {(['split', 'all-listings', 'all-map', 'grid', 'list'] as ViewMode[]).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
-                  className={`p-1.5 rounded transition-colors ${
+                  className={`p-2 rounded transition-colors ${
                     viewMode === mode ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark/70'
                   }`}
                   aria-label={`${mode} view`}
                   title={mode === 'split' ? 'Split' : mode === 'all-listings' ? 'All Listings' : mode === 'all-map' ? 'Full Map' : mode === 'grid' ? 'Grid' : 'List'}
                 >
-                  <ViewIcon mode={mode} />
+                  <ViewIcon mode={mode} size={18} />
                 </button>
               ))}
             </div>
@@ -545,7 +545,7 @@ function SearchClient() {
             <select
               value={filters.sort || 'price-desc'}
               onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="rounded-lg px-2.5 py-1.5 bg-white/60 ring-1 ring-black/5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+              className="rounded-lg px-3 py-2 bg-white ring-1 ring-black/10 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
               aria-label="Sort order"
             >
               <option value="price-desc">Price: High → Low</option>
@@ -566,12 +566,12 @@ function SearchClient() {
             />
 
             {/* Count */}
-            <p className="text-[11px] text-brand-dark/60 ml-auto whitespace-nowrap" aria-live="polite">
+            <p className="text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium" aria-live="polite">
               {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
             </p>
 
             {activeFilterPills.length > 0 && (
-              <button onClick={clearFilters} className="text-[10px] text-brand-dark/50 hover:text-brand-dark underline whitespace-nowrap">
+              <button onClick={clearFilters} className="text-xs text-brand-dark/60 hover:text-brand-dark underline whitespace-nowrap font-medium">
                 Clear
               </button>
             )}
