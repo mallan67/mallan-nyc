@@ -154,10 +154,10 @@ export async function GET(request: NextRequest) {
 
     try {
       const token = await getAccessToken();
-      // Use decomposed address fields — Trestle stores StreetDirPrefix, StreetName, StreetSuffix separately
-      const dirFilter = parsedDirPrefix ? ` and StreetDirPrefix eq '${parsedDirPrefix}'` : '';
+      // Building query: StreetNumber + PostalCode is usually unique enough for a building.
+      // Adding StreetName contains as refinement (but NOT dir prefix — Trestle stores it inconsistently).
       const zipFilter = cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : '';
-      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetName}')${dirFilter}${zipFilter}`;
+      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetName}')${zipFilter}`;
 
       // Active listings
       const activeParams = new URLSearchParams({
