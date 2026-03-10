@@ -316,6 +316,8 @@ export default function middleware(req: NextRequest) {
     pathname.startsWith("/admin") ||
     pathname.startsWith("/crm") ||
     pathname === "/login" ||
+    pathname === "/sign-in" ||
+    pathname === "/sign-up" ||
     pathname.startsWith("/leads");
   const isPrivateApi =
     pathname.startsWith("/api/crm") ||
