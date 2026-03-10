@@ -54,15 +54,28 @@ The backend CRM supports 6 portal types, each with different access levels:
 > **Live production site at mallan.nyc (Vercel, Next.js 16.1.6)**
 >
 > **Components:**
-> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about)
+> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles)
 > - **Backend CRM** — `public/crm/` (static HTML files served same-origin on Vercel)
-> - **API layer** — `app/api/` (45+ endpoints: auth, CRM, portal, IDX, media)
-> - **Database** — PostgreSQL on Neon (Prisma ORM)
-> - **Media** — Trestle photos via server-side proxy + Cloudflare R2 for agent uploads
+> - **API layer** — `app/api/` (169 route files, 221 HTTP handlers: auth, CRM, portal, IDX, media, AI, compliance, cron)
+> - **Database** — PostgreSQL on Neon (Prisma ORM, 42 models)
+> - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
+> - **Cron** — 10 scheduled jobs via `vercel.json` (DOM reset, sync, analytics, scoring, market snapshots)
 >
-> **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Bearer fully removed.
+> **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure, 24hr TTL with auto-rotation). Bearer fully removed.
 >
-> **Media proxy:** Trestle media URLs require Bearer auth. `/api/media/proxy` fetches server-side, CDN-cached 7 days.
+> **Media pipeline:** Trestle photos/floor plans cached to R2 during ISR. `/api/media/proxy` as fallback (Bearer auth server-side, 7-day CDN cache).
+>
+> **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance.
+>
+> **Commission system:** `CommissionPayment` model with fail-closed split validation. `FinancialLedger` for immutable transaction logging with tamper-detection hash chain.
+>
+> **CRM analytics (14 systems):** Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
+>
+> **Compliance libraries (server-side):**
+> - RLS Enforcement Gate (`lib/compliance/rls-enforcement.ts`) — 19 mandatory fields, 6 distribution gates, Fair Housing scanning
+> - DOM Tracker (`lib/compliance/dom-tracker.ts`) — UCBA 2026 days-on-market with 30-day reset
+> - Portal DTO sanitizer (`lib/compliance/dto.ts`) — public/portal/CRM tiers with agent PII masking
+> - REBNY Validator (`lib/rls-validator/`) — CI-gateable, 10-section validation, 4-layer field resolution
 >
 > **Do NOT:**
 > - Confuse the public frontend with the backend CRM — they are different products for different users
@@ -149,6 +162,9 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `MALLAN-NYC-CRM-PROJECT.md` | Master project document |
 | `CRM-ENHANCEMENT-SPEC.md` | Detailed enhancement specifications |
 | `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) |
+| `prisma/schema.prisma` | Database schema — 42 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, FinancialLedger, AuditEvent, etc.) |
+| `lib/compliance/` | Server-side compliance: RLS enforcement gate, DOM tracker, portal DTO sanitizer |
+| `lib/rls-validator/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
 | `data/rebny-rls-property-fields.csv` | All 448 REBNY RLS property fields |
 | `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
 | `data/UCBA-2026-Requirements.md` | UCBA 2026 rules extracted (56 pages) — all compliance requirements |
@@ -224,9 +240,25 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 ---
 
+## Data Retention Policies (NY SHIELD Act + REBNY)
+
+| Data Category | Retention Period | Policy |
+|---------------|-----------------|--------|
+| Listing data & agreements | 6 years | Required by NY DOS |
+| Transaction records & commissions | 6 years | Required by NY DOS / IRS |
+| Audit event logs | 2 years | REBNY RLS compliance |
+| Trestle/IDX access logs | 12 months | REBNY RLS requirement |
+| Lead PII (inactive) | 3 years then archive | NY SHIELD Act |
+| Session tokens | 24 hours | Auto-expiring, httpOnly cookies |
+| Closed listing display | Remove within 24 hours | REBNY RLS Sec. 2.05 |
+
+**Consent:** All lead-capture endpoints record `consent_captured_at` (TCPA/CAN-SPAM). No autoresponders on contact form (TCPA safe). Search alerts and marketing emails require explicit opt-in.
+
 ## GitHub & Vercel
 
 All deployments and CI/CD workflows must maintain compliance with the above standards.
+
+**Cron jobs (vercel.json):** 10 scheduled tasks — DOM reset (daily), listing sync, demand index (daily 10am), buyer intent (daily 11am), agent performance (weekly Mon), market snapshots (monthly 1st), lead scoring (daily 1pm), search alert emails, closed listing cleanup, cache warming.
 
 ---
 

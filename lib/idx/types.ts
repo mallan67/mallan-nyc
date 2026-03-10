@@ -106,6 +106,7 @@ export interface IDXListing {
   appliances?: string;
   laundryFeatures?: string;
   securityFeatures?: string;
+  attendanceType?: string;
   accessibilityFeatures?: string;
   communityFeatures?: string;
   associationAmenities?: string;
