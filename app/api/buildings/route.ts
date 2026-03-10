@@ -45,10 +45,109 @@ interface TrestleRecord {
   [key: string]: unknown;
 }
 
+/** Common $select fields for building queries */
+const BUILDING_SELECT = [
+  'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'ClosePrice',
+  'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
+  'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus', 'MlsStatus',
+  'ListOfficeName', 'BuildingName', 'YearBuilt', 'StoriesTotal',
+  'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
+  'ParkingFeatures', 'PetsAllowed', 'CloseDate',
+  'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
+  'OwnerOptOut', 'ParticipantOnlyYN',
+].join(',');
+
+/** Extract building-level info from a set of Trestle records */
+function extractBuildingInfo(records: TrestleRecord[]) {
+  const info = {
+    buildingName: null as string | null,
+    yearBuilt: null as number | null,
+    storiesTotal: null as number | null,
+    buildingFeatures: [] as string[],
+    securityFeatures: [] as string[],
+    exteriorFeatures: [] as string[],
+    parkingFeatures: [] as string[],
+    petsAllowed: [] as string[],
+  };
+  for (const r of records) {
+    if (!info.buildingName && r.BuildingName) info.buildingName = String(r.BuildingName);
+    if (!info.yearBuilt && r.YearBuilt) info.yearBuilt = Number(r.YearBuilt);
+    if (!info.storiesTotal && r.StoriesTotal) info.storiesTotal = Number(r.StoriesTotal);
+    if (info.buildingFeatures.length === 0 && r.BuildingFeatures) info.buildingFeatures = parseList(String(r.BuildingFeatures));
+    if (info.securityFeatures.length === 0 && r.SecurityFeatures) info.securityFeatures = parseList(String(r.SecurityFeatures));
+    if (info.exteriorFeatures.length === 0 && r.ExteriorFeatures) info.exteriorFeatures = parseList(String(r.ExteriorFeatures));
+    if (info.parkingFeatures.length === 0 && r.ParkingFeatures) info.parkingFeatures = parseList(String(r.ParkingFeatures));
+    if (info.petsAllowed.length === 0 && r.PetsAllowed) info.petsAllowed = parseList(String(r.PetsAllowed));
+  }
+  return info;
+}
+
+/** Format amenities from raw building info into display-ready labels */
+function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
+  const FEATURE_LABELS: Record<string, string> = {
+    Concierge: 'Concierge',
+    Elevators: 'Elevator',
+    HealthClub: 'Gym',
+    FitnessCenter: 'Gym',
+    YogaStudio: 'Yoga Studio',
+    IndoorPool: 'Pool',
+    CommonPlayroom: "Children's Room",
+    GameRoom: 'Recreation Room',
+    ScreeningRoom: 'Screening Room',
+    Sauna: 'Sauna',
+    SteamRoom: 'Steam Room',
+    KitchenFacilities: 'Kitchen Facilities',
+    PackageRoom: 'Package Room',
+    GreenBuilding: 'Green Building',
+    ColdStorage: 'Cold Storage',
+    SecurityGuard: 'Doorman',
+    SecurityGate: 'Security Gate',
+    BuildingRoofDeck: 'Roof Deck',
+    BuildingGarden: 'Garden',
+    BuildingCourtyard: 'Courtyard',
+  };
+  const EXCLUDE = new Set(['Storage', 'BikeStorage', 'BicycleStorage', 'None']);
+
+  const amenitySet = new Set<string>();
+  for (const f of buildingInfo.buildingFeatures) {
+    if (EXCLUDE.has(f)) continue;
+    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+  }
+  for (const f of buildingInfo.securityFeatures) {
+    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+  }
+  for (const f of buildingInfo.exteriorFeatures) {
+    if (f.startsWith('Building')) {
+      amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+    }
+  }
+  if (buildingInfo.parkingFeatures.some((f) => f === 'Garage')) {
+    amenitySet.add('Garage');
+  }
+
+  const petPolicy = buildingInfo.petsAllowed
+    .map((v) => {
+      const lower = v.toLowerCase();
+      if (lower.includes('cat')) return 'Cats Ok';
+      if (lower.includes('dog')) return 'Dogs Ok';
+      if (lower === 'no') return 'No Pets';
+      return formatFeatureLabel(v);
+    })
+    .filter((v) => v.length > 0);
+
+  return { amenities: [...amenitySet].sort(), petPolicy };
+}
+
 /**
- * GET /api/buildings?streetNumber=301&streetName=E+62ND+Street&postalCode=10065
+ * GET /api/buildings?streetNumber=157&streetName=W+57th+Street&postalCode=10019&buildingName=One57
  *
- * Returns building-level data: info, active listings, closed sales, aggregate stats.
+ * Returns building-level data: info, active listings (sale + rental), closed sales, aggregate stats.
+ *
+ * Strategy:
+ * 1. Query Trestle for ALL statuses at address (not just Active/Closed) to get building info
+ * 2. Separate into active/available vs closed for display
+ * 3. If initial query returns 0, retry without postal code (fallback)
+ * 4. Track gated records count for VOW login prompt
  *
  * COMPLIANCE:
  * - Distribution gates enforced (IDXEntireListingDisplayYN, OwnerOptOut)
@@ -84,20 +183,16 @@ export async function GET(request: NextRequest) {
     const SUFFIXES = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?$/i;
     let coreStreetName = cleanStreetName;
     const dirMatch = coreStreetName.match(DIR_PREFIXES);
+    const dirPrefix = dirMatch ? dirMatch[1].toUpperCase().charAt(0) : null; // "W", "E", "N", "S"
     if (dirMatch) coreStreetName = coreStreetName.replace(DIR_PREFIXES, '');
     coreStreetName = coreStreetName.replace(SUFFIXES, '').trim();
     // Trestle stores street names in UPPERCASE — OData contains() is case-sensitive
     const coreStreetNameUpper = coreStreetName.toUpperCase();
 
     // ── 1. Query DB for all listings at this address ──
-    // Active + Closed listings, respecting distribution gates
-
-    // Build address JSON match conditions
     const addressConditions: Record<string, unknown>[] = [
       { path: ['StreetNumber'], equals: cleanStreetNumber },
     ];
-
-    // PostalCode for precision
     if (cleanPostalCode) {
       addressConditions.push({ path: ['PostalCode'], equals: cleanPostalCode });
     }
@@ -113,7 +208,6 @@ export async function GET(request: NextRequest) {
             address: { ...cond },
           })),
           {
-            // Match on StreetName key in the address JSON (Trestle stores uppercase)
             address: {
               path: ['StreetName'],
               string_contains: coreStreetNameUpper,
@@ -125,135 +219,123 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
 
-    // Separate active vs closed
     const activeStatuses = new Set(['Active', 'ActiveUnderContract', 'Coming Soon']);
     const closedStatuses = new Set(['Closed']);
-
     const activeListings = dbListings.filter((l) => activeStatuses.has(l.status));
     const closedListings = dbListings.filter((l) => closedStatuses.has(l.status));
 
-    // ── 2. Also fetch from Trestle for fresh/additional data ──
-    let trestleActive: TrestleRecord[] = [];
-    let trestleClosed: TrestleRecord[] = [];
-    let buildingInfo: {
-      buildingName: string | null;
-      yearBuilt: number | null;
-      storiesTotal: number | null;
-      buildingFeatures: string[];
-      securityFeatures: string[];
-      exteriorFeatures: string[];
-      parkingFeatures: string[];
-      petsAllowed: string[];
-    } = {
-      buildingName: null,
-      yearBuilt: null,
-      storiesTotal: null,
-      buildingFeatures: [],
-      securityFeatures: [],
-      exteriorFeatures: [],
-      parkingFeatures: [],
-      petsAllowed: [],
-    };
+    // ── 2. Fetch from Trestle — ALL records at this address ──
+    // Single broad query: no status filter, get everything, then separate
+    let allTrestleRecords: TrestleRecord[] = [];
+    let gatedRecordsCount = 0; // Records that exist but are gated (VOW prompt)
 
     try {
       const token = await getAccessToken();
-      // Building query: StreetNumber + PostalCode is usually unique enough for a building.
-      // Adding StreetName contains as refinement (but NOT dir prefix — Trestle stores it inconsistently).
       const zipFilter = cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : '';
-      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${zipFilter}`;
+      // Add direction prefix to filter if available (reduces false positives)
+      const dirFilter = dirPrefix ? ` and StreetDirPrefix eq '${dirPrefix}'` : '';
+      const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${dirFilter}${zipFilter}`;
 
-      // Active listings
-      const activeParams = new URLSearchParams({
-        $filter: `${addressFilter} and MlsStatus eq 'Active'`,
-        $select: [
-          'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice',
-          'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
-          'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus',
-          'ListOfficeName', 'BuildingName', 'YearBuilt', 'StoriesTotal',
-          'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
-          'ParkingFeatures', 'PetsAllowed',
-          'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
-          'OwnerOptOut', 'ParticipantOnlyYN',
-        ].join(','),
+      const allParams = new URLSearchParams({
+        $filter: addressFilter,
+        $select: BUILDING_SELECT,
         $orderby: 'ListPrice desc',
-        $top: '30',
+        $top: '60',
       });
 
-      // Closed sales
-      const closedParams = new URLSearchParams({
-        $filter: `${addressFilter} and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`,
-        $select: [
-          'ListingId', 'ListingKey', 'SourceSystemKey', 'ClosePrice', 'ListPrice',
-          'BedroomsTotal', 'BathroomsFull', 'LivingArea', 'UnitNumber',
-          'CloseDate', 'PropertySubType', 'PropertyType', 'ListOfficeName',
-          'BuildingName', 'YearBuilt', 'StoriesTotal',
-          'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
-          'ParkingFeatures', 'PetsAllowed',
-          'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
-          'OwnerOptOut', 'ParticipantOnlyYN',
-        ].join(','),
-        $orderby: 'CloseDate desc',
-        $top: '30',
+      let allRes = await fetch(`${TRESTLE_URL}/odata/Property?${allParams}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        next: { revalidate: 3600 },
       });
 
-      const [activeRes, closedRes] = await Promise.all([
-        fetch(`${TRESTLE_URL}/odata/Property?${activeParams}`, {
+      // If direction prefix caused 0 results, retry without it
+      if (allRes.ok) {
+        const data = await allRes.json();
+        const rawRecords: TrestleRecord[] = data.value || [];
+
+        if (rawRecords.length === 0 && dirPrefix) {
+          // Fallback: drop direction prefix
+          const fallbackFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${zipFilter}`;
+          const fallbackParams = new URLSearchParams({
+            $filter: fallbackFilter,
+            $select: BUILDING_SELECT,
+            $orderby: 'ListPrice desc',
+            $top: '60',
+          });
+          const fallbackRes = await fetch(`${TRESTLE_URL}/odata/Property?${fallbackParams}`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+            next: { revalidate: 3600 },
+          });
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            allTrestleRecords = fallbackData.value || [];
+          }
+        } else {
+          allTrestleRecords = rawRecords;
+        }
+
+        // If STILL 0 results and we have a postal code, try without it
+        if (allTrestleRecords.length === 0 && cleanPostalCode) {
+          const noZipFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')`;
+          const noZipParams = new URLSearchParams({
+            $filter: noZipFilter,
+            $select: BUILDING_SELECT,
+            $orderby: 'ListPrice desc',
+            $top: '60',
+          });
+          const noZipRes = await fetch(`${TRESTLE_URL}/odata/Property?${noZipParams}`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+            next: { revalidate: 3600 },
+          });
+          if (noZipRes.ok) {
+            const noZipData = await noZipRes.json();
+            allTrestleRecords = noZipData.value || [];
+          }
+        }
+      } else if (allRes.status === 400) {
+        // OData filter error — try simpler filter without direction
+        const simpleFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')`;
+        const simpleParams = new URLSearchParams({
+          $filter: simpleFilter,
+          $select: BUILDING_SELECT,
+          $orderby: 'ListPrice desc',
+          $top: '60',
+        });
+        allRes = await fetch(`${TRESTLE_URL}/odata/Property?${simpleParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 3600 },
-        }),
-        fetch(`${TRESTLE_URL}/odata/Property?${closedParams}`, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-          next: { revalidate: 3600 },
-        }),
-      ]);
-
-      if (activeRes.ok) {
-        const data = await activeRes.json();
-        trestleActive = (data.value || []).filter(
-          (r: TrestleRecord) => checkDistributionGates(r as Record<string, unknown>).displayable
-        );
-      }
-      if (closedRes.ok) {
-        const data = await closedRes.json();
-        trestleClosed = (data.value || []).filter(
-          (r: TrestleRecord) => checkDistributionGates(r as Record<string, unknown>).displayable
-        );
+        });
+        if (allRes.ok) {
+          const data = await allRes.json();
+          allTrestleRecords = data.value || [];
+        }
       }
 
-      // Extract building info from first available record
-      const allRecords = [...trestleActive, ...trestleClosed];
-      for (const r of allRecords) {
-        if (!buildingInfo.buildingName && r.BuildingName) {
-          buildingInfo.buildingName = String(r.BuildingName);
-        }
-        if (!buildingInfo.yearBuilt && r.YearBuilt) {
-          buildingInfo.yearBuilt = Number(r.YearBuilt);
-        }
-        if (!buildingInfo.storiesTotal && r.StoriesTotal) {
-          buildingInfo.storiesTotal = Number(r.StoriesTotal);
-        }
-        if (buildingInfo.buildingFeatures.length === 0 && r.BuildingFeatures) {
-          buildingInfo.buildingFeatures = parseList(String(r.BuildingFeatures));
-        }
-        if (buildingInfo.securityFeatures.length === 0 && r.SecurityFeatures) {
-          buildingInfo.securityFeatures = parseList(String(r.SecurityFeatures));
-        }
-        if (buildingInfo.exteriorFeatures.length === 0 && r.ExteriorFeatures) {
-          buildingInfo.exteriorFeatures = parseList(String(r.ExteriorFeatures));
-        }
-        if (buildingInfo.parkingFeatures.length === 0 && r.ParkingFeatures) {
-          buildingInfo.parkingFeatures = parseList(String(r.ParkingFeatures));
-        }
-        if (buildingInfo.petsAllowed.length === 0 && r.PetsAllowed) {
-          buildingInfo.petsAllowed = parseList(String(r.PetsAllowed));
-        }
-      }
+      // Count gated records before filtering
+      const totalBeforeGates = allTrestleRecords.length;
+      const displayable = allTrestleRecords.filter(
+        (r) => checkDistributionGates(r as Record<string, unknown>).displayable
+      );
+      gatedRecordsCount = totalBeforeGates - displayable.length;
+      allTrestleRecords = displayable;
     } catch (trestleErr) {
       console.warn('[/api/buildings] Trestle fetch error:', trestleErr);
-      // Continue with DB data only
     }
 
-    // ── 3. Merge DB + Trestle active units (dedupe by listing ID) ──
+    // Extract building info from ALL records (active, closed, pending — any status)
+    const buildingInfo = extractBuildingInfo(allTrestleRecords);
+
+    // Separate records by status
+    const trestleActive = allTrestleRecords.filter((r) => {
+      const status = String(r.MlsStatus || r.StandardStatus || '');
+      return status === 'Active' || status === 'ActiveUnderContract' || status === 'Coming Soon';
+    });
+    const trestleClosed = allTrestleRecords.filter((r) => {
+      const status = String(r.MlsStatus || r.StandardStatus || '');
+      return status === 'Closed';
+    });
+
+    // ── 3. Merge active units (Trestle + DB) ──
     const seenIds = new Set<string>();
     const activeUnits: Array<{
       id: string;
@@ -267,14 +349,16 @@ export async function GET(request: NextRequest) {
       propertyType: string;
       office: string;
       status: string;
+      listingType: string;
     }> = [];
 
-    // Trestle active first (fresher data)
     for (const r of trestleActive) {
       const id = String(r.ListingKey || r.ListingId);
       const mlsId = String(r.ListingId || '');
       if (seenIds.has(mlsId)) continue;
       seenIds.add(mlsId);
+      const propType = String(r.PropertyType || '').toLowerCase();
+      const listingType = propType.includes('residential lease') || propType.includes('rental') ? 'rent' : 'sale';
       activeUnits.push({
         id,
         mlsId,
@@ -286,11 +370,11 @@ export async function GET(request: NextRequest) {
         unit: String(r.UnitNumber || ''),
         propertyType: String(r.PropertySubType || r.PropertyType || ''),
         office: String(r.ListOfficeName || ''),
-        status: String(r.StandardStatus || 'Active'),
+        status: String(r.StandardStatus || r.MlsStatus || 'Active'),
+        listingType,
       });
     }
 
-    // DB active listings (fill gaps)
     for (const l of activeListings) {
       if (seenIds.has(l.listing_id)) continue;
       seenIds.add(l.listing_id);
@@ -307,16 +391,14 @@ export async function GET(request: NextRequest) {
         propertyType: l.property_sub_type || l.property_type || '',
         office: '',
         status: l.status,
+        listingType: l.listing_type || 'sale',
       });
 
-      // Extract building info from DB if not yet found
+      // Extract building info from DB
       const features = l.features as Record<string, unknown> | null;
-      if (!buildingInfo.buildingName && addr.BuildingName) {
-        buildingInfo.buildingName = String(addr.BuildingName);
-      }
-      if (!buildingInfo.yearBuilt && features?.YearBuilt) {
-        buildingInfo.yearBuilt = Number(features.YearBuilt);
-      }
+      if (!buildingInfo.buildingName && addr.BuildingName) buildingInfo.buildingName = String(addr.BuildingName);
+      if (!buildingInfo.yearBuilt && features?.YearBuilt) buildingInfo.yearBuilt = Number(features.YearBuilt);
+      if (!buildingInfo.storiesTotal && features?.StoriesTotal) buildingInfo.storiesTotal = Number(features.StoriesTotal);
     }
 
     // ── 4. Merge sale history ──
@@ -403,60 +485,7 @@ export async function GET(request: NextRequest) {
       buildingInfo.buildingName = buildingName;
     }
 
-    // Format amenities for display
-    const FEATURE_LABELS: Record<string, string> = {
-      Concierge: 'Concierge',
-      Elevators: 'Elevator',
-      HealthClub: 'Gym',
-      FitnessCenter: 'Gym',
-      YogaStudio: 'Yoga Studio',
-      IndoorPool: 'Pool',
-      CommonPlayroom: "Children's Room",
-      GameRoom: 'Recreation Room',
-      ScreeningRoom: 'Screening Room',
-      Sauna: 'Sauna',
-      SteamRoom: 'Steam Room',
-      KitchenFacilities: 'Kitchen Facilities',
-      PackageRoom: 'Package Room',
-      GreenBuilding: 'Green Building',
-      ColdStorage: 'Cold Storage',
-      SecurityGuard: 'Doorman',
-      SecurityGate: 'Security Gate',
-      BuildingRoofDeck: 'Roof Deck',
-      BuildingGarden: 'Garden',
-      BuildingCourtyard: 'Courtyard',
-    };
-    const EXCLUDE = new Set(['Storage', 'BikeStorage', 'BicycleStorage', 'None']);
-
-    const amenitySet = new Set<string>();
-    for (const f of buildingInfo.buildingFeatures) {
-      if (EXCLUDE.has(f)) continue;
-      amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-    }
-    for (const f of buildingInfo.securityFeatures) {
-      amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-    }
-    for (const f of buildingInfo.exteriorFeatures) {
-      if (f.startsWith('Building')) {
-        amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
-      }
-    }
-    if (buildingInfo.parkingFeatures.some((f) => f === 'Garage')) {
-      amenitySet.add('Garage');
-    }
-
-    const amenities = [...amenitySet].sort();
-
-    // Pet policy
-    const petPolicy = buildingInfo.petsAllowed
-      .map((v) => {
-        const lower = v.toLowerCase();
-        if (lower.includes('cat')) return 'Cats Ok';
-        if (lower.includes('dog')) return 'Dogs Ok';
-        if (lower === 'no') return 'No Pets';
-        return formatFeatureLabel(v);
-      })
-      .filter((v) => v.length > 0);
+    const { amenities, petPolicy } = formatAmenities(buildingInfo);
 
     return NextResponse.json({
       success: true,
@@ -478,6 +507,7 @@ export async function GET(request: NextRequest) {
         avgSqft,
         avgPricePerSqft,
       },
+      gatedRecordsCount,
       _compliance: {
         source: 'idx',
         attribution: 'Based on information from the REBNY Listing Service. Data last updated ' + new Date().toISOString().split('T')[0],
