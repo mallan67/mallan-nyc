@@ -378,9 +378,6 @@ export default async function BuildingPage({ searchParams }: Props) {
                           </svg>
                         </div>
                       )}
-                      <span className="absolute top-2.5 right-2.5 inline-flex items-center px-2.5 py-1 bg-blue-600 text-white text-[11px] font-semibold rounded-full uppercase tracking-wider shadow-sm">
-                        {unit.status}
-                      </span>
                     </div>
 
                     <div className="p-4">
