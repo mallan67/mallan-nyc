@@ -5,9 +5,15 @@ import {
   DOM_RESET_DAYS,
 } from "../dom-tracker";
 
+/**
+ * Create a Date exactly N days ago. Sets hours to 1 hour before
+ * current time to ensure Math.floor(elapsed / MS_PER_DAY) always
+ * rounds to exactly N (avoids sub-millisecond timing flakes).
+ */
 function daysAgo(n: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - n);
+  d.setHours(d.getHours() - 1);
   return d;
 }
 
@@ -93,18 +99,19 @@ describe("computeDomTransition", () => {
   });
 
   it("resumes DOM when reactivating after < 30 days in Withdrawn", () => {
+    const firstActive = daysAgo(50);
     const result = computeDomTransition(
       {
         status: "Withdrawn",
         status_changed_at: daysAgo(10),
-        first_active_date: daysAgo(50),
+        first_active_date: firstActive,
         days_on_market: 40,
       },
       "Active"
     );
     // DOM should resume (not reset) — carries forward existing days_on_market
     expect(result.days_on_market).toBe(40);
-    expect(result.first_active_date).toEqual(daysAgo(50));
+    expect(result.first_active_date).toEqual(firstActive);
   });
 
   it("freezes DOM on Sold", () => {
