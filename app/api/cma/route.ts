@@ -57,10 +57,12 @@ export async function POST(request: NextRequest) {
         roles: ['seller'],
         status: 'new',
         source: 'website',
+        consent_captured_at: new Date(),
       },
       update: {
         // Update phone if provided (lead may have changed number)
         ...(sanitizedPhone ? { phone: sanitizedPhone } : {}),
+        consent_captured_at: new Date(),
         updated_at: new Date(),
       },
     });

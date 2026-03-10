@@ -70,9 +70,11 @@ export async function POST(request: NextRequest) {
         roles: ['buyer'],
         status: 'new',
         source: 'open_house_rsvp',
+        consent_captured_at: new Date(),
       },
       update: {
         phone: sanitizedPhone,
+        consent_captured_at: new Date(),
         updated_at: new Date(),
       },
     });

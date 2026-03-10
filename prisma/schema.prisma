@@ -149,6 +149,7 @@ model Lead {
   agent_id        BigInt?  @map("agent_id")
   agent           Agent?   @relation(fields: [agent_id], references: [id])
   source          String   @default("website") // website, referral, manual
+  consent_captured_at DateTime? @map("consent_captured_at") // TCPA/CAN-SPAM consent timestamp
   preferences     ClientPreference?
   actions         ClientListingAction[]
   showings        Showing[]
@@ -1036,4 +1037,28 @@ model ListingAudit {
   @@index([agent_id])
   @@index([score])
   @@map("listing_audits")
+}
+
+// ═══════════════════════════════════════════════════════════
+// R. FINANCIAL LEDGER — Immutable transaction log
+// ═══════════════════════════════════════════════════════════
+model FinancialLedger {
+  id              BigInt    @id @default(autoincrement())
+  deal_id         BigInt?   @map("deal_id")
+  payment_id      BigInt?   @map("payment_id")
+  entry_type      String    @map("entry_type")  // "commission_received" | "agent_payout" | "company_share" | "referral_fee" | "adjustment" | "void"
+  amount          Decimal   @db.Decimal(14,2)
+  running_balance Decimal?  @db.Decimal(14,2)   @map("running_balance")
+  description     String    @db.Text
+  reference       String?                       // check #, wire ref, etc.
+  recorded_by     BigInt    @map("recorded_by") // agent or broker ID who recorded
+  immutable_hash  String?   @map("immutable_hash") // SHA-256 of previous entry + this entry for tamper detection
+
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@index([deal_id])
+  @@index([payment_id])
+  @@index([entry_type])
+  @@index([created_at])
+  @@map("financial_ledger")
 }

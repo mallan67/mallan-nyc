@@ -65,8 +65,10 @@ export async function POST(request: NextRequest) {
         roles: [role],
         status: 'new',
         source: 'guide_download',
+        consent_captured_at: new Date(),
       },
       update: {
+        consent_captured_at: new Date(),
         updated_at: new Date(),
       },
     });

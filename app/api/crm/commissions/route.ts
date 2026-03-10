@@ -57,6 +57,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "deal_id, payment_type, amount are required" }, { status: 400 });
   }
 
+  const validTypes = ["received", "agent_split", "company_split", "referral", "adjustment"];
+  if (!validTypes.includes(payment_type)) {
+    return NextResponse.json({ ok: false, error: `Invalid payment_type. Must be one of: ${validTypes.join(", ")}` }, { status: 400 });
+  }
+
+  // Fail-closed: validate commission split before recording agent/company payments
+  if (payment_type === "agent_split" || payment_type === "company_split") {
+    const deal = await prisma.deal.findUnique({ where: { id: BigInt(deal_id) } });
+    if (!deal) {
+      return NextResponse.json({ ok: false, error: "Deal not found" }, { status: 404 });
+    }
+    if (!deal.gross_commission_usd || !deal.split_percent) {
+      return NextResponse.json({
+        ok: false,
+        error: "Cannot record split payment: deal is missing gross_commission_usd or split_percent. Complete deal financials first.",
+      }, { status: 422 });
+    }
+
+    // Validate total split payments don't exceed gross commission
+    const existingPayments = await prisma.commissionPayment.findMany({
+      where: { deal_id: BigInt(deal_id), payment_type: { in: ["agent_split", "company_split"] }, status: { not: "void" } },
+    });
+    const existingTotal = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const newTotal = existingTotal + Number(amount);
+    const grossCommission = Number(deal.gross_commission_usd);
+
+    if (newTotal > grossCommission * 1.001) { // 0.1% tolerance for rounding
+      return NextResponse.json({
+        ok: false,
+        error: `Split payments ($${newTotal.toFixed(2)}) would exceed gross commission ($${grossCommission.toFixed(2)})`,
+      }, { status: 422 });
+    }
+  }
+
   const payment = await prisma.commissionPayment.create({
     data: {
       deal_id: BigInt(deal_id),

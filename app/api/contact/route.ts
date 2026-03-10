@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
+    const consentDate = new Date(body.consentTimestamp);
     const lead = await prisma.lead.upsert({
       where: { email },
       create: {
@@ -76,9 +77,11 @@ export async function POST(request: NextRequest) {
         roles: ['buyer'],
         status: 'new',
         source: 'contact_form',
+        consent_captured_at: consentDate,
       },
       update: {
         phone: phone || undefined,
+        consent_captured_at: consentDate,
         updated_at: new Date(),
       },
     });
