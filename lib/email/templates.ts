@@ -3,6 +3,8 @@
 // All templates use inline CSS for email client compatibility.
 // COMPLIANCE: Fair Housing disclaimer + REBNY attribution included.
 
+import { escapeHtml } from "@/lib/sanitize";
+
 const BRAND_GOLD = "#C4A052";
 const BRAND_DARK = "#1a1a1a";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
@@ -66,11 +68,11 @@ export function portalInviteEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">You're Invited</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${clientName},
+      Hi ${escapeHtml(clientName)},
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      ${agentName} at Mallan Real Estate has invited you to access your
-      <strong>${roleLabel} Portal</strong>. From your portal you can view properties,
+      ${escapeHtml(agentName)} at Mallan Real Estate has invited you to access your
+      <strong>${escapeHtml(roleLabel)} Portal</strong>. From your portal you can view properties,
       track showings, and communicate directly with your agent.
     </p>
     <div style="text-align:center;margin:24px 0;">
@@ -96,11 +98,11 @@ export function listingAlertEmail(
   const listingCards = listings.slice(0, 10).map((l) => `
     <tr>
       <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
-        <a href="${l.url}" style="color:${BRAND_DARK};text-decoration:none;font-size:14px;font-weight:600;">
-          ${l.address}
+        <a href="${escapeHtml(l.url)}" style="color:${BRAND_DARK};text-decoration:none;font-size:14px;font-weight:600;">
+          ${escapeHtml(l.address)}
         </a>
         <div style="font-size:13px;color:#6b7280;margin-top:4px;">
-          ${l.price} &middot; ${l.beds} bed &middot; ${l.baths} bath
+          ${escapeHtml(l.price)} &middot; ${l.beds} bed &middot; ${l.baths} bath
         </div>
       </td>
     </tr>
@@ -109,7 +111,7 @@ export function listingAlertEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">New Listings for You</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${clientName}, we found ${listings.length} new listing${listings.length !== 1 ? "s" : ""}
+      Hi ${escapeHtml(clientName)}, we found ${listings.length} new listing${listings.length !== 1 ? "s" : ""}
       matching your search criteria.
     </p>
     <table style="width:100%;border-collapse:collapse;">
@@ -154,19 +156,19 @@ export function showingConfirmEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Showing Confirmed</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${showing.clientName},
+      Hi ${escapeHtml(showing.clientName)},
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
       Your ${typeLabel.toLowerCase()} has been confirmed:
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px;margin:0 0 20px;">
       <table style="width:100%;font-size:14px;color:#374151;">
-        <tr><td style="padding:6px 0;font-weight:600;width:100px;">Property</td><td>${showing.address}</td></tr>
-        <tr><td style="padding:6px 0;font-weight:600;">Date</td><td>${showing.date}</td></tr>
-        <tr><td style="padding:6px 0;font-weight:600;">Time</td><td>${showing.time}</td></tr>
-        <tr><td style="padding:6px 0;font-weight:600;">Type</td><td>${typeLabel}</td></tr>
-        <tr><td style="padding:6px 0;font-weight:600;">Agent</td><td>${showing.agentName}</td></tr>
-        ${showing.notes ? `<tr><td style="padding:6px 0;font-weight:600;">Notes</td><td>${showing.notes}</td></tr>` : ""}
+        <tr><td style="padding:6px 0;font-weight:600;width:100px;">Property</td><td>${escapeHtml(showing.address)}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Date</td><td>${escapeHtml(showing.date)}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Time</td><td>${escapeHtml(showing.time)}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Type</td><td>${escapeHtml(typeLabel)}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Agent</td><td>${escapeHtml(showing.agentName)}</td></tr>
+        ${showing.notes ? `<tr><td style="padding:6px 0;font-weight:600;">Notes</td><td>${escapeHtml(showing.notes)}</td></tr>` : ""}
       </table>
     </div>
     <p style="font-size:13px;color:#9ca3af;margin:0;">
@@ -198,20 +200,20 @@ export function dealStatusEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Deal Status Update</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${deal.agentName},
+      Hi ${escapeHtml(deal.agentName)},
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
-      Your commission request for <strong>${deal.address}</strong> has been updated:
+      Your commission request for <strong>${escapeHtml(deal.address)}</strong> has been updated:
     </p>
     <div style="text-align:center;margin:20px 0;">
       <span style="display:inline-block;padding:8px 20px;background:${statusColor};color:#ffffff;
                    font-size:14px;font-weight:600;border-radius:20px;text-transform:uppercase;">
-        ${deal.newStatus}
+        ${escapeHtml(deal.newStatus)}
       </span>
     </div>
-    ${deal.notes ? `<p style="font-size:14px;color:#374151;background:#f9fafb;padding:12px;border-radius:6px;">${deal.notes}</p>` : ""}
+    ${deal.notes ? `<p style="font-size:14px;color:#374151;background:#f9fafb;padding:12px;border-radius:6px;">${escapeHtml(deal.notes)}</p>` : ""}
     <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;">
-      Deal ID: ${deal.dealId}. Log in to the CRM to view full details.
+      Deal ID: ${escapeHtml(deal.dealId)}. Log in to the CRM to view full details.
     </p>
   `);
 }
@@ -227,10 +229,10 @@ export function inquiryAutoResponseEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Thank You for Your Inquiry</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${clientName || "there"},
+      Hi ${escapeHtml(clientName || "there")},
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      We have received your inquiry${listingAddress ? ` about <strong>${listingAddress}</strong>` : ""} and
+      We have received your inquiry${listingAddress ? ` about <strong>${escapeHtml(listingAddress)}</strong>` : ""} and
       a licensed agent will be in touch within the next business day.
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
@@ -269,16 +271,16 @@ export function openHouseRsvpEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">You're Registered for the Open House</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${clientName || "there"},
+      Hi ${escapeHtml(clientName || "there")},
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
       We look forward to seeing you! Here are your open house details:
     </p>
     <div style="background:#f9fafb;border-radius:8px;padding:20px;margin:0 0 20px;">
       <table style="width:100%;font-size:14px;color:#374151;">
-        <tr><td style="padding:6px 0;font-weight:600;width:100px;">Property</td><td>${address}</td></tr>
-        <tr><td style="padding:6px 0;font-weight:600;">Date</td><td>${date}</td></tr>
-        <tr><td style="padding:6px 0;font-weight:600;">Time</td><td>${time}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;width:100px;">Property</td><td>${escapeHtml(address)}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Date</td><td>${escapeHtml(date)}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Time</td><td>${escapeHtml(time)}</td></tr>
         <tr><td style="padding:6px 0;font-weight:600;">Party Size</td><td>${partySize} ${partySize === 1 ? "guest" : "guests"}</td></tr>
       </table>
     </div>
@@ -319,11 +321,11 @@ export function cmaAutoResponseEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Your Property Valuation Request</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      Hi ${clientName || "there"},
+      Hi ${escapeHtml(clientName || "there")},
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
       Thank you for requesting a Comparative Market Analysis for
-      <strong>${propertyAddress}</strong>. A licensed broker will prepare your
+      <strong>${escapeHtml(propertyAddress)}</strong>. A licensed broker will prepare your
       personalized property valuation and send it within 24 hours.
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
@@ -352,7 +354,7 @@ export function passwordResetEmail(
   return wrapEmail(`
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Reset Your Password</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      ${userName ? `Hi ${userName},` : "Hello,"}
+      ${userName ? `Hi ${escapeHtml(userName)},` : "Hello,"}
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
       We received a request to reset your password. Click the button below to choose a new password:

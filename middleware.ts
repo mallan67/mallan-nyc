@@ -167,7 +167,43 @@ export default function middleware(req: NextRequest) {
     rateLimitMap.set(syncKey, { count: 1, resetAt: now + SYNC_WINDOW_MS });
   }
 
-  // ── 4b. Block CRM development files from public access ──
+  // ── 4b. CSRF protection for state-changing requests ──
+  // Verify Origin/Referer header on POST/PUT/PATCH/DELETE to prevent cross-site forgery.
+  // Exempt: cron jobs (no origin), preflight (OPTIONS already handled above).
+  if (
+    isApi &&
+    ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
+    !pathname.startsWith("/api/cron")
+  ) {
+    const requestOrigin = origin || req.headers.get("referer");
+    if (requestOrigin) {
+      try {
+        const originHost = new URL(requestOrigin).host;
+        const expectedHost = req.headers.get("host") || "";
+        if (originHost !== expectedHost && !isAllowedOrigin(origin)) {
+          return NextResponse.json(
+            { error: "Forbidden: cross-origin request" },
+            { status: 403 }
+          );
+        }
+      } catch {
+        // Malformed origin/referer — block it
+        return NextResponse.json(
+          { error: "Forbidden: invalid origin" },
+          { status: 403 }
+        );
+      }
+    }
+    // Note: requests with no Origin/Referer are allowed (same-origin form submissions,
+    // server-to-server calls). The auth layer (requireAuth) is the primary protection.
+  }
+
+  // ── 4c. Block development/debug pages in production ──
+  if (isProd && (pathname.startsWith("/style-preview") || pathname.startsWith("/demo"))) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
+  // ── 4d. Block CRM development files from public access ──
   // html/ partials, tests/, scripts/, build.js, index.html are source files — not for browsers
   if (
     pathname.startsWith("/crm/html/") ||
