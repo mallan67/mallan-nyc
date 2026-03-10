@@ -6,12 +6,18 @@ import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 export default function NewsletterSignup() {
   const ref = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
   const [email, setEmail] = useState('');
+  const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
+    if (!consent) {
+      setStatus('error');
+      setErrorMsg('Please agree to receive listing alerts.');
+      return;
+    }
 
     setStatus('loading');
     setErrorMsg('');
@@ -24,6 +30,9 @@ export default function NewsletterSignup() {
           email: email.trim(),
           frequency: 'weekly',
           criteria: { type: 'sale' },
+          consent: true,
+          consentText: 'I consent to receive listing alerts from Mallan Real Estate Inc.',
+          consentAt: new Date().toISOString(),
         }),
       });
 
@@ -84,6 +93,8 @@ export default function NewsletterSignup() {
               <input
                 type="checkbox"
                 required
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
                 className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
               />
               <span className="text-brand-dark/45 text-xs font-light">
