@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { sendEmail } from '@/lib/email/sendgrid';
+import prisma from '@/lib/prisma';
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -106,10 +107,51 @@ export async function POST(request: NextRequest) {
       status: 'new',
     };
 
-    // Store submission
+    // Store submission (JSON file — legacy, kept for backward compat)
     const contacts = await readContacts();
     contacts.unshift(submission);
     await writeContacts(contacts);
+
+    // Also store in database as a Lead record
+    const nameParts = submission.name.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    try {
+      const lead = await prisma.lead.upsert({
+        where: { email: submission.email },
+        create: {
+          first_name: firstName,
+          last_name: lastName,
+          email: submission.email,
+          phone: submission.phone || '',
+          roles: ['buyer'],
+          status: 'new',
+          source: 'contact_form',
+        },
+        update: {
+          phone: submission.phone || undefined,
+          updated_at: new Date(),
+        },
+      });
+
+      await prisma.auditEvent.create({
+        data: {
+          action: 'contact_form_submitted',
+          entity_type: 'lead',
+          entity_id: lead.id.toString(),
+          user_type: 'public',
+          user_id: null,
+          changes: {
+            message: submission.message,
+            consent_timestamp: submission.consentTimestamp,
+            source: 'contact_form',
+          },
+        },
+      });
+    } catch (dbErr) {
+      // Non-fatal — JSON file is the backup
+      console.error('[CONTACT] DB upsert error (non-fatal):', dbErr);
+    }
 
     // Log for Vercel dashboard visibility (redacted PII)
     console.log(`[CONTACT] New submission id=${submission.id} at ${submission.receivedAt}`);

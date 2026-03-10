@@ -186,6 +186,8 @@ function SearchClient() {
     sort: filters.sort,
     neighborhood: neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
+    zipCodes: zipParam || undefined,
+    address: searchQuery || undefined,
     limit: 50,
   });
 
@@ -277,7 +279,7 @@ function SearchClient() {
     } else if (suggestion.type === 'agent') {
       router.push(`/agents/${suggestion.value}`);
     } else if (suggestion.type === 'listing') {
-      router.push(`/listings/${suggestion.value}`);
+      router.push(`/listing/${suggestion.value}`);
     } else {
       setSearchQuery(suggestion.label);
     }

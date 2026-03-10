@@ -149,7 +149,7 @@ export default function HeroSearch() {
 
     if (suggestion.type === 'listing') {
       // Navigate to listing detail page
-      router.push(`/listings/${suggestion.value}`);
+      router.push(`/listing/${suggestion.value}`);
       return;
     }
 

@@ -121,6 +121,25 @@ export async function GET(request: Request) {
     const furnishedParam = searchParams.get('furnished') === 'true';
     const amenitiesParam = searchParams.get('amenities'); // comma-separated amenity keys
     const openHouseParam = searchParams.get('openHouse') === 'true';
+    const addressParam = searchParams.get('address'); // free-text street name search
+
+    // Min > Max price validation
+    if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {
+      return NextResponse.json({
+        success: true,
+        count: 0,
+        total: 0,
+        skip: 0,
+        limit,
+        hasMore: false,
+        listings: [],
+        _compliance: {
+          source: 'none',
+          idxEnabled: useIDX,
+          disclaimer: 'Minimum price exceeds maximum price.',
+        },
+      }, { status: 400 });
+    }
 
     // ═══════════════════════════════════════════════════════════
     // DB-FIRST PATH: Serve from Postgres when synced data exists.
@@ -174,8 +193,11 @@ export async function GET(request: Request) {
           if (minPrice) dbWhere.list_price = { ...(dbWhere.list_price as object || {}), gte: parseInt(minPrice, 10) };
           if (maxPrice) dbWhere.list_price = { ...(dbWhere.list_price as object || {}), lte: parseInt(maxPrice, 10) };
 
-          // Beds/Baths
-          if (minBeds) dbWhere.bedrooms_total = { gte: parseInt(minBeds, 10) };
+          // Beds/Baths — Studio (beds=0) needs exact match, not gte
+          if (minBeds !== null && minBeds !== undefined) {
+            const bedsVal = parseInt(minBeds, 10);
+            dbWhere.bedrooms_total = bedsVal === 0 ? { equals: 0 } : { gte: bedsVal };
+          }
           if (minBaths) dbWhere.bathrooms_full = { gte: parseInt(minBaths, 10) };
 
           // Sqft
@@ -222,18 +244,13 @@ export async function GET(request: Request) {
             }
           }
 
-          // Ownership types
-          if (ownershipTypes) {
-            // For ownership, we check features JSON
-            // This is a simplification — full implementation would check CommonInterest in features
-          }
-
           // Sort order
           let dbOrderBy: Prisma.ListingOrderByWithRelationInput = { modification_timestamp: 'desc' };
           switch (sortParam) {
             case 'price-asc': dbOrderBy = { list_price: 'asc' }; break;
             case 'price-desc': dbOrderBy = { list_price: 'desc' }; break;
             case 'newest': dbOrderBy = { modification_timestamp: 'desc' }; break;
+            case 'sqft-desc': dbOrderBy = { living_area: 'desc' }; break;
           }
 
           const [dbListings, dbTotal] = await Promise.all([
@@ -284,7 +301,53 @@ export async function GET(request: Request) {
             }));
 
             const displayable = filterDisplayableDbListings(serialized);
-            const publicListings = displayable.map(dbListingToPublicDTO);
+            let publicListings = displayable.map(dbListingToPublicDTO);
+
+            // Post-filter for fields stored in features JSON (not DB columns)
+            // ownershipTypes → CommonInterest in features
+            if (ownershipTypes) {
+              const ownerMap: Record<string, string> = {
+                'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
+              };
+              const types = ownershipTypes.split(',').map(t => ownerMap[t.trim()] || t.trim()).filter(Boolean);
+              if (types.length > 0) {
+                publicListings = publicListings.filter(l => {
+                  // propertyType on DTO is mapped from CommonInterest
+                  const pt = l.propertyType?.toLowerCase() || '';
+                  return types.some(t => {
+                    if (t === 'Condominium') return pt.includes('condo') && !pt.includes('condop');
+                    if (t === 'StockCooperative') return pt.includes('co-op');
+                    if (t === 'Condop') return pt.includes('condop');
+                    return false;
+                  });
+                });
+              }
+            }
+
+            // yearBuilt filter
+            if (yearBuiltParam === 'pre-war') {
+              publicListings = publicListings.filter(l => l.yearBuilt != null && l.yearBuilt <= 1946);
+            } else if (yearBuiltParam === 'post-war') {
+              publicListings = publicListings.filter(l => l.yearBuilt != null && l.yearBuilt >= 1947);
+            }
+
+            // Furnished filter
+            if (furnishedParam) {
+              publicListings = publicListings.filter(l =>
+                l.furnished?.toLowerCase() === 'furnished'
+              );
+            }
+
+            // Address/text search (contains on street name)
+            if (addressParam) {
+              const addrLower = addressParam.trim().toLowerCase();
+              if (addrLower) {
+                publicListings = publicListings.filter(l => {
+                  const street = `${l.address.streetNumber || ''} ${l.address.streetName || ''}`.toLowerCase();
+                  return street.includes(addrLower);
+                });
+              }
+            }
 
             const responseBody = {
               success: true,
@@ -357,7 +420,10 @@ export async function GET(request: Request) {
 
         if (minPrice) filterParts.push(`ListPrice ge ${parseInt(minPrice, 10)}`);
         if (maxPrice) filterParts.push(`ListPrice le ${parseInt(maxPrice, 10)}`);
-        if (minBeds) filterParts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
+        if (minBeds !== null && minBeds !== undefined) {
+          const bedsVal = parseInt(minBeds, 10);
+          filterParts.push(bedsVal === 0 ? `BedroomsTotal eq 0` : `BedroomsTotal ge ${bedsVal}`);
+        }
         if (minBaths) filterParts.push(`BathroomsFull ge ${parseInt(minBaths, 10)}`);
         if (minSqft) filterParts.push(`LivingArea ge ${parseInt(minSqft, 10)}`);
         if (maxSqft) filterParts.push(`LivingArea le ${parseInt(maxSqft, 10)}`);
@@ -368,6 +434,14 @@ export async function GET(request: Request) {
 
         // Furnished (rental)
         if (furnishedParam) filterParts.push("Furnished eq 'Furnished'");
+
+        // Address/text search — OData contains() on StreetName
+        if (addressParam) {
+          const safeAddr = addressParam.trim().replace(/'/g, "''");
+          if (safeAddr) {
+            filterParts.push(`contains(StreetName,'${safeAddr}')`);
+          }
+        }
 
         // Property sub-types (comma-separated)
         if (propertySubTypes) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
+import OpenHouseRSVP from '@/app/components/OpenHouseRSVP';
 
 interface OpenHouse {
   id: string;
@@ -190,7 +191,7 @@ export default function OpenHousesList() {
                             </p>
                           )}
 
-                          {/* Agent Contact */}
+                          {/* Agent Contact + RSVP */}
                           <div className="pt-3 border-t border-black/5 flex justify-between items-center">
                             <div className="text-sm">
                               <p className="font-medium">{oh.agentName}</p>
@@ -201,6 +202,13 @@ export default function OpenHousesList() {
                                 {oh.agentPhone}
                               </a>
                             </div>
+                            <OpenHouseRSVP
+                              openHouseId={oh.id}
+                              listingAddress={oh.address}
+                              openHouseDate={oh.date}
+                              openHouseTime={`${oh.startTime} - ${oh.endTime}`}
+                              variant="button"
+                            />
                           </div>
                         </div>
                       </div>

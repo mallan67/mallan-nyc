@@ -16,7 +16,10 @@ import TransitCommuteTool from '@/app/components/TransitCommuteTool';
 import TransitSidebarSummary from '@/app/components/TransitSidebarSummary';
 import NeighborhoodExplorer from '@/app/components/NeighborhoodExplorer';
 import BuildingUnits from '@/app/components/BuildingUnits';
+import PriceHistory from '@/app/components/PriceHistory';
 import SimilarListings from '@/app/components/SimilarListings';
+import SchoolInfo from '@/app/components/SchoolInfo';
+import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
@@ -27,6 +30,7 @@ import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
+import ListingViewTracker from '@/app/components/ListingViewTracker';
 
 import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
@@ -657,6 +661,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
+      <ListingViewTracker />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
@@ -868,6 +873,20 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
+              {/* ── 2b. PRICE HISTORY TIMELINE ── */}
+              <PriceHistory
+                listPrice={listing.listPrice}
+                originalListPrice={listing.originalListPrice}
+                previousListPrice={listing.previousListPrice}
+                closePrice={listing.closePrice}
+                status={listing.status}
+                onMarketDate={listing.onMarketDate}
+                listingContractDate={listing.listingContractDate}
+                modificationTimestamp={listing.modificationTimestamp}
+                closeDate={listing.closeDate}
+                listingType={listing.listingType}
+              />
+
               {/* ── 3. FINANCIALS (Co-op/Condo + Price History + Last Sale) ── */}
               {(!isRental && (isCoop || isCondo || priceHistory.length > 1 || (lastUnitSale && lastUnitSale.closePrice > 0))) && (
                 <section className="py-6 border-t border-black/[0.06]">
@@ -1040,6 +1059,14 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </section>
               )}
 
+              {/* ── 6c. NEARBY SCHOOLS ── */}
+              {listing.address.latitude && listing.address.longitude && (
+                <SchoolInfo
+                  latitude={listing.address.latitude}
+                  longitude={listing.address.longitude}
+                />
+              )}
+
               {/* ── 7. RENTAL DETAILS ── */}
               {isRental && (listing.petsAllowed || listing.furnished || listing.availabilityDate) && (
                 <section className="py-6 border-t border-black/[0.06]">
@@ -1097,6 +1124,18 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     <div className="flex justify-between py-2.5 border-b border-black/5">
                       <span className="text-[13px] text-brand-dark/60">Building</span>
                       <span className="text-[13px] font-medium text-brand-dark">{listing.buildingName}</span>
+                    </div>
+                  )}
+                  {listing.address.streetName !== 'Address Undisclosed' && (
+                    <div className="flex justify-between py-2.5 border-b border-black/5">
+                      <span className="text-[13px] text-brand-dark/60">Building Page</span>
+                      <Link
+                        href={`/building?streetNumber=${encodeURIComponent(listing.address.streetNumber)}&streetName=${encodeURIComponent(listing.address.streetName)}&postalCode=${encodeURIComponent(listing.address.postalCode)}${listing.buildingName ? `&buildingName=${encodeURIComponent(listing.buildingName)}` : ''}`}
+                        className="text-[13px] font-medium text-brand-gold-deep hover:text-brand-gold transition-colors flex items-center gap-1"
+                      >
+                        View Building
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                      </Link>
                     </div>
                   )}
                   <div className="flex justify-between py-2.5 border-b border-black/5">
@@ -1298,6 +1337,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   </div>
                 </div>
 
+                {/* Open House RSVP (shows only if upcoming open houses exist for this address) */}
+                <ListingOpenHouseRSVP listingAddress={fullAddress} />
+
                 {/* Inquiry Form */}
                 <div id="inquiry">
                   <InquiryForm
@@ -1366,14 +1408,17 @@ export default async function ListingPage({ params, searchParams }: Props) {
         </div>
       </section>
 
-      {/* ═══ Mobile Inquiry Form (below footer on mobile, since sidebar is hidden) ═══ */}
-      <section id="inquiry" className="lg:hidden px-4 py-8 bg-white border-t border-black/[0.06]">
-        <div className="max-w-lg mx-auto">
-          <InquiryForm
-            listingId={listing.id}
-            listingAddress={fullAddress}
-            agentEmail="info@mallan.nyc"
-          />
+      {/* ═══ Mobile Open House RSVP + Inquiry Form ═══ */}
+      <section className="lg:hidden px-4 py-8 bg-white border-t border-black/[0.06]">
+        <div className="max-w-lg mx-auto space-y-6">
+          <ListingOpenHouseRSVP listingAddress={fullAddress} />
+          <div id="inquiry">
+            <InquiryForm
+              listingId={listing.id}
+              listingAddress={fullAddress}
+              agentEmail="info@mallan.nyc"
+            />
+          </div>
         </div>
       </section>
 

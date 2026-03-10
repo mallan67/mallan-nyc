@@ -111,6 +111,7 @@ export interface PublicListingDTO {
   listingContractDate: string;
   modificationTimestamp: string;
   onMarketDate?: string;
+  closeDate?: string;
   // Building & Amenities
   buildingName?: string;
   architecturalStyle?: string;
@@ -236,6 +237,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     listingContractDate: listing.listingContractDate,
     modificationTimestamp: listing.modificationTimestamp,
     onMarketDate: listing.onMarketDate,
+    closeDate: listing.closeDate,
     // Building & Amenities
     buildingName: listing.buildingName,
     architecturalStyle: listing.architecturalStyle,

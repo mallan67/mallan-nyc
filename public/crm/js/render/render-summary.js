@@ -1,20 +1,20 @@
         function renderSummaryView() {
             var container = document.getElementById('summaryResults');
             container.innerHTML = getFilteredListings().map(listing => {
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-                var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + listing.unit : '');
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+                var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
                         <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
-                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
+                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">
@@ -37,11 +37,11 @@
                                     <div class="min-w-0">
                                         <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab(${listing.id})">${displayAddress}${displayUnit}</h3>
                                         <div class="flex items-center gap-2 mt-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${listing.era || 'Pre-War'}</span>
+                                            <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${escapeHtml(listing.era || 'Pre-War')}</span>
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${ownershipLabel(listing.ownership)}</span>
-                                            <span class="text-[11px] text-gray-500">${listing.neighborhood}</span>
-                                            <span class="text-[11px] text-gray-400">${listing.zip}</span>
-                                            ${listing.crossStreet ? '<span class="text-[11px] text-gray-400"><i class="fas fa-arrows-alt-h text-[9px] mr-0.5"></i>' + listing.crossStreet + '</span>' : ''}
+                                            <span class="text-[11px] text-gray-500">${escapeHtml(listing.neighborhood)}</span>
+                                            <span class="text-[11px] text-gray-400">${escapeHtml(listing.zip)}</span>
+                                            ${listing.crossStreet ? '<span class="text-[11px] text-gray-400"><i class="fas fa-arrows-alt-h text-[9px] mr-0.5"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
@@ -69,10 +69,10 @@
                                 <!-- Dates bar -->
                                 <div class="bg-gray-50 rounded-xl p-3 mb-3">
                                     <div class="grid grid-cols-4 gap-3 text-xs">
-                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Listed</span><span class="font-semibold text-gray-800">${listing.listedDate || '--'}</span></div>
-                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Updated</span><span class="font-semibold text-gray-800">${listing.updatedDate || '--'}</span> ${listingFreshness(listing)}</div>
+                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Listed</span><span class="font-semibold text-gray-800">${escapeHtml(listing.listedDate || '--')}</span></div>
+                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Updated</span><span class="font-semibold text-gray-800">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                                         <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">DOM</span><span class="font-semibold text-gray-800">${listing.dom || 0}</span></div>
-                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">IDs</span><span class="text-[10px] text-gray-500">${listing.lid || '--'}</span></div>
+                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">IDs</span><span class="text-[10px] text-gray-500">${escapeHtml(listing.lid || '--')}</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -81,10 +81,10 @@
                             <div class="flex items-end justify-between">
                                 <!-- Agent info -->
                                 <div class="text-xs text-gray-500">
-                                    <span class="font-semibold text-gray-700">${listing.agentName || '--'}</span>
+                                    <span class="font-semibold text-gray-700">${escapeHtml(listing.agentName || '--')}</span>
                                     <span class="mx-1">&middot;</span>
-                                    <span>${listing.company || '--'}</span>
-                                    ${listing.agentPhone ? '<span class="mx-1">&middot;</span><span class="text-blue-600">' + listing.agentPhone + '</span>' : ''}
+                                    <span>${escapeHtml(listing.company || '--')}</span>
+                                    ${listing.agentPhone ? '<span class="mx-1">&middot;</span><span class="text-blue-600">' + escapeHtml(listing.agentPhone) + '</span>' : ''}
                                 </div>
                                 <!-- Action buttons -->
                                 <div class="flex items-center gap-1" onclick="event.stopPropagation()">
@@ -101,7 +101,7 @@
                         </div>
                     </div>
                     <!-- Attribution footer -->
-                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} ${listing.agentPhone ? '&middot; ' + listing.agentPhone : ''}</div>
+                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
                 </div>
             `}).join('');
         }

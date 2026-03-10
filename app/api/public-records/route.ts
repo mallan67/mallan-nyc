@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeBorough, sanitizeNumeric, sanitizeString, sanitizeDocumentId } from '@/lib/sanitize';
 
 // NYC Open Data (Socrata) endpoints — free, no key required (rate-limited)
 const ACRIS_MASTER = 'https://data.cityofnewyork.us/resource/bnx9-e6tj.json';
@@ -77,8 +78,12 @@ function docTypeName(code: string): string {
 }
 
 async function fetchAcris(borough: string, block: string, lot: string): Promise<AcrisDocument[]> {
-  // Fetch document master records for this BBL
-  const masterUrl = `${ACRIS_MASTER}?borough=${borough}&block=${block.padStart(5, '0')}&lot=${lot.padStart(4, '0')}&$order=document_date DESC&$limit=10`;
+  // borough, block, lot are already validated as numeric by the caller
+  const paddedBlock = block.padStart(5, '0');
+  const paddedLot = lot.padStart(4, '0');
+
+  // Use query parameters (not $where interpolation) for simple equality
+  const masterUrl = `${ACRIS_MASTER}?borough=${encodeURIComponent(borough)}&block=${encodeURIComponent(paddedBlock)}&lot=${encodeURIComponent(paddedLot)}&$order=document_date DESC&$limit=10`;
   const masterData = (await fetchJSON(masterUrl)) as Array<Record<string, string>>;
 
   if (masterData.length === 0) return [];
@@ -87,7 +92,7 @@ async function fetchAcris(borough: string, block: string, lot: string): Promise<
   const docs: AcrisDocument[] = [];
 
   for (const doc of masterData.slice(0, 8)) {
-    const docId = doc.document_id;
+    const docId = sanitizeDocumentId(doc.document_id || '');
     const docType = docTypeName(doc.doc_type || '');
     const date = doc.document_date
       ? new Date(doc.document_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -99,7 +104,7 @@ async function fetchAcris(borough: string, block: string, lot: string): Promise<
     // Fetch parties for this document
     let parties: string[] = [];
     if (docId) {
-      const partiesUrl = `${ACRIS_PARTIES}?document_id=${docId}&$limit=4`;
+      const partiesUrl = `${ACRIS_PARTIES}?document_id=${encodeURIComponent(docId)}&$limit=4`;
       const partiesData = (await fetchJSON(partiesUrl)) as Array<Record<string, string>>;
       parties = partiesData.map((p) => p.name || '').filter(Boolean).slice(0, 3);
     }
@@ -111,16 +116,18 @@ async function fetchAcris(borough: string, block: string, lot: string): Promise<
 }
 
 async function fetchDob(borough: string, houseNumber: string, street: string): Promise<DobSummary> {
-  // Borough code for DOB: Manhattan=1 etc matches our BBL borough
-  const boroCode = borough;
+  // borough is validated as numeric by caller
+  // Sanitize houseNumber and street for URL safety
+  const cleanHouseNumber = sanitizeString(houseNumber);
+  const cleanStreet = sanitizeString(street);
 
-  // Fetch active violations
-  const violUrl = `${DOB_VIOLATIONS}?boro=${boroCode}&house__=${houseNumber}&street=${encodeURIComponent(street)}&$where=violation_status != 'RESOLVE'&$limit=100`;
+  // Fetch active violations — use encodeURIComponent for all interpolated values
+  const violUrl = `${DOB_VIOLATIONS}?boro=${encodeURIComponent(borough)}&house__=${encodeURIComponent(cleanHouseNumber)}&street=${encodeURIComponent(cleanStreet)}&$where=violation_status != 'RESOLVE'&$limit=100`;
   const violations = (await fetchJSON(violUrl)) as Array<Record<string, string>>;
   const activeViolations = violations.length;
 
   // Fetch open complaints
-  const compUrl = `${DOB_COMPLAINTS}?community_board=${boroCode}&house_number=${houseNumber}&house_street=${encodeURIComponent(street)}&$where=status='OPEN'&$limit=100`;
+  const compUrl = `${DOB_COMPLAINTS}?community_board=${encodeURIComponent(borough)}&house_number=${encodeURIComponent(cleanHouseNumber)}&house_street=${encodeURIComponent(cleanStreet)}&$where=status='OPEN'&$limit=100`;
   const complaints = (await fetchJSON(compUrl)) as Array<Record<string, string>>;
   const openComplaints = complaints.length;
 
@@ -142,18 +149,18 @@ async function fetchDob(borough: string, houseNumber: string, street: string): P
 }
 
 async function fetchTax(borough: string, block: string, lot: string): Promise<TaxAssessment> {
-  const boroNames: Record<string, string> = {
-    '1': 'MN', '2': 'BX', '3': 'BK', '4': 'QN', '5': 'SI',
-  };
-  const boroAbbr = boroNames[borough] || 'MN';
+  // borough, block, lot are already validated as numeric by the caller
+  const paddedBlock = block.padStart(5, '0');
+  const paddedLot = lot.padStart(4, '0');
 
-  // PLUTO data for actual assessment
-  const url = `${PROPERTY_ASSESSMENT}?borocode=${borough}&block=${block}&lot=${lot}&$limit=1`;
+  // PLUTO data for actual assessment — use encodeURIComponent for safety
+  const url = `${PROPERTY_ASSESSMENT}?borocode=${encodeURIComponent(borough)}&block=${encodeURIComponent(block)}&lot=${encodeURIComponent(lot)}&$limit=1`;
   const data = (await fetchJSON(url)) as Array<Record<string, string>>;
 
   if (data.length === 0) {
-    // Fallback: try with padded block/lot
-    const url2 = `${PROPERTY_ASSESSMENT}?bbl=${borough}${block.padStart(5, '0')}${lot.padStart(4, '0')}&$limit=1`;
+    // Fallback: try with padded block/lot as combined bbl
+    const combinedBbl = `${borough}${paddedBlock}${paddedLot}`;
+    const url2 = `${PROPERTY_ASSESSMENT}?bbl=${encodeURIComponent(combinedBbl)}&$limit=1`;
     const data2 = (await fetchJSON(url2)) as Array<Record<string, string>>;
 
     if (data2.length === 0) {
@@ -167,7 +174,6 @@ async function fetchTax(borough: string, block: string, lot: string): Promise<Ta
       };
     }
 
-    void boroAbbr;
     const record = data2[0];
     const assessed = parseFloat(record.assesstot || '0');
     const annualTax = parseFloat(record.taxamt || '0') || null;
@@ -186,8 +192,6 @@ async function fetchTax(borough: string, block: string, lot: string): Promise<Ta
   const assessed = parseFloat(record.assesstot || '0');
   const annualTax = parseFloat(record.taxamt || '0') || null;
 
-  void boroAbbr;
-
   return {
     assessedValue: assessed || null,
     taxRate: '',
@@ -200,27 +204,36 @@ async function fetchTax(borough: string, block: string, lot: string): Promise<Ta
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const bbl = searchParams.get('bbl') || '';
+  const bblRaw = searchParams.get('bbl') || '';
   const houseNumber = searchParams.get('houseNumber') || '';
   const street = searchParams.get('street') || '';
 
-  if (!bbl) {
+  if (!bblRaw) {
     return NextResponse.json({ error: 'bbl is required' }, { status: 400 });
   }
 
   // Check cache
-  const cacheKey = bbl;
+  const cacheKey = bblRaw;
   const cached = recordsCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return NextResponse.json(cached.data);
   }
 
   // Parse BBL: "1-01234-0056" → borough=1, block=01234, lot=0056
-  const parts = bbl.split('-');
+  const parts = bblRaw.split('-');
   if (parts.length !== 3) {
     return NextResponse.json({ error: 'Invalid BBL format' }, { status: 400 });
   }
-  const [borough, block, lot] = parts;
+  const [boroughRaw, blockRaw, lotRaw] = parts;
+
+  // Validate all BBL components are numeric
+  const borough = sanitizeBorough(boroughRaw);
+  const block = sanitizeNumeric(blockRaw);
+  const lot = sanitizeNumeric(lotRaw);
+
+  if (!borough || !block || !lot) {
+    return NextResponse.json({ error: 'Invalid BBL: borough must be 1-5, block and lot must be numeric' }, { status: 400 });
+  }
 
   // Fetch all three in parallel
   const [acris, dob, tax] = await Promise.all([
@@ -233,7 +246,7 @@ export async function GET(request: NextRequest) {
     acris,
     dob,
     tax,
-    bbl,
+    bbl: bblRaw,
     lastFetched: new Date().toISOString(),
   };
 

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
 
 interface RentVsBuyCalculatorProps {
   purchasePrice: number;
@@ -23,6 +24,16 @@ export default function RentVsBuyCalculator({
   const [rentAmount, setRentAmount] = useState(monthlyRent || Math.round(purchasePrice * 0.004));
   const [annualRentIncrease, setAnnualRentIncrease] = useState(3);
   const [annualAppreciation, _setAnnualAppreciation] = useState(3);
+  const hasInteracted = useRef(false);
+  const [showLeadCapture, setShowLeadCapture] = useState(false);
+
+  // Track any slider/input interaction as "has calculated"
+  const markInteracted = () => {
+    if (!hasInteracted.current) {
+      hasInteracted.current = true;
+      setShowLeadCapture(true);
+    }
+  };
 
   const calculations = useMemo(() => {
     const downPayment = purchasePrice * (downPaymentPercent / 100);
@@ -186,7 +197,7 @@ export default function RentVsBuyCalculator({
               <input
                 type="range"
                 value={rentAmount}
-                onChange={(e) => setRentAmount(Number(e.target.value))}
+                onChange={(e) => { setRentAmount(Number(e.target.value)); markInteracted(); }}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
                 min={1500}
                 max={15000}
@@ -202,7 +213,7 @@ export default function RentVsBuyCalculator({
               <input
                 type="range"
                 value={downPaymentPercent}
-                onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+                onChange={(e) => { setDownPaymentPercent(Number(e.target.value)); markInteracted(); }}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
                 min={5}
                 max={50}
@@ -218,7 +229,7 @@ export default function RentVsBuyCalculator({
               <input
                 type="range"
                 value={yearsToStay}
-                onChange={(e) => setYearsToStay(Number(e.target.value))}
+                onChange={(e) => { setYearsToStay(Number(e.target.value)); markInteracted(); }}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
                 min={1}
                 max={15}
@@ -233,7 +244,7 @@ export default function RentVsBuyCalculator({
                   <input
                     type="number"
                     value={interestRate}
-                    onChange={(e) => setInterestRate(Number(e.target.value))}
+                    onChange={(e) => { setInterestRate(Number(e.target.value)); markInteracted(); }}
                     className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     step={0.125}
                     min={3}
@@ -248,7 +259,7 @@ export default function RentVsBuyCalculator({
                   <input
                     type="number"
                     value={annualRentIncrease}
-                    onChange={(e) => setAnnualRentIncrease(Number(e.target.value))}
+                    onChange={(e) => { setAnnualRentIncrease(Number(e.target.value)); markInteracted(); }}
                     className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     step={0.5}
                     min={0}
@@ -296,6 +307,12 @@ export default function RentVsBuyCalculator({
             Let&apos;s Talk
           </Link>
         </div>
+
+        <CalculatorLeadCapture
+          calculatorType="rent-vs-buy"
+          hasCalculated={showLeadCapture}
+          resultsSummary={`${calculations.buyIsBetter ? 'Buying saves' : 'Renting saves'} $${calculations.savings.toLocaleString()} over ${yearsToStay} years. Monthly owning: $${calculations.monthlyOwningCost.toLocaleString()}. Rent: $${rentAmount.toLocaleString()}/mo.`}
+        />
 
         <p className="mt-4 text-xs text-brand-dark/90">
           *Estimates only. Assumes 30-year fixed mortgage, 4% closing costs, 6% selling costs.

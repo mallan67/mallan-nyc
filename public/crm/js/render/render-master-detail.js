@@ -1,7 +1,7 @@
         function renderMasterDetailView() {
             var listPanel = document.getElementById('masterListPanel');
             listPanel.innerHTML = getFilteredListings().map(listing => {
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
@@ -10,7 +10,7 @@
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
                             <div class="absolute bottom-0 left-0 right-0 px-1.5 py-1 flex items-center justify-between" style="background:linear-gradient(transparent,rgba(0,0,0,0.45))">
-                                <span class="text-[8px] font-medium text-white/90">${listing.neighborhood}</span>
+                                <span class="text-[8px] font-medium text-white/90">${escapeHtml(listing.neighborhood)}</span>
                                 <span class="text-white/70 text-[8px]"><i class="fas fa-camera"></i> ${listing.photoCount}</span>
                             </div>
                         </div>
@@ -21,19 +21,19 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-1">
-                            <h4 class="font-bold text-xs truncate">${displayAddress}, ${listing.addressDisplayYN !== false ? listing.unit : ''}</h4>
+                            <h4 class="font-bold text-xs truncate">${displayAddress}, ${listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
                             <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
-                                <span>${listing.era || 'Pre-War'}</span>
+                                <span>${escapeHtml(listing.era || 'Pre-War')}</span>
                                 <span class="text-gray-300">|</span>
                                 <span>${ownershipLabel(listing.ownership)}</span>
                                 <span class="text-gray-300">|</span>
-                                <span>${listing.neighborhood}</span>
+                                <span>${escapeHtml(listing.neighborhood)}</span>
                                 <span class="text-gray-300">|</span>
-                                <span>${listing.zip}</span>
+                                <span>${escapeHtml(listing.zip)}</span>
                             </div>
                             <span class="text-xs font-bold">$${listing.price.toLocaleString()}</span>
                         </div>
@@ -67,8 +67,8 @@
         function showListingInDetailPanel(listingId) {
             var listing = mockListings.find(l => l.id === listingId);
             if (!listing) return;
-            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
+            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
             var selected = searchResultsState.selectedListings.includes(listing.id);
 
             var detailPanel = document.getElementById('detailPanel');
@@ -91,8 +91,8 @@
 
                 <!-- Sub-header: IDs + financial -->
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 mb-1.5">
-                    <span>L-ID: ${listing.lid || '--'}</span>
-                    <span>W-ID: ${listing.wid || '--'}</span>
+                    <span>L-ID: ${escapeHtml(listing.lid || '--')}</span>
+                    <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
                     <span>CC: $${listing.maintCC}</span>
                     <span>RET: $${listing.reTaxes}</span>
                     <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
@@ -100,12 +100,12 @@
 
                 <!-- Tags -->
                 <div class="flex items-center flex-wrap gap-1.5 mb-3">
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${listing.era || 'Pre-War'}</span>
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.era || 'Pre-War')}</span>
                     <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${ownershipLabel(listing.ownership)}</span>
-                    ${listing.buildingName ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">' + listing.buildingName + '</span>' : ''}
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${listing.neighborhood}</span>
-                    ${listing.crossStreet ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]"><i class="fas fa-arrows-alt-h mr-0.5 text-gray-400"></i>' + listing.crossStreet + '</span>' : ''}
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${listing.zip}</span>
+                    ${listing.buildingName ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">' + escapeHtml(listing.buildingName) + '</span>' : ''}
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.neighborhood)}</span>
+                    ${listing.crossStreet ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]"><i class="fas fa-arrows-alt-h mr-0.5 text-gray-400"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.zip)}</span>
                 </div>
 
                 <!-- Photo — single large, full width -->
@@ -127,7 +127,7 @@
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-flag text-gray-500 text-sm"></i></button>
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-random text-gray-500 text-sm"></i></button>
                     ${isComingSoon(listing)
-                        ? '<button class="p-1.5 bg-purple-50 rounded cursor-not-allowed" disabled title="Coming Soon — No showings permitted until ' + (listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400 text-sm"></i></button>'
+                        ? '<button class="p-1.5 bg-purple-50 rounded cursor-not-allowed" disabled title="Coming Soon — No showings permitted until ' + escapeHtml(listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400 text-sm"></i></button>'
                         : '<button class="p-1.5 hover:bg-gray-100 rounded" title="Schedule Showing"><i class="fas fa-calendar-check text-gray-500 text-sm"></i></button>'
                     }
                 </div>
@@ -150,14 +150,14 @@
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <div class="grid grid-cols-4 gap-3 text-xs">
                         <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded font-semibold text-[11px]">${listing.status}</span></div>
-                        <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${listing.updatedDate || '--'}</span> ${listingFreshness(listing)}</div>
-                        <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${listing.listedDate}</span></div>
+                        <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
+                        <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${escapeHtml(listing.listedDate)}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom}</span></div>
                     </div>
                 </div>
 
                 <!-- Description -->
-                ${listing.description ? '<div class="mb-3"><h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</h4><p class="text-sm text-gray-700 leading-relaxed">' + listing.description + '</p></div>' : ''}
+                ${listing.description ? '<div class="mb-3"><h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</h4><p class="text-sm text-gray-700 leading-relaxed">' + escapeHtml(listing.description) + '</p></div>' : ''}
 
                 <!-- Financial Details -->
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
@@ -180,9 +180,9 @@
                         <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
                         <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
-                        <div><span class="text-gray-500">Floor</span><div class="font-semibold">${listing.floor || '--'}</div></div>
-                        <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${listing.exposures || '--'}</div></div>
-                        <div><span class="text-gray-500">Condition</span><div class="font-semibold">${listing.condition || '--'}</div></div>
+                        <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
+                        <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>
+                        <div><span class="text-gray-500">Condition</span><div class="font-semibold">${escapeHtml(listing.condition || '--')}</div></div>
                         <div><span class="text-gray-500">Outdoor Space</span><div class="font-semibold">--</div></div>
                         <div><span class="text-gray-500">W/D</span><div class="font-semibold">--</div></div>
                     </div>
@@ -192,9 +192,9 @@
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Building</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
-                        <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${listing.buildingName || '--'}</div></div>
+                        <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${escapeHtml(listing.buildingName || '--')}</div></div>
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
-                        <div><span class="text-gray-500">Era</span><div class="font-semibold">${listing.era || '--'}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
+                        <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
                         <div><span class="text-gray-500">Elevator</span><div class="font-semibold">--</div></div>
                         <div><span class="text-gray-500">Doorman</span><div class="font-semibold">--</div></div>
                         <div><span class="text-gray-500">Financing</span><div class="font-semibold">--</div></div>
@@ -204,15 +204,15 @@
                 <!-- Listing Broker -->
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Listing Broker</h4>
-                    <div class="font-semibold text-sm">${listing.company || '--'}</div>
-                    <div class="text-xs text-gray-600 mt-0.5">${listing.agentName || '--'}</div>
-                    ${listing.agentPhone ? '<div class="text-xs text-blue-600">' + listing.agentPhone + '</div>' : ''}
-                    ${listing.agentEmail ? '<div class="text-xs text-blue-600">' + listing.agentEmail + '</div>' : ''}
+                    <div class="font-semibold text-sm">${escapeHtml(listing.company || '--')}</div>
+                    <div class="text-xs text-gray-600 mt-0.5">${escapeHtml(listing.agentName || '--')}</div>
+                    ${listing.agentPhone ? '<div class="text-xs text-blue-600">' + escapeHtml(listing.agentPhone) + '</div>' : ''}
+                    ${listing.agentEmail ? '<div class="text-xs text-blue-600">' + escapeHtml(listing.agentEmail) + '</div>' : ''}
                 </div>
 
                 <!-- Compliance -->
                 ${fareActDisclosure(listing)}
-                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} &middot; Information deemed reliable but not guaranteed</div>
+                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed</div>
             `;
         }
 

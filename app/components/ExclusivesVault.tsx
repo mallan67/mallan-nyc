@@ -9,17 +9,12 @@ export default function ExclusivesVault() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const sectionRef = useGsapReveal<HTMLDivElement>({ y: 40 });
 
-  // Check if user is already signed in via cookie
+  // Check if user is signed in via auth provider
   useEffect(() => {
-    const hasAuth = document.cookie.includes('pc_auth=');
+    // Check for session cookie existence (layout sets a client-readable flag)
+    const hasAuth = document.cookie.includes('mallan_logged_in=');
     if (hasAuth) setIsUnlocked(true);
   }, []);
-
-  const _handleUnlock = () => {
-    // In production, this would open the sign-in flow
-    // For now, simulate unlock
-    setIsUnlocked(true);
-  };
 
   return (
     <section className="relative bg-brand-dark py-24 md:py-36 lg:py-44 overflow-hidden">
@@ -54,17 +49,11 @@ export default function ExclusivesVault() {
               Pre-launch opportunities and pocket listings for registered clients only.
             </p>
             <div className="flex justify-center gap-10 md:gap-14 mb-10">
-              <div>
-                <p className="font-display font-bold text-white text-2xl">12</p>
-                <p className="text-white/50 text-[11px] font-light mt-1">Listings</p>
-              </div>
-              <div>
-                <p className="font-display font-bold text-white text-2xl">$2.1M</p>
-                <p className="text-white/50 text-[11px] font-light mt-1">Average</p>
-              </div>
-              <div>
-                <p className="font-display font-bold text-white text-2xl">48hr</p>
-                <p className="text-white/50 text-[11px] font-light mt-1">To Offer</p>
+              <div className="flex items-center gap-2 text-white/50 text-xs font-light">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="text-brand-gold/60">
+                  <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Exclusive access for registered clients
               </div>
             </div>
             <Link

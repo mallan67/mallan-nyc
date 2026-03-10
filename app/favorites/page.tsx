@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
+import FavoriteEmailPrompt from '@/app/components/FavoriteEmailPrompt';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -67,6 +68,15 @@ export default function FavoritesPage() {
               </div>
             )}
           </div>
+
+          {/* Email capture banner — shown when user has favorites but hasn't entered email */}
+          {loaded && favorites.length > 0 && (
+            <FavoriteEmailPrompt
+              favoriteCount={favorites.length}
+              favorites={favorites.map(f => ({ id: f.id, listingType: f.listingType }))}
+              mode="inline"
+            />
+          )}
 
           {!loaded ? (
             <div className="space-y-3">

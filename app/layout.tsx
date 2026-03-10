@@ -3,12 +3,15 @@ import type { ReactNode } from 'react';
 import { Urbanist, Inter } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
+import ExitIntentPopup from './components/ExitIntentPopup';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthProvider from './components/AuthProvider';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import FavoriteEmailProvider from './components/FavoriteEmailProvider';
+import RegistrationGate from './components/RegistrationGate';
 
 // Bright & Liquid design system fonts
 const urbanist = Urbanist({
@@ -174,14 +177,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SkipLink />
         <AuthProvider>
           <ErrorBoundary>
-            <Header />
-            <div id="main-content">
-              {children}
-            </div>
-            <Footer />
+            <FavoriteEmailProvider>
+              <Header />
+              <div id="main-content">
+                {children}
+              </div>
+              <Footer />
+            </FavoriteEmailProvider>
           </ErrorBoundary>
         </AuthProvider>
         <CookieConsent />
+        <ExitIntentPopup />
+        <RegistrationGate />
         <Analytics />
       </body>
     </html>

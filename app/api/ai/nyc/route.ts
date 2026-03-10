@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { soda, getSocrataToken } from "@/lib/soda";
+import { sanitizeNumeric, sanitizeString } from "@/lib/sanitize";
 
 /** safeJson - parse JSON body or return null */
 async function safeJson<T = unknown>(req: Request): Promise<T | null> {
@@ -177,11 +178,16 @@ export async function POST(req: Request) {
   // Fallback: Planning Labs Carto
   if (!bin && !bbl) {
     debugNotes.push("Geoclient did not return BIN/BBL, trying Planning Labs fallback");
-    const oneLine = `${houseNumber} ${street} ${borough}${zip ? " " + zip : ""}`;
+    // Sanitize address components before building SQL query for Planning Labs
+    const cleanHN = sanitizeString(houseNumber);
+    const cleanSt = sanitizeString(street);
+    const cleanBoro = sanitizeString(borough);
+    const cleanZip = zip ? sanitizeString(zip) : "";
+    const oneLine = `${cleanHN} ${cleanSt} ${cleanBoro}${cleanZip ? " " + cleanZip : ""}`;
     const planUrl =
       `https://planninglabs.carto.com/api/v1/sql?q=` +
       encodeURIComponent(
-        `SELECT bin, bbl FROM geosearch WHERE query='${oneLine.replace(/'/g, "''")}' LIMIT 1`
+        `SELECT bin, bbl FROM geosearch WHERE query='${oneLine}' LIMIT 1`
       );
     const planRes = await safeFetch(planUrl);
     if (planRes.ok && typeof planRes.body === "object" && planRes.body !== null) {
@@ -202,7 +208,7 @@ export async function POST(req: Request) {
         error: "Could not resolve address to BIN/BBL. Check spelling and include borough.",
         ...(debug ? { debug: { parsed: { houseNumber, street, borough, zip }, notes: debugNotes } } : {}),
       },
-      { status: 200 }
+      { status: 404 }
     );
   }
 
@@ -212,9 +218,12 @@ export async function POST(req: Request) {
   };
 
   const ecbDataset = process.env.SODA_DATASET_OATH_ECB;
-  if (bbl && socrataToken && ecbDataset) {
+  // Sanitize BBL from geoclient before using in SoQL query
+  const cleanBbl = bbl ? sanitizeNumeric(bbl) : null;
+
+  if (cleanBbl && socrataToken && ecbDataset) {
     try {
-      const whereClause = [`bbl='${bbl}'`, ecbOpen ? `violation_status='OPEN'` : ""]
+      const whereClause = [`bbl='${cleanBbl}'`, ecbOpen ? `violation_status='OPEN'` : ""]
         .filter(Boolean)
         .join(" AND ");
       const items = await soda({
@@ -234,7 +243,7 @@ export async function POST(req: Request) {
       debugNotes.push(`ECB query failed: ${msg}`);
     }
   } else {
-    if (!bbl) debugNotes.push("No BBL — skipping ECB lookup");
+    if (!cleanBbl) debugNotes.push("No BBL — skipping ECB lookup");
     if (!socrataToken) debugNotes.push("No Socrata token — skipping ECB lookup");
     if (!ecbDataset) debugNotes.push("SODA_DATASET_OATH_ECB not set — skipping ECB lookup");
   }

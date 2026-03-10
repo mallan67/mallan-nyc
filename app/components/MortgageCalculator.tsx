@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
+import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
 
 interface MortgageCalculatorProps {
   purchasePrice: number;
@@ -16,6 +17,15 @@ export default function MortgageCalculator({
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
   const [interestRate, setInterestRate] = useState(6.5);
   const [loanTerm, setLoanTerm] = useState(30);
+  const hasInteracted = useRef(false);
+  const [showLeadCapture, setShowLeadCapture] = useState(false);
+
+  const markInteracted = () => {
+    if (!hasInteracted.current) {
+      hasInteracted.current = true;
+      setShowLeadCapture(true);
+    }
+  };
 
   const calculations = useMemo(() => {
     const downPayment = purchasePrice * (downPaymentPercent / 100);
@@ -143,7 +153,7 @@ export default function MortgageCalculator({
           <input
             type="range"
             value={downPaymentPercent}
-            onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+            onChange={(e) => { setDownPaymentPercent(Number(e.target.value)); markInteracted(); }}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
             min={5}
             max={50}
@@ -163,7 +173,7 @@ export default function MortgageCalculator({
           <input
             type="range"
             value={interestRate}
-            onChange={(e) => setInterestRate(Number(e.target.value))}
+            onChange={(e) => { setInterestRate(Number(e.target.value)); markInteracted(); }}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-gold"
             min={3}
             max={10}
@@ -184,7 +194,7 @@ export default function MortgageCalculator({
             {[15, 20, 30].map((term) => (
               <button
                 key={term}
-                onClick={() => setLoanTerm(term)}
+                onClick={() => { setLoanTerm(term); markInteracted(); }}
                 className={`flex-1 py-2 text-sm rounded-2xl transition-colors ${
                   loanTerm === term
                     ? 'bg-brand-gold text-white'
@@ -217,6 +227,12 @@ export default function MortgageCalculator({
       <p className="mt-4 text-xs text-brand-dark/90">
         *Estimate only. Actual payments may vary. Does not include PMI if down payment is less than 20%.
       </p>
+
+      <CalculatorLeadCapture
+        calculatorType="mortgage"
+        hasCalculated={showLeadCapture}
+        resultsSummary={`Price: $${purchasePrice.toLocaleString()}. Monthly payment: $${calculations.totalMonthly.toLocaleString()}. Down: ${downPaymentPercent}% ($${calculations.downPayment.toLocaleString()}). Rate: ${interestRate}%.`}
+      />
     </div>
   );
 }

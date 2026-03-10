@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
 
 export default function AffordabilityCalculator() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -218,6 +219,12 @@ export default function AffordabilityCalculator() {
             Condo uses 43% back-end DTI (qualified mortgage). Actual approval varies by
             lender and building. Consult a mortgage professional for personalized advice.
           </p>
+
+          <CalculatorLeadCapture
+            calculatorType="affordability"
+            hasCalculated={isExpanded}
+            resultsSummary={`Budget: $${calculations.maxPrice.toLocaleString()} (${propertyType}). Monthly housing: $${calculations.maxMonthlyHousing.toLocaleString()}. DTI: ${calculations.dtiPercent}%.`}
+          />
         </div>
       )}
     </div>

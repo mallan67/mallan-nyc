@@ -1,6 +1,7 @@
 'use client';
 
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
+import { useFavoriteEmailPrompt } from './FavoriteEmailProvider';
 
 interface DetailFavoriteButtonProps {
   id: string;
@@ -14,7 +15,8 @@ interface DetailFavoriteButtonProps {
 }
 
 export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
-  const { isFavorite, toggleFavorite, loaded } = useFavorites();
+  const { favorites, isFavorite, toggleFavorite, loaded } = useFavorites();
+  const { notifyFavoriteAdded } = useFavoriteEmailPrompt();
 
   if (!loaded) return null;
 
@@ -23,7 +25,16 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
 
   return (
     <button
-      onClick={() => toggleFavorite(entry)}
+      onClick={() => {
+        toggleFavorite(entry);
+        if (!active) {
+          const allFavs = [...favorites, entry];
+          notifyFavoriteAdded(
+            allFavs.length,
+            allFavs.map(f => ({ id: f.id, listingType: f.listingType }))
+          );
+        }
+      }}
       className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-2xl ring-1 transition-colors ${
         active
           ? 'bg-red-50 text-red-600 ring-red-200 hover:bg-red-100'

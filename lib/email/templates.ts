@@ -126,6 +126,9 @@ export function listingAlertEmail(
       Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
       Data last updated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.
     </p>
+    <p style="font-size:11px;color:#9ca3af;margin:8px 0 0;">
+      <a href="${BASE_URL}/unsubscribe" style="color:#9ca3af;text-decoration:underline;">Unsubscribe from listing alerts</a>
+    </p>
   `);
 }
 
@@ -209,6 +212,130 @@ export function dealStatusEmail(
     ${deal.notes ? `<p style="font-size:14px;color:#374151;background:#f9fafb;padding:12px;border-radius:6px;">${deal.notes}</p>` : ""}
     <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;">
       Deal ID: ${deal.dealId}. Log in to the CRM to view full details.
+    </p>
+  `);
+}
+
+/**
+ * Auto-response email — sent immediately when someone submits an inquiry.
+ * TCPA safe: no marketing content, just acknowledgment of their request.
+ */
+export function inquiryAutoResponseEmail(
+  clientName: string,
+  listingAddress?: string
+): string {
+  return wrapEmail(`
+    <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Thank You for Your Inquiry</h1>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Hi ${clientName || "there"},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      We have received your inquiry${listingAddress ? ` about <strong>${listingAddress}</strong>` : ""} and
+      a licensed agent will be in touch within the next business day.
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      In the meantime, feel free to explore more properties on our website or
+      reach out directly at <strong>646-258-4460</strong>.
+    </p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${BASE_URL}/buy"
+         style="display:inline-block;padding:12px 28px;background:${BRAND_GOLD};color:#ffffff;
+                font-size:14px;font-weight:600;text-decoration:none;border-radius:6px;margin:0 6px;">
+        Browse Sales
+      </a>
+      <a href="${BASE_URL}/rent"
+         style="display:inline-block;padding:12px 28px;border:1px solid ${BRAND_GOLD};color:${BRAND_GOLD};
+                font-size:14px;font-weight:600;text-decoration:none;border-radius:6px;margin:0 6px;">
+        Browse Rentals
+      </a>
+    </div>
+    <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;">
+      This is an automated confirmation. Please do not reply to this email.
+    </p>
+  `);
+}
+
+/**
+ * Open House RSVP confirmation email — sent when someone registers for an open house.
+ * TCPA safe: no marketing content, just confirmation of their registration.
+ */
+export function openHouseRsvpEmail(
+  clientName: string,
+  address: string,
+  date: string,
+  time: string,
+  partySize: number
+): string {
+  return wrapEmail(`
+    <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">You're Registered for the Open House</h1>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Hi ${clientName || "there"},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
+      We look forward to seeing you! Here are your open house details:
+    </p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px;margin:0 0 20px;">
+      <table style="width:100%;font-size:14px;color:#374151;">
+        <tr><td style="padding:6px 0;font-weight:600;width:100px;">Property</td><td>${address}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Date</td><td>${date}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Time</td><td>${time}</td></tr>
+        <tr><td style="padding:6px 0;font-weight:600;">Party Size</td><td>${partySize} ${partySize === 1 ? "guest" : "guests"}</td></tr>
+      </table>
+    </div>
+    <div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:16px;margin:0 0 20px;">
+      <p style="font-size:14px;color:#92400e;font-weight:600;margin:0 0 8px;">What to Bring</p>
+      <p style="font-size:13px;color:#78350f;margin:0;line-height:1.5;">
+        Please bring a valid photo ID. This is standard practice for all NYC open houses.
+      </p>
+    </div>
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      No appointment is needed&mdash;simply arrive during the scheduled time.
+      If you have any questions, call us at <strong>646-258-4460</strong>.
+    </p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${BASE_URL}/open-houses"
+         style="display:inline-block;padding:12px 28px;background:${BRAND_GOLD};color:#ffffff;
+                font-size:14px;font-weight:600;text-decoration:none;border-radius:6px;">
+        View All Open Houses
+      </a>
+    </div>
+    <p style="font-size:11px;color:#9ca3af;margin:16px 0 0;">
+      Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
+    </p>
+    <p style="font-size:13px;color:#9ca3af;margin:8px 0 0;">
+      This is an automated confirmation. Please do not reply to this email.
+    </p>
+  `);
+}
+
+/**
+ * CMA auto-response email — sent when someone requests a Comparative Market Analysis.
+ * TCPA safe: no marketing content, just acknowledgment of their request.
+ */
+export function cmaAutoResponseEmail(
+  clientName: string,
+  propertyAddress: string
+): string {
+  return wrapEmail(`
+    <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Your Property Valuation Request</h1>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Hi ${clientName || "there"},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Thank you for requesting a Comparative Market Analysis for
+      <strong>${propertyAddress}</strong>. A licensed broker will prepare your
+      personalized property valuation and send it within 24 hours.
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Your CMA will include recent comparable sales, current market conditions,
+      and a recommended price range for your property.
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      If you have any questions in the meantime, feel free to call us at
+      <strong>646-258-4460</strong>.
+    </p>
+    <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;">
+      This is an automated confirmation. Please do not reply to this email.
     </p>
   `);
 }

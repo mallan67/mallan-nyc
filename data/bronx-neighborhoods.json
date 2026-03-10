@@ -228,7 +228,35 @@
         "south": 40.876,
         "east": -73.892,
         "west": -73.92
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "1"
+        ],
+        "majorStations": [
+          "231st Street (1)",
+          "238th Street (1)",
+          "Van Cortlandt Park-242nd Street (1)",
+          "Riverdale Metro-North",
+          "Spuyten Duyvil Metro-North"
+        ]
+      },
+      "localVibe": "A hilly, tree-canopied enclave of Tudor homes, Colonial-style houses, and large co-op complexes, with Hudson River views and a distinctly residential character.",
+      "notableStreets": [
+        "Riverdale Avenue",
+        "Johnson Avenue",
+        "Palisade Avenue",
+        "Independence Avenue",
+        "Henry Hudson Parkway"
+      ],
+      "parkAndGreen": [
+        "Van Cortlandt Park",
+        "Wave Hill",
+        "Riverdale Park",
+        "Seton Park",
+        "Delafield Park"
+      ],
+      "diningScene": "Johnson Avenue and Riverdale Avenue feature a mix of neighborhood restaurants, diners, and bakeries, with dining options extending along Broadway near 242nd Street."
     },
     {
       "slug": "city-island",
@@ -456,7 +484,25 @@
         "south": 40.84,
         "east": -73.78,
         "west": -73.795
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6"
+        ],
+        "majorStations": [
+          "Pelham Bay Park (6, then Bx29 bus to City Island)"
+        ]
+      },
+      "localVibe": "A mile-long island in the Long Island Sound with a New England fishing-village character, featuring clapboard houses, marinas, and nautical-themed storefronts along a single main street.",
+      "notableStreets": [
+        "City Island Avenue"
+      ],
+      "parkAndGreen": [
+        "Pelham Bay Park (adjacent)",
+        "City Island Nautical Museum grounds",
+        "Orchard Beach (nearby)"
+      ],
+      "diningScene": "City Island Avenue is lined with seafood restaurants, many with waterfront dining and views of the Long Island Sound and Eastchester Bay."
     },
     {
       "slug": "mott-haven",
@@ -693,7 +739,36 @@
         "south": 40.804,
         "east": -73.906,
         "west": -73.928
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "5",
+          "6",
+          "2"
+        ],
+        "majorStations": [
+          "138th Street-Grand Concourse (4/5)",
+          "3rd Avenue-138th Street (6)",
+          "Brook Avenue (6)",
+          "149th Street-Grand Concourse (2/4/5)"
+        ]
+      },
+      "localVibe": "A South Bronx waterfront neighborhood of landmarked brownstone row houses and new mixed-use developments along the Harlem River, with industrial-to-residential conversions underway.",
+      "notableStreets": [
+        "Alexander Avenue",
+        "Third Avenue",
+        "138th Street",
+        "Bruckner Boulevard",
+        "Grand Concourse"
+      ],
+      "parkAndGreen": [
+        "St. Mary's Park",
+        "Mill Pond Park",
+        "Randalls Island (via footbridge)",
+        "Bronx Kill Greenway"
+      ],
+      "diningScene": "A growing dining scene along Alexander Avenue and Third Avenue, with Latin American restaurants, craft breweries, and contemporary eateries in the emerging waterfront district."
     },
     {
       "slug": "pelham-bay",
@@ -926,7 +1001,33 @@
         "south": 40.835,
         "east": -73.809,
         "west": -73.85
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "6"
+        ],
+        "majorStations": [
+          "Pelham Bay Park (6)",
+          "Buhre Avenue (6)",
+          "Middletown Road (6)"
+        ]
+      },
+      "localVibe": "A residential neighborhood of detached houses, garden-style co-ops, and low-rise apartment buildings, adjacent to the city's largest park and Orchard Beach on the Long Island Sound.",
+      "notableStreets": [
+        "Pelham Parkway",
+        "Crosby Avenue",
+        "Middletown Road",
+        "Country Club Road",
+        "Westchester Avenue"
+      ],
+      "parkAndGreen": [
+        "Pelham Bay Park (2,772 acres)",
+        "Orchard Beach",
+        "Twin Islands",
+        "Hunter Island",
+        "Turtle Cove Golf Center"
+      ],
+      "diningScene": "Crosby Avenue and Middletown Road feature Italian-American restaurants, Albanian cuisine, seafood spots, and neighborhood delis and bakeries."
     },
     {
       "slug": "fordham",
@@ -1162,7 +1263,35 @@
         "south": 40.85,
         "east": -73.887,
         "west": -73.91
-      }
+      },
+      "transitInfo": {
+        "subwayLines": [
+          "4",
+          "B",
+          "D"
+        ],
+        "majorStations": [
+          "Fordham Road (4)",
+          "Fordham Road (B/D)",
+          "Kingsbridge Road (4/B/D)"
+        ]
+      },
+      "localVibe": "A commercial hub centered on Fordham Road's retail corridor, with Fordham University's Gothic campus, the Bronx Zoo, and the New York Botanical Garden anchoring the surrounding blocks.",
+      "notableStreets": [
+        "Fordham Road",
+        "Grand Concourse",
+        "Arthur Avenue",
+        "Southern Boulevard",
+        "Webster Avenue"
+      ],
+      "parkAndGreen": [
+        "New York Botanical Garden",
+        "Bronx Zoo (nearby)",
+        "Poe Park",
+        "Devoe Park",
+        "St. James Park"
+      ],
+      "diningScene": "Arthur Avenue, known as the Bronx's Little Italy, is a destination for Italian-American markets, bakeries, pasta shops, and restaurants, with a vibrant indoor retail market."
     }
   ]
 }

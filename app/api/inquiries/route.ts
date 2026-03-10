@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
+import { inquiryAutoResponseEmail } from '@/lib/email/templates';
 
 /**
  * POST /api/inquiries
@@ -14,12 +15,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { name, email, phone, message, preferredDate, listingId, listingAddress, agreeToTerms, optInUpdates } = body;
+    const { name, email, phone, message, preferredDate, listingId, listingAddress, agreeToTerms, optInUpdates, source } = body;
+
+    // Calculator leads require only email; standard inquiries require name + email + phone
+    const isCalculatorLead = source === 'calculator';
 
     // Validate required fields
-    if (!name || !email || !phone) {
+    if (!email || (!isCalculatorLead && (!name || !phone))) {
       return NextResponse.json(
-        { error: 'Name, email, and phone are required' },
+        { error: isCalculatorLead ? 'Email is required' : 'Name, email, and phone are required' },
         { status: 400 }
       );
     }
@@ -41,10 +45,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize phone (strip non-digits except +)
-    const sanitizedPhone = phone.replace(/[^\d+\-() ]/g, '').slice(0, 20);
+    const sanitizedPhone = phone ? phone.replace(/[^\d+\-() ]/g, '').slice(0, 20) : '';
 
     // Parse name into first/last
-    const nameParts = name.trim().split(/\s+/);
+    const displayName = name || 'Calculator Lead';
+    const nameParts = displayName.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
@@ -58,11 +63,11 @@ export async function POST(request: NextRequest) {
         phone: sanitizedPhone,
         roles: ['buyer'],
         status: 'new',
-        source: 'website',
+        source: isCalculatorLead ? 'calculator' : 'website',
       },
       update: {
         // Update phone if provided (lead may have changed number)
-        phone: sanitizedPhone,
+        ...(sanitizedPhone ? { phone: sanitizedPhone } : {}),
         // Don't overwrite existing status — only update if still 'new'
         updated_at: new Date(),
       },
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send email notification (non-fatal — don't fail the API response if email fails)
+    // Send email notification to agent (non-fatal)
     try {
       const subjectLine = listingAddress
         ? `New Inquiry: ${listingAddress}`
@@ -107,11 +112,23 @@ export async function POST(request: NextRequest) {
         </table>
       `.trim();
 
-      console.log('[/api/inquiries] Sending email notification...');
-      const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
-      console.log(`[/api/inquiries] Email ${emailResult.success ? 'sent' : 'failed'}:`, emailResult.messageId || emailResult.error);
+      await sendEmail('info@mallan.nyc', subjectLine, emailBody);
     } catch (emailErr) {
       console.error('[/api/inquiries] Email notification error (non-fatal):', emailErr);
+    }
+
+    // Send auto-response to the client (non-fatal)
+    try {
+      const autoResponseHtml = inquiryAutoResponseEmail(firstName, listingAddress || undefined);
+      await sendEmail(
+        email.toLowerCase().trim(),
+        listingAddress
+          ? `We Received Your Inquiry About ${listingAddress}`
+          : 'Thank You for Your Inquiry — Mallan Real Estate',
+        autoResponseHtml
+      );
+    } catch (autoErr) {
+      console.error('[/api/inquiries] Auto-response error (non-fatal):', autoErr);
     }
 
     return NextResponse.json({

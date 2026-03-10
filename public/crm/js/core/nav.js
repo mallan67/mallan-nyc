@@ -1,4 +1,17 @@
 // ============================================
+// GLOBAL HTML ESCAPE — XSS prevention
+// ============================================
+function escapeHtml(str) {
+    if (str == null) return '';
+    var s = String(str);
+    return s.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+}
+
+// ============================================
 // GLOBAL TOAST NOTIFICATION
 // ============================================
 function showToast(message, type) {
@@ -9,7 +22,7 @@ function showToast(message, type) {
     var toast = document.createElement('div');
     toast.id = 'globalToast';
     toast.className = 'fixed bottom-20 lg:bottom-6 right-6 ' + (colors[type] || 'bg-gray-800') + ' text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 text-sm transition-opacity';
-    toast.innerHTML = '<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + message;
+    toast.innerHTML = '<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + escapeHtml(message);
     toast.style.opacity = '0';
     document.body.appendChild(toast);
     requestAnimationFrame(function() { toast.style.opacity = '1'; });

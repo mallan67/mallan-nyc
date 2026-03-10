@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
+import { sanitizeOData, sanitizeNumeric, sanitizeDocumentId } from '@/lib/sanitize';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -74,13 +75,15 @@ async function fetchAcrisSales(bbl: string): Promise<Array<{
     const [borough, block, lot] = parts;
 
     // Step 1: Get document IDs for this property from ACRIS Real Property
-    const rpUrl = `${ACRIS_REAL_PROPERTY}?borough=${borough}&block=${block}&lot=${lot}&$order=document_id DESC&$limit=30`;
+    const rpUrl = `${ACRIS_REAL_PROPERTY}?borough=${encodeURIComponent(borough)}&block=${encodeURIComponent(block)}&lot=${encodeURIComponent(lot)}&$order=document_id DESC&$limit=30`;
     const rpRes = await fetch(rpUrl, { signal: AbortSignal.timeout(6000), next: { revalidate: 86400 } });
     if (!rpRes.ok) return [];
     const rpData = (await rpRes.json()) as Array<Record<string, string>>;
     if (rpData.length === 0) return [];
 
-    const docIds = rpData.map((r) => r.document_id).filter(Boolean);
+    const docIds = rpData
+      .map((r) => sanitizeDocumentId(r.document_id || ''))
+      .filter((id): id is string => id !== null);
     if (docIds.length === 0) return [];
 
     // Step 2: Get master records — filter to deed/transfer types with amounts
@@ -164,11 +167,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = await getAccessToken();
-    const escapedStreet = streetName.replace(/'/g, "''");
+    const cleanStreetNumber = sanitizeOData(streetNumber);
+    const cleanStreetName = sanitizeOData(streetName);
+    const cleanPostalCode = postalCode ? sanitizeOData(postalCode) : '';
 
-    // Build address filter
-    const addressFilter = `StreetNumber eq '${streetNumber}' and contains(StreetName,'${escapedStreet}')${
-      postalCode ? ` and PostalCode eq '${postalCode}'` : ''
+    // Validate postal code is numeric if provided
+    if (postalCode && !/^\d{5}$/.test(postalCode.trim())) {
+      // Allow but sanitize — non-numeric chars already stripped by sanitizeOData
+    }
+
+    // Build address filter with sanitized values
+    const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${cleanStreetName}')${
+      cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : ''
     }`;
 
     // 1. Active listings in the building (other units for sale/rent)

@@ -3,6 +3,16 @@
 import { useEffect, useCallback } from 'react';
 import { useConsentStatus } from './CookieConsent';
 
+// Extend Window for retargeting pixels
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+    _fbq?: unknown;
+    gtag?: (...args: unknown[]) => void;
+    dataLayer?: unknown[];
+  }
+}
+
 /**
  * Phase 1 Analytics - Minimal, consent-gated, privacy-safe
  *
@@ -59,6 +69,38 @@ async function sendEvent(event: AnalyticsEvent): Promise<void> {
 export default function Analytics() {
   const { analyticsAllowed } = useConsentStatus();
 
+  // Load retargeting pixels (consent-gated, env-gated)
+  useEffect(() => {
+    if (!analyticsAllowed) return;
+
+    // Facebook Pixel
+    const fbPixelId = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+    if (fbPixelId && !window.fbq) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+      document.head.appendChild(script);
+      script.onload = () => {
+        window.fbq?.('init', fbPixelId);
+        window.fbq?.('track', 'PageView');
+      };
+    }
+
+    // Google Ads / gtag
+    const gadsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
+    if (gadsId && !window.gtag) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${gadsId}`;
+      document.head.appendChild(script);
+      (window as Window & { dataLayer?: unknown[] }).dataLayer = (window as Window & { dataLayer?: unknown[] }).dataLayer || [];
+      function gtag(...args: unknown[]) { ((window as Window & { dataLayer?: unknown[] }).dataLayer as unknown[]).push(args); }
+      (window as Window & { gtag?: (...args: unknown[]) => void }).gtag = gtag;
+      gtag('js', new Date());
+      gtag('config', gadsId);
+    }
+  }, [analyticsAllowed]);
+
   // Track page views
   useEffect(() => {
     if (!analyticsAllowed) return;
@@ -69,6 +111,9 @@ export default function Analytics() {
       path: window.location.pathname, // Path only, no query params for privacy
       timestamp: new Date().toISOString(),
     });
+
+    // Also fire pixel pageviews on navigation
+    if (window.fbq) (window as Window & { fbq?: (...args: unknown[]) => void }).fbq?.('track', 'PageView');
   }, [analyticsAllowed]);
 
   // Set up CTA click tracking via data attributes

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useSidePanel } from '@/lib/contexts/ListingSidePanelContext';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
+import InquiryModal from '@/app/components/InquiryModal';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -13,7 +14,12 @@ function formatPrice(price: number, isRental: boolean): string {
 export default function ListingSidePanel() {
   const { activeListing, isOpen, closeListing } = useSidePanel();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [inquiryMode, setInquiryMode] = useState<'showing' | 'question' | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const openShowingModal = useCallback(() => setInquiryMode('showing'), []);
+  const openQuestionModal = useCallback(() => setInquiryMode('question'), []);
+  const closeInquiryModal = useCallback(() => setInquiryMode(null), []);
 
   // Reset image index when a new listing opens
   useEffect(() => {
@@ -78,6 +84,11 @@ export default function ListingSidePanel() {
 
   const listing = activeListing;
   const isRental = listing.listingType === 'rent';
+  const listingAddress = [
+    listing.address.streetNumber,
+    listing.address.streetName,
+    listing.address.unit ? `, ${listing.address.unit}` : '',
+  ].join(' ').trim() || listing.address.neighborhoodDisplay;
   const images = listing.media.images.map(img => img.url);
   const currentImage = images[activeImageIndex] || images[0] || '/images/listing-placeholder.svg';
   const beds = listing.propertyInfo.bedroomsTotal;
@@ -251,10 +262,10 @@ export default function ListingSidePanel() {
           })()}
 
           {/* CTA buttons */}
-          <button data-analytics-cta="panel_showing" className="w-full btn-liquid bg-brand-dark text-white font-medium py-4 rounded-full text-sm mb-3">
+          <button data-analytics-cta="panel_showing" onClick={openShowingModal} className="w-full btn-liquid bg-brand-dark text-white font-medium py-4 rounded-full text-sm mb-3">
             {isRental ? 'Schedule a Viewing' : 'Request a Showing'}
           </button>
-          <button data-analytics-cta="panel_question" className="w-full btn-liquid glass-card text-brand-dark font-light py-4 rounded-full text-sm mb-12">
+          <button data-analytics-cta="panel_question" onClick={openQuestionModal} className="w-full btn-liquid glass-card text-brand-dark font-light py-4 rounded-full text-sm mb-12">
             Ask a Question
           </button>
 
@@ -283,6 +294,16 @@ export default function ListingSidePanel() {
           <IDXDisclaimer variant="compact" lastUpdated={new Date()} className="mt-8 text-center" />
         </div>
       </div>
+
+      {/* Inquiry Modal */}
+      <InquiryModal
+        isOpen={inquiryMode !== null}
+        onClose={closeInquiryModal}
+        mode={inquiryMode || 'showing'}
+        listingId={listing.id}
+        listingAddress={listingAddress}
+        isRental={isRental}
+      />
     </>
   );
 }

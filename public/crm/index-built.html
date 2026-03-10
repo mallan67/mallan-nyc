@@ -13976,7 +13976,7 @@ function testEmailSettings() {
     }).catch(function(err) {
         if (status) {
             status.style.cssText = 'margin-bottom:16px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;';
-            status.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Error: ' + (err.text || err.message || JSON.stringify(err));
+            status.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Error: ' + escapeHtml(err.text || err.message || JSON.stringify(err));
         }
     });
 }
@@ -13988,6 +13988,19 @@ initEmailService();
 <script>
 // ═══ js/core/nav.js ═══
 // ============================================
+// GLOBAL HTML ESCAPE — XSS prevention
+// ============================================
+function escapeHtml(str) {
+    if (str == null) return '';
+    var s = String(str);
+    return s.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+}
+
+// ============================================
 // GLOBAL TOAST NOTIFICATION
 // ============================================
 function showToast(message, type) {
@@ -13998,7 +14011,7 @@ function showToast(message, type) {
     var toast = document.createElement('div');
     toast.id = 'globalToast';
     toast.className = 'fixed bottom-20 lg:bottom-6 right-6 ' + (colors[type] || 'bg-gray-800') + ' text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 text-sm transition-opacity';
-    toast.innerHTML = '<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + message;
+    toast.innerHTML = '<i class="fas ' + (icons[type] || 'fa-info-circle') + '"></i> ' + escapeHtml(message);
     toast.style.opacity = '0';
     document.body.appendChild(toast);
     requestAnimationFrame(function() { toast.style.opacity = '1'; });
@@ -16259,13 +16272,13 @@ function manageShowToast(msg) {
                                 'bg-gray-100 text-gray-600';
                 return '<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0" ' +
                     'onclick="selectSearchAddress(this, \'' + resultsDivId + '\')"' +
-                    ' data-address="' + b.address + '" data-name="' + (b.name || '') + '" data-zip="' + (b.zip || '') + '" data-neighborhood="' + (b.neighborhood || '') + '">' +
+                    ' data-address="' + escapeHtml(b.address) + '" data-name="' + escapeHtml(b.name || '') + '" data-zip="' + escapeHtml(b.zip || '') + '" data-neighborhood="' + escapeHtml(b.neighborhood || '') + '">' +
                     '<div class="flex justify-between items-center">' +
                     '<div>' +
-                    '<p class="font-medium text-gray-800">' + b.address + '</p>' +
-                    '<p class="text-gray-500">' + (b.name ? b.name + ' | ' : '') + b.neighborhood + ', ' + b.borough + '</p>' +
+                    '<p class="font-medium text-gray-800">' + escapeHtml(b.address) + '</p>' +
+                    '<p class="text-gray-500">' + (b.name ? escapeHtml(b.name) + ' | ' : '') + escapeHtml(b.neighborhood) + ', ' + escapeHtml(b.borough) + '</p>' +
                     '</div>' +
-                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + b.type + '</span>' : '') +
+                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + escapeHtml(b.type) + '</span>' : '') +
                     '</div></div>';
             }).join('');
             resultsDiv.classList.remove('hidden');
@@ -19107,7 +19120,7 @@ function manageShowToast(msg) {
             banner.id = 'dataLoadBanner';
             banner.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;padding:10px 20px;border-radius:8px;font-size:13px;max-width:600px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);' + colors;
             banner.innerHTML = '<i class="fas ' + (level === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle') + '"></i>' +
-                '<span style="flex:1;">' + msg + '</span>' +
+                '<span style="flex:1;">' + escapeHtml(msg) + '</span>' +
                 '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:0.6;padding:0 4px;">&times;</button>';
             document.body.appendChild(banner);
             // Auto-dismiss warnings after 8 seconds
@@ -19119,7 +19132,7 @@ function manageShowToast(msg) {
             if (resultsEl) {
                 resultsEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280;">' +
                     '<i class="fas fa-exclamation-circle" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db;"></i>' +
-                    '<p style="font-size:15px;font-weight:600;">' + msg + '</p></div>';
+                    '<p style="font-size:15px;font-weight:600;">' + escapeHtml(msg) + '</p></div>';
             }
         }
 
@@ -20437,8 +20450,8 @@ function parseBudgetValue(td) {
 // ═══ js/render/grid-column-defs.js ═══
         var gridColumnDefs = {
             // Core fields — each render includes data-reso-field/data-reso-value attributes
-            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : l.address; return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(' + l.id + ')">' + addr + '</span>'; } },
-            unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : l.unit) + '</span>'; } },
+            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(' + l.id + ')">' + addr + '</span>'; } },
+            unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
             price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
             totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
             rooms:            { label: 'RMS',            reso: 'RoomsTotal',              render: function(l) { return '<span' + resoData('rooms', l.rooms) + '>' + (l.rooms || '--') + '</span>'; } },
@@ -20455,12 +20468,12 @@ function parseBudgetValue(td) {
             dom:              { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return '<span' + resoData('dom', l.dom) + '>' + (l.dom || '--') + '</span>'; } },
             freshness:        { label: 'FRESHNESS',      reso: 'SourceSystemModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
             domEnhanced:      { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return domDisplay(l); } },
-            neighborhood:     { label: 'NEIGHBORHOOD',   reso: 'SubdivisionName',         render: function(l) { return '<span' + resoData('neighborhood', l.neighborhood) + '>' + (l.neighborhood || '--') + '</span>'; } },
-            listedDate:       { label: 'LISTED',         reso: 'OnMarketDate',            render: function(l) { return '<span' + resoData('listedDate', l.listedDate) + '>' + (l.listedDate || '--') + '</span>'; } },
-            listingType:      { label: 'LISTING TYPE',   reso: 'ListingAgreement',        render: function(l) { return '<span' + resoData('listingType', l.listingType) + '>' + (l.listingType || '--') + '</span>'; } },
-            company:          { label: 'COMPANY',        reso: 'ListOfficeName',          render: function(l) { return '<span' + resoData('company', l.company) + '>' + (l.company || '--') + '</span>'; } },
-            primaryAgentName: { label: 'AGENT',          reso: 'ListAgentFullName',       render: function(l) { return '<span' + resoData('agentName', l.agentName) + '>' + (l.agentName || '--') + '</span>'; } },
-            rlsId:            { label: 'RLS ID',         reso: 'ListingId',               render: function(l) { return '<span' + resoData('lid', l.lid) + '>' + (l.lid || '--') + '</span>'; } },
+            neighborhood:     { label: 'NEIGHBORHOOD',   reso: 'SubdivisionName',         render: function(l) { return '<span' + resoData('neighborhood', l.neighborhood) + '>' + escapeHtml(l.neighborhood || '--') + '</span>'; } },
+            listedDate:       { label: 'LISTED',         reso: 'OnMarketDate',            render: function(l) { return '<span' + resoData('listedDate', l.listedDate) + '>' + escapeHtml(l.listedDate || '--') + '</span>'; } },
+            listingType:      { label: 'LISTING TYPE',   reso: 'ListingAgreement',        render: function(l) { return '<span' + resoData('listingType', l.listingType) + '>' + escapeHtml(l.listingType || '--') + '</span>'; } },
+            company:          { label: 'COMPANY',        reso: 'ListOfficeName',          render: function(l) { return '<span' + resoData('company', l.company) + '>' + escapeHtml(l.company || '--') + '</span>'; } },
+            primaryAgentName: { label: 'AGENT',          reso: 'ListAgentFullName',       render: function(l) { return '<span' + resoData('agentName', l.agentName) + '>' + escapeHtml(l.agentName || '--') + '</span>'; } },
+            rlsId:            { label: 'RLS ID',         reso: 'ListingId',               render: function(l) { return '<span' + resoData('lid', l.lid) + '>' + escapeHtml(l.lid || '--') + '</span>'; } },
             pricePerSqft:     { label: '$/SQFT',         reso: null,                      render: function(l) { return l.intSqft ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : '--'; } },
             // Extended fields (available in Grid Layouts modal)
             activityHistory:    { label: 'ACTIVITY',       reso: null,                      render: function(l) { return '--'; } },
@@ -20468,9 +20481,9 @@ function parseBudgetValue(td) {
             pricePerShare:      { label: '$/SHARE',        reso: null,                      render: function(l) { return '--'; } },
             acrisDocuments:     { label: 'ACRIS DOCS',     reso: null,                      render: function(l) { return '--'; } },
             acrisId:            { label: 'ACRIS ID',       reso: null,                      render: function(l) { return '--'; } },
-            apartmentType:      { label: 'APT TYPE',       reso: 'PropertySubType',         render: function(l) { return '<span' + resoData('propertySubType', l.propertySubType) + '>' + (l.propertySubType || '--') + '</span>'; } },
+            apartmentType:      { label: 'APT TYPE',       reso: 'PropertySubType',         render: function(l) { return '<span' + resoData('propertySubType', l.propertySubType) + '>' + escapeHtml(l.propertySubType || '--') + '</span>'; } },
             attendedLobby:      { label: 'LOBBY',          reso: 'SecurityFeatures',        render: function(l) { return '--'; } },
-            buildingName:       { label: 'BUILDING',       reso: 'BuildingName',            render: function(l) { return '<span' + resoData('buildingName', l.buildingName) + '>' + (l.buildingName || '--') + '</span>'; } },
+            buildingName:       { label: 'BUILDING',       reso: 'BuildingName',            render: function(l) { return '<span' + resoData('buildingName', l.buildingName) + '>' + escapeHtml(l.buildingName || '--') + '</span>'; } },
             coopName:           { label: 'CO-OP NAME',     reso: 'AssociationName',         render: function(l) { return '--'; } },
             condition:          { label: 'CONDITION',      reso: 'PropertyCondition',       render: function(l) { return '--'; } },
             contractSignedDate: { label: 'CONTRACT DATE',  reso: 'PurchaseContractDate',    render: function(l) { return '--'; } },
@@ -20487,37 +20500,37 @@ function parseBudgetValue(td) {
             originalPrice:      { label: 'ORIG PRICE',     reso: 'OriginalListPrice',       render: function(l) { return '<span' + resoData('originalPrice', l.originalPrice) + '>' + (l.originalPrice ? '$' + l.originalPrice.toLocaleString() : '--') + '</span>'; } },
             petsAllowed:        { label: 'PETS',           reso: 'PetsAllowed',             render: function(l) { return '--'; } },
             picked:             { label: 'PICKED',         reso: null,                      render: function(l) { return '--'; } },
-            preWarPostWar:      { label: 'ERA',            reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + (l.era || '--') + (l.yearBuilt ? ' (' + l.yearBuilt + ')' : '') + '</span>'; } },
+            preWarPostWar:      { label: 'ERA',            reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + escapeHtml(l.era || '--') + (l.yearBuilt ? ' (' + l.yearBuilt + ')' : '') + '</span>'; } },
             previousSoldDate:   { label: 'PREV SOLD DATE', reso: 'CloseDate',               render: function(l) { return '--'; } },
             previousSoldPrice:  { label: 'PREV SOLD $',    reso: 'ClosePrice',              render: function(l) { return '--'; } },
             priceChange:        { label: 'PRICE CHANGE',   reso: 'PriceChangeTimestamp',    render: function(l) { return l.priceChange === 'down' ? '<span class="text-red-500"><i class="fas fa-arrow-down"></i> Drop</span>' : '--'; } },
-            primaryAgentEmail:  { label: 'AGENT EMAIL',    reso: 'ListAgentEmail',          render: function(l) { return '<span' + resoData('agentEmail', l.agentEmail) + '>' + (l.agentEmail || '--') + '</span>'; } },
-            primaryAgentPhone:  { label: 'AGENT PHONE',    reso: 'ListAgentDirectPhone',    render: function(l) { return '<span' + resoData('agentPhone', l.agentPhone) + '>' + (l.agentPhone || '--') + '</span>'; } },
+            primaryAgentEmail:  { label: 'AGENT EMAIL',    reso: 'ListAgentEmail',          render: function(l) { return '<span' + resoData('agentEmail', l.agentEmail) + '>' + escapeHtml(l.agentEmail || '--') + '</span>'; } },
+            primaryAgentPhone:  { label: 'AGENT PHONE',    reso: 'ListAgentDirectPhone',    render: function(l) { return '<span' + resoData('agentPhone', l.agentPhone) + '>' + escapeHtml(l.agentPhone || '--') + '</span>'; } },
             privateOutdoorSpace:{ label: 'OUTDOOR',        reso: 'PatioAndPorchFeatures',   render: function(l) { return '--'; } },
             resaleNewDev:       { label: 'RESALE/NEW',     reso: 'NewConstructionYN',       render: function(l) { return '--'; } },
             shares:             { label: 'SHARES',         reso: null,                      render: function(l) { return '--'; } },
             shown:              { label: 'SHOWN',          reso: null,                      render: function(l) { return '--'; } },
             sponsorUnit:        { label: 'SPONSOR',        reso: null,                      render: function(l) { return '--'; } },
-            updatedSold:        { label: 'UPDATED',        reso: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + (l.updatedDate || '--') + '</span>'; } },
+            updatedSold:        { label: 'UPDATED',        reso: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
             verifiedEstimated:  { label: 'VERIFIED/EST',   reso: null,                      render: function(l) { return '--'; } },
             verifiedBuyer:      { label: 'VER. BUYER',     reso: null,                      render: function(l) { return '--'; } },
             verifiedSeller:     { label: 'VER. SELLER',    reso: null,                      render: function(l) { return '--'; } },
             washerDryerBuilding:{ label: 'W/D BLDG',       reso: 'LaundryFeatures',         render: function(l) { return '--'; } },
             washerDryerUnit:    { label: 'W/D UNIT',       reso: 'LaundryFeatures',         render: function(l) { return '--'; } },
-            webId:              { label: 'WEB ID',         reso: 'SourceSystemKey',              render: function(l) { return '<span' + resoData('wid', l.wid) + '>' + (l.wid || '--') + '</span>'; } },
+            webId:              { label: 'WEB ID',         reso: 'SourceSystemKey',              render: function(l) { return '<span' + resoData('wid', l.wid) + '>' + escapeHtml(l.wid || '--') + '</span>'; } },
             yearBuilt:          { label: 'YEAR BUILT',     reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + (l.yearBuilt || '--') + '</span>'; } },
-            zipCode:            { label: 'ZIP',            reso: 'PostalCode',              render: function(l) { return '<span' + resoData('zip', l.zip) + '>' + (l.zip || '--') + '</span>'; } },
+            zipCode:            { label: 'ZIP',            reso: 'PostalCode',              render: function(l) { return '<span' + resoData('zip', l.zip) + '>' + escapeHtml(l.zip || '--') + '</span>'; } },
             // New RESO fields from Trestle data dictionary
             cdom:               { label: 'CDOM',           reso: 'CumulativeDaysOnMarket',  render: function(l) { return '<span' + resoData('cdom', l.cdom) + '>' + (l.cdom || '--') + '</span>'; } },
-            propertyType:       { label: 'PROP TYPE',      reso: 'PropertyType',            render: function(l) { return '<span' + resoData('propertyType', l.propertyType) + '>' + (l.propertyType || '--') + '</span>'; } },
-            propertySubType:    { label: 'PROP SUBTYPE',   reso: 'PropertySubType',         render: function(l) { return '<span' + resoData('propertySubType', l.propertySubType) + '>' + (l.propertySubType || '--') + '</span>'; } },
-            exposures:          { label: 'EXPOSURES',      reso: 'Exposures',               render: function(l) { return '<span' + resoData('exposures', l.exposures) + '>' + (l.exposures || '--') + '</span>'; } },
+            propertyType:       { label: 'PROP TYPE',      reso: 'PropertyType',            render: function(l) { return '<span' + resoData('propertyType', l.propertyType) + '>' + escapeHtml(l.propertyType || '--') + '</span>'; } },
+            propertySubType:    { label: 'PROP SUBTYPE',   reso: 'PropertySubType',         render: function(l) { return '<span' + resoData('propertySubType', l.propertySubType) + '>' + escapeHtml(l.propertySubType || '--') + '</span>'; } },
+            exposures:          { label: 'EXPOSURES',      reso: 'Exposures',               render: function(l) { return '<span' + resoData('exposures', l.exposures) + '>' + escapeHtml(l.exposures || '--') + '</span>'; } },
             walkScore:          { label: 'WALK SCORE',     reso: 'WalkScore',               render: function(l) { return '<span' + resoData('walkScore', l.walkScore) + '>' + (l.walkScore || '--') + '</span>'; } },
-            floor:              { label: 'FLOOR',          reso: 'EntryLevel',              render: function(l) { return '<span' + resoData('floor', l.floor) + '>' + (l.floor || '--') + '</span>'; } },
-            crossStreet:        { label: 'CROSS ST',       reso: 'CrossStreet',             render: function(l) { return '<span' + resoData('crossStreet', l.crossStreet) + '>' + (l.crossStreet || '--') + '</span>'; } },
+            floor:              { label: 'FLOOR',          reso: 'EntryLevel',              render: function(l) { return '<span' + resoData('floor', l.floor) + '>' + escapeHtml(l.floor || '--') + '</span>'; } },
+            crossStreet:        { label: 'CROSS ST',       reso: 'CrossStreet',             render: function(l) { return '<span' + resoData('crossStreet', l.crossStreet) + '>' + escapeHtml(l.crossStreet || '--') + '</span>'; } },
             latitude:           { label: 'LAT',            reso: 'Latitude',                render: function(l) { return '<span' + resoData('latitude', l.latitude) + '>' + (l.latitude || '--') + '</span>'; } },
             longitude:          { label: 'LNG',            reso: 'Longitude',               render: function(l) { return '<span' + resoData('longitude', l.longitude) + '>' + (l.longitude || '--') + '</span>'; } },
-            description:        { label: 'DESCRIPTION',    reso: 'PublicRemarks',           render: function(l) { var d = l.description || '--'; return '<span class="truncate max-w-[200px] inline-block"' + resoData('description', d) + ' title="' + d.replace(/"/g, '&quot;') + '">' + d + '</span>'; } }
+            description:        { label: 'DESCRIPTION',    reso: 'PublicRemarks',           render: function(l) { var d = l.description || '--'; return '<span class="truncate max-w-[200px] inline-block"' + resoData('description', d) + ' title="' + escapeHtml(d) + '">' + escapeHtml(d) + '</span>'; } }
         };
 
 
@@ -20594,7 +20607,7 @@ function parseBudgetValue(td) {
                             tbodyHTML += '</tr>';
                         } catch(rowErr) {
                             console.error('[Render] Row failed for listing ' + listing.id + ':', rowErr);
-                            tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-2 py-1 text-red-400 text-xs">Error rendering listing ' + (listing.id || '?') + ': ' + rowErr.message + '</td></tr>';
+                            tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-2 py-1 text-red-400 text-xs">Error rendering listing ' + (listing.id || '?') + ': ' + escapeHtml(rowErr.message) + '</td></tr>';
                         }
                     });
                 }
@@ -20607,7 +20620,7 @@ function parseBudgetValue(td) {
             } catch(e) {
                 console.error('[Render] Grid view FAILED:', e);
                 var table = document.getElementById('resultsTable');
-                if (table) table.innerHTML = '<tbody><tr><td class="p-4 text-red-500">Render error: ' + e.message + '</td></tr></tbody>';
+                if (table) table.innerHTML = '<tbody><tr><td class="p-4 text-red-500">Render error: ' + escapeHtml(e.message) + '</td></tr></tbody>';
             }
         }
 
@@ -20814,16 +20827,16 @@ function parseBudgetValue(td) {
                 var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-                var displayUnit = listing.addressDisplayYN !== false ? listing.unit : '';
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+                var displayUnit = listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : '';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
-                var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '') + '</div>' : '';
+                var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
                 return `
-                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${listing.wid || listing.lid || listing.id}" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" data-source="REBNY-RLS">
+                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
                         <div class="cm-photo-wrap cm-card-photo">
-                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
+                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
                         <!-- Checkbox -->
                         <div class="absolute top-3 left-3 z-10">
@@ -20841,7 +20854,7 @@ function parseBudgetValue(td) {
                         <div class="flex items-start justify-between gap-2 mb-1.5">
                             <div class="min-w-0">
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
-                                <p class="text-[12px] text-gray-500 font-light mt-0.5">${listing.era || 'Pre-War'} &middot; ${ownershipLabel(listing.ownership)} &middot; ${listing.neighborhood}</p>
+                                <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || 'Pre-War')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
                             <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
                         </div>
@@ -20859,7 +20872,7 @@ function parseBudgetValue(td) {
                             <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
                         </div>
                         <!-- Attribution -->
-                        <p class="text-[10px] text-gray-300 mt-2 font-light" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'}</p>
+                        <p class="text-[10px] text-gray-300 mt-2 font-light" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</p>
                     </div>
                 </div>
             `}).join('');
@@ -20872,8 +20885,8 @@ function parseBudgetValue(td) {
         function renderShortSummaryView() {
             var container = document.getElementById('shortSummaryResults');
             container.innerHTML = getFilteredListings().map(listing => {
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-                var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + listing.unit;
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+                var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + escapeHtml(listing.unit);
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
                 <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
@@ -20903,13 +20916,13 @@ function parseBudgetValue(td) {
                         </div>
                         <!-- Tags -->
                         <div class="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
-                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${listing.era || 'Pre-War'}</span>
+                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.era || 'Pre-War')}</span>
                             <span class="px-1.5 py-0.5 bg-gray-100 rounded">${ownershipLabel(listing.ownership)}</span>
-                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${listing.neighborhood}</span>
-                            ${listing.crossStreet ? '<span class="flex items-center gap-0.5"><i class="fas fa-arrows-alt-h text-gray-400 text-[9px]"></i>' + listing.crossStreet + '</span>' : ''}
-                            <span>${listing.zip}</span>
-                            <span class="ml-auto text-[10px] text-gray-400">L-ID: ${listing.lid || '--'}</span>
-                            <span class="text-[10px] text-gray-400">W-ID: ${listing.wid || '--'}</span>
+                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.neighborhood)}</span>
+                            ${listing.crossStreet ? '<span class="flex items-center gap-0.5"><i class="fas fa-arrows-alt-h text-gray-400 text-[9px]"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
+                            <span>${escapeHtml(listing.zip)}</span>
+                            <span class="ml-auto text-[10px] text-gray-400">L-ID: ${escapeHtml(listing.lid || '--')}</span>
+                            <span class="text-[10px] text-gray-400">W-ID: ${escapeHtml(listing.wid || '--')}</span>
                         </div>
                         <!-- 4-column data grid -->
                         <div class="grid grid-cols-4 gap-x-4 gap-y-0.5 text-xs">
@@ -20938,17 +20951,17 @@ function parseBudgetValue(td) {
                             <!-- Col 4: Dates -->
                             <div>
                                 <div class="flex justify-between"><span class="text-gray-500">DOM:</span><span class="font-semibold">${listing.dom}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Listed:</span><span>${listing.listedDate}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Updated:</span><span>${listing.updatedDate || '--'}</span> ${listingFreshness(listing)}</div>
+                                <div class="flex justify-between"><span class="text-gray-500">Listed:</span><span>${escapeHtml(listing.listedDate)}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Updated:</span><span>${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                             </div>
                         </div>
                     </div>
                     <!-- Agent panel (right) -->
                     <div class="w-[200px] flex-shrink-0 border-l p-3 text-xs">
-                        <div class="font-semibold text-sm">${listing.agentName || '--'}</div>
-                        <div class="text-gray-500">${listing.company}</div>
-                        ${listing.agentPhone ? '<div class="text-blue-600 mt-1"><i class="fas fa-phone text-[9px] text-green-500 mr-1"></i>' + listing.agentPhone + '</div>' : ''}
-                        ${listing.agentEmail ? '<div class="text-blue-600 mt-0.5"><i class="fas fa-envelope text-[9px] text-gray-400 mr-1"></i>' + listing.agentEmail + '</div>' : ''}
+                        <div class="font-semibold text-sm">${escapeHtml(listing.agentName || '--')}</div>
+                        <div class="text-gray-500">${escapeHtml(listing.company)}</div>
+                        ${listing.agentPhone ? '<div class="text-blue-600 mt-1"><i class="fas fa-phone text-[9px] text-green-500 mr-1"></i>' + escapeHtml(listing.agentPhone) + '</div>' : ''}
+                        ${listing.agentEmail ? '<div class="text-blue-600 mt-0.5"><i class="fas fa-envelope text-[9px] text-gray-400 mr-1"></i>' + escapeHtml(listing.agentEmail) + '</div>' : ''}
                         <div class="flex items-center gap-1 mt-2">
                             ${clientFeedbackIcons(listing)}
                         </div>
@@ -20956,7 +20969,7 @@ function parseBudgetValue(td) {
                     </div>
                     ${isComingSoon(listing) ? '<div class="px-3 py-1 border-t border-gray-50">' + comingSoonShowingNotice(listing) + '</div>' : ''}
                     ${listing.listingCategory === 'rental' ? '<div class="px-3 py-1 border-t border-gray-50">' + fareActDisclosure(listing) + '</div>' : ''}
-                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} ${listing.agentPhone ? '&middot; ' + listing.agentPhone : ''}</div>
+                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
                 </div>
             `}).join('');
         }
@@ -20968,20 +20981,20 @@ function parseBudgetValue(td) {
         function renderSummaryView() {
             var container = document.getElementById('summaryResults');
             container.innerHTML = getFilteredListings().map(listing => {
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-                var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + listing.unit : '');
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+                var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
                         <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
-                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
+                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">
@@ -21004,11 +21017,11 @@ function parseBudgetValue(td) {
                                     <div class="min-w-0">
                                         <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab(${listing.id})">${displayAddress}${displayUnit}</h3>
                                         <div class="flex items-center gap-2 mt-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${listing.era || 'Pre-War'}</span>
+                                            <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${escapeHtml(listing.era || 'Pre-War')}</span>
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${ownershipLabel(listing.ownership)}</span>
-                                            <span class="text-[11px] text-gray-500">${listing.neighborhood}</span>
-                                            <span class="text-[11px] text-gray-400">${listing.zip}</span>
-                                            ${listing.crossStreet ? '<span class="text-[11px] text-gray-400"><i class="fas fa-arrows-alt-h text-[9px] mr-0.5"></i>' + listing.crossStreet + '</span>' : ''}
+                                            <span class="text-[11px] text-gray-500">${escapeHtml(listing.neighborhood)}</span>
+                                            <span class="text-[11px] text-gray-400">${escapeHtml(listing.zip)}</span>
+                                            ${listing.crossStreet ? '<span class="text-[11px] text-gray-400"><i class="fas fa-arrows-alt-h text-[9px] mr-0.5"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
@@ -21036,10 +21049,10 @@ function parseBudgetValue(td) {
                                 <!-- Dates bar -->
                                 <div class="bg-gray-50 rounded-xl p-3 mb-3">
                                     <div class="grid grid-cols-4 gap-3 text-xs">
-                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Listed</span><span class="font-semibold text-gray-800">${listing.listedDate || '--'}</span></div>
-                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Updated</span><span class="font-semibold text-gray-800">${listing.updatedDate || '--'}</span> ${listingFreshness(listing)}</div>
+                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Listed</span><span class="font-semibold text-gray-800">${escapeHtml(listing.listedDate || '--')}</span></div>
+                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">Updated</span><span class="font-semibold text-gray-800">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                                         <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">DOM</span><span class="font-semibold text-gray-800">${listing.dom || 0}</span></div>
-                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">IDs</span><span class="text-[10px] text-gray-500">${listing.lid || '--'}</span></div>
+                                        <div><span class="text-gray-400 text-[10px] uppercase tracking-wide block mb-0.5">IDs</span><span class="text-[10px] text-gray-500">${escapeHtml(listing.lid || '--')}</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -21048,10 +21061,10 @@ function parseBudgetValue(td) {
                             <div class="flex items-end justify-between">
                                 <!-- Agent info -->
                                 <div class="text-xs text-gray-500">
-                                    <span class="font-semibold text-gray-700">${listing.agentName || '--'}</span>
+                                    <span class="font-semibold text-gray-700">${escapeHtml(listing.agentName || '--')}</span>
                                     <span class="mx-1">&middot;</span>
-                                    <span>${listing.company || '--'}</span>
-                                    ${listing.agentPhone ? '<span class="mx-1">&middot;</span><span class="text-blue-600">' + listing.agentPhone + '</span>' : ''}
+                                    <span>${escapeHtml(listing.company || '--')}</span>
+                                    ${listing.agentPhone ? '<span class="mx-1">&middot;</span><span class="text-blue-600">' + escapeHtml(listing.agentPhone) + '</span>' : ''}
                                 </div>
                                 <!-- Action buttons -->
                                 <div class="flex items-center gap-1" onclick="event.stopPropagation()">
@@ -21068,7 +21081,7 @@ function parseBudgetValue(td) {
                         </div>
                     </div>
                     <!-- Attribution footer -->
-                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} ${listing.agentPhone ? '&middot; ' + listing.agentPhone : ''}</div>
+                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
                 </div>
             `}).join('');
         }
@@ -21080,7 +21093,7 @@ function parseBudgetValue(td) {
         function renderMasterDetailView() {
             var listPanel = document.getElementById('masterListPanel');
             listPanel.innerHTML = getFilteredListings().map(listing => {
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
@@ -21089,7 +21102,7 @@ function parseBudgetValue(td) {
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
                             <div class="absolute bottom-0 left-0 right-0 px-1.5 py-1 flex items-center justify-between" style="background:linear-gradient(transparent,rgba(0,0,0,0.45))">
-                                <span class="text-[8px] font-medium text-white/90">${listing.neighborhood}</span>
+                                <span class="text-[8px] font-medium text-white/90">${escapeHtml(listing.neighborhood)}</span>
                                 <span class="text-white/70 text-[8px]"><i class="fas fa-camera"></i> ${listing.photoCount}</span>
                             </div>
                         </div>
@@ -21100,19 +21113,19 @@ function parseBudgetValue(td) {
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-1">
-                            <h4 class="font-bold text-xs truncate">${displayAddress}, ${listing.addressDisplayYN !== false ? listing.unit : ''}</h4>
+                            <h4 class="font-bold text-xs truncate">${displayAddress}, ${listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
                             <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
-                                <span>${listing.era || 'Pre-War'}</span>
+                                <span>${escapeHtml(listing.era || 'Pre-War')}</span>
                                 <span class="text-gray-300">|</span>
                                 <span>${ownershipLabel(listing.ownership)}</span>
                                 <span class="text-gray-300">|</span>
-                                <span>${listing.neighborhood}</span>
+                                <span>${escapeHtml(listing.neighborhood)}</span>
                                 <span class="text-gray-300">|</span>
-                                <span>${listing.zip}</span>
+                                <span>${escapeHtml(listing.zip)}</span>
                             </div>
                             <span class="text-xs font-bold">$${listing.price.toLocaleString()}</span>
                         </div>
@@ -21146,8 +21159,8 @@ function parseBudgetValue(td) {
         function showListingInDetailPanel(listingId) {
             var listing = mockListings.find(l => l.id === listingId);
             if (!listing) return;
-            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
+            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
             var selected = searchResultsState.selectedListings.includes(listing.id);
 
             var detailPanel = document.getElementById('detailPanel');
@@ -21170,8 +21183,8 @@ function parseBudgetValue(td) {
 
                 <!-- Sub-header: IDs + financial -->
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 mb-1.5">
-                    <span>L-ID: ${listing.lid || '--'}</span>
-                    <span>W-ID: ${listing.wid || '--'}</span>
+                    <span>L-ID: ${escapeHtml(listing.lid || '--')}</span>
+                    <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
                     <span>CC: $${listing.maintCC}</span>
                     <span>RET: $${listing.reTaxes}</span>
                     <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
@@ -21179,12 +21192,12 @@ function parseBudgetValue(td) {
 
                 <!-- Tags -->
                 <div class="flex items-center flex-wrap gap-1.5 mb-3">
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${listing.era || 'Pre-War'}</span>
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.era || 'Pre-War')}</span>
                     <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${ownershipLabel(listing.ownership)}</span>
-                    ${listing.buildingName ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">' + listing.buildingName + '</span>' : ''}
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${listing.neighborhood}</span>
-                    ${listing.crossStreet ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]"><i class="fas fa-arrows-alt-h mr-0.5 text-gray-400"></i>' + listing.crossStreet + '</span>' : ''}
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${listing.zip}</span>
+                    ${listing.buildingName ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">' + escapeHtml(listing.buildingName) + '</span>' : ''}
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.neighborhood)}</span>
+                    ${listing.crossStreet ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]"><i class="fas fa-arrows-alt-h mr-0.5 text-gray-400"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.zip)}</span>
                 </div>
 
                 <!-- Photo — single large, full width -->
@@ -21206,7 +21219,7 @@ function parseBudgetValue(td) {
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-flag text-gray-500 text-sm"></i></button>
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-random text-gray-500 text-sm"></i></button>
                     ${isComingSoon(listing)
-                        ? '<button class="p-1.5 bg-purple-50 rounded cursor-not-allowed" disabled title="Coming Soon — No showings permitted until ' + (listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400 text-sm"></i></button>'
+                        ? '<button class="p-1.5 bg-purple-50 rounded cursor-not-allowed" disabled title="Coming Soon — No showings permitted until ' + escapeHtml(listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400 text-sm"></i></button>'
                         : '<button class="p-1.5 hover:bg-gray-100 rounded" title="Schedule Showing"><i class="fas fa-calendar-check text-gray-500 text-sm"></i></button>'
                     }
                 </div>
@@ -21229,14 +21242,14 @@ function parseBudgetValue(td) {
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <div class="grid grid-cols-4 gap-3 text-xs">
                         <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded font-semibold text-[11px]">${listing.status}</span></div>
-                        <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${listing.updatedDate || '--'}</span> ${listingFreshness(listing)}</div>
-                        <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${listing.listedDate}</span></div>
+                        <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
+                        <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${escapeHtml(listing.listedDate)}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom}</span></div>
                     </div>
                 </div>
 
                 <!-- Description -->
-                ${listing.description ? '<div class="mb-3"><h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</h4><p class="text-sm text-gray-700 leading-relaxed">' + listing.description + '</p></div>' : ''}
+                ${listing.description ? '<div class="mb-3"><h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</h4><p class="text-sm text-gray-700 leading-relaxed">' + escapeHtml(listing.description) + '</p></div>' : ''}
 
                 <!-- Financial Details -->
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
@@ -21259,9 +21272,9 @@ function parseBudgetValue(td) {
                         <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
                         <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
-                        <div><span class="text-gray-500">Floor</span><div class="font-semibold">${listing.floor || '--'}</div></div>
-                        <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${listing.exposures || '--'}</div></div>
-                        <div><span class="text-gray-500">Condition</span><div class="font-semibold">${listing.condition || '--'}</div></div>
+                        <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
+                        <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>
+                        <div><span class="text-gray-500">Condition</span><div class="font-semibold">${escapeHtml(listing.condition || '--')}</div></div>
                         <div><span class="text-gray-500">Outdoor Space</span><div class="font-semibold">--</div></div>
                         <div><span class="text-gray-500">W/D</span><div class="font-semibold">--</div></div>
                     </div>
@@ -21271,9 +21284,9 @@ function parseBudgetValue(td) {
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Building</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
-                        <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${listing.buildingName || '--'}</div></div>
+                        <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${escapeHtml(listing.buildingName || '--')}</div></div>
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
-                        <div><span class="text-gray-500">Era</span><div class="font-semibold">${listing.era || '--'}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
+                        <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
                         <div><span class="text-gray-500">Elevator</span><div class="font-semibold">--</div></div>
                         <div><span class="text-gray-500">Doorman</span><div class="font-semibold">--</div></div>
                         <div><span class="text-gray-500">Financing</span><div class="font-semibold">--</div></div>
@@ -21283,15 +21296,15 @@ function parseBudgetValue(td) {
                 <!-- Listing Broker -->
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Listing Broker</h4>
-                    <div class="font-semibold text-sm">${listing.company || '--'}</div>
-                    <div class="text-xs text-gray-600 mt-0.5">${listing.agentName || '--'}</div>
-                    ${listing.agentPhone ? '<div class="text-xs text-blue-600">' + listing.agentPhone + '</div>' : ''}
-                    ${listing.agentEmail ? '<div class="text-xs text-blue-600">' + listing.agentEmail + '</div>' : ''}
+                    <div class="font-semibold text-sm">${escapeHtml(listing.company || '--')}</div>
+                    <div class="text-xs text-gray-600 mt-0.5">${escapeHtml(listing.agentName || '--')}</div>
+                    ${listing.agentPhone ? '<div class="text-xs text-blue-600">' + escapeHtml(listing.agentPhone) + '</div>' : ''}
+                    ${listing.agentEmail ? '<div class="text-xs text-blue-600">' + escapeHtml(listing.agentEmail) + '</div>' : ''}
                 </div>
 
                 <!-- Compliance -->
                 ${fareActDisclosure(listing)}
-                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} &middot; Information deemed reliable but not guaranteed</div>
+                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed</div>
             `;
         }
 
@@ -22111,7 +22124,7 @@ function parseBudgetValue(td) {
 
             savedLayouts.forEach(function(layout, i) {
                 html += '<div class="p-3 border rounded-lg flex items-center justify-between bg-white hover:bg-gray-50 cursor-pointer" onclick="loadSavedLayout(' + i + ')">';
-                html += '<div><div class="text-sm font-medium">' + layout.name + '</div>';
+                html += '<div><div class="text-sm font-medium">' + escapeHtml(layout.name) + '</div>';
                 html += '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">' + layout.columns.length + ' columns</span></div>';
                 html += '<button class="text-gray-400 hover:text-red-500" onclick="event.stopPropagation(); deleteSavedLayout(' + i + ')" title="Delete"><i class="fas fa-trash-alt text-xs"></i></button>';
                 html += '</div>';
@@ -26947,8 +26960,8 @@ function emailCurrentCalc() {
                     _refreshDetailMediaSections(listing);
                 });
             }
-            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
+            var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+            var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
             var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
             var isSale = listing.listingCategory !== 'rental';
             var transitScore = computeTransitScore(listing);
@@ -26960,7 +26973,7 @@ function emailCurrentCalc() {
             var thumbGrid = '';
             for (var ti = 0; ti < 4; ti++) {
                 if (secondaryPhotos[ti]) {
-                    thumbGrid += '<div class="cm-photo-wrap rounded-lg cursor-pointer" onclick="openPhotoLightbox(' + (ti+1) + ')"><img src="' + secondaryPhotos[ti].url + '" alt="' + (secondaryPhotos[ti].caption || '') + '" class="cm-photo rounded-lg" loading="lazy"></div>';
+                    thumbGrid += '<div class="cm-photo-wrap rounded-lg cursor-pointer" onclick="openPhotoLightbox(' + (ti+1) + ')"><img src="' + secondaryPhotos[ti].url + '" alt="' + escapeHtml(secondaryPhotos[ti].caption || '') + '" class="cm-photo rounded-lg" loading="lazy"></div>';
                 } else {
                     thumbGrid += '<div class="bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-image text-gray-300"></i></div>';
                 }
@@ -27014,14 +27027,14 @@ function emailCurrentCalc() {
                 </div>
 
                 <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
-                    <span>${listing.neighborhood}</span>
+                    <span>${escapeHtml(listing.neighborhood)}</span>
                     <span class="text-gray-300">&bull;</span>
-                    <span>${listing.borough || 'Manhattan'}, NY ${listing.zip}</span>
-                    ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + listing.era + '</span>' : ''}
+                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
+                    ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
                     <span class="text-gray-300">&bull;</span>
                     <span>${ownershipLabel(listing.ownership)}</span>
-                    ${listing.buildingName ? '<span class="text-gray-300">&bull;</span><span>' + listing.buildingName + '</span>' : ''}
-                    ${listing.crossStreet ? '<span class="text-gray-300">&bull;</span><span class="text-gray-400"><i class="fas fa-arrows-alt-h text-[10px] mr-0.5"></i>' + listing.crossStreet + '</span>' : ''}
+                    ${listing.buildingName ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.buildingName) + '</span>' : ''}
+                    ${listing.crossStreet ? '<span class="text-gray-300">&bull;</span><span class="text-gray-400"><i class="fas fa-arrows-alt-h text-[10px] mr-0.5"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
                 </div>
 
                 <!-- Stats Bar -->
@@ -27078,21 +27091,21 @@ function emailCurrentCalc() {
                         </div>
 
                         <!-- Description -->
-                        ${listing.description ? '<div class="lux-card mb-4"><h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Description</h3><p class="text-sm text-gray-600 leading-relaxed">' + listing.description + '</p></div>' : ''}
+                        ${listing.description ? '<div class="lux-card mb-4"><h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Description</h3><p class="text-sm text-gray-600 leading-relaxed">' + escapeHtml(listing.description) + '</p></div>' : ''}
 
                         <!-- Key Features Grid (only show items with data) -->
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-star text-gray-400"></i> Key Features</h3>
                             <div class="grid grid-cols-3 gap-2">
-                                ${listing.propertySubType ? '<div class="lux-feature-item"><i class="fas fa-building"></i><div><div class="feature-label">Type</div><div class="feature-value">' + listing.propertySubType + '</div></div></div>' : ''}
-                                ${listing.floor ? '<div class="lux-feature-item"><i class="fas fa-layer-group"></i><div><div class="feature-label">Floor</div><div class="feature-value">' + listing.floor + '</div></div></div>' : ''}
-                                ${listing.exposures ? '<div class="lux-feature-item"><i class="fas fa-compass"></i><div><div class="feature-label">Exposure</div><div class="feature-value">' + listing.exposures + '</div></div></div>' : ''}
-                                ${listing.condition ? '<div class="lux-feature-item"><i class="fas fa-tools"></i><div><div class="feature-label">Condition</div><div class="feature-value">' + listing.condition + '</div></div></div>' : ''}
+                                ${listing.propertySubType ? '<div class="lux-feature-item"><i class="fas fa-building"></i><div><div class="feature-label">Type</div><div class="feature-value">' + escapeHtml(listing.propertySubType) + '</div></div></div>' : ''}
+                                ${listing.floor ? '<div class="lux-feature-item"><i class="fas fa-layer-group"></i><div><div class="feature-label">Floor</div><div class="feature-value">' + escapeHtml(listing.floor) + '</div></div></div>' : ''}
+                                ${listing.exposures ? '<div class="lux-feature-item"><i class="fas fa-compass"></i><div><div class="feature-label">Exposure</div><div class="feature-value">' + escapeHtml(listing.exposures) + '</div></div></div>' : ''}
+                                ${listing.condition ? '<div class="lux-feature-item"><i class="fas fa-tools"></i><div><div class="feature-label">Condition</div><div class="feature-value">' + escapeHtml(listing.condition) + '</div></div></div>' : ''}
                                 ${listing.yearBuilt ? '<div class="lux-feature-item"><i class="fas fa-calendar-alt"></i><div><div class="feature-label">Year Built</div><div class="feature-value">' + listing.yearBuilt + '</div></div></div>' : ''}
-                                ${listing.era ? '<div class="lux-feature-item"><i class="fas fa-landmark"></i><div><div class="feature-label">Era</div><div class="feature-value">' + listing.era + '</div></div></div>' : ''}
+                                ${listing.era ? '<div class="lux-feature-item"><i class="fas fa-landmark"></i><div><div class="feature-label">Era</div><div class="feature-value">' + escapeHtml(listing.era) + '</div></div></div>' : ''}
                                 ${listing.walkScore ? '<div class="lux-feature-item"><i class="fas fa-walking"></i><div><div class="feature-label">Walk Score</div><div class="feature-value">' + listing.walkScore + '</div></div></div>' : ''}
                                 <div class="lux-feature-item"><i class="fas fa-home"></i><div><div class="feature-label">Ownership</div><div class="feature-value">${ownershipLabel(listing.ownership)}</div></div></div>
-                                ${listing.buildingName ? '<div class="lux-feature-item"><i class="fas fa-city"></i><div><div class="feature-label">Building</div><div class="feature-value">' + listing.buildingName + '</div></div></div>' : ''}
+                                ${listing.buildingName ? '<div class="lux-feature-item"><i class="fas fa-city"></i><div><div class="feature-label">Building</div><div class="feature-value">' + escapeHtml(listing.buildingName) + '</div></div></div>' : ''}
                             </div>
                         </div>
 
@@ -27107,7 +27120,7 @@ function emailCurrentCalc() {
                             </div>
                             <div class="grid grid-cols-4 gap-3">
                                 ${(listing.images || []).slice(0, 4).map(function(img, idx) {
-                                    return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + ')"><img src="' + img.url.replace('w=800', 'w=400') + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption">' + (img.caption || 'Photo ' + (idx+1)) + '</div></div>';
+                                    return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + ')"><img src="' + img.url.replace('w=800', 'w=400') + '" alt="' + escapeHtml(img.caption || '') + '" loading="lazy"><div class="caption">' + escapeHtml(img.caption || 'Photo ' + (idx+1)) + '</div></div>';
                                 }).join('')}
                             </div>
                         </div>
@@ -27158,14 +27171,14 @@ function emailCurrentCalc() {
                                     </div>
                                     <!-- Col 2: Type / Classification / Requirements -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Property Type</span><span class="font-semibold">${listing.propertySubType || listing.propertyType || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Property Type</span><span class="font-semibold">${escapeHtml(listing.propertySubType || listing.propertyType || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Ownership</span><span class="font-semibold">${ownershipLabel(listing.ownership)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building Status</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Listing Type</span><span class="font-semibold">${listing.listingType || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Era</span><span class="font-semibold">${listing.era || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Listing Type</span><span class="font-semibold">${escapeHtml(listing.listingType || '---')}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Era</span><span class="font-semibold">${escapeHtml(listing.era || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Year Built</span><span class="font-semibold">${listing.yearBuilt || '---'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Condition</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Unit Condition</span><span class="font-semibold">${listing.condition || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Unit Condition</span><span class="font-semibold">${escapeHtml(listing.condition || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Kitchen Condition</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Appliance Condition</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Bathroom Condition</span><span class="font-semibold">---</span></div>
@@ -27210,7 +27223,7 @@ function emailCurrentCalc() {
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Dimensions / Room Counts -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Unit Type</span><span class="font-semibold">${listing.propertySubType || 'Residential'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Unit Type</span><span class="font-semibold">${escapeHtml(listing.propertySubType || 'Residential')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Floors in Unit</span><span class="font-semibold">Single Floor</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Approx Interior SqFt</span><span class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Approx Exterior SqFt</span><span class="font-semibold">---</span></div>
@@ -27242,9 +27255,9 @@ function emailCurrentCalc() {
                                     </div>
                                     <!-- Col 3: Location / Exposure / Views -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Floor in Building</span><span class="font-semibold">${listing.floor || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Floor in Building</span><span class="font-semibold">${escapeHtml(listing.floor || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Line in Building</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Exposure</span><span class="font-semibold">${listing.exposures || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Exposure</span><span class="font-semibold">${escapeHtml(listing.exposures || '---')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Light</span><span class="font-semibold">---</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Views</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Has Views</span><span class="font-semibold">---</span></div>
@@ -27813,15 +27826,15 @@ function emailCurrentCalc() {
                                 <span class="sidebar-section-label">Listing Agent</span>
                                 <span class="sidebar-badge-agent"><i class="fas fa-lock text-[7px]"></i> Agent Only</span>
                             </div>
-                            <div class="text-[14px] font-bold text-gray-900 tracking-tight">${listing.agentName || '---'}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">${listing.company || '---'}</div>
+                            <div class="text-[14px] font-bold text-gray-900 tracking-tight">${escapeHtml(listing.agentName || '---')}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">${escapeHtml(listing.company || '---')}</div>
                             <div class="flex items-center gap-2 mt-2 mb-2.5">
-                                <span class="px-2 py-0.5 border border-gray-200 rounded-full text-[10px] text-gray-500 font-semibold">${listing.listingType || 'Exclusive'}</span>
+                                <span class="px-2 py-0.5 border border-gray-200 rounded-full text-[10px] text-gray-500 font-semibold">${escapeHtml(listing.listingType || 'Exclusive')}</span>
                             </div>
                             <div class="space-y-1.5">
-                                ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + listing.agentPhone + '</a>' : ''}
-                                ${listing.agentEmail ? '<a href="mailto:' + listing.agentEmail + '?subject=' + encodeURIComponent('Agent Inquiry - ' + (listing.address || '') + (listing.unit ? ', ' + listing.unit : '')) + '&body=' + encodeURIComponent(buildAgentMailtoBody(listing)) + '" class="sidebar-contact-link"><i class="fas fa-envelope text-[9px]"></i>' + listing.agentEmail + '</a>' : ''}
-                                ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + listing.agentLicense + '</div>' : ''}
+                                ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + escapeHtml(listing.agentPhone) + '</a>' : ''}
+                                ${listing.agentEmail ? '<a href="mailto:' + escapeHtml(listing.agentEmail) + '?subject=' + encodeURIComponent('Agent Inquiry - ' + (listing.address || '') + (listing.unit ? ', ' + listing.unit : '')) + '&body=' + encodeURIComponent(buildAgentMailtoBody(listing)) + '" class="sidebar-contact-link"><i class="fas fa-envelope text-[9px]"></i>' + escapeHtml(listing.agentEmail) + '</a>' : ''}
+                                ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + escapeHtml(listing.agentLicense) + '</div>' : ''}
                             </div>
 
                             <!-- Showing Instructions (inline, no separate card) -->
@@ -27832,7 +27845,7 @@ function emailCurrentCalc() {
                                     <i class="fas fa-chevron-up si-chevron ml-auto text-gray-300 text-[9px]"></i>
                                 </button>
                                 <div class="mt-2 text-[12px] text-gray-600 leading-relaxed">
-                                    ${listing.showingInstructions || '(UCOM) ' + (listing.agentName || '---') + ' ' + (listing.agentPhone || '')}
+                                    ${escapeHtml(listing.showingInstructions || '(UCOM) ' + (listing.agentName || '---') + ' ' + (listing.agentPhone || ''))}
                                 </div>
                             </div>
                         </div>
@@ -27899,7 +27912,7 @@ function emailCurrentCalc() {
                 </div>
 
                 <!-- Attribution footer -->
-                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
+                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
             `;
 
             // Populate similar listings (neighborhood + nearby)
@@ -27907,18 +27920,18 @@ function emailCurrentCalc() {
             var neighborhoodListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood === listing.neighborhood; }).slice(0, 3);
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
-                var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : l.address;
+                var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
                 var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(' + l.id + ')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
-                    + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + l.unit : '') + '</div>'
-                    + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + l.neighborhood + '</div>'
+                    + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
+                    + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
                     + '<div class="text-xs mt-1"><strong>' + l.beds + '</strong> Beds &nbsp; <strong>' + l.baths + '</strong> Baths</div>'
                     + '<div class="flex items-center justify-between mt-2"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 ' + getStatusBadgeClasses(l.status) + ' rounded text-[10px] font-semibold">' + st + '</span><span class="font-bold text-sm">$' + l.price.toLocaleString() + '</span></div>'
                     + '<div class="text-[10px] text-gray-400">Listed<br>' + l.listedDate + '</div></div></div></div>';
             };
             var nhEl = document.getElementById('detailSimilarNeighborhood');
-            if (nhEl) nhEl.innerHTML = neighborhoodListings.length > 0 ? neighborhoodListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No similar listings in ' + listing.neighborhood + '</div>';
+            if (nhEl) nhEl.innerHTML = neighborhoodListings.length > 0 ? neighborhoodListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No similar listings in ' + escapeHtml(listing.neighborhood) + '</div>';
             var nbEl = document.getElementById('detailSimilarNearby');
             if (nbEl) nbEl.innerHTML = nearbyListings.length > 0 ? nearbyListings.map(renderMiniCard).join('') : '<div class="col-span-3 text-center text-gray-400 text-sm py-4">No nearby listings</div>';
 
@@ -28385,7 +28398,7 @@ function emailCurrentCalc() {
             // Dual agent blocks — prepared by (our agent) + listing agent (from RLS)
             h += '<div class="dual-agent">';
             h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '#10991205323') + '<br>' + (_agent.address || '400 East 90th St, Suite 17C, NY 10128') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
-            h += '<div><div class="label">Listing Agent</div><div class="name">' + (listing.agentName || '---') + '</div><div class="info">' + (listing.company || '---') + '<br>' + (listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + listing.agentEmail : '') + '<br>' + (listing.listingType || 'Exclusive') + '</div></div>';
+            h += '<div><div class="label">Listing Agent</div><div class="name">' + escapeHtml(listing.agentName || '---') + '</div><div class="info">' + escapeHtml(listing.company || '---') + '<br>' + escapeHtml(listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + escapeHtml(listing.agentEmail) : '') + '<br>' + escapeHtml(listing.listingType || 'Exclusive') + '</div></div>';
             h += '</div>';
 
             // Hero: photo + title/price
@@ -28394,7 +28407,7 @@ function emailCurrentCalc() {
             else h += '<div style="width:100%;height:280px;background:#f0f0f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#ccc"><i class="fas fa-camera" style="font-size:48px"></i></div>';
             h += '<div style="display:flex;flex-direction:column;justify-content:center">';
             h += '<div class="print-title">' + displayAddress + displayUnit + '</div>';
-            h += '<div class="print-subtitle">' + (listing.era || '') + ' &middot; ' + ownershipLabel(listing.ownership) + ' &middot; ' + listing.neighborhood + ', NY ' + listing.zip + '</div>';
+            h += '<div class="print-subtitle">' + escapeHtml(listing.era || '') + ' &middot; ' + ownershipLabel(listing.ownership) + ' &middot; ' + escapeHtml(listing.neighborhood) + ', NY ' + escapeHtml(listing.zip) + '</div>';
             h += '<div class="print-price">$' + listing.price.toLocaleString() + '</div>';
             h += '<div class="print-price-sub">' + (isSale ? 'Maint/CC: $' + listing.maintCC.toLocaleString() + '/mo' : 'Monthly Rent') + ' &middot; Est. Monthly: $' + listing.totalMonthly.toLocaleString() + '</div>';
             h += '<div class="print-specs"><span><strong>' + listing.rooms + '</strong> Rooms</span><span><strong>' + listing.beds + '</strong> Beds</span><span><strong>' + listing.baths + '</strong> Baths</span><span><strong>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</strong> SqFt</span></div>';
@@ -28405,7 +28418,7 @@ function emailCurrentCalc() {
             h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + listing.listedDate + '</strong></div><div><div class="label">DOM</div><strong>' + listing.dom + '</strong></div><div><div class="label">CDOM</div><strong>' + (listing.cdom || listing.dom) + '</strong></div></div>';
 
             // Description
-            if (listing.description) h += '<div class="print-desc">' + listing.description + '</div>';
+            if (listing.description) h += '<div class="print-desc">' + escapeHtml(listing.description) + '</div>';
 
             // Financial Details
             h += '<div class="print-section"><h3><i class="fas fa-dollar-sign" style="margin-right:6px"></i> Financial</h3><div class="print-grid">';
@@ -29414,11 +29427,11 @@ function emailCurrentCalc() {
         dropdown.innerHTML = matches.map(function(item) {
             var boroughBadge = item.isBoroughLevel
                 ? '<span class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-semibold">Borough</span>'
-                : '<span class="ml-auto text-xs text-gray-600 font-medium">' + item.borough + '</span>';
+                : '<span class="ml-auto text-xs text-gray-600 font-medium">' + escapeHtml(item.borough) + '</span>';
             return '<div class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-2" ' +
                    'onclick="selectNeighborhood(\'' + item.name.replace(/'/g, "\\'") + '\',\'' + item.borough + '\',' + item.isBoroughLevel + ',\'' + dropdownId + '\',\'' + tagsId + '\')">' +
                    '<i class="fas fa-map-pin text-blue-500 text-xs"></i>' +
-                   '<span class="text-sm font-medium text-gray-900">' + item.name + '</span>' +
+                   '<span class="text-sm font-medium text-gray-900">' + escapeHtml(item.name) + '</span>' +
                    boroughBadge + '</div>';
         }).join('');
 
@@ -29463,7 +29476,7 @@ function emailCurrentCalc() {
 
         container.innerHTML = selected.map(function(item) {
             var label = item.isBoroughLevel ? item.name : item.name;
-            var boroughHint = item.borough ? ' <span class="text-[11px] text-gray-500 font-normal">(' + item.borough + ')</span>' : '';
+            var boroughHint = item.borough ? ' <span class="text-[11px] text-gray-500 font-normal">(' + escapeHtml(item.borough) + ')</span>' : '';
             return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200">' +
                    '<i class="fas fa-map-pin text-blue-500 text-[10px]"></i>' +
                    label + boroughHint +

@@ -367,7 +367,7 @@
                 // Update signer info in signature section
                 var sigName = document.getElementById('refSignAgentName');
                 var sigEmail = document.getElementById('refSignAgentEmail');
-                if (sigName) sigName.innerHTML = agentData[sel].name + ' <span class="text-gray-400 font-normal">(' + (agentData[sel].title || '') + ')</span>';
+                if (sigName) sigName.innerHTML = escapeHtml(agentData[sel].name) + ' <span class="text-gray-400 font-normal">(' + escapeHtml(agentData[sel].title || '') + ')</span>';
                 if (sigEmail) sigEmail.textContent = agentData[sel].email || '—';
             } else {
                 titleEl.value = '';

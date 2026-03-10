@@ -1,8 +1,8 @@
         function renderShortSummaryView() {
             var container = document.getElementById('shortSummaryResults');
             container.innerHTML = getFilteredListings().map(listing => {
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-                var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + listing.unit;
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+                var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + escapeHtml(listing.unit);
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
                 <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
@@ -32,13 +32,13 @@
                         </div>
                         <!-- Tags -->
                         <div class="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
-                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${listing.era || 'Pre-War'}</span>
+                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.era || 'Pre-War')}</span>
                             <span class="px-1.5 py-0.5 bg-gray-100 rounded">${ownershipLabel(listing.ownership)}</span>
-                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${listing.neighborhood}</span>
-                            ${listing.crossStreet ? '<span class="flex items-center gap-0.5"><i class="fas fa-arrows-alt-h text-gray-400 text-[9px]"></i>' + listing.crossStreet + '</span>' : ''}
-                            <span>${listing.zip}</span>
-                            <span class="ml-auto text-[10px] text-gray-400">L-ID: ${listing.lid || '--'}</span>
-                            <span class="text-[10px] text-gray-400">W-ID: ${listing.wid || '--'}</span>
+                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.neighborhood)}</span>
+                            ${listing.crossStreet ? '<span class="flex items-center gap-0.5"><i class="fas fa-arrows-alt-h text-gray-400 text-[9px]"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
+                            <span>${escapeHtml(listing.zip)}</span>
+                            <span class="ml-auto text-[10px] text-gray-400">L-ID: ${escapeHtml(listing.lid || '--')}</span>
+                            <span class="text-[10px] text-gray-400">W-ID: ${escapeHtml(listing.wid || '--')}</span>
                         </div>
                         <!-- 4-column data grid -->
                         <div class="grid grid-cols-4 gap-x-4 gap-y-0.5 text-xs">
@@ -67,17 +67,17 @@
                             <!-- Col 4: Dates -->
                             <div>
                                 <div class="flex justify-between"><span class="text-gray-500">DOM:</span><span class="font-semibold">${listing.dom}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Listed:</span><span>${listing.listedDate}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Updated:</span><span>${listing.updatedDate || '--'}</span> ${listingFreshness(listing)}</div>
+                                <div class="flex justify-between"><span class="text-gray-500">Listed:</span><span>${escapeHtml(listing.listedDate)}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Updated:</span><span>${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                             </div>
                         </div>
                     </div>
                     <!-- Agent panel (right) -->
                     <div class="w-[200px] flex-shrink-0 border-l p-3 text-xs">
-                        <div class="font-semibold text-sm">${listing.agentName || '--'}</div>
-                        <div class="text-gray-500">${listing.company}</div>
-                        ${listing.agentPhone ? '<div class="text-blue-600 mt-1"><i class="fas fa-phone text-[9px] text-green-500 mr-1"></i>' + listing.agentPhone + '</div>' : ''}
-                        ${listing.agentEmail ? '<div class="text-blue-600 mt-0.5"><i class="fas fa-envelope text-[9px] text-gray-400 mr-1"></i>' + listing.agentEmail + '</div>' : ''}
+                        <div class="font-semibold text-sm">${escapeHtml(listing.agentName || '--')}</div>
+                        <div class="text-gray-500">${escapeHtml(listing.company)}</div>
+                        ${listing.agentPhone ? '<div class="text-blue-600 mt-1"><i class="fas fa-phone text-[9px] text-green-500 mr-1"></i>' + escapeHtml(listing.agentPhone) + '</div>' : ''}
+                        ${listing.agentEmail ? '<div class="text-blue-600 mt-0.5"><i class="fas fa-envelope text-[9px] text-gray-400 mr-1"></i>' + escapeHtml(listing.agentEmail) + '</div>' : ''}
                         <div class="flex items-center gap-1 mt-2">
                             ${clientFeedbackIcons(listing)}
                         </div>
@@ -85,7 +85,7 @@
                     </div>
                     ${isComingSoon(listing) ? '<div class="px-3 py-1 border-t border-gray-50">' + comingSoonShowingNotice(listing) + '</div>' : ''}
                     ${listing.listingCategory === 'rental' ? '<div class="px-3 py-1 border-t border-gray-50">' + fareActDisclosure(listing) + '</div>' : ''}
-                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'} &middot; ${listing.agentName || ''} ${listing.agentPhone ? '&middot; ' + listing.agentPhone : ''}</div>
+                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
                 </div>
             `}).join('');
         }

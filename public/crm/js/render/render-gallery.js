@@ -4,16 +4,16 @@
                 var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
-                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
-                var displayUnit = listing.addressDisplayYN !== false ? listing.unit : '';
+                var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
+                var displayUnit = listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : '';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
-                var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '') + '</div>' : '';
+                var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
                 return `
-                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${listing.wid || listing.lid || listing.id}" data-listing-id="${listing.id}" data-listing-lid="${listing.lid || ''}" data-source="REBNY-RLS">
+                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
                         <div class="cm-photo-wrap cm-card-photo">
-                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${listing.lid || ''}">
+                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
                         <!-- Checkbox -->
                         <div class="absolute top-3 left-3 z-10">
@@ -31,7 +31,7 @@
                         <div class="flex items-start justify-between gap-2 mb-1.5">
                             <div class="min-w-0">
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
-                                <p class="text-[12px] text-gray-500 font-light mt-0.5">${listing.era || 'Pre-War'} &middot; ${ownershipLabel(listing.ownership)} &middot; ${listing.neighborhood}</p>
+                                <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || 'Pre-War')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
                             <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
                         </div>
@@ -49,7 +49,7 @@
                             <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
                         </div>
                         <!-- Attribution -->
-                        <p class="text-[10px] text-gray-300 mt-2 font-light" data-rebny-attribution>Listing courtesy of ${listing.company || 'REBNY RLS'}</p>
+                        <p class="text-[10px] text-gray-300 mt-2 font-light" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</p>
                     </div>
                 </div>
             `}).join('');
