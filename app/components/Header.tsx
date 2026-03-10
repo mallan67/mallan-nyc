@@ -46,7 +46,7 @@ function NavDropdown({ label, items, dark: _dark }: { label: string; items: { ti
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const linkColor = 'text-white/80 hover:text-white';
+  const linkColor = 'text-white hover:text-brand-gold';
 
   return (
     <div ref={ref} className="relative" onMouseEnter={enter} onMouseLeave={leave}>
@@ -168,7 +168,7 @@ export default function Header() {
           router.push(item.href);
         }
       }}
-      className="block py-3 min-h-[44px] text-base cursor-pointer select-none text-white/60 active:text-white"
+      className="block py-3 min-h-[44px] text-base cursor-pointer select-none text-white active:text-brand-gold"
       style={{
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -181,7 +181,7 @@ export default function Header() {
   );
 
   // White text on dark charcoal glass
-  const mobileTextColor = 'text-white/80 hover:text-white';
+  const mobileTextColor = 'text-white hover:text-brand-gold';
 
   // Auth-aware button config
   const isLoggedIn = auth.authenticated;
@@ -218,7 +218,7 @@ export default function Header() {
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
 
               <li>
-                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
+                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-brand-gold">
                   Open Houses
                 </Link>
               </li>
@@ -226,25 +226,25 @@ export default function Header() {
               <li><NavDropdown label="Resources" items={resources} dark={dark} /></li>
 
               <li>
-                <Link href="/agents" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
+                <Link href="/agents" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-brand-gold">
                   Agents
                 </Link>
               </li>
 
               <li>
-                <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white">
+                <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-brand-gold">
                   About
                 </Link>
               </li>
 
               <li>
-                <Link href="/favorites" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white" title="Saved Properties">
+                <Link href="/favorites" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-brand-gold" title="Saved Properties">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></svg>
                 </Link>
               </li>
 
               <li>
-                <a href="tel:+16462584460" className="inline-flex items-center gap-1.5 whitespace-nowrap transition-all duration-500 text-white/80 hover:text-white" title="Call (646) 258-4460">
+                <a href="tel:+16462584460" className="inline-flex items-center gap-1.5 whitespace-nowrap transition-all duration-500 text-white hover:text-brand-gold" title="Call (646) 258-4460">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                   <span className="hidden xl:inline text-[12px]">(646) 258-4460</span>
                 </a>
