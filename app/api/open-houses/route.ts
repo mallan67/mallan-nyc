@@ -42,7 +42,11 @@ export async function GET() {
       oh => !trestleKeys.has(`${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase())
     );
 
-    const allOpenHouses = [...trestleOH, ...uniqueLocal].sort((a, b) => {
+    // Filter out open houses with no meaningful property data
+    // (empty address, $0 price = Trestle records where Property expand failed)
+    const hasData = (oh: OpenHouseDTO) => oh.address.trim().length > 0 && oh.price > 0;
+
+    const allOpenHouses = [...trestleOH, ...uniqueLocal].filter(hasData).sort((a, b) => {
       // Featured first, then by date
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;

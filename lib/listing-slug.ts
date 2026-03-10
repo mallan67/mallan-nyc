@@ -50,7 +50,12 @@ export function generateListingSlug(listing: {
 
   if (streetNumber) parts.push(streetNumber);
   if (streetName) parts.push(streetName);
-  if (unitNumber) parts.push(`apt-${unitNumber}`);
+  if (unitNumber) {
+    // Collapse spaces/hyphens in unit numbers (e.g., "8 H" → "8h", "17-C" → "17c")
+    // so the slug token stays as a single part after slugify splits on hyphens.
+    const normalizedUnit = unitNumber.replace(/[\s-]+/g, '');
+    parts.push(`apt-${normalizedUnit}`);
+  }
   if (city) parts.push(city);
   if (stateOrProvince) parts.push(stateOrProvince);
   if (postalCode) parts.push(postalCode);
@@ -124,12 +129,23 @@ export function parseAddressSlug(slug: string): {
   let unitNumber: string | undefined;
   const aptIndex = parts.indexOf('apt');
   if (aptIndex !== -1) {
-    // Everything after "apt" up to the city boundary is the unit number
-    // Unit is typically the next token after "apt"
     const afterApt = parts.splice(aptIndex);
     afterApt.shift(); // remove "apt"
     if (afterApt.length > 0) {
-      unitNumber = afterApt.shift()!;
+      // Collect all unit-number tokens: short alphanumeric parts that aren't city words.
+      // Handles multi-token units like "8-h" (from "8 H") or "17-c" (from "17-C").
+      const unitParts: string[] = [];
+      while (
+        afterApt.length > 0 &&
+        afterApt[0].length <= 4 &&
+        /^[a-z0-9]+$/.test(afterApt[0]) &&
+        !['new', 'manhattan', 'brooklyn', 'queens', 'bronx', 'staten', 'long'].includes(afterApt[0])
+      ) {
+        unitParts.push(afterApt.shift()!);
+      }
+      if (unitParts.length > 0) {
+        unitNumber = unitParts.join('');
+      }
       // Remaining after unit goes back (city tokens)
       parts.push(...afterApt);
     }
@@ -158,7 +174,6 @@ export function parseAddressSlug(slug: string): {
   // Try to match a known city at the end of the remaining string
   for (const nycCity of NYC_CITIES) {
     if (remaining.endsWith(nycCity)) {
-      city = remaining.slice(0, -(nycCity.length)).replace(/-$/, '').replace(/-/g, ' ');
       city = nycCity.replace(/-/g, ' ');
       streetName = remaining.slice(0, remaining.length - nycCity.length).replace(/-$/, '').replace(/-/g, ' ');
       break;
