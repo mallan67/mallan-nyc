@@ -145,7 +145,7 @@ function SearchClient() {
 
   // ── State ──
   const [activeTab, setActiveTab] = useState<SearchTab>(resolveTab(typeParam));
-  const [searchQuery, setSearchQuery] = useState(queryParam);
+  const [searchQuery, setSearchQuery] = useState(queryParam || neighborhoodParam);
   const viewParam = searchParams?.get('view') as ViewMode | null;
   const [viewMode, setViewMode] = useState<ViewMode>(
     viewParam && ['split', 'all-listings', 'all-map', 'grid', 'list'].includes(viewParam)
@@ -212,6 +212,11 @@ function SearchClient() {
     // Persist view mode and search query in URL so back-navigation restores them
     setOrDel('view', viewMode !== 'split' ? viewMode : undefined);
     setOrDel('q', searchQuery || undefined);
+    // Clear neighborhood/borough from URL when search query is cleared (reset scenario)
+    if (!searchQuery) {
+      params.delete('neighborhood');
+      params.delete('borough');
+    }
     router.replace(`/search?${params.toString()}`, { scroll: false });
   }, [filters, viewMode, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -247,7 +252,10 @@ function SearchClient() {
   // ── Client-side text/zip post-filter ──
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
-      if (searchQuery) {
+      // Skip client-side text filter when query matches the neighborhood already filtered by API
+      const isNeighborhoodQuery = neighborhoodParam &&
+        searchQuery.toLowerCase() === neighborhoodParam.toLowerCase();
+      if (searchQuery && !isNeighborhoodQuery) {
         const q = searchQuery.toLowerCase();
         const addr = `${listing.address.streetNumber} ${listing.address.streetName} ${listing.address.unitNumber || ''}`.toLowerCase();
         const mlsId = (listing.mlsId || '').toLowerCase();
@@ -264,7 +272,7 @@ function SearchClient() {
       if (zipParam && listing.address.postalCode !== zipParam) return false;
       return true;
     });
-  }, [listings, searchQuery, zipParam]);
+  }, [listings, searchQuery, neighborhoodParam, zipParam]);
 
   // ── Sort (Manhattan always first, then by selected sort) ──
   const sortedListings = useMemo(() => {
@@ -380,7 +388,8 @@ function SearchClient() {
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setFilters({ sort: 'price-desc' });
-    router.push(`/search?tab=${activeTab}`);
+    // Clear all URL params (neighborhood, borough, zip, q, beds, etc.) — fresh search
+    router.replace(`/search?tab=${activeTab}`, { scroll: false });
   }, [router, activeTab]);
 
   // ── Map marker click → scroll to card with highlight pulse ──
