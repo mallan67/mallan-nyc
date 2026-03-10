@@ -28,10 +28,8 @@ export async function GET(req: NextRequest) {
           id: true,
           action: true,
           listing_id: true,
-          note: true,
-          status: true,
+          comment: true,
           created_at: true,
-          updated_at: true,
           listing: {
             select: {
               listing_id: true,
@@ -58,15 +56,24 @@ export async function GET(req: NextRequest) {
       ? `${addr.StreetNumber || ''} ${addr.StreetName || ''}`.trim() || 'Address on file'
       : 'Address on file';
 
+    // Derive status from the action type
+    const statusMap: Record<string, string> = {
+      liked: 'saved',
+      disliked: 'passed',
+      discuss: 'reviewing',
+      schedule: 'showing_scheduled',
+      offer: 'offer_submitted',
+    };
+
     return {
       id: a.id.toString(),
-      type: a.action, // "inquiry", "offer", "schedule", "open_house"
+      type: a.action,
       listingAddress: address,
       listingPrice: a.listing?.list_price ? Number(a.listing.list_price) : null,
       listingType: a.listing?.listing_type || null,
-      status: a.status || 'submitted',
+      status: statusMap[a.action] || 'submitted',
       submittedAt: a.created_at.toISOString(),
-      updatedAt: a.updated_at.toISOString(),
+      updatedAt: a.created_at.toISOString(),
     };
   });
 

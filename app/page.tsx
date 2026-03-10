@@ -6,6 +6,7 @@ import ExclusivesVault from './components/ExclusivesVault';
 import ZillowTestimonials from './components/ZillowTestimonials';
 import AboutSection from './components/AboutSection';
 import ValueProposition from './components/ValueProposition';
+import SellerCTA from './components/SellerCTA';
 import NewsletterSignup from './components/NewsletterSignup';
 import CTASection from './components/CTASection';
 import TrustMarkers from './components/TrustMarkers';
@@ -36,6 +37,7 @@ export default function HomePage() {
           <ZillowTestimonials />
           <AboutSection />
           <ValueProposition />
+          <SellerCTA />
           <NewsletterSignup />
           <CTASection />
           <TrustMarkers />

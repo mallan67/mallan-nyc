@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Link from 'next/link';
 import SocialShareBar from '@/app/components/SocialShareBar';
 import Image from 'next/image';
 import SellerClosingCostCalculator from '@/app/components/SellerClosingCostCalculator';
@@ -677,6 +678,27 @@ export default function SellPage() {
                 Read all reviews on Zillow &rarr;
               </a>
             </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════
+            9b. TRACK RECORD TEASER
+            ═══════════════════════════════════════════════ */}
+        <section className="px-6 md:px-12 lg:px-20 py-20 md:py-28">
+          <div className="max-w-[1440px] mx-auto text-center">
+            <p className="text-brand-gold-deep text-[13px] font-medium tracking-[0.2em] uppercase mb-3 gold-glow-text">Proven Results</p>
+            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark mb-4">
+              Don&apos;t Take Our Word for It
+            </h2>
+            <p className="text-brand-dark/95 text-[15px] font-light max-w-2xl mx-auto mb-10 leading-relaxed">
+              Our closed deals speak for themselves. See every transaction, every neighborhood, every result.
+            </p>
+            <Link
+              href="/results"
+              className="btn-liquid inline-block px-10 py-4 bg-brand-dark text-white font-medium rounded-full hover:bg-brand-dark/90 text-sm tracking-wide"
+            >
+              View Our Track Record &rarr;
+            </Link>
           </div>
         </section>
 

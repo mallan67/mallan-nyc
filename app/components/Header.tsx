@@ -120,6 +120,7 @@ export default function Header() {
     { title: 'Residential', href: '/sell?type=residential' },
     { title: 'Commercial', href: '/sell?type=commercial' },
     { title: 'Home Value', href: '/sell#valuation' },
+    { title: 'Our Results', href: '/results' },
   ];
 
   const exclusivesItems = [

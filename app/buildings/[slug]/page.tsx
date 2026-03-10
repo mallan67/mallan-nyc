@@ -530,15 +530,79 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
             </section>
           )}
 
-          {/* CTA */}
+          {/* Seller CTA — "Thinking of selling?" */}
           {hasAnyData && (
             <section className="py-8 border-t border-black/[0.06]">
-              <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] rounded-3xl p-8 md:p-10 text-center">
-                <h2 className="font-display text-2xl md:text-3xl font-bold text-white mb-3">Interested in {buildingLabel}?</h2>
-                <p className="text-white/60 text-sm max-w-md mx-auto mb-6">Get expert guidance from our agents who know this building inside and out.</p>
-                <div className="flex flex-wrap justify-center gap-3">
-                  <a href="tel:646-258-4460" className="px-6 py-3 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep transition-colors text-sm">Call (646) 258-4460</a>
-                  <Link href="/about#contact" className="px-6 py-3 border border-white/30 text-white font-medium rounded-full hover:bg-white/10 transition-colors text-sm">Contact Us</Link>
+              <div className="rounded-3xl overflow-hidden">
+                {/* Seller-focused CTA */}
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] p-8 md:p-10">
+                  <div className="grid md:grid-cols-2 gap-8 items-center">
+                    <div>
+                      <p className="text-brand-gold text-[11px] font-medium tracking-[0.2em] uppercase mb-3">For Owners</p>
+                      <h2 className="font-display text-2xl md:text-3xl font-bold text-white mb-3">
+                        Thinking of Selling in {buildingLabel}?
+                      </h2>
+                      <p className="text-white/60 text-sm leading-relaxed mb-2">
+                        We know this building inside and out.
+                        {stats.totalSales > 0 && ` With ${stats.totalSales} recent sale${stats.totalSales !== 1 ? 's' : ''} on record, `}
+                        {stats.avgPrice && ` an average sale price of ${formatPrice(stats.avgPrice)}, `}
+                        {' '}we can show you exactly where your unit stands in today&apos;s market.
+                      </p>
+                      <ul className="space-y-2 mt-4 mb-6">
+                        <li className="flex items-center gap-2 text-white/70 text-[13px]">
+                          <svg className="w-4 h-4 text-brand-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Free Comparative Market Analysis
+                        </li>
+                        <li className="flex items-center gap-2 text-white/70 text-[13px]">
+                          <svg className="w-4 h-4 text-brand-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Building-specific sales history &amp; pricing data
+                        </li>
+                        <li className="flex items-center gap-2 text-white/70 text-[13px]">
+                          <svg className="w-4 h-4 text-brand-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Listed on 10+ platforms the moment you go live
+                        </li>
+                      </ul>
+                      <div className="flex flex-wrap gap-3">
+                        <Link href="/sell#valuation" className="px-6 py-3 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep transition-colors text-sm">
+                          Get Free Valuation
+                        </Link>
+                        <a href="tel:646-258-4460" className="px-6 py-3 border border-white/30 text-white font-medium rounded-full hover:bg-white/10 transition-colors text-sm">
+                          Call (646) 258-4460
+                        </a>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                      <div className="rounded-2xl bg-white/[0.06] border border-white/[0.08] p-6">
+                        <p className="text-[11px] text-white/40 uppercase tracking-wider font-semibold mb-4">Your Listing Reaches</p>
+                        <div className="space-y-3">
+                          {[
+                            { name: 'REBNY RLS', detail: '30,000+ NYC agents' },
+                            { name: 'StreetEasy', detail: "NYC's #1 search" },
+                            { name: 'Zillow + Trulia', detail: 'Most-visited nationally' },
+                            { name: 'Realtor.com', detail: 'Official NAR site' },
+                            { name: 'Redfin', detail: 'Tech-forward buyers' },
+                            { name: 'mallan.nyc', detail: 'Featured listing' },
+                          ].map((p) => (
+                            <div key={p.name} className="flex items-center justify-between">
+                              <span className="text-[13px] font-medium text-white/80">{p.name}</span>
+                              <span className="text-[11px] text-white/40">{p.detail}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buyer CTA */}
+                <div className="bg-[#F8F7F4] p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-display font-semibold text-brand-dark text-[15px]">Interested in buying at {buildingLabel}?</h3>
+                    <p className="text-brand-dark/50 text-[13px]">Get expert guidance from our agents who know this building.</p>
+                  </div>
+                  <Link href="/about#contact" className="px-5 py-2.5 bg-brand-dark text-white font-medium rounded-full hover:bg-brand-dark/90 transition-colors text-sm whitespace-nowrap shrink-0">
+                    Contact Us
+                  </Link>
                 </div>
               </div>
             </section>
