@@ -63,40 +63,119 @@ function getPhotoUrl(record: TrestleRecord): string | null {
  * Trestle IDX feed pre-filters non-displayable listings, so gate fields are unnecessary.
  */
 const BUILDING_SELECT = [
+  // Core listing fields
   'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'ClosePrice',
   'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
   'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus', 'MlsStatus',
-  'ListOfficeName', 'BuildingName', 'YearBuilt', 'StoriesTotal',
-  'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
-  'ParkingFeatures', 'PetsAllowed', 'CloseDate',
+  'ListOfficeName', 'CloseDate',
+  // Building info
+  'BuildingName', 'YearBuilt', 'StoriesTotal', 'NumberOfUnitsInCommunity',
+  'CommonInterest', 'OwnershipType',
+  // Building amenities (all IDX Plus available fields)
+  'BuildingFeatures', 'AssociationAmenities', 'CommunityFeatures',
+  'SecurityFeatures', 'AccessibilityFeatures',
+  'ExteriorFeatures', 'PatioAndPorchFeatures',
+  'PoolFeatures', 'SpaFeatures', 'LaundryFeatures',
+  'ParkingFeatures', 'GarageSpaces', 'ParkingTotal',
+  'Heating', 'Cooling',
+  // Pets
+  'PetsAllowed',
+  // Green
+  'GreenBuildingVerificationType', 'GreenEnergyEfficient',
+  // View & waterfront
+  'View', 'WaterfrontFeatures',
+  // Association/financial
+  'AssociationFee', 'AssociationFeeFrequency', 'AssociationFeeIncludes',
 ].join(',');
 
-/** Extract building-level info from a set of Trestle records */
+/** Extract building-level info from a set of Trestle records.
+ *  Scans ALL records to find the richest data for each field. */
 function extractBuildingInfo(records: TrestleRecord[]) {
   const info = {
     buildingName: null as string | null,
     yearBuilt: null as number | null,
     storiesTotal: null as number | null,
+    totalUnits: null as number | null,
+    commonInterest: null as string | null,
+    ownershipType: null as string | null,
     buildingFeatures: [] as string[],
+    associationAmenities: [] as string[],
+    communityFeatures: [] as string[],
     securityFeatures: [] as string[],
+    accessibilityFeatures: [] as string[],
     exteriorFeatures: [] as string[],
+    patioAndPorchFeatures: [] as string[],
+    poolFeatures: [] as string[],
+    spaFeatures: [] as string[],
+    laundryFeatures: [] as string[],
     parkingFeatures: [] as string[],
+    garageSpaces: null as number | null,
+    parkingTotal: null as number | null,
+    heating: [] as string[],
+    cooling: [] as string[],
     petsAllowed: [] as string[],
+    greenFeatures: [] as string[],
+    view: [] as string[],
+    waterfrontFeatures: [] as string[],
+    associationFee: null as number | null,
+    associationFeeFrequency: null as string | null,
+    associationFeeIncludes: [] as string[],
   };
+
+  /** Set a list field from the first record that has data */
+  const setList = (field: keyof typeof info, value: unknown) => {
+    const arr = info[field] as string[];
+    if (arr.length === 0 && value) {
+      const parsed = parseList(String(value));
+      if (parsed.length > 0) (info[field] as string[]) = parsed;
+    }
+  };
+
   for (const r of records) {
+    // Scalar fields — take first non-empty
     if (!info.buildingName && r.BuildingName) info.buildingName = String(r.BuildingName);
     if (!info.yearBuilt && r.YearBuilt) info.yearBuilt = Number(r.YearBuilt);
     if (!info.storiesTotal && r.StoriesTotal) info.storiesTotal = Number(r.StoriesTotal);
-    if (info.buildingFeatures.length === 0 && r.BuildingFeatures) info.buildingFeatures = parseList(String(r.BuildingFeatures));
-    if (info.securityFeatures.length === 0 && r.SecurityFeatures) info.securityFeatures = parseList(String(r.SecurityFeatures));
-    if (info.exteriorFeatures.length === 0 && r.ExteriorFeatures) info.exteriorFeatures = parseList(String(r.ExteriorFeatures));
-    if (info.parkingFeatures.length === 0 && r.ParkingFeatures) info.parkingFeatures = parseList(String(r.ParkingFeatures));
-    if (info.petsAllowed.length === 0 && r.PetsAllowed) info.petsAllowed = parseList(String(r.PetsAllowed));
+    if (!info.totalUnits && r.NumberOfUnitsInCommunity) info.totalUnits = Number(r.NumberOfUnitsInCommunity);
+    if (!info.commonInterest && r.CommonInterest) info.commonInterest = String(r.CommonInterest);
+    if (!info.ownershipType && r.OwnershipType) info.ownershipType = String(r.OwnershipType);
+    if (!info.garageSpaces && r.GarageSpaces) info.garageSpaces = Number(r.GarageSpaces);
+    if (!info.parkingTotal && r.ParkingTotal) info.parkingTotal = Number(r.ParkingTotal);
+    if (!info.associationFee && r.AssociationFee) info.associationFee = Number(r.AssociationFee);
+    if (!info.associationFeeFrequency && r.AssociationFeeFrequency) info.associationFeeFrequency = String(r.AssociationFeeFrequency);
+
+    // List fields
+    setList('buildingFeatures', r.BuildingFeatures);
+    setList('associationAmenities', r.AssociationAmenities);
+    setList('communityFeatures', r.CommunityFeatures);
+    setList('securityFeatures', r.SecurityFeatures);
+    setList('accessibilityFeatures', r.AccessibilityFeatures);
+    setList('exteriorFeatures', r.ExteriorFeatures);
+    setList('patioAndPorchFeatures', r.PatioAndPorchFeatures);
+    setList('poolFeatures', r.PoolFeatures);
+    setList('spaFeatures', r.SpaFeatures);
+    setList('laundryFeatures', r.LaundryFeatures);
+    setList('parkingFeatures', r.ParkingFeatures);
+    setList('heating', r.Heating);
+    setList('cooling', r.Cooling);
+    setList('petsAllowed', r.PetsAllowed);
+    setList('view', r.View);
+    setList('waterfrontFeatures', r.WaterfrontFeatures);
+    setList('associationFeeIncludes', r.AssociationFeeIncludes);
+
+    // Green — merge multiple source fields
+    if (info.greenFeatures.length === 0) {
+      const green = [
+        ...parseList(String(r.GreenBuildingVerificationType || '')),
+        ...parseList(String(r.GreenEnergyEfficient || '')),
+      ].filter(v => v.length > 0);
+      if (green.length > 0) info.greenFeatures = green;
+    }
   }
   return info;
 }
 
-/** Format amenities from raw building info into display-ready labels */
+/** Format amenities from raw building info into display-ready categorized data */
 function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
   const FEATURE_LABELS: Record<string, string> = {
     Concierge: 'Concierge',
@@ -104,13 +183,14 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     HealthClub: 'Gym',
     FitnessCenter: 'Gym',
     YogaStudio: 'Yoga Studio',
-    IndoorPool: 'Pool',
-    CommonPlayroom: "Children's Room",
-    GameRoom: 'Recreation Room',
+    IndoorPool: 'Indoor Pool',
+    OutdoorPool: 'Outdoor Pool',
+    CommonPlayroom: "Children's Playroom",
+    GameRoom: 'Game Room',
     ScreeningRoom: 'Screening Room',
     Sauna: 'Sauna',
     SteamRoom: 'Steam Room',
-    KitchenFacilities: 'Kitchen Facilities',
+    KitchenFacilities: 'Residents\' Kitchen',
     PackageRoom: 'Package Room',
     GreenBuilding: 'Green Building',
     ColdStorage: 'Cold Storage',
@@ -119,37 +199,118 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     BuildingRoofDeck: 'Roof Deck',
     BuildingGarden: 'Garden',
     BuildingCourtyard: 'Courtyard',
+    BikeStorage: 'Bike Storage',
+    BicycleStorage: 'Bike Storage',
+    Storage: 'Storage',
+    LiveInSuper: 'Live-In Super',
+    MediaRoom: 'Media Room',
+    BusinessCenter: 'Business Center',
+    ResidentManager: 'Resident Manager',
+    VirtualDoorman: 'Virtual Doorman',
+    LaundryRoom: 'Laundry Room',
+    CommonArea: 'Common Laundry',
+    BuildingInside: 'In-Building Laundry',
+    InUnit: 'In-Unit Laundry',
   };
-  const EXCLUDE = new Set(['Storage', 'BikeStorage', 'BicycleStorage', 'None']);
 
   const amenitySet = new Set<string>();
+
+  // BuildingFeatures — primary source
   for (const f of buildingInfo.buildingFeatures) {
-    if (EXCLUDE.has(f)) continue;
     amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
   }
+  // AssociationAmenities
+  for (const f of buildingInfo.associationAmenities) {
+    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+  }
+  // CommunityFeatures
+  for (const f of buildingInfo.communityFeatures) {
+    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+  }
+  // SecurityFeatures
   for (const f of buildingInfo.securityFeatures) {
     amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
   }
+  // Exterior — building-level only
   for (const f of buildingInfo.exteriorFeatures) {
-    if (f.startsWith('Building')) {
+    if (f.startsWith('Building') || f.includes('RoofDeck') || f.includes('Garden') || f.includes('Courtyard')) {
       amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
     }
   }
-  if (buildingInfo.parkingFeatures.some((f) => f === 'Garage')) {
+  // PatioAndPorch — building-level
+  for (const f of buildingInfo.patioAndPorchFeatures) {
+    if (f.toLowerCase().includes('building') || f.toLowerCase().includes('common') || f.toLowerCase().includes('roof')) {
+      amenitySet.add(formatFeatureLabel(f));
+    }
+  }
+  // Pool
+  for (const f of buildingInfo.poolFeatures) {
+    const label = f.toLowerCase().includes('indoor') ? 'Indoor Pool' : f.toLowerCase().includes('outdoor') ? 'Outdoor Pool' : 'Pool';
+    amenitySet.add(label);
+  }
+  // Spa
+  for (const f of buildingInfo.spaFeatures) {
+    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+  }
+  // Laundry — building-level only
+  for (const f of buildingInfo.laundryFeatures) {
+    const lower = f.toLowerCase();
+    if (lower.includes('inunit') || lower === 'in unit' || lower === 'inunit') continue; // Skip unit-level
+    amenitySet.add(FEATURE_LABELS[f] || formatFeatureLabel(f));
+  }
+  // Accessibility
+  for (const f of buildingInfo.accessibilityFeatures) {
+    amenitySet.add(formatFeatureLabel(f));
+  }
+  // Parking
+  if (buildingInfo.parkingFeatures.some((f) => f.toLowerCase().includes('garage'))) {
     amenitySet.add('Garage');
   }
+  if (buildingInfo.parkingFeatures.some((f) => f.toLowerCase().includes('valet'))) {
+    amenitySet.add('Valet Parking');
+  }
+  // Green
+  for (const f of buildingInfo.greenFeatures) {
+    amenitySet.add(formatFeatureLabel(f));
+  }
+  // Waterfront
+  for (const f of buildingInfo.waterfrontFeatures) {
+    amenitySet.add(formatFeatureLabel(f));
+  }
 
+  // Remove noise entries
+  amenitySet.delete('None');
+  amenitySet.delete('Other');
+  amenitySet.delete('');
+
+  // Pet policy
   const petPolicySet = new Set<string>();
   for (const v of buildingInfo.petsAllowed) {
     const lower = v.toLowerCase();
     if (lower.includes('cat')) petPolicySet.add('Cats Ok');
     else if (lower.includes('dog')) petPolicySet.add('Dogs Ok');
     else if (lower === 'no') petPolicySet.add('No Pets');
-    else if (lower === 'yes' || lower === 'buildingyes' || lower === 'building yes') petPolicySet.add('Pets Allowed');
+    else if (lower === 'yes' || lower.includes('buildingyes') || lower === 'building yes') petPolicySet.add('Pets Allowed');
+    else if (lower.includes('sizelimit')) petPolicySet.add('Size Limit');
+    else if (lower.includes('numberlimit')) petPolicySet.add('Number Limit');
     else { const label = formatFeatureLabel(v); if (label) petPolicySet.add(label); }
   }
 
-  return { amenities: [...amenitySet].sort(), petPolicy: [...petPolicySet] };
+  return {
+    amenities: [...amenitySet].sort(),
+    petPolicy: [...petPolicySet],
+    view: buildingInfo.view.map(formatFeatureLabel).filter(v => v && v !== 'None'),
+    parking: {
+      features: buildingInfo.parkingFeatures.map(formatFeatureLabel),
+      garageSpaces: buildingInfo.garageSpaces,
+      totalSpaces: buildingInfo.parkingTotal,
+    },
+    heating: buildingInfo.heating.map(formatFeatureLabel),
+    cooling: buildingInfo.cooling.map(formatFeatureLabel),
+    associationFee: buildingInfo.associationFee,
+    associationFeeFrequency: buildingInfo.associationFeeFrequency,
+    associationFeeIncludes: buildingInfo.associationFeeIncludes.map(formatFeatureLabel),
+  };
 }
 
 /**
@@ -518,7 +679,7 @@ export async function GET(request: NextRequest) {
       buildingInfo.buildingName = buildingName;
     }
 
-    const { amenities, petPolicy } = formatAmenities(buildingInfo);
+    const formatted = formatAmenities(buildingInfo);
 
     return NextResponse.json({
       success: true,
@@ -528,8 +689,18 @@ export async function GET(request: NextRequest) {
         postalCode: cleanPostalCode || postalCode || '',
         yearBuilt: buildingInfo.yearBuilt,
         storiesTotal: buildingInfo.storiesTotal,
-        amenities,
-        petPolicy,
+        totalUnits: buildingInfo.totalUnits,
+        commonInterest: buildingInfo.commonInterest,
+        ownershipType: buildingInfo.ownershipType,
+        amenities: formatted.amenities,
+        petPolicy: formatted.petPolicy,
+        view: formatted.view,
+        parking: formatted.parking,
+        heating: formatted.heating,
+        cooling: formatted.cooling,
+        associationFee: formatted.associationFee,
+        associationFeeFrequency: formatted.associationFeeFrequency,
+        associationFeeIncludes: formatted.associationFeeIncludes,
       },
       activeUnits,
       saleHistory,
