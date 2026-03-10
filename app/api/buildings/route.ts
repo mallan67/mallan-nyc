@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
+import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -172,6 +173,7 @@ export async function GET(request: NextRequest) {
           'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
           'ParkingFeatures', 'PetsAllowed',
           'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
+          'OwnerOptOut', 'ParticipantOnlyYN',
         ].join(','),
         $orderby: 'ListPrice desc',
         $top: '30',
@@ -188,6 +190,7 @@ export async function GET(request: NextRequest) {
           'BuildingFeatures', 'SecurityFeatures', 'ExteriorFeatures',
           'ParkingFeatures', 'PetsAllowed',
           'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
+          'OwnerOptOut', 'ParticipantOnlyYN',
         ].join(','),
         $orderby: 'CloseDate desc',
         $top: '30',
@@ -207,13 +210,13 @@ export async function GET(request: NextRequest) {
       if (activeRes.ok) {
         const data = await activeRes.json();
         trestleActive = (data.value || []).filter(
-          (r: TrestleRecord) => r.IDXEntireListingDisplayYN !== false && r.InternetEntireListingDisplayYN !== false
+          (r: TrestleRecord) => checkDistributionGates(r as Record<string, unknown>).displayable
         );
       }
       if (closedRes.ok) {
         const data = await closedRes.json();
         trestleClosed = (data.value || []).filter(
-          (r: TrestleRecord) => r.IDXEntireListingDisplayYN !== false && r.InternetEntireListingDisplayYN !== false
+          (r: TrestleRecord) => checkDistributionGates(r as Record<string, unknown>).displayable
         );
       }
 

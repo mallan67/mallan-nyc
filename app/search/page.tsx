@@ -599,7 +599,7 @@ function SearchClient() {
                 )}
                 {/* REBNY compliance disclaimer — bottom of listings */}
                 <p className="text-[9px] text-brand-dark/30 text-center py-2 leading-relaxed">
-                  REBNY RLS · Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable
+                  Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Data is for personal, non-commercial use only. Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
                 </p>
               </div>
             </div>
@@ -631,17 +631,25 @@ function SearchClient() {
                 </button>
               </div>
             )}
+            <p className="text-[9px] text-brand-dark/30 text-center py-2 leading-relaxed max-w-4xl mx-auto">
+              Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Data is for personal, non-commercial use only. Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
+            </p>
           </div>
         )}
 
         {/* ── ALL MAP VIEW ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'all-map' && (
-          <div className="h-full isolate">
+          <div className="h-full isolate relative">
             <SearchMap
               listings={sortedListings}
               highlightedId={highlightedId}
               onMarkerClick={handleMarkerClick}
             />
+            <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm px-4 py-1.5 z-10">
+              <p className="text-[9px] text-brand-dark/30 text-center leading-relaxed">
+                Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Mallan Real Estate Inc. — Licensed Real Estate Broker · Equal Housing Opportunity
+              </p>
+            </div>
           </div>
         )}
 
@@ -661,6 +669,9 @@ function SearchClient() {
                   </button>
                 </div>
               )}
+              <p className="text-[9px] text-brand-dark/30 text-center py-4 leading-relaxed">
+                Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Data is for personal, non-commercial use only. Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
+              </p>
             </div>
           </section>
         )}
@@ -674,6 +685,9 @@ function SearchClient() {
                   <ListCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} />
                 ))}
               </div>
+              <p className="text-[9px] text-brand-dark/30 text-center py-4 leading-relaxed">
+                Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Data is for personal, non-commercial use only. Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
+              </p>
               {hasMore && (
                 <div className="text-center mt-8">
                   <button onClick={loadMore} className="px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors">
