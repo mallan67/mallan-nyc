@@ -110,7 +110,14 @@ jobs:
       - name: Type-check
         run: npm run type-check
 
+      - name: Jest tests
+        run: npx jest --ci --forceExit
+
+      - name: RLS compliance validator
+        run: npm run rls:validate
+
+      - name: CI compliance check
+        run: node scripts/ci-compliance-check.js
+
       - name: Build
         run: npm run build
-
-
