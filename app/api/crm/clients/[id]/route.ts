@@ -10,6 +10,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
   const lead = await prisma.lead.findUnique({
-    where: { id: BigInt(parseInt(id)) },
+    where: { id: safeBigInt(id) ?? BigInt(-1) },
     include: {
       preferences: true,
       actions: {

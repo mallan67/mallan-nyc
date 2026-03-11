@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -115,7 +116,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Verify listing exists
-  const listingId = BigInt(parseInt(listingIdStr));
+  const listingId = safeBigInt(listingIdStr);
+  if (!listingId) {
+    return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+  }
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
   });

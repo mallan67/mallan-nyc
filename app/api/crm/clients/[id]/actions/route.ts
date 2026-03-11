@@ -8,6 +8,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
-  const leadId = BigInt(parseInt(id));
+  const leadId = safeBigInt(id);
+  if (!leadId) {
+    return NextResponse.json({ error: "Invalid client ID" }, { status: 400 });
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -65,10 +69,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   // Verify listing exists
-  const listingBigInt = BigInt(parseInt(listingId));
-  const listing = await prisma.listing.findUnique({
-    where: { id: listingBigInt },
-  });
+  // Resolve listing by numeric ID or string listing_id
+  const listingBigInt = safeBigInt(listingId);
+  let listing;
+  if (listingBigInt) {
+    listing = await prisma.listing.findUnique({
+      where: { id: listingBigInt },
+    });
+  }
+  if (!listing) {
+    listing = await prisma.listing.findUnique({
+      where: { listing_id: listingId },
+    });
+  }
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
@@ -77,13 +90,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     where: {
       lead_id_listing_id_action: {
         lead_id: leadId,
-        listing_id: listingBigInt,
+        listing_id: listing.id,
         action,
       },
     },
     create: {
       lead_id: leadId,
-      listing_id: listingBigInt,
+      listing_id: listing.id,
       action,
       comment,
     },
