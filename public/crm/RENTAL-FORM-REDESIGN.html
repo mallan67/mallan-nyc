@@ -1571,7 +1571,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">City <span class="text-red-500">*</span></label>
-            <input type="text" id="rentalCity" value="New York" class="field-input" required>
+            <input type="text" id="rentalCityDisplay" value="New York" class="field-input" required onchange="document.getElementById('rentalCity').value = this.value;">
         </div>
         <div>
             <label class="field-label">State <span class="text-red-500">*</span></label>
@@ -4220,52 +4220,79 @@ function toggleFormSection(el) {
 // ══════════════════════════════════════════════════════
 // IDX SYSTEM LOGIC — Building Database & Auto-Populate
 // ══════════════════════════════════════════════════════
-const buildingDatabase = [
-    { address: '200 East 66th Street', name: 'Manhattan House', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1950, totalFloors: 17, totalUnits: 583, doorman: true, elevator: true, gym: true, laundry: true, parking: true },
-    { address: '15 Central Park West', name: '15 Central Park West', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2008, totalFloors: 43, totalUnits: 201, doorman: true, elevator: true, gym: true, pool: true, concierge: true, parking: true },
-    { address: '432 Park Avenue', name: '432 Park Avenue', borough: 'Manhattan', zip: '10022', neighborhood: 'Midtown East', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2015, totalFloors: 96, totalUnits: 104, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-    { address: '56 Leonard Street', name: '56 Leonard', borough: 'Manhattan', zip: '10013', neighborhood: 'Tribeca', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2016, totalFloors: 60, totalUnits: 145, doorman: true, elevator: true, gym: true, pool: true },
-    { address: '220 Central Park South', name: '220 CPS', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2019, totalFloors: 79, totalUnits: 118, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-    { address: '520 Park Avenue', name: '520 Park Avenue', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2018, totalFloors: 54, totalUnits: 31, doorman: true, elevator: true, gym: true },
-    { address: '1 West 72nd Street', name: 'The Dakota', borough: 'Manhattan', zip: '10023', neighborhood: 'Upper West Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1884, totalFloors: 10, totalUnits: 65, doorman: true, elevator: true, laundry: true },
-    { address: '740 Park Avenue', name: '740 Park Avenue', borough: 'Manhattan', zip: '10021', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1930, totalFloors: 18, totalUnits: 31, doorman: true, elevator: true },
-    { address: '110 Livingston Street', name: '110 Livingston', borough: 'Brooklyn', zip: '11201', neighborhood: 'Downtown Brooklyn', type: 'Condop', model: 'Condop', structureType: 'HighRise', yearBuilt: 1928, totalFloors: 15, totalUnits: 220, doorman: true, elevator: true, gym: true },
-    { address: '25 Columbus Circle', name: 'Time Warner Center', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown West', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2003, totalFloors: 80, totalUnits: 198, doorman: true, elevator: true, gym: true, concierge: true },
-    { address: '325 Lexington Avenue', name: 'The Townsend', borough: 'Manhattan', zip: '10016', neighborhood: 'Murray Hill', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2005, totalFloors: 12, totalUnits: 45, doorman: true, elevator: true },
-    { address: '42 West 120th Street', name: '42 West 120th', borough: 'Manhattan', zip: '10027', neighborhood: 'Harlem', type: 'SingleFamilyTownhouse', model: 'Townhouse', structureType: 'Townhouse', yearBuilt: 1910, totalFloors: 4, totalUnits: 1 },
-];
+// Building database — loaded from API, no hardcoded mock data
+let buildingDatabase = [];
+let _buildingSearchTimeout = null;
+
+// Fetch buildings from API by address query
+async function fetchBuildingsFromAPI(query) {
+    if (!query || query.length < 3) return [];
+    try {
+        var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
+        if (!resp.ok) return [];
+        var results = await resp.json();
+        return (results.buildings || results || []).map(function(b) {
+            return {
+                address: b.address || b.street_address || '',
+                name: b.name || b.building_name || '',
+                borough: b.borough || b.city_region || '',
+                zip: b.zip || b.postal_code || '',
+                neighborhood: b.neighborhood || b.subdivision_name || '',
+                type: b.common_interest || b.property_type || '',
+                model: b.common_interest || '',
+                structureType: b.structure_type || '',
+                yearBuilt: b.year_built || null,
+                totalFloors: b.stories_total || null,
+                totalUnits: b.units_total || null,
+                doorman: b.doorman || false,
+                elevator: b.elevator || false,
+                gym: b.gym || false,
+                pool: b.pool || false,
+                laundry: b.laundry || false,
+                parking: b.parking || false,
+                concierge: b.concierge || false,
+                spa: b.spa || false,
+            };
+        });
+    } catch (e) {
+        console.warn('[Building Search] API error:', e.message);
+        return [];
+    }
+}
 
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
-    const matches = buildingDatabase.filter(b =>
-        b.address.toLowerCase().includes(query.toLowerCase()) ||
-        b.name.toLowerCase().includes(query.toLowerCase())
-    );
-    if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+
+    // Debounce API calls
+    clearTimeout(_buildingSearchTimeout);
+    _buildingSearchTimeout = setTimeout(async function() {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching...</div>';
         results.classList.remove('hidden');
-        return;
-    }
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingFromIDX('${prefix}', '${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-green-100 text-green-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
-    results.classList.remove('hidden');
+
+        var matches = await fetchBuildingsFromAPI(query);
+        buildingDatabase = matches; // Cache results for selectBuildingFromIDX
+
+        if (matches.length === 0) {
+            results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+            return;
+        }
+
+        results.innerHTML = matches.map(function(b) {
+            var escapedAddr = b.address.replace(/'/g, "\\'");
+            return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'' + prefix + '\', \'' + escapedAddr + '\')">' +
+                '<div class="flex justify-between items-center"><div>' +
+                '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
+                '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
+                '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
+                (b.model === 'Coop' || b.model === 'StockCooperative' ? 'bg-purple-100 text-purple-700' :
+                 b.model === 'Condo' || b.model === 'Condominium' ? 'bg-blue-100 text-blue-700' :
+                 b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
+                 'bg-green-100 text-green-700') +
+                '">' + b.model + '</span></div></div>';
+        }).join('');
+    }, 300);
 }
 
 function selectBuildingFromIDX(prefix, address) {
@@ -5489,41 +5516,71 @@ function collectRentalFormData() {
         }
     });
 
-    // Map key fields to RESO names
-    data.PropertyType = data.rentalPropertyType || data.rentalStructureType || '';
-    data.PropertySubType = data.rentalPropertySubType || '';
-    data.ListPrice = parseFloat(data.rentalMonthlyRent || data.rentalAskingRent || '0') || 0;
+    // Map CRM property type to RLS fields via getResoPropertyFields()
+    var resoFields = getResoPropertyFields(data.rentalPropertyType || '');
+    data.PropertyType = resoFields.PropertyType || 'ResidentialLease';
+    data.PropertySubType = resoFields.PropertySubType || '';
+    data.CommonInterest = resoFields.CommonInterest || data.rentalCommonInterest || '';
+
+    // Map CRM status to RLS MlsStatus
+    data.MlsStatus = (typeof getResoRentalMlsStatus === 'function') ? getResoRentalMlsStatus(data.rentalStatus || '') : (data.rentalStatus || '');
+
+    // Map key fields to RLS names — using CORRECT element IDs
+    data.ListPrice = parseFloat(data.rentalMonthlyRent || '0') || 0;
+    data.NetMonthlyRent = parseFloat(data.rentalMonthlyRent || '0') || 0;
     data.BedroomsTotal = parseInt(data.rentalBedrooms || '0') || 0;
-    data.BathroomsFull = parseInt(data.rentalBathroomsFull || '0') || 0;
-    data.BathroomsHalf = parseInt(data.rentalBathroomsHalf || '0') || 0;
+    data.BathroomsFull = parseInt(data.rentalFullBathrooms || '0') || 0;
+    data.BathroomsHalf = parseInt(data.rentalHalfBathrooms || '0') || 0;
     data.BathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
-    data.LivingArea = parseFloat(data.rentalSqft || data.rentalLivingArea || '0') || 0;
+    data.LivingArea = parseFloat(data.rentalSqFt || '0') || 0;
     data.StreetNumber = data.rentalStreetNumber || '';
     data.StreetName = data.rentalStreetName || '';
     data.StreetSuffix = data.rentalStreetSuffix || '';
     data.UnitNumber = data.rentalUnitNumber || '';
     data.City = data.rentalCity || 'New York';
-    data.Borough = data.rentalBorough || '';
-    data.Neighborhood = data.rentalNeighborhood || data.rentalSubdivisionName || '';
+    data.CityRegion = data.rentalBorough || '';
+    data.SubdivisionName = data.rentalNeighborhood || data.rentalNeighborhoodFromAddress || '';
     data.StateOrProvince = data.rentalStateOrProvince || 'NY';
-    data.PostalCode = data.rentalZipCode || data.rentalPostalCode || '';
-    data.UnparsedAddress = data.rentalUnparsedAddress || '';
+    data.PostalCode = data.rentalZipCode || '';
+    data.UnParsedAddress = data.rentalUnparsedAddress || '';
     data.PublicRemarks = data.rentalDescription || '';
-    data.PrivateRemarks = data.rentalBrokerComments || '';
+    data.PrivateRemarks = data.rentalAgentRemarks || '';
     data.ShowingInstructions = data.rentalShowingInstructions || '';
-    data.YearBuilt = parseInt(data.rentalYearBuilt || '0') || null;
-    data.CommonInterest = data.rentalBuildingType || '';
-    data.NewDevelopmentYN = data.rentalNewDevelopment === true || data.rentalNewDevelopment === 'true';
+    data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
+    data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
 
-    // Distribution gates
-    // Map actual checkbox IDs to RESO field names
-    data.IDXEntireListingDisplayYN = data.rentalDist_IDX !== false;
-    data.InternetEntireListingDisplayYN = data.rentalInternetEntireListingDisplayYN !== false && data.rentalDist_VOW !== false;
-    data.InternetAddressDisplayYN = data.rentalInternetAddressDisplayYN !== false;
-    data.SyndicateYN = data.rentalSyndicateYN !== false;
-    // Permissions from listing type radio
+    // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
+    // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
+    // Listing is still on RLS for participants, just blocked from public display.
     var rentalListType = data.rentalListingType || '';
-    data.Permissions = rentalListType === 'OwnerOptOut' ? 'Owner Opt-Out' : rentalListType === 'ParticipantOnly' ? 'Private' : null;
+    var isOwnerOptOut = rentalListType === 'RLS-Owner-OptOut';
+    var isParticipantOnly = rentalListType === 'RLS-Participant';
+    var isInHouse = rentalListType === 'InHouse';
+    if (isOwnerOptOut || isParticipantOnly || isInHouse) {
+        // These are permission flags, not agreement types — default to ExclusiveRightToLease
+        data.ListingAgreement = 'ExclusiveRightToLease';
+    } else {
+        data.ListingAgreement = rentalListType || 'ExclusiveRightToLease';
+    }
+    // CoBrokeAgreement
+    data.CoBrokeAgreement = data.rentalCoBrokeAgreement || 'Ucba';
+
+    // Permissions: OwnerOptOut = owner signed Exhibit B, listing on RLS but NOT public.
+    // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
+    data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
+
+    // Distribution gates — force OFF when Owner Opt-Out or Participant Only
+    if (isOwnerOptOut || isParticipantOnly) {
+        data.IDXEntireListingDisplayYN = false;
+        data.InternetEntireListingDisplayYN = false;
+        data.InternetAddressDisplayYN = false;
+        data.SyndicateYN = false;
+    } else {
+        data.IDXEntireListingDisplayYN = data.rentalDist_IDX !== false;
+        data.InternetEntireListingDisplayYN = data.rentalInternetEntireListingDisplayYN !== false && data.rentalDist_VOW !== false;
+        data.InternetAddressDisplayYN = data.rentalInternetAddressDisplayYN !== false;
+        data.SyndicateYN = data.rentalSyndicateYN !== false;
+    }
 
     // Agent identity from session
     data.ListAgentMlsId = data.rentalUpdatingAgent || '';
@@ -5533,17 +5590,104 @@ function collectRentalFormData() {
     data.ListOfficeName = data.rentalUpdatingAgentCompanyName || '';
     data.ListOfficeKey = data.rentalUpdatingAgentCompanyKey || '';
 
+    // Collect building modal fields (outside main container)
+    var bldgModal = document.getElementById('rentalBuildingModal');
+    if (bldgModal) {
+        bldgModal.querySelectorAll('input, select, textarea').forEach(function(field) {
+            var key = field.id || field.name;
+            if (!key || data[key] !== undefined) return;
+            if (field.type === 'radio') { if (field.checked) data[key] = field.value; }
+            else if (field.type === 'checkbox') { data[key] = field.checked; }
+            else { data[key] = field.value; }
+        });
+    }
+    // Collect media modal fields
+    var mediaModal = document.getElementById('rentalMediaModal');
+    if (mediaModal) {
+        mediaModal.querySelectorAll('input, select, textarea').forEach(function(field) {
+            var key = field.id || field.name;
+            if (!key || data[key] !== undefined) return;
+            if (field.type === 'radio') { if (field.checked) data[key] = field.value; }
+            else if (field.type === 'checkbox') { data[key] = field.checked; }
+            else { data[key] = field.value; }
+        });
+    }
+
+    // Map building-level RLS fields from modal
+    data.BuildingName = data.bldgName || '';
+    data.StructureType = data.bldgType || data.rentalStructureType || '';
+    data.StoriesTotal = parseInt(data.bldgTotalFloors || '0') || null;
+    data.NumberOfUnitsTotal = parseInt(data.bldgTotalUnits || '0') || null;
+    data.CrossStreet = data.bldgCrossStreet1 || '';
+    data.TaxBlock = data.bldgTaxBlock || '';
+    data.BuildingTaxLot = data.bldgTaxLot || '';
+    data.AssociationName = data.bldgAssociationName || '';
+
+    // Collect multi-value checkbox fields as arrays
+    data.PetsAllowed = [];
+    document.querySelectorAll('input[name="rentalPetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
+    data.BuildingPetsAllowed = [];
+    document.querySelectorAll('input[name="rentalBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
+    data.BuildingFeatures = [];
+    document.querySelectorAll('#rentalBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
+        var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
+        data.BuildingFeatures.push(label);
+    });
+    // AttendanceType — multi-value checkbox array
+    data.AttendanceType = [];
+    document.querySelectorAll('input[name="rentalAttendanceType"]:checked').forEach(function(cb) { data.AttendanceType.push(cb.value); });
+    // BuildingLaundryFeatures — multi-value checkbox array
+    data.BuildingLaundryFeatures = [];
+    document.querySelectorAll('input[name="rentalBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
+    // OwnerPays — single checkbox (id-based, no name attribute)
+    var ownerPaysEl = document.getElementById('rentalOwnerPays');
+    data.OwnerPays = (ownerPaysEl && ownerPaysEl.checked) ? ['Yes'] : [];
+
+    // Map remaining RLS field names from CRM element IDs
+    data.CountyOrParish = data.rentalCountyOrParish || '';
+    data.PostalCity = data.rentalPostalCity || '';
+    data.RoomsTotal = parseInt(data.rentalTotalRooms || '0') || null;
+    data.Concessions = data.rentalConcessions || '';
+    data.ElevatorsTotal = parseInt(data.bldgNumElevators || '0') || null;
+    data.GarageYN = data.rentalTHGarageYN === true || data.rentalTHGarageYN === 'true' || data.rentalTHGarageYN === 'Yes';
+    data.OnMarketDate = data.rentalDateListed || '';
+    data.ExpirationDate = data.rentalExclusiveExpires || '';
+    data.ListingContractDate = data.rentalExclusiveStart || '';
+    data.AvailabilityDate = data.rentalAvailableDate || '';
+
     return data;
 }
 
 function submitRentalListing() {
-    // Validate all tabs with required fields
+    // Validate all tabs with required fields (tabs 1-4)
     var allValid = true;
-    for (var t = 1; t <= 2; t++) {
+    for (var t = 1; t <= 4; t++) {
         if (!validateRentalTab(t)) allValid = false;
     }
     if (!allValid) {
         showToast('Please fix validation errors before submitting.', 'error');
+        return;
+    }
+
+    // Check description fields for Fair Housing / compliance violations
+    var descFields = [
+        { id: 'rentalDescription', flagsId: 'rentalFairHousingFlags', label: 'Listing Description' },
+        { id: 'rentalShowingInstructions', flagsId: 'rentalShowingFlags', label: 'Showing Instructions' },
+        { id: 'rentalAgentRemarks', flagsId: 'rentalAgentRemarksFlags', label: 'Agent Remarks' },
+    ];
+    var hasComplianceViolation = false;
+    descFields.forEach(function(f) {
+        var el = document.getElementById(f.id);
+        if (el && el.value.trim() && typeof _performComplianceCheck === 'function') {
+            _performComplianceCheck(f.id, f.flagsId);
+            var flags = document.getElementById(f.flagsId);
+            if (flags && (flags.querySelector('.bg-red-50') || flags.querySelector('.bg-orange-50'))) {
+                hasComplianceViolation = true;
+            }
+        }
+    });
+    if (hasComplianceViolation) {
+        showToast('Cannot submit: Description fields contain compliance violations. Please correct all flagged language.', 'error');
         return;
     }
 
