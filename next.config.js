@@ -47,8 +47,8 @@ const nextConfig = {
               // img-src includes cotality & other image hosts
               "img-src 'self' data: blob: https://*.r2.dev https://images.mallan.nyc https://images.unsplash.com https://api.cotality.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
               "font-src 'self' https://fonts.gstatic.com",
-              // switched anthropic -> openai and kept other approved endpoints
-              "connect-src 'self' https://api.cotality.com https://api.nyc.gov https://data.cityofnewyork.us https://geosearch.planninglabs.nyc https://api.openai.com",
+              // AI endpoints: OpenAI (/api/ai chat) + Anthropic (/api/compliance/validate-ai) — both server-side, auth-gated
+              "connect-src 'self' https://api.cotality.com https://api.nyc.gov https://data.cityofnewyork.us https://geosearch.planninglabs.nyc https://api.openai.com https://api.anthropic.com",
               "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://my.matterport.com",
               "media-src 'self' https://*.r2.dev https://images.mallan.nyc",
               "object-src 'none'",
