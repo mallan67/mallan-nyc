@@ -789,8 +789,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
               <section className="pb-6">
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
                   <div>
-                    {/* Price — hidden on mobile (shown in sticky bar above) */}
-                    <div className="hidden lg:flex items-baseline gap-3 mb-1">
+                    {/* Price — bold and prominent */}
+                    <div className="flex items-baseline gap-3 mb-1">
                       <PriceWithCalculator
                         price={listing.listPrice}
                         originalPrice={listing.originalListPrice}
@@ -889,6 +889,27 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     </>
                   )}
                 </div>
+
+                {/* Monthly Costs — immediately after stats for buyer visibility */}
+                {!isRental && (listing.associationFee ? listing.associationFee > 0 : false) && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[14px] text-brand-dark/90">
+                    <span>
+                      <span className="font-semibold">{isCoop ? 'Maint:' : 'CC:'}</span>{' '}
+                      ${listing.associationFee!.toLocaleString()}/mo
+                    </span>
+                    {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
+                      <span>
+                        <span className="font-semibold">Tax:</span>{' '}
+                        ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
+                      </span>
+                    )}
+                    {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
+                      <span className="font-bold text-brand-dark">
+                        Total: ${(listing.associationFee! + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}/mo
+                      </span>
+                    )}
+                  </div>
+                )}
               </section>
 
               {/* ── 2. DESCRIPTION ── */}
