@@ -475,10 +475,12 @@ async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promi
  */
 async function fetchFromApiEndpoint(listingId: string): Promise<ListingFetchResult | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/listings/${encodeURIComponent(listingId)}`, {
+    // Explicit fallback: NEXT_PUBLIC_SITE_URL preferred, else VERCEL_URL with https, else localhost
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const vercelUrl = process.env.VERCEL_URL;
+    const baseUrl = siteUrl || (vercelUrl ? `https://${vercelUrl}` : 'http://localhost:3000');
+    const apiUrl = new URL(`/api/listings/${encodeURIComponent(listingId)}`, baseUrl).toString();
+    const res = await fetch(apiUrl, {
       headers: { 'Accept': 'application/json' },
       next: { revalidate: 300 },
     });
