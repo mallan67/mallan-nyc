@@ -767,7 +767,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               Call
             </a>
             <a
-              href="#inquiry"
+              href={`mailto:contact@mallan.nyc?subject=${encodeURIComponent(`Inquiry: ${fullAddress}`)}`}
               className="btn-liquid px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-full hover:bg-brand-dark/90"
             >
               Inquire
@@ -1349,7 +1349,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <p className="text-brand-dark/50 text-[12px] mb-5">Mallan Real Estate Inc.</p>
                   <div className="space-y-2.5">
                     <a
-                      href="#inquiry"
+                      href={`mailto:contact@mallan.nyc?subject=${encodeURIComponent(`Schedule Showing: ${fullAddress}`)}`}
                       className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 font-medium text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
