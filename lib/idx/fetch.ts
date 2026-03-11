@@ -366,7 +366,12 @@ export async function fetchListingMedia(
       mediaType,
       order: isPreferred ? -1 : Number(m.Order || i),
     };
-  }).filter((m: { url: string }) => m.url);
+  }).filter((m: { url: string }) => m.url).sort((a: { mediaType: string; order: number }, b: { mediaType: string; order: number }) => {
+    // Photos first, then videos/tours, then floorplans last
+    const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
+    const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+    return rankDiff !== 0 ? rankDiff : a.order - b.order;
+  });
 }
 
 /**
