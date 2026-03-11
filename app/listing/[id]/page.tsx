@@ -789,8 +789,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
               <section className="pb-6">
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
                   <div>
-                    {/* Price — the most prominent element */}
-                    <div className="flex items-baseline gap-3 mb-1">
+                    {/* Price — hidden on mobile (shown in sticky bar above) */}
+                    <div className="hidden lg:flex items-baseline gap-3 mb-1">
                       <PriceWithCalculator
                         price={listing.listPrice}
                         originalPrice={listing.originalListPrice}
@@ -806,8 +806,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         {neighborhood}
                       </h1>
                     )}
-                    <p className="text-brand-dark/90 text-[15px]">{fullAddress}</p>
-                    <p className="text-brand-dark/60 text-[13px]">
+                    <p className="text-brand-dark text-[15px]">{fullAddress}</p>
+                    <p className="text-brand-dark/80 text-[13px]">
                       {borough}, NY {listing.address.postalCode}
                     </p>
                   </div>
@@ -845,7 +845,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" /></svg>
                     <div>
                       <span className="text-lg font-display font-bold text-brand-dark">{listing.bedroomsTotal}</span>
-                      <span className="text-brand-dark/60 text-[13px] ml-1">Beds</span>
+                      <span className="text-brand-dark/80 text-[13px] ml-1">Beds</span>
                     </div>
                   </div>
                   <div className="w-px h-8 bg-black/10" />
@@ -855,7 +855,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       <span className="text-lg font-display font-bold text-brand-dark">
                         {listing.bathroomsFull}{listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`}
                       </span>
-                      <span className="text-brand-dark/60 text-[13px] ml-1">Baths</span>
+                      <span className="text-brand-dark/80 text-[13px] ml-1">Baths</span>
                     </div>
                   </div>
                   {listing.livingArea && (
@@ -865,7 +865,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                         <div>
                           <span className="text-lg font-display font-bold text-brand-dark">{listing.livingArea.toLocaleString()}</span>
-                          <span className="text-brand-dark/60 text-[13px] ml-1">Sq Ft</span>
+                          <span className="text-brand-dark/80 text-[13px] ml-1">Sq Ft</span>
                         </div>
                       </div>
                     </>
@@ -875,7 +875,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       <div className="w-px h-8 bg-black/10" />
                       <div className="px-4 py-1">
                         <span className="text-lg font-display font-bold text-brand-dark">${Math.round(listing.listPrice / listing.livingArea).toLocaleString()}</span>
-                        <span className="text-brand-dark/60 text-[13px] ml-1">/Sq Ft</span>
+                        <span className="text-brand-dark/80 text-[13px] ml-1">/Sq Ft</span>
                       </div>
                     </>
                   )}
@@ -884,7 +884,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       <div className="w-px h-8 bg-black/10" />
                       <div className="px-4 py-1">
                         <span className="text-lg font-display font-bold text-brand-dark">{listing.roomsTotal}</span>
-                        <span className="text-brand-dark/60 text-[13px] ml-1">Rooms</span>
+                        <span className="text-brand-dark/80 text-[13px] ml-1">Rooms</span>
                       </div>
                     </>
                   )}
@@ -937,14 +937,14 @@ export default async function ListingPage({ params, searchParams }: Props) {
                           <div className="flex justify-between items-center py-3 border-b border-black/[0.06]">
                             <span className="text-[14px] text-brand-dark">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
                             <span className="font-display font-bold text-[15px] text-brand-dark">
-                              ${listing.associationFee!.toLocaleString()}<span className="text-brand-dark/50 font-normal text-[13px]">/mo</span>
+                              ${listing.associationFee!.toLocaleString()}<span className="text-brand-dark/70 font-normal text-[13px]">/mo</span>
                             </span>
                           </div>
                           {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
                             <div className="flex justify-between items-center py-3 border-b border-black/[0.06]">
                               <span className="text-[14px] text-brand-dark">Real Estate Taxes</span>
                               <span className="font-display font-bold text-[15px] text-brand-dark">
-                                ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}<span className="text-brand-dark/50 font-normal text-[13px]">/mo</span>
+                                ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}<span className="text-brand-dark/70 font-normal text-[13px]">/mo</span>
                                 {listing.taxYear ? <span className="text-brand-dark/40 font-normal text-[12px] ml-1.5">({listing.taxYear})</span> : null}
                               </span>
                             </div>
@@ -954,7 +954,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                             <div className="flex justify-between items-center py-3 mt-1 bg-brand-gold/[0.06] rounded-xl px-3 -mx-1">
                               <span className="text-[14px] font-semibold text-brand-dark">Total Monthly</span>
                               <span className="font-display font-bold text-[16px] text-brand-dark">
-                                ${(listing.associationFee! + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}<span className="text-brand-dark/50 font-normal text-[13px]">/mo</span>
+                                ${(listing.associationFee! + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}<span className="text-brand-dark/70 font-normal text-[13px]">/mo</span>
                               </span>
                             </div>
                           )}
@@ -1007,12 +1007,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
                             {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(lastUnitSale.closePrice)}
                           </span>
                           {lastUnitSale.sqft > 0 && (
-                            <span className="text-[13px] text-brand-dark/60">
+                            <span className="text-[13px] text-brand-dark/80">
                               ${Math.round(lastUnitSale.closePrice / lastUnitSale.sqft).toLocaleString()}/sf
                             </span>
                           )}
                           {lastUnitSale.closeDate && (
-                            <span className="text-[13px] text-brand-dark/60">
+                            <span className="text-[13px] text-brand-dark/80">
                               Closed {new Date(lastUnitSale.closeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                             </span>
                           )}
@@ -1109,19 +1109,19 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
                     {listing.availabilityDate && (
                       <div className="flex justify-between py-2.5 border-b border-black/5">
-                        <span className="text-[13px] text-brand-dark/60">Available</span>
+                        <span className="text-[13px] text-brand-dark/80">Available</span>
                         <span className="text-[13px] font-medium text-brand-dark">{new Date(listing.availabilityDate).toLocaleDateString()}</span>
                       </div>
                     )}
                     {listing.petsAllowed && (
                       <div className="flex justify-between py-2.5 border-b border-black/5">
-                        <span className="text-[13px] text-brand-dark/60">Pets</span>
+                        <span className="text-[13px] text-brand-dark/80">Pets</span>
                         <span className="text-[13px] font-medium text-brand-dark">{listing.petsAllowed}</span>
                       </div>
                     )}
                     {listing.furnished && (
                       <div className="flex justify-between py-2.5 border-b border-black/5">
-                        <span className="text-[13px] text-brand-dark/60">Furnished</span>
+                        <span className="text-[13px] text-brand-dark/80">Furnished</span>
                         <span className="text-[13px] font-medium text-brand-dark">{listing.furnished}</span>
                       </div>
                     )}
@@ -1134,36 +1134,36 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Building Details</h2>
                 <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
                   <div className="flex justify-between py-2.5 border-b border-black/5">
-                    <span className="text-[13px] text-brand-dark/60">Property Type</span>
+                    <span className="text-[13px] text-brand-dark/80">Property Type</span>
                     <span className="text-[13px] font-medium text-brand-dark">{displayPropertyType}</span>
                   </div>
                   {listing.architecturalStyle && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Style</span>
+                      <span className="text-[13px] text-brand-dark/80">Style</span>
                       <span className="text-[13px] font-medium text-brand-dark">{listing.architecturalStyle}</span>
                     </div>
                   )}
                   {listing.yearBuilt && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Year Built</span>
+                      <span className="text-[13px] text-brand-dark/80">Year Built</span>
                       <span className="text-[13px] font-medium text-brand-dark">{listing.yearBuilt}</span>
                     </div>
                   )}
                   {listing.storiesTotal && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Stories</span>
+                      <span className="text-[13px] text-brand-dark/80">Stories</span>
                       <span className="text-[13px] font-medium text-brand-dark">{listing.storiesTotal}</span>
                     </div>
                   )}
                   {listing.buildingName && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Building</span>
+                      <span className="text-[13px] text-brand-dark/80">Building</span>
                       <span className="text-[13px] font-medium text-brand-dark">{listing.buildingName}</span>
                     </div>
                   )}
                   {listing.address.streetName !== 'Address Undisclosed' && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Building Page</span>
+                      <span className="text-[13px] text-brand-dark/80">Building Page</span>
                       <Link
                         href={buildingHref({ streetNumber: listing.address.streetNumber, streetName: listing.address.streetName, postalCode: listing.address.postalCode, buildingName: listing.buildingName || undefined })}
                         className="text-[13px] font-medium text-brand-gold-deep hover:text-brand-gold transition-colors flex items-center gap-1"
@@ -1174,18 +1174,18 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     </div>
                   )}
                   <div className="flex justify-between py-2.5 border-b border-black/5">
-                    <span className="text-[13px] text-brand-dark/60">MLS #</span>
+                    <span className="text-[13px] text-brand-dark/80">MLS #</span>
                     <span className="text-[13px] font-medium text-brand-dark font-mono">{listing.mlsId}</span>
                   </div>
                   {listing.onMarketDate && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Listed</span>
+                      <span className="text-[13px] text-brand-dark/80">Listed</span>
                       <span className="text-[13px] font-medium text-brand-dark">{new Date(listing.onMarketDate).toLocaleDateString()}</span>
                     </div>
                   )}
                   {listing.status && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
-                      <span className="text-[13px] text-brand-dark/60">Status</span>
+                      <span className="text-[13px] text-brand-dark/80">Status</span>
                       <span className={`text-[13px] font-medium ${listing.status === 'Active' ? 'text-blue-600' : listing.status === 'Closed' ? 'text-green-600' : 'text-brand-dark'}`}>
                         {listing.status}
                       </span>
