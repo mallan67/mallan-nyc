@@ -906,7 +906,8 @@ export async function GET(request: Request) {
       } catch (idxError) {
         // IDX fetch failed — return error to frontend (do NOT silently fall through to empty data)
         const message = idxError instanceof Error ? idxError.message : 'Unknown error';
-        console.error('[/api/listings] IDX fetch failed:', message);
+        const stack = idxError instanceof Error ? idxError.stack?.split('\n').slice(0, 3).join(' | ') : '';
+        console.error('[/api/listings] IDX fetch failed:', message, stack);
 
         // Surface a safe error to the frontend — no internal details leaked
         const isRateLimit = message.includes('429') || message.includes('rate limit');
@@ -915,11 +916,14 @@ export async function GET(request: Request) {
         const userMessage = isRateLimit
           ? 'Search temporarily unavailable. Please try again shortly.'
           : 'Unable to load listings. Please try again later.';
+        // Temporary debug hint (remove after fixing)
+        const _debug = process.env.NODE_ENV === 'production' ? message.substring(0, 120) : message;
 
         return NextResponse.json(
           {
             success: false,
             error: userMessage,
+            _debugHint: _debug,
             count: 0,
             total: 0,
             listings: [],
