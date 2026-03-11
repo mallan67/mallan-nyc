@@ -429,8 +429,15 @@ export function assertRlsCompliantPayload(
   }
 
   // ── 7. Listing agreement must be exclusive ─────────────────────────
-  const agreement = payload.ListingAgreement;
-  if (agreement && agreement !== "ExclusiveRightToSell" && agreement !== "ExclusiveAgency") {
+  const agreement = typeof payload.ListingAgreement === 'string' ? payload.ListingAgreement : '';
+  const VALID_LISTING_AGREEMENTS = [
+    "ExclusiveRightToSell",
+    "ExclusiveAgency",
+    "ExclusiveRightToLease",
+    "CoExclusive",
+    "ExclusiveRightWithException",
+  ];
+  if (agreement && !VALID_LISTING_AGREEMENTS.includes(agreement)) {
     blockers.push({
       code: "LA-001",
       severity: "BLOCKER",

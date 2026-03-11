@@ -87,3 +87,22 @@ export function findNeighborhood(
 export function getBoroughConfig(slug: BoroughSlug): BoroughConfig {
   return BOROUGH_CONFIGS[slug];
 }
+
+/**
+ * Returns all neighborhoods across all boroughs.
+ * This is the single source of truth for neighborhood data.
+ */
+export function getAllNeighborhoods(): Neighborhood[] {
+  return ALL_BOROUGH_SLUGS.flatMap((slug) => BOROUGH_DATA[slug]);
+}
+
+/**
+ * Find a neighborhood by slug across all boroughs.
+ */
+export function findNeighborhoodBySlug(slug: string): Neighborhood | undefined {
+  for (const boroughSlug of ALL_BOROUGH_SLUGS) {
+    const found = BOROUGH_DATA[boroughSlug].find((n) => n.slug === slug);
+    if (found) return found;
+  }
+  return undefined;
+}

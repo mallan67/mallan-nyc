@@ -162,15 +162,19 @@ export async function fetchSingleListing(
   }
 
   let url = buildUrl();
-  let response = await fetchPage(url, token);
+  let response = await fetchWithRetry(url, token);
 
   if (!response.ok) {
     if (response.status === 401) {
       // Token expired — refresh and retry
       invalidateToken();
       const newToken = await getAccessToken();
-      response = await fetchPage(url, newToken);
+      response = await fetchWithRetry(url, newToken);
       if (!response.ok) return null;
+    } else if (response.status === 429) {
+      // Rate limited — do not retry, return null
+      console.warn(`[IDX Fetch] Rate limited (429) for listing ${listingId}`);
+      return null;
     } else {
       const errorText = await response.text().catch(() => "Unknown");
       throw new Error(
@@ -322,12 +326,12 @@ export async function fetchListingMedia(
   params.set("$top", "50");
 
   const url = `${base}/odata/Media?${params.toString()}`;
-  let response = await fetchPage(url, token);
+  let response = await fetchWithRetry(url, token);
 
   if (response.status === 401) {
     invalidateToken();
     const newToken = await getAccessToken();
-    response = await fetchPage(url, newToken);
+    response = await fetchWithRetry(url, newToken);
   }
 
   if (!response.ok) {
@@ -361,6 +365,38 @@ export async function fetchListingMedia(
       order: isPreferred ? -1 : Number(m.Order || i),
     };
   }).filter((m: { url: string }) => m.url);
+}
+
+/**
+ * Retry a fetch with exponential backoff on 5xx errors.
+ * - Retries up to maxRetries times on 500/502/503/504 errors
+ * - Does NOT retry on 4xx errors (except 401 handled by callers)
+ * - Does NOT retry on 429 (rate limit)
+ * - Delays: 500ms, 1000ms between retries
+ */
+async function fetchWithRetry(
+  url: string,
+  token: string,
+  maxRetries: number = 2
+): Promise<Response> {
+  const delays = [500, 1000]; // ms between retries
+  let lastResponse: Response = await fetchPage(url, token);
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (lastResponse.ok || lastResponse.status < 500) {
+      // Success or 4xx — don't retry
+      return lastResponse;
+    }
+    // 5xx error — wait and retry
+    const delay = delays[attempt] || 1000;
+    console.warn(
+      `[IDX Fetch] Trestle ${lastResponse.status} error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+    );
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    lastResponse = await fetchPage(url, token);
+  }
+
+  return lastResponse;
 }
 
 /** Internal: make a single HTTP request to Trestle. */
