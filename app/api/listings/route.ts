@@ -10,6 +10,9 @@ import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { logTrestleAccess } from '@/lib/audit/trestle-logger';
 
+// Vercel serverless: allow up to 60s for Trestle API calls + media fetch
+export const maxDuration = 60;
+
 // ── In-memory cache (same pattern as /api/idx/search) ──
 interface CacheEntry { data: unknown; expiresAt: number }
 const listingsCache = new Map<string, CacheEntry>();
