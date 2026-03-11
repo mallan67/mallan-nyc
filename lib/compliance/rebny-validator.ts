@@ -74,8 +74,10 @@ const nycBoroughs = rlsRulesData.nycBoroughs;
 // Convert raw JSON fields to normalized rules
 function normalizeFields(fields: RLSField[]): RLSRule[] {
   return fields.map((f) => {
-    const isRequired = f.requirements.toLowerCase() === 'yes';
-    const isConditional = f.requirements.toLowerCase().startsWith('conditional:');
+    const reqLower = f.requirements.toLowerCase().trim();
+    // "Yes", "Yes; ...", "Yes, ...", "Yes: ...", "Yes but ..." all count as required
+    const isRequired = reqLower === 'yes' || /^yes[;:,\s]/.test(reqLower) || /^yes\b/.test(reqLower);
+    const isConditional = reqLower.startsWith('conditional:');
 
     let conditional: RLSRule['conditional'] = null;
     if (isConditional) {
