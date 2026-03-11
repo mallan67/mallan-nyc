@@ -616,7 +616,7 @@ export async function GET(request: Request) {
         // Fetch extra to account for gate filtering + post-filters
         // Neighborhood/borough/bounds queries need more headroom (heavy post-filtering)
         const hasPostFilter = !!(boundsParam || borough || neighborhood);
-        const fetchTop = Math.min((limit + skip) * (hasPostFilter ? 2.5 : 1.2) + 10, 1000);
+        const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 2.5 : 1.2) + 10), 1000);
 
         // When amenity filters are active, add the required fields to $select
         const amenityFields = amenitiesParam ? [
@@ -906,8 +906,7 @@ export async function GET(request: Request) {
       } catch (idxError) {
         // IDX fetch failed — return error to frontend (do NOT silently fall through to empty data)
         const message = idxError instanceof Error ? idxError.message : 'Unknown error';
-        const stack = idxError instanceof Error ? idxError.stack?.split('\n').slice(0, 3).join(' | ') : '';
-        console.error('[/api/listings] IDX fetch failed:', message, stack);
+        console.error('[/api/listings] IDX fetch failed:', message);
 
         // Surface a safe error to the frontend — no internal details leaked
         const isRateLimit = message.includes('429') || message.includes('rate limit');
@@ -916,14 +915,11 @@ export async function GET(request: Request) {
         const userMessage = isRateLimit
           ? 'Search temporarily unavailable. Please try again shortly.'
           : 'Unable to load listings. Please try again later.';
-        // Temporary debug hint (remove after fixing)
-        const _debug = message.substring(0, 500);
 
         return NextResponse.json(
           {
             success: false,
             error: userMessage,
-            _debugHint: _debug,
             count: 0,
             total: 0,
             listings: [],
