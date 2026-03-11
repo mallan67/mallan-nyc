@@ -100,6 +100,7 @@ export interface DbListing {
   modification_timestamp: string | Date;
   created_at: string | Date;
   updated_at: string | Date;
+  raw_data?: unknown;
 }
 
 /** RESO StandardStatus values that are publicly displayable */
@@ -158,6 +159,10 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
 
   const suppressAddress = listing.internet_address_display_yn === false;
   const isComingSoon = listing.status === 'ComingSoon';
+  const rawData = (listing.raw_data || {}) as Record<string, unknown>;
+  const comingSoonDate = isComingSoon
+    ? (rawData.ActivationDate as string | undefined) || undefined
+    : undefined;
 
   const slug = generateListingSlug({
     address: {
@@ -253,6 +258,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
       attributionText: `Exclusive listing by ${agentInfo.ListOfficeName || 'Mallan Real Estate Inc.'}`,
       disclaimerRequired: false,
       comingSoon: isComingSoon || undefined,
+      comingSoonDate,
     },
   };
 }

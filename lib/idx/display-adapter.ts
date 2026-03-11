@@ -84,6 +84,7 @@ export interface DisplayListing {
   availabilityDate?: string;
   _displayCompliance: {
     comingSoon?: boolean;
+    comingSoonDate?: string;
     attributionText: string;
     requiresAttribution: boolean;
   };
@@ -200,6 +201,7 @@ export function toDisplayListing(raw: any): DisplayListing {
     petsAllowed: raw.features?.pets?.allowed ? 'Yes' : undefined,
     _displayCompliance: {
       comingSoon: raw.status === 'coming-soon' || raw.compliance?.comingSoonDate ? true : undefined,
+      comingSoonDate: raw.compliance?.comingSoonDate || raw.activationDate || undefined,
       attributionText: `Courtesy of ${raw.agent?.listOfficeName || 'Listing Office'}`,
       requiresAttribution: true,
     },

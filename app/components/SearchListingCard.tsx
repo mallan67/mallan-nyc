@@ -18,6 +18,13 @@ function formatPrice(price: number, isRental: boolean): string {
 
 function formatComingSoonBadge(listing: DisplayListing): string | null {
   if (!listing._displayCompliance.comingSoon) return null;
+  const date = listing._displayCompliance.comingSoonDate;
+  if (date) {
+    const formatted = new Date(date).toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+    return `Coming Soon. No Showings or Open House until ${formatted}`;
+  }
   return 'Coming Soon';
 }
 
@@ -237,7 +244,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         </Link>
         {formatComingSoonBadge(listing) && (
           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-amber-500 text-white text-[9px] rounded-md z-10">
-            Coming Soon
+            {formatComingSoonBadge(listing)}
           </span>
         )}
         <div className="absolute top-1.5 right-1.5 z-10">
