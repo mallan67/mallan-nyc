@@ -37,6 +37,7 @@ import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 
 import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
+import prisma from '@/lib/prisma';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
 export const revalidate = 300;
@@ -256,6 +257,171 @@ interface ListingFetchResult {
 }
 
 /**
+ * DB-first lookup: check Prisma DB for listing before hitting Trestle.
+ * Converts DB record to PublicListingDTO. Returns null if not found.
+ */
+async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
+  try {
+    let dbListing = null;
+
+    // Strategy 1: Key override or MLS-ID slug
+    const lookupId = keyOverride || (isMlsIdSlug(slug) ? extractMlsIdFromSlug(slug) : null);
+    if (lookupId) {
+      dbListing = await prisma.listing.findUnique({
+        where: { listing_id: lookupId },
+      });
+    }
+
+    // Strategy 2: Address slug → query by address components
+    if (!dbListing && !isMlsIdSlug(slug)) {
+      const parsed = parseAddressSlug(slug);
+      if (parsed && parsed.streetNumber && parsed.postalCode) {
+        dbListing = await prisma.listing.findFirst({
+          where: {
+            postal_code: parsed.postalCode,
+            address: {
+              path: ['StreetNumber'],
+              equals: parsed.streetNumber,
+            },
+          },
+        });
+        // Narrow by street name if multiple matches
+        if (!dbListing && parsed.streetName) {
+          const candidates = await prisma.listing.findMany({
+            where: { postal_code: parsed.postalCode },
+            take: 50,
+          });
+          dbListing = candidates.find(c => {
+            const addr = c.address as Record<string, string> | null;
+            if (!addr) return false;
+            const sn = (addr.StreetNumber || '').toLowerCase();
+            const st = (addr.StreetName || '').toLowerCase();
+            return sn === parsed.streetNumber.toLowerCase() &&
+                   st.includes(parsed.streetName.toLowerCase());
+          }) || null;
+        }
+      }
+    }
+
+    // Strategy 3: Treat slug as listing_id
+    if (!dbListing) {
+      dbListing = await prisma.listing.findUnique({
+        where: { listing_id: slug },
+      }).catch(() => null);
+    }
+
+    if (!dbListing) return null;
+
+    // Distribution gate check
+    if (!dbListing.idx_display_yn || dbListing.owner_opt_out ||
+        !dbListing.internet_entire_listing_display_yn || dbListing.participant_only) {
+      return null;
+    }
+
+    // Convert DB record to PublicListingDTO
+    const addr = (dbListing.address as Record<string, string>) || {};
+    const features = (dbListing.features as Record<string, unknown>) || {};
+    const mediaArr = Array.isArray(dbListing.media)
+      ? (dbListing.media as { url: string; mediaType: string; order: number }[])
+      : [];
+    const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
+    const compliance = (dbListing.compliance as Record<string, unknown>) || {};
+    const suppressAddress = !dbListing.internet_address_display_yn;
+
+    const dto: PublicListingDTO = {
+      id: dbListing.listing_id,
+      mlsId: dbListing.mls_id || dbListing.listing_id,
+      slug: generateListingSlug({
+        address: {
+          streetNumber: addr.StreetNumber || '',
+          streetName: suppressAddress ? 'Address Undisclosed' : (addr.StreetName || ''),
+          unitNumber: addr.UnitNumber || null,
+          city: addr.City || '',
+          stateOrProvince: addr.StateOrProvince || 'NY',
+          postalCode: addr.PostalCode || dbListing.postal_code || '',
+        },
+        id: dbListing.listing_id,
+        mlsId: dbListing.mls_id || undefined,
+        internetAddressDisplayYN: dbListing.internet_address_display_yn,
+      }),
+      status: dbListing.status,
+      listingType: dbListing.listing_type as 'sale' | 'rent',
+      address: suppressAddress
+        ? {
+            streetNumber: '',
+            streetName: 'Address Undisclosed',
+            unitNumber: null,
+            city: addr.City || '',
+            stateOrProvince: addr.StateOrProvince || 'NY',
+            postalCode: addr.PostalCode || '',
+            county: addr.CountyOrParish || '',
+            neighborhood: dbListing.neighborhood || undefined,
+          }
+        : {
+            streetNumber: addr.StreetNumber || '',
+            streetName: addr.StreetName || '',
+            unitNumber: addr.UnitNumber || null,
+            city: addr.City || '',
+            stateOrProvince: addr.StateOrProvince || 'NY',
+            postalCode: addr.PostalCode || '',
+            county: addr.CountyOrParish || '',
+            neighborhood: dbListing.neighborhood || undefined,
+            latitude: addr.Latitude ? Number(addr.Latitude) : undefined,
+            longitude: addr.Longitude ? Number(addr.Longitude) : undefined,
+          },
+      listPrice: Number(dbListing.list_price),
+      originalListPrice: Number(dbListing.list_price),
+      closePrice: null,
+      propertyType: dbListing.property_sub_type || dbListing.property_type || 'Residential',
+      propertySubType: dbListing.property_sub_type || null,
+      bedroomsTotal: dbListing.bedrooms_total || 0,
+      bathroomsFull: dbListing.bathrooms_full || 0,
+      bathroomsHalf: dbListing.bathrooms_half || 0,
+      livingArea: dbListing.living_area ? Number(dbListing.living_area) : null,
+      lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
+      yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
+      listOfficeName: agentInfo.company || '',
+      listAgentFullName: agentInfo.name || '',
+      media: mediaArr.map(m => ({
+        ...m,
+        url: m.url && (m.url.includes('cotality.com') || m.url.includes('corelogic.com'))
+          ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+          : m.url,
+      })),
+      photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
+      publicRemarks: String(features.PublicRemarks || compliance.PublicRemarks || ''),
+      listingContractDate: String(features.ListingContractDate || ''),
+      modificationTimestamp: String(features.ModificationTimestamp || ''),
+      associationFee: features.AssociationFee ? Number(features.AssociationFee) : undefined,
+      taxAnnualAmount: features.TaxAnnualAmount ? Number(features.TaxAnnualAmount) : undefined,
+      buildingName: features.BuildingName ? String(features.BuildingName) : undefined,
+      interiorFeatures: features.InteriorFeatures ? String(features.InteriorFeatures) : undefined,
+      buildingFeatures: features.BuildingFeatures ? String(features.BuildingFeatures) : undefined,
+      associationAmenities: features.AssociationAmenities ? String(features.AssociationAmenities) : undefined,
+      parkingFeatures: features.ParkingFeatures ? String(features.ParkingFeatures) : undefined,
+      heating: features.Heating ? String(features.Heating) : undefined,
+      cooling: features.Cooling ? String(features.Cooling) : undefined,
+      laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
+      petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
+      _source: 'db',
+      _displayCompliance: {
+        requiresAttribution: true,
+        attributionText: 'Listing data from REBNY RLS',
+        disclaimerRequired: true,
+      },
+    };
+
+    return {
+      listing: dto,
+      tax: { taxBlock: null, taxLot: null },
+    };
+  } catch (err) {
+    console.warn(`[/listing/${slug}] DB lookup failed (non-fatal):`, err);
+    return null;
+  }
+}
+
+/**
  * Fetch from Trestle directly (server-side). Returns null on any failure.
  */
 async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
@@ -328,11 +494,12 @@ async function fetchFromApiEndpoint(listingId: string): Promise<ListingFetchResu
 }
 
 /**
- * Fetch a single listing from IDX (Trestle) with fallback resilience.
+ * Fetch a single listing with multi-layer resilience.
  *
  * Resolution order:
- *   1. Direct Trestle fetch (fastest, freshest data)
- *   2. Fallback to /api/listings/:id (has local JSON fallback)
+ *   1. Direct Trestle fetch (freshest data)
+ *   2. Local DB lookup (Prisma — fast, no external dependency)
+ *   3. Fallback to /api/listings/:id (has local JSON fallback)
  *
  * COMPLIANCE: Address slugs are NEVER generated for listings where
  * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
@@ -347,11 +514,19 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
       const result = await fetchFromTrestleDirect(slug, keyOverride);
       if (result) return result;
     } catch (err) {
-      console.error(`[/listing/${slug}] Trestle fetch failed, trying API fallback:`, err);
+      console.error(`[/listing/${slug}] Trestle fetch failed, trying DB fallback:`, err);
     }
   }
 
-  // Fallback: our own API endpoint (has local JSON fallback)
+  // Fallback 1: local Prisma DB (no external API dependency)
+  try {
+    const dbResult = await fetchFromDB(slug, keyOverride);
+    if (dbResult) return dbResult;
+  } catch (err) {
+    console.warn(`[/listing/${slug}] DB fallback failed:`, err);
+  }
+
+  // Fallback 2: our own API endpoint (has local JSON fallback)
   const fallbackId = keyOverride || slug;
   const apiResult = await fetchFromApiEndpoint(fallbackId);
   if (apiResult) return apiResult;

@@ -201,7 +201,13 @@ export async function fetchListingByAddress(address: {
   postalCode: string;
   unitNumber?: string;
 }): Promise<Record<string, unknown> | null> {
-  const token = await getAccessToken();
+  let token: string;
+  try {
+    token = await getAccessToken();
+  } catch (err) {
+    console.warn('[IDX Fetch] Token acquisition failed for address lookup:', err);
+    return null;
+  }
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
 
   // SECURITY: Strict allowlist sanitization to prevent OData injection.
@@ -249,13 +255,13 @@ export async function fetchListingByAddress(address: {
   }
 
   let url = buildUrl();
-  let response = await fetchPage(url, token);
+  let response = await fetchWithRetry(url, token);
 
   if (!response.ok) {
     if (response.status === 401) {
       invalidateToken();
       const newToken = await getAccessToken();
-      response = await fetchPage(url, newToken);
+      response = await fetchWithRetry(url, newToken);
       if (!response.ok) return null;
     } else {
       return null;
