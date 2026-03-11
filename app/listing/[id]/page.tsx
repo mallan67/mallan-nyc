@@ -204,7 +204,13 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   const listing = mapRESOToInternal(raw);
   if (!listing) return null;
 
-  const dto = toPublicDTO(listing);
+  let dto: PublicListingDTO;
+  try {
+    dto = toPublicDTO(listing);
+  } catch (dtoErr) {
+    console.error(`[/listing/${debugId}] toPublicDTO failed:`, dtoErr);
+    return null;
+  }
 
   // Always fetch media from Trestle Media resource ($expand=Media removed)
   const listingKey = String(raw.SourceSystemKey || raw.ListingId || debugId);

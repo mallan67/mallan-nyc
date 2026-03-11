@@ -368,6 +368,67 @@ export async function GET(request: Request) {
               }
             }
 
+            // Amenity post-filtering on DB path (same AND logic as Trestle path)
+            // DB listings store amenity fields in the features JSON column with
+            // PascalCase keys (same as raw Trestle field names). The DTO also
+            // exposes these as camelCase. We check both DTO + features JSON.
+            if (amenitiesParam) {
+              const { AMENITY_FIELD_MAP } = await import('@/lib/search/types');
+              // PascalCase → camelCase mapping for DTO fields
+              const fieldToDto: Record<string, string> = {
+                'BuildingFeatures': 'buildingFeatures',
+                'InteriorFeatures': 'interiorFeatures',
+                'ExteriorFeatures': 'exteriorFeatures',
+                'Appliances': 'appliances',
+                'Cooling': 'cooling',
+                'View': 'view',
+                'ParkingFeatures': 'parkingFeatures',
+                'LaundryFeatures': 'laundryFeatures',
+                'PetsAllowed': 'petsAllowed',
+              };
+              const requestedAmenities = amenitiesParam.split(',').filter(
+                (a): a is import('@/lib/search/types').AmenityFilter => a in AMENITY_FIELD_MAP
+              );
+
+              // Build a lookup from listing ID → features JSON for fields not on DTO
+              const featuresById = new Map<string, Record<string, unknown>>();
+              for (const dbL of serialized) {
+                const feat = (dbL.features || {}) as Record<string, unknown>;
+                featuresById.set(dbL.listing_id, feat);
+              }
+
+              // AND logic: each selected amenity must be present
+              for (const amenityKey of requestedAmenities) {
+                const mapping = AMENITY_FIELD_MAP[amenityKey];
+                const fields = mapping.field.split(',').map(f => f.trim());
+                const matchValues = mapping.values.map(v => v.toLowerCase());
+
+                if (amenityKey === 'pet-friendly') {
+                  publicListings = publicListings.filter((listing) => {
+                    // Check DTO petsAllowed + features JSON PetsAllowed
+                    const dtoVal = String(listing.petsAllowed || '').toLowerCase();
+                    const feat = featuresById.get(listing.id) || {};
+                    const featVal = String(feat.PetsAllowed || '').toLowerCase();
+                    const val = dtoVal || featVal;
+                    if (!val) return false;
+                    return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
+                  });
+                } else {
+                  publicListings = publicListings.filter((listing) => {
+                    const feat = featuresById.get(listing.id) || {};
+                    return fields.some(fieldName => {
+                      // Try DTO field first (camelCase), then features JSON (PascalCase)
+                      const dtoKey = fieldToDto[fieldName];
+                      const dtoVal = dtoKey ? String((listing as unknown as Record<string, unknown>)[dtoKey] || '') : '';
+                      const featVal = String(feat[fieldName] || '');
+                      const val = (dtoVal || featVal).toLowerCase();
+                      return matchValues.some(mv => val.includes(mv));
+                    });
+                  });
+                }
+              }
+            }
+
             const responseBody = {
               success: true,
               count: publicListings.length,

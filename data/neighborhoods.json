@@ -1,4 +1,5 @@
 {
+  "_deprecated": "DO NOT USE — This file is superseded by the borough-split JSON files (data/manhattan-neighborhoods.json, etc.) loaded via lib/neighborhoods/boroughs.ts. All API routes and components now use that single source of truth.",
   "neighborhoods": [
     {
       "id": "upper-east-side",

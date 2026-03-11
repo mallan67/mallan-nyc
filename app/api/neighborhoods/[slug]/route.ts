@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import neighborhoodsData from '@/data/neighborhoods.json';
+import { findNeighborhoodBySlug } from '@/lib/neighborhoods/boroughs';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -8,18 +8,19 @@ type Props = {
 /**
  * GET /api/neighborhoods/:slug
  *
- * Returns full neighborhood details including attractions
+ * Returns full neighborhood details.
+ * Source of truth: borough-split JSON files via lib/neighborhoods/boroughs.ts
  */
 export async function GET(request: Request, { params }: Props) {
   try {
     const { slug } = await params;
 
-    const neighborhood = neighborhoodsData.neighborhoods.find(n => n.id === slug);
+    const neighborhood = findNeighborhoodBySlug(slug);
 
     if (!neighborhood) {
       return NextResponse.json(
         { success: false, error: 'Neighborhood not found' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -31,7 +32,7 @@ export async function GET(request: Request, { params }: Props) {
     console.error('Error fetching neighborhood:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch neighborhood' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
