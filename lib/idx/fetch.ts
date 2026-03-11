@@ -374,5 +374,9 @@ async function fetchPage(
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
+    // Cache Trestle responses for 5 minutes in Next.js Data Cache.
+    // Without this, Next.js 15+ defaults to no-store and every request
+    // hits Trestle live — causing 3-8s load times on cold starts.
+    next: { revalidate: 300 },
   });
 }
