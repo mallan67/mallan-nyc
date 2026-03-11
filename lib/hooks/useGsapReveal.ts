@@ -42,47 +42,77 @@ export function useGsapReveal<T extends HTMLElement>(options: RevealOptions = {}
         const { ScrollTrigger } = await import('gsap/ScrollTrigger');
         gsap.registerPlugin(ScrollTrigger);
 
+        // Check if element is already in/near viewport — if so, animate immediately
+        // instead of waiting for scroll. This prevents above-the-fold content from
+        // going invisible while waiting for ScrollTrigger.
+        const rect = el.getBoundingClientRect();
+        const isNearViewport = rect.top < window.innerHeight * 1.1;
+
         if (opts.children) {
           const children = el.children;
           if (children.length === 0) return;
 
-          // Set initial hidden state synchronously, then animate on scroll
           gsap.set(Array.from(children), { opacity: 0, y: opts.y, scale: opts.scale });
 
-          Array.from(children).forEach((child, i) => {
-            ScrollTrigger.create({
-              trigger: child,
-              start: opts.start,
-              once: true,
-              onEnter: () => {
-                gsap.to(child, {
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                  duration: opts.duration,
-                  delay: i * (opts.stagger ?? 0.08),
-                  ease: opts.ease,
-                });
-              },
-            });
-          });
-        } else {
-          gsap.set(el, { opacity: 0, y: opts.y, scale: opts.scale });
-
-          ScrollTrigger.create({
-            trigger: el,
-            start: opts.start,
-            once: true,
-            onEnter: () => {
-              gsap.to(el, {
+          if (isNearViewport) {
+            // Already visible — animate in immediately with stagger
+            Array.from(children).forEach((child, i) => {
+              gsap.to(child, {
                 opacity: 1,
                 y: 0,
                 scale: 1,
                 duration: opts.duration,
+                delay: i * (opts.stagger ?? 0.08),
                 ease: opts.ease,
               });
-            },
-          });
+            });
+          } else {
+            Array.from(children).forEach((child, i) => {
+              ScrollTrigger.create({
+                trigger: child,
+                start: opts.start,
+                once: true,
+                onEnter: () => {
+                  gsap.to(child, {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    duration: opts.duration,
+                    delay: i * (opts.stagger ?? 0.08),
+                    ease: opts.ease,
+                  });
+                },
+              });
+            });
+          }
+        } else {
+          gsap.set(el, { opacity: 0, y: opts.y, scale: opts.scale });
+
+          if (isNearViewport) {
+            // Already visible — animate in immediately
+            gsap.to(el, {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: opts.duration,
+              ease: opts.ease,
+            });
+          } else {
+            ScrollTrigger.create({
+              trigger: el,
+              start: opts.start,
+              once: true,
+              onEnter: () => {
+                gsap.to(el, {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  duration: opts.duration,
+                  ease: opts.ease,
+                });
+              },
+            });
+          }
         }
 
         cleanup = () => ScrollTrigger.getAll().forEach(t => t.kill());
