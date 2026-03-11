@@ -182,3 +182,4 @@ build_output.txt
 lint.log
 *.log
 nul
+.venv/
