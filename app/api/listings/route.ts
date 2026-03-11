@@ -917,7 +917,7 @@ export async function GET(request: Request) {
           ? 'Search temporarily unavailable. Please try again shortly.'
           : 'Unable to load listings. Please try again later.';
         // Temporary debug hint (remove after fixing)
-        const _debug = process.env.NODE_ENV === 'production' ? message.substring(0, 120) : message;
+        const _debug = message.substring(0, 500);
 
         return NextResponse.json(
           {
