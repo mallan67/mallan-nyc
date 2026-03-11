@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 export async function POST(
   req: NextRequest,
@@ -17,12 +18,12 @@ export async function POST(
 
   const { id } = await params;
 
-  // Resolve listing
-  const numericId = parseInt(id);
+  // Resolve listing by numeric BigInt id or string listing_id (SL-/RL- prefix).
   let listing;
-  if (!isNaN(numericId)) {
+  const numericId = safeBigInt(id);
+  if (numericId) {
     listing = await prisma.listing.findUnique({
-      where: { id: BigInt(numericId) },
+      where: { id: numericId },
     });
   }
   if (!listing) {

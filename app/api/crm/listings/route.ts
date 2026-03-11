@@ -7,6 +7,7 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -94,14 +95,30 @@ const STATUS_INITIAL = "Draft";
 
 /**
  * Generate a unique listing_id: SL-XXXX for sales, RL-XXXX for rentals.
+ * Uses MAX(listing_id) + 1 inside a transaction to prevent race conditions.
+ * Must be called inside a Prisma interactive transaction (tx).
  */
-async function generateListingId(listingType: string): Promise<string> {
+async function generateListingId(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  listingType: string
+): Promise<string> {
   const prefix = listingType === "rent" ? "RL" : "SL";
-  const count = await prisma.listing.count({
-    where: { listing_id: { startsWith: prefix } },
-  });
-  const seq = (count + 1).toString().padStart(4, "0");
-  return `${prefix}-${seq}`;
+  const pattern = `${prefix}-%`;
+
+  // Atomically find the highest existing sequence number for this prefix.
+  // Advisory lock (pg_advisory_xact_lock) prevents concurrent transactions
+  // from reading the same MAX and generating duplicate IDs.
+  const lockId = prefix === "RL" ? 200001 : 200002;
+  await tx.$queryRawUnsafe(`SELECT pg_advisory_xact_lock(${lockId})`);
+
+  const result = await tx.$queryRawUnsafe<{ max_seq: number | null }[]>(
+    `SELECT MAX(CAST(SUBSTRING(listing_id FROM '${prefix}-(\\d+)') AS INTEGER)) AS max_seq
+     FROM listings WHERE listing_id LIKE $1`,
+    pattern
+  );
+
+  const nextSeq = ((result[0]?.max_seq ?? 0) + 1).toString().padStart(4, "0");
+  return `${prefix}-${nextSeq}`;
 }
 
 /**
@@ -178,110 +195,102 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Generate listing ID
-  const listingId = await generateListingId(listingType);
+  // ─── Normalize payload via authority table ─────────────────────────
+  // 1. Strip removed fields (NAR Settlement)
+  // 2. Rename aliases → canonical RLS field names
+  // 3. Normalize enum values
+  // 4. Apply defaults (IDXEntireListingDisplayYN, SyndicateYN)
+  const { normalized, stripped } = normalizePayload(body);
 
-  // Extract structured fields from flat form data
-  const address: Record<string, unknown> = {};
-  const addressFields = [
-    "StreetNumber", "StreetName", "StreetSuffix", "UnitNumber",
-    "City", "StateOrProvince", "PostalCode", "Borough",
-    "Neighborhood", "BuildingName", "UnparsedAddress",
-  ];
-  for (const f of addressFields) {
-    if (body[f] !== undefined) address[f] = body[f];
-  }
+  // Derive permission booleans from Permissions string
+  // (forms send "OwnerOptOut"/"Private"/"RLS-Owner-OptOut"/etc. — normalizer resolves)
+  const permBools = derivePermissionBooleans(normalized.Permissions);
 
-  const features: Record<string, unknown> = {};
-  const featureFields = [
-    "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
-    "Flooring", "Heating", "Cooling", "ParkingFeatures",
-    "LaundryFeatures", "Appliances", "InteriorFeatures",
-    "ExteriorFeatures", "Utilities", "WaterSource", "Sewer",
-    "FireplaceYN", "FireplacesTotal", "PoolPrivateYN",
-    "PatioAndPorchFeatures", "View", "Directions", "GarageYN",
-    "GarageSpaces", "ArchitecturalStyle", "ConstructionMaterials",
-    "Roof", "Foundation", "LotSizeArea", "LotSizeUnits",
-    "CommonInterest", "AssociationFee", "AssociationFeeFrequency",
-    "RealEstateTax", "TaxYear", "TaxAnnualAmount",
-    "PublicRemarks", "PrivateRemarks", "ShowingInstructions",
-    "NewDevelopmentYN", "BathroomsTotal",
-  ];
-  for (const f of featureFields) {
-    if (body[f] !== undefined) features[f] = body[f];
-  }
+  // Route normalized fields to structured DB buckets via persistenceMap
+  const persistence = buildPersistenceRecord(normalized);
 
   const compliance: Record<string, unknown> = {
     validation_result: validation.compliance,
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,
+    stripped_fields: stripped, // Track which removed fields were stripped
   };
 
-  const agentInfo: Record<string, unknown> = {};
-  const agentFields = [
-    "ListAgentKey", "ListAgentMlsId", "ListAgentFullName",
-    "ListAgentEmail", "ListAgentDirectPhone",
-    "ListOfficeName", "ListOfficeKey", "ListOfficeMlsId",
-  ];
-  for (const f of agentFields) {
-    if (body[f] !== undefined) agentInfo[f] = body[f];
-  }
-
   const now = new Date();
+  const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
 
-  const listing = await prisma.listing.create({
-    data: {
-      listing_id: listingId,
-      mls_id: (body.mls_id as string) ?? null,
-      agent_id: auth.userId,
-      status: STATUS_INITIAL,
-      listing_type: listingType,
-      property_type: (body.PropertyType as string) ?? null,
-      property_sub_type: (body.PropertySubType as string) ?? null,
-      list_price: body.ListPrice ? Number(body.ListPrice) : 0,
-      bedrooms_total: body.BedroomsTotal ? Number(body.BedroomsTotal) : null,
-      bathrooms_full: body.BathroomsFull ? Number(body.BathroomsFull) : null,
-      bathrooms_half: body.BathroomsHalf ? Number(body.BathroomsHalf) : null,
-      living_area: body.LivingArea ? Number(body.LivingArea) : null,
-      borough: (body.Borough as string) ?? (body.City as string) ?? null,
-      neighborhood: (body.Neighborhood as string) ?? (body.SubdivisionName as string) ?? null,
-      city: (body.City as string) ?? null,
-      postal_code: (body.PostalCode as string) ?? null,
-      rls_eligible: rlsEligible,
-      commercial_sub_type: (body.commercial_sub_type as string) ?? null,
-      commercial_ownership: (body.commercial_ownership as string) ?? null,
-      idx_display_yn: rlsEligible ? body.IDXEntireListingDisplayYN !== false : false,
-      internet_entire_listing_display_yn: body.InternetEntireListingDisplayYN !== false,
-      internet_address_display_yn: body.InternetAddressDisplayYN !== false,
-      participant_only: body.ParticipantOnly === true,
-      owner_opt_out: body.OwnerOptOut === true,
-      address: address as Prisma.InputJsonValue,
-      features: features as Prisma.InputJsonValue,
-      media: (body.media as Prisma.InputJsonValue) ?? [],
-      compliance: compliance as Prisma.InputJsonValue,
-      agent_info: agentInfo as Prisma.InputJsonValue,
-      raw_data: body as Prisma.InputJsonValue,
-      modification_timestamp: now,
-      listing_contract_date: body.ListingContractDate
-        ? new Date(body.ListingContractDate as string)
-        : null,
-    },
+  // Wrap listing create + ID generation + audit log in a single transaction.
+  // Advisory lock inside generateListingId prevents duplicate listing IDs.
+  // If any step fails, the entire transaction rolls back.
+  const result = await prisma.$transaction(async (tx) => {
+    const listingId = await generateListingId(tx, listingType);
+
+    const listing = await tx.listing.create({
+      data: {
+        listing_id: listingId,
+        mls_id: (normalized.mls_id as string) ?? null,
+        agent_id: auth.userId,
+        status: STATUS_INITIAL,
+        listing_type: listingType,
+        // Top-level columns derived from persistenceMap
+        property_type: (persistence.topLevel.property_type as string) ?? null,
+        property_sub_type: (persistence.topLevel.property_sub_type as string) ?? null,
+        list_price: persistence.topLevel.list_price ? Number(persistence.topLevel.list_price) : 0,
+        bedrooms_total: persistence.topLevel.bedrooms_total ? Number(persistence.topLevel.bedrooms_total) : null,
+        bathrooms_full: persistence.topLevel.bathrooms_full ? Number(persistence.topLevel.bathrooms_full) : null,
+        bathrooms_half: persistence.topLevel.bathrooms_half ? Number(persistence.topLevel.bathrooms_half) : null,
+        living_area: persistence.topLevel.living_area ? Number(persistence.topLevel.living_area) : null,
+        // CityRegion → borough (normalizer already resolved Borough→CityRegion alias)
+        borough: (persistence.topLevel.borough as string) ?? null,
+        // SubdivisionName → neighborhood (normalizer already resolved Neighborhood→SubdivisionName alias)
+        neighborhood: (persistence.topLevel.neighborhood as string) ?? null,
+        city: (persistence.topLevel.city as string) ?? null,
+        postal_code: (persistence.topLevel.postal_code as string) ?? null,
+        rls_eligible: rlsEligible,
+        commercial_sub_type: (body.commercial_sub_type as string) ?? null,
+        commercial_ownership: (body.commercial_ownership as string) ?? null,
+        // Distribution gates from persistenceMap
+        idx_display_yn: rlsEligible ? (persistence.topLevel.idx_display_yn !== false) : false,
+        internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,
+        internet_address_display_yn: persistence.topLevel.internet_address_display_yn !== false,
+        // Permission booleans derived from Permissions enum (not hardcoded from body)
+        participant_only: permBools.participant_only,
+        owner_opt_out: permBools.owner_opt_out,
+        // Structured JSONB buckets from persistenceMap routing
+        address: persistence.address as Prisma.InputJsonValue,
+        features: persistence.features as Prisma.InputJsonValue,
+        media: (body.media as Prisma.InputJsonValue) ?? [],
+        compliance: compliance as Prisma.InputJsonValue,
+        agent_info: persistence.agentInfo as Prisma.InputJsonValue,
+        // raw_data stores the full normalized payload (removed fields already stripped)
+        raw_data: persistence.raw_data as Prisma.InputJsonValue,
+        modification_timestamp: now,
+        listing_contract_date: persistence.topLevel.listing_contract_date
+          ? new Date(persistence.topLevel.listing_contract_date as string)
+          : null,
+      },
+    });
+
+    // Audit log inside same transaction — either both commit or both roll back
+    await tx.auditEvent.create({
+      data: {
+        action: "create",
+        entity_type: "listing",
+        entity_id: listing.id.toString(),
+        user_type: auth.userType,
+        user_id: auth.userId,
+        changes: { listing_id: listingId, listing_type: listingType } as Prisma.InputJsonValue,
+        ip_address: ipAddress ?? null,
+      },
+    });
+
+    return { id: listing.id.toString(), listingId };
   });
-
-  // Audit log
-  await logAuditEvent(
-    "create",
-    "listing",
-    listing.id.toString(),
-    auth,
-    { listing_id: listingId, listing_type: listingType },
-    req.headers.get("x-forwarded-for") ?? undefined
-  );
 
   return NextResponse.json(
     {
-      id: listing.id.toString(),
-      listing_id: listingId,
+      id: result.id,
+      listing_id: result.listingId,
       status: STATUS_INITIAL,
       warnings: validation.warnings,
       suggestions: validation.suggestions,

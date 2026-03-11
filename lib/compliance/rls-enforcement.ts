@@ -19,7 +19,13 @@
  *   - Coming Soon: Sales only, 14-day max, no showings/OH
  *   - Distribution gates: All 6 enforced on write
  *   - Fair Housing: Federal + NY State + NYC HRL Title 8
+ *
+ * AUTHORITY SOURCE: REBNY_FIELD_TABLES (lib/compliance/rebny-field-tables.ts)
+ *   All mandatory fields, removed fields, conditional rules, enum values,
+ *   and content scanning patterns are imported from the single canonical authority table.
  */
+
+import { REBNY_FIELD_TABLES } from './rebny-field-tables';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -45,40 +51,15 @@ export type ListingContext = {
   statusChangedAt?: Date;
 };
 
-// ─── Removed Fields (NAR Settlement Aug 2025) ─────────────────────────────
+// ─── Derived from REBNY_FIELD_TABLES (single source of truth) ─────────────
 
-const REMOVED_FIELDS = new Set([
-  "BuyerAgencyCompensation",
-  "BuyerAgencyCompensationType",
-  "SubAgencyCompensation",
-  "SubAgencyCompensationType",
-]);
+const REMOVED_FIELDS = new Set<string>(REBNY_FIELD_TABLES.removedFields);
 
-// ─── Mandatory Fields (RLS — applies to all listings) ─────────────────────
+// Agent-submitted mandatory fields from authority table (48 fields)
+// StandardStatus is system-generated but checked at write time
+const MANDATORY_FIELDS = REBNY_FIELD_TABLES.requiredFields.agentSubmitted;
 
-const MANDATORY_FIELDS = [
-  "PropertyType",
-  "ListPrice",
-  "MlsStatus",
-  "StandardStatus",
-  "ListAgentMlsId",
-  "ListingAgreement",
-  "StreetName",
-  "City",
-  "StateOrProvince",
-  "PostalCode",
-  "CountyOrParish",
-  "InternetEntireListingDisplayYN",
-  "InternetAddressDisplayYN",
-  "IDXEntireListingDisplayYN",
-  "PublicRemarks",
-  "OriginalEntryTimestamp",
-  "OnMarketDate",
-  "ExpirationDate",
-  "SourceSystemKey",
-];
-
-// ─── Fair Housing Patterns ────────────────────────────────────────────────
+// ─── Content Scanning Patterns (from authority table) ─────────────────────
 
 const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
   // Federal FHA (7 protected classes)
@@ -92,16 +73,12 @@ const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
   { pattern: /\b(no\s+criminal|background\s+check\s+required|felons?\s+need\s+not)\b/i, law: "NYC Fair Chance Housing Act" },
 ];
 
-// ─── Agent Info in Remarks (UCBA Art. I, Sec. 5(C)) ──────────────────────
-
 const AGENT_INFO_PATTERNS = [
-  /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,         // Phone numbers
-  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, // Emails
-  /\bhttps?:\/\/\S+/i,                       // URLs
+  /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,
+  /\bhttps?:\/\/\S+/i,
   /\b(contact\s+me|call\s+me|listed\s+by|exclusive\s+with)\b/i,
 ];
-
-// ─── Off-Market Language (UCBA Art. I, Sec. 5(D)) ────────────────────────
 
 const OFF_MARKET_PATTERNS = [
   /\boff[- ]?market\b/i,
@@ -111,8 +88,6 @@ const OFF_MARKET_PATTERNS = [
   /\bpre[- ]?market\b/i,
 ];
 
-// ─── Compensation Language (UCBA Art. I, Sec. 5(E)) ──────────────────────
-
 const COMPENSATION_PATTERNS = [
   /\b\d+(\.\d+)?%\s*(commission|co-?broke?)\b/i,
   /\bbuyer\s+pays?\s+no\b/i,
@@ -120,6 +95,11 @@ const COMPENSATION_PATTERNS = [
   /\bbonus\s+commission\b/i,
   /\bseller\s+concession\b/i,
 ];
+
+// G4: Free/No-Cost claims (from authority table contentRules.freeService)
+const FREE_SERVICE_PATTERNS = REBNY_FIELD_TABLES.contentRules.freeService.map(
+  (p) => new RegExp(p, 'gi')
+);
 
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
@@ -245,8 +225,14 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // Owner Opt-Out blocks all display
-  if (payload.MlsStatus === "OwnerOptOut" || payload.Permissions === "Owner Opt-Out") {
+  // Owner Opt-Out / Participant Only blocks all display
+  const perm = typeof payload.Permissions === "string" ? payload.Permissions : "";
+  if (
+    payload.MlsStatus === "OwnerOptOut" ||
+    perm === "OwnerOptOut" ||
+    perm === "Owner Opt-Out" ||
+    perm === "Private"
+  ) {
     const displayFields = [
       "IDXEntireListingDisplayYN",
       "InternetEntireListingDisplayYN",
@@ -258,7 +244,7 @@ export function assertRlsCompliantPayload(
           code: "DG-002",
           severity: "BLOCKER",
           field,
-          message: `${field} must be false for Owner Opt-Out listings.`,
+          message: `${field} must be false for Owner Opt-Out / Participant Only listings.`,
           ucbaRef: "UCBA Art. I, Sec. 7",
         });
       }
@@ -425,18 +411,27 @@ export function assertRlsCompliantPayload(
           });
         }
       }
+
+      // Free/no-cost service claims (G4 — from authority table contentRules.freeService)
+      for (const pattern of FREE_SERVICE_PATTERNS) {
+        pattern.lastIndex = 0; // Reset stateful regex
+        const match = pattern.exec(text);
+        if (match) {
+          blockers.push({
+            code: "FS-001",
+            severity: "BLOCKER",
+            field,
+            message: `Free/no-cost service claim in ${field}: "${match[0]}". Misleading per UCBA.`,
+            ucbaRef: "UCBA Art. I, Sec. 5",
+          });
+        }
+      }
     }
   }
 
   // ── 7. Listing agreement must be exclusive ─────────────────────────
   const agreement = typeof payload.ListingAgreement === 'string' ? payload.ListingAgreement : '';
-  const VALID_LISTING_AGREEMENTS = [
-    "ExclusiveRightToSell",
-    "ExclusiveAgency",
-    "ExclusiveRightToLease",
-    "CoExclusive",
-    "ExclusiveRightWithException",
-  ];
+  const VALID_LISTING_AGREEMENTS: readonly string[] = REBNY_FIELD_TABLES.enumValues.ListingAgreement;
   if (agreement && !VALID_LISTING_AGREEMENTS.includes(agreement)) {
     blockers.push({
       code: "LA-001",
@@ -447,39 +442,22 @@ export function assertRlsCompliantPayload(
     });
   }
 
-  // ── 8. Conditional field checks ────────────────────────────────────
-
-  // Closed status requires CloseDate and ClosePrice
-  const status = (payload.MlsStatus as string) || ctx.currentStatus;
-  if (status === "Closed") {
-    if (!payload.CloseDate) {
-      blockers.push({
-        code: "CF-001",
-        severity: "BLOCKER",
-        field: "CloseDate",
-        message: "CloseDate is required when MlsStatus is Closed.",
-        ucbaRef: "RLS Data Rules",
-      });
+  // ── 8. Conditional field checks (from authority table — 51 rules) ──
+  for (const rule of REBNY_FIELD_TABLES.conditionalRules) {
+    if (conditionMatches(payload, rule.appliesWhen)) {
+      for (const field of rule.requireFields) {
+        const val = payload[field];
+        if (val === undefined || val === null || val === "") {
+          blockers.push({
+            code: `CF-${rule.code}`,
+            severity: "BLOCKER",
+            field,
+            message: `Conditional field "${field}" required by ${rule.code}: ${rule.description}`,
+            ucbaRef: `RLS CSV conditional — ${rule.code}`,
+          });
+        }
+      }
     }
-    if (!payload.ClosePrice) {
-      blockers.push({
-        code: "CF-002",
-        severity: "BLOCKER",
-        field: "ClosePrice",
-        message: "ClosePrice is required when MlsStatus is Closed.",
-        ucbaRef: "RLS Data Rules",
-      });
-    }
-  }
-
-  // Rentals require AvailabilityDate
-  if (ctx.listingType === "rent" && !payload.AvailabilityDate) {
-    warnings.push({
-      code: "CF-003",
-      severity: "WARNING",
-      field: "AvailabilityDate",
-      message: "AvailabilityDate is recommended for rental listings.",
-    });
   }
 
   return {
@@ -487,4 +465,36 @@ export function assertRlsCompliantPayload(
     blockers,
     warnings,
   };
+}
+
+// ─── Condition Matcher (evaluates appliesWhen from conditional rules) ────
+
+function conditionMatches(
+  payload: Record<string, unknown>,
+  conditions: Record<string, unknown>
+): boolean {
+  for (const [field, expected] of Object.entries(conditions)) {
+    const actual = payload[field];
+
+    // Array match: actual must be one of the expected values
+    if (Array.isArray(expected)) {
+      if (!expected.includes(actual as never)) return false;
+      continue;
+    }
+
+    // Object match: { gt: N }, { gte: N }, { exists: true }
+    if (typeof expected === "object" && expected !== null) {
+      const spec = expected as Record<string, unknown>;
+      if ("gt" in spec && (typeof actual !== "number" || actual <= (spec.gt as number)))
+        return false;
+      if ("gte" in spec && (typeof actual !== "number" || actual < (spec.gte as number)))
+        return false;
+      if ("exists" in spec && (actual === undefined || actual === null)) return false;
+      continue;
+    }
+
+    // Direct equality
+    if (actual !== expected) return false;
+  }
+  return true;
 }

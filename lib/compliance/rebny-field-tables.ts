@@ -1,0 +1,1295 @@
+/**
+ * REBNY_FIELD_TABLES — Single Canonical Field Authority
+ *
+ * Source of truth: data/rebny-rls-property-fields.csv (448 fields)
+ *                  data/rebny-rls-property-lookup.csv (2,066 picklist values)
+ *                  UCBA 2026 (January revision)
+ *                  NAR Settlement (August 2024, effective August 2025)
+ *
+ * Every field name, alias, enum, conditional rule, persistence target,
+ * display rule, and ID domain is verified against the authoritative RLS CSV.
+ *
+ * FIELD AUTHORITY ORDER (from MEMORY.md):
+ *   1. UCBA governs everything
+ *   2. REBNY RLS rules + fields
+ *   3. RLS overrides RESO/IDX
+ *   4. RESO/IDX fills gaps
+ *   5. INTERNAL-ONLY otherwise
+ *   6. Fail closed — any uncertainty defaults to NON-DISPLAY
+ */
+
+export const REBNY_FIELD_TABLES = {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1. REQUIRED FIELDS — Unconditionally required by RLS CSV ("Yes")
+  //    53 total from CSV. Split into agent-submitted vs system-generated.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  requiredFields: {
+    /**
+     * Agent-submitted: these MUST be present in the form payload.
+     * Enforcement gate rejects if any are missing.
+     * 48 fields (53 total minus 5 system-generated).
+     */
+    agentSubmitted: [
+      // Property identification
+      'PropertyType',
+      'PropertySubType',
+      'StructureType',
+      'CommonInterest',
+      'ListPrice',
+      'MlsStatus',
+
+      // Agent / Office / Agreement
+      'ListAgentMlsId',
+      'ListingAgreement',
+      'CoBrokeAgreement',
+      'Concessions',
+
+      // Address (RLS canonical names — note CityRegion NOT Borough, UnParsedAddress NOT UnparsedAddress)
+      'StreetNumber',
+      'StreetName',
+      'City',
+      'CityRegion',
+      'StateOrProvince',
+      'PostalCode',
+      'PostalCity',
+      'CountyOrParish',
+      'SubdivisionName',
+      'UnParsedAddress',
+
+      // Building info
+      'AttendanceType',
+      'BuildingLaundryFeatures',
+      'BuildingPetsAllowed',
+      'PetsAllowed',
+      'BuildingTaxLot',
+      'TaxBlock',
+      'ElevatorsTotal',
+      'GarageYN',
+      'NumberOfUnitsTotal',
+      'StoriesTotal',
+      'NewConstructionYN',
+      'NewDevelopmentYN',
+      'YearBuilt',
+
+      // Unit info
+      'BathroomsFull',
+      'BathroomsHalf',
+      'BathroomsTotal',
+      'BedroomsTotal',
+      'RoomsTotal',
+
+      // Distribution gates
+      'InternetEntireListingDisplayYN',
+      'InternetAddressDisplayYN',
+      'InternetAutomatedValuationDisplayYN',
+      'InternetConsumerCommentYN',
+      'IDXEntireListingDisplayYN',
+      'SyndicateYN',
+
+      // Content / Dates
+      'PublicRemarks',
+      'ShowingInstructions',
+      'ExpirationDate',
+      'ListingContractDate',
+    ] as const,
+
+    /**
+     * System-generated: required by RLS but set by backend, not form payload.
+     * Backend MUST populate these before RLS submission.
+     */
+    systemGenerated: [
+      'SourceSystemKey',       // LMP-assigned stable submission ID
+      'OriginalEntryTimestamp', // Set to creation timestamp
+      'StandardStatus',        // Mirrors MlsStatus (backend sets)
+      'BuyerAgentMlsId',      // Required unconditionally, but only relevant at close
+      'OnMarketDate',          // Yes; Conditional: set when MlsStatus=Active
+    ] as const,
+
+    /**
+     * Additional validation constraints on required fields.
+     * Source: Requirements/Rules column notes after "Yes".
+     */
+    constraints: {
+      YearBuilt: { min: 1700, maxYearsInFuture: 10, digits: 4 },
+      ExpirationDate: { maxYearsInFuture: 10 },
+      ListingContractDate: { maxYearsInFuture: 1 },
+      StateOrProvince: { mustEqual: 'NY' },
+      City: { mustEqual: 'NewYorkCity' },
+      IDXEntireListingDisplayYN: { defaultTo: true, note: 'LMPs required to default True' },
+      SyndicateYN: { defaultTo: true, note: 'LMPs required to default True' },
+      NewDevelopmentYN: { rejectWhen: { MlsStatus: 'ComingSoon', value: true }, note: 'Cannot be true on Coming Soon' },
+      CityRegion: {
+        mustMatchCounty: {
+          'Bronx': 'Bronx',
+          'Brooklyn': 'Kings',
+          'Manhattan': 'NewYork',
+          'Queens': 'Queens',
+          'StatenIsland': 'Richmond',
+        },
+      },
+      ListingAgreement: {
+        conditionalRestrictions: [
+          { when: { PropertyType: 'Residential' }, reject: 'ExclusiveRightToLease' },
+          { when: { PropertyType: 'ResidentialLease' }, reject: 'ExclusiveRightToSell' },
+        ],
+      },
+      PetsAllowed: {
+        note: 'If BuildingPetsAllowed = BuildingNo then PetsAllowed must = UnitNo',
+      },
+      StreetName: { rejectIfNotInDictionary: true },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2. REMOVED FIELDS — NAR Settlement (Aug 2024, effective Aug 2025)
+  //    Hard block: these must NEVER appear in raw_data, DTO, or UI.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  removedFields: [
+    'BuyerAgencyCompensation',
+    'BuyerAgencyCompensationType',
+    'SubAgencyCompensation',
+    'SubAgencyCompensationType',
+  ] as const,
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3. ENUM VALUES — From data/rebny-rls-property-lookup.csv
+  //    Only compliance-critical enums included here. Full picklists available
+  //    in the lookup CSV for form dropdowns.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  enumValues: {
+    PropertyType: ['Residential', 'ResidentialLease'] as const,
+    PropertySubType: [
+      'Apartment', 'DeededParking', 'Duplex', 'GardenApartment', 'Loft',
+      'MixedUse', 'MultiFamily', 'MultiFamilyTownhouse', 'Office',
+      'Quadruplex', 'Retail', 'SingleFamilyResidence', 'SingleFamilyTownhouse',
+      'Timeshare', 'Triplex', 'UnimprovedLand', 'UnitDuplex',
+      'UnitQuadruplex', 'UnitTriplex',
+    ] as const,
+    ListingAgreement: [
+      'ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightToLease',
+      'CoExclusive', 'ExclusiveRightWithException',
+    ] as const,
+    CommonInterest: [
+      'CommunityApartment', 'Condominium', 'Condop', 'None',
+      'PlannedDevelopment', 'RentalBuilding', 'StockCooperative', 'Timeshare',
+    ] as const,
+    CoBrokeAgreement: ['Rundba', 'Ucba'] as const,
+    Concessions: ['CallListingAgent', 'No', 'Yes'] as const,
+    MlsStatus: [
+      'Active', 'Canceled', 'Closed', 'ComingSoon', 'Expired',
+      'Hold', 'Incomplete', 'Pending', 'Withdrawn',
+    ] as const,
+    StandardStatus: [
+      'Active', 'Canceled', 'Closed', 'ComingSoon', 'Expired', 'Hold',
+    ] as const,
+    Permissions: ['OwnerOptOut', 'Private'] as const,
+    StructureType: [
+      'Duplex', 'HighRise', 'HotelMotel', 'House', 'Loft',
+      'ManufacturedHouse', 'MixedUse', 'MultiFamily', 'None',
+      'Quadruplex', 'Townhouse', 'Triplex', 'WalkUp',
+    ] as const,
+    CityRegion: ['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'StatenIsland'] as const,
+    CountyOrParish: ['Bronx', 'Kings', 'NewYork', 'Queens', 'Richmond'] as const,
+    StateOrProvince: ['NY'] as const,
+    AttendanceType: [
+      'ConciergeFullTime', 'ConciergePartTime', 'ConciergeYes',
+      'DoormanFullTime', 'DoormanPartTime', 'DoormanYes',
+      'ElevatorAttendanceFullTime', 'ElevatorAttendancePartTime', 'ElevatorAttendanceYes',
+      'LobbyAttendantFullTime', 'LobbyAttendantPartTime', 'LobbyAttendantYes',
+      'None', 'VideoDoormanFullTime', 'VideoDoormanPartTime', 'VideoDoormanYes',
+    ] as const,
+    BuildingLaundryFeatures: [
+      'CoinOperated', 'CommonArea', 'DryCleaningService', 'ElectricDryerHookup',
+      'GasDryerHookup', 'InBasement', 'InCarport', 'InGarage', 'InHall', 'Inside',
+      'InUnit', 'LaundryDropOffService', 'LowerLevel', 'MainLevel',
+      'MultipleLocations', 'None', 'OnCommonFloor', 'Other', 'Outside',
+      'SeeRemarks', 'UpperLevel', 'WasherDryerInstallAllowed', 'WasherHookup',
+    ] as const,
+    BuildingPetsAllowed: [
+      'BuildingBreedRestrictions', 'BuildingCatsOK', 'BuildingDogsOK',
+      'BuildingNo', 'BuildingNumberLimit', 'BuildingSizeLimit', 'BuildingYes',
+    ] as const,
+    PetsAllowed: [
+      'UnitBreedRestrictions', 'UnitCatsOK', 'UnitDogsOK', 'UnitNo',
+      'UnitNumberLimit', 'UnitSizeLimit', 'UnitYes',
+    ] as const,
+    Furnished: ['Furnished', 'Negotiable', 'Partially', 'Unfurnished'] as const,
+    LeaseType: ['NonStabilizedLease', 'StabilizedLease'] as const,
+    SpecialListingConditions: [
+      'Auction', 'BankruptcyProperty', 'BoardApprovalNotRequired',
+      'BoardApprovalRequired', 'HudOwned', 'InForeclosure',
+      'NoticeOfDefault', 'ProbateListing', 'RealEstateOwned',
+      'ShortSale', 'Standard', 'ThirdPartyApproval',
+    ] as const,
+    FlipTaxType: ['Dollars', 'Other', 'Percent', 'SeeRemarks'] as const,
+    PropertyCondition: ['Excellent', 'Fair', 'Good', 'Poor'] as const,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 4. ALIAS TO CANONICAL — Normalizes incoming payload field names to
+  //    RLS canonical names BEFORE validation or persistence.
+  //    Direction: alias → canonical (RLS MatrixFieldName from CSV)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aliasToCanonical: {
+    // ── Address aliases ──
+    Borough: 'CityRegion',              // DB/display name → RLS canonical
+    borough: 'CityRegion',              // camelCase form variant
+    cityRegion: 'CityRegion',           // camelCase variant
+    Neighborhood: 'SubdivisionName',    // Common name → RLS canonical
+    neighborhood: 'SubdivisionName',    // camelCase variant
+    UnparsedAddress: 'UnParsedAddress',  // lowercase-p variant → RLS canonical (capital P)
+    unparsedAddress: 'UnParsedAddress',
+    address: 'UnParsedAddress',
+    streetName: 'StreetName',
+    streetNumber: 'StreetNumber',
+    unit: 'UnitNumber',
+    unitNumber: 'UnitNumber',
+    zip: 'PostalCode',
+
+    // ── Numeric/unit aliases ──
+    Rooms: 'RoomsTotal',               // Short name → RLS canonical
+    rooms: 'RoomsTotal',
+    beds: 'BedroomsTotal',
+    fullBaths: 'BathroomsFull',
+    halfBaths: 'BathroomsHalf',
+    intSqft: 'LivingArea',
+    extSqft: 'BuildingAreaTotal',
+
+    // ── Financial aliases ──
+    price: 'ListPrice',
+    maintCC: 'AssociationFee',
+    reTaxes: 'TaxAnnualAmount',
+    Shares: 'NumberOfShares',
+    shares: 'NumberOfShares',
+    MaxFinancing: 'MaximumFinancingPercent',
+    saleMaxFinancing: 'MaximumFinancingPercent',
+
+    // ── Ownership aliases ──
+    OwnershipType: 'CommonInterest',
+    ownership: 'CommonInterest',
+
+    // ── Status / Permission aliases ──
+    status: 'MlsStatus',
+    permission: 'Permissions',
+    listingPrivacy: 'Permissions',
+    addressDisplayYN: 'InternetAddressDisplayYN',
+    idxDisplayYN: 'IDXEntireListingDisplayYN',
+    internetDisplayYN: 'InternetEntireListingDisplayYN',
+
+    // ── Content aliases ──
+    description: 'PublicRemarks',
+    privateRemarks: 'PrivateRemarks',
+
+    // ── Date aliases ──
+    listedDate: 'OnMarketDate',
+    comingSoonDate: 'ActivationDate',
+
+    // ── Agreement aliases ──
+    listingAgreement: 'ListingAgreement',
+
+    // ── ID aliases ──
+    RLSListingId: 'RLSListingID',    // camelCase mismatch
+  } as const,
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5. VALUE ALIASES — Normalizes incoming field VALUES to RLS enum values.
+  //    Form radios/selects may use display text or internal codes.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  valueAliases: {
+    Permissions: {
+      // Form radio values (from SALE/RENTAL-FORM-REDESIGN.html)
+      'RLS-Owner-OptOut': 'OwnerOptOut',
+      'RLS-Participant': 'Private',
+      // Display text variants
+      'Owner Opt-Out': 'OwnerOptOut',
+      'Owner Opt Out': 'OwnerOptOut',
+      'OWNER_OPT_OUT': 'OwnerOptOut',
+      'Participant Only': 'Private',
+      'Participant Only Network': 'Private',
+      'ParticipantOnly': 'Private',          // Internal legacy name → RLS canonical
+      'PARTICIPANT_ONLY': 'Private',
+      // NOTE: 'Public' is NOT a valid Permissions enum in RLS CSV.
+      // Absence of Permissions value = public listing (handled by defaultPublic in persistenceMap).
+    },
+    MlsStatus: {
+      'Coming Soon': 'ComingSoon',
+      'coming_soon': 'ComingSoon',
+      'Temporarily Off Market': 'Hold',
+      'Active Under Contract': 'Pending',
+      'Under Contract': 'Pending',
+    },
+    CommonInterest: {
+      'Stock Cooperative': 'StockCooperative',
+      'Co-op': 'StockCooperative',
+      'Coop': 'StockCooperative',
+      'Rental Building': 'RentalBuilding',
+      'Planned Development': 'PlannedDevelopment',
+      'Community Apartment': 'CommunityApartment',
+    },
+    CityRegion: {
+      'Staten Island': 'StatenIsland',
+      'New York': 'Manhattan',
+      // CountyOrParish → CityRegion cross-references
+    },
+    ListingAgreement: {
+      'Exclusive Right To Sell': 'ExclusiveRightToSell',
+      'Exclusive Agency': 'ExclusiveAgency',
+      'Exclusive Right To Lease': 'ExclusiveRightToLease',
+      'Co-Exclusive': 'CoExclusive',
+      'Co Exclusive': 'CoExclusive',
+      'Exclusive Right With Exception': 'ExclusiveRightWithException',
+    },
+    CoBrokeAgreement: {
+      'UCBA': 'Ucba',
+      'ucba': 'Ucba',
+      'RUNDBA': 'Rundba',
+      'rundba': 'Rundba',
+    },
+    Concessions: {
+      'Call Listing Agent': 'CallListingAgent',
+      'yes': 'Yes',
+      'no': 'No',
+    },
+  } as const,
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 6. CONDITIONAL RULES — From RLS CSV Requirements/Rules column
+  //    Each rule: when conditions match, these additional fields are required.
+  //    85 conditional fields organized into logical rule groups.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  conditionalRules: [
+    // ── Condo / Co-op / Condop financial fields ──
+    {
+      code: 'CONDO-COOP-001',
+      description: 'Condo/Co-op/Condop require financial disclosures',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        CommonInterest: ['Condominium', 'StockCooperative', 'Condop'],
+      },
+      requireFields: [
+        'AssociationFee',
+        'FlipTax',
+        'MaximumFinancingPercent',
+        'MaximumFinancingRemarks',
+        'TaxAbatementYN',
+        'SpecialListingConditions',
+      ],
+    },
+    {
+      code: 'CONDO-COOP-002',
+      description: 'AssociationFeeFrequency required if AssociationFee > 0',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        CommonInterest: ['Condominium', 'StockCooperative', 'Condop'],
+        AssociationFee: { gt: 0 },
+      },
+      requireFields: ['AssociationFeeFrequency'],
+    },
+
+    // ── Co-op / Condop only ──
+    {
+      code: 'COOP-001',
+      description: 'Co-op/Condop require NumberOfShares',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        CommonInterest: ['StockCooperative', 'Condop'],
+      },
+      requireFields: ['NumberOfShares'],
+    },
+
+    // ── Condo only ──
+    {
+      code: 'CONDO-001',
+      description: 'Condo requires PercentOfCommonElements, TaxMonthlyAmount, LivingArea, TaxLot',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        CommonInterest: ['Condominium'],
+      },
+      requireFields: [
+        'PercentOfCommonElements',
+        'TaxMonthlyAmount',
+        'LivingArea',
+        'TaxLot',
+      ],
+    },
+
+    // ── Building / Townhouse / Multi-family ──
+    {
+      code: 'BUILDING-001',
+      description: 'Townhouse/Multi-family require BuildingAreaTotal, TaxAnnualAmount, LotSize',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        PropertySubType: [
+          'SingleFamilyTownhouse', 'MultiFamilyTownhouse',
+          'SingleFamilyResidence', 'MultiFamily', 'MixedUse',
+          'Duplex', 'Triplex', 'Quadruplex', 'UnimprovedLand',
+        ],
+      },
+      requireFields: [
+        'BuildingAreaTotal',
+        'TaxAnnualAmount',
+        'LotSizeArea',
+        'LotSizeDimensions',
+      ],
+    },
+
+    // ── Rental ──
+    {
+      code: 'RENTAL-001',
+      description: 'Rentals require AvailabilityDate, Furnished, MinLeaseMonths',
+      appliesWhen: {
+        PropertyType: ['ResidentialLease'],
+      },
+      requireFields: [
+        'AvailabilityDate',
+        'Furnished',
+        'MinLeaseMonths',
+      ],
+    },
+    {
+      code: 'RENTAL-002',
+      description: 'Rental buildings require LeaseType',
+      appliesWhen: {
+        PropertyType: ['ResidentialLease'],
+        CommonInterest: ['RentalBuilding'],
+      },
+      requireFields: ['LeaseType'],
+    },
+
+    // ── Status-dependent ──
+    {
+      code: 'COMINGSOON-001',
+      description: 'Coming Soon requires ActivationDate',
+      appliesWhen: {
+        MlsStatus: ['ComingSoon'],
+      },
+      requireFields: ['ActivationDate'],
+    },
+    {
+      code: 'ACTIVE-001',
+      description: 'Active requires OnMarketDate',
+      appliesWhen: {
+        MlsStatus: ['Active'],
+      },
+      requireFields: ['OnMarketDate'],
+    },
+    {
+      code: 'CLOSED-001',
+      description: 'Closed requires CloseDate, ClosePrice, BuyerAgentRLSParticipantYN',
+      appliesWhen: {
+        MlsStatus: ['Closed'],
+      },
+      requireFields: [
+        'CloseDate',
+        'ClosePrice',
+        'BuyerAgentRLSParticipantYN',
+      ],
+    },
+    {
+      code: 'CANCELLED-001',
+      description: 'Cancelled requires CancellationDate',
+      appliesWhen: {
+        MlsStatus: ['Canceled'],
+      },
+      requireFields: ['CancellationDate'],
+    },
+    {
+      code: 'WITHDRAWN-001',
+      description: 'Withdrawn requires WithdrawnDate (must equal OffMarketDate)',
+      appliesWhen: {
+        MlsStatus: ['Withdrawn'],
+      },
+      requireFields: ['WithdrawnDate'],
+    },
+    {
+      code: 'PENDING-001',
+      description: 'Pending requires PurchaseContractDate',
+      appliesWhen: {
+        MlsStatus: ['Pending'],
+      },
+      requireFields: ['PurchaseContractDate'],
+    },
+    {
+      code: 'OFFMARKET-001',
+      description: 'Off-market statuses require OffMarketDate',
+      appliesWhen: {
+        MlsStatus: ['Canceled', 'Closed', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn'],
+      },
+      requireFields: ['OffMarketDate'],
+    },
+
+    // ── Buyer agent (non-RLS participant at close) ──
+    {
+      code: 'BUYER-NONRLS-001',
+      description: 'Non-RLS buyer agent at close requires full contact info',
+      appliesWhen: {
+        BuyerAgentRLSParticipantYN: [false],
+      },
+      requireFields: [
+        'BuyerAgentFullName',
+        'BuyerAgentDirectPhone',
+        'BuyerAgentEmail',
+        'BuyerAgentStateLicense',
+        'BuyerOfficeName',
+        'BuyerOfficePhone',
+      ],
+    },
+
+    // ── Tax abatement sub-conditionals ──
+    {
+      code: 'TAXABATE-001',
+      description: 'Tax abatement details required if TaxAbatementYN = true',
+      appliesWhen: {
+        TaxAbatementYN: [true],
+      },
+      requireFields: [
+        'TaxAbatementComments',
+        'TaxAbatementExpirationYear',
+      ],
+    },
+
+    // ── FlipTax sub-conditionals ──
+    {
+      code: 'FLIPTAX-001',
+      description: 'FlipTax details required if FlipTax > 0',
+      appliesWhen: {
+        FlipTax: { gt: 0 },
+      },
+      requireFields: [
+        'FlipTaxType',
+        'FlipTaxRemarks',
+      ],
+    },
+
+    // ── Concessions sub-conditionals ──
+    {
+      code: 'CONCESSIONS-001',
+      description: 'Concession details required if Concessions = Yes',
+      appliesWhen: {
+        Concessions: ['Yes'],
+      },
+      requireFields: [
+        'ConcessionsAmount',
+        'ConcessionsComments',
+      ],
+    },
+
+    // ── Furnished sub-conditionals ──
+    {
+      code: 'FURNISHED-001',
+      description: 'Furnished pricing/terms if Furnished, Partially, or Negotiable',
+      appliesWhen: {
+        Furnished: ['Furnished', 'Partially', 'Negotiable'],
+      },
+      requireFields: [
+        'FurnishedListPrice',
+        'FurnishedMinLeaseMonths',
+        'FurnishedMaxLeaseMonths',
+      ],
+    },
+
+    // ── Area units follow-up ──
+    {
+      code: 'AREA-UNITS-001',
+      description: 'LivingAreaUnits required if LivingArea > 0',
+      appliesWhen: {
+        LivingArea: { gt: 0 },
+      },
+      requireFields: ['LivingAreaUnits'],
+    },
+    {
+      code: 'AREA-UNITS-002',
+      description: 'BuildingAreaUnits required if BuildingAreaTotal is entered',
+      appliesWhen: {
+        BuildingAreaTotal: { gt: 0 },
+      },
+      requireFields: ['BuildingAreaUnits'],
+    },
+    {
+      code: 'AREA-UNITS-003',
+      description: 'LotSizeUnits required if LotSizeArea >= 0',
+      appliesWhen: {
+        LotSizeArea: { gte: 0 },
+      },
+      requireFields: ['LotSizeUnits'],
+    },
+
+    // ── Fireplace sub-conditionals ──
+    {
+      code: 'FIREPLACE-001',
+      description: 'Fireplace details required if FireplaceYN = true',
+      appliesWhen: {
+        FireplaceYN: [true],
+      },
+      requireFields: ['FireplaceFeatures', 'FireplacesTotal'],
+      note: 'CSV also says "OR if FireplaceTotal > 0" — see FIREPLACE-002 for reverse',
+    },
+
+    // ── Residential property condition ──
+    {
+      code: 'CONDITION-001',
+      description: 'PropertyCondition required for Residential',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+      },
+      requireFields: ['PropertyCondition'],
+    },
+
+    // ── Sponsor unit ──
+    {
+      code: 'SPONSOR-001',
+      description: 'SponsorUnitYN required for new development/construction',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        NewDevelopmentYN: [true],
+      },
+      requireFields: ['SponsorUnitYN'],
+    },
+    {
+      code: 'SPONSOR-002',
+      description: 'SponsorUnitYN required for new construction',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        NewConstructionYN: [true],
+      },
+      requireFields: ['SponsorUnitYN'],
+    },
+
+    // ── Co-Ownership ──
+    {
+      code: 'COOWN-001',
+      description: 'Co-Ownership requires CoOwnershipInterest and FractionalUnitNumber',
+      appliesWhen: {
+        PropertySubType: ['CoOwnership'],
+      },
+      requireFields: ['CoOwnershipInterest', 'FractionalUnitNumber'],
+    },
+
+    // ── UnitNumber conditional ──
+    {
+      code: 'UNIT-001',
+      description: 'UnitNumber required for unit-based property types',
+      appliesWhen: {
+        PropertySubType: [
+          'Apartment', 'DeededParking', 'GardenApartment', 'Loft',
+          'Office', 'Retail', 'Timeshare', 'UnitDuplex',
+          'UnitQuadruplex', 'UnitTriplex',
+        ],
+      },
+      requireFields: ['UnitNumber'],
+    },
+
+    // ── Pets comments ──
+    {
+      code: 'BLDGPETS-001',
+      description: 'BuildingPetsAllowedComments required if size/number/breed restrictions',
+      appliesWhen: {
+        BuildingPetsAllowed: ['BuildingSizeLimit', 'BuildingNumberLimit', 'BuildingBreedRestrictions'],
+      },
+      requireFields: ['BuildingPetsAllowedComments'],
+    },
+    {
+      code: 'UNITPETS-001',
+      description: 'PetsAllowedComments required if unit-level restrictions',
+      appliesWhen: {
+        PetsAllowed: ['UnitBreedRestrictions', 'UnitNumberLimit', 'UnitSizeLimit'],
+      },
+      requireFields: ['PetsAllowedComments'],
+    },
+
+    // ── Heating/Cooling follow-ups ──
+    {
+      code: 'COOLING-001',
+      description: 'Cooling features required if CoolingYN = true',
+      appliesWhen: { CoolingYN: [true] },
+      requireFields: ['Cooling'],
+    },
+    {
+      code: 'HEATING-001',
+      description: 'Heating features required if HeatingYN = true',
+      appliesWhen: { HeatingYN: [true] },
+      requireFields: ['Heating'],
+    },
+
+    // ── Basement ──
+    {
+      code: 'BASEMENT-001',
+      description: 'Basement details required if BasementYN = true',
+      appliesWhen: { BasementYN: [true] },
+      requireFields: ['Basement'],
+    },
+
+    // ── View ──
+    {
+      code: 'VIEW-001',
+      description: 'View details required if ViewYN = true',
+      appliesWhen: { ViewYN: [true] },
+      requireFields: ['View', 'ViewRemarks'],
+    },
+
+    // ── Garage ──
+    {
+      code: 'GARAGE-001',
+      description: 'GarageSpaces required if GarageSpacesAssignedYN = true',
+      appliesWhen: { GarageSpacesAssignedYN: [true] },
+      requireFields: ['GarageSpaces'],
+    },
+
+    // ── Showing times ──
+    {
+      code: 'SHOWING-001',
+      description: 'ShowingEndTime required if ShowingStartTime provided',
+      appliesWhen: { ShowingStartTime: { exists: true } },
+      requireFields: ['ShowingEndTime'],
+    },
+    {
+      code: 'SHOWING-002',
+      description: 'ShowingStartTime required if ShowingEndTime provided',
+      appliesWhen: { ShowingEndTime: { exists: true } },
+      requireFields: ['ShowingStartTime'],
+    },
+
+    // ── CoBuyer agent block (mirrors BUYER-NONRLS-001) ──
+    {
+      code: 'COBUYER-RLS-001',
+      description: 'CoBuyer agent MlsId/OfficeMlsId required if CoBuyerAgentRLSParticipantYN = true',
+      appliesWhen: {
+        CoBuyerAgentRLSParticipantYN: [true],
+      },
+      requireFields: ['CoBuyerAgentMlsId', 'CoBuyerOfficeMlsId'],
+    },
+    {
+      code: 'COBUYER-NONRLS-001',
+      description: 'Non-RLS co-buyer agent at close requires full contact info',
+      appliesWhen: {
+        CoBuyerAgentRLSParticipantYN: [false],
+      },
+      requireFields: [
+        'CoBuyerAgentFullName',
+        'CoBuyerAgentDirectPhone',
+        'CoBuyerAgentEmail',
+        'CoBuyerAgentStateLicense',
+        'CoBuyerOfficeName',
+        'CoBuyerOfficePhone',
+      ],
+      note: 'CSV also requires "AND any CoBuyer value filled" — compound condition',
+    },
+
+    // ── Area unit follow-ups ──
+    {
+      code: 'AREA-UNITS-004',
+      description: 'AboveGradeFinishedAreaUnits required if AboveGradeFinishedArea is entered',
+      appliesWhen: { AboveGradeFinishedArea: { gt: 0 } },
+      requireFields: ['AboveGradeFinishedAreaUnits'],
+    },
+    {
+      code: 'AREA-UNITS-005',
+      description: 'BelowGradeFinishedAreaUnits required if BelowGradeFinishedArea is entered',
+      appliesWhen: { BelowGradeFinishedArea: { gt: 0 } },
+      requireFields: ['BelowGradeFinishedAreaUnits'],
+    },
+
+    // ── Alternate street mutual dependency ──
+    {
+      code: 'ALTSTREET-001',
+      description: 'AlternateStreetName and AlternateStreetNumber required if any AlternateStreet attribute submitted',
+      appliesWhen: { AlternateStreetDirPrefix: { exists: true } },
+      requireFields: ['AlternateStreetName', 'AlternateStreetNumber'],
+      note: 'Triggers on any AlternateStreet* attribute being submitted',
+    },
+
+    // ── Ceiling height mutual dependency ──
+    {
+      code: 'CEILING-001',
+      description: 'CeilingHeightInches required if CeilingHeightFeet is not null',
+      appliesWhen: { CeilingHeightFeet: { exists: true } },
+      requireFields: ['CeilingHeightInches'],
+    },
+    {
+      code: 'CEILING-002',
+      description: 'CeilingHeightFeet required if CeilingHeightInches is not null',
+      appliesWhen: { CeilingHeightInches: { exists: true } },
+      requireFields: ['CeilingHeightFeet'],
+    },
+
+    // ── Fireplace reverse direction ──
+    {
+      code: 'FIREPLACE-002',
+      description: 'FireplaceYN must be true if FireplacesTotal > 0',
+      appliesWhen: { FireplacesTotal: { gt: 0 } },
+      requireFields: ['FireplaceYN'],
+      note: 'Reverse of FIREPLACE-001. Also requires FireplaceFeatures.',
+    },
+
+    // ── AssociationFee2 follow-up ──
+    {
+      code: 'ASSOCFEE2-001',
+      description: 'AssociationFee2Frequency required if AssociationFee2 > 0',
+      appliesWhen: { AssociationFee2: { gt: 0 } },
+      requireFields: ['AssociationFee2Frequency'],
+    },
+
+    // ── Country validation ──
+    {
+      code: 'COUNTRY-001',
+      description: 'If Country is submitted, value must be US',
+      appliesWhen: { Country: { exists: true } },
+      requireFields: ['Country'],
+      note: 'Not a required-field rule; value constraint: must equal "US"',
+    },
+
+    // ── MoveInCosts follow-up ──
+    {
+      code: 'MOVEIN-001',
+      description: 'MoveInCostsAmountTotal required if any MoveInCosts value is filled',
+      appliesWhen: { MoveInCosts: { exists: true } },
+      requireFields: ['MoveInCostsAmountTotal'],
+    },
+
+    // ── Open parking ──
+    {
+      code: 'PARKING-001',
+      description: 'OpenParkingSpaces required if OpenParkingYN = true',
+      appliesWhen: { OpenParkingYN: [true] },
+      requireFields: ['OpenParkingSpaces'],
+    },
+
+    // ── Price change ──
+    {
+      code: 'PRICECHANGE-001',
+      description: 'OriginalListPrice required if ChangeType = PriceChange',
+      appliesWhen: { ChangeType: ['PriceChange'] },
+      requireFields: ['OriginalListPrice'],
+    },
+
+    // ── Private outdoor space ──
+    {
+      code: 'OUTDOOR-001',
+      description: 'PrivateOutdoorSpaceSize required if PatioAndPorchFeatures or ExteriorFeatures have non-None value',
+      appliesWhen: { PatioAndPorchFeatures: { exists: true } },
+      requireFields: ['PrivateOutdoorSpaceSize'],
+      note: 'Also triggers on ExteriorFeatures having any value other than None',
+    },
+  ],
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 7. CONTENT RULES — Text scanning patterns for compliance
+  //    All applied to PublicRemarks (and optionally PrivateRemarks).
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  contentRules: {
+    fairHousing: [
+      '\\b(whites?\\s+only|no\\s+(blacks?|hispanics?|asians?|mexicans?))\\b',
+      '\\b(christian\\s+(home|family|neighborhood)|no\\s+(muslims?|jews?|hindus?))\\b',
+      '\\bno\\s+(children|kids|families\\s+with\\s+children)\\b',
+      '\\b(no\\s+(wheelchairs?|disabled|handicapped)|able[- ]bodied\\s+only)\\b',
+      '\\b(no\\s+(section\\s*8|vouchers?|housing\\s+choice))\\b',
+      '\\b(citizens?\\s+only|no\\s+immigrants?|legal\\s+residents?\\s+only)\\b',
+      '\\b(no\\s+criminal|background\\s+check\\s+required|felons?\\s+need\\s+not)\\b',
+    ],
+    agentInfo: [
+      '\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b',
+      '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b',
+      '\\bhttps?:\\/\\/\\S+',
+      '\\b(contact\\s+me|call\\s+me|listed\\s+by|exclusive\\s+with)\\b',
+    ],
+    offMarket: [
+      '\\boff[- ]?market\\b',
+      '\\bpocket\\s+listing\\b',
+      '\\bwhisper\\s+listing\\b',
+      '\\bquiet\\s+listing\\b',
+      '\\bpre[- ]?market\\b',
+    ],
+    compensation: [
+      '\\b\\d+(\\.\\d+)?%\\s*(commission|co-?broke?)\\b',
+      '\\bbuyer\\s+pays?\\s+no\\b',
+      '\\bclosing\\s+cost\\s+credit\\b',
+      '\\bbonus\\s+commission\\b',
+      '\\bseller\\s+concession\\b',
+    ],
+    freeService: [
+      '\\b(no\\s*fee|no\\s*cost|free)\\b.{0,40}\\b(broker(age)?|agent|representation|service|commission|fee)\\b',
+      '\\b(broker(age)?|agent|representation|service|commission|fee)\\b.{0,40}\\b(no\\s*fee|no\\s*cost|free)\\b',
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 8. PERSISTENCE MAP — Canonical field → DB target
+  //    Shows where each field lands in Prisma schema.
+  //    Buckets: address (Json), features (Json), agentInfo (Json),
+  //             compliance (Json), raw_data (Json), or top-level column.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  persistenceMap: {
+    // ── IDs (system-managed) ──
+    SourceSystemKey: { raw: true },
+    RLSListingID: { raw: true },  // Application convention; CSV calls this ListingID
+    ListingId: { raw: true },
+    ListingKey: { raw: true },
+
+    // ── Property classification → top-level columns ──
+    PropertyType: { db: 'property_type', raw: true },
+    PropertySubType: { db: 'property_sub_type', raw: true },
+    CommonInterest: { features: true, raw: true },
+    StructureType: { features: true, raw: true },
+
+    // ── Price → top-level column ──
+    ListPrice: { db: 'list_price', raw: true },
+
+    // ── Status (system-managed, top-level) ──
+    MlsStatus: { db: 'status', raw: true },
+    StandardStatus: { raw: true },
+
+    // ── Agent / Office → agentInfo bucket ──
+    ListAgentMlsId: { agentInfo: true, raw: true },
+    ListAgentKey: { agentInfo: true, raw: true },
+    ListAgentFullName: { agentInfo: true, raw: true },
+    ListAgentEmail: { agentInfo: true, raw: true },
+    ListAgentDirectPhone: { agentInfo: true, raw: true },
+    ListOfficeName: { agentInfo: true, raw: true },
+    ListOfficeKey: { agentInfo: true, raw: true },
+    ListOfficeMlsId: { agentInfo: true, raw: true },
+
+    // ── Agreement / Broker terms ──
+    ListingAgreement: { raw: true },
+    CoBrokeAgreement: { raw: true },
+    Concessions: { raw: true },
+    ConcessionsAmount: { raw: true },
+    ConcessionsComments: { raw: true },
+
+    // ── Address → address bucket + top-level columns ──
+    StreetNumber: { address: true, raw: true },
+    StreetName: { address: true, raw: true },
+    StreetSuffix: { address: true, raw: true },
+    UnitNumber: { address: true, raw: true },
+    City: { address: true, db: 'city', raw: true },
+    CityRegion: { address: true, db: 'borough', raw: true },
+    SubdivisionName: { address: true, db: 'neighborhood', raw: true },
+    StateOrProvince: { address: true, raw: true },
+    PostalCode: { address: true, db: 'postal_code', raw: true },
+    PostalCity: { address: true, raw: true },
+    CountyOrParish: { address: true, raw: true },
+    UnParsedAddress: { address: true, raw: true },
+    BuildingName: { address: true, raw: true },
+
+    // ── Content → features bucket ──
+    PublicRemarks: { features: true, raw: true },
+    PrivateRemarks: { features: true, raw: true },
+    ShowingInstructions: { features: true, raw: true },
+
+    // ── Permissions → derive booleans + raw ──
+    Permissions: {
+      raw: true,
+      deriveBooleans: {
+        'OwnerOptOut': { db: 'owner_opt_out' },
+        'Private': { db: 'participant_only' },
+      },
+      defaultPublic: true, // No Permissions value = public listing
+    },
+
+    // ── Distribution gates → top-level boolean columns ──
+    IDXEntireListingDisplayYN: { db: 'idx_display_yn', raw: true },
+    InternetEntireListingDisplayYN: { db: 'internet_entire_listing_display_yn', raw: true },
+    InternetAddressDisplayYN: { db: 'internet_address_display_yn', raw: true },
+    InternetAutomatedValuationDisplayYN: { raw: true },
+    InternetConsumerCommentYN: { raw: true },
+    SyndicateYN: { raw: true },
+
+    // ── Dates → top-level columns + raw ──
+    OriginalEntryTimestamp: { raw: true },
+    OnMarketDate: { raw: true },
+    ActivationDate: { raw: true },
+    ExpirationDate: { raw: true },
+    ListingContractDate: { db: 'listing_contract_date', raw: true },
+    OffMarketDate: { raw: true },
+    CloseDate: { raw: true },
+    ClosePrice: { raw: true },
+    CancellationDate: { raw: true },
+    WithdrawnDate: { raw: true },
+    PurchaseContractDate: { raw: true },
+    AvailabilityDate: { raw: true },
+
+    // ── Unit info → top-level columns ──
+    BedroomsTotal: { db: 'bedrooms_total', raw: true },
+    BathroomsFull: { db: 'bathrooms_full', raw: true },
+    BathroomsHalf: { db: 'bathrooms_half', raw: true },
+    BathroomsTotal: { features: true, raw: true },
+    RoomsTotal: { features: true, raw: true },
+
+    // ── Area → top-level + features ──
+    LivingArea: { db: 'living_area', raw: true },
+    LivingAreaUnits: { features: true, raw: true },
+    BuildingAreaTotal: { features: true, raw: true },
+    BuildingAreaUnits: { features: true, raw: true },
+    LotSizeArea: { features: true, raw: true },
+    LotSizeDimensions: { features: true, raw: true },
+    LotSizeUnits: { features: true, raw: true },
+
+    // ── Building info → features bucket ──
+    AttendanceType: { features: true, raw: true },
+    BuildingLaundryFeatures: { features: true, raw: true },
+    BuildingPetsAllowed: { features: true, raw: true },
+    BuildingPetsAllowedComments: { features: true, raw: true },
+    PetsAllowed: { features: true, raw: true },
+    PetsAllowedComments: { features: true, raw: true },
+    BuildingTaxLot: { features: true, raw: true },
+    TaxBlock: { features: true, raw: true },
+    TaxLot: { features: true, raw: true },
+    ElevatorsTotal: { features: true, raw: true },
+    GarageYN: { features: true, raw: true },
+    GarageSpaces: { features: true, raw: true },
+    NumberOfUnitsTotal: { features: true, raw: true },
+    StoriesTotal: { features: true, raw: true },
+    NewConstructionYN: { features: true, raw: true },
+    NewDevelopmentYN: { features: true, raw: true },
+    YearBuilt: { features: true, raw: true },
+
+    // ── Financial (condo/co-op/building) → features bucket ──
+    AssociationFee: { features: true, raw: true },
+    AssociationFeeFrequency: { features: true, raw: true },
+    FlipTax: { features: true, raw: true },
+    FlipTaxType: { features: true, raw: true },
+    FlipTaxRemarks: { features: true, raw: true },
+    MaximumFinancingPercent: { features: true, raw: true },
+    MaximumFinancingRemarks: { features: true, raw: true },
+    NumberOfShares: { features: true, raw: true },
+    PercentOfCommonElements: { features: true, raw: true },
+    TaxAbatementYN: { features: true, raw: true },
+    TaxAbatementComments: { features: true, raw: true },
+    TaxAbatementExpirationYear: { features: true, raw: true },
+    TaxMonthlyAmount: { features: true, raw: true },
+    TaxAnnualAmount: { features: true, raw: true },
+    SpecialListingConditions: { features: true, raw: true },
+
+    // ── Rental-specific → features bucket ──
+    Furnished: { features: true, raw: true },
+    FurnishedListPrice: { features: true, raw: true },
+    FurnishedMinLeaseMonths: { features: true, raw: true },
+    FurnishedMaxLeaseMonths: { features: true, raw: true },
+    LeaseType: { features: true, raw: true },
+    MinLeaseMonths: { features: true, raw: true },
+
+    // ── Physical features → features bucket ──
+    PropertyCondition: { features: true, raw: true },
+    Flooring: { features: true, raw: true },
+    Heating: { features: true, raw: true },
+    Cooling: { features: true, raw: true },
+    Appliances: { features: true, raw: true },
+    InteriorFeatures: { features: true, raw: true },
+    ExteriorFeatures: { features: true, raw: true },
+    FireplaceYN: { features: true, raw: true },
+    FireplacesTotal: { features: true, raw: true },
+    FireplaceFeatures: { features: true, raw: true },
+    ArchitecturalStyle: { features: true, raw: true },
+    ConstructionMaterials: { features: true, raw: true },
+    View: { features: true, raw: true },
+    ViewRemarks: { features: true, raw: true },
+    SponsorUnitYN: { features: true, raw: true },
+
+    // ── Showing ──
+    ShowingStartTime: { raw: true },
+    ShowingEndTime: { raw: true },
+
+    // ── Buyer agent (close context) → raw only ──
+    BuyerAgentMlsId: { raw: true },
+    BuyerAgentRLSParticipantYN: { raw: true },
+    BuyerAgentFullName: { raw: true },
+    BuyerAgentDirectPhone: { raw: true },
+    BuyerAgentEmail: { raw: true },
+    BuyerAgentStateLicense: { raw: true },
+    BuyerOfficeName: { raw: true },
+    BuyerOfficePhone: { raw: true },
+
+    // ── REMOVED FIELDS — hard block, never persist ──
+    BuyerAgencyCompensation: { raw: false, removed: true },
+    BuyerAgencyCompensationType: { raw: false, removed: true },
+    SubAgencyCompensation: { raw: false, removed: true },
+    SubAgencyCompensationType: { raw: false, removed: true },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 9. PUBLIC DISPLAY RULES — When to suppress from public-facing pages
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  publicDisplay: {
+    hideWhenPermissions: ['OwnerOptOut', 'Private'] as const,
+    hideWhenMlsStatus: ['Closed', 'Expired'] as const,
+    suppressFromPublicSearch: ['Hold', 'Incomplete', 'Withdrawn', 'Canceled'] as const,
+
+    // IDX display gates — ALL must be true for listing to appear on IDX
+    idxDisplayGates: [
+      'IDXEntireListingDisplayYN',
+      'InternetEntireListingDisplayYN',
+      // 'ListOfficeIDXParticipationYN' — system-generated from REBNY membership, not in form payload
+    ] as const,
+    permissionsMutualExclusion: {
+      note: 'Private and OwnerOptOut CANNOT be selected together. Only one or neither.',
+    },
+    permissionsTransitionConstraint: {
+      note: 'If originally Private or null, CANNOT be changed to OwnerOptOut',
+    },
+
+    rentalPublicRule: {
+      appliesWhen: { PropertyType: 'ResidentialLease' },
+      field: 'InternetEntireListingDisplayYN',
+      valueRequired: true,
+    },
+    salePermissionsConstraint: {
+      note: 'Sale listings with Permissions=null CANNOT set InternetEntireListingDisplayYN to false',
+    },
+
+    addressSuppression: {
+      field: 'InternetAddressDisplayYN',
+      whenFalse: ['StreetNumber', 'StreetName', 'UnitNumber', 'UnParsedAddress'],
+      note: 'Hide street-level address from public DTO; retain borough/zip/neighborhood',
+    },
+
+    comingSoonBadge: 'Coming Soon. No Showings or Open House until {ActivationDate}',
+    comingSoonRestrictions: {
+      maxDays: 14,                    // UCBA Art. I Sec. 16, Rule 2
+      salesOnly: true,                // Rule 1: NOT rentals
+      noNewDevelopment: true,          // Rule 2: NOT new developments
+      noDomAccrual: true,              // DOM does not accrue
+      noShowings: true,                // Rule 3: No showings under any circumstances
+      noOpenHouses: true,              // Rule 4: No open houses (including broker tours)
+      noNegotiations: true,            // Rule 5: No negotiations/counteroffers until Active
+      activationDateImmutable: true,   // Rule 12: Showing Start Date cannot be changed
+      oneTimePerAddress: true,         // Rule 9: One-time per address/owner
+      reuseCooldownDays: 60,           // Rule 9: Unless off-market 60+ days
+      requireExhibitG: true,           // Rule 10: Owner must sign Coming Soon Authorization
+    },
+
+    // Closed listing handling — UCBA Art. I Sec. 6-7
+    closedListingRules: {
+      removalSLAHours: 24,             // Remove or mark closed within 24 hours
+      closingPriceSLAHours: 24,        // ClosePrice must be provided within 24 hours
+      statusChangeSLAHours: 24,        // Status changes within 24hrs (excl weekends/postal holidays)
+    },
+
+    // Owner Opt-Out — UCBA Art. I Sec. 5(A), Exhibit B
+    ownerOptOutRules: {
+      requireExhibitB: true,           // Signed Exhibit B required
+      exhibitBDeadlineHours: 48,       // Must be received within 48 hours
+      noPublicDissemination: true,     // NO public display at any time
+      exception: 'Non-automated phone calls and one-to-one personal emails are NOT public dissemination',
+    },
+
+    // Attribution — UCBA Art. III Sec. 2(C)
+    attributionTemplate: 'Listing Courtesy of {ListOfficeName}',
+    attributionNote: 'Must appear in reasonably prominent location, font not smaller than median used on page',
+
+    // Statistical data disclaimer — UCBA Art. VIII Sec. 4
+    statisticalDisclaimer: 'Based on information from the REBNY Listing Service for the period {startDate} through {endDate}. This information is deemed reliable but not guaranteed.',
+
+    // Commission negotiability — UCBA Art. I Sec. 17
+    commissionNegotiabilityDisclosure: 'Broker commissions are not set by law and are fully negotiable.',
+    commissionDisclosureRequired: ['listing_agreement', 'buyer_agreement', 'pre_closing_docs'] as const,
+
+    // Simultaneous distribution — UCBA Art. I Sec. 5
+    simultaneousDistribution: {
+      note: 'Must disseminate to RLS simultaneously with ANY public dissemination or first showing, whichever is earlier',
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 10. VOW (Virtual Office Website) DISPLAY RULES
+  //     VOW = client portal requiring login. Shows more data than IDX.
+  //     Source: UCBA 2026; RLS-Syndication-Research.md
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  vowDisplayRules: {
+    requiresLogin: true,
+    description: 'VOW users (logged-in clients) see additional data beyond public IDX display',
+    additionalFieldsOverIDX: [
+      // VOW shows these fields that IDX does not:
+      'PrivateRemarks',          // Only visible to VOW users, never IDX/public
+      'ShowingInstructions',     // Visible to logged-in clients
+      'ListAgentDirectPhone',    // Agent contact visible to VOW users
+      'ListAgentEmail',          // Agent contact visible to VOW users
+    ] as const,
+    restrictions: {
+      noAutomatedValuation: 'InternetAutomatedValuationDisplayYN must be respected',
+      noConsumerComment: 'InternetConsumerCommentYN must be respected',
+      noDownload: 'Data cannot be bulk downloaded or scraped',
+      noRedistribution: 'Cannot redistribute to non-registered users',
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 10. DOM (DAYS ON MARKET) — UCBA 2026 rules
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  domRules: {
+    resetDays: 30,  // Was 90, changed to 30 per UCBA 2026
+    accruingStatuses: ['Active', 'ActiveUnderContract', 'Pending'] as const,  // UCBA: Pending accrues DOM
+    pausingStatuses: ['Hold'] as const,  // UCBA: Temporarily Off Market pauses DOM
+    suppressingPermissions: ['OwnerOptOut', 'Private'] as const,
+    suppressingStatuses: ['ComingSoon'] as const,
+    resetOnClose: true,  // UCBA Art. I Sec. 11: DOM resets on sold/rented (Closed)
+    resetTrigger: 'Withdrawn or Canceled for >= 30 consecutive days, then re-activated',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 11. ID DOMAINS — How listing identifiers work across systems
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  idDomains: {
+    dbPrimaryId: {
+      field: 'id',
+      kind: 'database-primary-key' as const,
+      public: false,
+      description: 'Prisma BigInt auto-increment',
+    },
+    internalListingId: {
+      field: 'listing_id',
+      kind: 'crm-local-listing-id' as const,
+      public: false,
+      patterns: ['^SL-[0-9]{4,}$', '^RL-[0-9]{4,}$'],
+      description: 'Generated by POST route: SL- for sales, RL- for rentals',
+    },
+    sourceSystemKey: {
+      field: 'SourceSystemKey',
+      kind: 'lmp-stable-submission-id' as const,
+      public: false,
+      required: true,
+      description: 'LMP (RealPlus) submission ID — stable across edits',
+    },
+    trestleListingKey: {
+      field: 'ListingKey',
+      kind: 'odata-primary-key' as const,
+      public: false,
+      description: 'Trestle OData primary key — used for API queries',
+    },
+    trestleListingId: {
+      field: 'ListingId',
+      kind: 'matrix-generated-rls-number' as const,
+      public: false,
+      description: 'Matrix-assigned RLS number — visible in Trestle UI',
+    },
+    rlsListingId: {
+      field: 'RLSListingID',
+      kind: 'public-syndication-id' as const,
+      public: true,
+      patterns: ['^RLS[0-9]+$'],
+      description: 'Public-facing ID used in syndication and attribution',
+    },
+  },
+} as const;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPE EXPORTS — For use by normalizer, validator, and persistence layer
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type CanonicalFieldName = keyof typeof REBNY_FIELD_TABLES.persistenceMap;
+export type AliasFieldName = keyof typeof REBNY_FIELD_TABLES.aliasToCanonical;
+export type EnumFieldName = keyof typeof REBNY_FIELD_TABLES.enumValues;
+export type RemovedFieldName = typeof REBNY_FIELD_TABLES.removedFields[number];
+export type RequiredFieldName = typeof REBNY_FIELD_TABLES.requiredFields.agentSubmitted[number];
+export type ConditionalRule = typeof REBNY_FIELD_TABLES.conditionalRules[number];
