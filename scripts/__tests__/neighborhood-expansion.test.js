@@ -14,6 +14,7 @@
  *
  * Uses embedded fixture for stability across alias regenerations.
  * Run: node scripts/__tests__/neighborhood-expansion.test.js
+ *   or: npx jest scripts/__tests__/neighborhood-expansion.test.js
  */
 
 const assert = require('assert');
@@ -70,124 +71,87 @@ function resolveNeighborhoodCanonical(neighborhood, aliasMap) {
   return aliasMap[neighborhood] || neighborhood;
 }
 
-// ── Test runner ──
-let passed = 0;
-let failed = 0;
-
-function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log('  PASS  ' + name);
-  } catch (e) {
-    failed++;
-    console.log('  FAIL  ' + name);
-    console.log('        ' + e.message);
-  }
-}
-
-console.log('\n=== Neighborhood Expansion Tests ===\n');
-
 const fixtureReverse = buildReverseMap(FIXTURE_ALIASES);
 
-// ── 1. Canonical included in output ──
-test('Chelsea expansion includes "Chelsea"', function () {
-  const result = expandCanonicalToVariants(['Chelsea'], fixtureReverse);
-  assert.ok(result.includes('Chelsea'), 'Must include canonical "Chelsea"');
+// ── Jest test blocks ──
+
+describe('Neighborhood Expansion', () => {
+  test('Chelsea expansion includes "Chelsea"', () => {
+    const result = expandCanonicalToVariants(['Chelsea'], fixtureReverse);
+    expect(result).toContain('Chelsea');
+  });
+
+  test('Chelsea expansion includes known variants', () => {
+    const result = expandCanonicalToVariants(['Chelsea'], fixtureReverse);
+    expect(result).toContain('CHELSEA');
+    expect(result).toContain('Chelsea/Flatiron');
+    expect(result.length).toBeGreaterThanOrEqual(4);
+  });
+
+  test('Expansion has no duplicates', () => {
+    const result = expandCanonicalToVariants(['Chelsea'], fixtureReverse);
+    const unique = new Set(result);
+    expect(unique.size).toBe(result.length);
+  });
+
+  test('Unknown canonical returns itself', () => {
+    const result = expandCanonicalToVariants(['Nonexistent Place'], fixtureReverse);
+    expect(result).toContain('Nonexistent Place');
+    expect(result).toHaveLength(1);
+  });
+
+  test('Empty input returns empty output', () => {
+    const result = expandCanonicalToVariants([], fixtureReverse);
+    expect(result).toHaveLength(0);
+  });
+
+  test('Multi-canonical expansion works', () => {
+    const result = expandCanonicalToVariants(['Chelsea', 'Upper East Side'], fixtureReverse);
+    expect(result).toContain('Chelsea');
+    expect(result).toContain('CHELSEA');
+    expect(result).toContain('Upper East Side');
+    expect(result).toContain('UES');
+    expect(result.length).toBeGreaterThanOrEqual(7);
+  });
+
+  test('resolveNeighborhoodCanonical maps CHELSEA → Chelsea', () => {
+    expect(resolveNeighborhoodCanonical('CHELSEA', FIXTURE_ALIASES)).toBe('Chelsea');
+  });
+
+  test('resolveNeighborhoodCanonical passes through canonical name', () => {
+    expect(resolveNeighborhoodCanonical('Chelsea', FIXTURE_ALIASES)).toBe('Chelsea');
+  });
+
+  test('resolveNeighborhoodCanonical unknown → passthrough', () => {
+    expect(resolveNeighborhoodCanonical('Unknown Place', FIXTURE_ALIASES)).toBe('Unknown Place');
+  });
+
+  test('resolveNeighborhoodCanonical null → undefined', () => {
+    expect(resolveNeighborhoodCanonical(null, FIXTURE_ALIASES)).toBeUndefined();
+  });
 });
 
-// ── 2. At least one known variant ──
-test('Chelsea expansion includes known variants', function () {
-  const result = expandCanonicalToVariants(['Chelsea'], fixtureReverse);
-  assert.ok(result.includes('CHELSEA'), 'Must include variant "CHELSEA"');
-  assert.ok(result.includes('Chelsea/Flatiron'), 'Must include variant "Chelsea/Flatiron"');
-  assert.ok(result.length >= 4, 'Expected at least 4 (canonical + 3 variants), got ' + result.length);
-});
+// ── Integration tests (only run if real alias map exists) ──
+const describeIntegration = realAliases ? describe : describe.skip;
 
-// ── 3. No duplicates ──
-test('Expansion has no duplicates', function () {
-  const result = expandCanonicalToVariants(['Chelsea'], fixtureReverse);
-  const unique = new Set(result);
-  assert.strictEqual(unique.size, result.length, 'Duplicates found: ' + result.join(', '));
-});
+describeIntegration('Neighborhood Expansion (integration — real alias map)', () => {
+  const realReverse = realAliases ? buildReverseMap(realAliases.aliases) : {};
 
-// ── 4. Unknown canonical returns itself (fail-safe) ──
-test('Unknown canonical returns itself', function () {
-  const result = expandCanonicalToVariants(['Nonexistent Place'], fixtureReverse);
-  assert.ok(result.length > 0, 'Must not return empty');
-  assert.ok(result.includes('Nonexistent Place'), 'Must contain the unknown name itself');
-  assert.strictEqual(result.length, 1, 'Unknown should return exactly 1 element');
-});
-
-// ── 5. Empty input returns empty output ──
-test('Empty input returns empty output', function () {
-  const result = expandCanonicalToVariants([], fixtureReverse);
-  assert.strictEqual(result.length, 0, 'Expected empty, got ' + result.length);
-});
-
-// ── 6. Multi-canonical expansion ──
-test('Multi-canonical expansion works', function () {
-  const result = expandCanonicalToVariants(['Chelsea', 'Upper East Side'], fixtureReverse);
-  assert.ok(result.includes('Chelsea'), 'Must include Chelsea');
-  assert.ok(result.includes('CHELSEA'), 'Must include CHELSEA variant');
-  assert.ok(result.includes('Upper East Side'), 'Must include Upper East Side');
-  assert.ok(result.includes('UES'), 'Must include UES variant');
-  assert.ok(result.length >= 7, 'Expected >= 7, got ' + result.length);
-});
-
-// ── 7. resolveNeighborhoodCanonical: known variant ──
-test('resolveNeighborhoodCanonical maps CHELSEA → Chelsea', function () {
-  const result = resolveNeighborhoodCanonical('CHELSEA', FIXTURE_ALIASES);
-  assert.strictEqual(result, 'Chelsea');
-});
-
-// ── 8. resolveNeighborhoodCanonical: identity for canonical ──
-test('resolveNeighborhoodCanonical passes through canonical name', function () {
-  const result = resolveNeighborhoodCanonical('Chelsea', FIXTURE_ALIASES);
-  // Chelsea is not in fixture aliases as a key (only CHELSEA is), so passthrough
-  assert.strictEqual(result, 'Chelsea');
-});
-
-// ── 9. resolveNeighborhoodCanonical: unknown → passthrough ──
-test('resolveNeighborhoodCanonical unknown → passthrough', function () {
-  const result = resolveNeighborhoodCanonical('Unknown Place', FIXTURE_ALIASES);
-  assert.strictEqual(result, 'Unknown Place');
-});
-
-// ── 10. resolveNeighborhoodCanonical: null input ──
-test('resolveNeighborhoodCanonical null → undefined', function () {
-  const result = resolveNeighborhoodCanonical(null, FIXTURE_ALIASES);
-  assert.strictEqual(result, undefined);
-});
-
-// ── Integration: real alias map (if available) ──
-if (realAliases) {
-  const realReverse = buildReverseMap(realAliases.aliases);
-
-  test('[integration] Real alias map: Chelsea has variants', function () {
+  test('Real alias map: Chelsea has variants', () => {
     const result = expandCanonicalToVariants(['Chelsea'], realReverse);
-    assert.ok(result.includes('Chelsea'), 'Must include canonical');
-    assert.ok(result.includes('CHELSEA'), 'Must include CHELSEA from real map');
-    assert.ok(result.length >= 2, 'Expected >= 2 with real aliases');
+    expect(result).toContain('Chelsea');
+    expect(result).toContain('CHELSEA');
+    expect(result.length).toBeGreaterThanOrEqual(2);
   });
 
-  test('[integration] Real alias map: every canonical expands non-empty', function () {
+  test('Real alias map: every canonical expands non-empty', () => {
     const canonicals = Object.keys(realReverse);
-    const empty = canonicals.filter(function (c) {
-      const result = expandCanonicalToVariants([c], realReverse);
-      return result.length === 0;
-    });
-    assert.strictEqual(empty.length, 0, 'Empty expansions for: ' + empty.join(', '));
+    const empty = canonicals.filter(c => expandCanonicalToVariants([c], realReverse).length === 0);
+    expect(empty).toHaveLength(0);
   });
 
-  test('[integration] Real alias map: 0 unmatched aliases', function () {
-    assert.ok(realAliases._meta, 'Alias file must have _meta');
-    assert.strictEqual(realAliases._meta.unmatched, 0, 'Expected 0 unmatched, got ' + realAliases._meta.unmatched);
+  test('Real alias map: 0 unmatched aliases', () => {
+    expect(realAliases._meta).toBeDefined();
+    expect(realAliases._meta.unmatched).toBe(0);
   });
-} else {
-  console.log('\n  SKIP  [integration] Real alias map not found at ' + ALIAS_PATH);
-}
-
-// ── Summary ──
-console.log('\n--- ' + passed + ' passed, ' + failed + ' failed ---\n');
-process.exit(failed > 0 ? 1 : 0);
+});
