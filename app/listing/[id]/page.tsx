@@ -731,7 +731,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
         badges={
           listing._displayCompliance.comingSoon ? (
             <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-medium px-3.5 py-1.5 rounded-full z-10">
-              Coming Soon
+              {listing._displayCompliance.comingSoonDate
+                ? `Coming Soon. No Showings or Open House until ${new Date(listing._displayCompliance.comingSoonDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+                : 'Coming Soon'}
             </span>
           ) : null
         }

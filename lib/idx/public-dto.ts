@@ -149,6 +149,7 @@ export interface PublicListingDTO {
     attributionText: string;
     disclaimerRequired: boolean;
     comingSoon?: boolean;
+    comingSoonDate?: string;
   };
 }
 
@@ -274,6 +275,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     _displayCompliance: {
       ...listing._displayCompliance,
       comingSoon: isComingSoon || undefined,
+      comingSoonDate: isComingSoon ? listing.activationDate : undefined,
     },
   };
 }

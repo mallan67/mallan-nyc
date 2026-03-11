@@ -25,13 +25,14 @@ function formatPrice(price: number, isRental: boolean): string {
 /** Coming Soon badge text per REBNY UCBA Art. I, Sec. 16(C) */
 function formatComingSoonBadge(listing: DisplayListing): string | null {
   if (!listing._displayCompliance.comingSoon) return null;
-  if (listing.availabilityDate) {
-    const d = new Date(listing.availabilityDate);
+  const dateStr = listing._displayCompliance.comingSoonDate || listing.availabilityDate;
+  if (dateStr) {
+    const d = new Date(dateStr);
     if (!isNaN(d.getTime())) {
-      return `Coming Soon — No Showings or Open House until ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      return `Coming Soon. No Showings or Open House until ${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
     }
   }
-  return 'Coming Soon — No Showings or Open House until Start Date';
+  return 'Coming Soon';
 }
 
 interface PropertySearchProps {
