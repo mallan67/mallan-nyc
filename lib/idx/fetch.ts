@@ -213,7 +213,9 @@ export async function fetchListingByAddress(address: {
       .slice(0, maxLength);
   }
 
-  // Build OData filter from address components
+  // Build OData filter from address components.
+  // Use tolower() for case-insensitive matching — slug parser lowercases all values,
+  // but Trestle stores mixed case (e.g., "PH", "Broadway").
   const filterParts: string[] = [];
 
   if (address.streetNumber) {
@@ -221,16 +223,16 @@ export async function fetchListingByAddress(address: {
     if (safe) filterParts.push(`StreetNumber eq '${safe}'`);
   }
   if (address.streetName) {
-    const safe = sanitizeOData(address.streetName, 100);
-    if (safe) filterParts.push(`contains(StreetName, '${safe}')`);
+    const safe = sanitizeOData(address.streetName, 100).toLowerCase();
+    if (safe) filterParts.push(`contains(tolower(StreetName), '${safe}')`);
   }
   if (address.postalCode) {
     const safe = sanitizeOData(address.postalCode, 10);
     if (safe) filterParts.push(`PostalCode eq '${safe}'`);
   }
   if (address.unitNumber) {
-    const safe = sanitizeOData(address.unitNumber, 20);
-    if (safe) filterParts.push(`UnitNumber eq '${safe}'`);
+    const safe = sanitizeOData(address.unitNumber, 20).toLowerCase();
+    if (safe) filterParts.push(`tolower(UnitNumber) eq '${safe}'`);
   }
 
   // Only active listings
