@@ -58,9 +58,9 @@ export async function getAccessToken(): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
-    // Cache token response for 30 minutes in Next.js Data Cache.
-    // In-memory cache doesn't survive serverless cold starts.
-    next: { revalidate: 1800 },
+    // MUST NOT cache POST requests — stale tokens cause 401 cascades.
+    // In-memory cache (line 15) handles reuse within a single serverless instance.
+    cache: "no-store",
   });
 
   if (!response.ok) {
