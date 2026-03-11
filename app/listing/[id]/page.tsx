@@ -40,6 +40,7 @@ import { soda } from '@/lib/soda';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
 export const revalidate = 300;
+export const maxDuration = 60;
 
 /** Borough name → ACRIS borough code (1=Manhattan, 2=Bronx, 3=Brooklyn, 4=Queens, 5=SI) */
 const BOROUGH_TO_CODE: Record<string, string> = {
@@ -1355,7 +1356,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       Schedule a Showing
                     </a>
                     <a
-                      href="#inquiry"
+                      href={`mailto:contact@mallan.nyc?subject=${encodeURIComponent(`Inquiry: ${fullAddress}`)}`}
                       className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-gold text-white rounded-2xl hover:bg-brand-gold-deep font-medium text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>

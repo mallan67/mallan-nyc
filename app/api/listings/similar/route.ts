@@ -4,6 +4,8 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
+export const maxDuration = 60;
+
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 function mapPropertyType(r: Record<string, unknown>): string {
