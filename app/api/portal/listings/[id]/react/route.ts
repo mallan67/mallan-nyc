@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -23,7 +24,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const listingId = BigInt(parseInt(id));
+  const listingId = safeBigInt(id);
+  if (!listingId) {
+    return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+  }
 
   let body: Record<string, unknown>;
   try {

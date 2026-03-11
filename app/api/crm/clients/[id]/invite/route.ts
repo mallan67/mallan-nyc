@@ -8,6 +8,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { generatePortalToken } from "@/lib/auth/portal-token";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
   const lead = await prisma.lead.findUnique({
-    where: { id: BigInt(parseInt(id)) },
+    where: { id: safeBigInt(id) ?? BigInt(-1) },
   });
 
   if (!lead) {

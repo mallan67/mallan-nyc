@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -23,7 +24,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const listingId = BigInt(parseInt(id));
+  const listingId = safeBigInt(id);
+  if (!listingId) {
+    return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+  }
 
   // Get this client's family group (self + family members)
   const familyLinks = await prisma.familyMember.findMany({
@@ -89,7 +93,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const { id } = await params;
-  const listingId = BigInt(parseInt(id));
+  const listingId = safeBigInt(id);
+  if (!listingId) {
+    return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -116,7 +123,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  const parentId = body.parent_id ? BigInt(parseInt(body.parent_id as string)) : null;
+  const parentId = body.parent_id ? safeBigInt(body.parent_id as string) : null;
 
   const comment = await prisma.comment.create({
     data: {

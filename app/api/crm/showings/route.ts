@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
   let leadId: bigint | null = null;
   if (body.lead_id) {
     const lead = await prisma.lead.findUnique({
-      where: { id: BigInt(parseInt(body.lead_id as string)) },
+      where: { id: safeBigInt(body.lead_id as string) ?? BigInt(-1) },
       select: { id: true, agent_id: true },
     });
     if (!lead) {

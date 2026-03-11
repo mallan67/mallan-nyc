@@ -8,6 +8,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
-  const leadId = BigInt(parseInt(id));
+  const leadId = safeBigInt(id);
+  if (!leadId) {
+    return NextResponse.json({ error: "Invalid client ID" }, { status: 400 });
+  }
 
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) {
