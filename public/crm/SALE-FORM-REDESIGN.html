@@ -4833,56 +4833,80 @@ function toggleFormSection(el) {
 // ══════════════════════════════════════════════════════
 // IDX SYSTEM LOGIC — Building Database & Auto-Populate
 // ══════════════════════════════════════════════════════
-const buildingDatabase = [
-    { address: '200 East 66th Street', name: 'Manhattan House', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1950, totalFloors: 17, totalUnits: 583, doorman: true, elevator: true, gym: true, laundry: true, parking: true },
-    { address: '15 Central Park West', name: '15 Central Park West', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2008, totalFloors: 43, totalUnits: 201, doorman: true, elevator: true, gym: true, pool: true, concierge: true, parking: true },
-    { address: '432 Park Avenue', name: '432 Park Avenue', borough: 'Manhattan', zip: '10022', neighborhood: 'Midtown East', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2015, totalFloors: 96, totalUnits: 104, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-    { address: '56 Leonard Street', name: '56 Leonard', borough: 'Manhattan', zip: '10013', neighborhood: 'Tribeca', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2016, totalFloors: 60, totalUnits: 145, doorman: true, elevator: true, gym: true, pool: true },
-    { address: '220 Central Park South', name: '220 CPS', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2019, totalFloors: 79, totalUnits: 118, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-    { address: '520 Park Avenue', name: '520 Park Avenue', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2018, totalFloors: 54, totalUnits: 31, doorman: true, elevator: true, gym: true },
-    { address: '1 West 72nd Street', name: 'The Dakota', borough: 'Manhattan', zip: '10023', neighborhood: 'Upper West Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1884, totalFloors: 10, totalUnits: 65, doorman: true, elevator: true, laundry: true },
-    { address: '740 Park Avenue', name: '740 Park Avenue', borough: 'Manhattan', zip: '10021', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1930, totalFloors: 18, totalUnits: 31, doorman: true, elevator: true },
-    { address: '110 Livingston Street', name: '110 Livingston', borough: 'Brooklyn', zip: '11201', neighborhood: 'Downtown Brooklyn', type: 'Condop', model: 'Condop', structureType: 'HighRise', yearBuilt: 1928, totalFloors: 15, totalUnits: 220, doorman: true, elevator: true, gym: true },
-    { address: '25 Columbus Circle', name: 'Time Warner Center', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown West', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2003, totalFloors: 80, totalUnits: 198, doorman: true, elevator: true, gym: true, concierge: true },
-    { address: '325 Lexington Avenue', name: 'The Townsend', borough: 'Manhattan', zip: '10016', neighborhood: 'Murray Hill', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2005, totalFloors: 12, totalUnits: 45, doorman: true, elevator: true },
-    { address: '42 West 120th Street', name: '42 West 120th', borough: 'Manhattan', zip: '10027', neighborhood: 'Harlem', type: 'SingleFamilyTownhouse', model: 'Townhouse', structureType: 'Townhouse', yearBuilt: 1910, totalFloors: 4, totalUnits: 1 },
-];
+// Building database — loaded from API, no hardcoded mock data
+let buildingDatabase = [];
+let _buildingSearchTimeout = null;
 
-// IDX Search — auto-detect property type and populate fields
+// Fetch buildings from API by address query
+async function fetchBuildingsFromAPI(query) {
+    if (!query || query.length < 3) return [];
+    try {
+        var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
+        if (!resp.ok) return [];
+        var results = await resp.json();
+        return (results.buildings || results || []).map(function(b) {
+            return {
+                address: b.address || b.street_address || '',
+                name: b.name || b.building_name || '',
+                borough: b.borough || b.city_region || '',
+                zip: b.zip || b.postal_code || '',
+                neighborhood: b.neighborhood || b.subdivision_name || '',
+                type: b.common_interest || b.property_type || '',
+                model: b.common_interest || '',
+                structureType: b.structure_type || '',
+                yearBuilt: b.year_built || null,
+                totalFloors: b.stories_total || null,
+                totalUnits: b.units_total || null,
+                doorman: b.doorman || false,
+                elevator: b.elevator || false,
+                gym: b.gym || false,
+                pool: b.pool || false,
+                laundry: b.laundry || false,
+                parking: b.parking || false,
+                concierge: b.concierge || false,
+                spa: b.spa || false,
+            };
+        });
+    } catch (e) {
+        console.warn('[Building Search] API error:', e.message);
+        return [];
+    }
+}
+
+// IDX Search — auto-detect property type and populate fields (API-backed)
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
 
-    const matches = buildingDatabase.filter(b =>
-        b.address.toLowerCase().includes(query.toLowerCase()) ||
-        b.name.toLowerCase().includes(query.toLowerCase())
-    );
-
-    if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+    // Debounce API calls
+    clearTimeout(_buildingSearchTimeout);
+    _buildingSearchTimeout = setTimeout(async function() {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching...</div>';
         results.classList.remove('hidden');
-        return;
-    }
 
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingFromIDX('${prefix}', '${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-green-100 text-green-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
-    results.classList.remove('hidden');
+        var matches = await fetchBuildingsFromAPI(query);
+        buildingDatabase = matches; // Cache results for selectBuildingFromIDX
+
+        if (matches.length === 0) {
+            results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+            return;
+        }
+
+        results.innerHTML = matches.map(function(b) {
+            var escapedAddr = b.address.replace(/'/g, "\\'");
+            return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'' + prefix + '\', \'' + escapedAddr + '\')">' +
+                '<div class="flex justify-between items-center"><div>' +
+                '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
+                '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
+                '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
+                (b.model === 'Coop' || b.model === 'StockCooperative' ? 'bg-purple-100 text-purple-700' :
+                 b.model === 'Condo' || b.model === 'Condominium' ? 'bg-blue-100 text-blue-700' :
+                 b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
+                 'bg-green-100 text-green-700') +
+                '">' + b.model + '</span></div></div>';
+        }).join('');
+    }, 300);
 }
 
 // IDX Selection — triggers property model and populates fields
@@ -7167,41 +7191,70 @@ function collectSaleFormData() {
         }
     });
 
-    // Map key fields to RESO names for the backend
-    data.PropertyType = data.salePropertyType || data.saleStructureType || '';
-    data.PropertySubType = data.salePropertySubType || '';
-    data.ListPrice = parseFloat(data.saleListPrice || data.saleAskingPrice || '0') || 0;
+    // Map CRM property type to RLS fields via getResoPropertyFields()
+    var resoFields = getResoPropertyFields(data.salePropertyType || '');
+    data.PropertyType = resoFields.PropertyType || 'Residential';
+    data.PropertySubType = resoFields.PropertySubType || '';
+    data.CommonInterest = resoFields.CommonInterest || data.saleCommonInterest || '';
+
+    // Map CRM status to RLS MlsStatus
+    data.MlsStatus = (typeof getResoMlsStatus === 'function') ? getResoMlsStatus(data.saleStatus || '') : (data.saleStatus || '');
+
+    // Map key fields to RLS names — using CORRECT element IDs
+    data.ListPrice = parseFloat(data.salePrice || '0') || 0;
     data.BedroomsTotal = parseInt(data.saleBedrooms || '0') || 0;
-    data.BathroomsFull = parseInt(data.saleBathroomsFull || '0') || 0;
-    data.BathroomsHalf = parseInt(data.saleBathroomsHalf || '0') || 0;
+    data.BathroomsFull = parseInt(data.saleFullBaths || '0') || 0;
+    data.BathroomsHalf = parseInt(data.saleHalfBaths || '0') || 0;
     data.BathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
-    data.LivingArea = parseFloat(data.saleSqft || data.saleLivingArea || '0') || 0;
+    data.LivingArea = parseFloat(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt || '0') || 0;
     data.StreetNumber = data.saleStreetNumber || '';
     data.StreetName = data.saleStreetName || '';
     data.StreetSuffix = data.saleStreetSuffix || '';
     data.UnitNumber = data.saleUnitNumber || '';
     data.City = data.saleCity || 'New York';
-    data.Borough = data.saleBorough || '';
-    data.Neighborhood = data.saleNeighborhood || data.saleSubdivisionName || '';
+    data.CityRegion = data.saleBorough || '';
+    data.SubdivisionName = data.saleBldgNeighborhood || data.saleNeighborhoodFromAddress || '';
     data.StateOrProvince = data.saleStateOrProvince || 'NY';
-    data.PostalCode = data.saleZipCode || data.salePostalCode || '';
-    data.UnparsedAddress = data.saleUnparsedAddress || '';
+    data.PostalCode = data.saleZipCode || '';
+    data.UnParsedAddress = data.saleUnparsedAddress || '';
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
-    data.YearBuilt = parseInt(data.saleYearBuilt || '0') || null;
-    data.CommonInterest = data.saleBuildingType || '';
-    data.NewDevelopmentYN = data.saleNewDevelopment === true || data.saleNewDevelopment === 'true';
+    data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
+    data.NewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
 
-    // Distribution gates
-    // Map actual checkbox IDs to RESO field names
-    data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
-    data.InternetEntireListingDisplayYN = data.saleInternetEntireListingDisplayYN !== false && data.saleDist_VOW !== false;
-    data.InternetAddressDisplayYN = data.saleInternetAddressDisplayYN !== false;
-    data.SyndicateYN = data.saleSyndicateYN !== false;
-    // Permissions from listing type radio
+    // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
+    // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
+    // Listing is still on RLS for participants, just blocked from public display.
     var saleListType = data.saleListingType || '';
-    data.Permissions = saleListType === 'OwnerOptOut' ? 'Owner Opt-Out' : saleListType === 'ParticipantOnly' ? 'Private' : null;
+    var isOwnerOptOut = saleListType === 'OwnerOptOut';
+    var isParticipantOnly = saleListType === 'ParticipantOnly';
+    var isInHouse = saleListType === 'InHouse';
+    if (isOwnerOptOut || isParticipantOnly || isInHouse) {
+        // These are permission flags, not agreement types — default to ExclusiveRightToSell
+        data.ListingAgreement = 'ExclusiveRightToSell';
+    } else {
+        data.ListingAgreement = saleListType || 'ExclusiveRightToSell';
+    }
+    // CoBrokeAgreement
+    data.CoBrokeAgreement = data.saleCoBrokeAgreementType || 'Ucba';
+
+    // Permissions: OwnerOptOut = owner signed Exhibit B, listing on RLS but NOT public.
+    // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
+    data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
+
+    // Distribution gates — force OFF when Owner Opt-Out or Participant Only
+    if (isOwnerOptOut || isParticipantOnly) {
+        data.IDXEntireListingDisplayYN = false;
+        data.InternetEntireListingDisplayYN = false;
+        data.InternetAddressDisplayYN = false;
+        data.SyndicateYN = false;
+    } else {
+        data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
+        data.InternetEntireListingDisplayYN = data.saleInternetEntireListingDisplayYN !== false && data.saleDist_VOW !== false;
+        data.InternetAddressDisplayYN = data.saleInternetAddressDisplayYN !== false;
+        data.SyndicateYN = data.saleSyndicateYN !== false;
+    }
 
     // Agent identity from session (hidden fields populated by initLoggedInAgent)
     data.ListAgentMlsId = data.saleUpdatingAgent || '';
@@ -7210,6 +7263,68 @@ function collectSaleFormData() {
     data.ListAgentDirectPhone = data.saleUpdatingAgentPhone || '';
     data.ListOfficeName = data.saleUpdatingAgentCompanyName || '';
     data.ListOfficeKey = data.saleUpdatingAgentCompanyKey || '';
+
+    // Collect building modal fields (outside main container)
+    var bldgModal = document.getElementById('saleBuildingModal');
+    if (bldgModal) {
+        bldgModal.querySelectorAll('input, select, textarea').forEach(function(field) {
+            var key = field.id || field.name;
+            if (!key || data[key] !== undefined) return;
+            if (field.type === 'radio') { if (field.checked) data[key] = field.value; }
+            else if (field.type === 'checkbox') { data[key] = field.checked; }
+            else { data[key] = field.value; }
+        });
+    }
+    // Collect media modal fields (outside main container)
+    var mediaModal = document.getElementById('saleMediaModal');
+    if (mediaModal) {
+        mediaModal.querySelectorAll('input, select, textarea').forEach(function(field) {
+            var key = field.id || field.name;
+            if (!key || data[key] !== undefined) return;
+            if (field.type === 'radio') { if (field.checked) data[key] = field.value; }
+            else if (field.type === 'checkbox') { data[key] = field.checked; }
+            else { data[key] = field.value; }
+        });
+    }
+
+    // Map building-level RLS fields from modal
+    data.BuildingName = data.saleBldgName || '';
+    data.StructureType = data.saleBldgType || data.saleStructureType || '';
+    data.StoriesTotal = parseInt(data.saleBldgTotalFloors || '0') || null;
+    data.NumberOfUnitsTotal = parseInt(data.saleBldgTotalUnits || '0') || null;
+    data.CrossStreet = data.saleBldgCrossStreet1 || '';
+    data.TaxBlock = data.saleBldgTaxBlock || '';
+    data.BuildingTaxLot = data.saleBldgTaxLot || '';
+    data.AssociationName = data.saleBldgAssociationName || '';
+
+    // Collect multi-value checkbox fields as arrays
+    data.PetsAllowed = [];
+    document.querySelectorAll('input[name="salePetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
+    data.BuildingPetsAllowed = [];
+    document.querySelectorAll('input[name="saleBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
+    data.BuildingFeatures = [];
+    document.querySelectorAll('#saleBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
+        var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
+        data.BuildingFeatures.push(label);
+    });
+    // AttendanceType — multi-value checkbox array
+    data.AttendanceType = [];
+    document.querySelectorAll('input[name="saleAttendanceType"]:checked').forEach(function(cb) { data.AttendanceType.push(cb.value); });
+    // BuildingLaundryFeatures — multi-value checkbox array
+    data.BuildingLaundryFeatures = [];
+    document.querySelectorAll('input[name="saleBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
+
+    // Map remaining RLS field names from CRM element IDs
+    data.CountyOrParish = data.saleCountyOrParish || '';
+    data.PostalCity = data.salePostalCity || '';
+    data.RoomsTotal = parseInt(data.saleTotalRooms || '0') || null;
+    data.Concessions = data.saleConcessions || '';
+    data.NewConstructionYN = data.saleBldgNewConstruction === true || data.saleBldgNewConstruction === 'true';
+    data.ElevatorsTotal = parseInt(data.saleBldgNumElevators || '0') || null;
+    data.GarageYN = data.saleTHGarageYN === true || data.saleTHGarageYN === 'true' || data.saleTHGarageYN === 'Yes';
+    data.OnMarketDate = data.saleDateListed || '';
+    data.ExpirationDate = data.saleExclusiveExpires || '';
+    data.ListingContractDate = data.saleExclusiveStart || '';
 
     return data;
 }
