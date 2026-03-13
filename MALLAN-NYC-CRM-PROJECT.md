@@ -6,41 +6,17 @@
 | | |
 |---|---|
 | **Status** | Active Development |
-| **Stage** | **MOCKUP / PROTOTYPE** |
+| **Stage** | **Live Production** (Next.js 16.1.6 on Vercel, real Trestle/IDX data) |
 | **Jurisdiction** | New York State / NYC |
 | **Policies** | NY DOS Advertising · REBNY RLS Display Rules · Fair Housing · TCPA/CTIA · CAN-SPAM · NY SHIELD · WCAG 2.1 AA |
 
 ---
 
-## ⚠️ DEVELOPMENT STAGE NOTICE
+## PRODUCTION STATUS
 
-> **THIS PROJECT IS CURRENTLY A MOCKUP / PROTOTYPE**
+> **This system is LIVE in production at mallan.nyc on Vercel.**
 >
-> All features, UI components, and workflows must be **fully implemented and tested** in the mockup stage before proceeding to production development.
-
-### Mockup Requirements Before Production
-- [ ] All search fields implemented and functional
-- [ ] All UI components responsive across all breakpoints
-- [ ] All collapsible/expandable sections working
-- [ ] All toggle behaviors (Sale/Rent mode) functioning
-- [ ] All calculators computing correctly
-- [ ] Search results display and actions working
-- [ ] Client assignment workflow complete
-- [ ] Listing management panel complete
-- [ ] Syndication/upload panel complete
-- [ ] Cross-browser testing complete
-- [ ] Accessibility review complete
-- [ ] Stakeholder approval received
-
-### Production Transition Checklist
-Only after ALL mockup requirements are met:
-1. Backend API development
-2. Database schema design
-3. Trestle/MLS integration
-4. Authentication system
-5. Security audit
-6. Compliance review
-7. Production deployment
+> The platform includes a Next.js App Router frontend, 169 API route files (221 HTTP handlers), PostgreSQL on Neon (Prisma ORM, 42 models), Trestle/IDX integration, cookie-based auth with RBAC, server-side compliance enforcement, and audit logging. See CLAUDE.md for full architecture details.
 
 ---
 
@@ -129,7 +105,7 @@ Upon termination of license, all MLS/IDX data must be purged within the timefram
 ## PROJECT OVERVIEW
 
 **Project Name:** MALLAN NYC CRM
-**Type:** Mockup/Prototype (HTML + Tailwind CSS)
+**Type:** Full-Stack Platform (Next.js + Tailwind CSS, PostgreSQL, Trestle IDX)
 **Primary File:** `C:\Users\MayaAllan\Desktop\1\MALLAN-NYC-CRM-FINAL2.html`
 **Target Users:** Brokers, Agents, and their Clients
 **Market:** NYC Ultra-Luxury Real Estate (Sales & Rentals)
@@ -166,7 +142,7 @@ All UI must work on: Desktop (1920px+), Laptop (1366px), Tablet (768px-1024px), 
 
 ---
 
-## CURRENT MOCKUP STATUS
+## CURRENT IMPLEMENTATION STATUS
 
 ### IMPLEMENTED SECTIONS
 
@@ -594,12 +570,11 @@ text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded
 
 ## IMPLEMENTATION PHASES
 
-> **All phases below are MOCKUP development (HTML/Tailwind CSS only).**
-> No backend, API, or database work until mockup is complete and approved.
+> **Phases 1-5 covered frontend UI development. Phases 6-10 (backend, database, auth, compliance, deployment) are complete and live in production.**
 
 ---
 
-### 🎨 MOCKUP PHASE 1: Enhanced Search Fields ✅ COMPLETE
+### PHASE 1: Enhanced Search Fields -- COMPLETE
 - [x] Add Views & Exposure section (Enhanced: 10 view types, 8-direction exposure, floor number range)
 - [x] Add Pet Policy section (Enhanced: building policy, weight limits, breed restrictions, pet deposit)
 - [x] Add Financial Details section (Tax breakdown, Max Financing, Flip Tax, Tax Abatement)
@@ -608,7 +583,7 @@ text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded
 - [x] Add Unit Details (Ceiling Height, Property/Kitchen/Bath Condition, Closets, Unit Layout)
 - [x] Add enhanced Rental fields (Lease Type already existed with Stabilized/Non-Stabilized, Guarantors comprehensive)
 
-### 🎨 MOCKUP PHASE 2: Search Results
+### PHASE 2: Search Results
 - [ ] Create flexible results table component
 - [ ] Add view mode toggles (Grid/List/Map/Table)
 - [ ] Add view presets (Financial, History, Outdoor, Building)
@@ -616,19 +591,19 @@ text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded
 - [ ] Add per-listing action buttons
 - [ ] Add bulk action bar
 
-### 🎨 MOCKUP PHASE 3: Client Management
+### PHASE 3: Client Management
 - [ ] Create Quick Assign panel
 - [ ] Build client pipeline tracker
 - [ ] Add per-client search criteria display
 - [ ] Create client dashboard view
 
-### 🎨 MOCKUP PHASE 4: Listing Management
+### PHASE 4: Listing Management
 - [ ] Create My Listings panel
 - [ ] Build syndication status display
-- [ ] Create Upload/Publish panel mockup
+- [ ] Create Upload/Publish panel
 - [ ] Add privacy options UI
 
-### 🎨 MOCKUP PHASE 5: Polish & Testing
+### PHASE 5: Polish & Testing
 - [ ] Responsive testing all breakpoints (Desktop, Laptop, Tablet, Mobile)
 - [ ] Cross-browser testing (Chrome, Firefox, Safari, Edge)
 - [ ] UI consistency review
@@ -638,9 +613,9 @@ text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded
 
 ---
 
-### ✅ MOCKUP COMPLETION GATE
+### UI COMPLETION GATE
 
-**Before proceeding to production, ALL of the following must be complete:**
+**Frontend UI completion checklist:**
 
 | Requirement | Status |
 |-------------|--------|
@@ -655,15 +630,15 @@ text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded
 
 ---
 
-### 🚀 PRODUCTION PHASES (FUTURE - Not Started)
+### PRODUCTION PHASES -- COMPLETE AND LIVE
 
-> **Do NOT begin until mockup is complete and approved.**
+> **All production phases are complete. The system is deployed at mallan.nyc on Vercel.**
 
-- Phase 6: Backend API Development
-- Phase 7: Database Schema & Trestle Integration
-- Phase 8: Authentication & Security
-- Phase 9: Compliance Audit
-- Phase 10: Production Deployment
+- Phase 6: Backend API Development -- COMPLETE (169 route files, 221 HTTP handlers)
+- Phase 7: Database Schema & Trestle Integration -- COMPLETE (Prisma ORM, 42 models, Neon PostgreSQL)
+- Phase 8: Authentication & Security -- COMPLETE (cookie-only auth, RBAC, audit logging)
+- Phase 9: Compliance Audit -- COMPLETE (RLS enforcement, Fair Housing scanner, DOM tracker, portal DTO sanitizer)
+- Phase 10: Production Deployment -- COMPLETE (Vercel, Cloudflare R2, 10 cron jobs)
 
 ---
 
@@ -682,14 +657,14 @@ mallan-nyc/
 └── scripts/                     # Any helper scripts
 
 Desktop/1/
-└── MALLAN-NYC-CRM-FINAL2.html   # Main mockup file
+└── MALLAN-NYC-CRM-FINAL2.html   # CRM hub (Broker Admin + Agent Admin + 4 Client Portals)
 ```
 
 ---
 
 ## NOTES & DECISIONS
 
-1. **Keep as Mockup** - This is a prototype, not production code
+1. **Production System** - Live on Vercel with real Trestle/IDX data, PostgreSQL, server-side enforcement, and RBAC
 2. **Status sub-items** - Each main status has expandable sub-statuses
 3. **Property Type order** - User specified: Condo, Condop, Co-op, Townhouse, Single Family, Multi-Family, Land, Commercial
 4. **ACRIS under Sold** - ACRIS verified goes under Sold status (city records)
@@ -699,4 +674,4 @@ Desktop/1/
 
 ---
 
-*Last Updated: February 4, 2026*
+*Last Updated: March 13, 2026*

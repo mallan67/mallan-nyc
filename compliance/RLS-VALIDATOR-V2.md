@@ -1,7 +1,7 @@
-# RLS Compliance Validator v2 — Deterministic (Mockup Files)
+# RLS Compliance Validator v2 — Deterministic (Production Files)
 
 > **Status:** IN PROGRESS | **Date:** 2026-02-25
-> **Target:** 6 mockup HTML files in `Desktop/1/Old/search-modular/`
+> **Target:** 6 production HTML files in `public/crm/`
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -14,7 +14,7 @@
 
 ## Overview
 
-The RLS Compliance Validator v2 is a deterministic, attribute-first validation engine that checks all 6 mockup HTML files for REBNY RLS compliance. It replaces the v1 heuristic-based validator that silently skipped unresolvable elements and produced false passes.
+The RLS Compliance Validator v2 is a deterministic, attribute-first validation engine that checks all 6 production HTML files for REBNY RLS compliance. It replaces the v1 heuristic-based validator that silently skipped unresolvable elements and produced false passes.
 
 **Key difference from v1:** Every form element must be explicitly classified. No silent skips. Unknown elements are hard errors.
 
@@ -97,7 +97,7 @@ Layer 1 (`data-rls-field`) is the authoritative source. Layers 2-3 are fallbacks
 # 1. Generate binding map (after any HTML changes)
 npm run rls:generate
 
-# 2. Inject attributes into mockup HTML files
+# 2. Inject attributes into production HTML files
 npm run rls:inject
 
 # 3. Validate compliance
@@ -126,9 +126,9 @@ node scripts/validate-rls-compliance.js --html
 
 ---
 
-## HTML Attributes (Mockup Files)
+## HTML Attributes (Production Files)
 
-All form elements in the 6 mockup files have been tagged with explicit attributes:
+All form elements in the 6 production files have been tagged with explicit attributes:
 
 ```html
 <!-- RLS-bound element -->
@@ -143,7 +143,7 @@ All form elements in the 6 mockup files have been tagged with explicit attribute
 
 ### Attribute Counts (2026-02-25)
 
-| Mockup File | `data-rls-field` | `data-rls-ignore` | Other |
+| Production File | `data-rls-field` | `data-rls-ignore` | Other |
 |-------------|-------------------|--------------------|-------|
 | `SALE-FORM-REDESIGN.html` | 185 | 168 | Submission form |
 | `RENTAL-FORM-REDESIGN.html` | 247 | 168 | Submission form |
@@ -201,8 +201,8 @@ The v1 validator falsely passed these due to loose substring matching:
 
 | Field | Issue | Fix |
 |-------|-------|-----|
-| `BathroomsTotal` | Missing from sale + rental forms (only had BathroomsFull + BathroomsHalf) | Added auto-computed readonly field to all 4 form/viewer mockup files |
-| `NewDevelopmentYN` | Not a standalone boolean — only appeared as radio value for BuildingStatus | Added checkbox to Building Status in all 4 form/viewer mockup files |
+| `BathroomsTotal` | Missing from sale + rental forms (only had BathroomsFull + BathroomsHalf) | Added auto-computed readonly field to all 4 form/viewer production files |
+| `NewDevelopmentYN` | Not a standalone boolean — only appeared as radio value for BuildingStatus | Added checkbox to Building Status in all 4 form/viewer production files |
 
 ---
 

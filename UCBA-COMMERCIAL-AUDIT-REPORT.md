@@ -778,7 +778,7 @@ For listings in the **Non-RLS / WWW Only** commercial section, status rules are 
 
 ## PLANNED CHANGES (PENDING YOUR APPROVAL)
 
-Before I make ANY edits to the mockup file, here is what I intend to change:
+Before I make ANY edits to the CRM file, here is what I intend to change:
 
 ### Change 1: Split Commercial Section
 

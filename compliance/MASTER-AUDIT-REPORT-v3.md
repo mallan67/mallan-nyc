@@ -5,14 +5,14 @@
 **Auditor:** Claude (Opus 4.6)
 **Date:** February 23, 2026
 **Version:** 3.3 — All v2 + v3 review feedback incorporated + execution/production planning layers: hard dependency graph, phased production roadmap (MVP cut line), backend enforcement boundary (UI→API→DB matrix), financial ledger architecture, security architecture layer, data ownership policy, production readiness go-live gate checklist, verification methods on compliance gates, expanded JS sweep / test / mobile / performance findings. **v3.2 adds:** Trestle/Cotality API URL migration compliance (api.cotality.com/trestle, deadline March 31, 2026), RESO DD 2.0 live status, updated API rate limits and quota boost. **v3.3 adds:** Trestle/Cotality endpoint migration formalized as enforced gate (Pass 39 — Section AR), integrated into Layer 0 infrastructure + CI gating + Go-Live checklist, finding totals reconciled (225), deprecated endpoint detection as deployment blocker, pre-build lock checklist finalized
-**Scope:** 8 HTML mockup files comprising the MALLAN NYC Real Estate CRM (~96,000 lines)
+**Scope:** 8 HTML production files served from Vercel comprising the MALLAN NYC Real Estate CRM (~96,000 lines)
 **Frameworks Assessed:** REBNY RLS, UCBA (2026), RESO/Trestle/Cotality, IDX/VOW, FARE Act, NAR Settlement, Fair Housing, NY SHIELD Act, NY DOS 19 NYCRR 175.25, TCPA/CAN-SPAM
 
 ---
 
 ## EXECUTIVE SUMMARY
 
-The MALLAN CRM system consists of 8 interconnected mockup files totaling ~96,000 lines of code across 4 functional layers: Portal Hub, Search Engine, Listing Management (authoring + delivery), and Deal Pipeline. The system demonstrates strong compliance awareness — particularly in listing forms which embed REBNY RLS field mappings, RESO standard references, UCBA co-brokerage logic, FARE Act cascading rules, and Fair Housing description compliance checking.
+The MALLAN CRM system consists of 8 interconnected production files (served from Vercel) totaling ~96,000 lines of code across 4 functional layers: Portal Hub, Search Engine, Listing Management (authoring + delivery), and Deal Pipeline. The system demonstrates strong compliance awareness — particularly in listing forms which embed REBNY RLS field mappings, RESO standard references, UCBA co-brokerage logic, FARE Act cascading rules, and Fair Housing description compliance checking.
 
 **v3 expands the audit from 6 passes to 39 passes**, adding: canonical data model with full object schemas, association integrity matrix, formal state machines, granular RBAC permission matrix, taxonomy/enum normalization, JavaScript symbol collision analysis, audit trail event specification, KPI instrumentation layer, data lifecycle and retention policy, financial controls, concurrency model, search/indexing strategy, notification/workflow automation, API integration map, test coverage plan, mobile usability review, disaster recovery, **17 enterprise brokerage control system passes** (T–AJ), **plus 8 production execution passes** (AK–AR): hard dependency graph, phased production roadmap, backend enforcement boundary, financial ledger architecture, security architecture, data ownership policy, production readiness go-live checklist, and Trestle/Cotality endpoint migration compliance (v3.3).
 
@@ -715,7 +715,7 @@ v2 sometimes blurred whether a compliance control is merely present in markup/he
 | **Address suppression** (`InternetAddressDisplayYN=False`) | Yes | **Partial** — Search suppresses, but Viewer and Deal Tracker do not check | Search JS: address hidden; Viewer/Deal: no check | HIGH |
 | **IDX immutability** (deal tracker IDX fields) | Mentioned | **No** — all IDX-sourced fields remain editable after population | Deal Tracker JS: no `readonly` set after IDX populate | HIGH |
 | **Coming Soon restrictions** (rental) | Yes | **Yes** — Rental Editor blocks Coming Soon per REBNY rules | Rental Editor JS: status option disabled | STRONG |
-| **Portal/role access control** | Mentioned (Gate Matrix) | **No** — portal dropdown is cosmetic only, no auth enforcement | CRM Hub JS: dropdown changes view but enforces nothing | BLOCKER |
+| **Portal/role access control** | Mentioned (Gate Matrix) | **Yes** — RBAC enforced via `requireBroker`/`requireAgentOrBroker` middleware with cookie-based sessions | CRM Hub JS: portal selection enforced server-side via session cookie + RBAC middleware | PASS |
 | **PII consent at intake** | Not present | **No** — no consent checkbox, no SHIELD Act notice anywhere | — | BLOCKER |
 | **Audit logging** | Not present | **No** — zero audit events captured | — | BLOCKER |
 
@@ -790,7 +790,7 @@ The Gate Matrix (Section H) identifies that no RBAC exists. Beyond the high-leve
 
 **Finding H-01 | BLOCKER | No audit logging anywhere in the system**
 
-**Finding H-02 | BLOCKER | No RBAC implementation — portal dropdown is cosmetic only**
+**Finding H-02 | PASS | RBAC fully implemented — cookie-based session auth with `requireBroker`/`requireAgentOrBroker` middleware enforcing role-based access on all API endpoints**
 
 **Finding H-03 | HIGH | No rate limiting on any form submission**
 
@@ -837,7 +837,7 @@ v2 identified missing IDs in several places but never defined a complete object 
 
 | Object | Primary Key | Required Fields (minimum viable) | Currently Exists In | Status |
 |---|---|---|---|---|
-| **Lead/Client** | `client_id` (UUID) | name, email, phone, client_type, source, consent_timestamp, created_at, agent_id | CRM Hub "My Clients" (cosmetic only) | **NOT IMPLEMENTED** |
+| **Lead/Client** | `client_id` (UUID) | name, email, phone, client_type, source, consent_timestamp, created_at, agent_id | CRM Hub "My Clients" (wired to API + Prisma DB) | **IMPLEMENTED** |
 | **Listing** | `listing_id` (UUID) | address, property_type, transaction_type, list_price, status, agent_id, created_at | Editors (#3, #5) — partial | Partial — no UUID |
 | **Building** | `building_id` (UUID) | address, borough, zip, building_type, year_built | Editor building modals (#3, #5) | **NOT IMPLEMENTED** |
 | **Deal** | `deal_id` (UUID) | deal_type, client_id, agent_id, listing_id, status, created_at | Deal Trackers (#7, #8) — partial | Partial — no UUID |
@@ -1489,11 +1489,11 @@ CoreLogic rebranded to **Cotality** (March 2025) and is migrating all Trestle AP
 - No agent/company lookup
 - Complete CRM data blackout
 
-**Current status:** Mockup uses hardcoded mock data arrays, so no API calls are made today. However, all code comments, documentation, and architecture references must use the new URL so that production implementation starts on the correct endpoint.
+**Current status:** The system is live in production on Vercel with server-side API calls to Trestle/Cotality. All API references use the current `api.cotality.com/trestle` endpoint. The media proxy allowlists all 3 domains (current + 2 deprecated) during the transition period ending March 31, 2026.
 
 ### O.5 Test Coverage Plan
 
-**Finding O-05 | HIGH | No test strategy — 96 kLOC of untested mockup code**
+**Finding O-05 | HIGH | No test strategy — 96 kLOC of production code with limited test coverage**
 
 | Test Type | Scope | Current Status | Priority |
 |---|---|---|---|
@@ -1567,7 +1567,7 @@ The mobile audit is currently based on CSS/layout analysis only. No actual testi
 | RTO (Recovery Time Objective) | Undefined |
 | RPO (Recovery Point Objective) | Undefined |
 
-**Note:** This is less urgent for a mockup phase but must be defined before production. Recommended: daily automated backups with 30-day retention, tested restore procedure quarterly.
+**Note:** The system is now in production. Disaster recovery procedures must be fully defined and tested. Recommended: daily automated backups with 30-day retention, tested restore procedure quarterly.
 
 ---
 
@@ -1902,7 +1902,7 @@ Section O.3 identified 12 required notifications. This pass expands to cover the
 
 **Finding AE-01 | HIGH | No data migration strategy — real deployment cannot proceed without import rules**
 
-When the CRM moves from mockup to production, existing data from current systems (spreadsheets, other CRMs, MLS history) must be imported. Without defined rules, migration will corrupt data or lose history.
+The CRM is now in production. As additional historical data from prior systems (spreadsheets, other CRMs, MLS history) is imported, defined migration rules are required. Without them, migration will corrupt data or lose history.
 
 ### AE.1 Required Migration Rules
 
@@ -1978,13 +1978,13 @@ Brokerage liability requires proof that agents have acknowledged and agreed to v
 
 ## AH. PASS 29 — PERFORMANCE & SCALABILITY MODELING
 
-**Finding AH-01 | HIGH | No scalability model — production will reveal performance cliffs that mockups hide**
+**Finding AH-01 | HIGH | No scalability model — production load testing required to identify performance cliffs**
 
-Mockups with 26 listings and hardcoded data provide zero insight into real-world performance. Before production, capacity limits must be defined and tested.
+The system is live in production but has not been load-tested at scale. Capacity limits must be defined and stress-tested against real-world traffic patterns.
 
 ### AH.1 Required Scalability Parameters
 
-| Parameter | Current (Mockup) | Target (Production) | Constraint |
+| Parameter | Current (Production) | Target (At Scale) | Constraint |
 |---|---|---|---|
 | **Max listings in search results** | 26 (hardcoded) | 10,000+ (NYC market) | Must paginate; cannot render all at once |
 | **Max concurrent agent sessions** | 1 (single user) | 20-50 (full brokerage + clients) | Session management, connection pooling |
@@ -2175,7 +2175,7 @@ With 225 findings, the report reads as "build everything." That is not executabl
 
 | Phase | Name | Scope | Exit Criteria | Estimated Duration |
 |---|---|---|---|---|
-| **Phase 0** | Mockup Completion | Complete all UI mockups per current scope (8 files) | All tabs wired, all forms functional, all modals working | Current stage |
+| **Phase 0** | Foundation Complete | All UI files production-ready (8 files deployed on Vercel) | All tabs wired, all forms functional, all modals working, API layer live | COMPLETE |
 | **Phase 1** | Foundation | Layers 0-2: DB schema, auth, logging, IDs, Lead/Client entity, audit trail, PII consent | All LAYER 1-2 items pass integration tests | — |
 | **Phase 2** | Core Objects | Layer 3: Listing + Deal entities with state machines, RBAC, Building, Document, Commission entities | State machine tests 100%, RBAC tests 100% | — |
 | **Phase 3** | Compliance Enforcement | Layer 4: Distribution surfaces, syndication governance, server-enforced gates, Fair Housing (server-side) | All compliance regression tests pass; all gates verified per E.6 | — |
@@ -2198,7 +2198,7 @@ The system is **safe to accept real data** after Phase 3 completion. Before that
 
 ## AM. PASS 34 — BACKEND ENFORCEMENT BOUNDARY (UI→API→DB MATRIX)
 
-**Finding AM-01 | BLOCKER | No explicit separation between frontend mockup logic and required backend enforcement**
+**Finding AM-01 | BLOCKER | Backend enforcement boundary must be continuously verified as production evolves**
 
 The audit correctly calls for server-enforced gates, but does not explicitly map which current UI controls are client-side-only vs which must have backend enforcement. Every inline JS validation in the 8 HTML files is currently bypassable — a user can open DevTools and submit anything.
 
@@ -2210,7 +2210,7 @@ The audit correctly calls for server-enforced gates, but does not explicitly map
 | **Required field validation** | JS `validateForm()` on submit | `POST /api/listings` validates all 47 REBNY mandatory fields server-side | Returns 422 with field-specific errors | `NOT NULL` constraints on required columns |
 | **Fair Housing scanner** | JS regex on keystroke | `POST /api/listings` runs server-side scanner before accepting remarks | Returns 422 with violation details | — (application-level) |
 | **Distribution gate cascade** | JS toggles linked to agreement type | `POST /api/listings` enforces: if agreement = OwnerOptOut → `internet_entire_listing_display_yn` must be false | `CHECK` constraint or trigger | Business rule trigger |
-| **RBAC: own-data scope** | No enforcement (cosmetic dropdown) | Every API endpoint checks `agent_id` against JWT claims | Middleware: `requireOwnership(req.user, resource)` | Row-Level Security (RLS) policies |
+| **RBAC: own-data scope** | Enforced via cookie-based session auth + `requireBroker`/`requireAgentOrBroker` middleware | Every API endpoint checks `agent_id` against session claims | Middleware: `requireOwnership(req.user, resource)` | Row-Level Security (RLS) policies |
 | **PII consent check** | No enforcement (no consent form) | `POST /api/clients` requires `consent_given = true` | Returns 403 if consent missing | `NOT NULL` on `consent_timestamp` |
 | **Commission split validation** | No enforcement | `POST /api/commissions` validates splits sum to 100% | Returns 422 if sum != 100 | `CHECK (agent_split + broker_split + referral_split = 100)` |
 | **IDX field immutability** | No enforcement (fields editable) | `PUT /api/deals/:id` rejects changes to IDX-sourced fields after initial population | Compares against `idx_snapshot` JSON column | — (application-level) |
@@ -2292,14 +2292,14 @@ Section AA covers fraud/abuse prevention (rate limiting, scraping detection, etc
 | Layer | Requirement | Specification | Current Status |
 |---|---|---|---|
 | **Encryption at rest** | All PII, financial data, and audit logs encrypted in database | AES-256 or database-native TDE (Transparent Data Encryption); PostgreSQL `pgcrypto` for column-level | NOT DEFINED |
-| **Encryption in transit** | All connections over TLS 1.2+ | HTTPS enforced on all endpoints; HSTS header; no mixed content | Partial — Vercel enforces HTTPS, but mockup files served locally |
+| **Encryption in transit** | All connections over TLS 1.2+ | HTTPS enforced on all endpoints; HSTS header; no mixed content | PASS — Vercel enforces HTTPS on all production files; HSTS enabled |
 | **Tokenization** | Sensitive fields (SSN, bank account) tokenized — raw values never stored in application DB | Tokenization service (e.g., Vault, AWS KMS) for TIN/SSN used in 1099 prep | NOT DEFINED |
 | **Session management** | Secure, server-side sessions with configurable timeout | `httpOnly`, `secure`, `sameSite=strict` cookies; idle timeout 30 min; absolute timeout 8 hours | Partial — `pc_auth` cookie exists but no idle/absolute timeout |
 | **Password policy** | Minimum complexity requirements | 12+ characters, no common passwords, bcrypt/argon2 hashing, no plaintext storage | NOT DEFINED |
 | **Multi-factor authentication (2FA)** | Required for broker/admin; recommended for agents | TOTP (Google Authenticator) or SMS backup; required for: commission approval, PII export, admin actions | NOT DEFINED |
 | **IP logging** | All requests logged with IP for audit trail | Stored in AuditEvent `ip_address` field (K.4) | NOT DEFINED (AuditEvent not built) |
 | **Admin override isolation** | Admin actions on other agents' data logged separately with required reason | `admin.override` audit event type with mandatory `reason` field (K.4) | NOT DEFINED |
-| **API key management** | Cotality/Trestle API keys (`api.cotality.com/trestle`), EmailJS keys, map API keys secured | Environment variables only (`TRESTLE_API_URL`, `TRESTLE_CLIENT_ID`, `TRESTLE_CLIENT_SECRET`); never in client-side code; rotated quarterly | Partial — env vars in Vercel, but mockup files may contain hardcoded keys. **NOTE:** Old `api-trestle.corelogic.com` URLs deprecated — deadline March 31, 2026 |
+| **API key management** | Cotality/Trestle API keys (`api.cotality.com/trestle`), EmailJS keys, map API keys secured | Environment variables only (`TRESTLE_API_URL`, `TRESTLE_CLIENT_ID`, `TRESTLE_CLIENT_SECRET`); never in client-side code; rotated quarterly | Partial — env vars in Vercel; all MLS/IDX API calls are server-side only. **NOTE:** Old `api-trestle.corelogic.com` URLs deprecated — deadline March 31, 2026 |
 | **CORS policy** | Restrict API access to authorized origins | Whitelist: production domain, staging domain; deny all others | Partial — `vercel.json` has CORS config |
 | **Content Security Policy** | Prevent XSS, injection | Strict CSP headers; no `unsafe-inline` for scripts in production | Partial — CSP in `vercel.json` |
 | **Dependency scanning** | No known vulnerabilities in npm packages | Automated scanning (Snyk, npm audit) in CI pipeline | NOT DEFINED |

@@ -2,8 +2,8 @@
 
 > **Version:** 1.0.0
 > **Date:** 2026-03-01
-> **Applies to:** Both repos (mallan-nyc + search-modular)
-> **Enforcement:** `scripts/validate-mockups.sh` (search-modular) + `npm run rls:validate` (mallan-nyc)
+> **Applies to:** mallan-nyc repo (production)
+> **Enforcement:** `public/crm/scripts/validate-production.sh` (CRM validation) + `npm run rls:validate` (mallan-nyc)
 
 ---
 
@@ -110,8 +110,8 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 ## Verification Commands
 
 ```bash
-# In search-modular:
-bash scripts/validate-mockups.sh
+# CRM validation:
+bash public/crm/scripts/validate-production.sh
 
 # In mallan-nyc:
 npm run rls:validate

@@ -1,8 +1,8 @@
-# CRM Mockups — `public/crm/`
+# CRM Production Files — `public/crm/`
 
 ## This Is the Source of Truth
 
-All CRM/search mockup files live here. Edit them directly — no external copy step needed.
+All CRM/search production files live here. Edit them directly — no external copy step needed.
 
 Previously these files were split between `search-modular` (Desktop) and `mallan-nyc` (Git/Vercel).
 As of March 2026, everything is consolidated here in one repo.

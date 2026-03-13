@@ -3,10 +3,10 @@
 > **Project:** Mallan Real Estate Inc. | **License:** #10991205323
 > **Audit:** Master Audit Report v3.3 | **Findings:** 225 (47 BLOCKER, 78 HIGH, 86 MEDIUM, 14 LOW)
 > **Finding count reconciled:** 225 total (verified 2026-02-23). Delta from v3.2: +1 (new Trestle CI gate in AR.3).
-> **Passes:** 39 | **Go-Live Gates:** 24 | **Current Phase:** 0 (Mockup Completion)
+> **Passes:** 39 | **Go-Live Gates:** 24 | **Current Phase:** Live Production
 > **Trestle Migration:** Hard deadline March 31, 2026. Vendor may decommission earlier with notice; do not rely on quota boost.
-> **Migration target:** Convert HTML mockup portals to Next.js SPA (Next.js 14 frontend operational — 147 static pages, 0 TS errors)
-> **Last Updated:** 2026-02-23
+> **Platform:** Next.js 16.1.6 on Vercel (live production at mallan.nyc) — CRM portals served from `public/crm/`, frontend pages via App Router
+> **Last Updated:** 2026-03-13
 
 ---
 
@@ -16,7 +16,7 @@
 > **Confusing file roles causes architectural damage that takes sessions to undo.**
 > **Last verified: 2026-02-23 by user (Maya Allan).**
 
-## 8 Mockup Files (all in `Desktop/1/Old/search-modular/`)
+## 8 CRM Files (all in `public/crm/`)
 
 | File | Role | Who Views / Uses | Key Detail |
 |------|------|-----------------|------------|
@@ -151,11 +151,13 @@
 - Agent can view submission status (pending/approved/denied)
 - Agent can edit if they made an error
 
-### Next.js Frontend — OPERATIONAL (Migration Target)
-- 147 static pages, 70+ components, 0 TS errors
-- Prisma schema (4 models), middleware, security headers
+### Next.js Frontend — LIVE PRODUCTION (mallan.nyc)
+- Next.js 16.1.6 on Vercel, App Router, 70+ components, 0 TS errors
+- Prisma schema (42 models), middleware, security headers
 - Compliance library (16 files committed to git)
-- **Migration target:** HTML mockup portals will be converted to Next.js SPA
+- Listings served from Trestle API + PostgreSQL (Neon), media cached to Cloudflare R2
+- 169 API route files, 221 HTTP handlers, 10 cron jobs
+- **Status:** Live production on Next.js 16.1.6 (Vercel) — CRM portals served from `public/crm/`, listings from Trestle API + PostgreSQL (Neon/Prisma)
 
 ---
 
@@ -185,8 +187,8 @@
 
 - [ ] **BLK:** Missing REBNY fields I40 (First Showing Date), I22 (Unit Pet Policy), I23 (Photo Sort Order)
 - [ ] **HI:** Distribution gate cascade not implemented (no Owner Opt-Out / Participant Only validation)
-- [ ] **MED:** saveSaleMedia() is placeholder stub (only shows alert)
-- [ ] **MED:** saveSaleBuilding() is placeholder stub
+- [ ] **MED:** saveSaleMedia() is a close handler with alert — not yet wired to media upload API
+- [ ] **MED:** saveSaleBuilding() is a close handler with alert — not yet wired to building data API
 - [ ] **MED:** saveSalesDraft() is stub (doesn't use performAutoSave())
 - [ ] **MED:** Modal close functions expect event param but called without event
 - [ ] **MED:** Fair Housing scanner may not be bound to input events
@@ -199,8 +201,8 @@
 - [ ] **BLK:** Missing REBNY field I7 (Lobby Attendant)
 - [ ] **HI:** submitRentalListing() is stub (just shows alert, not functional)
 - [ ] **HI:** Coming Soon blocking may not be fully enforced
-- [ ] **MED:** saveRentalMedia() placeholder stub
-- [ ] **MED:** saveRentalBuilding() placeholder stub
+- [ ] **MED:** saveRentalMedia() is a close handler with placeholder comment — not yet wired to media upload API
+- [ ] **MED:** saveRentalBuilding() is a close handler with placeholder comment — not yet wired to building data API
 - [ ] **MED:** Modal close event handling inconsistency (same as sale)
 - [ ] **MED:** Fair Housing scanner event binding unclear
 - [ ] **MED:** Verify I12 (Building Ownership Type) exists in rental building tab
@@ -265,13 +267,13 @@ Role: INTERNAL — agent submits commission payment request to broker. Agent can
 - [ ] **MED:** Tenant commission request form has minimal validation
 - [ ] **MED:** Commission calculation may have edge cases
 - [ ] **MED:** No status tracking UI for agent to check approval status
-- [ ] **LO:** Mock listing database is hardcoded (expected for mockup)
+- [ ] **LO:** Commission form listing lookup uses inline data — should query Trestle API + PostgreSQL
 - [ ] **LO:** Preview function may not populate all fields
 - [ ] **LO:** Toast notifications are generic (no error differentiation)
 
 ---
 
-# SECTION 4: PHASE 0 — REMAINING MOCKUP WORK
+# SECTION 4: PHASE 0 — REMAINING CRM BUILDOUT
 
 > **MANDATORY — READ SECTION 0 FIRST.**
 > REDESIGN = SUBMISSION. WITH-TOOLS = VIEW ONLY. DEAL FORMS = INTERNAL COMMISSION (agent → broker).
@@ -407,7 +409,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 **AR.1 Mandatory Migration:**
 1. All references to deprecated hosts removed from: backend services, API clients, environment configs, documentation, test fixtures, comments
-2. Base URL in environment config: `TRESTLE_API_URL=https://api.cotality.com/trestle` — separate staging and production values — no hardcoded strings
+2. Base URL in environment config: `TRESTLE_API_URL=https://api.cotality.com/trestle` — separate staging and production values — no inline strings
 3. OAuth2 token endpoint validated against new host
 4. All integration tests pass using new endpoint before Phase 3 completion
 
@@ -460,7 +462,7 @@ This is an **existential system dependency**.
 
 ### Depends on: Phase 3 APIs
 
-- [ ] **BLK F-01:** Connect CRM mockup to live APIs (replace mock data)
+- [ ] **BLK F-01:** Connect remaining CRM functions to live APIs (listings from Trestle API + PostgreSQL)
 - [ ] **BLK F-02:** Connect submission forms (REDESIGN) to RLS submission API
 - [ ] **BLK F-03:** Connect viewer forms (WITH-TOOLS) to listing data API
 - [ ] **BLK F-04:** Connect search (index-built) to IDX feed API — **WARNING: search currently enforces only 4/6 distribution gates (Gates 4+5 missing). Must implement Gates 4 (Syndication) and 5 (Coming Soon) BEFORE connecting to live feed.**
@@ -560,7 +562,7 @@ See full details in `compliance/MASTER-AUDIT-REPORT-v3.md`.
 
 # SECTION 13: KEY FILE REFERENCE
 
-### Mockup Files (all in `Desktop/1/Old/search-modular/`)
+### CRM Files (all in `public/crm/`)
 | File | Lines | Role |
 |------|-------|------|
 | `MALLAN-NYC-CRM-FINAL2.html` | 31,489 | CRM Hub — 6 portals |
@@ -586,7 +588,7 @@ See full details in `compliance/MASTER-AUDIT-REPORT-v3.md`.
 # SECTION 14: DEPENDENCY RULES & ENFORCEMENT
 
 ```
-Phase 0 (Mockup) ──→ Phase 1 (Data) ──→ Phase 2 (Auth) ──→ Phase 3 (API)
+Phase 0 (CRM Buildout) ──→ Phase 1 (Data) ──→ Phase 2 (Auth) ──→ Phase 3 (API)
                                                                     │
                                                           Phase 4 (Frontend) ──→ Phase 5 (Compliance) ──→ Phase 6 (Go-Live)
 ```

@@ -3,9 +3,9 @@
 > **Version:** 1.0.0
 > **Date:** 2026-03-01
 > **Owner:** mallan-nyc (source of truth for all API definitions)
-> **Consumer:** search-modular (legacy HTML mockups)
+> **Consumer:** production CRM HTML files (public/crm/)
 
-Any endpoint change in mallan-nyc that affects mockup consumers MUST:
+Any endpoint change in mallan-nyc that affects CRM file consumers MUST:
 1. Bump this contract version
 2. Update this file in BOTH repos
 3. Trigger a sync update in search-modular
@@ -32,12 +32,12 @@ Any endpoint change in mallan-nyc that affects mockup consumers MUST:
 | Token format | `crypto.randomUUID()` |
 | Expiry | 24 hours |
 
-Mockups use `MallanAPI.init()` which reads the session cookie automatically.
+CRM files use `MallanAPI.init()` which reads the session cookie automatically.
 No tokens, API keys, or credentials should appear in HTML/JS source.
 
 ---
 
-## Endpoints Used by Mockups
+## Endpoints Used by CRM Files
 
 ### Auth
 
