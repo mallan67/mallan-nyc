@@ -1,0 +1,14 @@
+{
+  "description": "Controls which listings appear in the Featured Properties section on the homepage.",
+  "pinnedListingIds": [],
+  "filters": {
+    "type": "sale",
+    "boroughs": ["Manhattan", "Brooklyn"],
+    "neighborhoods": [],
+    "minPrice": 500000,
+    "maxPrice": 5000000,
+    "minBeds": 1
+  },
+  "sort": "price-desc",
+  "limit": 6
+}
