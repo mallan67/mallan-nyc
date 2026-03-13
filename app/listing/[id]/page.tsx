@@ -525,10 +525,15 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
   }
 
   // Fallback 1: direct Trestle fetch (slower but freshest data)
+  // 15s timeout prevents hanging when Trestle is down (individual fetches have 10s timeouts,
+  // but multiple sequential calls can compound)
   if (useIDX) {
     try {
-      const result = await fetchFromTrestleDirect(slug, keyOverride);
-      if (result) return result;
+      const trestleResult = await Promise.race([
+        fetchFromTrestleDirect(slug, keyOverride),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000)),
+      ]);
+      if (trestleResult) return trestleResult;
     } catch (err) {
       console.error(`[/listing/${slug}] Trestle fetch failed:`, err);
     }
@@ -545,7 +550,13 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const { key } = await searchParams;
-  const result = await fetchListing(id, key);
+
+  let result: ListingFetchResult | null = null;
+  try {
+    result = await fetchListing(id, key);
+  } catch {
+    // Trestle timeout / network error — return safe fallback metadata
+  }
 
   if (!result) {
     return { title: 'Listing Not Found | Mallan Real Estate' };
