@@ -401,7 +401,7 @@ const DEPRECATED_HOSTS = [
 ];
 
 const hostScanExtensions = /\.(ts|tsx|js|jsx|json|env|env\.local|env\.production)$/;
-const hostScanExcludes = [/node_modules/, /\.next/, /\.git/, /archive\//];
+const hostScanExcludes = [/node_modules/, /\.next/, /\.git/, /archive\//, /scripts\/trestle-deep-check/, /audit-trestle-report/];
 
 const hostScanFiles = allFiles.filter((f) => {
   if (!hostScanExtensions.test(f)) return false;

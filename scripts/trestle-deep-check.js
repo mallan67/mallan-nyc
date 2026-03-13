@@ -129,8 +129,10 @@ async function run() {
   console.log(`  TRESTLE_API_URL = ${process.env.TRESTLE_API_URL}`);
   console.log(`  IDX_ENDPOINT = ${process.env.IDX_ENDPOINT || '(not set)'}`);
 
-  // Check if old endpoints are reachable
-  for (const oldHost of ['https://api-trestle.corelogic.com/trestle', 'https://api-prod.corelogic.com/trestle']) {
+  // Check if old endpoints are reachable (migration verification — intentional reference)
+  // eslint-disable-next-line -- deprecated hosts referenced intentionally for migration testing
+  const deprecatedHosts = ['https://api-trestle.corelogic.com/trestle', 'https://api-prod.corelogic.com/trestle'];
+  for (const oldHost of deprecatedHosts) {
     try {
       const r = await fetch(`${oldHost}/odata/Property?$top=1`, {
         signal: AbortSignal.timeout(5000),
