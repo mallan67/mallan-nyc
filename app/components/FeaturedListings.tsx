@@ -18,6 +18,8 @@ interface FeaturedListing {
     streetName: string;
     unitNumber: string | null;
     neighborhood?: string;
+    borough?: string;
+    county?: string;
   };
   listPrice: number;
   propertyType: string;
@@ -35,6 +37,27 @@ interface FeaturedListing {
   _lastUpdated?: string;
 }
 
+interface FeaturedConfig {
+  pinnedListingIds: string[];
+  filters: {
+    type: string;
+    boroughs: string[];
+    neighborhoods: string[];
+    minPrice: number;
+    maxPrice: number;
+    minBeds: number;
+  };
+  sort: string;
+  limit: number;
+}
+
+const DEFAULT_CONFIG: FeaturedConfig = {
+  pinnedListingIds: [],
+  filters: { type: 'sale', boroughs: ['Manhattan', 'Brooklyn'], neighborhoods: [], minPrice: 500000, maxPrice: 5000000, minBeds: 1 },
+  sort: 'price-desc',
+  limit: 6,
+};
+
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
     return `$${price.toLocaleString()}/mo`;
@@ -46,7 +69,7 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function PhotoGallery({ photos }: { photos: { url: string; mediaType: string }[] }) {
+function PhotoGallery({ photos, listOfficeName }: { photos: { url: string; mediaType: string }[]; listOfficeName: string }) {
   const [idx, setIdx] = useState(0);
   const images = photos.length > 0 ? photos : [{ url: '/images/listing-placeholder.svg', mediaType: 'Photo' }];
 
@@ -66,6 +89,12 @@ function PhotoGallery({ photos }: { photos: { url: string; mediaType: string }[]
         alt="Listing photo"
         aspect="card"
       />
+      {/* RLS attribution overlay — like Compass watermark */}
+      {listOfficeName && (
+        <span className="absolute top-3 left-3 text-white/70 text-[13px] font-semibold tracking-wide uppercase z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] pointer-events-none select-none">
+          {listOfficeName}
+        </span>
+      )}
       {images.length > 1 && (
         <>
           <button
@@ -165,7 +194,7 @@ function RentVsBuyCalc({ monthlyRent }: { monthlyRent: number }) {
   );
 }
 
-function ListingCard({ listing }: { listing: FeaturedListing }) {
+function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned?: boolean }) {
   const isRental = listing.listingType === 'rent';
   const photos = listing.media.filter(m => m.mediaType === 'Photo' || !m.mediaType);
   const [calcOpen, setCalcOpen] = useState(false);
@@ -173,9 +202,14 @@ function ListingCard({ listing }: { listing: FeaturedListing }) {
   const cc = listing.monthlyCommonCharges || listing.monthlyMaintenance;
 
   return (
-    <div className="prop-card rounded-3xl overflow-hidden bg-white">
+    <div className="prop-card rounded-3xl overflow-hidden bg-white relative">
+      {isPinned && (
+        <span className="absolute top-4 left-4 z-30 bg-brand-gold text-white text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">
+          Exclusive
+        </span>
+      )}
       <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
-        <PhotoGallery photos={photos} />
+        <PhotoGallery photos={photos} listOfficeName={listing.listOfficeName} />
       </Link>
 
       <div className="p-5 md:p-6">
@@ -205,11 +239,6 @@ function ListingCard({ listing }: { listing: FeaturedListing }) {
           {listing.listOfficeName && (
             <p className="text-[10px] text-brand-dark/85 mt-1.5 font-light">
               Listing Courtesy of {listing.listOfficeName}
-            </p>
-          )}
-          {listing.mlsId && (
-            <p className="text-[10px] text-brand-dark/50 font-light">
-              REBNY RLS #{listing.mlsId}
             </p>
           )}
         </Link>
@@ -259,6 +288,7 @@ function SkeletonCard() {
 export default function FeaturedListings() {
   const gridRef = useGsapReveal<HTMLDivElement>({ children: true, y: 50, scale: 0.97 });
   const [listings, setListings] = useState<FeaturedListing[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -266,15 +296,68 @@ export default function FeaturedListings() {
     let cancelled = false;
     async function fetchFeatured() {
       try {
-        const res = await fetch('/api/listings?type=sale&limit=6');
+        // Load config
+        let config: FeaturedConfig = DEFAULT_CONFIG;
+        try {
+          const cfgRes = await fetch('/data/featured-config.json');
+          if (cfgRes.ok) config = await cfgRes.json();
+        } catch {
+          // Use defaults
+        }
+
+        const { filters, pinnedListingIds, limit } = config;
+        const pinnedSet = new Set(pinnedListingIds);
+
+        // Build query params from config
+        const params = new URLSearchParams();
+        params.set('type', filters.type === 'rent' ? 'rent' : 'sale');
+        params.set('limit', String(Math.max(limit * 3, 30)));
+        params.set('sort', config.sort || 'price-desc');
+        if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
+        if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
+        if (filters.minBeds) params.set('beds', String(filters.minBeds));
+        if (filters.boroughs.length === 1) params.set('borough', filters.boroughs[0]);
+        if (filters.neighborhoods.length === 1) params.set('neighborhood', filters.neighborhoods[0]);
+
+        const res = await fetch(`/api/listings?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to fetch');
         const data = await res.json();
-        if (!cancelled && data.listings && data.listings.length > 0) {
-          setListings(data.listings.slice(0, 6));
+
+        if (cancelled || !data.listings || data.listings.length === 0) return;
+
+        let all: FeaturedListing[] = data.listings;
+
+        // Filter by multiple boroughs if configured
+        if (filters.boroughs.length > 1) {
+          const boroughSet = new Set(filters.boroughs.map((b: string) => b.toLowerCase()));
+          all = all.filter((l: FeaturedListing) => {
+            const borough = ((l.address as { borough?: string; county?: string }).borough ||
+                            (l.address as { county?: string }).county || '').toLowerCase();
+            return boroughSet.has(borough);
+          });
+        }
+
+        // Filter by multiple neighborhoods if configured
+        if (filters.neighborhoods.length > 1) {
+          const nhoodSet = new Set(filters.neighborhoods.map((n: string) => n.toLowerCase()));
+          all = all.filter((l: FeaturedListing) => {
+            const nhood = (l.address.neighborhood || '').toLowerCase();
+            return nhoodSet.has(nhood);
+          });
+        }
+
+        // Separate pinned (exclusives) from rest — pinned always first
+        const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
+        const rest = all.filter(l => !pinnedSet.has(l.id) && !pinnedSet.has(l.mlsId));
+
+        const featured = [...pinned, ...rest].slice(0, limit);
+
+        if (!cancelled) {
+          setListings(featured);
+          setPinnedIds(pinnedSet);
           if (data._lastUpdated) setLastUpdated(new Date(data._lastUpdated));
         }
       } catch {
-        // Non-fatal — section just won't show
         console.warn('[FeaturedListings] Failed to load featured listings');
       } finally {
         if (!cancelled) setLoading(false);
@@ -321,7 +404,11 @@ export default function FeaturedListings() {
 
         <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 md:gap-8">
           {listings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              isPinned={pinnedIds.has(listing.id) || pinnedIds.has(listing.mlsId)}
+            />
           ))}
         </div>
 
