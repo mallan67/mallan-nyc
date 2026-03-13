@@ -413,6 +413,8 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   // Rental
   "LeaseConsideredTerms", "FurnishedDescription",
   "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
+  // Rental move-in (not provisioned on IDX Plus — validated 2026-03-13)
+  "MoveInCostsComments", "MoveInCostsAmountTotal",
   // FARE Act CustomProperty fields (need $expand=CustomProperty)
   "AdditionalFee", "AdditionalFeeDescription", "AdditionalFeeYN", "FeeFrequency",
 ]);
