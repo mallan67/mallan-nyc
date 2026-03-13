@@ -443,13 +443,13 @@ function SearchClient() {
       <div ref={toolbarRef} className="flex-shrink-0 bg-white border-b border-black/8 z-40">
         <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-3">
           {/* Row 1: Tabs + Search */}
-          <div className="flex items-center gap-4">
-            <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+            <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1 flex-shrink-0 overflow-x-auto">
               {(Object.entries(TAB_CONFIG) as [SearchTab, typeof TAB_CONFIG[SearchTab]][]).map(([tab, config]) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${
                     activeTab === tab
                       ? 'bg-white text-brand-dark shadow-sm'
                       : 'text-brand-dark/60 hover:text-brand-dark'
@@ -459,7 +459,7 @@ function SearchClient() {
                 </button>
               ))}
             </div>
-            <div className="w-80 flex-shrink-0">
+            <div className="w-full sm:w-80 flex-shrink-0">
               <SearchAutocomplete
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -470,7 +470,7 @@ function SearchClient() {
           </div>
 
           {/* Row 2: Price + Filters + Views + Sort + Count */}
-          <div className="flex items-center gap-3 mt-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3">
             <div className="flex items-center gap-1.5">
               {(() => {
                 const presets = isRental ? RENT_PRICE_PRESETS : PRICE_PRESETS;
@@ -482,7 +482,7 @@ function SearchClient() {
                         const val = e.target.value;
                         setFilters(prev => ({ ...prev, minPrice: val ? Number(val) : undefined }));
                       }}
-                      className="w-28 rounded-lg px-3 py-2 bg-white ring-1 ring-black/10 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                      className="w-24 sm:w-28 rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
                       aria-label="Minimum price"
                     >
                       <option value="">Min Price</option>
@@ -497,7 +497,7 @@ function SearchClient() {
                         const val = e.target.value;
                         setFilters(prev => ({ ...prev, maxPrice: val ? Number(val) : undefined }));
                       }}
-                      className="w-28 rounded-lg px-3 py-2 bg-white ring-1 ring-black/10 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                      className="w-24 sm:w-28 rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
                       aria-label="Maximum price"
                     >
                       <option value="">No Max</option>
@@ -512,7 +512,7 @@ function SearchClient() {
 
             <button
               onClick={() => setShowFilters(true)}
-              className="rounded-lg px-3.5 py-2 text-sm font-medium ring-1 ring-black/10 bg-white text-brand-dark hover:bg-gray-50 transition-colors flex items-center gap-1.5 flex-shrink-0"
+              className="rounded-lg px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-medium ring-1 ring-black/10 bg-white text-brand-dark hover:bg-gray-50 transition-colors flex items-center gap-1.5 flex-shrink-0"
               aria-label="Open filters"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -525,6 +525,18 @@ function SearchClient() {
                 </span>
               )}
             </button>
+
+            <select
+              value={filters.sort || 'price-desc'}
+              onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
+              className="rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+              aria-label="Sort order"
+            >
+              <option value="price-desc">Price: High → Low</option>
+              <option value="price-asc">Price: Low → High</option>
+              <option value="newest">Newest</option>
+              <option value="sqft-desc">Largest</option>
+            </select>
 
             <div className="hidden lg:flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
               {(['split', 'all-listings', 'all-map', 'grid', 'list'] as ViewMode[]).map((mode) => (
@@ -542,18 +554,6 @@ function SearchClient() {
               ))}
             </div>
 
-            <select
-              value={filters.sort || 'price-desc'}
-              onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="rounded-lg px-3 py-2 bg-white ring-1 ring-black/10 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
-              aria-label="Sort order"
-            >
-              <option value="price-desc">Price: High → Low</option>
-              <option value="price-asc">Price: Low → High</option>
-              <option value="newest">Newest</option>
-              <option value="sqft-desc">Largest</option>
-            </select>
-
             <SaveSearchButton
               type={isRental ? 'rent' : 'buy'}
               filters={{
@@ -566,7 +566,7 @@ function SearchClient() {
             />
 
             {/* Count */}
-            <p className="text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium" aria-live="polite">
+            <p className="text-xs sm:text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium" aria-live="polite">
               {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
             </p>
 
