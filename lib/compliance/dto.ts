@@ -4,8 +4,16 @@
  * REBNY/RLS + Security: Different consumers get different data shapes.
  * This module enforces the principle that:
  *   - CRM endpoints return internal fields (still least-privilege)
+ *   - VOW endpoints return enriched data for authenticated consumers (login-required)
  *   - Portal endpoints return client-scoped data (no agent PII, no internal notes)
  *   - Public endpoints return sanitized IDX-compliant data only
+ *
+ * Data tiers (most restrictive → least):
+ *   PUBLIC (IDX)  →  VOW (authenticated consumer)  →  PORTAL (client)  →  CRM (agent/broker)
+ *
+ * VOW (Virtual Office Website) provides authenticated consumers with additional data
+ * beyond IDX, such as sold/closed price, days on market, and listing history.
+ * Requires REBNY VOW feed authorization (pending Direct Data License).
  *
  * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
  */
@@ -55,6 +63,28 @@ const IDX_SUPPRESSED_FIELDS = [
   ...REMOVED_FIELDS,
 ] as const;
 
+/**
+ * VOW-only fields — visible to authenticated consumers (login-required) but NOT on public IDX.
+ * These fields are stripped from IDX/public responses but retained for VOW-tier consumers.
+ * Per REBNY RLS rules, VOW display requires consumer registration + login.
+ */
+const VOW_ENRICHED_FIELDS = [
+  "ClosePrice",
+  "CloseDate",
+  "DaysOnMarket",
+  "CumulativeDaysOnMarket",
+  "OriginalListPrice",
+  "PreviousListPrice",
+  "WithdrawnDate",
+  "CancelledDate",
+  "ExpirationDate",
+  "ListingContractDate",
+  "PurchaseContractDate",
+  "BuyerFinancing",
+  "Concessions",
+  "ConcessionsAmount",
+] as const;
+
 // ─── DTO Sanitizers ───────────────────────────────────────────────────────
 
 /**
@@ -85,9 +115,13 @@ export function sanitizeForPublic(listing: Record<string, unknown>): Record<stri
     delete result[field];
   }
 
-  // Null out private remarks (may be in nested structure)
+  // Null out remarks in both PascalCase and camelCase variants
+  result.PrivateRemarks = null;
   result.privateRemarks = null;
+  result.ShowingRemarks = null;
   result.showingRemarks = null;
+  result.ShowingInstructions = null;
+  result.showingInstructions = null;
 
   // Null out compensation in nested buyer object
   if (result.buyer && typeof result.buyer === "object") {
@@ -98,17 +132,67 @@ export function sanitizeForPublic(listing: Record<string, unknown>): Record<stri
   }
 
   // Address suppression: InternetAddressDisplayYN
+  // Check both PascalCase (Trestle raw) and snake_case (Prisma DB) variants
   const addressDisplayYN =
     result.internet_address_display_yn ??
     result.InternetAddressDisplayYN;
   if (addressDisplayYN === false) {
     result.address = { street: "Address Undisclosed" };
+    // Strip both PascalCase (Trestle) and camelCase/snake_case (DB) variants
     delete result.StreetNumber;
+    delete result.streetNumber;
     delete result.StreetName;
+    delete result.streetName;
     delete result.UnitNumber;
+    delete result.unitNumber;
     delete result.UnParsedAddress;
+    delete result.unParsedAddress;
     delete result.Latitude;
+    delete result.latitude;
     delete result.Longitude;
+    delete result.longitude;
+  }
+
+  return result;
+}
+
+/**
+ * Sanitize a listing for VOW (Virtual Office Website) display.
+ * Authenticated consumers (registered + logged in) see enriched data beyond IDX:
+ *   - Sold/closed prices and dates
+ *   - Days on market
+ *   - Original/previous list prices
+ *   - Listing contract dates
+ *
+ * Still strips: agent PII, private remarks, showing instructions, compensation fields.
+ * Still enforces: address suppression, distribution gates.
+ *
+ * REBNY VOW rules:
+ *   - Consumer must be registered and logged in
+ *   - No data scraping, no automated access
+ *   - VOW data cannot be displayed on IDX pages
+ *   - Attribution required: "Data provided by REBNY RLS"
+ */
+export function sanitizeForVOW(listing: Record<string, unknown>): Record<string, unknown> {
+  // Capture VOW-enriched fields before public sanitization strips them
+  const vowData: Record<string, unknown> = {};
+  for (const field of VOW_ENRICHED_FIELDS) {
+    if (listing[field] !== undefined) {
+      vowData[field] = listing[field];
+    }
+    // Also check camelCase variants from DB records
+    const camel = field.charAt(0).toLowerCase() + field.slice(1);
+    if (listing[camel] !== undefined) {
+      vowData[field] = listing[camel];
+    }
+  }
+
+  // Apply public (IDX) sanitization as the base
+  const result = sanitizeForPublic(listing);
+
+  // Re-add VOW-enriched fields
+  for (const [key, value] of Object.entries(vowData)) {
+    result[key] = value;
   }
 
   return result;
@@ -128,8 +212,8 @@ export function sanitizeForPortal(
   const agentInfo = listing.agent_info as Record<string, unknown> | null | undefined;
   const isBuyerOrTenant = portalRole === "buyer" || portalRole === "tenant";
 
-  // Apply public sanitization (strips CRM_ONLY_FIELDS including agent_info)
-  const result = sanitizeForPublic(listing);
+  // Portal users are authenticated → use VOW-tier sanitization (enriched data)
+  const result = sanitizeForVOW(listing);
 
   // Re-add agent_info in appropriate shape
   if (isBuyerOrTenant) {

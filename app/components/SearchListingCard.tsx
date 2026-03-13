@@ -25,7 +25,7 @@ function formatComingSoonBadge(listing: DisplayListing): string | null {
     });
     return `Coming Soon. No Showings or Open House until ${formatted}`;
   }
-  return 'Coming Soon';
+  return 'Coming Soon. No Showings or Open House Permitted';
 }
 
 interface CardProps {

@@ -35,7 +35,7 @@ export default function SellerClosingCostCalculator() {
   const [timeline, setTimeline] = useState<Timeline>('30-60');
 
   const calculations = useMemo(() => {
-    // Broker commission (5%)
+    // Broker commission (estimated — rates are negotiable)
     const brokerCommission = salePrice * 0.05;
 
     // NYC transfer tax: 1% under $500K, 1.425% at $500K+
@@ -113,7 +113,7 @@ export default function SellerClosingCostCalculator() {
           {/* Breakdown */}
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between py-1">
-              <span className="text-brand-dark/90">Broker commission (5%)</span>
+              <span className="text-brand-dark/90">Broker commission (est. 5%*)</span>
               <span className="font-medium text-brand-dark">${Math.round(calculations.brokerCommission).toLocaleString()}</span>
             </div>
             {paysTransferTax(propertyType) && (
@@ -241,7 +241,8 @@ export default function SellerClosingCostCalculator() {
           </Link>
 
           <p className="mt-3 text-xs text-brand-dark/90">
-            *Estimates only. Co-op sellers typically do not pay transfer taxes directly.
+            *Estimates only. Broker commission rates are not set by law and are fully
+            negotiable. Co-op sellers typically do not pay transfer taxes directly.
             Flip tax rates vary by building (1–3%). Actual costs depend on your property
             and transaction terms. Consult a real estate attorney for exact figures.
           </p>

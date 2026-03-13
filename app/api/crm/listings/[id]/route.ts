@@ -11,6 +11,7 @@ import {
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { sanitizeForCRM } from "@/lib/compliance/dto";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -49,13 +50,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
-  return NextResponse.json({
+  // CRM sanitization: strips removed compensation fields, serializes BigInt
+  const sanitized = sanitizeForCRM({
     ...listing,
     id: listing.id.toString(),
     agent_id: listing.agent_id?.toString() ?? null,
     list_price: listing.list_price.toString(),
     living_area: listing.living_area?.toString() ?? null,
   });
+
+  return NextResponse.json(sanitized);
 }
 
 /**

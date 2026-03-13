@@ -32,7 +32,7 @@ function formatComingSoonBadge(listing: DisplayListing): string | null {
       return `Coming Soon. No Showings or Open House until ${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
     }
   }
-  return 'Coming Soon';
+  return 'Coming Soon. No Showings or Open House Permitted';
 }
 
 interface PropertySearchProps {
@@ -578,7 +578,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
                       })()}
 
                       {/* RLS attribution — bottom of card */}
-                      <p className="text-[10px] text-brand-dark/85 mt-2 pt-2 border-t border-black/5">
+                      <p className="text-[11px] text-brand-dark/85 mt-2 pt-2 border-t border-black/5">
                         <span className="font-semibold tracking-wide">RLS</span>
                         {' '}&middot;{' '}{listing.listOfficeName}
                         {listing.modificationTimestamp && (

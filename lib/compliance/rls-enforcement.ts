@@ -62,15 +62,25 @@ const MANDATORY_FIELDS = REBNY_FIELD_TABLES.requiredFields.agentSubmitted;
 // ─── Content Scanning Patterns (from authority table) ─────────────────────
 
 const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
-  // Federal FHA (7 protected classes)
-  { pattern: /\b(whites?\s+only|no\s+(blacks?|hispanics?|asians?|mexicans?))\b/i, law: "Federal FHA" },
-  { pattern: /\b(christian\s+(home|family|neighborhood)|no\s+(muslims?|jews?|hindus?))\b/i, law: "Federal FHA" },
-  { pattern: /\bno\s+(children|kids|families\s+with\s+children)\b/i, law: "Federal FHA" },
-  { pattern: /\b(no\s+(wheelchairs?|disabled|handicapped)|able[- ]bodied\s+only)\b/i, law: "Federal FHA" },
-  // NYC HRL Title 8 (additional classes)
+  // Federal FHA (7 protected classes: race, color, religion, sex, national origin, disability, familial status)
+  { pattern: /\b(whites?\s+only|no\s+(blacks?|hispanics?|asians?|mexicans?|africans?))\b/i, law: "Federal FHA (Race)" },
+  { pattern: /\b(christian\s+(home|family|neighborhood)|no\s+(muslims?|jews?|hindus?|buddhists?))\b/i, law: "Federal FHA (Religion)" },
+  { pattern: /\bno\s+(children|kids|families\s+with\s+children)\b/i, law: "Federal FHA (Familial Status)" },
+  { pattern: /\b(no\s+(wheelchairs?|disabled|handicapped)|able[- ]bodied\s+only)\b/i, law: "Federal FHA (Disability)" },
+  { pattern: /\b(males?\s+only|females?\s+only|no\s+(men|women)|men\s+only|women\s+only)\b/i, law: "Federal FHA (Sex)" },
+  // NY State Human Rights Law (adds: age, marital status, sexual orientation, military status)
+  { pattern: /\b(no\s+(seniors?|elderly|retirees?|young\s+people)|seniors?\s+only|under\s+\d+\s+only|over\s+\d+\s+only)\b/i, law: "NY HRL (Age)" },
+  { pattern: /\b(no\s+(married|single|divorced)|married\s+(couples?\s+)?only|singles?\s+only)\b/i, law: "NY HRL (Marital Status)" },
+  { pattern: /\b(no\s+(gay|lesbian|homosexual|lgbtq?)|straight\s+(couples?\s+)?only|heterosexual\s+only)\b/i, law: "NY HRL (Sexual Orientation)" },
+  { pattern: /\b(no\s+(veterans?|military|service\s*members?)|civilians?\s+only)\b/i, law: "NY HRL (Military/Veteran Status)" },
+  // NYC HRL Title 8 (adds: source of income, immigration/citizenship, criminal history, gender identity, lawful occupation, partnership status, caregiver status)
   { pattern: /\b(no\s+(section\s*8|vouchers?|housing\s+choice))\b/i, law: "NYC HRL Title 8 (Source of Income)" },
-  { pattern: /\b(citizens?\s+only|no\s+immigrants?|legal\s+residents?\s+only)\b/i, law: "NYC HRL Title 8 (Immigration)" },
+  { pattern: /\b(citizens?\s+only|no\s+immigrants?|legal\s+residents?\s+only)\b/i, law: "NYC HRL Title 8 (Citizenship/Immigration)" },
   { pattern: /\b(no\s+criminal|background\s+check\s+required|felons?\s+need\s+not)\b/i, law: "NYC Fair Chance Housing Act" },
+  { pattern: /\b(no\s+(transgender|trans\s+people|non[- ]?binary)|cisgender\s+only)\b/i, law: "NYC HRL Title 8 (Gender Identity)" },
+  { pattern: /\b(no\s+(students?|freelancers?|self[- ]employed|gig\s+workers?))\b/i, law: "NYC HRL Title 8 (Lawful Occupation)" },
+  { pattern: /\b(no\s+(domestic\s+partners?|unmarried\s+couples?))\b/i, law: "NYC HRL Title 8 (Partnership Status)" },
+  { pattern: /\b(no\s+(caregivers?|parents?\s+with))\b/i, law: "NYC HRL Title 8 (Caregiver Status)" },
 ];
 
 const AGENT_INFO_PATTERNS = [
@@ -349,7 +359,7 @@ export function assertRlsCompliantPayload(
   }
 
   // ── 6. Content scanning (Fair Housing, Agent Info, Off-Market) ─────
-  const textFields = ["PublicRemarks", "ShowingInstructions", "PrivateRemarks"];
+  const textFields = ["PublicRemarks", "ShowingInstructions", "PrivateRemarks", "SyndicationRemarks"];
 
   for (const field of textFields) {
     const text = payload[field];
