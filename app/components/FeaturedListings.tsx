@@ -69,7 +69,7 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function PhotoGallery({ photos, listOfficeName }: { photos: { url: string; mediaType: string }[]; listOfficeName: string }) {
+function PhotoGallery({ photos }: { photos: { url: string; mediaType: string }[] }) {
   const [idx, setIdx] = useState(0);
   const images = photos.length > 0 ? photos : [{ url: '/images/listing-placeholder.svg', mediaType: 'Photo' }];
 
@@ -89,12 +89,6 @@ function PhotoGallery({ photos, listOfficeName }: { photos: { url: string; media
         alt="Listing photo"
         aspect="card"
       />
-      {/* RLS attribution overlay — like Compass watermark */}
-      {listOfficeName && (
-        <span className="absolute top-3 left-3 text-white/70 text-[13px] font-semibold tracking-wide uppercase z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] pointer-events-none select-none">
-          {listOfficeName}
-        </span>
-      )}
       {images.length > 1 && (
         <>
           <button
@@ -209,7 +203,7 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
         </span>
       )}
       <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
-        <PhotoGallery photos={photos} listOfficeName={listing.listOfficeName} />
+        <PhotoGallery photos={photos} />
       </Link>
 
       <div className="p-5 md:p-6">
@@ -237,8 +231,8 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
             </p>
           )}
           {listing.listOfficeName && (
-            <p className="text-[10px] text-brand-dark/85 mt-1.5 font-light">
-              Listing Courtesy of {listing.listOfficeName}
+            <p className="text-[11px] text-brand-dark/50 mt-2 font-light">
+              <span className="font-semibold text-brand-dark/70">RLS</span> &middot; {listing.listOfficeName}
             </p>
           )}
         </Link>
