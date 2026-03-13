@@ -15,8 +15,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { experiment_listing_id, event_type, value, metadata } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { experiment_listing_id, event_type, value, metadata } = body as { experiment_listing_id?: string; event_type?: string; value?: number; metadata?: Record<string, unknown> };
 
   if (!experiment_listing_id) {
     return NextResponse.json({ ok: false, error: "experiment_listing_id required" }, { status: 400 });

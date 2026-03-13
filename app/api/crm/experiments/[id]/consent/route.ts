@@ -18,8 +18,13 @@ export async function POST(
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
-  const body = await req.json();
-  const { experiment_listing_id, consent_method } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { experiment_listing_id, consent_method } = body as { experiment_listing_id?: string; consent_method?: string };
 
   if (!experiment_listing_id) {
     return NextResponse.json({ ok: false, error: "experiment_listing_id required" }, { status: 400 });

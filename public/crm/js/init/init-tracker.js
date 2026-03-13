@@ -62,7 +62,7 @@
         }
 
         function _computeMatchEstimate() {
-            if (typeof mockListings === 'undefined' || !mockListings || mockListings.length === 0) return;
+            if (typeof listings === 'undefined' || !listings || listings.length === 0) return;
             if (typeof collectSearchCriteria !== 'function') return;
             if (typeof filterListings !== 'function') return;
 
@@ -86,7 +86,7 @@
                     return;
                 }
 
-                var matched = filterListings(mockListings, criteria);
+                var matched = filterListings(listings, criteria);
                 countEl.textContent = matched.length.toLocaleString();
                 wrapper.classList.remove('hidden');
                 wrapper.classList.add('flex');

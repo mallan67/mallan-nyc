@@ -30,7 +30,7 @@
                 var tbodyHTML = '<tbody class="divide-y divide-gray-100">';
                 console.log('[Render] Grid: ' + listings.length + ' listings to render, viewMode=' + searchResultsState.viewMode);
                 if (listings.length === 0) {
-                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (mockListings.length || 0) + ' listings loaded.</td></tr>';
+                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (listings.length || 0) + ' listings loaded.</td></tr>';
                 } else {
                     listings.forEach(function(listing) {
                         try {

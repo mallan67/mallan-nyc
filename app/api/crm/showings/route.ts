@@ -24,7 +24,9 @@ export async function GET(req: NextRequest) {
     where.agent_id = auth.userId;
   }
 
+  const showingType = searchParams.get("type");
   if (status) where.status = status;
+  if (showingType) where.type = showingType;
   if (dateFrom || dateTo) {
     where.date = {};
     if (dateFrom) (where.date as Record<string, unknown>).gte = new Date(dateFrom);

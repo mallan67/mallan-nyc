@@ -43,7 +43,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const { neighborhood, alert_type, threshold } = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { neighborhood, alert_type, threshold } = body as { neighborhood?: string; alert_type?: string; threshold?: number };
 
   if (!neighborhood || !alert_type) {
     return NextResponse.json(

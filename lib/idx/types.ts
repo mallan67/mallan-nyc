@@ -165,6 +165,15 @@ export interface IDXListing {
   petsAllowed?: string;
   furnished?: string;
 
+  // FARE Act fee transparency (NYC LL 119/2024)
+  moveInCosts?: string;
+  ongoingFees?: string;
+  tenantPaysDescription?: string;
+  additionalFeeYN?: boolean;
+  additionalFee?: number;
+  additionalFeeDescription?: string;
+  feeFrequency?: string;
+
   // Compliance
   _source: 'idx' | 'exclusive' | 'manual';
   _lastFetched: string;

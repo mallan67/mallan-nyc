@@ -34,7 +34,7 @@
 
         function showListingDetail(listingId) {
             try {
-            var listing = mockListings.find(l => l.id === listingId);
+            var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
             _detailCurrentId = listingId;
             _detailPhotoIdx = 0;
@@ -1141,7 +1141,7 @@
 
         // ── Share listing link (copy or native share) ──
         function shareListing(listingId) {
-            var listing = mockListings.find(function(l) { return l.id == listingId; });
+            var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) return;
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var isSale = listing.listingCategory !== 'rental';
@@ -1161,7 +1161,7 @@
 
         // ── Send Agent Inquiry — emails the listing agent directly from the system ──
         function sendAgentInquiry(listingId) {
-            var listing = mockListings.find(function(l) { return l.id === listingId; });
+            var listing = listings.find(function(l) { return l.id === listingId; });
             if (!listing) { showToast('Listing not found.', 'error'); return; }
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var agentName = agent.name || '';
@@ -1238,7 +1238,7 @@
         }
 
         function detailSetPhoto(idx) {
-            var listing = mockListings.find(l => l.id === _detailCurrentId);
+            var listing = listings.find(l => l.id === _detailCurrentId);
             if (!listing || !listing.images) return;
             _detailPhotoIdx = idx;
             var img = document.getElementById('detailMainPhotoImg');
@@ -1248,14 +1248,14 @@
         }
 
         function detailPhotoPrev() {
-            var listing = mockListings.find(l => l.id === _detailCurrentId);
+            var listing = listings.find(l => l.id === _detailCurrentId);
             if (!listing || !listing.images) return;
             _detailPhotoIdx = (_detailPhotoIdx - 1 + listing.images.length) % listing.images.length;
             detailSetPhoto(_detailPhotoIdx);
         }
 
         function detailPhotoNext() {
-            var listing = mockListings.find(l => l.id === _detailCurrentId);
+            var listing = listings.find(l => l.id === _detailCurrentId);
             if (!listing || !listing.images) return;
             _detailPhotoIdx = (_detailPhotoIdx + 1) % listing.images.length;
             detailSetPhoto(_detailPhotoIdx);
@@ -1265,7 +1265,7 @@
         var _lightboxIdx = 0;
 
         function openPhotoLightbox(idx) {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images || !listing.images.length) return;
             _lightboxIdx = idx || 0;
 
@@ -1310,7 +1310,7 @@
         }
 
         function updateLightbox(listing) {
-            if (!listing) listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images) return;
             var img = listing.images[_lightboxIdx];
             if (!img) return;
@@ -1334,14 +1334,14 @@
         }
 
         function lightboxPrev() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images) return;
             _lightboxIdx = (_lightboxIdx - 1 + listing.images.length) % listing.images.length;
             updateLightbox(listing);
         }
 
         function lightboxNext() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images) return;
             _lightboxIdx = (_lightboxIdx + 1) % listing.images.length;
             updateLightbox(listing);
@@ -1433,7 +1433,7 @@
         }
 
         function printListingDetail() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) return;
             var isSale = listing.listingCategory !== 'rental';
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
@@ -1442,7 +1442,7 @@
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '', address: '400 East 90th Street, Suite 17C, New York, NY 10128' };
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
 
             // Build full HTML string (CSP-safe — no document.write)
             var h = '<!DOCTYPE html><html><head><title>' + displayAddress + displayUnit + ' — Listing Detail</title>';
@@ -1484,7 +1484,7 @@
 
             // Dual agent blocks — prepared by (our agent) + listing agent (from RLS)
             h += '<div class="dual-agent">';
-            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '#10991205323') + '<br>' + (_agent.address || '400 East 90th St, Suite 17C, NY 10128') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
+            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '') + '<br>' + (_agent.address || '') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
             h += '<div><div class="label">Listing Agent</div><div class="name">' + escapeHtml(listing.agentName || '---') + '</div><div class="info">' + escapeHtml(listing.company || '---') + '<br>' + escapeHtml(listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + escapeHtml(listing.agentEmail) : '') + '<br>' + escapeHtml(listing.listingType || 'Exclusive') + '</div></div>';
             h += '</div>';
 
@@ -1547,7 +1547,7 @@
             h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
 
             // Footer
-            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '#10991205323') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
+            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
 
             // Toolbar (hidden when printing)
             h += '<div class="print-toolbar" style="position:sticky;top:0;z-index:100;background:#1e293b;padding:10px 20px;display:flex;align-items:center;gap:16px;font-family:Manrope,sans-serif;margin:-40px -48px 20px -48px"><span style="color:#fff;font-weight:700;font-size:15px">' + displayAddress + displayUnit + '</span><span style="flex:1"></span><button onclick="window.print()" style="background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-print"></i> Print</button><button onclick="window.close()" style="background:#475569;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer">Close</button></div>';
@@ -1558,13 +1558,13 @@
         }
 
         function emailListingDetail() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) return;
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
-            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nListing Agent: ' + (listing.agentName || '---') + ' — ' + (listing.company || '---') + '\nPhone: ' + (listing.agentPhone || '---') + '\nEmail: ' + (listing.agentEmail || '---') + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\nPrepared by ' + _agent.name + '\n' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '\n' + _agent.company + ' | Lic. ' + (_agent.companyLicense || '#10991205323') + '\n' + _agent.phone + ' | ' + _agent.email + (_agent.license ? '\nAgent License ' + _agent.license : '') + '\n\nEqual Housing Opportunity');
+            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nListing Agent: ' + (listing.agentName || '---') + ' — ' + (listing.company || '---') + '\nPhone: ' + (listing.agentPhone || '---') + '\nEmail: ' + (listing.agentEmail || '---') + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\nPrepared by ' + _agent.name + '\n' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '\n' + _agent.company + ' | Lic. ' + (_agent.companyLicense || '') + '\n' + _agent.phone + ' | ' + _agent.email + (_agent.license ? '\nAgent License ' + _agent.license : '') + '\n\nEqual Housing Opportunity');
             window.open('mailto:?subject=' + subject + '&body=' + body);
         }
 
@@ -2028,7 +2028,7 @@
 
             // Mockup: simulate commute times based on distance
             // In production this would call Google Directions or MapBox
-            var listing = mockListings.find(function(l) { return l.id == listingId; });
+            var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) listing = { latitude: 40.7831, longitude: -73.9554 };
 
             // Simulate reasonable NYC commute times

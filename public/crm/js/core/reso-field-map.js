@@ -40,7 +40,7 @@
             priceChangeTs:  'PriceChangeTimestamp',      // RLS: PriceChangeTimestamp (system)
             closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MLSStatus=Closed
             closeDate:      'CloseDate',                 // RLS: CloseDate. Must >= PurchaseContractDate
-            closedDate:     'CloseDate',                 // alias — mock data uses closedDate, RESO uses CloseDate
+            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, RESO uses CloseDate
 
             // ── Unit Details ──
             rooms:          'RoomsTotal',                // RLS: RoomsTotal

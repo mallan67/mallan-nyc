@@ -157,6 +157,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     openGraph: {
       title: `${buildingLabel} | Mallan Real Estate`,
       description: `Building details, available units, and sales history at ${buildingLabel}.`,
+      images: [{ url: 'https://mallan.nyc/images/og-default.png', width: 1200, height: 630, alt: buildingLabel }],
       type: 'website',
     },
   };

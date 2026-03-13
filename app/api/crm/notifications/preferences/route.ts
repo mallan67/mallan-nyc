@@ -32,8 +32,20 @@ export async function PUT(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { new_match, price_drop, showing_updates, offer_updates, email_digest, sms_enabled } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { new_match, price_drop, showing_updates, offer_updates, email_digest, sms_enabled } = body as {
+    new_match?: boolean; price_drop?: boolean; showing_updates?: boolean;
+    offer_updates?: boolean; email_digest?: string; sms_enabled?: boolean;
+  };
+
+  if (email_digest && !["daily", "weekly", "off"].includes(email_digest)) {
+    return NextResponse.json({ error: "email_digest must be 'daily', 'weekly', or 'off'" }, { status: 400 });
+  }
 
   const prefs = await prisma.notificationPreference.upsert({
     where: { recipient_type_recipient_id: { recipient_type: "agent", recipient_id: auth.userId } },

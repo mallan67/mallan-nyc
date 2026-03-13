@@ -664,7 +664,7 @@
           "leaseTermMin": {"label":"Min Lease Term (months)","type":"select","rlsField":"LeaseTerm",
             "options": [{"value":"","label":"Any"},{"value":"1","label":"1"},{"value":"3","label":"3"},{"value":"6","label":"6"},{"value":"12","label":"12"},{"value":"24","label":"24"}]},
           "availableDate": {"label":"Available From","type":"dateRange","rlsField":"AvailabilityDate"},
-          "moveInCosts": {"label":"Move-In Costs","type":"text","rlsField":"MoveInCosts","note":"FARE Act fee fields not yet live in RLS — interim via MoveInCosts + PublicRemarks"}
+          "moveInCosts": {"label":"Move-In Costs","type":"text","rlsField":"MoveInCosts","note":"FARE Act fee field — now live in Trestle (March 2026)"}
         }
       },
       {
@@ -953,7 +953,7 @@
     "dataStandard": "RESO DD 2.0",
     "lmp": "RealPlus",
     "compensationFieldsRemoved": "2025-08-01",
-    "fareActFeeFields": "NOT LIVE — use MoveInCosts + PublicRemarks interim",
+    "fareActFeeFields": "LIVE — MoveInCosts, OngoingFees, TenantPays, TenantPaysDescription, AdditionalFee/Description/YN, FeeFrequency",
     "cacheTTL": 300,
     "mediaExpand": "$expand=Media",
     "requiredFields": 41,

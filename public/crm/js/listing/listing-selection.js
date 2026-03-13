@@ -68,7 +68,7 @@
 
         function removeFromResults() {
             // Validate: only keep IDs that exist in the current result set
-            var currentIds = (searchResultsState.filteredListings || mockListings).map(function(l) { return l.id; });
+            var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
             searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
                 return currentIds.indexOf(id) !== -1;
             });
@@ -82,8 +82,8 @@
             var removeSet = {};
             searchResultsState.selectedListings.forEach(function(id) { removeSet[id] = true; });
 
-            // Actually remove from the filtered results (or create filtered copy of mockListings)
-            var source = searchResultsState.filteredListings || mockListings.slice();
+            // Actually remove from the filtered results (or create filtered copy of listings)
+            var source = searchResultsState.filteredListings || listings.slice();
             searchResultsState.filteredListings = source.filter(function(l) {
                 return !removeSet[l.id];
             });
@@ -224,7 +224,7 @@
             var blocked = 0;
 
             searchResultsState.selectedListings.forEach(function(listingId) {
-                var listing = mockListings.find(function(l) { return l.id === listingId; });
+                var listing = listings.find(function(l) { return l.id === listingId; });
                 if (!listing) return;
 
                 // REBNY RLS Distribution Gates: Block non-displayable listings from client portfolio
@@ -295,7 +295,7 @@
                 pl.status = (pl.status === feedback) ? 'new' : feedback;
             } else {
                 // Not in portfolio yet — add it with feedback (auto-save)
-                var listing = mockListings.find(function(l) { return l.id === listingId; });
+                var listing = listings.find(function(l) { return l.id === listingId; });
                 var feedbackPerm = listing ? (listing.permissions || {}) : {};
                 if (listing && (feedbackPerm.ownerOptOut === true || listing.internetDisplayYN === false)) {
                     console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — Owner Opt-Out or InternetEntireListingDisplayYN=false');

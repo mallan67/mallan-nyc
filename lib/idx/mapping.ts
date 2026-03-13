@@ -142,6 +142,16 @@ export const RESO_FIELDS = {
   LeaseAmountFrequency: 'LeaseAmountFrequency',
   PetsAllowed: 'PetsAllowed',
   Furnished: 'Furnished',
+
+  // FARE Act fee transparency (NYC LL 119/2024)
+  MoveInCosts: 'MoveInCosts',
+  OngoingFees: 'OngoingFees',
+  TenantPays: 'TenantPays',
+  TenantPaysDescription: 'TenantPaysDescription',
+  AdditionalFee: 'AdditionalFee',
+  AdditionalFeeDescription: 'AdditionalFeeDescription',
+  AdditionalFeeYN: 'AdditionalFeeYN',
+  FeeFrequency: 'FeeFrequency',
 } as const;
 
 /**
@@ -216,6 +226,14 @@ export const FIELD_MAP: Record<string, string> = {
   [RESO_FIELDS.LeaseAmountFrequency]: 'leaseAmountFrequency',
   [RESO_FIELDS.PetsAllowed]: 'petsAllowed',
   [RESO_FIELDS.Furnished]: 'furnished',
+  [RESO_FIELDS.MoveInCosts]: 'moveInCosts',
+  [RESO_FIELDS.OngoingFees]: 'ongoingFees',
+  [RESO_FIELDS.TenantPays]: 'tenantPays',
+  [RESO_FIELDS.TenantPaysDescription]: 'tenantPaysDescription',
+  [RESO_FIELDS.AdditionalFee]: 'additionalFee',
+  [RESO_FIELDS.AdditionalFeeDescription]: 'additionalFeeDescription',
+  [RESO_FIELDS.AdditionalFeeYN]: 'additionalFeeYN',
+  [RESO_FIELDS.FeeFrequency]: 'feeFrequency',
 };
 
 /**
@@ -361,6 +379,14 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     leaseAmountFrequency: normalized.LeaseAmountFrequency ? String(normalized.LeaseAmountFrequency) : undefined,
     petsAllowed: normalized.PetsAllowed ? String(normalized.PetsAllowed) : undefined,
     furnished: normalized.Furnished ? String(normalized.Furnished) : undefined,
+    // FARE Act fee fields
+    moveInCosts: normalized.MoveInCosts ? String(normalized.MoveInCosts) : undefined,
+    ongoingFees: normalized.OngoingFees ? String(normalized.OngoingFees) : undefined,
+    tenantPaysDescription: normalized.TenantPaysDescription ? String(normalized.TenantPaysDescription) : undefined,
+    additionalFeeYN: normalized.AdditionalFeeYN === true || normalized.AdditionalFeeYN === 'true' ? true : undefined,
+    additionalFee: normalized.AdditionalFee != null ? Number(normalized.AdditionalFee) : undefined,
+    additionalFeeDescription: normalized.AdditionalFeeDescription ? String(normalized.AdditionalFeeDescription) : undefined,
+    feeFrequency: normalized.FeeFrequency ? String(normalized.FeeFrequency) : undefined,
     _source: 'idx',
     _lastFetched: new Date().toISOString(),
     _displayCompliance: {

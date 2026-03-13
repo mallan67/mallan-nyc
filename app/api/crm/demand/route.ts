@@ -48,7 +48,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const { neighborhood, borough } = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { neighborhood, borough } = body as { neighborhood?: string; borough?: string };
   if (!neighborhood || typeof neighborhood !== "string") {
     return NextResponse.json({ ok: false, error: "neighborhood is required" }, { status: 400 });
   }

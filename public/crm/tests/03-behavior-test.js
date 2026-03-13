@@ -12,8 +12,8 @@ function REBNYBehaviorTest(options) {
     // ── B1: Zero-Result Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B1', 'Zero-Result', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and mockListings array both must exist'); return; }
-        var r = filterListings(mockListings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and listings array both must exist'); return; }
+        var r = filterListings(listings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
         var noErr = true;
         try { r.slice().sort(function(a,b){return a.price-b.price;}); } catch(e) { noErr = false; }
         addResult('B1', 'Zero-Result', (r.length === 0 && noErr) ? 'PASS' : 'FAIL', r.length === 0 ? 'Impossible criteria → 0 results, no error' : 'Got ' + r.length + ' results');
@@ -22,14 +22,14 @@ function REBNYBehaviorTest(options) {
     // ── B2: High Volume Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B2', 'High Volume', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof mockListings === 'undefined' || typeof getFilteredListings !== 'function') { addResult('B2', 'High Volume', 'FAIL', 'Required globals missing: mockListings and getFilteredListings must exist'); return; }
-        var origLen = mockListings.length, tpl = mockListings[0];
-        for (var i = 0; i < 200; i++) { var f = {}; for (var k in tpl) { if (tpl.hasOwnProperty(k)) f[k] = tpl[k]; } f.id = 90000+i; f.lid = 'FAKE-'+i; f.price = Math.floor(Math.random()*5e6)+5e5; mockListings.push(f); }
+        if (typeof listings === 'undefined' || typeof getFilteredListings !== 'function') { addResult('B2', 'High Volume', 'FAIL', 'Required globals missing: listings and getFilteredListings must exist'); return; }
+        var origLen = listings.length, tpl = listings[0];
+        for (var i = 0; i < 200; i++) { var f = {}; for (var k in tpl) { if (tpl.hasOwnProperty(k)) f[k] = tpl[k]; } f.id = 90000+i; f.lid = 'FAKE-'+i; f.price = Math.floor(Math.random()*5e6)+5e5; listings.push(f); }
         var t0 = performance.now();
         var pg = getFilteredListings(false);
         var all = getFilteredListings(true);
         var ms = Math.round(performance.now() - t0);
-        mockListings.splice(origLen);
+        listings.splice(origLen);
         var pgOK = pg.length <= (searchResultsState.perPage || 50);
         addResult('B2', 'High Volume', (pgOK && ms < 500) ? 'PASS' : 'FAIL', '200+ listings: ' + pg.length + '/' + all.length + ' paginated, ' + ms + 'ms (limit: 500ms, page size: ' + (searchResultsState.perPage || 50) + ')');
     })();

@@ -142,6 +142,14 @@ export interface PublicListingDTO {
   petsAllowed?: string;
   furnished?: string;
   availabilityDate?: string;
+  // FARE Act fee transparency
+  moveInCosts?: string;
+  ongoingFees?: string;
+  tenantPaysDescription?: string;
+  additionalFeeYN?: boolean;
+  additionalFee?: number;
+  additionalFeeDescription?: string;
+  feeFrequency?: string;
   // Compliance metadata
   _source: string;
   _displayCompliance: {
@@ -270,6 +278,13 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     petsAllowed: listing.petsAllowed,
     furnished: listing.furnished,
     availabilityDate: listing.availabilityDate,
+    moveInCosts: listing.moveInCosts,
+    ongoingFees: listing.ongoingFees,
+    tenantPaysDescription: listing.tenantPaysDescription,
+    additionalFeeYN: listing.additionalFeeYN,
+    additionalFee: listing.additionalFee,
+    additionalFeeDescription: listing.additionalFeeDescription,
+    feeFrequency: listing.feeFrequency,
     // Source & compliance
     _source: listing._source,
     _displayCompliance: {

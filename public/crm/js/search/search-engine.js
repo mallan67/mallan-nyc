@@ -157,8 +157,8 @@
                 }
 
                 // Filter locally loaded listings
-                var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
-                var localResults = hasLocalData ? filterListings(mockListings, activeSearchCriteria) : [];
+                var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
+                var localResults = hasLocalData ? filterListings(listings, activeSearchCriteria) : [];
 
                 // Show results section (with local results or empty while server loads)
                 searchResultsState.filteredListings = localResults;
@@ -265,11 +265,11 @@
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
 
-                // Merge server results into mockListings (preserving existing data with photos)
+                // Merge server results into listings (preserving existing data with photos)
                 var existingById = {};
-                mockListings.forEach(function(l) { existingById[l.id] = l; });
+                listings.forEach(function(l) { existingById[l.id] = l; });
                 var existingByLid = {};
-                mockListings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
+                listings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
                 serverListings.forEach(function(l) {
                     var existing = existingById[l.id] || (l.lid ? existingByLid[l.lid] : null);
                     if (existing) {
@@ -278,7 +278,7 @@
                             l.images = existing.images;
                         }
                     } else {
-                        mockListings.push(l);
+                        listings.push(l);
                     }
                 });
 
@@ -402,9 +402,9 @@
                 });
             }
 
-            // Also search mockListings for address matches
-            if (typeof mockListings !== 'undefined') {
-                mockListings.forEach(function(listing) {
+            // Also search listings for address matches
+            if (typeof listings !== 'undefined') {
+                listings.forEach(function(listing) {
                     var already = matches.some(function(m) { return m.address === listing.address; });
                     if (already) return;
                     if (normalizeAddress(listing.address).indexOf(normalizedQuery) !== -1 ||
@@ -659,7 +659,7 @@
                             var parts = val.split(',');
                             parts.forEach(function(part) {
                                 var s = part.trim();
-                                // Map to uppercase used in mock data
+                                // Map to uppercase
                                 if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
                                 else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
                                 else if (s === 'Future') criteria.statuses.push('FUTURE');
@@ -1077,7 +1077,7 @@
         }
 
         function updateResultsCount() {
-            var filtered = searchResultsState.filteredListings || mockListings;
+            var filtered = searchResultsState.filteredListings || listings;
             var count = filtered.length;
             var perPage = searchResultsState.perPage || 50;
             var totalPages = Math.max(1, Math.ceil(count / perPage));
@@ -1330,8 +1330,8 @@
             syncRefineToMainForm(c);
 
             // Re-filter and re-render
-            if (typeof mockListings !== 'undefined' && typeof searchResultsState !== 'undefined') {
-                searchResultsState.filteredListings = filterListings(mockListings, c);
+            if (typeof listings !== 'undefined' && typeof searchResultsState !== 'undefined') {
+                searchResultsState.filteredListings = filterListings(listings, c);
                 searchResultsState.currentPage = 1;
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -1516,7 +1516,7 @@
                 // Rebuild filteredListings from saved IDs
                 var idSet = {};
                 state.filteredIds.forEach(function(id) { idSet[id] = true; });
-                searchResultsState.filteredListings = mockListings.filter(function(l) { return idSet[l.id]; });
+                searchResultsState.filteredListings = listings.filter(function(l) { return idSet[l.id]; });
                 searchResultsState.currentPage = state.page || 1;
 
                 return true;

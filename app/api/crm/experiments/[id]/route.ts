@@ -66,7 +66,12 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
   const data: Record<string, unknown> = {};
   const allowed = ["name", "description", "target_sample_size", "conclusion_notes"];
 

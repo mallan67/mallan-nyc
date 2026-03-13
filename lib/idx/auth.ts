@@ -54,14 +54,23 @@ export async function getAccessToken(): Promise<string> {
     scope: "api",
   });
 
-  const response = await fetch(getTrestleTokenEndpoint(), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-    // MUST NOT cache POST requests — stale tokens cause 401 cascades.
-    // In-memory cache (line 15) handles reuse within a single serverless instance.
-    cache: "no-store",
-  });
+  // 8-second timeout on token requests — prevents page hanging when Trestle auth is slow/down.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8_000);
+  let response: Response;
+  try {
+    response = await fetch(getTrestleTokenEndpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      signal: controller.signal,
+      // MUST NOT cache POST requests — stale tokens cause 401 cascades.
+      // In-memory cache (line 15) handles reuse within a single serverless instance.
+      cache: "no-store",
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");

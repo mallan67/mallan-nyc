@@ -71,7 +71,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const body = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const updates: Prisma.SavedSearchUpdateInput = {};
 
     if (body.name !== undefined) {

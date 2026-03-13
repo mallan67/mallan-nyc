@@ -100,9 +100,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
   const agent = await getAgentBySlug(name);
   if (!agent) return { title: 'Agent Not Found | Mallan Real Estate' };
+  const ogImage = agent.photo && !agent.photo.includes('placeholder')
+    ? agent.photo
+    : 'https://mallan.nyc/images/og-default.png';
   return {
     title: `${agent.name} | ${agent.title} | Mallan Real Estate`,
     description: `${agent.name}, ${agent.title} at Mallan Real Estate. ${agent.bio.substring(0, 155)}...`,
+    openGraph: {
+      title: `${agent.name} | ${agent.title}`,
+      description: `${agent.name}, ${agent.title} at Mallan Real Estate.`,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: agent.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${agent.name} | ${agent.title}`,
+      images: [ogImage],
+    },
   };
 }
 

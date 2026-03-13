@@ -53,8 +53,13 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { status, notes } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { status, notes } = body as { status?: string; notes?: string };
   const data: Record<string, unknown> = {};
   if (status && ["draft", "final", "sent"].includes(status)) data.status = status;
   if (notes !== undefined) data.notes = notes;

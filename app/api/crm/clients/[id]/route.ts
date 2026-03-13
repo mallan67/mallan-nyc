@@ -129,7 +129,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.phone !== undefined) update.phone = String(body.phone);
   if (body.status !== undefined) update.status = String(body.status);
   if (body.portal_role !== undefined) update.portal_role = body.portal_role as string | null;
-  if (body.notes !== undefined) update.source = String(body.source ?? lead.source);
+  if (body.notes !== undefined) update.notes = String(body.notes);
+  if (body.source !== undefined) update.source = String(body.source);
   if (body.roles !== undefined) {
     const validRoles = ["buyer", "renter", "seller", "landlord"];
     const roles = body.roles as string[];

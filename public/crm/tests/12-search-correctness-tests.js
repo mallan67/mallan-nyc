@@ -11,9 +11,9 @@ function SearchCorrectnessTests(options) {
     // S1: Type coercion test (ACTIVE)
     (function() {
         if (!runActive) { addResult('S1', 'Type Coercion', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
-        var numResult = filterListings(mockListings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
-        var strResult = filterListings(mockListings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and listings must exist'); return; }
+        var numResult = filterListings(listings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
+        var strResult = filterListings(listings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
         var numIds = numResult.map(function(l) { return l.id; }).sort();
         var strIds = strResult.map(function(l) { return l.id; }).sort();
         var match = numIds.length === strIds.length && numIds.every(function(id, i) { return id === strIds[i]; });
@@ -24,9 +24,9 @@ function SearchCorrectnessTests(options) {
     // S2: Range normalization (ACTIVE)
     (function() {
         if (!runActive) { addResult('S2', 'Range Normalization', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         var noErr = true, result = [];
-        try { result = filterListings(mockListings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
+        try { result = filterListings(listings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
         addResult('S2', 'Range Normalization', noErr ? 'PASS' : 'FAIL',
             noErr ? 'Min>Max handled gracefully → ' + result.length + ' results (no crash)' : 'Exception thrown on inverted range');
     })();
@@ -34,8 +34,8 @@ function SearchCorrectnessTests(options) {
     // S3: Multi-select AND/OR semantics (ACTIVE)
     (function() {
         if (!runActive) { addResult('S3', 'Multi-Select Semantics', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
-        var saleOnly = filterListings(mockListings, { searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and listings must exist'); return; }
+        var saleOnly = filterListings(listings, { searchTab: 'sale' });
         var checks = [], issues = [];
         // Property type multi-select should be OR (broader results)
         if (saleOnly.length > 0) {
@@ -43,8 +43,8 @@ function SearchCorrectnessTests(options) {
             saleOnly.forEach(function(l) { if (l.propertyType) types[l.propertyType] = true; });
             var typeKeys = Object.keys(types);
             if (typeKeys.length >= 2) {
-                var single = filterListings(mockListings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
-                var multi = filterListings(mockListings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
+                var single = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
+                var multi = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
                 if (multi.length >= single.length) checks.push('type-OR(' + single.length + '→' + multi.length + ')');
                 else issues.push('Multi-type returned fewer results (AND instead of OR?)');
             } else { checks.push('single-type-only'); }
@@ -93,16 +93,16 @@ function SearchCorrectnessTests(options) {
     // S6: NeighborhoodCanonical on ingest (ACTIVE)
     (function() {
         if (!runActive) { addResult('S6', 'NeighborhoodCanonical Ingest', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof mockListings === 'undefined') { addResult('S6', 'NeighborhoodCanonical Ingest', 'FAIL', 'mockListings not available'); return; }
+        if (typeof listings === 'undefined') { addResult('S6', 'NeighborhoodCanonical Ingest', 'FAIL', 'listings not available'); return; }
         var issues = [];
         var withCanonical = 0, withNeighborhood = 0;
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.neighborhood) withNeighborhood++;
             if (l.neighborhoodCanonical) withCanonical++;
         });
         if (withNeighborhood > 0 && withCanonical === 0) issues.push('No listings have neighborhoodCanonical (alias map may not have loaded)');
         // Every listing with neighborhood should have canonical
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.neighborhood && !l.neighborhoodCanonical) issues.push('Listing ' + l.id + ' has neighborhood but no canonical');
         });
         addResult('S6', 'NeighborhoodCanonical Ingest', issues.length === 0 ? 'PASS' : 'WARN',

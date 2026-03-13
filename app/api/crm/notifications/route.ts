@@ -42,8 +42,21 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { recipient_type, recipient_id, type, title, body: notifBody, channel, data } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { recipient_type, recipient_id, type, title, body: notifBody, channel, data } = body as {
+    recipient_type?: "agent" | "lead";
+    recipient_id?: string;
+    type?: "new_match" | "price_drop" | "showing_confirmed" | "offer_status" | "listing_update" | "system";
+    title?: string;
+    body?: string;
+    channel?: "in_app" | "email" | "sms";
+    data?: Record<string, unknown>;
+  };
 
   if (!recipient_type || !recipient_id || !type || !title || !notifBody) {
     return NextResponse.json({ ok: false, error: "recipient_type, recipient_id, type, title, body are required" }, { status: 400 });
@@ -67,10 +80,17 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   if (body.action === "mark_all_read") {
     await markAllRead("agent", auth.userId);
@@ -79,7 +99,7 @@ export async function PATCH(req: NextRequest) {
 
   if (body.id) {
     await prisma.notification.update({
-      where: { id: BigInt(body.id) },
+      where: { id: BigInt(body.id as string) },
       data: { read_at: new Date() },
     });
     return NextResponse.json({ ok: true });

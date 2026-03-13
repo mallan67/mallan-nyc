@@ -341,6 +341,20 @@ const FIELD_ALIASES = {
   'QuickZip':              'PostalCode',
   'SearchAddress':         'StreetName',
   'QuickUnit':             'UnitNumber',
+
+  // FARE Act fields (CustomProperty entity — not in 448-field CSV)
+  'TenantPaysDescription':    'TenantPaysDescription',
+  'AdditionalFeeYN':          'AdditionalFeeYN',
+  'AdditionalFee':            'AdditionalFee',
+  'AdditionalFeeDescription': 'AdditionalFeeDescription',
+  'AdditionalFeeFrequency':   'AdditionalFeeFrequency',
+
+  // Distribution — VOW opt-out toggle
+  'Dist_VOW':                 'InternetEntireListingDisplayYN',
+
+  // REBNY custom fields (not in 448-field CSV, in CustomFields JSON)
+  'LobbyAttendant':           'AttendanceType',
+  'OwnershipType':            'OwnershipType',
 };
 
 // ── Internal-Only Fields ─────────────────────────────────────────────────
@@ -599,6 +613,73 @@ const INTERNAL_ONLY_FIELDS = new Set([
 
   // landLease checkbox (search)
   'landLease',
+
+  // ── Form UI controls (sale/rental) ──
+  'PhotoSortOrder', 'CityDisplay',
+
+  // ── Search neighborhood/map inputs ──
+  'saleNeighborhoodInput', 'rentalNeighborhoodInput',
+  'buildingNeighborhoodInput', 'advancedNeighborhoodInput',
+  'nbMapSearch', 'nbMapStyleSelect',
+  'NeighborhoodInput',  // after prefix strip
+
+  // ── CRM portal notes/search ──
+  'cpNoteInput', 'soldSearchInput',
+
+  // ── CRM filters ──
+  'brokerPipelineFilter', 'commReqDeal', 'recentListingsFilter',
+  'clientBookAgentFilter', 'ceAgentSelect', 'timelineFilter',
+  'dealPipelineTypeFilter', 'dealAnalyticsAgentFilter',
+
+  // ── CRM audit filters ──
+  'auditFilterUser', 'auditFilterAction', 'auditFilterEntity',
+  'auditFilterFrom', 'auditFilterTo',
+
+  // ── CRM lead assignment ──
+  'leadAssignAgent',
+
+  // ── CRM settings ──
+  'settingsBrokerName', 'settingsBrokerLicense', 'settingsBrokerPhone', 'settingsBrokerEmail',
+
+  // ── Buyer financial planning calculator (bfp) ──
+  'bfp0-dp', 'bfp0-rate', 'bfp0-term', 'bfp0-ins',
+  'bfp1-dp', 'bfp1-rate', 'bfp1-term', 'bfp1-ins',
+  'bfp2-dp', 'bfp2-rate', 'bfp2-term', 'bfp2-ins',
+
+  // ── Buyer portal controls ──
+  'buyerCashAvailable', 'buyerDefaultDP', 'buyerDefaultRate',
+  'buyerShareUrl', 'buyerShareNote', 'buyerDealPropertySelect',
+
+  // ── Tenant rent vs buy calculator (trvb) ──
+  'trvb0-price', 'trvb0-dp', 'trvb0-rate', 'trvb0-years',
+  'trvb1-price', 'trvb1-dp', 'trvb1-rate', 'trvb1-years',
+  'trvb2-price', 'trvb2-dp', 'trvb2-rate', 'trvb2-years',
+
+  // ── Tenant portal controls ──
+  'tenantShareUrl', 'tenantShareNote',
+
+  // ── Portal invite forms ──
+  'buyerInviteEmail', 'buyerInviteRelationship', 'buyerInviteMessage',
+  'tenantInviteEmail', 'tenantInviteRelationship', 'tenantInviteMessage',
+
+  // ── Showing request modal (trm) ──
+  'trm-listing-select', 'trmType', 'trm-date1', 'trm-time1',
+  'trm-date2', 'trm-time2', 'trm-notes',
+
+  // ── Client listing modal calculator (clm) ──
+  'clm-calc-dp', 'clm-calc-rate', 'clm-calc-term', 'clm-calc-ins',
+  'clm-rcalc-price', 'clm-rcalc-dp', 'clm-rcalc-rate', 'clm-rcalc-years',
+
+  // ── CRM command palette ──
+  'cmdPaletteInput',
+
+  // ── Showing feedback form ──
+  'feedbackRatingValue', 'feedbackInterestLevel', 'feedbackPros',
+  'feedbackCons', 'feedbackFollowUp', 'feedbackNotes',
+
+  // ── Dynamic template IDs (JS string concat artifacts in viewers) ──
+  "coListCompanySearch' + n + '", "coListCompany' + n + '",
+  "coListAgentSearch' + n + '", "coListAgentHidden' + n + '",
 ]);
 
 // ── CSV Parsers ──────────────────────────────────────────────────────────

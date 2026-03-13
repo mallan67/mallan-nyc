@@ -53,8 +53,8 @@ function REBNYWiringTest(options) {
         document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
-        if (typeof mockListings !== 'undefined') {
-            mockListings.forEach(function(l) {
+        if (typeof listings !== 'undefined') {
+            listings.forEach(function(l) {
                 if (l.listingCategory && ['sale','rental'].indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '"');
             });
         }
@@ -69,8 +69,8 @@ function REBNYWiringTest(options) {
             var t = el.textContent.trim();
             if (t === 'undefined' || t === 'null' || t === 'NaN' || t === '$NaN' || t === '$undefined') problems.push('"' + t + '" in <' + el.tagName.toLowerCase() + '>');
         });
-        if (typeof mockListings !== 'undefined') {
-            mockListings.forEach(function(l) {
+        if (typeof listings !== 'undefined') {
+            listings.forEach(function(l) {
                 if (l.price == null) problems.push('Null price L-' + l.id);
                 if (l.status == null) problems.push('Null status L-' + l.id);
             });
@@ -107,8 +107,8 @@ function REBNYWiringTest(options) {
 
     // ── W6: Regression Snapshot ────────────────────────────────────────
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('W6', 'Regression Snapshot', 'FAIL', 'mockListings undefined — required test data missing'); return; }
-        var snap = { count: mockListings.length, ids: mockListings.map(function(l){return l.id;}).sort(function(a,b){return a-b;}).join(',') };
+        if (typeof listings === 'undefined') { addResult('W6', 'Regression Snapshot', 'FAIL', 'listings undefined — required test data missing'); return; }
+        var snap = { count: listings.length, ids: listings.map(function(l){return l.id;}).sort(function(a,b){return a-b;}).join(',') };
         var key = 'rebny_regression_snapshot', prev = null;
         try { prev = JSON.parse(localStorage.getItem(key)); } catch(e) {}
         localStorage.setItem(key, JSON.stringify(snap));

@@ -498,10 +498,13 @@ async function fetchFromApiEndpoint(listingId: string): Promise<ListingFetchResu
 /**
  * Fetch a single listing with multi-layer resilience.
  *
- * Resolution order:
- *   1. Direct Trestle fetch (freshest data)
- *   2. Local DB lookup (Prisma — fast, no external dependency)
+ * Resolution order (DB-first for speed):
+ *   1. Local DB lookup (Prisma — 20-80ms, no external dependency)
+ *   2. Direct Trestle fetch (freshest data, but 2-8s and can timeout)
  *   3. Fallback to /api/listings/:id (has local JSON fallback)
+ *
+ * DB-first ensures fast page loads even when Trestle is slow/down.
+ * ISR revalidation (every 5 min) keeps DB data fresh from Trestle.
  *
  * COMPLIANCE: Address slugs are NEVER generated for listings where
  * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
@@ -510,22 +513,22 @@ async function fetchFromApiEndpoint(listingId: string): Promise<ListingFetchResu
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
   const useIDX = process.env.IDX_ENABLED === 'true';
 
-  // Primary: direct Trestle fetch
+  // Primary: local Prisma DB (fast — 20-80ms, no external dependency)
+  try {
+    const dbResult = await fetchFromDB(slug, keyOverride);
+    if (dbResult) return dbResult;
+  } catch (err) {
+    console.warn(`[/listing/${slug}] DB lookup failed:`, err);
+  }
+
+  // Fallback 1: direct Trestle fetch (slower but freshest data)
   if (useIDX) {
     try {
       const result = await fetchFromTrestleDirect(slug, keyOverride);
       if (result) return result;
     } catch (err) {
-      console.error(`[/listing/${slug}] Trestle fetch failed, trying DB fallback:`, err);
+      console.error(`[/listing/${slug}] Trestle fetch failed:`, err);
     }
-  }
-
-  // Fallback 1: local Prisma DB (no external API dependency)
-  try {
-    const dbResult = await fetchFromDB(slug, keyOverride);
-    if (dbResult) return dbResult;
-  } catch (err) {
-    console.warn(`[/listing/${slug}] DB fallback failed:`, err);
   }
 
   // Fallback 2: our own API endpoint (has local JSON fallback)
@@ -827,6 +830,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
     url: `https://mallan.nyc/listing/${listing.slug}`,
     description: listing.publicRemarks?.substring(0, 300) || undefined,
     datePosted: listing.onMarketDate || listing.listingContractDate,
+    dateModified: listing.modificationTimestamp || undefined,
     image: listing.media[0]?.url || undefined,
     offers: {
       '@type': 'Offer',
@@ -875,6 +879,19 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://mallan.nyc/' },
+            { '@type': 'ListItem', position: 2, name: isRental ? 'Rentals' : 'Sales', item: `https://mallan.nyc/${isRental ? 'rent' : 'buy'}` },
+            { '@type': 'ListItem', position: 3, name: borough, item: `https://mallan.nyc/${boroughSlug}` },
+            ...(neighborhood ? [{ '@type': 'ListItem', position: 4, name: neighborhood }] : []),
+          ],
+        }) }}
       />
       {/* ═══ Breadcrumb ═══ */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-black/5 pt-[68px]">

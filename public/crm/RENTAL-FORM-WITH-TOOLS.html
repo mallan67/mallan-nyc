@@ -1053,6 +1053,89 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             </div>
         </div>
 
+        <!-- FARE Act Fee Fields (RLS/Trestle — LIVE March 2026) -->
+        <div class="form-card border-l-4 border-l-blue-500" id="rentalFareActFieldsSection">
+            <div class="form-card-header"><i class="fas fa-receipt"></i> Fee Disclosure <span class="text-xs font-normal text-purple-600 ml-2 normal-case">(FARE Act — NYC LL 119/2024)</span></div>
+            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fields are submitted to REBNY RLS via Trestle.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="field-label">Move-In Costs</label>
+                    <input type="text" id="rentalMoveInCosts" placeholder="e.g., Application Fee, Move-In Fee, Credit Check" class="field-input" data-rls-field="MoveInCosts">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCosts — comma-separated list of move-in cost types</p>
+                </div>
+                <div>
+                    <label class="field-label">Move-In Costs Total ($)</label>
+                    <input type="number" id="rentalMoveInCostsAmountTotal" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="MoveInCostsAmountTotal">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmountTotal — total dollar amount</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="field-label">Move-In Costs Comments</label>
+                <textarea id="rentalMoveInCostsComments" rows="2" placeholder="Additional details about move-in costs..." class="field-input" data-rls-field="MoveInCostsComments"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="field-label">Ongoing Fees</label>
+                    <input type="text" id="rentalOngoingFees" placeholder="e.g., Storage, Parking, Gym, Pet" class="field-input" data-rls-field="OngoingFees">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: OngoingFees — recurring fees beyond rent</p>
+                </div>
+                <div>
+                    <label class="field-label">Fee Frequency</label>
+                    <select id="rentalFeeFrequency" class="field-input" data-rls-field="FeeFrequency">
+                        <option value="">Select</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="SemiAnnually">Semi-Annually</option>
+                        <option value="Annually">Annually</option>
+                        <option value="OneTime">One Time</option>
+                    </select>
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: FeeFrequency — how often ongoing fees are charged</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="field-label">Tenant Pays</label>
+                    <input type="text" id="rentalTenantPays" placeholder="e.g., Electric, Gas, Water, Cable, Internet" class="field-input" data-rls-field="TenantPays">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: TenantPays — utilities/services paid by tenant</p>
+                </div>
+                <div>
+                    <label class="field-label">Tenant Pays Description</label>
+                    <input type="text" id="rentalTenantPaysDescription" placeholder="Additional details about what tenant pays..." class="field-input" data-rls-field="TenantPaysDescription">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: TenantPaysDescription</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="field-label">Additional Fees?</label>
+                    <select id="rentalAdditionalFeeYN" class="field-input" data-rls-field="AdditionalFeeYN">
+                        <option value="">Select</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Additional Fee Amount ($)</label>
+                    <input type="number" id="rentalAdditionalFee" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="AdditionalFee">
+                </div>
+                <div>
+                    <label class="field-label">Additional Fee Description</label>
+                    <input type="text" id="rentalAdditionalFeeDescription" placeholder="Describe additional fee..." class="field-input" data-rls-field="AdditionalFeeDescription">
+                </div>
+                <div>
+                    <label class="field-label">Additional Fee Frequency</label>
+                    <select id="rentalAdditionalFeeFrequency" class="field-input" data-rls-field="AdditionalFeeFrequency">
+                        <option value="">Select</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="SemiAnnually">Semi-Annually</option>
+                        <option value="Annually">Annually</option>
+                        <option value="OneTime">One Time</option>
+                    </select>
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: AdditionalFeeFrequency</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Deal Fees -->
         <div class="form-card" id="rentalDealFeesSection">
             <div class="form-card-header"><i class="fas fa-file-invoice-dollar"></i> Rental Deal Fees <span class="text-xs font-normal text-gray-500 ml-2 normal-case">(Co-op / Condo / Condop — Paid by Tenant)</span></div>
@@ -4255,7 +4338,7 @@ var VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(VIEWER_ROLE_RAW) >= 0 ? VIEWER_ROLE
 var VIEWER_MODE = true; // Always viewer — this file has no form mode
 var _isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
-// ── Try API fetch first, fall back to mock data ──
+// ── Try API fetch first, fall back to cached data ──
 if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
     MallanAPI.onReady(function() {
         // Override URL param with server-validated role (prevents ?role=broker bypass)
@@ -4268,7 +4351,7 @@ if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
             }
         } catch(e) { /* fail closed — keep tenant default */ }
         MallanAPI.listings.get(VIEWER_LISTING_ID).then(function(apiData) {
-            VIEWER_MOCK_LISTINGS[VIEWER_LISTING_ID] = {
+            VIEWER_LISTINGS[VIEWER_LISTING_ID] = {
                 listingId: apiData.listing_id || VIEWER_LISTING_ID,
                 status: apiData.status || 'Active',
                 address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
@@ -4293,7 +4376,7 @@ if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
             if (typeof loadRentalListingData === 'function') loadRentalListingData(VIEWER_LISTING_ID);
             console.log('[Viewer] Loaded rental listing from API:', VIEWER_LISTING_ID);
         }).catch(function(err) {
-            console.warn('[Viewer] API fetch failed, using mock data:', err.message);
+            console.warn('[Viewer] API fetch failed, using cached data:', err.message);
         });
     });
 }
@@ -4308,7 +4391,7 @@ window.addEventListener('message', function(event) {
     VIEWER_LISTING_ID = id;
     if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
         MallanAPI.listings.get(id).then(function(apiData) {
-            VIEWER_MOCK_LISTINGS[id] = {
+            VIEWER_LISTINGS[id] = {
                 listingId: apiData.listing_id || id,
                 status: apiData.status || 'Active',
                 address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
@@ -4329,127 +4412,8 @@ window.addEventListener('message', function(event) {
     }
 });
 
-// ── Listing data store (populated from API; mock data only on localhost?mock=true) ──
-var _isDevMock = (function() {
-    var host = window.location.hostname;
-    var isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
-    var params = new URLSearchParams(window.location.search);
-    return isLocal && params.get('mock') === 'true';
-})();
-var _RENTAL_VIEWER_MOCK = {
-    'RL-2001': {
-        listingId: 'RL-2001', status: 'Active',
-        address: '123 Demo Street', unit: '2B', city: 'New York', state: 'NY', zipCode: '10001',
-        borough: 'Manhattan', neighborhood: 'Upper East Side', crossStreet: 'First Avenue',
-        propertyType: 'Condo', listingType: 'ExclusiveRightToRent',
-        monthlyRent: '4,500', securityDeposit: '4,500', leaseTerm: '12',
-        bedrooms: '2', bathrooms: '1', sqft: '950',
-        availableDate: '2026-03-01',
-        yearBuilt: '1988', totalUnits: '42', stories: '21', floor: '12',
-        description: 'Bright 2-bedroom in full-service doorman building. Renovated kitchen with stainless appliances, hardwood floors, generous closets. Close to Q train and Carl Schurz Park.',
-        listingAgentName: 'Demo Agent', listingAgentId: 'DEMO-001',
-        listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
-        listingAgentLicense: 'DEMO-LIC-001',
-        listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
-        distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: false, distWWW: true, distRLS: true,
-        createDate: '2026-02-01', lastUpdated: '2026-02-20',
-        showingInstructions: 'Call listing agent 24 hours in advance. Check in with doorman.',
-        brokerRemarks: 'Owner flexible on move-in date. Can do 6-month lease with premium.',
-        AttendanceType: ['LobbyAttendantFullTime'],
-        PetsAllowed: ['UnitNo'],
-        BuildingPetsAllowed: ['BuildingNo'],
-        CommonInterest: 'RentalBuilding',
-        StructureType: 'HighRise',
-        // RLS required fields
-        bathroomsFull: '1', bathroomsTotal: '1', bedroomsTotal: '2', roomsTotal: '4',
-        propertySubType: 'Apartment', elevatorsTotal: '2',
-        garageYN: false, newConstructionYN: false, newDevelopmentYN: false,
-        laundryFeatures: 'InBuilding',
-        coBrokeAgreement: 'ExclusiveRightToRent',
-        listingAgreement: 'ExclusiveRightToRent',
-        onMarketDate: '2026-02-01', expirationDate: '2026-08-01',
-        streetNumber: '400', streetName: 'East 90th Street',
-        countyOrParish: 'New York', postalCity: 'New York', cityRegion: 'Manhattan',
-        internetEntireListingDisplayYN: true, internetAddressDisplayYN: true,
-        listAgentMlsId: 'DEMO-001'
-    },
-    'RL-2002': {
-        listingId: 'RL-2002', status: 'Active',
-        address: '250 West 73rd Street', unit: '8A', city: 'New York', state: 'NY', zipCode: '10023',
-        borough: 'Manhattan', neighborhood: 'Upper West Side', crossStreet: 'Broadway',
-        propertyType: 'Coop', listingType: 'ExclusiveRightToRent',
-        monthlyRent: '6,800', securityDeposit: '6,800', leaseTerm: '12',
-        bedrooms: '3', bathrooms: '2', sqft: '1,400',
-        availableDate: '2026-04-01',
-        yearBuilt: '1929', totalUnits: '60', stories: '15', floor: '8',
-        description: 'Spacious pre-war 3BR with original details — arched doorways, herringbone floors, 9.5-foot ceilings. Large living room with park views. Steps to Verdi Square and 72nd St station.',
-        listingAgentName: 'Demo Agent', listingAgentId: 'DEMO-001',
-        listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
-        listingAgentLicense: 'DEMO-LIC-001',
-        listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
-        distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: true, distWWW: true, distRLS: true,
-        createDate: '2026-01-20', lastUpdated: '2026-02-18',
-        showingInstructions: 'By appointment only. Board package required.',
-        brokerRemarks: 'Board approval needed. Guarantor accepted — 80x rent.',
-        AttendanceType: ['DoormanFullTime', 'ConciergeYes'],
-        PetsAllowed: ['UnitCatsOK', 'UnitDogsOK'],
-        BuildingPetsAllowed: ['BuildingCatsOK', 'BuildingDogsOK', 'BuildingSizeLimit'],
-        CommonInterest: 'Condominium',
-        StructureType: 'HighRise',
-        // RLS required fields
-        bathroomsFull: '2', bathroomsTotal: '2', bedroomsTotal: '3', roomsTotal: '6',
-        propertySubType: 'Apartment', elevatorsTotal: '2',
-        garageYN: false, newConstructionYN: false, newDevelopmentYN: false,
-        laundryFeatures: 'InBuilding',
-        coBrokeAgreement: 'ExclusiveRightToRent',
-        listingAgreement: 'ExclusiveRightToRent',
-        onMarketDate: '2026-01-20', expirationDate: '2026-07-20',
-        streetNumber: '250', streetName: 'West 73rd Street',
-        countyOrParish: 'New York', postalCity: 'New York', cityRegion: 'Manhattan',
-        internetEntireListingDisplayYN: true, internetAddressDisplayYN: true,
-        listAgentMlsId: 'DEMO-001'
-    },
-    'RL-2003': {
-        listingId: 'RL-2003', status: 'Rented',
-        address: '100 Barclay Street', unit: '22F', city: 'New York', state: 'NY', zipCode: '10007',
-        borough: 'Manhattan', neighborhood: 'Tribeca', crossStreet: 'Greenwich Street',
-        propertyType: 'Condo', listingType: 'ExclusiveRightToRent',
-        monthlyRent: '9,500', securityDeposit: '9,500', leaseTerm: '24',
-        bedrooms: '2', bathrooms: '2', sqft: '1,650',
-        availableDate: '2026-01-15',
-        yearBuilt: '2017', totalUnits: '157', stories: '40', floor: '22',
-        description: 'Luxury 2-bedroom at 100 Barclay. Floor-to-ceiling windows, Gaggenau kitchen, marble baths. Amenities include pool, basketball court, and screening room.',
-        listingAgentName: 'Demo Agent', listingAgentId: 'DEMO-001',
-        listingAgentPhone: '555-000-0000', listingAgentEmail: 'demo@example.com',
-        listingAgentLicense: 'DEMO-LIC-001',
-        listingCompany: 'Demo Brokerage Inc.', listingCompanyKey: 'demo',
-        idxDisplay: true, syndicateYN: true, vowOptOut: false, internetDisplayYN: true,
-        distIDX: true, distListhub: true, distNYMLS: true, distRealtor: true, distRPX: false, distWWW: true, distRLS: true,
-        createDate: '2025-12-01', lastUpdated: '2026-01-28',
-        showingInstructions: 'No longer available — lease signed.',
-        brokerRemarks: 'Rented 1/26. Tenant moved in 2/1.',
-        AttendanceType: ['None'],
-        PetsAllowed: ['UnitYes'],
-        BuildingPetsAllowed: ['BuildingYes'],
-        CommonInterest: 'RentalBuilding',
-        StructureType: 'HighRise',
-        // RLS required fields
-        bathroomsFull: '2', bathroomsTotal: '2', bedroomsTotal: '2', roomsTotal: '5',
-        propertySubType: 'Apartment', elevatorsTotal: '3',
-        garageYN: false, newConstructionYN: false, newDevelopmentYN: false,
-        laundryFeatures: 'InUnit',
-        coBrokeAgreement: 'ExclusiveRightToRent',
-        listingAgreement: 'ExclusiveRightToRent',
-        onMarketDate: '2025-12-01', expirationDate: '2026-06-01',
-        streetNumber: '100', streetName: 'Barclay Street',
-        countyOrParish: 'New York', postalCity: 'New York', cityRegion: 'Manhattan',
-        internetEntireListingDisplayYN: true, internetAddressDisplayYN: true,
-        listAgentMlsId: 'DEMO-001'
-    }
-};
-var VIEWER_MOCK_LISTINGS = _isDevMock ? _RENTAL_VIEWER_MOCK : {};
+// ── Listing data store (populated from API) ──
+var VIEWER_LISTINGS = {};
 
 // ── Viewer Helpers ──
 function viewerSetVal(id, val) {
@@ -4483,7 +4447,7 @@ function showRentalFailClosed(listingId) {
 
 // ── Load rental listing data ──
 function loadRentalListingData(listingId) {
-    var d = VIEWER_MOCK_LISTINGS[listingId];
+    var d = VIEWER_LISTINGS[listingId];
     // Fix #4/#9: Fail closed — invalid ID → blank blocked view, not partial render
     if (!d) { showRentalFailClosed(listingId); return null; }
 
@@ -4604,6 +4568,19 @@ function loadRentalListingData(listingId) {
 
     viewerSetVal('rentalShowingInstructions', d.showingInstructions);
     viewerSetVal('rentalBrokerRemarks', d.brokerRemarks);
+
+    // FARE Act (NYC LL 119/2024) fee disclosure fields
+    viewerSetVal('rentalMoveInCosts', d.MoveInCosts);
+    viewerSetVal('rentalMoveInCostsAmountTotal', d.MoveInCostsAmountTotal);
+    viewerSetVal('rentalMoveInCostsComments', d.MoveInCostsComments);
+    viewerSetVal('rentalOngoingFees', d.OngoingFees);
+    viewerSetVal('rentalFeeFrequency', d.FeeFrequency);
+    viewerSetVal('rentalTenantPays', d.TenantPays);
+    viewerSetVal('rentalTenantPaysDescription', d.TenantPaysDescription);
+    viewerSetVal('rentalAdditionalFeeYN', d.AdditionalFeeYN);
+    viewerSetVal('rentalAdditionalFee', d.AdditionalFee);
+    viewerSetVal('rentalAdditionalFeeDescription', d.AdditionalFeeDescription);
+    viewerSetVal('rentalAdditionalFeeFrequency', d.AdditionalFeeFrequency);
 
     viewerSetVal('rentalAddressDisplay', d.address + (d.unit ? ' #' + d.unit : ''));
     viewerSetVal('rentalUnitDisplay', d.unit || '--');
@@ -4857,20 +4834,7 @@ function toggleFormSection(el) {
 // ══════════════════════════════════════════════════════
 // IDX SYSTEM LOGIC — Building Database & Auto-Populate
 // ══════════════════════════════════════════════════════
-const buildingDatabase = [
-    { address: '200 East 66th Street', name: 'Manhattan House', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1950, totalFloors: 17, totalUnits: 583, doorman: true, elevator: true, gym: true, laundry: true, parking: true },
-    { address: '15 Central Park West', name: '15 Central Park West', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2008, totalFloors: 43, totalUnits: 201, doorman: true, elevator: true, gym: true, pool: true, concierge: true, parking: true },
-    { address: '432 Park Avenue', name: '432 Park Avenue', borough: 'Manhattan', zip: '10022', neighborhood: 'Midtown East', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2015, totalFloors: 96, totalUnits: 104, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-    { address: '56 Leonard Street', name: '56 Leonard', borough: 'Manhattan', zip: '10013', neighborhood: 'Tribeca', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2016, totalFloors: 60, totalUnits: 145, doorman: true, elevator: true, gym: true, pool: true },
-    { address: '220 Central Park South', name: '220 CPS', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2019, totalFloors: 79, totalUnits: 118, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-    { address: '520 Park Avenue', name: '520 Park Avenue', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2018, totalFloors: 54, totalUnits: 31, doorman: true, elevator: true, gym: true },
-    { address: '1 West 72nd Street', name: 'The Dakota', borough: 'Manhattan', zip: '10023', neighborhood: 'Upper West Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1884, totalFloors: 10, totalUnits: 65, doorman: true, elevator: true, laundry: true },
-    { address: '740 Park Avenue', name: '740 Park Avenue', borough: 'Manhattan', zip: '10021', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', structureType: 'HighRise', yearBuilt: 1930, totalFloors: 18, totalUnits: 31, doorman: true, elevator: true },
-    { address: '110 Livingston Street', name: '110 Livingston', borough: 'Brooklyn', zip: '11201', neighborhood: 'Downtown Brooklyn', type: 'Condop', model: 'Condop', structureType: 'HighRise', yearBuilt: 1928, totalFloors: 15, totalUnits: 220, doorman: true, elevator: true, gym: true },
-    { address: '25 Columbus Circle', name: 'Time Warner Center', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown West', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2003, totalFloors: 80, totalUnits: 198, doorman: true, elevator: true, gym: true, concierge: true },
-    { address: '325 Lexington Avenue', name: 'The Townsend', borough: 'Manhattan', zip: '10016', neighborhood: 'Murray Hill', type: 'Condo', model: 'Condo', structureType: 'HighRise', yearBuilt: 2005, totalFloors: 12, totalUnits: 45, doorman: true, elevator: true },
-    { address: '42 West 120th Street', name: '42 West 120th', borough: 'Manhattan', zip: '10027', neighborhood: 'Harlem', type: 'SingleFamilyTownhouse', model: 'Townhouse', structureType: 'Townhouse', yearBuilt: 1910, totalFloors: 4, totalUnits: 1 },
-];
+var buildingDatabase = [];  // Loaded from API
 
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
@@ -6215,7 +6179,7 @@ function addRentalOpenHouse() {
 // PHOTO URL HELPER — collects photo URLs from listing data store
 // ══════════════════════════════════════════════════════
 function getListingPhotoUrls(type) {
-    var listings = (typeof VIEWER_MOCK_LISTINGS !== 'undefined') ? VIEWER_MOCK_LISTINGS : {};
+    var listings = (typeof VIEWER_LISTINGS !== 'undefined') ? VIEWER_LISTINGS : {};
     var id = (typeof VIEWER_LISTING_ID !== 'undefined') ? VIEWER_LISTING_ID : '';
     var d = id ? listings[id] : null;
     if (d && Array.isArray(d.photos) && d.photos.length > 0) {
@@ -6377,852 +6341,10 @@ function addRentalCoListAgent() {
 // ══════════════════════════════════════════════════════
 // REBNY AGENTS DATABASE
 // ══════════════════════════════════════════════════════
-const rebnyAgents = {
-    // ══════════════════════════════════════════════════════════════════
-    // MALLAN REAL ESTATE INC - ALWAYS FIRST
-    // ══════════════════════════════════════════════════════════════════
-    'mallan': [],
-    // ══════════════════════════════════════════════════════════════════
-    // A (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'abacus': [
-        { id: 'AB001', name: 'Aaron Mills', phone: '212-555-0001', email: 'amills@abacusre.com', license: 'AB10001' },
-        { id: 'AB002', name: 'Brenda Torres', phone: '212-555-0002', email: 'btorres@abacusre.com', license: 'AB10002' },
-        { id: 'AB003', name: 'Carlos Mendez', phone: '212-555-0003', email: 'cmendez@abacusre.com', license: 'AB10003' }
-    ],
-    'abelson': [
-        { id: 'AE001', name: 'Alan Stein', phone: '212-555-0010', email: 'astein@abelsonre.com', license: 'AE10001' },
-        { id: 'AE002', name: 'Beth Morgan', phone: '212-555-0011', email: 'bmorgan@abelsonre.com', license: 'AE10002' }
-    ],
-    'abre': [
-        { id: 'AR001', name: 'Andrea Blake', phone: '212-555-0020', email: 'ablake@abre.com', license: 'AR10001' },
-        { id: 'AR002', name: 'Brian Foster', phone: '212-555-0021', email: 'bfoster@abre.com', license: 'AR10002' }
-    ],
-    'akam': [
-        { id: 'AK001', name: 'Amy Goldstein', phone: '212-555-0030', email: 'agoldstein@akam.com', license: 'AK10001' },
-        { id: 'AK002', name: 'David Katz', phone: '212-555-0031', email: 'dkatz@akam.com', license: 'AK10002' }
-    ],
-    'alearealty': [
-        { id: 'AL001', name: 'Alicia Reyes', phone: '212-555-0040', email: 'areyes@alearealty.com', license: 'AL10001' },
-        { id: 'AL002', name: 'Frank DiMaggio', phone: '212-555-0041', email: 'fdimaggio@alearealty.com', license: 'AL10002' }
-    ],
-    'allcity': [
-        { id: 'AC001', name: 'Adam Walsh', phone: '212-555-0050', email: 'awalsh@allcityrealty.com', license: 'AC10001' },
-        { id: 'AC002', name: 'Christine Park', phone: '212-555-0051', email: 'cpark@allcityrealty.com', license: 'AC10002' }
-    ],
-    'ameritech': [
-        { id: 'AM001', name: 'Angela Morrison', phone: '212-555-0060', email: 'amorrison@ameritechre.com', license: 'AM10001' },
-        { id: 'AM002', name: 'Derek Hughes', phone: '212-555-0061', email: 'dhughes@ameritechre.com', license: 'AM10002' }
-    ],
-    'anchor': [
-        { id: 'AN001', name: 'Anthony Russo', phone: '212-555-0070', email: 'arusso@anchorre.com', license: 'AN10001' },
-        { id: 'AN002', name: 'Nicole Patterson', phone: '212-555-0071', email: 'npatterson@anchorre.com', license: 'AN10002' }
-    ],
-    'arielpa': [
-        { id: 'AP001', name: 'Daniel Tropp', phone: '212-544-9501', email: 'dtropp@arielpa.com', license: 'AP10002' },
-        { id: 'AP002', name: 'Michael Tortorici', phone: '212-544-9502', email: 'mtortorici@arielpa.com', license: 'AP10003' },
-        { id: 'AP003', name: 'Shimon Shkury', phone: '212-544-9500', email: 'sshkury@arielpa.com', license: 'AP10001' }
-    ],
-    'astorlg': [
-        { id: 'AS001', name: 'Andrew Stone', phone: '212-555-0080', email: 'astone@astorlg.com', license: 'AS10001' },
-        { id: 'AS002', name: 'Laura Bennett', phone: '212-555-0081', email: 'lbennett@astorlg.com', license: 'AS10002' }
-    ],
-    'atriumrealtygroup': [
-        { id: 'AT001', name: 'Anna Kowalski', phone: '212-555-0090', email: 'akowalski@atriumrealty.com', license: 'AT10001' },
-        { id: 'AT002', name: 'Robert Chen', phone: '212-555-0091', email: 'rchen@atriumrealty.com', license: 'AT10002' }
-    ],
-    'avenueresidential': [
-        { id: 'AV001', name: 'Alexandra Wright', phone: '212-555-0100', email: 'awright@avenueresidential.com', license: 'AV10001' },
-        { id: 'AV002', name: 'Kevin O\'Brien', phone: '212-555-0101', email: 'kobrien@avenueresidential.com', license: 'AV10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // B (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'barrettjackson': [
-        { id: 'BJ001', name: 'Barbara Hayes', phone: '212-555-0110', email: 'bhayes@barrettjackson.com', license: 'BJ10001' },
-        { id: 'BJ002', name: 'Thomas Barrett', phone: '212-555-0111', email: 'tbarrett@barrettjackson.com', license: 'BJ10002' }
-    ],
-    'besen': [
-        { id: 'BE001', name: 'Amit Doshi', phone: '212-951-8401', email: 'adoshi@besenassociates.com', license: 'BE10002' },
-        { id: 'BE002', name: 'Greg Besen', phone: '212-951-8400', email: 'gbesen@besenassociates.com', license: 'BE10001' },
-        { id: 'BE003', name: 'Ron Cohen', phone: '212-951-8402', email: 'rcohen@besenassociates.com', license: 'BE10003' }
-    ],
-    'bhsusa': [
-        { id: 'BH001', name: 'Bess Freedman', phone: '212-906-9200', email: 'bfreedman@bhsusa.com', license: 'BH10001' },
-        { id: 'BH002', name: 'Christopher Kromer', phone: '212-906-9201', email: 'ckromer@bhsusa.com', license: 'BH10002' },
-        { id: 'BH003', name: 'Hall Willkie', phone: '212-906-9202', email: 'hwillkie@bhsusa.com', license: 'BH10003' },
-        { id: 'BH004', name: 'John Burger', phone: '212-906-9203', email: 'jburger@bhsusa.com', license: 'BH10004' },
-        { id: 'BH005', name: 'Paula Del Nunzio', phone: '212-906-9204', email: 'pdelnunzio@bhsusa.com', license: 'BH10005' }
-    ],
-    'blacklabelnyc': [
-        { id: 'BL001', name: 'Benjamin Shaw', phone: '212-555-0120', email: 'bshaw@blacklabelnyc.com', license: 'BL10001' },
-        { id: 'BL002', name: 'Jennifer Mills', phone: '212-555-0121', email: 'jmills@blacklabelnyc.com', license: 'BL10002' }
-    ],
-    'blesso': [
-        { id: 'BLS001', name: 'Brian Blesso', phone: '212-555-0130', email: 'bblesso@blessoproperties.com', license: 'BLS10001' },
-        { id: 'BLS002', name: 'Maria Santos', phone: '212-555-0131', email: 'msantos@blessoproperties.com', license: 'BLS10002' }
-    ],
-    'blueskyre': [
-        { id: 'BS001', name: 'Betty Chang', phone: '212-555-0140', email: 'bchang@blueskyre.com', license: 'BS10001' },
-        { id: 'BS002', name: 'Steven Park', phone: '212-555-0141', email: 'spark@blueskyre.com', license: 'BS10002' }
-    ],
-    'bohemia': [
-        { id: 'BO001', name: 'Andrea Saturno', phone: '718-253-6653', email: 'asaturno@bohemiarealty.com', license: 'BO10001' },
-        { id: 'BO002', name: 'Jose Matos', phone: '718-253-6654', email: 'jmatos@bohemiarealty.com', license: 'BO10002' }
-    ],
-    'bond': [
-        { id: 'BD001', name: 'Bruno Ricciotti', phone: '212-388-2600', email: 'bricciotti@bondnewyork.com', license: 'BD10001' },
-        { id: 'BD002', name: 'Moses Ascherman', phone: '212-388-2601', email: 'mascherman@bondnewyork.com', license: 'BD10002' },
-        { id: 'BD003', name: 'Noah Freedman', phone: '212-388-2602', email: 'nfreedman@bondnewyork.com', license: 'BD10003' }
-    ],
-    'brickhouse': [
-        { id: 'BR001', name: 'Brandon Cole', phone: '212-555-0150', email: 'bcole@brickhouseny.com', license: 'BR10001' },
-        { id: 'BR002', name: 'Rachel Kim', phone: '212-555-0151', email: 'rkim@brickhouseny.com', license: 'BR10002' }
-    ],
-    'broadwayrealty': [
-        { id: 'BW001', name: 'Barbara Wilson', phone: '212-555-0160', email: 'bwilson@broadwayrealty.com', license: 'BW10001' },
-        { id: 'BW002', name: 'William Torres', phone: '212-555-0161', email: 'wtorres@broadwayrealty.com', license: 'BW10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // C (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'cantor': [
-        { id: 'CA001', name: 'Carl Pecorella', phone: '212-555-0170', email: 'cpecorella@cantorpecorella.com', license: 'CA10001' },
-        { id: 'CA002', name: 'Lisa Cantor', phone: '212-555-0171', email: 'lcantor@cantorpecorella.com', license: 'CA10002' }
-    ],
-    'castlerealty': [
-        { id: 'CR001', name: 'Catherine Moore', phone: '212-555-0180', email: 'cmoore@castlerealty.com', license: 'CR10001' },
-        { id: 'CR002', name: 'James Castle', phone: '212-555-0181', email: 'jcastle@castlerealty.com', license: 'CR10002' }
-    ],
-    'cbwarburg': [
-        { id: 'CW001', name: 'Clelia Peters', phone: '212-381-2557', email: 'cpeters@cbwarburg.com', license: 'CW10001' },
-        { id: 'CW002', name: 'Debbie Korb', phone: '212-381-2558', email: 'dkorb@cbwarburg.com', license: 'CW10002' },
-        { id: 'CW003', name: 'Michele Kleier', phone: '212-381-2559', email: 'mkleier@cbwarburg.com', license: 'CW10003' }
-    ],
-    'century21': [
-        { id: 'C21001', name: 'Carmen Rodriguez', phone: '212-555-0190', email: 'crodriguez@century21nyc.com', license: 'C21001' },
-        { id: 'C21002', name: 'David Schwartz', phone: '212-555-0191', email: 'dschwartz@century21nyc.com', license: 'C21002' },
-        { id: 'C21003', name: 'Maria Gonzalez', phone: '212-555-0192', email: 'mgonzalez@century21nyc.com', license: 'C21003' }
-    ],
-    'christies': [
-        { id: 'CI001', name: 'Bonnie Stone Sellers', phone: '212-468-7000', email: 'bsellers@christiesrealestate.com', license: 'CI10001' },
-        { id: 'CI002', name: 'Christopher Weil', phone: '212-468-7001', email: 'cweil@christiesrealestate.com', license: 'CI10002' },
-        { id: 'CI003', name: 'Rick Moeser', phone: '212-468-7002', email: 'rmoeser@christiesrealestate.com', license: 'CI10003' }
-    ],
-    'citi': [
-        { id: 'CH001', name: 'Gary Malin', phone: '212-685-7777', email: 'gmalin@citihabitats.com', license: 'CH10001' },
-        { id: 'CH002', name: 'Kevin Thompson', phone: '212-685-7778', email: 'kthompson@citihabitats.com', license: 'CH10002' },
-        { id: 'CH003', name: 'Lisa Soleymani', phone: '212-685-7779', email: 'lsoleymani@citihabitats.com', license: 'CH10003' }
-    ],
-    'cityconnections': [
-        { id: 'CC001', name: 'Charles Wong', phone: '212-555-0200', email: 'cwong@cityconnectionsrealty.com', license: 'CC10001' },
-        { id: 'CC002', name: 'Nancy Liu', phone: '212-555-0201', email: 'nliu@cityconnectionsrealty.com', license: 'CC10002' }
-    ],
-    'citywideapt': [
-        { id: 'CWA001', name: 'Daniel Baum', phone: '212-555-0210', email: 'dbaum@citywideapt.com', license: 'CWA10001' },
-        { id: 'CWA002', name: 'Sarah Klein', phone: '212-555-0211', email: 'sklein@citywideapt.com', license: 'CWA10002' }
-    ],
-    'compass': [
-        { id: 'CO001', name: 'Alexa Lambert', phone: '212-913-9058', email: 'alambert@compass.com', license: 'CO10001' },
-        { id: 'CO002', name: 'Cathy Franklin', phone: '212-913-9059', email: 'cfranklin@compass.com', license: 'CO10002' },
-        { id: 'CO003', name: 'Emily Beare', phone: '212-913-9060', email: 'ebeare@compass.com', license: 'CO10003' },
-        { id: 'CO004', name: 'Leonard Steinberg', phone: '212-913-9061', email: 'lsteinberg@compass.com', license: 'CO10004' },
-        { id: 'CO005', name: 'Noble Black', phone: '212-913-9062', email: 'nblack@compass.com', license: 'CO10005' },
-        { id: 'CO006', name: 'Vickey Barron', phone: '212-913-9063', email: 'vbarron@compass.com', license: 'CO10006' }
-    ],
-    'coopercooper': [
-        { id: 'COP001', name: 'Colleen Cooper', phone: '212-555-0220', email: 'ccooper@coopercooper.com', license: 'COP10001' },
-        { id: 'COP002', name: 'Michael Cooper', phone: '212-555-0221', email: 'mcooper@coopercooper.com', license: 'COP10002' }
-    ],
-    'corcoran': [
-        { id: 'CG001', name: 'Barbara Corcoran', phone: '212-355-3550', email: 'bcorcoran@corcoran.com', license: 'CG10001' },
-        { id: 'CG002', name: 'Carrie Chiang', phone: '212-355-3551', email: 'cchiang@corcoran.com', license: 'CG10002' },
-        { id: 'CG003', name: 'Deborah Grubman', phone: '212-355-3552', email: 'dgrubman@corcoran.com', license: 'CG10003' },
-        { id: 'CG004', name: 'Janet Wang', phone: '212-355-3553', email: 'jwang@corcoran.com', license: 'CG10004' },
-        { id: 'CG005', name: 'Pamela Liebman', phone: '212-355-3554', email: 'pliebman@corcoran.com', license: 'CG10005' }
-    ],
-    'corcoransunshine': [
-        { id: 'CS001', name: 'Kelly Kennedy Mack', phone: '212-639-6700', email: 'kmack@corcoransunshine.com', license: 'CS10001' },
-        { id: 'CS002', name: 'Sarah Rubin', phone: '212-639-6701', email: 'srubin@corcoransunshine.com', license: 'CS10002' }
-    ],
-    'core': [
-        { id: 'CRE001', name: 'Emily Beare', phone: '212-690-2600', email: 'ebeare@corenyc.com', license: 'CRE10001' },
-        { id: 'CRE002', name: 'Jack Cayre', phone: '212-690-2601', email: 'jcayre@corenyc.com', license: 'CRE10002' },
-        { id: 'CRE003', name: 'Shaun Osher', phone: '212-690-2602', email: 'sosher@corenyc.com', license: 'CRE10003' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // D (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'damianos': [
-        { id: 'DA001', name: 'Denise Damianos', phone: '212-555-0230', email: 'ddamianos@damianoslg.com', license: 'DA10001' },
-        { id: 'DA002', name: 'Peter Damianos', phone: '212-555-0231', email: 'pdamianos@damianoslg.com', license: 'DA10002' }
-    ],
-    'djkresidential': [
-        { id: 'DJK001', name: 'Darren Kessler', phone: '212-555-0240', email: 'dkessler@djkresidential.com', license: 'DJK10001' },
-        { id: 'DJK002', name: 'Jonathan DePaul', phone: '212-555-0241', email: 'jdepaul@djkresidential.com', license: 'DJK10002' }
-    ],
-    'douglas': [
-        { id: 'DE001', name: 'Adam Modlin', phone: '212-891-7000', email: 'amodlin@elliman.com', license: 'DE10001' },
-        { id: 'DE002', name: 'Dolly Lenz', phone: '212-891-7001', email: 'dlenz@elliman.com', license: 'DE10002' },
-        { id: 'DE003', name: 'Fredrik Eklund', phone: '212-891-7002', email: 'feklund@elliman.com', license: 'DE10003' },
-        { id: 'DE004', name: 'Howard Lorber', phone: '212-891-7003', email: 'hlorber@elliman.com', license: 'DE10004' },
-        { id: 'DE005', name: 'John Gomes', phone: '212-891-7004', email: 'jgomes@elliman.com', license: 'DE10005' },
-        { id: 'DE006', name: 'Raphael De Niro', phone: '212-891-7005', email: 'rdeniro@elliman.com', license: 'DE10006' }
-    ],
-    'durst': [
-        { id: 'DU001', name: 'Douglas Durst', phone: '212-257-6600', email: 'ddurst@durst.org', license: 'DU10001' },
-        { id: 'DU002', name: 'Jordan Barowitz', phone: '212-257-6601', email: 'jbarowitz@durst.org', license: 'DU10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // E (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'ebrealestate': [
-        { id: 'EB001', name: 'Edward Blake', phone: '212-555-0250', email: 'eblake@ebrealestate.com', license: 'EB10001' },
-        { id: 'EB002', name: 'Nancy Edwards', phone: '212-555-0251', email: 'nedwards@ebrealestate.com', license: 'EB10002' }
-    ],
-    'elegran': [
-        { id: 'EL001', name: 'Joseph Kohn', phone: '212-729-5712', email: 'jkohn@elegran.com', license: 'EL10001' },
-        { id: 'EL002', name: 'Michael Rossi', phone: '212-729-5713', email: 'mrossi@elegran.com', license: 'EL10002' },
-        { id: 'EL003', name: 'Stephanie Diamond', phone: '212-729-5714', email: 'sdiamond@elegran.com', license: 'EL10003' }
-    ],
-    'elika': [
-        { id: 'EK001', name: 'Elika Portnoy', phone: '212-590-0540', email: 'eportnoy@elika.com', license: 'EK10001' },
-        { id: 'EK002', name: 'Gea Elika', phone: '212-590-0541', email: 'gelika@elika.com', license: 'EK10002' }
-    ],
-    'ellimandevelopment': [
-        { id: 'ED001', name: 'Jacqueline Urgo', phone: '212-702-4000', email: 'jurgo@ellimandevelopment.com', license: 'ED10001' },
-        { id: 'ED002', name: 'Susan de Franca', phone: '212-702-4001', email: 'sdefranca@ellimandevelopment.com', license: 'ED10002' }
-    ],
-    'engelvolk': [
-        { id: 'EV001', name: 'Anthony Hitt', phone: '212-234-3100', email: 'ahitt@evrealestate.com', license: 'EV10001' },
-        { id: 'EV002', name: 'Stuart Siegel', phone: '212-234-3101', email: 'ssiegel@evrealestate.com', license: 'EV10002' }
-    ],
-    'exitrealty': [
-        { id: 'EX001', name: 'Erik Patterson', phone: '212-555-0260', email: 'epatterson@exitrealty.com', license: 'EX10001' },
-        { id: 'EX002', name: 'Michelle Torres', phone: '212-555-0261', email: 'mtorres@exitrealty.com', license: 'EX10002' }
-    ],
-    'exp': [
-        { id: 'XP001', name: 'Elizabeth Price', phone: '212-555-0270', email: 'eprice@exprealty.com', license: 'XP10001' },
-        { id: 'XP002', name: 'Xavier Lopez', phone: '212-555-0271', email: 'xlopez@exprealty.com', license: 'XP10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // F (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'fenwickkeats': [
-        { id: 'FK001', name: 'Debbie Fenwick', phone: '212-772-7000', email: 'dfenwick@fenwickkeats.com', license: 'FK10001' },
-        { id: 'FK002', name: 'Peggy Keats', phone: '212-772-7001', email: 'pkeats@fenwickkeats.com', license: 'FK10002' }
-    ],
-    'fillmore': [
-        { id: 'FI001', name: 'Frank Fillmore', phone: '718-253-4700', email: 'ffillmore@fillmorere.com', license: 'FI10001' },
-        { id: 'FI002', name: 'John Reinhardt', phone: '718-253-4701', email: 'jreinhardt@fillmorere.com', license: 'FI10002' }
-    ],
-    'firstservice': [
-        { id: 'FS001', name: 'David Kuperberg', phone: '212-634-5400', email: 'dkuperberg@fsresidential.com', license: 'FS10001' },
-        { id: 'FS002', name: 'Patricia Chen', phone: '212-634-5401', email: 'pchen@fsresidential.com', license: 'FS10002' }
-    ],
-    'fontana': [
-        { id: 'FO001', name: 'Frank Fontana', phone: '212-555-0280', email: 'ffontana@fontanarealty.com', license: 'FO10001' },
-        { id: 'FO002', name: 'Maria Fontana', phone: '212-555-0281', email: 'mfontana@fontanarealty.com', license: 'FO10002' }
-    ],
-    'foxresidential': [
-        { id: 'FR001', name: 'Barbara Fox', phone: '212-555-0290', email: 'bfox@foxresidential.com', license: 'FR10001' },
-        { id: 'FR002', name: 'Robert Fox', phone: '212-555-0291', email: 'rfox@foxresidential.com', license: 'FR10002' }
-    ],
-    'friedmanroth': [
-        { id: 'FRR001', name: 'Avi Friedman', phone: '212-555-0300', email: 'afriedman@friedmanroth.com', license: 'FRR10001' },
-        { id: 'FRR002', name: 'Jonathan Roth', phone: '212-555-0301', email: 'jroth@friedmanroth.com', license: 'FRR10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // G (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'gfi': [
-        { id: 'GF001', name: 'Michael Weiser', phone: '212-605-0500', email: 'mweiser@gfire.com', license: 'GF10001' },
-        { id: 'GF002', name: 'Yosef Katz', phone: '212-605-0501', email: 'ykatz@gfire.com', license: 'GF10002' }
-    ],
-    'glenwood': [
-        { id: 'GL001', name: 'Gary Handel', phone: '212-535-0500', email: 'ghandel@glenwoodnyc.com', license: 'GL10001' },
-        { id: 'GL002', name: 'Leonard Litwin', phone: '212-535-0501', email: 'llitwin@glenwoodnyc.com', license: 'GL10002' }
-    ],
-    'gotham': [
-        { id: 'GO001', name: 'David Picket', phone: '212-599-0505', email: 'dpicket@gothamorg.com', license: 'GO10001' },
-        { id: 'GO002', name: 'Joel Picket', phone: '212-599-0506', email: 'jpicket@gothamorg.com', license: 'GO10002' }
-    ],
-    'greenpoint': [
-        { id: 'GP001', name: 'Greg Williamson', phone: '718-555-0001', email: 'gwilliamson@greenpointre.com', license: 'GP10001' },
-        { id: 'GP002', name: 'Natalie Brooks', phone: '718-555-0002', email: 'nbrooks@greenpointre.com', license: 'GP10002' }
-    ],
-    'gumleyhaft': [
-        { id: 'GH001', name: 'James Gumley', phone: '212-371-2525', email: 'jgumley@gumleyhaft.com', license: 'GH10001' },
-        { id: 'GH002', name: 'Robert Haft', phone: '212-371-2526', email: 'rhaft@gumleyhaft.com', license: 'GH10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // H (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'halstead': [
-        { id: 'HA001', name: 'Diane Ramirez', phone: '212-381-6500', email: 'dramirez@halstead.com', license: 'HA10001' },
-        { id: 'HA002', name: 'Gail Gordan', phone: '212-381-6501', email: 'ggordan@halstead.com', license: 'HA10002' },
-        { id: 'HA003', name: 'Karen Kelley', phone: '212-381-6502', email: 'kkelley@halstead.com', license: 'HA10003' },
-        { id: 'HA004', name: 'Richard Grossman', phone: '212-381-6503', email: 'rgrossman@halstead.com', license: 'HA10004' }
-    ],
-    'harlemlofts': [
-        { id: 'HL001', name: 'Harold Jackson', phone: '212-555-0310', email: 'hjackson@harlemlofts.com', license: 'HL10001' },
-        { id: 'HL002', name: 'Tamika Williams', phone: '212-555-0311', email: 'twilliams@harlemlofts.com', license: 'HL10002' }
-    ],
-    'heraldsquare': [
-        { id: 'HS001', name: 'Henry Stern', phone: '212-555-0320', email: 'hstern@heraldsquareproperties.com', license: 'HS10001' },
-        { id: 'HS002', name: 'Rachel Gold', phone: '212-555-0321', email: 'rgold@heraldsquareproperties.com', license: 'HS10002' }
-    ],
-    'highcap': [
-        { id: 'HC001', name: 'Andrew Sasson', phone: '212-974-5440', email: 'asasson@highcapgroup.com', license: 'HC10001' },
-        { id: 'HC002', name: 'Shimmy Katz', phone: '212-974-5441', email: 'skatz@highcapgroup.com', license: 'HC10002' }
-    ],
-    'highline': [
-        { id: 'HLR001', name: 'Hannah Price', phone: '212-555-0330', email: 'hprice@highlineresidential.com', license: 'HLR10001' },
-        { id: 'HLR002', name: 'Jonathan Glass', phone: '212-555-0331', email: 'jglass@highlineresidential.com', license: 'HLR10002' }
-    ],
-    'homestead': [
-        { id: 'HM001', name: 'Harry Morgan', phone: '212-555-0340', email: 'hmorgan@homesteadre.com', license: 'HM10001' },
-        { id: 'HM002', name: 'Susan Perry', phone: '212-555-0341', email: 'sperry@homesteadre.com', license: 'HM10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // I (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'idealproperties': [
-        { id: 'IP001', name: 'Brian Davis', phone: '718-643-1402', email: 'bdavis@idealpropertiesgroup.com', license: 'IP10001' },
-        { id: 'IP002', name: 'Michelle Kim', phone: '718-643-1403', email: 'mkim@idealpropertiesgroup.com', license: 'IP10002' }
-    ],
-    'interluxe': [
-        { id: 'IL001', name: 'Hervé Senequier', phone: '212-555-0351', email: 'hsenequier@interluxe.com', license: 'IL10002' },
-        { id: 'IL002', name: 'Leonard Steinberg', phone: '212-555-0350', email: 'lsteinberg@interluxe.com', license: 'IL10001' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // J (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'jacklresnick': [
-        { id: 'JR001', name: 'Burton Resnick', phone: '212-867-0700', email: 'bresnick@jackresnick.com', license: 'JR10001' },
-        { id: 'JR002', name: 'Jonathan Resnick', phone: '212-867-0701', email: 'jresnick@jackresnick.com', license: 'JR10002' }
-    ],
-    'jcdeniro': [
-        { id: 'JCD001', name: 'Christina DeNiro', phone: '212-555-0361', email: 'cdeniro@jcdeniro.com', license: 'JCD10002' },
-        { id: 'JCD002', name: 'John DeNiro', phone: '212-555-0360', email: 'jdeniro@jcdeniro.com', license: 'JCD10001' }
-    ],
-    'johngallin': [
-        { id: 'JG001', name: 'John Gallin Jr.', phone: '212-732-3700', email: 'jgallin@johngallin.com', license: 'JG10001' },
-        { id: 'JG002', name: 'Thomas Gallin', phone: '212-732-3701', email: 'tgallin@johngallin.com', license: 'JG10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // K (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'kaled': [
-        { id: 'KL001', name: 'Edward Kalikow', phone: '212-679-5555', email: 'ekalikow@kaledmgmt.com', license: 'KL10001' },
-        { id: 'KL002', name: 'Richard Kalikow', phone: '212-679-5556', email: 'rkalikow@kaledmgmt.com', license: 'KL10002' }
-    ],
-    'kw': [
-        { id: 'KW001', name: 'Ilan Bracha', phone: '212-555-0370', email: 'ibracha@kw.com', license: 'KW10001' },
-        { id: 'KW002', name: 'John Gomes', phone: '212-555-0371', email: 'jgomes@kw.com', license: 'KW10002' },
-        { id: 'KW003', name: 'Michael Tafoya', phone: '212-555-0372', email: 'mtafoya@kw.com', license: 'KW10003' }
-    ],
-    'kingsland': [
-        { id: 'KG001', name: 'Kevin Kingsland', phone: '212-555-0380', email: 'kkingsland@kingslandproperties.com', license: 'KG10001' },
-        { id: 'KG002', name: 'Laura King', phone: '212-555-0381', email: 'lking@kingslandproperties.com', license: 'KG10002' }
-    ],
-    'kleier': [
-        { id: 'KR001', name: 'Alice Kleier', phone: '212-535-2444', email: 'akleier@kleierresidential.com', license: 'KR10001' },
-        { id: 'KR002', name: 'Sabrina Kleier Morgenstern', phone: '212-535-2445', email: 'skleier@kleierresidential.com', license: 'KR10002' }
-    ],
-    'kushner': [
-        { id: 'KU001', name: 'Charles Kushner', phone: '212-303-8700', email: 'ckushner@kushnercompanies.com', license: 'KU10001' },
-        { id: 'KU002', name: 'Laurent Morali', phone: '212-303-8701', email: 'lmorali@kushnercompanies.com', license: 'KU10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // L (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'landmark': [
-        { id: 'LM001', name: 'Lawrence Mark', phone: '212-555-0390', email: 'lmark@landmarkrealty.com', license: 'LM10001' },
-        { id: 'LM002', name: 'Michelle Stevens', phone: '212-555-0391', email: 'mstevens@landmarkrealty.com', license: 'LM10002' }
-    ],
-    'langsam': [
-        { id: 'LN001', name: 'David Langsam', phone: '212-555-0400', email: 'dlangsam@langsampropertyservices.com', license: 'LN10001' },
-        { id: 'LN002', name: 'Sarah Langsam', phone: '212-555-0401', email: 'slangsam@langsampropertyservices.com', license: 'LN10002' }
-    ],
-    'lee': [
-        { id: 'LE001', name: 'Dennis Russo', phone: '212-986-5959', email: 'drusso@leeassoc.com', license: 'LE10001' },
-        { id: 'LE002', name: 'Peter Schubert', phone: '212-986-5960', email: 'pschubert@leeassoc.com', license: 'LE10002' }
-    ],
-    'lefrak': [
-        { id: 'LF001', name: 'Harrison LeFrak', phone: '718-459-9021', email: 'hlefrak@lefrak.com', license: 'LF10001' },
-        { id: 'LF002', name: 'Richard LeFrak', phone: '718-459-9022', email: 'rlefrak@lefrak.com', license: 'LF10002' }
-    ],
-    'lesliegarfield': [
-        { id: 'LG001', name: 'Juliette Janssens', phone: '212-371-8200', email: 'jjanssens@lesliejgarfield.com', license: 'LG10001' },
-        { id: 'LG002', name: 'Leslie Garfield', phone: '212-371-8201', email: 'lgarfield@lesliejgarfield.com', license: 'LG10002' }
-    ],
-    'levelgroup': [
-        { id: 'LV001', name: 'Adam Mahfouda', phone: '212-920-9898', email: 'amahfouda@levelgroup.com', license: 'LV10001' },
-        { id: 'LV002', name: 'Benjamin Green', phone: '212-920-9899', email: 'bgreen@levelgroup.com', license: 'LV10002' }
-    ],
-    'lincolnproperty': [
-        { id: 'LP001', name: 'David Binswanger', phone: '212-655-0500', email: 'dbinswanger@lpc.com', license: 'LP10001' },
-        { id: 'LP002', name: 'Michael Garcia', phone: '212-655-0501', email: 'mgarcia@lpc.com', license: 'LP10002' }
-    ],
-    'lmdev': [
-        { id: 'LMD001', name: 'Lisa Gomez', phone: '212-232-3100', email: 'lgomez@lmdevpartners.com', license: 'LMD10001' },
-        { id: 'LMD002', name: 'Ron Moelis', phone: '212-232-3101', email: 'rmoelis@lmdevpartners.com', license: 'LMD10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // M (Alphabetical) - excluding Mallan which is at top
-    // ══════════════════════════════════════════════════════════════════
-    'manhattanapt': [
-        { id: 'MA001', name: 'Mark Stevens', phone: '212-555-0410', email: 'mstevens@manhattanapt.com', license: 'MA10001' },
-        { id: 'MA002', name: 'Susan Porter', phone: '212-555-0411', email: 'sporter@manhattanapt.com', license: 'MA10002' }
-    ],
-    'marcusmillichap': [
-        { id: 'MM001', name: 'John Horowitz', phone: '212-430-5100', email: 'jhorowitz@marcusmillichap.com', license: 'MM10001' },
-        { id: 'MM002', name: 'Steve Witkoff', phone: '212-430-5101', email: 'switkoff@marcusmillichap.com', license: 'MM10002' }
-    ],
-    'mdrn': [
-        { id: 'MD001', name: 'Marc Schiller', phone: '212-555-0420', email: 'mschiller@mdrnresidential.com', license: 'MD10001' },
-        { id: 'MD002', name: 'Rebecca Rose', phone: '212-555-0421', email: 'rrose@mdrnresidential.com', license: 'MD10002' }
-    ],
-    'meridian': [
-        { id: 'MR001', name: 'Helen Hwang', phone: '212-972-3600', email: 'hhwang@meridiancapital.com', license: 'MR10001' },
-        { id: 'MR002', name: 'Ralph Herzka', phone: '212-972-3601', email: 'rherzka@meridiancapital.com', license: 'MR10002' }
-    ],
-    'mirador': [
-        { id: 'MI001', name: 'Jordan Sachs', phone: '212-616-6161', email: 'jsachs@miradornyc.com', license: 'MI10001' },
-        { id: 'MI002', name: 'Uri Vaknin', phone: '212-616-6162', email: 'uvaknin@miradornyc.com', license: 'MI10002' }
-    ],
-    'modlin': [
-        { id: 'MG001', name: 'Adam Modlin', phone: '212-974-0740', email: 'amodlin@modlingroup.com', license: 'MG10001' },
-        { id: 'MG002', name: 'David Modlin', phone: '212-974-0741', email: 'dmodlin@modlingroup.com', license: 'MG10002' }
-    ],
-    'modernspaces': [
-        { id: 'MS001', name: 'Eric Benaim', phone: '718-606-6292', email: 'ebenaim@modernspacesnyc.com', license: 'MS10001' },
-        { id: 'MS002', name: 'John Antonacci', phone: '718-606-6293', email: 'jantonacci@modernspacesnyc.com', license: 'MS10002' }
-    ],
-    'murrayhill': [
-        { id: 'MH001', name: 'Michael Hill', phone: '212-532-1116', email: 'mhill@murrayhillproperties.com', license: 'MH10001' },
-        { id: 'MH002', name: 'Nancy Murray', phone: '212-532-1117', email: 'nmurray@murrayhillproperties.com', license: 'MH10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // N (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'nestseekers': [
-        { id: 'NS001', name: 'David Schwartz', phone: '212-252-8772', email: 'dschwartz@nestseekers.com', license: 'NS10001' },
-        { id: 'NS002', name: 'Eddie Shapiro', phone: '212-252-8773', email: 'eshapiro@nestseekers.com', license: 'NS10002' },
-        { id: 'NS003', name: 'Ryan Serhant', phone: '212-252-8774', email: 'rserhant@nestseekers.com', license: 'NS10003' }
-    ],
-    'newmark': [
-        { id: 'NM001', name: 'Barry Gosin', phone: '212-372-2000', email: 'bgosin@ngkf.com', license: 'NM10001' },
-        { id: 'NM002', name: 'James Kuhn', phone: '212-372-2001', email: 'jkuhn@ngkf.com', license: 'NM10002' }
-    ],
-    'nooklyn': [
-        { id: 'NK001', name: 'Harley Courts', phone: '718-522-5220', email: 'hcourts@nooklyn.com', license: 'NK10001' },
-        { id: 'NK002', name: 'Moiz Malik', phone: '718-522-5221', email: 'mmalik@nooklyn.com', license: 'NK10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // O (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'ogden': [
-        { id: 'OG001', name: 'Frank Naso', phone: '212-883-0660', email: 'fnaso@ogdencap.com', license: 'OG10001' },
-        { id: 'OG002', name: 'James Whelan', phone: '212-883-0661', email: 'jwhelan@ogdencap.com', license: 'OG10002' }
-    ],
-    'onyxequities': [
-        { id: 'OE001', name: 'Jonathan Shultz', phone: '973-623-0900', email: 'jshultz@onyxequities.com', license: 'OE10001' },
-        { id: 'OE002', name: 'Mike Sommer', phone: '973-623-0901', email: 'msommer@onyxequities.com', license: 'OE10002' }
-    ],
-    'optimal': [
-        { id: 'OP001', name: 'Olivia Peters', phone: '212-555-0430', email: 'opeters@optimalspaces.com', license: 'OP10001' },
-        { id: 'OP002', name: 'Peter Simmons', phone: '212-555-0431', email: 'psimmons@optimalspaces.com', license: 'OP10002' }
-    ],
-    'orangekey': [
-        { id: 'OK001', name: 'Oscar Kim', phone: '212-555-0440', email: 'okim@orangekeyrealty.com', license: 'OK10001' },
-        { id: 'OK002', name: 'Rebecca Lee', phone: '212-555-0441', email: 'rlee@orangekeyrealty.com', license: 'OK10002' }
-    ],
-    'oxford': [
-        { id: 'OX001', name: 'Adam Hess', phone: '212-555-0450', email: 'ahess@oxfordpg.com', license: 'OX10001' },
-        { id: 'OX002', name: 'Owen Grant', phone: '212-555-0451', email: 'ogrant@oxfordpg.com', license: 'OX10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // P (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'platinum': [
-        { id: 'PL001', name: 'Daniel Hedaya', phone: '212-627-8400', email: 'dhedaya@platinumpropertiesnyc.com', license: 'PL10001' },
-        { id: 'PL002', name: 'Meir Laufer', phone: '212-627-8401', email: 'mlaufer@platinumpropertiesnyc.com', license: 'PL10002' }
-    ],
-    'primemanhattan': [
-        { id: 'PM001', name: 'Paul Martin', phone: '212-555-0460', email: 'pmartin@primemanhattan.com', license: 'PM10001' },
-        { id: 'PM002', name: 'Sandra Moore', phone: '212-555-0461', email: 'smoore@primemanhattan.com', license: 'PM10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // R (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'rapidrealty': [
-        { id: 'RA001', name: 'Anthony Lolli', phone: '212-321-2500', email: 'alolli@rapidrealty.com', license: 'RA10001' },
-        { id: 'RA002', name: 'Robert Mills', phone: '212-321-2501', email: 'rmills@rapidrealty.com', license: 'RA10002' }
-    ],
-    'realnewyork': [
-        { id: 'RN001', name: 'Rachel Newman', phone: '212-555-0470', email: 'rnewman@realnewyork.com', license: 'RN10001' },
-        { id: 'RN002', name: 'Steven Gold', phone: '212-555-0471', email: 'sgold@realnewyork.com', license: 'RN10002' }
-    ],
-    'related': [
-        { id: 'RL001', name: 'Bruce Beal Jr.', phone: '212-421-5333', email: 'bbeal@related.com', license: 'RL10001' },
-        { id: 'RL002', name: 'Jeff Blau', phone: '212-421-5334', email: 'jblau@related.com', license: 'RL10002' },
-        { id: 'RL003', name: 'Stephen Ross', phone: '212-421-5335', email: 'sross@related.com', license: 'RL10003' }
-    ],
-    'remax': [
-        { id: 'RX001', name: 'Mary Anderson', phone: '212-555-0481', email: 'manderson@remax.com', license: 'RX10002' },
-        { id: 'RX002', name: 'Richard Ellis', phone: '212-555-0480', email: 'rellis@remax.com', license: 'RX10001' }
-    ],
-    'rnewyork': [
-        { id: 'RNY001', name: 'Robert Rosen', phone: '212-905-4480', email: 'rrosen@rnewyork.com', license: 'RNY10001' },
-        { id: 'RNY002', name: 'Zev Freidus', phone: '212-905-4481', email: 'zfreidus@rnewyork.com', license: 'RNY10002' }
-    ],
-    'rockrose': [
-        { id: 'RR001', name: 'Henry Elghanayan', phone: '212-822-3000', email: 'helghanayan@rockrose.com', license: 'RR10001' },
-        { id: 'RR002', name: 'Justin Elghanayan', phone: '212-822-3001', email: 'jelghanayan@rockrose.com', license: 'RR10002' }
-    ],
-    'rose': [
-        { id: 'RO001', name: 'Adam Rose', phone: '212-716-3500', email: 'arose@roseassociates.com', license: 'RO10001' },
-        { id: 'RO002', name: 'Amy Rose', phone: '212-716-3501', email: 'amyrose@roseassociates.com', license: 'RO10002' }
-    ],
-    'rosewoodrealty': [
-        { id: 'RW001', name: 'Aaron Jungreis', phone: '212-359-9900', email: 'ajungreis@rosewoodrealty.com', license: 'RW10001' },
-        { id: 'RW002', name: 'Ben Khakshoor', phone: '212-359-9901', email: 'bkhakshoor@rosewoodrealty.com', license: 'RW10002' }
-    ],
-    'rudin': [
-        { id: 'RU001', name: 'Eric Rudin', phone: '212-407-2400', email: 'erudin@rudin.com', license: 'RU10001' },
-        { id: 'RU002', name: 'William Rudin', phone: '212-407-2401', email: 'wrudin@rudin.com', license: 'RU10002' }
-    ],
-    'rutenberg': [
-        { id: 'RT001', name: 'Kathy Braddock', phone: '212-889-0800', email: 'kbraddock@rutenbergnyc.com', license: 'RT10001' },
-        { id: 'RT002', name: 'Nikki Field', phone: '212-889-0801', email: 'nfield@rutenbergnyc.com', license: 'RT10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // S (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'siderow': [
-        { id: 'SD001', name: 'Chris Siderow', phone: '212-219-8440', email: 'csiderow@siderowresidential.com', license: 'SD10001' },
-        { id: 'SD002', name: 'Mark Siderow', phone: '212-219-8441', email: 'msiderow@siderowresidential.com', license: 'SD10002' }
-    ],
-    'silverstein': [
-        { id: 'SI001', name: 'Larry Silverstein', phone: '212-490-0666', email: 'lsilverstein@silversteinproperties.com', license: 'SI10001' },
-        { id: 'SI002', name: 'Marty Burger', phone: '212-490-0667', email: 'mburger@silversteinproperties.com', license: 'SI10002' }
-    ],
-    'slatepropertygroup': [
-        { id: 'SP001', name: 'David Schwartz', phone: '212-858-8000', email: 'dschwartz@slatepg.com', license: 'SP10001' },
-        { id: 'SP002', name: 'Martin Nussbaum', phone: '212-858-8001', email: 'mnussbaum@slatepg.com', license: 'SP10002' }
-    ],
-    'slgreen': [
-        { id: 'SL001', name: 'Andrew Mathias', phone: '212-594-2700', email: 'amathias@slgreen.com', license: 'SL10001' },
-        { id: 'SL002', name: 'Marc Holliday', phone: '212-594-2701', email: 'mholliday@slgreen.com', license: 'SL10002' }
-    ],
-    'sothebys': [
-        { id: 'SO001', name: 'Jennifer Sills', phone: '212-606-7660', email: 'jsills@sothebysrealty.com', license: 'SO10001' },
-        { id: 'SO002', name: 'Nikki Field', phone: '212-606-7661', email: 'nfield@sothebysrealty.com', license: 'SO10002' },
-        { id: 'SO003', name: 'Serena Boardman', phone: '212-606-7662', email: 'sboardman@sothebysrealty.com', license: 'SO10003' }
-    ],
-    'stonehenge': [
-        { id: 'ST001', name: 'Joel Seiden', phone: '212-921-2800', email: 'jseiden@stonehengenyc.com', license: 'ST10001' },
-        { id: 'ST002', name: 'Ofer Yardeni', phone: '212-921-2801', email: 'oyardeni@stonehengenyc.com', license: 'ST10002' }
-    ],
-    'stribling': [
-        { id: 'SR001', name: 'Elizabeth Stribling', phone: '212-452-4400', email: 'estribling@stribling.com', license: 'SR10001' },
-        { id: 'SR002', name: 'Kirk Henckels', phone: '212-452-4401', email: 'khenckels@stribling.com', license: 'SR10002' },
-        { id: 'SR003', name: 'Margaret Grioli', phone: '212-452-4402', email: 'mgrioli@stribling.com', license: 'SR10003' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // T (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'terracrg': [
-        { id: 'TC001', name: 'Ofer Cohen', phone: '718-514-7878', email: 'ocohen@terracrg.com', license: 'TC10001' },
-        { id: 'TC002', name: 'Timur Karimov', phone: '718-514-7879', email: 'tkarimov@terracrg.com', license: 'TC10002' }
-    ],
-    'tfcornerstone': [
-        { id: 'TF001', name: 'Felix Charney', phone: '212-330-1000', email: 'fcharney@tfcornerstone.com', license: 'TF10001' },
-        { id: 'TF002', name: 'Tom Elghanayan', phone: '212-330-1001', email: 'telghanayan@tfcornerstone.com', license: 'TF10002' }
-    ],
-    'timeequities': [
-        { id: 'TE001', name: 'Francis Greenburger', phone: '212-206-6000', email: 'fgreenburger@timeequities.com', license: 'TE10001' },
-        { id: 'TE002', name: 'Robert Singer', phone: '212-206-6001', email: 'rsinger@timeequities.com', license: 'TE10002' }
-    ],
-    'tishman': [
-        { id: 'TI001', name: 'Jerry Speyer', phone: '212-715-0300', email: 'jspeyer@tishmanspeyer.com', license: 'TI10001' },
-        { id: 'TI002', name: 'Rob Speyer', phone: '212-715-0301', email: 'rspeyer@tishmanspeyer.com', license: 'TI10002' }
-    ],
-    'townresidential': [
-        { id: 'TR001', name: 'Andrew Heiberger', phone: '212-243-2000', email: 'aheiberger@townresidential.com', license: 'TR10001' },
-        { id: 'TR002', name: 'Shlomi Reuveni', phone: '212-243-2001', email: 'sreuveni@townresidential.com', license: 'TR10002' },
-        { id: 'TR003', name: 'Whitney Bickers', phone: '212-243-2002', email: 'wbickers@townresidential.com', license: 'TR10003' }
-    ],
-    'triplemint': [
-        { id: 'TM001', name: 'David Walker', phone: '212-390-0246', email: 'dwalker@triplemint.com', license: 'TM10001' },
-        { id: 'TM002', name: 'Philip Lang', phone: '212-390-0247', email: 'plang@triplemint.com', license: 'TM10002' }
-    ],
-    'trump': [
-        { id: 'TU001', name: 'Amanda Miller', phone: '212-715-7200', email: 'amiller@trump.com', license: 'TU10001' },
-        { id: 'TU002', name: 'Donald Trump Jr.', phone: '212-715-7201', email: 'dtrumpjr@trump.com', license: 'TU10002' }
-    ],
-    'twotrees': [
-        { id: 'TW001', name: 'David Walentas', phone: '718-222-1400', email: 'dwalentas@twotreesny.com', license: 'TW10001' },
-        { id: 'TW002', name: 'Jed Walentas', phone: '718-222-1401', email: 'jwalentas@twotreesny.com', license: 'TW10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // V (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'vanguard': [
-        { id: 'VA001', name: 'Victor Adams', phone: '212-555-0490', email: 'vadams@vanguardresidential.com', license: 'VA10001' },
-        { id: 'VA002', name: 'Wendy Chen', phone: '212-555-0491', email: 'wchen@vanguardresidential.com', license: 'VA10002' }
-    ],
-    'vno': [
-        { id: 'VN001', name: 'Michael Franco', phone: '212-894-7000', email: 'mfranco@vno.com', license: 'VN10001' },
-        { id: 'VN002', name: 'Steven Roth', phone: '212-894-7001', email: 'sroth@vno.com', license: 'VN10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // W (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'warburg': [
-        { id: 'WA001', name: 'Bonnie Chajet', phone: '212-439-4500', email: 'bchajet@warburgrealty.com', license: 'WA10001' },
-        { id: 'WA002', name: 'Frederick Warburg Peters', phone: '212-439-4501', email: 'fpeters@warburgrealty.com', license: 'WA10002' },
-        { id: 'WA003', name: 'Ron Wexler', phone: '212-439-4502', email: 'rwexler@warburgrealty.com', license: 'WA10003' }
-    ],
-    'weichert': [
-        { id: 'WE001', name: 'James Weichert', phone: '212-555-0500', email: 'jweichert@weichert.com', license: 'WE10001' },
-        { id: 'WE002', name: 'Susan Weichert', phone: '212-555-0501', email: 'sweichert@weichert.com', license: 'WE10002' }
-    ],
-    'williambmay': [
-        { id: 'WM001', name: 'Barbara May', phone: '212-744-2000', email: 'bmay@williambmay.com', license: 'WM10001' },
-        { id: 'WM002', name: 'William May III', phone: '212-744-2001', email: 'wmay@williambmay.com', license: 'WM10002' }
-    ],
-    'winick': [
-        { id: 'WI001', name: 'Jeff Winick', phone: '212-792-2600', email: 'jwinick@winick.com', license: 'WI10001' },
-        { id: 'WI002', name: 'Lee Block', phone: '212-792-2601', email: 'lblock@winick.com', license: 'WI10002' }
-    ],
-    'worldwide': [
-        { id: 'WW001', name: 'David Werner', phone: '212-421-3700', email: 'dwerner@worldwidegroup.net', license: 'WW10001' },
-        { id: 'WW002', name: 'Richard Werner', phone: '212-421-3701', email: 'rwerner@worldwidegroup.net', license: 'WW10002' }
-    ],
-    // ══════════════════════════════════════════════════════════════════
-    // Z (Alphabetical)
-    // ══════════════════════════════════════════════════════════════════
-    'zeckendorf': [
-        { id: 'ZE001', name: 'Arthur Zeckendorf', phone: '212-681-7777', email: 'azeckendorf@zeckendorf.com', license: 'ZE10001' },
-        { id: 'ZE002', name: 'William Zeckendorf', phone: '212-681-7778', email: 'wzeckendorf@zeckendorf.com', license: 'ZE10002' }
-    ]
-};
+var rebnyAgents = { 'mallan': [] };  // Loaded from API
 
 // REBNY Company names mapping - Comprehensive list
-const rebnyCompanyNames = {
-    // A
-    'abacus': 'Abacus Real Estate',
-    'abelson': 'Abelson Realty',
-    'abre': 'ABRE',
-    'agentsofcompass': 'Agents of Compass',
-    'akam': 'AKAM Living Services',
-    'alearealty': 'Alea Realty',
-    'allcity': 'All City Real Estate',
-    'ameritech': 'Ameritech Realty',
-    'anchor': 'Anchor Associates',
-    'arielpa': 'Ariel Property Advisors',
-    'astorlg': 'Astor Lane Group',
-    'atriumrealtygroup': 'Atrium Realty Group',
-    'avenueresidential': 'Avenue Residential',
-    // B
-    'barrettjackson': 'Barrett Jackson Realty',
-    'besen': 'Besen & Associates',
-    'bhsusa': 'Brown Harris Stevens',
-    'blacklabelnyc': 'Black Label NYC',
-    'blesso': 'Blesso Properties',
-    'blueskyre': 'Blue Sky Real Estate',
-    'bohemia': 'Bohemia Realty Group',
-    'bond': 'Bond New York',
-    'brickhouse': 'Brickhouse Realty',
-    'brickunderground': 'Brick Underground',
-    'broadwayrealty': 'Broadway Realty',
-    'brooklynmls': 'Brooklyn MLS',
-    // C
-    'cantor': 'Cantor Pecorella',
-    'castlerealty': 'Castle Realty',
-    'cbwarburg': 'Coldwell Banker Warburg',
-    'century21': 'Century 21 NYC',
-    'certifiedny': 'Certified NY Realty',
-    'chelseare': 'Chelsea Real Estate',
-    'christies': "Christie's International Real Estate",
-    'citi': 'Citi Habitats',
-    'cityconnections': 'City Connections Realty',
-    'citywideapt': 'Citywide Apartments',
-    'clarkerealty': 'Clarke Realty',
-    'cleo': 'Cleo Real Estate',
-    'cmcrealty': 'CMC Realty',
-    'compass': 'Compass',
-    'coopercooper': 'Cooper & Cooper',
-    'corcoran': 'The Corcoran Group',
-    'corcoransunshine': 'Corcoran Sunshine Marketing Group',
-    'core': 'CORE Real Estate',
-    'crossharbor': 'Cross Harbor Partners',
-    // D
-    'damianos': 'Damianos Realty Group',
-    'davler': 'Davler Media',
-    'djkresidential': 'DJK Residential',
-    'douglas': 'Douglas Elliman',
-    'downtownre': 'Downtown Real Estate',
-    'durst': 'The Durst Organization',
-    // E
-    'eastside': 'Eastside Realty',
-    'ebrealestate': 'E.B. Real Estate',
-    'ekoliving': 'Eko Living',
-    'elegran': 'Elegran Real Estate',
-    'elika': 'Elika Real Estate',
-    'ellimandevelopment': 'Elliman Development Marketing',
-    'engelvolk': 'Engel & Völkers',
-    'exitrealty': 'EXIT Realty',
-    'exp': 'eXp Realty',
-    // F
-    'fenwickkeats': 'Fenwick Keats Real Estate',
-    'fillmore': 'Fillmore Real Estate',
-    'firstservice': 'FirstService Residential',
-    'fontana': 'Fontana Realty',
-    'foxresidential': 'Fox Residential',
-    'friedmanroth': 'Friedman-Roth Realty',
-    // G
-    'gfi': 'GFI Realty Services',
-    'glenwood': 'Glenwood Management',
-    'gotham': 'The Gotham Organization',
-    'governeur': 'Governeur Real Estate',
-    'graceonpark': 'Grace on Park',
-    'grande': 'Grande Realty',
-    'greenburghrealty': 'Greenburgh Realty',
-    'greenpoint': 'Greenpoint Realty',
-    'gumleyhaft': 'Gumley Haft',
-    // H
-    'halstead': 'Halstead',
-    'harlemlofts': 'Harlem Lofts',
-    'heraldsquare': 'Herald Square Properties',
-    'highcap': 'Highcap Group',
-    'highline': 'Highline Residential',
-    'homestead': 'Homestead Realty',
-    'hudsonriverpark': 'Hudson River Park Realty',
-    // I
-    'idealproperties': 'Ideal Properties Group',
-    'interluxe': 'Interluxe',
-    'italiany': 'Italian NY Realty',
-    // J
-    'jacklresnick': 'Jack Resnick & Sons',
-    'jcdeniro': 'JC DeNiro & Associates',
-    'johngallin': 'John Gallin & Son',
-    'jsmithlanier': 'J. Smith Lanier',
-    // K
-    'kaled': 'Kaled Management',
-    'kw': 'Keller Williams NYC',
-    'kingsland': 'Kingsland Properties',
-    'kleier': 'Kleier Residential',
-    'kobirealty': 'Kobi Lahav Real Estate',
-    'kpm': 'KPM Properties',
-    'kushner': 'Kushner Companies',
-    // L
-    'landmark': 'Landmark Realty',
-    'langsam': 'Langsam Property Services',
-    'lee': 'Lee & Associates NYC',
-    'lefrak': 'The LeFrak Organization',
-    'lesliegarfield': 'Leslie J. Garfield',
-    'levelgroup': 'Level Group',
-    'liebman': 'Liebman & Chessare',
-    'lincolnproperty': 'Lincoln Property Company',
-    'lmdev': 'L+M Development Partners',
-    'loketch': 'Loketch Associates',
-    'luxegroup': 'Luxe Group',
-    // M
-    'mallan': 'Mallan Real Estate Inc',
-    'manhattanapt': 'Manhattan Apartments',
-    'manhattanskyline': 'Manhattan Skyline',
-    'marcusmillichap': 'Marcus & Millichap',
-    'mdrn': 'MDRN Residential',
-    'meridian': 'Meridian Capital Group',
-    'metro': 'Metro Lofts',
-    'metropolitan': 'Metropolitan Property Group',
-    'mirador': 'Mirador Real Estate',
-    'modlin': 'The Modlin Group',
-    'modernspaces': 'Modern Spaces',
-    'murrayhill': 'Murray Hill Properties',
-    // N
-    'nestseekers': 'Nest Seekers International',
-    'newmark': 'Newmark',
-    'nooklyn': 'Nooklyn',
-    'nrt': 'NRT LLC',
-    'nybits': 'NY Bits',
-    'nysrealty': 'NYS Realty',
-    // O
-    'ogden': 'Ogden CAP Properties',
-    'onetenmgmt': 'One Ten Management',
-    'onyxequities': 'Onyx Equities',
-    'optimal': 'Optimal Spaces',
-    'optimum': 'Optimum Properties',
-    'orangekey': 'Orange Key Realty',
-    'oxford': 'Oxford Property Group',
-    // P
-    'parkwestvillage': 'Park West Village',
-    'platinum': 'Platinum Properties',
-    'primemanhattan': 'Prime Manhattan Residential',
-    'propstore': 'Prop Store',
-    'pruett': 'Pruett Realty',
-    // R
-    'rapidrealty': 'Rapid Realty',
-    'realnewyork': 'Real New York',
-    'realtyexecutives': 'Realty Executives',
-    'related': 'Related Companies',
-    'remax': 'RE/MAX',
-    'rnewyork': 'R New York',
-    'robertkhederian': 'Robert Khederian Realty',
-    'rockrose': 'Rockrose Development',
-    'rose': 'Rose Associates',
-    'rosewoodrealty': 'Rosewood Realty Group',
-    'rudin': 'Rudin Management',
-    'rutenberg': 'Rutenberg NYC',
-    // S
-    'safarirealty': 'Safari Realty',
-    'silverstein': 'Silverstein Properties',
-    'siderow': 'Siderow Residential Group',
-    'skylight': 'Skylight Real Estate',
-    'slatepropertygroup': 'Slate Property Group',
-    'slgreen': 'SL Green Realty',
-    'sothebys': "Sotheby's International Realty",
-    'steinfirebrand': 'Stein Firebrand',
-    'stonehenge': 'Stonehenge NYC',
-    'stribling': 'Stribling & Associates',
-    // T
-    'terracrg': 'TerraCRG',
-    'tfcornerstone': 'TF Cornerstone',
-    'timeequities': 'Time Equities',
-    'tishman': 'Tishman Speyer',
-    'townresidential': 'Town Residential',
-    'trevorday': 'Trevor Day Realty',
-    'triplemint': 'Triplemint',
-    'trg': 'TRG Management',
-    'trump': 'Trump Organization',
-    'twotrees': 'Two Trees Management',
-    // U
-    'urbanlofts': 'Urban Lofts Realty',
-    // V
-    'vanguard': 'Vanguard Residential',
-    'villageconnections': 'Village Connections',
-    'vista': 'Vista Realty',
-    'vno': 'Vornado Realty Trust',
-    // W
-    'warburg': 'Warburg Realty',
-    'weichert': 'Weichert Realtors',
-    'werwaiss': 'Werwaiss & Co',
-    'westside': 'Westside Rentals',
-    'williambmay': 'William B. May',
-    'winick': 'Winick Realty Group',
-    'woolley': 'Woolley & Co',
-    'worldwide': 'World Wide Group',
-    // X-Y-Z
-    'xander': 'Xander Realty',
-    'york': 'York Realty',
-    'zale': 'Zale Realty',
-    'zamias': 'Zamias Services',
-    'zeckendorf': 'Zeckendorf Development'
-};
+var rebnyCompanyNames = { 'mallan': 'Mallan Real Estate Inc.' };  // Loaded from API
 
 // Populate all REBNY company dropdowns dynamically from rebnyCompanyNames
 // ══════════════════════════════════════════════════════
@@ -8680,10 +7802,10 @@ function switchRentalCalcTab(n) {
     }
 }
 function autoPopulateRentalCalc() {
-    // Try mock data first (viewer mode), then fall back to form fields
+    // Try cached data first (viewer mode), then fall back to form fields
     var params = new URLSearchParams(window.location.search);
     var lid = params.get('listingId');
-    var listings = (typeof VIEWER_MOCK_LISTINGS !== 'undefined') ? VIEWER_MOCK_LISTINGS : (typeof RENTAL_MOCK_LISTINGS !== 'undefined') ? RENTAL_MOCK_LISTINGS : {};
+    var listings = (typeof VIEWER_LISTINGS !== 'undefined') ? VIEWER_LISTINGS : {};
     var d = lid ? listings[lid] : null;
     var rent = 0;
     if (d) {

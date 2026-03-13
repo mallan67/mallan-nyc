@@ -115,7 +115,7 @@ export async function GET(request: Request) {
     const maxSqft = searchParams.get('maxSqft');
     const sortParam = searchParams.get('sort');
     const skipParam = searchParams.get('skip');
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
     // New filter params
     const commercial = searchParams.get('commercial') === 'true';
@@ -584,7 +584,7 @@ export async function GET(request: Request) {
 
         // Push ZIP filter to Trestle OData
         if (zipCodes) {
-          const zips = zipCodes.split(',').map(z => z.trim()).filter(Boolean);
+          const zips = zipCodes.split(',').map(z => z.trim().replace(/[^0-9]/g, '')).filter(z => z.length === 5);
           if (zips.length === 1) {
             filterParts.push(`PostalCode eq '${zips[0]}'`);
           } else if (zips.length > 1) {

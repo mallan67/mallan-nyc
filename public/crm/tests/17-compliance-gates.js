@@ -6,7 +6,7 @@
 function checkListingCompliance(listingIds) {
     var result = { passed: [], blocked: [], warnings: [] };
     listingIds.forEach(function(id) {
-        var listing = mockListings.find(function(l) { return l.id === id; });
+        var listing = listings.find(function(l) { return l.id === id; });
         if (!listing) return;
 
         var perm = listing.permissions || {};

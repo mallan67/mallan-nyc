@@ -128,8 +128,8 @@ var SearchDoctor = (function() {
         var failed = [];
         var warnings = [];
         var hasSC = typeof SearchCore !== 'undefined';
-        var hasML = typeof mockListings !== 'undefined';
-        var listings = hasML ? mockListings : [];
+        var hasML = typeof listings !== 'undefined';
+        var listings = hasML ? listings : [];
         var attrText = document.body ? document.body.innerHTML : '';
 
         // Helper: push result
@@ -725,7 +725,7 @@ var SearchDoctor = (function() {
      * Shows criteria collected, per-step filter counts, sort, pagination.
      *
      * @param {string} mode - 'sale', 'rent', or 'building'
-     * @param {Array} listings - Full mockListings array
+     * @param {Array} listings - Full listings array
      * @param {object} state - searchResultsState
      * @returns {object} - Full explanation
      */
@@ -778,7 +778,7 @@ var SearchDoctor = (function() {
      * One click captures everything needed to reproduce an issue.
      *
      * @param {string} mode - Current search mode
-     * @param {Array} listings - mockListings
+     * @param {Array} listings - listings
      * @param {object} state - searchResultsState
      * @returns {string} - JSON string
      */
@@ -1085,14 +1085,14 @@ var SearchDoctor = (function() {
     function _runExplain() {
         var out = document.getElementById('searchDoctorOutput');
         var mode = (typeof currentSearchTab !== 'undefined') ? currentSearchTab : 'sale';
-        var listings = (typeof mockListings !== 'undefined') ? mockListings : [];
+        var listings = (typeof listings !== 'undefined') ? listings : [];
         var state = (typeof searchResultsState !== 'undefined') ? searchResultsState : {};
         if (out) out.innerHTML = _formatExplain(explainSearch(mode, listings, state));
     }
 
     function _runBugReport() {
         var mode = (typeof currentSearchTab !== 'undefined') ? currentSearchTab : 'sale';
-        var listings = (typeof mockListings !== 'undefined') ? mockListings : [];
+        var listings = (typeof listings !== 'undefined') ? listings : [];
         var state = (typeof searchResultsState !== 'undefined') ? searchResultsState : {};
         var report = exportBugReport(mode, listings, state);
 
@@ -1112,7 +1112,7 @@ var SearchDoctor = (function() {
     }
 
     function _runFairHousing() {
-        var listings = (typeof mockListings !== 'undefined') ? mockListings : [];
+        var listings = (typeof listings !== 'undefined') ? listings : [];
         var report = runFairHousingAudit(listings);
         var out = document.getElementById('searchDoctorOutput');
         if (!out) return;

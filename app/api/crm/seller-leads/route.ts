@@ -70,8 +70,23 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { address, unit, borough, neighborhood, postal_code, bbl, bin, owner_name, owner_email, owner_phone, notes } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const address = body.address as string | undefined;
+  const unit = body.unit as string | undefined;
+  const borough = body.borough as string | undefined;
+  const neighborhood = body.neighborhood as string | undefined;
+  const postal_code = body.postal_code as string | undefined;
+  const bbl = body.bbl as string | undefined;
+  const bin = body.bin as string | undefined;
+  const owner_name = body.owner_name as string | undefined;
+  const owner_email = body.owner_email as string | undefined;
+  const owner_phone = body.owner_phone as string | undefined;
+  const notes = body.notes as string | undefined;
 
   if (!address || typeof address !== "string" || address.trim().length < 3) {
     return NextResponse.json({ ok: false, error: "address is required (min 3 chars)" }, { status: 400 });

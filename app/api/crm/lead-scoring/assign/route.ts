@@ -11,7 +11,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const { lead_id } = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { lead_id } = body as { lead_id?: string };
   if (!lead_id) return NextResponse.json({ ok: false, error: "lead_id is required" }, { status: 400 });
 
   const assignedTo = await autoAssignLead(BigInt(lead_id));

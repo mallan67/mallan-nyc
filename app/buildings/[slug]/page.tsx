@@ -148,13 +148,24 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const activeCount = data?.stats?.totalActive || 0;
   const salesCount = data?.stats?.totalSales || 0;
 
+  const canonicalParams = new URLSearchParams({ sn: sp.sn, st: sp.st });
+  if (sp.z) canonicalParams.set('z', sp.z);
+  if (sp.bn) canonicalParams.set('bn', sp.bn);
+
   return {
     title: `${label} — Units, Sales History & Amenities | Mallan Real Estate`,
     description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recent sale${salesCount !== 1 ? 's' : ''}. View building amenities, price history, and available units.`,
+    alternates: { canonical: `https://mallan.nyc/buildings/profile?${canonicalParams.toString()}` },
     openGraph: {
       title: `${label} | Building Intelligence | Mallan Real Estate`,
       description: `Building profile for ${label}. Active listings, sales history, amenities, and market data.`,
       type: 'website',
+      images: [{ url: 'https://mallan.nyc/images/og-default.png', width: 1200, height: 630, alt: label }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${label} | Mallan Real Estate`,
+      images: ['https://mallan.nyc/images/og-default.png'],
     },
   };
 }

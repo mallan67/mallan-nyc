@@ -1,15 +1,30 @@
-import { NextResponse } from "next/server";
-export const runtime = "nodejs";
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import prisma from '@/lib/prisma';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const key = searchParams.get('key');
-  const expectedKey = process.env.PRIVATE_COLLECTION_PASS;
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-  if (!expectedKey || key !== expectedKey) {
+/**
+ * GET /api/ai/env-check
+ *
+ * Returns whether the OpenAI API key is configured.
+ * Broker-only — requires session cookie auth.
+ */
+export async function GET(_request: NextRequest) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session_token')?.value;
+  if (!token) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const val = process.env.OPENAI_API_KEY || "";
-  return NextResponse.json({ hasKey: Boolean(val) });
+  const session = await prisma.session.findUnique({
+    where: { token },
+    select: { role: true, expires_at: true },
+  });
+  if (!session || session.expires_at < new Date() || session.role !== 'BROKER') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return NextResponse.json({ hasKey: !!process.env.OPENAI_API_KEY });
 }

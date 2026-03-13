@@ -298,7 +298,7 @@ const B26_MEDIA = [
   "Media", "MediaURL",
 ];
 
-// B27: Rental-Specific (16 fields)
+// B27: Rental-Specific (21 fields)
 const B27_RENTAL = [
   "LeaseAmount", "LeaseAmountFrequency",
   "LeaseConsideredTerms", "LeaseTerm",
@@ -308,6 +308,15 @@ const B27_RENTAL = [
   "RentalApplicationRequired", "ApplicationFee",
   "SecurityDeposit", "KeyDeposit",
   "TenantPays",
+  // FARE Act fee transparency (NYC LL 119/2024)
+  "MoveInCosts", "MoveInCostsComments", "MoveInCostsAmountTotal",
+  "OngoingFees", "TenantPaysDescription",
+];
+
+// B30: FARE Act Custom Property Fields (4 fields — need $expand=CustomProperty)
+const B30_FARE_ACT_FEES = [
+  "AdditionalFee", "AdditionalFeeDescription",
+  "AdditionalFeeYN", "FeeFrequency",
 ];
 
 // B28: (empty in REBNY — reserved)
@@ -333,7 +342,7 @@ export const ALL_RLS_FIELDS: string[] = [...new Set([
   ...B16_FINANCIAL_BUILDING, ...B17_EXPENSES, ...B18_CONCESSIONS,
   ...B19_LOT_LAND, ...B20_UNIT_FEATURES, ...B21_PARKING,
   ...B22_OUTDOOR_PETS, ...B23_SHOWINGS, ...B24_NEW_DEV,
-  ...B25_GREEN, ...B26_MEDIA, ...B27_RENTAL, ...B29_OTHER,
+  ...B25_GREEN, ...B26_MEDIA, ...B27_RENTAL, ...B30_FARE_ACT_FEES, ...B29_OTHER,
 ])];
 
 // ═══════════════════════════════════════════════════════════
@@ -404,6 +413,8 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   // Rental
   "LeaseConsideredTerms", "FurnishedDescription",
   "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
+  // FARE Act CustomProperty fields (need $expand=CustomProperty)
+  "AdditionalFee", "AdditionalFeeDescription", "AdditionalFeeYN", "FeeFrequency",
 ]);
 
 /**
@@ -622,6 +633,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ...pick(raw, B24_NEW_DEV),
     ...pick(raw, B25_GREEN),
     ...pick(raw, B27_RENTAL),
+    ...pick(raw, B30_FARE_ACT_FEES),
     ...pick(raw, B29_OTHER),
   };
   const compliance = {

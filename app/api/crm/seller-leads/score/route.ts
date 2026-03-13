@@ -12,8 +12,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { seller_lead_id, batch } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { seller_lead_id, batch } = body as { seller_lead_id?: string; batch?: boolean };
 
   // Batch re-score (broker only)
   if (batch) {

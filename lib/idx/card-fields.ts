@@ -48,4 +48,5 @@ export const CARD_SELECT_FIELDS = [
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   // Rental
   "PetsAllowed", "Furnished",
+  "MoveInCosts", "OngoingFees", "TenantPays", "TenantPaysDescription",
 ];

@@ -269,19 +269,25 @@ export default function ListingSidePanel() {
             Ask a Question
           </button>
 
-          {/* Agent card */}
-          <div className="glass-card rounded-2xl p-6 flex items-center gap-5">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.12), rgba(184,134,11,0.04))', boxShadow: 'var(--gold-glow)' }}
-            >
-              <span className="font-display font-bold text-brand-gold-deep text-lg">MA</span>
+          {/* Agent card — uses listing agent data, no hardcoded PII */}
+          {listing.agent?.listOfficeName && (
+            <div className="glass-card rounded-2xl p-6 flex items-center gap-5">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.12), rgba(184,134,11,0.04))', boxShadow: 'var(--gold-glow)' }}
+              >
+                <span className="font-display font-bold text-brand-gold-deep text-lg">
+                  {(listing.agent.listAgentName || listing.agent.listOfficeName).slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <p className="font-display font-semibold text-[15px] text-brand-dark">{listing.agent.listOfficeName}</p>
+                {listing.agent.listOfficePhone && (
+                  <p className="text-brand-dark/85 text-[12px] font-light">{listing.agent.listOfficePhone}</p>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
-              <p className="text-brand-dark/85 text-[12px] font-light">(646) 258-4460 &middot; License #10311201806</p>
-            </div>
-          </div>
+          )}
 
           {/* REBNY attribution */}
           {listing.agent?.listOfficeName && (

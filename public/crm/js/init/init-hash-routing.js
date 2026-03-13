@@ -51,7 +51,7 @@
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
             // Opened in a new tab — show only the listing detail
-            // Must wait for data to load before showing detail (mockListings starts empty)
+            // Must wait for data to load before showing detail (listings starts empty)
             // routeParam can be: sequential id (legacy: "107") or lid (stable: "RLS20059088")
             var detailId = routeParam;
             var detailIdInt = parseInt(routeParam, 10);
@@ -72,11 +72,11 @@
 
                 function _tryShowDetail() {
                     // Check if data is available
-                    if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                    if (typeof listings !== 'undefined' && listings.length > 0) {
                         // Try lid first (stable across sessions), fall back to sequential id
-                        var listing = mockListings.find(function(l) { return l.lid === detailId; });
+                        var listing = listings.find(function(l) { return l.lid === detailId; });
                         if (!listing && isLegacyId) {
-                            listing = mockListings.find(function(l) { return l.id === detailIdInt; });
+                            listing = listings.find(function(l) { return l.id === detailIdInt; });
                         }
                         if (listing) {
                             showListingDetail(listing.id);
@@ -138,11 +138,11 @@
                                 if (_detailResolved) return;
                                 if (result.listings && result.listings.length > 0) {
                                     var fetched = result.listings[0];
-                                    // Add to mockListings so showListingDetail can find it
-                                    if (typeof mockListings !== 'undefined') {
+                                    // Add to listings so showListingDetail can find it
+                                    if (typeof listings !== 'undefined') {
                                         // Assign a sequential id if missing
-                                        if (!fetched.id) fetched.id = mockListings.length + 1;
-                                        mockListings.push(fetched);
+                                        if (!fetched.id) fetched.id = listings.length + 1;
+                                        listings.push(fetched);
                                     }
                                     _markResolved();
                                     showListingDetail(fetched.id);
@@ -207,12 +207,12 @@
             } else if (newRoute === 'results') {
                 _navigateToResults(false);
             } else if (newRoute === 'detail' && newParam) {
-                if (typeof showListingDetail === 'function' && typeof mockListings !== 'undefined') {
+                if (typeof showListingDetail === 'function' && typeof listings !== 'undefined') {
                     // Try lid first (stable), then sequential id (legacy)
-                    var listing = mockListings.find(function(l) { return l.lid === newParam; });
+                    var listing = listings.find(function(l) { return l.lid === newParam; });
                     if (!listing) {
                         var numId = parseInt(newParam, 10);
-                        if (!isNaN(numId)) listing = mockListings.find(function(l) { return l.id === numId; });
+                        if (!isNaN(numId)) listing = listings.find(function(l) { return l.id === numId; });
                     }
                     if (listing) {
                         window._suppressHashUpdate = true;
@@ -313,15 +313,15 @@
                 // _replaceListings dispatches 'mallan:data:ready' when data arrives
                 window.addEventListener('mallan:data:ready', function onDataReady() {
                     window.removeEventListener('mallan:data:ready', onDataReady);
-                    // Data loaded — restore search state now that mockListings is populated
+                    // Data loaded — restore search state now that listings is populated
                     if (typeof _restoreSearchState === 'function') {
                         _restoreSearchState();
                     }
                     if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
-                    } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
-                        searchResultsState.filteredListings = mockListings.slice();
+                    } else if (typeof listings !== 'undefined' && listings.length > 0) {
+                        searchResultsState.filteredListings = listings.slice();
                         searchResultsState.currentPage = 1;
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -334,7 +334,7 @@
                 });
                 // Safety timeout: if data doesn't load in 10s, go to search form
                 setTimeout(function() {
-                    if (typeof mockListings === 'undefined' || mockListings.length === 0) {
+                    if (typeof listings === 'undefined' || listings.length === 0) {
                         if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
                         if (searchFormContainer) searchFormContainer.style.display = 'block';
                         if (searchResultsSection) searchResultsSection.style.display = 'none';

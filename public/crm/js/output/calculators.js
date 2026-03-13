@@ -726,9 +726,10 @@ function printCurrentCalc() {
     printHTML += '.results{border:1px solid #eee;border-radius:8px;padding:16px;margin-top:16px;}';
     printHTML += '.footer{text-align:center;border-top:1px solid #ddd;padding-top:8px;font-size:8pt;color:#999;margin-top:24px;}';
     printHTML += '</style></head><body>';
-    printHTML += '<div class="header"><h1>MALLAN REAL ESTATE INC.</h1>';
-    printHTML += '<p>400 East 90th Street, Suite 17C, New York, NY 10128 | 646-258-4460</p>';
-    printHTML += '<p>Licensed Real Estate Brokerage | Lic. #10991205323</p></div>';
+    var _co = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
+    printHTML += '<div class="header"><h1>' + (_co.company || 'MALLAN REAL ESTATE INC.') + '</h1>';
+    printHTML += '<p>' + (_co.address || '') + (_co.phone ? ' | ' + _co.phone : '') + '</p>';
+    printHTML += '<p>Licensed Real Estate Brokerage' + (_co.companyLicense ? ' | Lic. ' + _co.companyLicense : '') + '</p></div>';
     printHTML += '<h2 style="font-size:14pt;color:#B8860B;margin-bottom:12px;">' + title + '</h2>';
     if (results) printHTML += '<div class="results">' + results.innerHTML + '</div>';
     printHTML += '<div class="footer"><p>Estimates only. Consult a financial advisor for actual figures.</p>';
@@ -761,7 +762,8 @@ function emailCurrentCalc() {
         });
     }
 
-    text += '\n---\nPrepared by Mallan Real Estate Inc.\n646-258-4460 | info@mallan.nyc\nEstimates only. Consult a financial advisor.';
+    var _co2 = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
+    text += '\n---\nPrepared by ' + (_co2.company || 'Mallan Real Estate Inc.') + '\n' + (_co2.phone || '') + ' | ' + (_co2.email || '') + '\nEstimates only. Consult a financial advisor.';
 
     // Copy and open mailto
     navigator.clipboard.writeText(text).catch(function() {});

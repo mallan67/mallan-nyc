@@ -6,6 +6,8 @@ import CookieConsent from './components/CookieConsent';
 import ExitIntentPopup from './components/ExitIntentPopup';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
+import BehavioralTracker from './components/BehavioralTracker';
+import SoftIdentityCapture from './components/SoftIdentityCapture';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthProvider from './components/AuthProvider';
 import Header from './components/Header';
@@ -91,6 +93,14 @@ export const metadata: Metadata = {
   verification: {
     google: 'google02f488e9e5e76e5a',
   },
+  icons: {
+    icon: [
+      { url: '/images/mallan-m-icon.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/images/mallan-logo.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 };
 
 // JSON-LD structured data for LocalBusiness / RealEstateAgent
@@ -161,6 +171,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
+        {/* Preconnect to external domains for faster resource loading */}
+        <link rel="dns-prefetch" href="https://translate.google.com" />
+        <link rel="preconnect" href="https://api.cotality.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.cotality.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -189,6 +203,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <CookieConsent />
         <ExitIntentPopup />
         <RegistrationGate />
+        <BehavioralTracker />
+        <SoftIdentityCapture />
         <Analytics />
       </body>
     </html>

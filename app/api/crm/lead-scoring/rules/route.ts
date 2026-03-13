@@ -30,8 +30,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { agent_id, criteria, priority, max_leads_per_month } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const agent_id = body.agent_id as string | undefined;
+  const criteria = body.criteria;
+  const priority = body.priority as number | undefined;
+  const max_leads_per_month = body.max_leads_per_month as number | undefined;
 
   if (!agent_id) return NextResponse.json({ ok: false, error: "agent_id is required" }, { status: 400 });
 

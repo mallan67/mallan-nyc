@@ -84,14 +84,14 @@ function SecurityHardeningV2Tests(options) {
          'REBNY_TOKEN','accessToken','secretKey','customerDatabase','clientDatabase'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exposed.push('window.' + g);
         });
-        // Check mockListings for private fields
-        if (typeof window.mockListings !== 'undefined' && window.mockListings.length > 0) {
-            var sample = window.mockListings[0];
+        // Check listings for private fields
+        if (typeof window.listings !== 'undefined' && window.listings.length > 0) {
+            var sample = window.listings[0];
             var privateInMock = [];
             ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN'].forEach(function(f) {
                 if (sample[f]) privateInMock.push(f);
             });
-            if (privateInMock.length > 0) exposed.push('mockListings has: ' + privateInMock.join(','));
+            if (privateInMock.length > 0) exposed.push('listings has: ' + privateInMock.join(','));
         }
         // Scan HTML for API keys
         var html = document.documentElement.outerHTML.substring(0, 100000);

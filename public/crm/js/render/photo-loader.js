@@ -188,12 +188,12 @@
         }
 
         /**
-         * Apply fetched media to the listing object in mockListings for detail panel use.
+         * Apply fetched media to the listing object in listings for detail panel use.
          */
         function _applyMediaToListing(listingId, mediaItems) {
             if (!mediaItems || !mediaItems.length) return;
-            if (typeof mockListings === 'undefined') return;
-            var listing = mockListings.find(function(l) { return l.lid === listingId || String(l._listingKey) === listingId; });
+            if (typeof listings === 'undefined') return;
+            var listing = listings.find(function(l) { return l.lid === listingId || String(l._listingKey) === listingId; });
             if (!listing) return;
 
             // Build typed arrays

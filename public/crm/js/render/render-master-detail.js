@@ -65,7 +65,7 @@
         }
 
         function showListingInDetailPanel(listingId) {
-            var listing = mockListings.find(l => l.id === listingId);
+            var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';

@@ -2,34 +2,23 @@
         var customerDB = {};
         var currentWorkspaceClientId = null;
 
-        // Dev escape hatch: ?mock=true on localhost loads hardcoded mock data
-        var _isDevMock = (function() {
-            var host = window.location.hostname;
-            var isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
-            var params = new URLSearchParams(window.location.search);
-            return isLocal && params.get('mock') === 'true';
-        })();
-
-        var _MOCK_LISTINGS_DATA = [];
-
-        // Localhost: always start with mock data (available immediately for search).
-        // Production: empty array, populated from API.
+        // Listings array — populated from API (IDX/Trestle or Prisma DB)
         var _isLocalhost = (function() {
             var h = window.location.hostname;
             return h === 'localhost' || h === '127.0.0.1' || h === '';
         })();
-        var mockListings = [];
+        var listings = [];
 
         // ── REBNY Distribution Gate defaults ──
         // Add default permissions to all listings that don't have explicit permissions set
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (!l.permissions) {
                 l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
             }
         });
 
-        // Add borough to all listings that don't have it (Manhattan-only mock data)
-        mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+        // Add borough to all listings that don't have it
+        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
 
         // ── NeighborhoodCanonical: resolve SubdivisionName → canonical polygon name on ingest ──
         // This runs at ingest time so every listing has a stable canonical name for map-based search.
@@ -44,7 +33,7 @@
                     if (data && data.aliases) {
                         _canonicalAliasMap = data.aliases;
                         // Resolve all existing listings
-                        mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+                        listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
                     }
                 })
                 .catch(function() { /* non-fatal — listings keep raw neighborhood */ });
@@ -80,10 +69,7 @@
         }
 
         // Apply to all current listings (before async aliases load — sets identity)
-        mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
-
-        // Photos and listing data come from API (Trestle IDX / Prisma DB)
-        // No mock photo URLs or mock listing mutations needed
+        listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
 
         // State Management
         var searchResultsState = {
@@ -220,7 +206,7 @@
         };
 
         // ═══════════════════════════════════════════════════════════════════════════════
-        // API FETCH — Replace mockListings with server data when available
+        // API FETCH — Replace listings with server data when available
         // No fallback in production — fail fast with "No listings" message
         // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -287,32 +273,24 @@
             };
         }
 
-        // ── Production data loading ─────────────────────────────────────────────
-        // Priority: 1) IDX/Trestle search  2) Prisma DB  3) keep mock data (localhost)
-        // On localhost, mockListings already has mock data — API upgrades it if available.
-        // On production, mockListings starts empty — API populates it.
-        if (typeof MallanAPI !== 'undefined' && !_isDevMock) {
+        // ── Data loading ─────────────────────────────────────────────────────────
+        // Priority: 1) IDX/Trestle search  2) Prisma DB  3) show error
+        if (typeof MallanAPI !== 'undefined') {
             MallanAPI.onReady(function() {
                 _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
-                    console.warn('[MockData] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
+                    console.warn('[DataLoader] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
                     _showDataLoadBanner('IDX unavailable — trying local database...', 'warn');
                     return _loadFromPrisma();
                 }).catch(function(err) {
                     // All API sources failed
                     var reason = err && err.message ? err.message : 'Unknown error';
-                    console.error('[MockData] All data sources failed:', reason);
-                    if (_isLocalhost) {
-                        // On localhost, mock data is already loaded — just log it
-                        console.warn('[MockData] API unavailable on localhost — using mock data');
-                        _showDataLoadBanner('Using mock data (API unavailable: ' + reason + ')', 'warn');
-                    } else {
-                        _showNoListingsMessage('Unable to load listings. Check your connection.');
-                        _showDataLoadBanner('Data load failed: ' + reason, 'error');
-                    }
+                    console.error('[DataLoader] All data sources failed:', reason);
+                    _showNoListingsMessage('Unable to load listings. Check your connection.');
+                    _showDataLoadBanner('Data load failed: ' + reason, 'error');
                 });
             });
-        } else if (typeof MallanAPI === 'undefined' && !_isDevMock && !_isLocalhost) {
+        } else if (!_isLocalhost) {
             // MallanAPI not loaded — likely auth/script issue
             _showDataLoadBanner('MallanAPI not loaded — please log in or check your session.', 'error');
         }
@@ -361,25 +339,25 @@
         }
 
         /**
-         * Replace mockListings in-place and refresh view if visible.
+         * Replace listings in-place and refresh view if visible.
          */
         // Flag to prevent _replaceListings from overwriting active server search results
         var _serverSearchActive = false;
 
-        function _replaceListings(listings, source) {
-            mockListings.length = 0;
-            listings.forEach(function(l) { mockListings.push(l); });
+        function _replaceListings(newData, source) {
+            listings.length = 0;
+            newData.forEach(function(l) { listings.push(l); });
             // Apply borough defaults + neighborhood resolution
-            mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
-            mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
-            console.log('[MockData] Loaded ' + listings.length + ' listings from ' + source);
+            listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+            listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+            console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
             // Dispatch event so other modules (e.g. hash routing) know data is ready
             window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
             // If user is viewing results, re-filter with existing criteria and re-render
             // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
             // Do NOT overwrite if a server search is actively running (it will re-render when complete)
             if (_serverSearchActive) {
-                console.log('[MockData] Skipping re-render — server search is active');
+                console.log('[DataLoader] Skipping re-render — server search is active');
                 return;
             }
             var resultsSection = document.getElementById('searchResultsSection');
@@ -388,10 +366,10 @@
                 // Re-filter with current criteria (or show all if no criteria)
                 if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
                     searchResultsState.filteredListings = typeof filterListings === 'function'
-                        ? filterListings(mockListings, activeSearchCriteria)
-                        : mockListings.slice();
+                        ? filterListings(listings, activeSearchCriteria)
+                        : listings.slice();
                 } else {
-                    searchResultsState.filteredListings = mockListings.slice();
+                    searchResultsState.filteredListings = listings.slice();
                 }
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();

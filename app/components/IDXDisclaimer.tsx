@@ -85,7 +85,8 @@ export default function IDXDisclaimer({
         )}
 
         <p>
-          <strong>Accuracy:</strong> Information is deemed reliable but not guaranteed.
+          <strong>Accuracy:</strong> Based on information from the REBNY Listing Service
+          as of {timestamp}. Information is deemed reliable but not guaranteed.
           All measurements and square footages are approximate. Prospective buyers should
           verify all information independently.
         </p>
@@ -94,6 +95,11 @@ export default function IDXDisclaimer({
           <strong>Broker Representation:</strong> Mallan Real Estate Inc. is a licensed
           real estate broker in New York State and a participant in the REBNY
           Residential Listing Service (RLS).
+        </p>
+
+        <p>
+          <strong>Commission Disclosure:</strong> Commission rates are not set by law
+          and are fully negotiable.
         </p>
 
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">

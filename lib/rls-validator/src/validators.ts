@@ -927,7 +927,7 @@ export function validateFareAct(
     'FARE-FeeDisclosure',
     'INFO',
     'FARE_ACT',
-    'FARE Act: All fees must be disclosed before showing (enter in PublicRemarks + MoveInCosts until dedicated fee fields are live)',
+    'FARE Act: All fees must be disclosed before showing. Use MoveInCosts, OngoingFees, TenantPays, and AdditionalFee fields.',
     { ucbaRef: 'NYC LL 119/2024' },
   ));
 

@@ -138,8 +138,8 @@
                 if (typeof activeSearchCriteria !== 'undefined') {
                     activeSearchCriteria = parsed.criteria;
                 }
-                if (typeof searchResultsState !== 'undefined' && typeof mockListings !== 'undefined') {
-                    searchResultsState.filteredListings = filterListings(mockListings, parsed.criteria);
+                if (typeof searchResultsState !== 'undefined' && typeof listings !== 'undefined') {
+                    searchResultsState.filteredListings = filterListings(listings, parsed.criteria);
                     searchResultsState.currentPage = 1;
                     var searchResultsSection = document.getElementById('searchResultsSection');
                     if (searchResultsSection) {

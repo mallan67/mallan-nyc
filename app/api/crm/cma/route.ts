@@ -45,8 +45,17 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms, living_area, floor, notes } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms, living_area, floor, notes } = body as {
+    property_address?: string; borough?: string; neighborhood?: string; listing_type?: string;
+    property_type?: string; bedrooms?: number; bathrooms?: number; living_area?: number;
+    floor?: number; notes?: string;
+  };
 
   if (!property_address) {
     return NextResponse.json({ ok: false, error: "property_address is required" }, { status: 400 });

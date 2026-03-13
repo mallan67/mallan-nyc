@@ -89,7 +89,12 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
   const allowedFields = [
     "status", "owner_name", "owner_email", "owner_phone",
     "notes", "assigned_agent_id", "consent_given", "consent_method",

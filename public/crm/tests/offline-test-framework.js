@@ -889,7 +889,7 @@
 
     // ═══════════════════════════════════════════════════════════════════════
     // PHASE 5: SCENARIO RUNNER
-    // Swaps mockListings → runs filterListings → restores → validates
+    // Swaps listings → runs filterListings → restores → validates
     // ═══════════════════════════════════════════════════════════════════════
 
     function runScenarios(options) {

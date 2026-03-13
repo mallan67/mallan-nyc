@@ -48,6 +48,22 @@
     {
       "path": "/api/cron/data-retention",
       "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/conviction-scores",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/listing-momentum",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/social-proof",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/lifecycle-triggers",
+      "schedule": "0 17 * * *"
     }
   ],
   "functions": {

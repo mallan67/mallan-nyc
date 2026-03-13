@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated": "2026-03-02",
+    "generated": "2026-03-13",
     "source": "generate-rls-bindings.js (expanded aliases + internal)"
   },
   "files": {
@@ -863,6 +863,10 @@
           "rlsField": "IDXEntireListingDisplayYN",
           "elementType": "checkbox"
         },
+        "saleDist_VOW": {
+          "rlsField": "InternetEntireListingDisplayYN",
+          "elementType": "checkbox"
+        },
         "saleDist_Listhub": {
           "rlsField": "SyndicateYN",
           "elementType": "checkbox"
@@ -992,7 +996,7 @@
           "elementType": "file"
         },
         "salePhotoSortOrder": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "saleVideoUrl": {
@@ -1425,10 +1429,10 @@
         }
       },
       "stats": {
-        "total": 354,
-        "rlsBound": 187,
-        "internal": 166,
-        "unknown": 1
+        "total": 355,
+        "rlsBound": 188,
+        "internal": 167,
+        "unknown": 0
       }
     },
     "RENTAL-FORM-REDESIGN.html": {
@@ -1686,6 +1690,10 @@
           "internal": true,
           "elementType": "date"
         },
+        "rentalFirstShowingDate": {
+          "rlsField": "OnMarketDate",
+          "elementType": "datetime-local"
+        },
         "rentalOffMarketDate": {
           "rlsField": "OffMarketDate",
           "elementType": "date"
@@ -1693,6 +1701,50 @@
         "rentalRentedDate": {
           "internal": true,
           "elementType": "date"
+        },
+        "rentalMoveInCosts": {
+          "rlsField": "MoveInCosts",
+          "elementType": "text"
+        },
+        "rentalMoveInCostsAmountTotal": {
+          "rlsField": "MoveInCostsAmountTotal",
+          "elementType": "number"
+        },
+        "rentalMoveInCostsComments": {
+          "rlsField": "MoveInCostsComments",
+          "elementType": "textarea"
+        },
+        "rentalOngoingFees": {
+          "rlsField": "OngoingFees",
+          "elementType": "text"
+        },
+        "rentalFeeFrequency": {
+          "rlsField": "FeeFrequency",
+          "elementType": "select"
+        },
+        "rentalTenantPays": {
+          "rlsField": "TenantPays",
+          "elementType": "text"
+        },
+        "rentalTenantPaysDescription": {
+          "rlsField": "TenantPaysDescription",
+          "elementType": "text"
+        },
+        "rentalAdditionalFeeYN": {
+          "rlsField": "AdditionalFeeYN",
+          "elementType": "select"
+        },
+        "rentalAdditionalFee": {
+          "rlsField": "AdditionalFee",
+          "elementType": "number"
+        },
+        "rentalAdditionalFeeFrequency": {
+          "rlsField": "AdditionalFeeFrequency",
+          "elementType": "select"
+        },
+        "rentalAdditionalFeeDescription": {
+          "rlsField": "AdditionalFeeDescription",
+          "elementType": "text"
         },
         "rentalConcessions": {
           "rlsField": "Concessions",
@@ -1871,6 +1923,10 @@
           "elementType": "text"
         },
         "rentalUnitNumber2": {
+          "internal": true,
+          "elementType": "text"
+        },
+        "rentalCityDisplay": {
           "internal": true,
           "elementType": "text"
         },
@@ -2506,6 +2562,10 @@
           "rlsField": "IDXEntireListingDisplayYN",
           "elementType": "checkbox"
         },
+        "rentalDist_VOW": {
+          "rlsField": "InternetEntireListingDisplayYN",
+          "elementType": "checkbox"
+        },
         "rentalDist_Listhub": {
           "rlsField": "SyndicateYN",
           "elementType": "checkbox"
@@ -2755,7 +2815,7 @@
           "elementType": "number"
         },
         "rentalOwnershipType": {
-          "unknown": true,
+          "rlsField": "OwnershipType",
           "elementType": "select"
         },
         "bldgLandmark": {
@@ -2791,7 +2851,7 @@
           "elementType": "checkbox"
         },
         "rentalLobbyAttendant": {
-          "unknown": true,
+          "rlsField": "AttendanceType",
           "elementType": "select"
         },
         "bldgElevator": {
@@ -3104,10 +3164,10 @@
         }
       },
       "stats": {
-        "total": 417,
-        "rlsBound": 247,
-        "internal": 168,
-        "unknown": 2
+        "total": 431,
+        "rlsBound": 262,
+        "internal": 169,
+        "unknown": 0
       }
     },
     "MALLAN-NYC-CRM-FINAL2.html": {
@@ -3118,12 +3178,24 @@
           "elementType": "select"
         },
         "cpNoteInput": {
-          "unknown": true,
+          "internal": true,
           "elementType": "textarea"
+        },
+        "soldSearchInput": {
+          "internal": true,
+          "elementType": "text"
         },
         "editPrice": {
           "internal": true,
           "elementType": "text"
+        },
+        "brokerPipelineFilter": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "commReqDeal": {
+          "internal": true,
+          "elementType": "select"
         },
         "commReqRole": {
           "internal": true,
@@ -4187,6 +4259,10 @@
         },
         "rentalDist_IDX": {
           "rlsField": "IDXEntireListingDisplayYN",
+          "elementType": "checkbox"
+        },
+        "rentalDist_VOW": {
+          "rlsField": "InternetEntireListingDisplayYN",
           "elementType": "checkbox"
         },
         "rentalDist_Listhub": {
@@ -5453,6 +5529,10 @@
           "rlsField": "IDXEntireListingDisplayYN",
           "elementType": "checkbox"
         },
+        "saleDist_VOW": {
+          "rlsField": "InternetEntireListingDisplayYN",
+          "elementType": "checkbox"
+        },
         "saleDist_Listhub": {
           "rlsField": "SyndicateYN",
           "elementType": "checkbox"
@@ -5926,7 +6006,7 @@
           "elementType": "email"
         },
         "recentListingsFilter": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "reportPeriod": {
@@ -5938,72 +6018,76 @@
           "elementType": "select"
         },
         "bfp0-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp0-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp0-term": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp0-ins": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp1-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp1-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp1-term": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp1-ins": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp2-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp2-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp2-term": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "bfp2-ins": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "buyerCashAvailable": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "buyerDefaultDP": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "buyerDefaultRate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "buyerShareUrl": {
-          "unknown": true,
+          "internal": true,
           "elementType": "url"
         },
         "buyerShareNote": {
-          "unknown": true,
+          "internal": true,
           "elementType": "textarea"
+        },
+        "buyerDealPropertySelect": {
+          "internal": true,
+          "elementType": "select"
         },
         "buyerPurchasePrice": {
           "internal": true,
@@ -6066,83 +6150,83 @@
           "elementType": "checkbox"
         },
         "trvb0-price": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "trvb0-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb0-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb0-years": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb1-price": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "trvb1-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb1-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb1-years": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb2-price": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "trvb2-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb2-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "trvb2-years": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "tenantShareUrl": {
-          "unknown": true,
+          "internal": true,
           "elementType": "url"
         },
         "tenantShareNote": {
-          "unknown": true,
+          "internal": true,
           "elementType": "textarea"
         },
         "buyerInviteEmail": {
-          "unknown": true,
+          "internal": true,
           "elementType": "email"
         },
         "buyerInviteRelationship": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "buyerInviteMessage": {
-          "unknown": true,
+          "internal": true,
           "elementType": "textarea"
         },
         "tenantInviteEmail": {
-          "unknown": true,
+          "internal": true,
           "elementType": "email"
         },
         "tenantInviteRelationship": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "tenantInviteMessage": {
-          "unknown": true,
+          "internal": true,
           "elementType": "textarea"
         },
         "sellerSalePrice": {
@@ -6160,6 +6244,14 @@
         "sellerMortgagePayoff": {
           "internal": true,
           "elementType": "text"
+        },
+        "clientBookAgentFilter": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "ceAgentSelect": {
+          "internal": true,
+          "elementType": "select"
         },
         "deliveryMethod1099": {
           "internal": true,
@@ -6246,32 +6338,44 @@
           "elementType": "password"
         },
         "timelineFilter": {
-          "unknown": true,
+          "internal": true,
+          "elementType": "select"
+        },
+        "dealPipelineTypeFilter": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "dealAnalyticsAgentFilter": {
+          "internal": true,
           "elementType": "select"
         },
         "auditFilterUser": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "auditFilterAction": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "auditFilterEntity": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "auditFilterFrom": {
-          "unknown": true,
+          "internal": true,
           "elementType": "date"
         },
         "auditFilterTo": {
-          "unknown": true,
+          "internal": true,
           "elementType": "date"
         },
         "splitType2": {
           "internal": true,
           "elementType": "radio"
+        },
+        "leadAssignAgent": {
+          "internal": true,
+          "elementType": "select"
         },
         "refDirection": {
           "internal": true,
@@ -6282,19 +6386,19 @@
           "elementType": "select"
         },
         "settingsBrokerName": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "settingsBrokerLicense": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "settingsBrokerPhone": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "settingsBrokerEmail": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "refOurAgent": {
@@ -6394,31 +6498,31 @@
           "elementType": "radio"
         },
         "trm-listing-select": {
-          "unknown": true,
+          "internal": true,
           "elementType": "select"
         },
         "trmType": {
-          "unknown": true,
+          "internal": true,
           "elementType": "radio"
         },
         "trm-date1": {
-          "unknown": true,
+          "internal": true,
           "elementType": "date"
         },
         "trm-time1": {
-          "unknown": true,
+          "internal": true,
           "elementType": "time"
         },
         "trm-date2": {
-          "unknown": true,
+          "internal": true,
           "elementType": "date"
         },
         "trm-time2": {
-          "unknown": true,
+          "internal": true,
           "elementType": "time"
         },
         "trm-notes": {
-          "unknown": true,
+          "internal": true,
           "elementType": "textarea"
         },
         "ohListing": {
@@ -6446,40 +6550,64 @@
           "elementType": "textarea"
         },
         "clm-calc-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "clm-calc-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "clm-calc-term": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "clm-calc-ins": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "clm-rcalc-price": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
         },
         "clm-rcalc-dp": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "clm-rcalc-rate": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "clm-rcalc-years": {
-          "unknown": true,
+          "internal": true,
           "elementType": "number"
         },
         "cmdPaletteInput": {
-          "unknown": true,
+          "internal": true,
           "elementType": "text"
+        },
+        "feedbackRatingValue": {
+          "internal": true,
+          "elementType": "hidden"
+        },
+        "feedbackInterestLevel": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "feedbackPros": {
+          "internal": true,
+          "elementType": "textarea"
+        },
+        "feedbackCons": {
+          "internal": true,
+          "elementType": "textarea"
+        },
+        "feedbackFollowUp": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "feedbackNotes": {
+          "internal": true,
+          "elementType": "textarea"
         },
         "saleCoolingYN": {
           "rlsField": "CoolingYN",
@@ -6491,10 +6619,10 @@
         }
       },
       "stats": {
-        "total": 844,
-        "rlsBound": 417,
-        "internal": 362,
-        "unknown": 65
+        "total": 861,
+        "rlsBound": 419,
+        "internal": 442,
+        "unknown": 0
       }
     },
     "SALE-FORM-WITH-TOOLS.html": {
@@ -7316,6 +7444,10 @@
           "rlsField": "IDXEntireListingDisplayYN",
           "elementType": "checkbox"
         },
+        "saleDist_VOW": {
+          "rlsField": "InternetEntireListingDisplayYN",
+          "elementType": "checkbox"
+        },
         "saleDist_Listhub": {
           "rlsField": "SyndicateYN",
           "elementType": "checkbox"
@@ -7892,6 +8024,10 @@
           "internal": true,
           "elementType": "textarea"
         },
+        "saleActivationDate": {
+          "rlsField": "ActivationDate",
+          "elementType": "date"
+        },
         "saleCalcPrice": {
           "internal": true,
           "elementType": "number"
@@ -7990,8 +8126,8 @@
         }
       },
       "stats": {
-        "total": 372,
-        "rlsBound": 177,
+        "total": 374,
+        "rlsBound": 179,
         "internal": 195,
         "unknown": 0
       }
@@ -8218,6 +8354,50 @@
         "rentalRentedDate": {
           "internal": true,
           "elementType": "date"
+        },
+        "rentalMoveInCosts": {
+          "rlsField": "MoveInCosts",
+          "elementType": "text"
+        },
+        "rentalMoveInCostsAmountTotal": {
+          "rlsField": "MoveInCostsAmountTotal",
+          "elementType": "number"
+        },
+        "rentalMoveInCostsComments": {
+          "rlsField": "MoveInCostsComments",
+          "elementType": "textarea"
+        },
+        "rentalOngoingFees": {
+          "rlsField": "OngoingFees",
+          "elementType": "text"
+        },
+        "rentalFeeFrequency": {
+          "rlsField": "FeeFrequency",
+          "elementType": "select"
+        },
+        "rentalTenantPays": {
+          "rlsField": "TenantPays",
+          "elementType": "text"
+        },
+        "rentalTenantPaysDescription": {
+          "rlsField": "TenantPaysDescription",
+          "elementType": "text"
+        },
+        "rentalAdditionalFeeYN": {
+          "rlsField": "AdditionalFeeYN",
+          "elementType": "select"
+        },
+        "rentalAdditionalFee": {
+          "rlsField": "AdditionalFee",
+          "elementType": "number"
+        },
+        "rentalAdditionalFeeDescription": {
+          "rlsField": "AdditionalFeeDescription",
+          "elementType": "text"
+        },
+        "rentalAdditionalFeeFrequency": {
+          "rlsField": "AdditionalFeeFrequency",
+          "elementType": "select"
         },
         "rentalConcessions": {
           "rlsField": "Concessions",
@@ -9043,6 +9223,10 @@
           "rlsField": "IDXEntireListingDisplayYN",
           "elementType": "checkbox"
         },
+        "rentalDist_VOW": {
+          "rlsField": "InternetEntireListingDisplayYN",
+          "elementType": "checkbox"
+        },
         "rentalDist_Listhub": {
           "rlsField": "SyndicateYN",
           "elementType": "checkbox"
@@ -9745,8 +9929,8 @@
         }
       },
       "stats": {
-        "total": 436,
-        "rlsBound": 240,
+        "total": 448,
+        "rlsBound": 252,
         "internal": 196,
         "unknown": 0
       }
@@ -9804,6 +9988,10 @@
         },
         "saleQuickZip": {
           "rlsField": "PostalCode",
+          "elementType": "text"
+        },
+        "saleNeighborhoodInput": {
+          "internal": true,
           "elementType": "text"
         },
         "saleSearchAddress": {
@@ -9906,6 +10094,10 @@
           "rlsField": "PostalCode",
           "elementType": "text"
         },
+        "rentalNeighborhoodInput": {
+          "internal": true,
+          "elementType": "text"
+        },
         "rentalSearchAddress": {
           "rlsField": "StreetName",
           "elementType": "text"
@@ -9962,6 +10154,10 @@
           "internal": true,
           "elementType": "text"
         },
+        "buildingNeighborhoodInput": {
+          "internal": true,
+          "elementType": "text"
+        },
         "buildingSearchAddress": {
           "internal": true,
           "elementType": "text"
@@ -9997,6 +10193,10 @@
         "buildingMaxFloors": {
           "internal": true,
           "elementType": "select"
+        },
+        "advancedNeighborhoodInput": {
+          "internal": true,
+          "elementType": "text"
         },
         "advancedSearchAddress": {
           "internal": true,
@@ -10373,20 +10573,28 @@
         "filterBathsMax": {
           "internal": true,
           "elementType": "range"
+        },
+        "nbMapSearch": {
+          "internal": true,
+          "elementType": "text"
+        },
+        "nbMapStyleSelect": {
+          "internal": true,
+          "elementType": "select"
         }
       },
       "stats": {
-        "total": 155,
+        "total": 161,
         "rlsBound": 13,
-        "internal": 142,
+        "internal": 148,
         "unknown": 0
       }
     }
   },
   "summary": {
-    "totalElements": 2578,
-    "rlsBound": 1281,
-    "internal": 1229,
-    "unknown": 68
+    "totalElements": 2630,
+    "rlsBound": 1313,
+    "internal": 1317,
+    "unknown": 0
   }
 }

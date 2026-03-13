@@ -2263,6 +2263,7 @@
                             <table class="w-full text-left min-w-[800px]">
                                 <thead>
                                     <tr class="bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                        <th class="px-3 py-2.5 w-12">Photo</th>
                                         <th class="px-4 py-2.5">Address</th>
                                         <th class="px-3 py-2.5">Neighborhood</th>
                                         <th class="px-3 py-2.5">Type</th>
@@ -2272,10 +2273,11 @@
                                         <th class="px-3 py-2.5">Close Date</th>
                                         <th class="px-3 py-2.5 text-right">Close Price</th>
                                         <th class="px-3 py-2.5 text-center w-20">Save</th>
+                                        <th class="px-3 py-2.5 text-center w-12"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="soldSalesBody" class="divide-y divide-gray-100 text-sm">
-                                    <tr><td colspan="9" class="px-4 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
+                                    <tr><td colspan="11" class="px-4 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2287,6 +2289,7 @@
                             <table class="w-full text-left min-w-[800px]">
                                 <thead>
                                     <tr class="bg-gray-50 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                        <th class="px-3 py-2.5 w-12">Photo</th>
                                         <th class="px-4 py-2.5">Address</th>
                                         <th class="px-3 py-2.5">Neighborhood</th>
                                         <th class="px-3 py-2.5">Type</th>
@@ -2295,10 +2298,11 @@
                                         <th class="px-3 py-2.5">Close Date</th>
                                         <th class="px-3 py-2.5 text-right">Close Price</th>
                                         <th class="px-3 py-2.5 text-center w-20">Save</th>
+                                        <th class="px-3 py-2.5 text-center w-12"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="soldRentalsBody" class="divide-y divide-gray-100 text-sm">
-                                    <tr><td colspan="8" class="px-4 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
+                                    <tr><td colspan="10" class="px-4 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3641,7 +3645,7 @@
 
                             <!-- FARE Act Notice -->
                             <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p class="text-xs text-blue-800"><i class="fas fa-info-circle text-blue-500 mr-1"></i> <strong>FARE Act (NYC):</strong> Not yet live. When enacted, it may restrict who pays the broker fee on rentals. Until then, current OP/TP/Split rules apply. Use MoveInCosts field + PublicRemarks to disclose fees. Track updates via REBNY bulletins.</p>
+                                <p class="text-xs text-blue-800"><i class="fas fa-info-circle text-blue-500 mr-1"></i> <strong>FARE Act (NYC):</strong> NOW LIVE (LL 119/2024, effective June 11, 2025). Dedicated fee fields active in Trestle: MoveInCosts, OngoingFees, TenantPays, TenantPaysDescription, AdditionalFee, FeeFrequency. All rental listings must disclose fees before showing.</p>
                             </div>
 
                             <!-- E20: Tenant Multiple-Fee Disclosure -->
@@ -19321,7 +19325,7 @@
                                             <button onclick="var a=window.crmLoggedInAgent||{}; openAgentProfile(a.name||'--', 'Licensed Broker', a.license||'', a.email||'', a.phone||'', 'purple')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5">
                                                 <i class="fas fa-user-circle"></i> View Full Profile
                                             </button>
-                                            <button onclick="alert('Agent profile editor coming soon.')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5">
+                                            <button onclick="_openAgentSelfEdit()" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5">
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
                                             <button onclick="if(confirm('Delete this agent from the roster?')) this.closest('.agent-roster-card').remove()" class="px-3 py-1.5 border border-red-200 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-50 hover:text-red-600 flex items-center gap-1.5">
@@ -19451,7 +19455,7 @@
 
                                     <div class="flex items-center justify-between mt-3 pt-3 border-t">
                                         <p class="text-xs text-gray-500" id="brokerRosterContact">--</p>
-                                        <button onclick="alert('Agent profile editor coming soon.')" class="text-blue-600 hover:underline text-xs font-semibold">Edit Agent Profile</button>
+                                        <button onclick="_openAgentSelfEdit()" class="text-blue-600 hover:underline text-xs font-semibold">Edit Agent Profile</button>
                                     </div>
                                 </div>
                             </div>
@@ -28671,8 +28675,238 @@ Equal Housing Opportunity
         function editRosterAgent(agentId) {
             var agent = window.crmAgentRoster.find(function(a) { return a.id === agentId; });
             if (!agent) return;
-            showToast('Edit Agent: ' + agent.name + ' — full edit form opens in production', 'info');
+
+            // Remove any existing edit overlay
+            var existing = document.getElementById('_editAgentOverlay');
+            if (existing) existing.remove();
+
+            var serverId = agent.serverId || agentId;
+            var overlay = document.createElement('div');
+            overlay.id = '_editAgentOverlay';
+            overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+            overlay.innerHTML =
+                '<div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">' +
+                    '<div class="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">' +
+                        '<div><h3 class="text-lg font-bold text-gray-900"><i class="fas fa-user-edit text-blue-600 mr-2"></i>Edit Agent: ' + (agent.name || '') + '</h3>' +
+                        '<p class="text-xs text-gray-500">Changes update the frontend (mallan.nyc) agent profile automatically</p></div>' +
+                        '<button onclick="document.getElementById(\'_editAgentOverlay\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>' +
+                    '</div>' +
+                    '<div class="p-6 space-y-5">' +
+                        '<!-- Personal -->' +
+                        '<div class="border rounded-lg p-4">' +
+                            '<h4 class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-user text-blue-500 mr-1.5"></i>Personal Information</h4>' +
+                            '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">First Name</label><input id="_eaFirstName" value="' + (agent.firstName || agent.first_name || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Last Name</label><input id="_eaLastName" value="' + (agent.lastName || agent.last_name || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Email</label><input id="_eaEmail" value="' + (agent.email || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Phone</label><input id="_eaPhone" value="' + (agent.phone || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Title</label><input id="_eaTitle" value="' + (agent.title || agent.licenseType || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Licensed Real Estate Salesperson"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Photo URL</label><input id="_eaPhoto" value="' + (agent.photo || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="/images/agents/name.jpg"></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<!-- Public Profile -->' +
+                        '<div class="border rounded-lg p-4">' +
+                            '<h4 class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-globe text-green-500 mr-1.5"></i>Public Profile (mallan.nyc)</h4>' +
+                            '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Bio</label><textarea id="_eaBio" rows="5" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Agent bio for public website...">' + (agent.bio || '') + '</textarea></div>' +
+                            '<div class="grid grid-cols-2 gap-3 mt-3">' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Specialties <span class="text-gray-400">(comma-separated)</span></label><input id="_eaSpecialties" value="' + (agent.specialties || []).join(', ') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Co-ops & Condos, Investment Properties"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Languages <span class="text-gray-400">(comma-separated)</span></label><input id="_eaLanguages" value="' + (agent.languages || []).join(', ') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="English, Spanish"></div>' +
+                            '</div>' +
+                            '<div class="grid grid-cols-2 gap-3 mt-3">' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Public Slug</label><input id="_eaSlug" value="' + (agent.public_slug || agent.slug || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm font-mono" placeholder="first-last"></div>' +
+                                '<div class="flex items-end"><label class="flex items-center gap-2 text-sm"><input type="checkbox" id="_eaFeatured" ' + (agent.featured ? 'checked' : '') + ' class="rounded"> Featured Agent</label></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<!-- License & Commission -->' +
+                        '<div class="border rounded-lg p-4">' +
+                            '<h4 class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-id-card text-purple-500 mr-1.5"></i>License & Commission</h4>' +
+                            '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">License #</label><input id="_eaLicense" value="' + (agent.license || agent.license_no || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm font-mono"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">License Type</label><select id="_eaLicenseType" class="w-full border rounded-lg px-3 py-2 text-sm"><option value="">Select</option><option' + (agent.licenseType === 'Licensed Real Estate Salesperson' || agent.license_type === 'salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option><option' + (agent.licenseType === 'Licensed Associate Broker' || agent.license_type === 'associate_broker' ? ' selected' : '') + '>Licensed Associate Broker</option><option' + (agent.licenseType === 'Licensed Broker' || agent.license_type === 'broker' ? ' selected' : '') + '>Licensed Broker</option></select></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Sale Split %</label><input id="_eaSaleSplit" type="number" min="0" max="100" value="' + (agent.sale_split || (agent.split ? agent.split.split('/')[0] : '70')) + '" class="w-full border rounded-lg px-3 py-2 text-sm text-center"></div>' +
+                                '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Rental Split %</label><input id="_eaRentalSplit" type="number" min="0" max="100" value="' + (agent.rental_split || (agent.split ? agent.split.split('/')[0] : '70')) + '" class="w-full border rounded-lg px-3 py-2 text-sm text-center"></div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="p-6 border-t flex justify-between items-center bg-gray-50 sticky bottom-0">' +
+                        '<button onclick="document.getElementById(\'_editAgentOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>' +
+                        '<button id="_eaSaveBtn" onclick="_saveEditAgent(\'' + agentId + '\', \'' + serverId + '\')" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"><i class="fas fa-save mr-1.5"></i>Save Changes</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
         }
+
+        window._saveEditAgent = function(localId, serverId) {
+            var btn = document.getElementById('_eaSaveBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Saving...'; }
+
+            var payload = {
+                first_name: document.getElementById('_eaFirstName').value.trim(),
+                last_name: document.getElementById('_eaLastName').value.trim(),
+                phone: document.getElementById('_eaPhone').value.trim() || null,
+                title: document.getElementById('_eaTitle').value.trim() || null,
+                bio: document.getElementById('_eaBio').value.trim() || null,
+                photo: document.getElementById('_eaPhoto').value.trim() || null,
+                license_no: document.getElementById('_eaLicense').value.trim() || null,
+                license_type: document.getElementById('_eaLicenseType').value || null,
+                sale_split: parseInt(document.getElementById('_eaSaleSplit').value) || null,
+                rental_split: parseInt(document.getElementById('_eaRentalSplit').value) || null,
+                public_slug: document.getElementById('_eaSlug').value.trim() || null,
+                featured: document.getElementById('_eaFeatured').checked,
+                specialties: document.getElementById('_eaSpecialties').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+                languages: document.getElementById('_eaLanguages').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean)
+            };
+
+            if (!payload.first_name || !payload.last_name) {
+                showToast('First and last name are required.', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-1.5"></i>Save Changes'; }
+                return;
+            }
+
+            // Update local roster
+            var agent = window.crmAgentRoster.find(function(a) { return a.id === localId; });
+            if (agent) {
+                agent.firstName = payload.first_name;
+                agent.lastName = payload.last_name;
+                agent.name = payload.first_name + ' ' + payload.last_name;
+                agent.email = document.getElementById('_eaEmail').value.trim() || agent.email;
+                agent.phone = payload.phone || agent.phone;
+                agent.title = payload.title;
+                agent.licenseType = payload.license_type;
+                agent.license = payload.license_no;
+                agent.bio = payload.bio;
+                agent.photo = payload.photo;
+                agent.specialties = payload.specialties;
+                agent.languages = payload.languages;
+                agent.featured = payload.featured;
+                agent.public_slug = payload.public_slug;
+                agent.sale_split = payload.sale_split;
+                agent.rental_split = payload.rental_split;
+                if (payload.sale_split) agent.split = payload.sale_split + '/' + (100 - payload.sale_split);
+                persistRoster();
+            }
+
+            // Update card in DOM
+            var nameEl = document.querySelector('#agent-card-' + localId + ' .agent-card-name, #agent-card-' + localId + ' h3');
+            if (nameEl) nameEl.textContent = payload.first_name + ' ' + payload.last_name;
+
+            // Sync to API
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+            fetch(baseUrl + '/api/crm/agents/' + encodeURIComponent(serverId), {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function(r) { if (!r.ok) throw new Error('Status ' + r.status); return r.json(); })
+            .then(function() {
+                document.getElementById('_editAgentOverlay').remove();
+                showToast(payload.first_name + ' ' + payload.last_name + ' updated successfully. Frontend will refresh within 1 hour.', 'success');
+            })
+            .catch(function(err) {
+                console.warn('[CRM] Agent update API failed:', err.message);
+                document.getElementById('_editAgentOverlay').remove();
+                showToast('Saved locally. API sync failed (' + err.message + ') — will retry on reconnect.', 'warning');
+            });
+        };
+
+        // ══════════════════════════════════════════════════════
+        // AGENT SELF-EDIT PROFILE (agent or broker editing own profile)
+        // ══════════════════════════════════════════════════════
+        window._openAgentSelfEdit = function() {
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+
+            // Fetch current profile from API
+            fetch(baseUrl + '/api/crm/agents/me', { credentials: 'include' })
+            .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function(agent) {
+                var isBroker = (agent.role === 'BROKER');
+                var existing = document.getElementById('_selfEditOverlay');
+                if (existing) existing.remove();
+
+                var overlay = document.createElement('div');
+                overlay.id = '_selfEditOverlay';
+                overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+                overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+                overlay.innerHTML =
+                    '<div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">' +
+                        '<div class="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">' +
+                            '<div><h3 class="text-lg font-bold text-gray-900"><i class="fas fa-user-circle text-blue-600 mr-2"></i>My Profile</h3>' +
+                            '<p class="text-xs text-gray-500">Edit your public profile on mallan.nyc</p></div>' +
+                            '<button onclick="document.getElementById(\'_selfEditOverlay\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>' +
+                        '</div>' +
+                        '<div class="p-6 space-y-5">' +
+                            '<!-- Identity (read-only for agents) -->' +
+                            '<div class="border rounded-lg p-4 bg-gray-50">' +
+                                '<h4 class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-id-badge text-gray-500 mr-1.5"></i>Identity' + (!isBroker ? ' <span class="text-gray-400 font-normal">(managed by broker)</span>' : '') + '</h4>' +
+                                '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Name</label><input value="' + (agent.full_name || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm bg-white" ' + (!isBroker ? 'readonly' : 'id="_seFullName"') + '></div>' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Email</label><input value="' + (agent.email || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm bg-white" readonly></div>' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">License</label><input value="' + (agent.license_no || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm bg-white" readonly></div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<!-- Editable fields -->' +
+                            '<div class="border rounded-lg p-4">' +
+                                '<h4 class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-globe text-green-500 mr-1.5"></i>Public Profile</h4>' +
+                                '<div class="grid grid-cols-2 gap-3">' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Title</label><input id="_seTitle" value="' + (agent.title || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Licensed Real Estate Salesperson"></div>' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Phone</label><input id="_sePhone" value="' + (agent.phone || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+                                '</div>' +
+                                '<div class="mt-3"><label class="block text-[10px] font-medium text-gray-500 mb-1">Photo URL</label><input id="_sePhoto" value="' + (agent.photo || '') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="/images/agents/your-name.jpg"></div>' +
+                                '<div class="mt-3"><label class="block text-[10px] font-medium text-gray-500 mb-1">Bio</label><textarea id="_seBio" rows="6" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Your professional bio...">' + (agent.bio || '') + '</textarea></div>' +
+                                '<div class="grid grid-cols-2 gap-3 mt-3">' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Specialties <span class="text-gray-400">(comma-separated)</span></label><input id="_seSpecialties" value="' + (agent.specialties || []).join(', ') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Co-ops, New Dev"></div>' +
+                                    '<div><label class="block text-[10px] font-medium text-gray-500 mb-1">Languages <span class="text-gray-400">(comma-separated)</span></label><input id="_seLanguages" value="' + (agent.languages || []).join(', ') + '" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="English, Spanish"></div>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="p-6 border-t flex justify-between items-center bg-gray-50 sticky bottom-0">' +
+                            '<button onclick="document.getElementById(\'_selfEditOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>' +
+                            '<button id="_seSaveBtn" onclick="_saveSelfEdit()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"><i class="fas fa-save mr-1.5"></i>Save Profile</button>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(overlay);
+            })
+            .catch(function(err) {
+                console.error('[CRM] Failed to load profile:', err);
+                showToast('Could not load profile: ' + err.message, 'error');
+            });
+        };
+
+        window._saveSelfEdit = function() {
+            var btn = document.getElementById('_seSaveBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Saving...'; }
+
+            var payload = {
+                title: document.getElementById('_seTitle').value.trim() || null,
+                phone: document.getElementById('_sePhone').value.trim() || null,
+                photo: document.getElementById('_sePhoto').value.trim() || null,
+                bio: document.getElementById('_seBio').value.trim() || null,
+                specialties: document.getElementById('_seSpecialties').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+                languages: document.getElementById('_seLanguages').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean)
+            };
+
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+            fetch(baseUrl + '/api/crm/agents/me', {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function(r) { if (!r.ok) throw new Error('Status ' + r.status); return r.json(); })
+            .then(function(res) {
+                document.getElementById('_selfEditOverlay').remove();
+                showToast('Profile updated! Changes will appear on mallan.nyc within 1 hour.', 'success');
+            })
+            .catch(function(err) {
+                console.error('[CRM] Self-edit save failed:', err);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-1.5"></i>Save Profile'; }
+                showToast('Save failed: ' + err.message, 'error');
+            });
+        };
 
         // ══════════════════════════════════════════════════════
         // ON PAGE LOAD: Render persisted agents from localStorage
@@ -29377,8 +29611,8 @@ Equal Housing Opportunity
         // SEARCH REMOVED — All search functionality now in index-built.html
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        // Listings populated from API — no mock data
-        var mockListings = [];
+        // Listings populated from API
+        var listings = [];
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // END SEARCH REMOVAL — Search results UI, view modes, render functions,
@@ -30699,20 +30933,7 @@ Equal Housing Opportunity
         }
 
         // IDX Building Database (shared)
-        var buildingDatabase = [
-            { address: '200 East 66th Street', name: 'Manhattan House', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', yearBuilt: 1950, totalFloors: 17, totalUnits: 583, doorman: true, elevator: true, gym: true, laundry: true, parking: true },
-            { address: '15 Central Park West', name: '15 Central Park West', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', type: 'Condo', model: 'Condo', yearBuilt: 2008, totalFloors: 43, totalUnits: 201, doorman: true, elevator: true, gym: true, pool: true, concierge: true, parking: true },
-            { address: '432 Park Avenue', name: '432 Park Avenue', borough: 'Manhattan', zip: '10022', neighborhood: 'Midtown East', type: 'Condo', model: 'Condo', yearBuilt: 2015, totalFloors: 96, totalUnits: 104, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-            { address: '56 Leonard Street', name: '56 Leonard', borough: 'Manhattan', zip: '10013', neighborhood: 'Tribeca', type: 'Condo', model: 'Condo', yearBuilt: 2016, totalFloors: 60, totalUnits: 145, doorman: true, elevator: true, gym: true, pool: true },
-            { address: '220 Central Park South', name: '220 CPS', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown', type: 'Condo', model: 'Condo', yearBuilt: 2019, totalFloors: 79, totalUnits: 118, doorman: true, elevator: true, gym: true, pool: true, spa: true, concierge: true },
-            { address: '520 Park Avenue', name: '520 Park Avenue', borough: 'Manhattan', zip: '10065', neighborhood: 'Upper East Side', type: 'Condo', model: 'Condo', yearBuilt: 2018, totalFloors: 54, totalUnits: 31, doorman: true, elevator: true, gym: true },
-            { address: '1 West 72nd Street', name: 'The Dakota', borough: 'Manhattan', zip: '10023', neighborhood: 'Upper West Side', type: 'Coop', model: 'Coop', yearBuilt: 1884, totalFloors: 10, totalUnits: 65, doorman: true, elevator: true, laundry: true },
-            { address: '740 Park Avenue', name: '740 Park Avenue', borough: 'Manhattan', zip: '10021', neighborhood: 'Upper East Side', type: 'Coop', model: 'Coop', yearBuilt: 1930, totalFloors: 18, totalUnits: 31, doorman: true, elevator: true },
-            { address: '110 Livingston Street', name: '110 Livingston', borough: 'Brooklyn', zip: '11201', neighborhood: 'Downtown Brooklyn', type: 'Condop', model: 'Condop', yearBuilt: 1928, totalFloors: 15, totalUnits: 220, doorman: true, elevator: true, gym: true },
-            { address: '25 Columbus Circle', name: 'Time Warner Center', borough: 'Manhattan', zip: '10019', neighborhood: 'Midtown West', type: 'Condo', model: 'Condo', yearBuilt: 2003, totalFloors: 80, totalUnits: 198, doorman: true, elevator: true, gym: true, concierge: true },
-            { address: '325 Lexington Avenue', name: 'The Townsend', borough: 'Manhattan', zip: '10016', neighborhood: 'Murray Hill', type: 'Condo', model: 'Condo', yearBuilt: 2005, totalFloors: 12, totalUnits: 45, doorman: true, elevator: true },
-            { address: '42 West 120th Street', name: '42 West 120th', borough: 'Manhattan', zip: '10027', neighborhood: 'Harlem', type: 'SingleFamilyTownhouse', model: 'Townhouse', yearBuilt: 1910, totalFloors: 4, totalUnits: 1 },
-        ];
+        var buildingDatabase = [];  // Loaded from API
 
         // IDX Search — auto-detect property type and populate fields
         function searchBuildingForListing(query, prefix) {
@@ -30929,217 +31150,7 @@ Equal Housing Opportunity
         var rebnyAgents = {};
         
         // REBNY Company names mapping - Comprehensive list
-        var rebnyCompanyNames = {
-            // A
-            'abacus': 'Abacus Real Estate',
-            'abelson': 'Abelson Realty',
-            'abre': 'ABRE',
-            'agentsofcompass': 'Agents of Compass',
-            'akam': 'AKAM Living Services',
-            'alearealty': 'Alea Realty',
-            'allcity': 'All City Real Estate',
-            'ameritech': 'Ameritech Realty',
-            'anchor': 'Anchor Associates',
-            'arielpa': 'Ariel Property Advisors',
-            'astorlg': 'Astor Lane Group',
-            'atriumrealtygroup': 'Atrium Realty Group',
-            'avenueresidential': 'Avenue Residential',
-            // B
-            'barrettjackson': 'Barrett Jackson Realty',
-            'besen': 'Besen & Associates',
-            'bhsusa': 'Brown Harris Stevens',
-            'blacklabelnyc': 'Black Label NYC',
-            'blesso': 'Blesso Properties',
-            'blueskyre': 'Blue Sky Real Estate',
-            'bohemia': 'Bohemia Realty Group',
-            'bond': 'Bond New York',
-            'brickhouse': 'Brickhouse Realty',
-            'brickunderground': 'Brick Underground',
-            'broadwayrealty': 'Broadway Realty',
-            'brooklynmls': 'Brooklyn MLS',
-            // C
-            'cantor': 'Cantor Pecorella',
-            'castlerealty': 'Castle Realty',
-            'cbwarburg': 'Coldwell Banker Warburg',
-            'century21': 'Century 21 NYC',
-            'certifiedny': 'Certified NY Realty',
-            'chelseare': 'Chelsea Real Estate',
-            'christies': "Christie's International Real Estate",
-            'citi': 'Citi Habitats',
-            'cityconnections': 'City Connections Realty',
-            'citywideapt': 'Citywide Apartments',
-            'clarkerealty': 'Clarke Realty',
-            'cleo': 'Cleo Real Estate',
-            'cmcrealty': 'CMC Realty',
-            'compass': 'Compass',
-            'coopercooper': 'Cooper & Cooper',
-            'corcoran': 'The Corcoran Group',
-            'corcoransunshine': 'Corcoran Sunshine Marketing Group',
-            'core': 'CORE Real Estate',
-            'crossharbor': 'Cross Harbor Partners',
-            // D
-            'damianos': 'Damianos Realty Group',
-            'davler': 'Davler Media',
-            'djkresidential': 'DJK Residential',
-            'douglas': 'Douglas Elliman',
-            'downtownre': 'Downtown Real Estate',
-            'durst': 'The Durst Organization',
-            // E
-            'eastside': 'Eastside Realty',
-            'ebrealestate': 'E.B. Real Estate',
-            'ekoliving': 'Eko Living',
-            'elegran': 'Elegran Real Estate',
-            'elika': 'Elika Real Estate',
-            'ellimandevelopment': 'Elliman Development Marketing',
-            'engelvolk': 'Engel & Völkers',
-            'exitrealty': 'EXIT Realty',
-            'exp': 'eXp Realty',
-            // F
-            'fenwickkeats': 'Fenwick Keats Real Estate',
-            'fillmore': 'Fillmore Real Estate',
-            'firstservice': 'FirstService Residential',
-            'fontana': 'Fontana Realty',
-            'foxresidential': 'Fox Residential',
-            'friedmanroth': 'Friedman-Roth Realty',
-            // G
-            'gfi': 'GFI Realty Services',
-            'glenwood': 'Glenwood Management',
-            'gotham': 'The Gotham Organization',
-            'governeur': 'Governeur Real Estate',
-            'graceonpark': 'Grace on Park',
-            'grande': 'Grande Realty',
-            'greenburghrealty': 'Greenburgh Realty',
-            'greenpoint': 'Greenpoint Realty',
-            'gumleyhaft': 'Gumley Haft',
-            // H
-            'halstead': 'Halstead',
-            'harlemlofts': 'Harlem Lofts',
-            'heraldsquare': 'Herald Square Properties',
-            'highcap': 'Highcap Group',
-            'highline': 'Highline Residential',
-            'homestead': 'Homestead Realty',
-            'hudsonriverpark': 'Hudson River Park Realty',
-            // I
-            'idealproperties': 'Ideal Properties Group',
-            'interluxe': 'Interluxe',
-            'italiany': 'Italian NY Realty',
-            // J
-            'jacklresnick': 'Jack Resnick & Sons',
-            'jcdeniro': 'JC DeNiro & Associates',
-            'johngallin': 'John Gallin & Son',
-            'jsmithlanier': 'J. Smith Lanier',
-            // K
-            'kaled': 'Kaled Management',
-            'kw': 'Keller Williams NYC',
-            'kingsland': 'Kingsland Properties',
-            'kleier': 'Kleier Residential',
-            'kobirealty': 'Kobi Lahav Real Estate',
-            'kpm': 'KPM Properties',
-            'kushner': 'Kushner Companies',
-            // L
-            'landmark': 'Landmark Realty',
-            'langsam': 'Langsam Property Services',
-            'lee': 'Lee & Associates NYC',
-            'lefrak': 'The LeFrak Organization',
-            'lesliegarfield': 'Leslie J. Garfield',
-            'levelgroup': 'Level Group',
-            'liebman': 'Liebman & Chessare',
-            'lincolnproperty': 'Lincoln Property Company',
-            'lmdev': 'L+M Development Partners',
-            'loketch': 'Loketch Associates',
-            'luxegroup': 'Luxe Group',
-            // M
-            'mallan': 'Mallan Real Estate Inc',
-            'manhattanapt': 'Manhattan Apartments',
-            'manhattanskyline': 'Manhattan Skyline',
-            'marcusmillichap': 'Marcus & Millichap',
-            'mdrn': 'MDRN Residential',
-            'meridian': 'Meridian Capital Group',
-            'metro': 'Metro Lofts',
-            'metropolitan': 'Metropolitan Property Group',
-            'mirador': 'Mirador Real Estate',
-            'modlin': 'The Modlin Group',
-            'modernspaces': 'Modern Spaces',
-            'murrayhill': 'Murray Hill Properties',
-            // N
-            'nestseekers': 'Nest Seekers International',
-            'newmark': 'Newmark',
-            'nooklyn': 'Nooklyn',
-            'nrt': 'NRT LLC',
-            'nybits': 'NY Bits',
-            'nysrealty': 'NYS Realty',
-            // O
-            'ogden': 'Ogden CAP Properties',
-            'onetenmgmt': 'One Ten Management',
-            'onyxequities': 'Onyx Equities',
-            'optimal': 'Optimal Spaces',
-            'optimum': 'Optimum Properties',
-            'orangekey': 'Orange Key Realty',
-            'oxford': 'Oxford Property Group',
-            // P
-            'parkwestvillage': 'Park West Village',
-            'platinum': 'Platinum Properties',
-            'primemanhattan': 'Prime Manhattan Residential',
-            'propstore': 'Prop Store',
-            'pruett': 'Pruett Realty',
-            // R
-            'rapidrealty': 'Rapid Realty',
-            'realnewyork': 'Real New York',
-            'realtyexecutives': 'Realty Executives',
-            'related': 'Related Companies',
-            'remax': 'RE/MAX',
-            'rnewyork': 'R New York',
-            'robertkhederian': 'Robert Khederian Realty',
-            'rockrose': 'Rockrose Development',
-            'rose': 'Rose Associates',
-            'rosewoodrealty': 'Rosewood Realty Group',
-            'rudin': 'Rudin Management',
-            'rutenberg': 'Rutenberg NYC',
-            // S
-            'safarirealty': 'Safari Realty',
-            'silverstein': 'Silverstein Properties',
-            'siderow': 'Siderow Residential Group',
-            'skylight': 'Skylight Real Estate',
-            'slatepropertygroup': 'Slate Property Group',
-            'slgreen': 'SL Green Realty',
-            'sothebys': "Sotheby's International Realty",
-            'steinfirebrand': 'Stein Firebrand',
-            'stonehenge': 'Stonehenge NYC',
-            'stribling': 'Stribling & Associates',
-            // T
-            'terracrg': 'TerraCRG',
-            'tfcornerstone': 'TF Cornerstone',
-            'timeequities': 'Time Equities',
-            'tishman': 'Tishman Speyer',
-            'townresidential': 'Town Residential',
-            'trevorday': 'Trevor Day Realty',
-            'triplemint': 'Triplemint',
-            'trg': 'TRG Management',
-            'trump': 'Trump Organization',
-            'twotrees': 'Two Trees Management',
-            // U
-            'urbanlofts': 'Urban Lofts Realty',
-            // V
-            'vanguard': 'Vanguard Residential',
-            'villageconnections': 'Village Connections',
-            'vista': 'Vista Realty',
-            'vno': 'Vornado Realty Trust',
-            // W
-            'warburg': 'Warburg Realty',
-            'weichert': 'Weichert Realtors',
-            'werwaiss': 'Werwaiss & Co',
-            'westside': 'Westside Rentals',
-            'williambmay': 'William B. May',
-            'winick': 'Winick Realty Group',
-            'woolley': 'Woolley & Co',
-            'worldwide': 'World Wide Group',
-            // X-Y-Z
-            'xander': 'Xander Realty',
-            'york': 'York Realty',
-            'zale': 'Zale Realty',
-            'zamias': 'Zamias Services',
-            'zeckendorf': 'Zeckendorf Development'
-        };
+        var rebnyCompanyNames = { 'mallan': 'Mallan Real Estate Inc.' };  // Loaded from API
         
         // Populate all REBNY company dropdowns dynamically from rebnyCompanyNames
         // ══════════════════════════════════════════════════════
@@ -33441,7 +33452,7 @@ Equal Housing Opportunity
     function checkListingCompliance(listingIds) {
         var result = { passed: [], blocked: [], warnings: [] };
         listingIds.forEach(function(id) {
-            var listing = mockListings.find(function(l) { return l.id === id; });
+            var listing = listings.find(function(l) { return l.id === id; });
             if (!listing) return;
             if (listing.idxDisplayYN === false) {
                 result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out' });
@@ -34236,170 +34247,17 @@ Equal Housing Opportunity
 
     <!-- ═══════════════════════════════════════════════════════════════════
          PER-LISTING CALCULATORS + CLIENT LISTING MODAL — JS
-         Same RLS data format as WITH-TOOLS VIEWER_MOCK_LISTINGS
+         Same RLS data format as WITH-TOOLS VIEWER_LISTINGS
          ═══════════════════════════════════════════════════════════════════ -->
     <script>
-    // ── Mock Listing Data — mirrors VIEWER_MOCK_LISTINGS from WITH-TOOLS files ──
-    var CLIENT_LISTING_DATA = {
-        'SL-1001': {
-            listingId: 'SL-1001', type: 'sale', status: 'Active',
-            address: '400 East 90th Street', unit: '17C', city: 'New York', state: 'NY', zipCode: '10128',
-            borough: 'Manhattan', neighborhood: 'Upper East Side', crossStreet: 'First Avenue',
-            propertyType: 'Condo', propertySubType: 'Condominium', listingType: 'ExclusiveRightToSell',
-            listPrice: 2450000, originalPrice: 2550000, bedrooms: 3, bathrooms: '2.5', roomsTotal: 6,
-            sqft: 1850, pricePerSqft: 1324,
-            maintCC: 1875, reTaxes: 1250, totalMonthly: 3125,
-            yearBuilt: 1988, totalUnits: 42, stories: 21, floor: '17',
-            description: 'Stunning 3-bedroom corner unit with panoramic East River views. Renovated chef\'s kitchen with Sub-Zero and Wolf appliances. Floor-to-ceiling windows, hardwood floors throughout. Full-service luxury building with 24-hour doorman, gym, and roof deck.',
-            listingAgentName: '--', listingAgentId: '',
-            listingCompany: 'Mallan Real Estate Inc.',
-            createDate: '2026-01-15', lastUpdated: '2026-02-20', onMarketDate: '2026-01-15',
-            financing: '---', flipTax: '---', concessions: 'None',
-            photos: [
-                'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=900&h=506&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=300&q=80&fit=crop'
-            ],
-            AttendanceType: ['DoormanFullTime', 'ConciergeYes'],
-            PetsAllowed: ['UnitCatsOK', 'UnitDogsOK'], laundryFeatures: 'InBuilding',
-            elevatorsTotal: 2, garageYN: false, StructureType: 'HighRise', CommonInterest: 'Condominium'
-        },
-        'SL-1002': {
-            listingId: 'SL-1002', type: 'sale', status: 'Active',
-            address: '450 West 42nd Street', unit: '28B', city: 'New York', state: 'NY', zipCode: '10036',
-            borough: 'Manhattan', neighborhood: 'Midtown West', crossStreet: 'Tenth Avenue',
-            propertyType: 'Co-op', propertySubType: 'Cooperative', listingType: 'ExclusiveRightToSell',
-            listPrice: 2450000, originalPrice: 2450000, bedrooms: 3, bathrooms: '2', roomsTotal: 7,
-            sqft: 1650, pricePerSqft: 1485,
-            maintCC: 1800, reTaxes: 1450, totalMonthly: 3250,
-            yearBuilt: 1972, totalUnits: 200, stories: 35, floor: '28',
-            description: 'Spectacular high-floor 3-bedroom with breathtaking Hudson River views. Expansive living area, formal dining room, and chef\'s kitchen with top-line appliances. Primary suite with walk-in closet and spa bath. Full-service co-op with concierge, pool, and children\'s playroom.',
-            listingAgentName: '--', listingAgentId: '',
-            listingCompany: 'Mallan Real Estate Inc.',
-            createDate: '2026-01-20', lastUpdated: '2026-02-22', onMarketDate: '2026-01-20',
-            financing: '---', flipTax: '2%', concessions: 'None',
-            photos: [
-                'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=900&h=506&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&q=80&fit=crop'
-            ],
-            AttendanceType: ['ConciergeFullTime'], PetsAllowed: ['UnitYes'],
-            laundryFeatures: 'InUnit', elevatorsTotal: 4, garageYN: true,
-            StructureType: 'HighRise', CommonInterest: 'Cooperative'
-        },
-        'SL-1003': {
-            listingId: 'SL-1003', type: 'sale', status: 'Active',
-            address: '88 Greenwich Street', unit: '12B', city: 'New York', state: 'NY', zipCode: '10006',
-            borough: 'Manhattan', neighborhood: 'FiDi', crossStreet: 'Rector Street',
-            propertyType: 'Condo', propertySubType: 'Condominium', listingType: 'ExclusiveRightToSell',
-            listPrice: 3150000, originalPrice: 3250000, bedrooms: 3, bathrooms: '2', roomsTotal: 6,
-            sqft: 1800, pricePerSqft: 1750,
-            maintCC: 1600, reTaxes: 1750, totalMonthly: 3350,
-            yearBuilt: 2008, totalUnits: 85, stories: 20, floor: '12',
-            description: 'Luxury 3-bedroom residence in a boutique full-service condominium. Floor-to-ceiling windows with stunning city views. Open chef\'s kitchen with marble counters, Sub-Zero fridge, and Wolf range. Wide-plank oak floors, central A/C, and smart home system.',
-            listingAgentName: '--', listingAgentId: '',
-            listingCompany: 'Mallan Real Estate Inc.',
-            createDate: '2026-02-01', lastUpdated: '2026-02-24', onMarketDate: '2026-02-01',
-            financing: '---', flipTax: '---', concessions: 'None',
-            photos: [
-                'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=900&h=506&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=300&q=80&fit=crop'
-            ],
-            AttendanceType: ['DoormanFullTime'], PetsAllowed: ['UnitNo'],
-            laundryFeatures: 'InUnit', elevatorsTotal: 2, garageYN: false,
-            StructureType: 'HighRise', CommonInterest: 'Condominium'
-        },
-        'RL-2001': {
-            listingId: 'RL-2001', type: 'rental', status: 'Active',
-            address: '400 East 90th Street', unit: '12B', city: 'New York', state: 'NY', zipCode: '10128',
-            borough: 'Manhattan', neighborhood: 'Upper East Side', crossStreet: 'First Avenue',
-            propertyType: 'Condo', propertySubType: 'Apartment', listingType: 'ExclusiveRightToRent',
-            monthlyRent: 4500, securityDeposit: 4500, leaseTerm: '12',
-            bedrooms: 2, bathrooms: '1', roomsTotal: 4, sqft: 950,
-            availableDate: '2026-03-01',
-            yearBuilt: 1988, totalUnits: 42, stories: 21, floor: '12',
-            description: 'Bright 2-bedroom in full-service doorman building. Renovated kitchen with stainless appliances, hardwood floors, generous closets. Close to Q train and Carl Schurz Park.',
-            listingAgentName: '--', listingAgentId: '',
-            listingCompany: 'Mallan Real Estate Inc.',
-            createDate: '2026-02-01', lastUpdated: '2026-02-20', onMarketDate: '2026-02-01',
-            photos: [
-                'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=900&h=506&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=400&h=300&q=80&fit=crop'
-            ],
-            AttendanceType: ['LobbyAttendantFullTime'], PetsAllowed: ['UnitNo'],
-            laundryFeatures: 'InBuilding', elevatorsTotal: 2, garageYN: false,
-            StructureType: 'HighRise', CommonInterest: 'RentalBuilding'
-        },
-        'RL-2002': {
-            listingId: 'RL-2002', type: 'rental', status: 'Active',
-            address: '250 West 73rd Street', unit: '8A', city: 'New York', state: 'NY', zipCode: '10023',
-            borough: 'Manhattan', neighborhood: 'Upper West Side', crossStreet: 'Broadway',
-            propertyType: 'Co-op', propertySubType: 'Apartment', listingType: 'ExclusiveRightToRent',
-            monthlyRent: 6800, securityDeposit: 6800, leaseTerm: '12',
-            bedrooms: 3, bathrooms: '2', roomsTotal: 6, sqft: 1400,
-            availableDate: '2026-04-01',
-            yearBuilt: 1929, totalUnits: 60, stories: 15, floor: '8',
-            description: 'Spacious pre-war 3BR with original details \u2014 arched doorways, herringbone floors, 9.5-foot ceilings. Large living room with park views. Steps to Verdi Square and 72nd St station.',
-            listingAgentName: '--', listingAgentId: '',
-            listingCompany: 'Mallan Real Estate Inc.',
-            createDate: '2026-01-20', lastUpdated: '2026-02-18', onMarketDate: '2026-01-20',
-            photos: [
-                'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=900&h=506&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=300&q=80&fit=crop'
-            ],
-            AttendanceType: ['DoormanFullTime', 'ConciergeYes'],
-            PetsAllowed: ['UnitCatsOK', 'UnitDogsOK'], laundryFeatures: 'InBuilding',
-            elevatorsTotal: 2, garageYN: false, StructureType: 'HighRise', CommonInterest: 'Cooperative'
-        },
-        'RL-2003': {
-            listingId: 'RL-2003', type: 'rental', status: 'Active',
-            address: '100 Barclay Street', unit: '22F', city: 'New York', state: 'NY', zipCode: '10007',
-            borough: 'Manhattan', neighborhood: 'Tribeca', crossStreet: 'Greenwich Street',
-            propertyType: 'Condo', propertySubType: 'Apartment', listingType: 'ExclusiveRightToRent',
-            monthlyRent: 9500, securityDeposit: 9500, leaseTerm: '24',
-            bedrooms: 2, bathrooms: '2', roomsTotal: 5, sqft: 1650,
-            availableDate: '2026-01-15',
-            yearBuilt: 2017, totalUnits: 157, stories: 40, floor: '22',
-            description: 'Luxury 2-bedroom at 100 Barclay. Floor-to-ceiling windows, Gaggenau kitchen, marble baths. Amenities include pool, basketball court, and screening room.',
-            listingAgentName: '--', listingAgentId: '',
-            listingCompany: 'Mallan Real Estate Inc.',
-            createDate: '2025-12-01', lastUpdated: '2026-01-28', onMarketDate: '2025-12-01',
-            photos: [
-                'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=900&h=506&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&q=80&fit=crop',
-                'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&q=80&fit=crop'
-            ],
-            AttendanceType: ['None'], PetsAllowed: ['UnitYes'],
-            laundryFeatures: 'InUnit', elevatorsTotal: 3, garageYN: false,
-            StructureType: 'HighRise', CommonInterest: 'RentalBuilding'
-        }
-    };
+    // ── Listing data for portal calculators — populated from API ──
+    var CLIENT_LISTING_DATA = {};
 
-    // ── Buyer Listings (calculator panels) — derived from CLIENT_LISTING_DATA ──
-    var BUYER_LISTINGS = [
-        { id: 'SL-1001', price: 2450000, maint: 1875, taxes: 1250, propType: 'Condo' },
-        { id: 'SL-1002', price: 2450000, maint: 1800, taxes: 1450, propType: 'Co-op' },
-        { id: 'SL-1003', price: 3150000, maint: 1600, taxes: 1750, propType: 'Condo' }
-    ];
+    // ── Buyer Listings (calculator panels) — populated from API ──
+    var BUYER_LISTINGS = [];
 
-    // ── Tenant Listings (rent vs buy panels) — derived from CLIENT_LISTING_DATA ──
-    var TENANT_LISTINGS = [
-        { id: 'RL-2001', rent: 4500 },
-        { id: 'RL-2002', rent: 6800 },
-        { id: 'RL-2003', rent: 9500 }
-    ];
+    // ── Tenant Listings (rent vs buy panels) — populated from API ──
+    var TENANT_LISTINGS = [];
 
     // ── NYC Tax Functions ────────────────────────────────────────────────
     var CRM_MANSION_TAX_RATES = [
@@ -37205,7 +37063,7 @@ Equal Housing Opportunity
             }
 
             if (filtered.length === 0) {
-                var cols = type === 'sales' ? 9 : 8;
+                var cols = type === 'sales' ? 11 : 10;
                 body.innerHTML = '<tr><td colspan="' + cols + '" class="px-4 py-12 text-center text-gray-400">' +
                     '<i class="fas fa-inbox text-2xl mb-2 block text-gray-300"></i>' +
                     (search ? 'No matches for "' + search + '"' : 'No ' + type + ' found') + '</td></tr>';
@@ -37220,8 +37078,23 @@ Equal Housing Opportunity
                 var priceDisplay = hasPrice ? (isRent ? '$' + price.toLocaleString() + '/mo' : '$' + price.toLocaleString()) : '';
                 var totalBaths = (deal.baths_full || 0) + (deal.baths_half || 0) * 0.5;
                 var addr = deal.street + (deal.unit ? ' #' + deal.unit : '');
+                var photoUrl = deal.photo_url || '';
 
-                html += '<tr class="hover:bg-gray-50 transition" data-deal-id="' + deal.id + '">';
+                html += '<tr class="hover:bg-gray-50 transition group" data-deal-id="' + deal.id + '">';
+
+                // Photo thumbnail cell
+                html += '<td class="px-2 py-1.5 text-center">';
+                if (photoUrl) {
+                    html += '<div class="relative inline-block">';
+                    html += '<img src="' + photoUrl + '" alt="" class="w-10 h-10 rounded object-cover border border-gray-200" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\'">';
+                    html += '<div class="w-10 h-10 rounded bg-gray-100 items-center justify-center text-gray-400" style="display:none"><i class="fas fa-image text-xs"></i></div>';
+                    html += '<button onclick="_editDealPhoto(\'' + deal.id + '\', \'' + photoUrl.replace(/'/g, "\\'") + '\')" class="absolute -top-1 -right-1 w-4 h-4 bg-white border rounded-full shadow text-gray-400 hover:text-blue-600 text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition" title="Change photo"><i class="fas fa-pencil-alt"></i></button>';
+                    html += '</div>';
+                } else {
+                    html += '<button onclick="_editDealPhoto(\'' + deal.id + '\', \'\')" class="w-10 h-10 rounded bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center text-gray-300 hover:text-blue-500 hover:border-blue-300 transition" title="Add photo"><i class="fas fa-camera text-xs"></i></button>';
+                }
+                html += '</td>';
+
                 html += '<td class="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">' + addr + '</td>';
                 html += '<td class="px-3 py-2.5 text-gray-600 text-xs">' + (deal.neighborhood || '—') + '</td>';
                 html += '<td class="px-3 py-2.5 text-gray-600 text-xs">' + (deal.property_type || '—') + '</td>';
@@ -37248,6 +37121,11 @@ Equal Housing Opportunity
                 // Save button
                 html += '<td class="px-3 py-2.5 text-center">';
                 html += '<button onclick="_saveDealPrice(this.closest(\'tr\').querySelector(\'input[data-deal-id]\'))" class="px-2.5 py-1 bg-blue-600 text-white rounded text-[10px] font-semibold hover:bg-blue-700 transition">Save</button>';
+                html += '</td>';
+
+                // Delete button
+                html += '<td class="px-2 py-2.5 text-center">';
+                html += '<button onclick="_confirmDeleteDeal(\'' + deal.id + '\', \'' + addr.replace(/'/g, "\\'") + '\')" class="w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition opacity-0 group-hover:opacity-100" title="Delete deal"><i class="fas fa-trash-alt text-xs"></i></button>';
                 html += '</td>';
 
                 html += '</tr>';
@@ -37312,6 +37190,113 @@ Equal Housing Opportunity
                 input.classList.add('border-red-300', 'bg-red-50');
                 if (btn) { btn.innerHTML = 'Error'; btn.disabled = false; }
                 setTimeout(function() { if (btn) btn.innerHTML = 'Save'; }, 2000);
+            });
+        };
+
+        // ── Delete Past Deal ──
+        window._confirmDeleteDeal = function(dealId, address) {
+            // Build confirmation modal
+            var overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+            overlay.id = '_deleteConfirmOverlay';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML =
+                '<div class="bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4 animate-fade-in">' +
+                    '<div class="flex items-center gap-3 mb-4">' +
+                        '<div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center"><i class="fas fa-trash-alt text-red-500"></i></div>' +
+                        '<div><h3 class="font-semibold text-gray-900">Delete Past Deal</h3><p class="text-xs text-gray-500">This action cannot be undone</p></div>' +
+                    '</div>' +
+                    '<p class="text-sm text-gray-700 mb-5">Are you sure you want to permanently delete <strong>' + address + '</strong>? This will remove it from the agent profile and all reports.</p>' +
+                    '<div class="flex justify-end gap-2">' +
+                        '<button onclick="document.getElementById(\'_deleteConfirmOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancel</button>' +
+                        '<button id="_confirmDeleteBtn" onclick="_executeDealDelete(\'' + dealId + '\')" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition">' +
+                            '<i class="fas fa-trash-alt mr-1.5"></i>Delete' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+        };
+
+        window._executeDealDelete = function(dealId) {
+            var btn = document.getElementById('_confirmDeleteBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Deleting...'; }
+
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+            fetch(baseUrl + '/api/crm/past-deals/' + dealId, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+            .then(function(r) { if (!r.ok) throw new Error('Delete failed: ' + r.status); return r.json(); })
+            .then(function() {
+                var overlay = document.getElementById('_deleteConfirmOverlay');
+                if (overlay) overlay.remove();
+                // Remove from local data
+                _pastDealsData.sales = _pastDealsData.sales.filter(function(d) { return d.id !== dealId; });
+                _pastDealsData.rentals = _pastDealsData.rentals.filter(function(d) { return d.id !== dealId; });
+                _renderSoldStats();
+                _renderSoldTable('sales');
+                _renderSoldTable('rentals');
+                showToast('Deal deleted successfully', 'success');
+            })
+            .catch(function(err) {
+                console.error('[PastDeals] Delete failed:', err);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-exclamation-circle mr-1.5"></i>Failed — Retry'; btn.classList.replace('bg-red-600', 'bg-orange-600'); }
+                showToast('Failed to delete: ' + err.message, 'error');
+            });
+        };
+
+        // ── Photo Management for Past Deals ──
+        window._editDealPhoto = function(dealId, currentUrl) {
+            var overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+            overlay.id = '_photoEditOverlay';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML =
+                '<div class="bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4 w-full">' +
+                    '<div class="flex items-center justify-between mb-4">' +
+                        '<h3 class="font-semibold text-gray-900"><i class="fas fa-image mr-2 text-gray-400"></i>Deal Photo</h3>' +
+                        '<button onclick="document.getElementById(\'_photoEditOverlay\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>' +
+                    '</div>' +
+                    (currentUrl ? '<div class="mb-4 relative"><img src="' + currentUrl + '" class="w-full h-40 object-cover rounded-lg border" onerror="this.parentElement.innerHTML=\'<div class=&quot;w-full h-40 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400&quot;><i class=&quot;fas fa-image text-2xl&quot;></i></div>\'"></div>' : '') +
+                    '<label class="block text-xs font-semibold text-gray-600 mb-1">Photo URL</label>' +
+                    '<input type="text" id="_dealPhotoInput" value="' + (currentUrl || '') + '" placeholder="https://..." class="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200 mb-3">' +
+                    '<p class="text-[10px] text-gray-400 mb-4">Paste an image URL. Supported: Cloudflare R2, Trestle media, or any public image.</p>' +
+                    '<div class="flex justify-between">' +
+                        (currentUrl ? '<button onclick="_saveDealPhoto(\'' + dealId + '\', \'\')" class="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg text-sm transition"><i class="fas fa-trash-alt mr-1"></i>Remove</button>' : '<div></div>') +
+                        '<div class="flex gap-2">' +
+                            '<button onclick="document.getElementById(\'_photoEditOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancel</button>' +
+                            '<button onclick="_saveDealPhoto(\'' + dealId + '\', document.getElementById(\'_dealPhotoInput\').value)" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">Save</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            // Auto-focus input
+            setTimeout(function() { var inp = document.getElementById('_dealPhotoInput'); if (inp) inp.focus(); }, 100);
+        };
+
+        window._saveDealPhoto = function(dealId, photoUrl) {
+            var overlay = document.getElementById('_photoEditOverlay');
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : 'https://mallan.nyc';
+            fetch(baseUrl + '/api/crm/past-deals/' + dealId, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ photo_url: photoUrl || null })
+            })
+            .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function() {
+                if (overlay) overlay.remove();
+                // Update local data
+                var allDeals = _pastDealsData.sales.concat(_pastDealsData.rentals);
+                var deal = allDeals.find(function(d) { return d.id === dealId; });
+                if (deal) deal.photo_url = photoUrl || null;
+                _renderSoldTable('sales');
+                _renderSoldTable('rentals');
+                showToast(photoUrl ? 'Photo updated' : 'Photo removed', 'success');
+            })
+            .catch(function(err) {
+                console.error('[PastDeals] Photo save failed:', err);
+                showToast('Failed to save photo: ' + err.message, 'error');
             });
         };
 

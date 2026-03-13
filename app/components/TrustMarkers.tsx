@@ -56,7 +56,7 @@ export default function TrustMarkers() {
             >
               <Image
                 src="/images/equal-housing-logo.svg"
-                alt=""
+                alt="Equal Housing Opportunity"
                 width={28}
                 height={28}
                 className="w-7 h-7"
