@@ -53,8 +53,8 @@ interface FeaturedConfig {
 
 const DEFAULT_CONFIG: FeaturedConfig = {
   pinnedListingIds: [],
-  filters: { type: 'sale', boroughs: ['Manhattan', 'Brooklyn'], neighborhoods: [], minPrice: 500000, maxPrice: 5000000, minBeds: 1 },
-  sort: 'price-desc',
+  filters: { type: 'sale', boroughs: ['Manhattan'], neighborhoods: [], minPrice: 500000, maxPrice: 0, minBeds: 1 },
+  sort: 'newest',
   limit: 6,
 };
 
@@ -290,10 +290,10 @@ export default function FeaturedListings() {
     let cancelled = false;
     async function fetchFeatured() {
       try {
-        // Load config
+        // Load config from API (DB-backed) with static file fallback
         let config: FeaturedConfig = DEFAULT_CONFIG;
         try {
-          const cfgRes = await fetch('/featured-config.json');
+          const cfgRes = await fetch('/api/featured-config');
           if (cfgRes.ok) config = await cfgRes.json();
         } catch {
           // Use defaults
