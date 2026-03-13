@@ -1442,6 +1442,15 @@
                 <div class="sidebar-divider"></div>
 
                 <!-- ═══════════════════════════════════════ -->
+                <!-- 3b. FEATURED PROPERTIES (Broker Only) -->
+                <!-- ═══════════════════════════════════════ -->
+                <button onclick="showTab('featured-config'); initFeaturedConfig();" class="sidebar-link w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold text-left text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-star text-xs text-amber-500"></i> Featured Properties
+                </button>
+
+                <div class="sidebar-divider"></div>
+
+                <!-- ═══════════════════════════════════════ -->
                 <!-- 4. SETTINGS -->
                 <!-- ═══════════════════════════════════════ -->
                 <button onclick="showTab('settings')" class="sidebar-link w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-extrabold text-left text-gray-900 uppercase tracking-wider">
@@ -23613,6 +23622,9 @@
                 </div>
             </div>
 
+            <!-- FEATURED CONFIG (Broker Only) -->
+            <div id="featured-config" class="tab-content" style="display:none;"></div>
+
             <!-- SETTINGS -->
             <div id="settings" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
@@ -28941,6 +28953,7 @@ Equal Housing Opportunity
             'lead-distribution',  // Lead Distribution Hub
             'audit-log',          // Audit Log (full system log)
             'broker-portal',      // Broker Portal landing page
+            'featured-config',    // Featured Properties config (broker)
             'settings',           // CRM Settings (admin)
             'agent-commission-splits', // Commission & Splits config (broker admin)
             'agent-1099',         // 1099 Year-End (broker admin)
@@ -37838,6 +37851,7 @@ function saveShowingFeedback() {
 <script src="js/crm/market-pulse.js"></script>
 <script src="js/crm/lead-scoring.js"></script>
 <script src="js/crm/commission-tracker.js"></script>
+<script src="js/crm/featured-config.js"></script>
 <script src="js/crm/listing-auditor.js"></script>
 
 </body>
