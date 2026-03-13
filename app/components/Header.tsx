@@ -121,7 +121,6 @@ export default function Header() {
     { title: 'Sell Your Home', href: '/sell' },
     { title: 'Sell a Townhouse', href: '/sell/townhouses' },
     { title: 'Home Value', href: '/sell#valuation' },
-    { title: 'Our Results', href: '/results' },
   ];
 
   const exclusivesItems = [
