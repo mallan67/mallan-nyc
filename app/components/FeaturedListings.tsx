@@ -183,10 +183,10 @@ function ListingCard({ listing }: { listing: FeaturedListing }) {
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">
-                {listing.address.neighborhood || `${listing.address.streetNumber} ${listing.address.streetName}`}
+                {listing.address.streetNumber} {listing.address.streetName}{listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}
               </h3>
               <p className="text-brand-dark/90 text-[13px] font-light">
-                {listing.propertySubType || listing.propertyType}
+                {listing.propertySubType || listing.propertyType}{listing.address.neighborhood ? ` in ${listing.address.neighborhood}` : ''}
               </p>
             </div>
             <p className="font-display font-bold text-base md:text-lg whitespace-nowrap text-brand-dark">
