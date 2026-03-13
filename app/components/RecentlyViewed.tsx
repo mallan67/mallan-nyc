@@ -20,8 +20,25 @@ export default function RecentlyViewed() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    // Check if user dismissed during this session
+    try {
+      if (sessionStorage.getItem('mallan_rv_dismissed') === '1') {
+        setDismissed(true);
+        return;
+      }
+    } catch { /* no-op */ }
     setItems(getRecentlyViewed());
   }, []);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try { sessionStorage.setItem('mallan_rv_dismissed', '1'); } catch { /* no-op */ }
+  };
+
+  const handleClear = () => {
+    try { localStorage.removeItem('mallan_recently_viewed'); } catch { /* no-op */ }
+    setItems([]);
+  };
 
   if (dismissed || items.length === 0) return null;
 
@@ -30,15 +47,24 @@ export default function RecentlyViewed() {
       <div className="max-w-[1920px] mx-auto">
         <div className="flex items-center justify-between mb-1.5">
           <h3 className="text-xs font-semibold text-brand-dark/70 tracking-wide uppercase">Recently Viewed</h3>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-brand-dark/40 hover:text-brand-dark/70 text-xs"
-            aria-label="Dismiss recently viewed"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleClear}
+              className="text-brand-dark/40 hover:text-brand-dark/70 text-[10px] uppercase tracking-wide"
+              aria-label="Clear recently viewed"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleDismiss}
+              className="text-brand-dark/40 hover:text-brand-dark/70 text-xs"
+              aria-label="Dismiss recently viewed"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {items.map((item) => (
