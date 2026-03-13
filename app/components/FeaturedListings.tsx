@@ -293,7 +293,7 @@ export default function FeaturedListings() {
         // Load config
         let config: FeaturedConfig = DEFAULT_CONFIG;
         try {
-          const cfgRes = await fetch('/data/featured-config.json');
+          const cfgRes = await fetch('/featured-config.json');
           if (cfgRes.ok) config = await cfgRes.json();
         } catch {
           // Use defaults
@@ -320,25 +320,6 @@ export default function FeaturedListings() {
         if (cancelled || !data.listings || data.listings.length === 0) return;
 
         let all: FeaturedListing[] = data.listings;
-
-        // Filter by multiple boroughs if configured
-        if (filters.boroughs.length > 1) {
-          const boroughSet = new Set(filters.boroughs.map((b: string) => b.toLowerCase()));
-          all = all.filter((l: FeaturedListing) => {
-            const borough = ((l.address as { borough?: string; county?: string }).borough ||
-                            (l.address as { county?: string }).county || '').toLowerCase();
-            return boroughSet.has(borough);
-          });
-        }
-
-        // Filter by multiple neighborhoods if configured
-        if (filters.neighborhoods.length > 1) {
-          const nhoodSet = new Set(filters.neighborhoods.map((n: string) => n.toLowerCase()));
-          all = all.filter((l: FeaturedListing) => {
-            const nhood = (l.address.neighborhood || '').toLowerCase();
-            return nhoodSet.has(nhood);
-          });
-        }
 
         // Separate pinned (exclusives) from rest — pinned always first
         const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
