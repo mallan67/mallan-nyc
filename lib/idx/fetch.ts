@@ -147,7 +147,13 @@ export async function fetchFromTrestle(
 export async function fetchSingleListing(
   listingId: string
 ): Promise<Record<string, unknown> | null> {
-  const token = await getAccessToken();
+  let token: string;
+  try {
+    token = await getAccessToken();
+  } catch (err) {
+    console.warn('[IDX Fetch] Token acquisition failed for single listing:', err);
+    return null;
+  }
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
   const escapedId = listingId.replace(/'/g, "''");
 
@@ -177,9 +183,10 @@ export async function fetchSingleListing(
       return null;
     } else {
       const errorText = await response.text().catch(() => "Unknown");
-      throw new Error(
+      console.warn(
         `[IDX Fetch] Single listing error (${response.status}): ${errorText}`
       );
+      return null;
     }
   }
 
@@ -319,7 +326,13 @@ export function buildActiveFilter(
 export async function fetchListingMedia(
   listingKey: string
 ): Promise<{ url: string; mediaType: string; order: number }[]> {
-  const token = await getAccessToken();
+  let token: string;
+  try {
+    token = await getAccessToken();
+  } catch (err) {
+    console.warn('[IDX Fetch] Token acquisition failed for media fetch:', err);
+    return [];
+  }
   const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
 
   // Try numeric key first, then string-based ResourceRecordID
@@ -390,9 +403,9 @@ export async function fetchListingMedia(
 async function fetchWithRetry(
   url: string,
   token: string,
-  maxRetries: number = 2
+  maxRetries: number = 1
 ): Promise<Response> {
-  const delays = [500, 1000]; // ms between retries
+  const delays = [500]; // ms between retries (1 retry max to avoid long hangs)
   let lastResponse: Response = await fetchPage(url, token);
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -412,20 +425,29 @@ async function fetchWithRetry(
   return lastResponse;
 }
 
-/** Internal: make a single HTTP request to Trestle. */
+/** Internal: make a single HTTP request to Trestle with timeout. */
 async function fetchPage(
   url: string,
   token: string
 ): Promise<Response> {
-  return fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-    // Cache Trestle responses for 5 minutes in Next.js Data Cache.
-    // Without this, Next.js 15+ defaults to no-store and every request
-    // hits Trestle live — causing 3-8s load times on cold starts.
-    next: { revalidate: 300 },
-  });
+  // 10-second timeout prevents hanging when Trestle is slow/down.
+  // Without this, requests can hang for 60s+ and block page rendering.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  try {
+    return await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+      // Cache Trestle responses for 5 minutes in Next.js Data Cache.
+      // Without this, Next.js 15+ defaults to no-store and every request
+      // hits Trestle live — causing 3-8s load times on cold starts.
+      next: { revalidate: 300 },
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

@@ -50,8 +50,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { deal_id, payment_type, amount, date, status, reference, notes } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { deal_id, payment_type, amount, date, status, reference, notes } = body as {
+    deal_id?: string; payment_type?: string; amount?: number; date?: string;
+    status?: string; reference?: string; notes?: string;
+  };
 
   if (!deal_id || !payment_type || !amount) {
     return NextResponse.json({ ok: false, error: "deal_id, payment_type, amount are required" }, { status: 400 });

@@ -1,7 +1,7 @@
         function initializeSearchResults() {
             // Clean stale selectedListings — remove IDs that don't exist in current results
             try {
-                var currentIds = (searchResultsState.filteredListings || mockListings).map(function(l) { return l.id; });
+                var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
                 searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
                     return currentIds.indexOf(id) !== -1;
                 });
@@ -12,7 +12,7 @@
                 if (removed.length > 0) {
                     var removedSet = {};
                     removed.forEach(function(id) { removedSet[id] = true; });
-                    var source = searchResultsState.filteredListings || mockListings.slice();
+                    var source = searchResultsState.filteredListings || listings.slice();
                     searchResultsState.filteredListings = source.filter(function(l) { return !removedSet[l.id]; });
                 }
             } catch(e) { console.warn('[Search] Selection cleanup error:', e); }
@@ -80,7 +80,7 @@
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function getFilteredListings(skipPagination) {
-            var listings = (searchResultsState.filteredListings || mockListings).slice();
+            var listings = (searchResultsState.filteredListings || listings).slice();
             // ══════════════════════════════════════════════════════════════════
             // COMPLIANCE HARD-BLOCK (Defense-in-depth)
             // ══════════════════════════════════════════════════════════════════

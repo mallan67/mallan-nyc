@@ -66,10 +66,10 @@ function AccessibilityRESOPerfTests(options) {
 
     // RESO1: Field type coercion (numeric fields are numbers)
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'mockListings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var issues = [];
         var numericFields = ['price','beds','baths','sqft','daysOnMarket','pricePerSqft','lotSize','stories','units','garageSpaces'];
-        mockListings.forEach(function(l, idx) {
+        listings.forEach(function(l, idx) {
             numericFields.forEach(function(f) {
                 var val = l[f];
                 if (val !== undefined && val !== null && val !== '' && typeof val !== 'number' && isNaN(Number(val))) {
@@ -78,17 +78,17 @@ function AccessibilityRESOPerfTests(options) {
             });
         });
         addResult('RESO1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length === 0 ? 'All numeric fields valid across all ' + mockListings.length + ' listings' : issues.slice(0, 10).join('; '));
+            issues.length === 0 ? 'All numeric fields valid across all ' + listings.length + ' listings' : issues.slice(0, 10).join('; '));
     })();
 
     // RESO2: Required fields completeness
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'mockListings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var coreRequired = ['id','address','price','status','beds','baths','neighborhood'];
         var extended = ['borough','listingCategory'];
         var coreViolations = [];
         var extViolations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             coreRequired.forEach(function(f) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') coreViolations.push('L-' + l.id + '.' + f);
             });
@@ -97,24 +97,24 @@ function AccessibilityRESOPerfTests(options) {
             });
         });
         addResult('RESO2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
-            coreViolations.length === 0 ? mockListings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
+            coreViolations.length === 0 ? listings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
     })();
 
     // RESO3: Enumeration enforcement
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'mockListings undefined — required test data missing'); return; }
+        if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
         var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
             'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var validCategories = ['sale','rental','Sale','Rental'];
         var issues = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.status && validStatuses.indexOf(l.status) === -1) issues.push('Status:"' + l.status + '" L-' + l.id);
             if (l.borough && validBoroughs.indexOf(l.borough) === -1) issues.push('Borough:"' + l.borough + '" L-' + l.id);
             if (l.listingCategory && validCategories.indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '" L-' + l.id);
         });
         addResult('RESO3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length === 0 ? 'All status/borough/category enums valid across ' + mockListings.length + ' listings' : issues.slice(0, 5).join('; '));
+            issues.length === 0 ? 'All status/borough/category enums valid across ' + listings.length + ' listings' : issues.slice(0, 5).join('; '));
     })();
 
     // PERF1: Render time threshold (ACTIVE)

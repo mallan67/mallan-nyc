@@ -148,7 +148,7 @@
         if (!clientId) { showToast('Select a client first.', 'warning'); return null; }
         if (!selectedIds.length) { showToast('Select at least 1 listing from search results first.', 'warning'); return null; }
 
-        var allListings = (window.searchResultsState && window.searchResultsState.filteredListings) || window.mockListings || [];
+        var allListings = (window.searchResultsState && window.searchResultsState.filteredListings) || window.listings || [];
         var selectedListings = allListings.filter(function(l) { return selectedIds.indexOf(l.id) > -1; });
 
         var col = createCollection({

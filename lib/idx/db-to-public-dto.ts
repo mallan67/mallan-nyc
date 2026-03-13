@@ -51,6 +51,15 @@ interface DbFeatures {
   TaxAnnualAmount?: number | string;
   TaxYear?: number | string;
   ArchitecturalStyle?: string;
+  // FARE Act fee transparency
+  MoveInCosts?: string;
+  OngoingFees?: string;
+  TenantPays?: string;
+  TenantPaysDescription?: string;
+  AdditionalFeeYN?: boolean | string;
+  AdditionalFee?: number | string;
+  AdditionalFeeDescription?: string;
+  FeeFrequency?: string;
   [key: string]: unknown;
 }
 
@@ -252,6 +261,13 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     associationFeeFrequency: features.AssociationFeeFrequency,
     taxAnnualAmount: features.TaxAnnualAmount ? Number(features.TaxAnnualAmount) : undefined,
     taxYear: features.TaxYear ? Number(features.TaxYear) : undefined,
+    moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
+    ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
+    tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
+    additionalFeeYN: features.AdditionalFeeYN === true || features.AdditionalFeeYN === 'true' ? true : undefined,
+    additionalFee: features.AdditionalFee ? Number(features.AdditionalFee) : undefined,
+    additionalFeeDescription: features.AdditionalFeeDescription ? String(features.AdditionalFeeDescription) : undefined,
+    feeFrequency: features.FeeFrequency ? String(features.FeeFrequency) : undefined,
     _source: 'exclusive',
     _displayCompliance: {
       requiresAttribution: true,

@@ -82,6 +82,9 @@ export interface DisplayListing {
   publicRemarks?: string;
   petsAllowed?: string;
   availabilityDate?: string;
+  moveInCosts?: string;
+  ongoingFees?: string;
+  tenantPaysDescription?: string;
   _displayCompliance: {
     comingSoon?: boolean;
     comingSoonDate?: string;
@@ -128,6 +131,9 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     publicRemarks: dto.publicRemarks,
     petsAllowed: dto.petsAllowed,
     availabilityDate: dto.availabilityDate,
+    moveInCosts: dto.moveInCosts,
+    ongoingFees: dto.ongoingFees,
+    tenantPaysDescription: dto.tenantPaysDescription,
     _displayCompliance: dto._displayCompliance,
   };
 }

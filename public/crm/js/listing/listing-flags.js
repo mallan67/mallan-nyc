@@ -48,7 +48,7 @@
                 filterState.statusFilters[flag] = !filterState.statusFilters[flag];
                 var isActive = filterState.statusFilters[flag];
                 if (isActive) {
-                    var count = (searchResultsState.filteredListings || mockListings).filter(function(l) { return getListingFlag(l.id, flag); }).length;
+                    var count = (searchResultsState.filteredListings || listings).filter(function(l) { return getListingFlag(l.id, flag); }).length;
                     if (count === 0) {
                         showFlagToast('No listings flagged as "' + flag + '" yet. Select listings first, then click to flag them.');
                         filterState.statusFilters[flag] = false;

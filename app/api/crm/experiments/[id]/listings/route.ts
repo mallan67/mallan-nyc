@@ -34,8 +34,13 @@ export async function POST(
     );
   }
 
-  const body = await req.json();
-  const { arm_id, listing_id, listing_address } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { arm_id, listing_id, listing_address } = body as { arm_id?: string; listing_id?: string; listing_address?: string };
 
   if (!arm_id || !listing_id) {
     return NextResponse.json({ ok: false, error: "arm_id and listing_id required" }, { status: 400 });
@@ -89,8 +94,13 @@ export async function DELETE(
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
-  const body = await req.json();
-  const { experiment_listing_id } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { experiment_listing_id } = body as { experiment_listing_id?: string };
 
   if (!experiment_listing_id) {
     return NextResponse.json({ ok: false, error: "experiment_listing_id required" }, { status: 400 });

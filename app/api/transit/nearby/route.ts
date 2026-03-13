@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const lat = parseFloat(searchParams.get('lat') || '');
   const lng = parseFloat(searchParams.get('lng') || '');
-  const limit = parseInt(searchParams.get('limit') || '5', 10);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '5', 10), 50);
   const radius = parseInt(searchParams.get('radius') || '800', 10);
 
   if (isNaN(lat) || isNaN(lng)) {

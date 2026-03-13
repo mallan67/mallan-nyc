@@ -38,8 +38,8 @@ var AGENT_PROFILE = {
     phone: LOGGED_IN_AGENT.phone,
     email: LOGGED_IN_AGENT.email,
     company: LOGGED_IN_AGENT.companyName,
-    companyLicense: '#10991205323',
-    address: '400 East 90th Street, Suite 17C, New York, NY 10128',
+    companyLicense: '',
+    address: '',
     website: 'mallan.nyc',
     photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&q=85&auto=format&fit=crop&crop=face'
 };
@@ -66,6 +66,9 @@ if (typeof MallanAPI !== 'undefined') {
             AGENT_PROFILE.phone = LOGGED_IN_AGENT.phone;
             AGENT_PROFILE.email = LOGGED_IN_AGENT.email;
             AGENT_PROFILE.company = LOGGED_IN_AGENT.companyName;
+            if (u.companyLicense) AGENT_PROFILE.companyLicense = '#' + u.companyLicense;
+            if (u.companyAddress) AGENT_PROFILE.address = u.companyAddress;
+            if (u.companyPhone) AGENT_PROFILE.companyPhone = u.companyPhone;
             if (u.photo) AGENT_PROFILE.photo = u.photo;
         } else {
             // Not authenticated — redirect to admin login

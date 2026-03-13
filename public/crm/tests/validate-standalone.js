@@ -297,27 +297,27 @@ function searchChecks(content) {
     missingGuards.length === 0 ? 'All 10 integrity test IDs present' : 'Missing: ' + missingGuards.join(', ')
   ));
 
-  // 26. Cross-file parity: mockListings consistency
+  // 26. Cross-file parity: listings consistency
   const crmPath = path.join(CRM_DIR, 'MALLAN-NYC-CRM-FINAL2.html');
   if (fs.existsSync(crmPath)) {
     const crmContent = fs.readFileSync(crmPath, 'utf-8');
-    const searchMockMatch = content.match(/var\s+mockListings\s*=\s*\[/);
-    const crmMockMatch = crmContent.match(/var\s+mockListings\s*=\s*\[/);
+    const searchMockMatch = content.match(/var\s+listings\s*=\s*\[/);
+    const crmMockMatch = crmContent.match(/var\s+listings\s*=\s*\[/);
     if (searchMockMatch && crmMockMatch) {
       // Count listings in each: count occurrences of { id: or {id:
       const searchCount = (content.match(/\{\s*id\s*:\s*\d+/g) || []).length;
       const crmCount = (crmContent.match(/\{\s*id\s*:\s*\d+/g) || []).length;
       results.push(check(
-        'P1: mockListings parity (Search vs CRM)', 'WARN',
+        'P1: listings parity (Search vs CRM)', 'WARN',
         Math.abs(searchCount - crmCount) < 10,
         `Search: ~${searchCount} listings, CRM: ~${crmCount} listings`
       ));
     } else {
       results.push(check(
-        'P1: mockListings parity (Search vs CRM)', 'WARN',
-        true, // Pass if CRM has no mockListings (search was removed)
-        searchMockMatch ? 'Search has mockListings' : 'No mockListings found' +
-        (crmMockMatch ? ', CRM has mockListings' : ', CRM mockListings removed')
+        'P1: listings parity (Search vs CRM)', 'WARN',
+        true, // Pass if CRM has no listings (search was removed)
+        searchMockMatch ? 'Search has listings' : 'No listings found' +
+        (crmMockMatch ? ', CRM has listings' : ', CRM listings removed')
       ));
     }
 

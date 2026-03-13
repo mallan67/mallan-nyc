@@ -88,16 +88,16 @@
                 MallanAPI.idx.search(params).then(function(result) {
                     _serverSearchActive = false;
                     if (result.listings && result.listings.length > 0) {
-                        mockListings.length = 0;
-                        result.listings.forEach(function(l) { mockListings.push(l); });
-                        mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+                        listings.length = 0;
+                        result.listings.forEach(function(l) { listings.push(l); });
+                        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
                         if (typeof resolveNeighborhoodCanonical === 'function') {
-                            mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+                            listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
                         }
                         // Re-filter and render
                         var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
                         searchResultsState.filteredListings = typeof filterListings === 'function'
-                            ? filterListings(mockListings, criteria) : mockListings.slice();
+                            ? filterListings(listings, criteria) : listings.slice();
                         searchResultsState.currentPage = 1;
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();

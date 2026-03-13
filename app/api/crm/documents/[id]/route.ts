@@ -57,7 +57,12 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
   const data: Record<string, unknown> = {};
   if (body.status) data.status = body.status;
   if (body.notes !== undefined) data.notes = body.notes;

@@ -14,8 +14,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { lead_id, event_type, payload, session_id } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const lead_id = body.lead_id as string | undefined;
+  const event_type = body.event_type as string | undefined;
+  const payload = body.payload;
+  const session_id = body.session_id as string | undefined;
 
   if (!lead_id || !event_type) {
     return NextResponse.json(
@@ -24,7 +32,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!INTENT_EVENT_TYPES.includes(event_type)) {
+  if (!INTENT_EVENT_TYPES.includes(event_type as typeof INTENT_EVENT_TYPES[number])) {
     return NextResponse.json(
       { ok: false, error: `event_type must be one of: ${INTENT_EVENT_TYPES.join(", ")}` },
       { status: 400 }

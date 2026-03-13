@@ -129,7 +129,7 @@ const results = {
   3:  { name: 'RESO→RLS RENAMES',      errors: [], warnings: [] },
   4:  { name: 'DISTRIBUTION GATES',    errors: [], warnings: [] },
   5:  { name: 'FIELD MAP INTEGRITY',   errors: [], warnings: [] },
-  6:  { name: 'MOCK DATA',             errors: [], warnings: [] },
+  6:  { name: '(REMOVED)',             errors: [], warnings: [] },
   7:  { name: 'CONDITIONAL RULES',     errors: [], warnings: [], missing: [] },
   8:  { name: 'ROLE MASKING',          errors: [], warnings: [] },
   9:  { name: 'RLS FIELD COVERAGE',    errors: [], warnings: [] },
@@ -538,22 +538,6 @@ function validatePicklists(fileElements, picklistMap) {
       }
     }
 
-    // Check mock data picklist values (viewer + search files)
-    if (config.category === 'viewer' || config.category === 'search') {
-      const mockFields = ['CommonInterest', 'AttendanceType', 'PetsAllowed', 'BuildingPetsAllowed',
-                          'PropertySubType', 'StructureType', 'Furnished', 'Concessions'];
-      for (const field of mockFields) {
-        if (!picklistMap[field]) continue;
-        const pattern = new RegExp(field + "\\s*:\\s*['\"]([^'\"]+)['\"]", 'g');
-        let match;
-        while ((match = pattern.exec(raw)) !== null) {
-          const val = match[1].trim();
-          if (val && !picklistMap[field].has(val)) {
-            error(1, `${fname}: JS mock data ${field}: "${val}" not in RLS picklist`);
-          }
-        }
-      }
-    }
   }
 }
 
@@ -756,57 +740,7 @@ function validateFieldMapIntegrity() {
   }
 }
 
-// SECTION 6: MOCK DATA
-function validateMockData(fileElements, picklistMap) {
-  console.log('\n  Section 6: Mock Data Integrity ...');
-
-  for (const key of ['saleViewer', 'rentalViewer']) {
-    const data = fileElements[key];
-    if (!data) { error(6, `Cannot load ${key}`); continue; }
-
-    if (!data.raw.includes('VIEWER_MOCK_LISTINGS')) {
-      error(6, `${data.fname}: VIEWER_MOCK_LISTINGS not found`);
-      continue;
-    }
-
-    const criticalFields = ['CommonInterest', 'AttendanceType', 'PetsAllowed', 'BuildingPetsAllowed'];
-    for (const field of criticalFields) {
-      if (!data.raw.includes(field)) {
-        error(6, `${data.fname}: mock data missing critical RLS field "${field}"`);
-      }
-    }
-
-    for (const field of criticalFields) {
-      if (!picklistMap[field]) continue;
-      const pattern = new RegExp(field + "\\s*:\\s*['\"]([^'\"]+)['\"]", 'g');
-      let match;
-      while ((match = pattern.exec(data.raw)) !== null) {
-        const val = match[1].trim();
-        if (!picklistMap[field].has(val)) {
-          error(6, `${data.fname}: mock ${field}: "${val}" not in RLS picklist`);
-        }
-      }
-    }
-  }
-
-  const searchData = fileElements.search;
-  if (!searchData) { error(6, 'Cannot load index-built.html'); return; }
-
-  const gateTests = [
-    { name: 'Owner Opt-Out',      pattern: /ownerOptOut\s*:\s*true/i },
-    { name: 'Participant Only',   pattern: /participantOnly\s*:\s*true/i },
-    { name: 'IDX Opted Out',      pattern: /idxDisplay(?:YN)?\s*:\s*false/i },
-    { name: 'Coming Soon',        pattern: /['"]COMING_SOON['"]|status\s*:\s*['"]ComingSoon['"]/i },
-    { name: 'Address Suppressed', pattern: /addressDisplayYN\s*:\s*false/i },
-    { name: 'Closed listing',     pattern: /['"]CLOSED['"]|status\s*:\s*['"]Closed['"]/i },
-  ];
-
-  for (const test of gateTests) {
-    if (!test.pattern.test(searchData.raw)) {
-      warn(6, `index-built.html: mock data missing gate test case: ${test.name}`);
-    }
-  }
-}
+// SECTION 6: (removed — mock data eliminated)
 
 // SECTION 7: CONDITIONAL RULES (submission files only)
 function validateConditionalRules(fileElements, conditionalFields) {
@@ -1021,7 +955,6 @@ function main() {
   validateRenames();
   validateDistributionGates(fileElements);
   validateFieldMapIntegrity();
-  validateMockData(fileElements, picklistMap);
   validateConditionalRules(fileElements, conditionalFields);
   validateRoleMasking(fileElements);
   validateRLSCoverage(fileElements, rlsFieldMap, picklistMap);

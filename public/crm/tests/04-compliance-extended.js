@@ -55,10 +55,10 @@ function REBNYComplianceExtended(options) {
         ['listings','allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD','REBNY_TOKEN','accessToken','secretKey'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exp.push('window.' + g);
         });
-        if (typeof window.mockListings !== 'undefined') {
-            for (var i = 0; i < Math.min(window.mockListings.length, 5); i++) {
-                var l = window.mockListings[i];
-                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('mockListings has private fields'); break; }
+        if (typeof window.listings !== 'undefined') {
+            for (var i = 0; i < Math.min(window.listings.length, 5); i++) {
+                var l = window.listings[i];
+                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('listings has private fields'); break; }
             }
         }
         var html = document.documentElement.outerHTML.substring(0, 100000);
@@ -70,15 +70,15 @@ function REBNYComplianceExtended(options) {
     // ── C5: Violation Injection Test (ACTIVE) ──────────────────────────
     (function() {
         if (!runActive) { addResult('C5', 'Violation Injection', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof checkListingCompliance !== 'function' || typeof mockListings === 'undefined') {
-            addResult('C5', 'Violation Injection', 'FAIL', 'checkListingCompliance or mockListings not found'); return;
+        if (typeof checkListingCompliance !== 'function' || typeof listings === 'undefined') {
+            addResult('C5', 'Violation Injection', 'FAIL', 'checkListingCompliance or listings not found'); return;
         }
-        var origLen = mockListings.length;
+        var origLen = listings.length;
         // Inject 2 test listings: one IDX-blocked, one address-suppressed
-        mockListings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true });
-        mockListings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false });
+        listings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false });
         var r = checkListingCompliance([99901, 99902]);
-        mockListings.splice(origLen);
+        listings.splice(origLen);
         var idxBlocked = r.blocked.some(function(b) { return b.id === 99901; });
         var addrWarned = r.warnings.some(function(w) { return w.id === 99902; });
         var caught = [];

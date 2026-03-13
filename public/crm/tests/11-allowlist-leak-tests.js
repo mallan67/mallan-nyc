@@ -90,14 +90,14 @@ function AllowlistLeakTests(options) {
     // AL4: Customization tab writeback guard (ACTIVE)
     (function() {
         if (!runActive) { addResult('AL4', 'Writeback Guard', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('AL4', 'Writeback Guard', 'FAIL', 'mockListings undefined or empty — cannot test writeback guard'); return; }
-        var before = JSON.stringify(mockListings[0]);
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('AL4', 'Writeback Guard', 'FAIL', 'listings undefined or empty — cannot test writeback guard'); return; }
+        var before = JSON.stringify(listings[0]);
         try {
             if (typeof getOptionalContentConfig === 'function') getOptionalContentConfig();
             if (typeof getSelectedReportFields === 'function') getSelectedReportFields();
             if (typeof getSortedListings === 'function') getSortedListings();
         } catch(e) { /* ignore */ }
-        var after = JSON.stringify(mockListings[0]);
+        var after = JSON.stringify(listings[0]);
         addResult('AL4', 'Writeback Guard', before === after ? 'PASS' : 'FAIL',
             before === after ? 'Listing object not mutated by report config reads' : 'Listing MUTATED — side effect in report generators');
     })();

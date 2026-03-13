@@ -11,7 +11,7 @@ function MutationRegressionTests(options) {
     // R1: Golden snapshot stability (ACTIVE)
     (function() {
         if (!runActive) { addResult('R1', 'Golden Snapshot', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         // 5 canonical test cases
         var cases = [
             { name: 'All sales', criteria: { searchTab: 'sale' } },
@@ -23,7 +23,7 @@ function MutationRegressionTests(options) {
         var snapKey = 'golden_snapshot_v1';
         var current = {};
         cases.forEach(function(c) {
-            var r = filterListings(mockListings, c.criteria);
+            var r = filterListings(listings, c.criteria);
             current[c.name] = { count: r.length, ids: r.slice(0, 5).map(function(l) { return l.id; }).join(',') };
         });
         var prev = null;
@@ -47,17 +47,17 @@ function MutationRegressionTests(options) {
     // R2: Break injection — red-team compliance gates (ACTIVE)
     (function() {
         if (!runActive) { addResult('R2', 'Break Injection', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof checkListingCompliance !== 'function' || typeof mockListings === 'undefined') {
-            addResult('R2', 'Break Injection', 'FAIL', 'Required: checkListingCompliance and mockListings must exist'); return;
+        if (typeof checkListingCompliance !== 'function' || typeof listings === 'undefined') {
+            addResult('R2', 'Break Injection', 'FAIL', 'Required: checkListingCompliance and listings must exist'); return;
         }
-        var origLen = mockListings.length;
+        var origLen = listings.length;
         // Inject 4 violation types
-        mockListings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true });
-        mockListings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false });
-        mockListings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true });
-        mockListings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, internetDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: false });
+        listings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true });
         var r = checkListingCompliance([88801, 88802, 88803, 88804]);
-        mockListings.splice(origLen); // restore
+        listings.splice(origLen); // restore
         var caught = [], missed = [];
         if (r.blocked.some(function(b) { return b.id === 88801; })) caught.push('IDX-block');
         else missed.push('IDX-block');
@@ -73,7 +73,7 @@ function MutationRegressionTests(options) {
     // R3: Fuzz test — random criteria (ACTIVE)
     (function() {
         if (!runActive) { addResult('R3', 'Fuzz Test', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         var errors = 0, runs = 100, dupRuns = 0;
         var boroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
         for (var i = 0; i < runs; i++) {
@@ -85,7 +85,7 @@ function MutationRegressionTests(options) {
                 boroughs: Math.random() > 0.5 ? [boroughs[Math.floor(Math.random() * boroughs.length)]] : undefined
             };
             try {
-                var result = filterListings(mockListings, criteria);
+                var result = filterListings(listings, criteria);
                 // Check for duplicates
                 var ids = {};
                 result.forEach(function(l) {

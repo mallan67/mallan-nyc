@@ -1,5 +1,6 @@
 // ============================================
 // OPEN HOUSES OVERVIEW PANEL
+// Persists to /api/crm/showings with type="openhouse"
 // ============================================
 var ohOverviewOpen = false;
 var ohOverviewFormOpen = false;
@@ -13,7 +14,9 @@ function toggleOHOverview() {
         panel.style.display = 'block';
         document.body.style.overflow = 'hidden';
         btn.classList.add('bg-gray-100', 'border-gray-400');
-        renderOHOverview();
+        _loadOpenHousesFromAPI().then(function() {
+            renderOHOverview();
+        });
     } else {
         panel.style.display = 'none';
         document.body.style.overflow = '';
@@ -53,19 +56,64 @@ function populateOHOverviewListing() {
     var sel = document.getElementById('ohOverviewListing');
     sel.innerHTML = '<option value="">\u2014 Select listing \u2014</option>';
     eligible.forEach(function(l) {
-        sel.innerHTML += '<option value="' + l.id + '">' + l.address + ' ' + l.unit + ' (' + l.status + ')</option>';
+        sel.innerHTML += '<option value="' + (l._dbId || l.id) + '" data-display-id="' + l.id + '">' + l.address + ' ' + l.unit + ' (' + l.status + ')</option>';
+    });
+}
+
+// Load open houses from the API (showings with type=openhouse)
+function _loadOpenHousesFromAPI() {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.showings) {
+        return Promise.resolve();
+    }
+    return MallanAPI.showings.list({ type: 'openhouse', limit: 200 }).then(function(res) {
+        var apiShowings = res.showings || [];
+        myOpenHouses = apiShowings.map(function(s) {
+            // Parse time field "10:00 AM - 12:00 PM" into start/end
+            var start = '', end = '';
+            if (s.time) {
+                var parts = s.time.split(' - ');
+                start = parts[0] || '';
+                end = parts[1] || '';
+            }
+            // Parse notes JSON for extra data (types, repeat, virtualTour, link)
+            var extra = {};
+            if (s.notes) {
+                try { extra = JSON.parse(s.notes); } catch(e) { /* plain text notes */ }
+            }
+            return {
+                id: s.id,
+                _serverId: s.id,
+                listingId: s.listing ? (s.listing.listing_id || s.listing.id) : s.listing_id,
+                _listingDbId: s.listing ? s.listing.id : s.listing_id,
+                date: s.date ? s.date.split('T')[0] : '',
+                start: start,
+                end: end,
+                types: extra.types || ['Public'],
+                virtualTour: extra.virtualTour || false,
+                link: extra.link || '',
+                repeat: extra.repeat || 'none',
+                status: s.status,
+                notes: typeof extra === 'string' ? extra : (extra.userNotes || '')
+            };
+        });
+    }).catch(function(err) {
+        if (typeof console !== 'undefined') console.error('[OpenHouses] Failed to load from API:', err);
     });
 }
 
 function renderOHOverview() {
     var modeListings = myManagementListings.filter(function(l) { return l.category === currentManageMode; });
     var listingIds = modeListings.map(function(l) { return l.id; });
-    var ohs = myOpenHouses.filter(function(oh) { return listingIds.indexOf(oh.listingId) !== -1; });
+    var dbIds = modeListings.map(function(l) { return l._dbId || l.id; });
+    var ohs = myOpenHouses.filter(function(oh) {
+        return listingIds.indexOf(oh.listingId) !== -1 || dbIds.indexOf(oh.listingId) !== -1 ||
+               listingIds.indexOf(oh._listingDbId) !== -1 || dbIds.indexOf(oh._listingDbId) !== -1;
+    });
     ohs.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
 
     var today = new Date().toISOString().split('T')[0];
-    var upcoming = ohs.filter(function(oh) { return oh.date >= today; });
-    var past = ohs.filter(function(oh) { return oh.date < today; });
+    var upcoming = ohs.filter(function(oh) { return oh.date >= today && oh.status !== 'cancelled'; });
+    var past = ohs.filter(function(oh) { return oh.date < today || oh.status === 'cancelled'; });
 
     // Update badge
     var badge = document.getElementById('manageOHBadge');
@@ -119,7 +167,7 @@ function renderOHOverview() {
 }
 
 function renderOHOverviewRow(oh, isPast) {
-    var listing = manageFindListing(oh.listingId);
+    var listing = manageFindListing(oh.listingId) || manageFindListing(oh._listingDbId);
     var addr = listing ? listing.address + ' ' + listing.unit : 'Unknown';
     var typeLabels = (oh.types || []).map(function(t) {
         if (t === 'Public') return 'Open House';
@@ -166,7 +214,8 @@ function renderOHOverviewRow(oh, isPast) {
 }
 
 function ohOverviewSave() {
-    var listingId = document.getElementById('ohOverviewListing').value;
+    var listingSel = document.getElementById('ohOverviewListing');
+    var listingId = listingSel.value;
     var date = document.getElementById('ohOverviewDate').value;
     var start = document.getElementById('ohOverviewStart').value;
     var end = document.getElementById('ohOverviewEnd').value;
@@ -181,18 +230,80 @@ function ohOverviewSave() {
     var link = virtualTour ? (document.getElementById('ohOverviewLink').value || '') : '';
     if (types.length === 0 && !virtualTour) { showToast('Please select at least one showing type.', 'warning'); return; }
 
+    // Build time string for API: "10:00 AM - 12:00 PM"
+    var timeStr = start + ' - ' + end;
+
+    // Store extra data in notes JSON
+    var notesJson = JSON.stringify({
+        types: types,
+        virtualTour: virtualTour,
+        link: link,
+        repeat: repeat
+    });
+
+    // Map OH types to API openHouseType
+    var ohType = 'Public';
+    if (types.indexOf('Broker Only') !== -1) ohType = 'Broker';
+    else if (types.indexOf('By Appointment') !== -1) ohType = 'Private';
+
     if (ohOverviewEditId) {
-        // Update existing
-        var oh = myOpenHouses.find(function(o) { return o.id === ohOverviewEditId; });
+        // Update existing — PATCH /api/crm/showings/[id]
+        var oh = myOpenHouses.find(function(o) { return o.id === ohOverviewEditId || o.id === String(ohOverviewEditId); });
         if (oh) {
             oh.listingId = listingId; oh.types = types; oh.virtualTour = virtualTour;
             oh.date = date; oh.start = start; oh.end = end; oh.repeat = repeat; oh.link = link;
         }
+
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
+            MallanAPI.showings.update(ohOverviewEditId, {
+                date: date,
+                time: timeStr,
+                notes: notesJson,
+            }).catch(function(err) {
+                if (typeof console !== 'undefined') console.error('[OpenHouses] Update failed:', err);
+                manageShowToast('Failed to update open house on server', 'error');
+            });
+        }
+
         manageShowToast('Open house updated');
         ohOverviewEditId = null;
     } else {
-        // Create new
-        myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date, start: start, end: end, repeat: repeat, link: link, notes: '' });
+        // Create new — POST /api/crm/showings
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
+            MallanAPI.showings.create({
+                listing_id: listingId,
+                date: date,
+                time: timeStr,
+                type: 'openhouse',
+                notes: notesJson,
+            }).then(function(res) {
+                // Add to local array with server ID
+                myOpenHouses.push({
+                    id: res.id,
+                    _serverId: res.id,
+                    listingId: listingId,
+                    _listingDbId: listingId,
+                    types: types,
+                    virtualTour: virtualTour,
+                    date: date,
+                    start: start,
+                    end: end,
+                    repeat: repeat,
+                    link: link,
+                    status: 'confirmed',
+                    notes: ''
+                });
+                renderOHOverview();
+                renderManageSection(currentManageMode);
+            }).catch(function(err) {
+                if (typeof console !== 'undefined') console.error('[OpenHouses] Create failed:', err);
+                manageShowToast('Failed to save open house to server', 'error');
+            });
+        } else {
+            // Fallback: local only
+            myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date, start: start, end: end, repeat: repeat, link: link, notes: '' });
+        }
+
         var displayTypes = types.map(function(t) { if (t === 'Public') return 'Open House'; if (t === 'By Appointment') return 'Open House By Appointment Only'; if (t === 'Broker Only') return 'Broker Open House'; return t; });
         if (virtualTour) displayTypes.push('Virtual Tour');
         manageShowToast(displayTypes.join(', ') + ' scheduled');
@@ -209,14 +320,14 @@ function ohOverviewSave() {
 }
 
 function ohOverviewEdit(ohId) {
-    var oh = myOpenHouses.find(function(o) { return o.id === ohId; });
+    var oh = myOpenHouses.find(function(o) { return o.id === ohId || o.id === String(ohId); });
     if (!oh) return;
     ohOverviewEditId = ohId;
     ohOverviewFormOpen = true;
     var form = document.getElementById('ohOverviewForm');
     form.style.display = 'block';
     populateOHOverviewListing();
-    document.getElementById('ohOverviewListing').value = oh.listingId;
+    document.getElementById('ohOverviewListing').value = oh._listingDbId || oh.listingId;
     document.getElementById('ohOverviewDate').value = oh.date;
     document.getElementById('ohOverviewStart').value = oh.start;
     document.getElementById('ohOverviewEnd').value = oh.end;
@@ -231,7 +342,16 @@ function ohOverviewEdit(ohId) {
 }
 
 function ohOverviewDelete(ohId) {
-    myOpenHouses = myOpenHouses.filter(function(o) { return o.id !== ohId; });
+    var oh = myOpenHouses.find(function(o) { return o.id === ohId || o.id === String(ohId); });
+
+    // Cancel on server via PATCH status=cancelled
+    if (oh && oh._serverId && typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
+        MallanAPI.showings.update(oh._serverId, { status: 'cancelled' }).catch(function(err) {
+            if (typeof console !== 'undefined') console.error('[OpenHouses] Cancel failed:', err);
+        });
+    }
+
+    myOpenHouses = myOpenHouses.filter(function(o) { return o.id !== ohId && o.id !== String(ohId); });
     manageShowToast('Open house cancelled');
     renderOHOverview();
     renderManageSection(currentManageMode);
@@ -241,8 +361,13 @@ function ohOverviewDelete(ohId) {
 function updateOHBadge() {
     var modeListings = myManagementListings.filter(function(l) { return l.category === currentManageMode; });
     var listingIds = modeListings.map(function(l) { return l.id; });
+    var dbIds = modeListings.map(function(l) { return l._dbId || l.id; });
     var today = new Date().toISOString().split('T')[0];
-    var upcoming = myOpenHouses.filter(function(oh) { return listingIds.indexOf(oh.listingId) !== -1 && oh.date >= today; });
+    var upcoming = myOpenHouses.filter(function(oh) {
+        return (listingIds.indexOf(oh.listingId) !== -1 || dbIds.indexOf(oh.listingId) !== -1 ||
+                listingIds.indexOf(oh._listingDbId) !== -1 || dbIds.indexOf(oh._listingDbId) !== -1) &&
+               oh.date >= today && oh.status !== 'cancelled';
+    });
     var badge = document.getElementById('manageOHBadge');
     if (badge) {
         if (upcoming.length > 0) {

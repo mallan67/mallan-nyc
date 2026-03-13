@@ -58,8 +58,13 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { rating, interest_level, liked, disliked, objections, notes } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { rating, interest_level, liked, disliked, objections, notes } = body as { rating?: number; interest_level?: string; liked?: string[]; disliked?: string[]; objections?: string[]; notes?: string };
 
   if (!rating || !interest_level) {
     return NextResponse.json({ ok: false, error: "rating and interest_level are required" }, { status: 400 });

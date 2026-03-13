@@ -150,7 +150,7 @@ export default function Footer() {
         {/* Fair Housing & REBNY Compliance — compact */}
         <div className="border-t border-black/5 pt-3 mb-2">
           <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
-            <Image src="/images/equal-housing-logo.svg" alt="" width={20} height={20} className="w-5 h-5" unoptimized />
+            <Image src="/images/equal-housing-logo.svg" alt="Equal Housing Opportunity" width={20} height={20} className="w-5 h-5" unoptimized />
             <p className="text-[11px] text-brand-dark/85 font-light">Equal Housing Opportunity</p>
             <span className="text-brand-dark/20">|</span>
             <Link href="/fair-housing" className="text-[11px] text-brand-gold-deep hover:underline font-light">

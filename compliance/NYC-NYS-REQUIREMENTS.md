@@ -133,11 +133,24 @@ Every advertisement (print, digital, social media, email, website) for real prop
 - **RLS Impact:** If landlord does NOT pay broker fee → `InternetEntireListingDisplayYN = False` → excluded from IDX/VOW/syndication
 - **Fee Disclosure Required:** Must disclose all fees before showing
 
-### Fee Fields — NOT YET LIVE (As of Feb 2026)
+### Fee Fields — LIVE (As of March 2026, Trestle/Cotality)
 
-- REBNY confirmed dedicated fee fields are planned but "will take some time"
-- **Interim:** Enter all fees in `PublicRemarks` + use `MoveInCosts`, `MoveInCostsComments`, `MoveInCostsAmountTotal`, `DepositAmount`, `OwnerPays`
-- REBNY has waived prohibition on "fee" in rental descriptions to accommodate FARE Act
+Trestle has added dedicated FARE Act fee fields:
+
+| Field | Resource | Type | Purpose |
+|-------|----------|------|---------|
+| `MoveInCosts` | Property | Multi-select | Move-in cost types (Application Fee, Move-In Fee, etc.) |
+| `MoveInCostsComments` | Property | Text | Comments about move-in costs |
+| `MoveInCostsAmountTotal` | Property | Number | Total dollar amount of move-in costs |
+| `OngoingFees` | Property | Multi-select | Ongoing recurring fees |
+| `TenantPays` | Property | Multi-select | What tenant pays for (utilities, etc.) |
+| `TenantPaysDescription` | Property | Text | Description of tenant-paid items |
+| `AdditionalFee` | CustomProperty | Number | Additional fee amount |
+| `AdditionalFeeDescription` | CustomProperty | Text | Additional fee description |
+| `AdditionalFeeYN` | CustomProperty | Boolean | Whether additional fees apply |
+| `FeeFrequency` | FeeFrequency Lookup | Enum | Frequency of fees (Monthly, Annually, etc.) |
+
+**Required:** All rental listings MUST populate MoveInCosts and TenantPays fields. Fee disclosure is mandatory before showing per FARE Act §20-699.21.
 
 ### FARE Act Penalties (DCWP Enforcement)
 

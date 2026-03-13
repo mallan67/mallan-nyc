@@ -16,12 +16,34 @@
 //     licenseTitle: string | null,      // "Licensed Real Estate Broker" | "Licensed Real Estate Salesperson"
 //     companyKey: "mallan",
 //     companyName: "Mallan Real Estate Inc.",
+//     companyLicense: string | null,    // brokerage license number
+//     companyAddress: string | null,    // brokerage address
+//     companyPhone: string | null,      // brokerage phone
 //     photo: string | null,
 //   } | null
 // }
 import { NextRequest, NextResponse } from "next/server";
 import { validateSession, SESSION_COOKIE } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { readFile } from "fs/promises";
+import path from "path";
+
+// Company settings — sourced from data/company-settings.json with hardcoded fallbacks
+async function getCompanyInfo() {
+  try {
+    const data = await readFile(path.join(process.cwd(), "data", "company-settings.json"), "utf-8");
+    const settings = JSON.parse(data);
+    return {
+      companyLicense: settings.license || null,
+      companyAddress: settings.address
+        ? `${settings.address.street}, ${settings.address.city}, ${settings.address.state} ${settings.address.zip}`
+        : null,
+      companyPhone: settings.phone || null,
+    };
+  } catch {
+    return { companyLicense: null, companyAddress: null, companyPhone: null };
+  }
+}
 
 function licenseTitle(type: string | null): string | null {
   if (!type) return null;
@@ -79,6 +101,7 @@ export async function GET(req: NextRequest) {
         user: null,
       });
     }
+    const company = await getCompanyInfo();
     return NextResponse.json({
       authenticated: true,
       principalType: "agent",
@@ -93,6 +116,9 @@ export async function GET(req: NextRequest) {
         licenseTitle: licenseTitle(agent.license_type),
         companyKey: "mallan",
         companyName: "Mallan Real Estate Inc.",
+        companyLicense: company.companyLicense,
+        companyAddress: company.companyAddress,
+        companyPhone: company.companyPhone,
         photo: null,
       },
     });

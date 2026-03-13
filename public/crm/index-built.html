@@ -13401,6 +13401,18 @@ var MallanAPI = (function () {
         method: 'DELETE',
       });
     },
+
+    // Agent self-edit endpoints
+    me: function () {
+      return _fetch('/api/crm/agents/me');
+    },
+
+    updateMe: function (data) {
+      return _fetch('/api/crm/agents/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
   };
 
   // ─── Deals ──────────────────────────────────────────────────────────────
@@ -13485,16 +13497,57 @@ var MallanAPI = (function () {
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.date_from) qs.push('date_from=' + encodeURIComponent(params.date_from));
       if (params.date_to) qs.push('date_to=' + encodeURIComponent(params.date_to));
+      if (params.type) qs.push('type=' + encodeURIComponent(params.type));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/crm/showings' + query);
     },
 
+    create: function (data) {
+      return _fetch('/api/crm/showings', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
     update: function (id, data) {
       return _fetch('/api/crm/showings/' + encodeURIComponent(id), {
         method: 'PATCH',
         body: JSON.stringify(data),
+      });
+    },
+  };
+
+  // ─── Past Deals ─────────────────────────────────────────────────────────
+
+  var pastDeals = {
+    list: function (params) {
+      params = params || {};
+      var qs = [];
+      if (params.agent_id) qs.push('agent_id=' + encodeURIComponent(params.agent_id));
+      if (params.deal_type) qs.push('deal_type=' + encodeURIComponent(params.deal_type));
+      var query = qs.length ? '?' + qs.join('&') : '';
+      return _fetch('/api/crm/past-deals' + query);
+    },
+
+    create: function (data) {
+      return _fetch('/api/crm/past-deals', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    update: function (id, data) {
+      return _fetch('/api/crm/past-deals/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+
+    remove: function (id) {
+      return _fetch('/api/crm/past-deals/' + encodeURIComponent(id), {
+        method: 'DELETE',
       });
     },
   };
@@ -13561,7 +13614,7 @@ var MallanAPI = (function () {
   var idx = {
     /**
      * Search listings via Trestle/REBNY RLS.
-     * Returns listings in CRM flat shape (same as mockListings).
+     * Returns listings in CRM flat shape (same as listings).
      * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip }
      */
     search: function (params) {
@@ -13675,6 +13728,7 @@ var MallanAPI = (function () {
     deals: deals,
     portal: portal,
     showings: showings,
+    pastDeals: pastDeals,
     savedSearches: savedSearches,
     email: email,
     idx: idx,
@@ -13725,8 +13779,8 @@ var AGENT_PROFILE = {
     phone: LOGGED_IN_AGENT.phone,
     email: LOGGED_IN_AGENT.email,
     company: LOGGED_IN_AGENT.companyName,
-    companyLicense: '#10991205323',
-    address: '400 East 90th Street, Suite 17C, New York, NY 10128',
+    companyLicense: '',
+    address: '',
     website: 'mallan.nyc',
     photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&q=85&auto=format&fit=crop&crop=face'
 };
@@ -13753,6 +13807,9 @@ if (typeof MallanAPI !== 'undefined') {
             AGENT_PROFILE.phone = LOGGED_IN_AGENT.phone;
             AGENT_PROFILE.email = LOGGED_IN_AGENT.email;
             AGENT_PROFILE.company = LOGGED_IN_AGENT.companyName;
+            if (u.companyLicense) AGENT_PROFILE.companyLicense = '#' + u.companyLicense;
+            if (u.companyAddress) AGENT_PROFILE.address = u.companyAddress;
+            if (u.companyPhone) AGENT_PROFILE.companyPhone = u.companyPhone;
             if (u.photo) AGENT_PROFILE.photo = u.photo;
         } else {
             // Not authenticated — redirect to admin login
@@ -15194,7 +15251,7 @@ function manageCreateListing() {
     if (currentManageMode === 'sales') {
         window.open('SALE-FORM-REDESIGN.html', '_blank');
     } else {
-        window.open('RENTAL-FORM-STANDALONE.html', '_blank');
+        window.open('RENTAL-FORM-REDESIGN.html', '_blank');
     }
 }
 function manageEditListing(id) {
@@ -15213,6 +15270,7 @@ function manageExportTable() {
 // ═══ js/manage/open-houses.js ═══
 // ============================================
 // OPEN HOUSES OVERVIEW PANEL
+// Persists to /api/crm/showings with type="openhouse"
 // ============================================
 var ohOverviewOpen = false;
 var ohOverviewFormOpen = false;
@@ -15226,7 +15284,9 @@ function toggleOHOverview() {
         panel.style.display = 'block';
         document.body.style.overflow = 'hidden';
         btn.classList.add('bg-gray-100', 'border-gray-400');
-        renderOHOverview();
+        _loadOpenHousesFromAPI().then(function() {
+            renderOHOverview();
+        });
     } else {
         panel.style.display = 'none';
         document.body.style.overflow = '';
@@ -15266,19 +15326,64 @@ function populateOHOverviewListing() {
     var sel = document.getElementById('ohOverviewListing');
     sel.innerHTML = '<option value="">\u2014 Select listing \u2014</option>';
     eligible.forEach(function(l) {
-        sel.innerHTML += '<option value="' + l.id + '">' + l.address + ' ' + l.unit + ' (' + l.status + ')</option>';
+        sel.innerHTML += '<option value="' + (l._dbId || l.id) + '" data-display-id="' + l.id + '">' + l.address + ' ' + l.unit + ' (' + l.status + ')</option>';
+    });
+}
+
+// Load open houses from the API (showings with type=openhouse)
+function _loadOpenHousesFromAPI() {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.showings) {
+        return Promise.resolve();
+    }
+    return MallanAPI.showings.list({ type: 'openhouse', limit: 200 }).then(function(res) {
+        var apiShowings = res.showings || [];
+        myOpenHouses = apiShowings.map(function(s) {
+            // Parse time field "10:00 AM - 12:00 PM" into start/end
+            var start = '', end = '';
+            if (s.time) {
+                var parts = s.time.split(' - ');
+                start = parts[0] || '';
+                end = parts[1] || '';
+            }
+            // Parse notes JSON for extra data (types, repeat, virtualTour, link)
+            var extra = {};
+            if (s.notes) {
+                try { extra = JSON.parse(s.notes); } catch(e) { /* plain text notes */ }
+            }
+            return {
+                id: s.id,
+                _serverId: s.id,
+                listingId: s.listing ? (s.listing.listing_id || s.listing.id) : s.listing_id,
+                _listingDbId: s.listing ? s.listing.id : s.listing_id,
+                date: s.date ? s.date.split('T')[0] : '',
+                start: start,
+                end: end,
+                types: extra.types || ['Public'],
+                virtualTour: extra.virtualTour || false,
+                link: extra.link || '',
+                repeat: extra.repeat || 'none',
+                status: s.status,
+                notes: typeof extra === 'string' ? extra : (extra.userNotes || '')
+            };
+        });
+    }).catch(function(err) {
+        if (typeof console !== 'undefined') console.error('[OpenHouses] Failed to load from API:', err);
     });
 }
 
 function renderOHOverview() {
     var modeListings = myManagementListings.filter(function(l) { return l.category === currentManageMode; });
     var listingIds = modeListings.map(function(l) { return l.id; });
-    var ohs = myOpenHouses.filter(function(oh) { return listingIds.indexOf(oh.listingId) !== -1; });
+    var dbIds = modeListings.map(function(l) { return l._dbId || l.id; });
+    var ohs = myOpenHouses.filter(function(oh) {
+        return listingIds.indexOf(oh.listingId) !== -1 || dbIds.indexOf(oh.listingId) !== -1 ||
+               listingIds.indexOf(oh._listingDbId) !== -1 || dbIds.indexOf(oh._listingDbId) !== -1;
+    });
     ohs.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
 
     var today = new Date().toISOString().split('T')[0];
-    var upcoming = ohs.filter(function(oh) { return oh.date >= today; });
-    var past = ohs.filter(function(oh) { return oh.date < today; });
+    var upcoming = ohs.filter(function(oh) { return oh.date >= today && oh.status !== 'cancelled'; });
+    var past = ohs.filter(function(oh) { return oh.date < today || oh.status === 'cancelled'; });
 
     // Update badge
     var badge = document.getElementById('manageOHBadge');
@@ -15332,7 +15437,7 @@ function renderOHOverview() {
 }
 
 function renderOHOverviewRow(oh, isPast) {
-    var listing = manageFindListing(oh.listingId);
+    var listing = manageFindListing(oh.listingId) || manageFindListing(oh._listingDbId);
     var addr = listing ? listing.address + ' ' + listing.unit : 'Unknown';
     var typeLabels = (oh.types || []).map(function(t) {
         if (t === 'Public') return 'Open House';
@@ -15379,7 +15484,8 @@ function renderOHOverviewRow(oh, isPast) {
 }
 
 function ohOverviewSave() {
-    var listingId = document.getElementById('ohOverviewListing').value;
+    var listingSel = document.getElementById('ohOverviewListing');
+    var listingId = listingSel.value;
     var date = document.getElementById('ohOverviewDate').value;
     var start = document.getElementById('ohOverviewStart').value;
     var end = document.getElementById('ohOverviewEnd').value;
@@ -15394,18 +15500,80 @@ function ohOverviewSave() {
     var link = virtualTour ? (document.getElementById('ohOverviewLink').value || '') : '';
     if (types.length === 0 && !virtualTour) { showToast('Please select at least one showing type.', 'warning'); return; }
 
+    // Build time string for API: "10:00 AM - 12:00 PM"
+    var timeStr = start + ' - ' + end;
+
+    // Store extra data in notes JSON
+    var notesJson = JSON.stringify({
+        types: types,
+        virtualTour: virtualTour,
+        link: link,
+        repeat: repeat
+    });
+
+    // Map OH types to API openHouseType
+    var ohType = 'Public';
+    if (types.indexOf('Broker Only') !== -1) ohType = 'Broker';
+    else if (types.indexOf('By Appointment') !== -1) ohType = 'Private';
+
     if (ohOverviewEditId) {
-        // Update existing
-        var oh = myOpenHouses.find(function(o) { return o.id === ohOverviewEditId; });
+        // Update existing — PATCH /api/crm/showings/[id]
+        var oh = myOpenHouses.find(function(o) { return o.id === ohOverviewEditId || o.id === String(ohOverviewEditId); });
         if (oh) {
             oh.listingId = listingId; oh.types = types; oh.virtualTour = virtualTour;
             oh.date = date; oh.start = start; oh.end = end; oh.repeat = repeat; oh.link = link;
         }
+
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
+            MallanAPI.showings.update(ohOverviewEditId, {
+                date: date,
+                time: timeStr,
+                notes: notesJson,
+            }).catch(function(err) {
+                if (typeof console !== 'undefined') console.error('[OpenHouses] Update failed:', err);
+                manageShowToast('Failed to update open house on server', 'error');
+            });
+        }
+
         manageShowToast('Open house updated');
         ohOverviewEditId = null;
     } else {
-        // Create new
-        myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date, start: start, end: end, repeat: repeat, link: link, notes: '' });
+        // Create new — POST /api/crm/showings
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
+            MallanAPI.showings.create({
+                listing_id: listingId,
+                date: date,
+                time: timeStr,
+                type: 'openhouse',
+                notes: notesJson,
+            }).then(function(res) {
+                // Add to local array with server ID
+                myOpenHouses.push({
+                    id: res.id,
+                    _serverId: res.id,
+                    listingId: listingId,
+                    _listingDbId: listingId,
+                    types: types,
+                    virtualTour: virtualTour,
+                    date: date,
+                    start: start,
+                    end: end,
+                    repeat: repeat,
+                    link: link,
+                    status: 'confirmed',
+                    notes: ''
+                });
+                renderOHOverview();
+                renderManageSection(currentManageMode);
+            }).catch(function(err) {
+                if (typeof console !== 'undefined') console.error('[OpenHouses] Create failed:', err);
+                manageShowToast('Failed to save open house to server', 'error');
+            });
+        } else {
+            // Fallback: local only
+            myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date, start: start, end: end, repeat: repeat, link: link, notes: '' });
+        }
+
         var displayTypes = types.map(function(t) { if (t === 'Public') return 'Open House'; if (t === 'By Appointment') return 'Open House By Appointment Only'; if (t === 'Broker Only') return 'Broker Open House'; return t; });
         if (virtualTour) displayTypes.push('Virtual Tour');
         manageShowToast(displayTypes.join(', ') + ' scheduled');
@@ -15422,14 +15590,14 @@ function ohOverviewSave() {
 }
 
 function ohOverviewEdit(ohId) {
-    var oh = myOpenHouses.find(function(o) { return o.id === ohId; });
+    var oh = myOpenHouses.find(function(o) { return o.id === ohId || o.id === String(ohId); });
     if (!oh) return;
     ohOverviewEditId = ohId;
     ohOverviewFormOpen = true;
     var form = document.getElementById('ohOverviewForm');
     form.style.display = 'block';
     populateOHOverviewListing();
-    document.getElementById('ohOverviewListing').value = oh.listingId;
+    document.getElementById('ohOverviewListing').value = oh._listingDbId || oh.listingId;
     document.getElementById('ohOverviewDate').value = oh.date;
     document.getElementById('ohOverviewStart').value = oh.start;
     document.getElementById('ohOverviewEnd').value = oh.end;
@@ -15444,7 +15612,16 @@ function ohOverviewEdit(ohId) {
 }
 
 function ohOverviewDelete(ohId) {
-    myOpenHouses = myOpenHouses.filter(function(o) { return o.id !== ohId; });
+    var oh = myOpenHouses.find(function(o) { return o.id === ohId || o.id === String(ohId); });
+
+    // Cancel on server via PATCH status=cancelled
+    if (oh && oh._serverId && typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
+        MallanAPI.showings.update(oh._serverId, { status: 'cancelled' }).catch(function(err) {
+            if (typeof console !== 'undefined') console.error('[OpenHouses] Cancel failed:', err);
+        });
+    }
+
+    myOpenHouses = myOpenHouses.filter(function(o) { return o.id !== ohId && o.id !== String(ohId); });
     manageShowToast('Open house cancelled');
     renderOHOverview();
     renderManageSection(currentManageMode);
@@ -15454,8 +15631,13 @@ function ohOverviewDelete(ohId) {
 function updateOHBadge() {
     var modeListings = myManagementListings.filter(function(l) { return l.category === currentManageMode; });
     var listingIds = modeListings.map(function(l) { return l.id; });
+    var dbIds = modeListings.map(function(l) { return l._dbId || l.id; });
     var today = new Date().toISOString().split('T')[0];
-    var upcoming = myOpenHouses.filter(function(oh) { return listingIds.indexOf(oh.listingId) !== -1 && oh.date >= today; });
+    var upcoming = myOpenHouses.filter(function(oh) {
+        return (listingIds.indexOf(oh.listingId) !== -1 || dbIds.indexOf(oh.listingId) !== -1 ||
+                listingIds.indexOf(oh._listingDbId) !== -1 || dbIds.indexOf(oh._listingDbId) !== -1) &&
+               oh.date >= today && oh.status !== 'cancelled';
+    });
     var badge = document.getElementById('manageOHBadge');
     if (badge) {
         if (upcoming.length > 0) {
@@ -15979,8 +16161,8 @@ function manageShowToast(msg) {
                 }
 
                 // Filter locally loaded listings
-                var hasLocalData = typeof mockListings !== 'undefined' && mockListings && mockListings.length > 0;
-                var localResults = hasLocalData ? filterListings(mockListings, activeSearchCriteria) : [];
+                var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
+                var localResults = hasLocalData ? filterListings(listings, activeSearchCriteria) : [];
 
                 // Show results section (with local results or empty while server loads)
                 searchResultsState.filteredListings = localResults;
@@ -16087,11 +16269,11 @@ function manageShowToast(msg) {
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                 });
 
-                // Merge server results into mockListings (preserving existing data with photos)
+                // Merge server results into listings (preserving existing data with photos)
                 var existingById = {};
-                mockListings.forEach(function(l) { existingById[l.id] = l; });
+                listings.forEach(function(l) { existingById[l.id] = l; });
                 var existingByLid = {};
-                mockListings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
+                listings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
                 serverListings.forEach(function(l) {
                     var existing = existingById[l.id] || (l.lid ? existingByLid[l.lid] : null);
                     if (existing) {
@@ -16100,7 +16282,7 @@ function manageShowToast(msg) {
                             l.images = existing.images;
                         }
                     } else {
-                        mockListings.push(l);
+                        listings.push(l);
                     }
                 });
 
@@ -16224,9 +16406,9 @@ function manageShowToast(msg) {
                 });
             }
 
-            // Also search mockListings for address matches
-            if (typeof mockListings !== 'undefined') {
-                mockListings.forEach(function(listing) {
+            // Also search listings for address matches
+            if (typeof listings !== 'undefined') {
+                listings.forEach(function(listing) {
                     var already = matches.some(function(m) { return m.address === listing.address; });
                     if (already) return;
                     if (normalizeAddress(listing.address).indexOf(normalizedQuery) !== -1 ||
@@ -16481,7 +16663,7 @@ function manageShowToast(msg) {
                             var parts = val.split(',');
                             parts.forEach(function(part) {
                                 var s = part.trim();
-                                // Map to uppercase used in mock data
+                                // Map to uppercase
                                 if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
                                 else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
                                 else if (s === 'Future') criteria.statuses.push('FUTURE');
@@ -16899,7 +17081,7 @@ function manageShowToast(msg) {
         }
 
         function updateResultsCount() {
-            var filtered = searchResultsState.filteredListings || mockListings;
+            var filtered = searchResultsState.filteredListings || listings;
             var count = filtered.length;
             var perPage = searchResultsState.perPage || 50;
             var totalPages = Math.max(1, Math.ceil(count / perPage));
@@ -17152,8 +17334,8 @@ function manageShowToast(msg) {
             syncRefineToMainForm(c);
 
             // Re-filter and re-render
-            if (typeof mockListings !== 'undefined' && typeof searchResultsState !== 'undefined') {
-                searchResultsState.filteredListings = filterListings(mockListings, c);
+            if (typeof listings !== 'undefined' && typeof searchResultsState !== 'undefined') {
+                searchResultsState.filteredListings = filterListings(listings, c);
                 searchResultsState.currentPage = 1;
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -17338,7 +17520,7 @@ function manageShowToast(msg) {
                 // Rebuild filteredListings from saved IDs
                 var idSet = {};
                 state.filteredIds.forEach(function(id) { idSet[id] = true; });
-                searchResultsState.filteredListings = mockListings.filter(function(l) { return idSet[l.id]; });
+                searchResultsState.filteredListings = listings.filter(function(l) { return idSet[l.id]; });
                 searchResultsState.currentPage = state.page || 1;
 
                 return true;
@@ -18357,8 +18539,8 @@ function manageShowToast(msg) {
                 if (typeof activeSearchCriteria !== 'undefined') {
                     activeSearchCriteria = parsed.criteria;
                 }
-                if (typeof searchResultsState !== 'undefined' && typeof mockListings !== 'undefined') {
-                    searchResultsState.filteredListings = filterListings(mockListings, parsed.criteria);
+                if (typeof searchResultsState !== 'undefined' && typeof listings !== 'undefined') {
+                    searchResultsState.filteredListings = filterListings(listings, parsed.criteria);
                     searchResultsState.currentPage = 1;
                     var searchResultsSection = document.getElementById('searchResultsSection');
                     if (searchResultsSection) {
@@ -18426,7 +18608,7 @@ function manageShowToast(msg) {
             priceChangeTs:  'PriceChangeTimestamp',      // RLS: PriceChangeTimestamp (system)
             closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MLSStatus=Closed
             closeDate:      'CloseDate',                 // RLS: CloseDate. Must >= PurchaseContractDate
-            closedDate:     'CloseDate',                 // alias — mock data uses closedDate, RESO uses CloseDate
+            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, RESO uses CloseDate
 
             // ── Unit Details ──
             rooms:          'RoomsTotal',                // RLS: RoomsTotal
@@ -18582,34 +18764,23 @@ function manageShowToast(msg) {
         var customerDB = {};
         var currentWorkspaceClientId = null;
 
-        // Dev escape hatch: ?mock=true on localhost loads hardcoded mock data
-        var _isDevMock = (function() {
-            var host = window.location.hostname;
-            var isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
-            var params = new URLSearchParams(window.location.search);
-            return isLocal && params.get('mock') === 'true';
-        })();
-
-        var _MOCK_LISTINGS_DATA = [];
-
-        // Localhost: always start with mock data (available immediately for search).
-        // Production: empty array, populated from API.
+        // Listings array — populated from API (IDX/Trestle or Prisma DB)
         var _isLocalhost = (function() {
             var h = window.location.hostname;
             return h === 'localhost' || h === '127.0.0.1' || h === '';
         })();
-        var mockListings = [];
+        var listings = [];
 
         // ── REBNY Distribution Gate defaults ──
         // Add default permissions to all listings that don't have explicit permissions set
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (!l.permissions) {
                 l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
             }
         });
 
-        // Add borough to all listings that don't have it (Manhattan-only mock data)
-        mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+        // Add borough to all listings that don't have it
+        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
 
         // ── NeighborhoodCanonical: resolve SubdivisionName → canonical polygon name on ingest ──
         // This runs at ingest time so every listing has a stable canonical name for map-based search.
@@ -18624,7 +18795,7 @@ function manageShowToast(msg) {
                     if (data && data.aliases) {
                         _canonicalAliasMap = data.aliases;
                         // Resolve all existing listings
-                        mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+                        listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
                     }
                 })
                 .catch(function() { /* non-fatal — listings keep raw neighborhood */ });
@@ -18660,10 +18831,7 @@ function manageShowToast(msg) {
         }
 
         // Apply to all current listings (before async aliases load — sets identity)
-        mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
-
-        // Photos and listing data come from API (Trestle IDX / Prisma DB)
-        // No mock photo URLs or mock listing mutations needed
+        listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
 
         // State Management
         var searchResultsState = {
@@ -18800,7 +18968,7 @@ function manageShowToast(msg) {
         };
 
         // ═══════════════════════════════════════════════════════════════════════════════
-        // API FETCH — Replace mockListings with server data when available
+        // API FETCH — Replace listings with server data when available
         // No fallback in production — fail fast with "No listings" message
         // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -18867,32 +19035,24 @@ function manageShowToast(msg) {
             };
         }
 
-        // ── Production data loading ─────────────────────────────────────────────
-        // Priority: 1) IDX/Trestle search  2) Prisma DB  3) keep mock data (localhost)
-        // On localhost, mockListings already has mock data — API upgrades it if available.
-        // On production, mockListings starts empty — API populates it.
-        if (typeof MallanAPI !== 'undefined' && !_isDevMock) {
+        // ── Data loading ─────────────────────────────────────────────────────────
+        // Priority: 1) IDX/Trestle search  2) Prisma DB  3) show error
+        if (typeof MallanAPI !== 'undefined') {
             MallanAPI.onReady(function() {
                 _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
-                    console.warn('[MockData] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
+                    console.warn('[DataLoader] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
                     _showDataLoadBanner('IDX unavailable — trying local database...', 'warn');
                     return _loadFromPrisma();
                 }).catch(function(err) {
                     // All API sources failed
                     var reason = err && err.message ? err.message : 'Unknown error';
-                    console.error('[MockData] All data sources failed:', reason);
-                    if (_isLocalhost) {
-                        // On localhost, mock data is already loaded — just log it
-                        console.warn('[MockData] API unavailable on localhost — using mock data');
-                        _showDataLoadBanner('Using mock data (API unavailable: ' + reason + ')', 'warn');
-                    } else {
-                        _showNoListingsMessage('Unable to load listings. Check your connection.');
-                        _showDataLoadBanner('Data load failed: ' + reason, 'error');
-                    }
+                    console.error('[DataLoader] All data sources failed:', reason);
+                    _showNoListingsMessage('Unable to load listings. Check your connection.');
+                    _showDataLoadBanner('Data load failed: ' + reason, 'error');
                 });
             });
-        } else if (typeof MallanAPI === 'undefined' && !_isDevMock && !_isLocalhost) {
+        } else if (!_isLocalhost) {
             // MallanAPI not loaded — likely auth/script issue
             _showDataLoadBanner('MallanAPI not loaded — please log in or check your session.', 'error');
         }
@@ -18941,25 +19101,25 @@ function manageShowToast(msg) {
         }
 
         /**
-         * Replace mockListings in-place and refresh view if visible.
+         * Replace listings in-place and refresh view if visible.
          */
         // Flag to prevent _replaceListings from overwriting active server search results
         var _serverSearchActive = false;
 
-        function _replaceListings(listings, source) {
-            mockListings.length = 0;
-            listings.forEach(function(l) { mockListings.push(l); });
+        function _replaceListings(newData, source) {
+            listings.length = 0;
+            newData.forEach(function(l) { listings.push(l); });
             // Apply borough defaults + neighborhood resolution
-            mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
-            mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
-            console.log('[MockData] Loaded ' + listings.length + ' listings from ' + source);
+            listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+            listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+            console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
             // Dispatch event so other modules (e.g. hash routing) know data is ready
             window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
             // If user is viewing results, re-filter with existing criteria and re-render
             // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
             // Do NOT overwrite if a server search is actively running (it will re-render when complete)
             if (_serverSearchActive) {
-                console.log('[MockData] Skipping re-render — server search is active');
+                console.log('[DataLoader] Skipping re-render — server search is active');
                 return;
             }
             var resultsSection = document.getElementById('searchResultsSection');
@@ -18968,10 +19128,10 @@ function manageShowToast(msg) {
                 // Re-filter with current criteria (or show all if no criteria)
                 if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
                     searchResultsState.filteredListings = typeof filterListings === 'function'
-                        ? filterListings(mockListings, activeSearchCriteria)
-                        : mockListings.slice();
+                        ? filterListings(listings, activeSearchCriteria)
+                        : listings.slice();
                 } else {
-                    searchResultsState.filteredListings = mockListings.slice();
+                    searchResultsState.filteredListings = listings.slice();
                 }
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -19786,7 +19946,7 @@ function parseBudgetValue(td) {
         function initializeSearchResults() {
             // Clean stale selectedListings — remove IDs that don't exist in current results
             try {
-                var currentIds = (searchResultsState.filteredListings || mockListings).map(function(l) { return l.id; });
+                var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
                 searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
                     return currentIds.indexOf(id) !== -1;
                 });
@@ -19797,7 +19957,7 @@ function parseBudgetValue(td) {
                 if (removed.length > 0) {
                     var removedSet = {};
                     removed.forEach(function(id) { removedSet[id] = true; });
-                    var source = searchResultsState.filteredListings || mockListings.slice();
+                    var source = searchResultsState.filteredListings || listings.slice();
                     searchResultsState.filteredListings = source.filter(function(l) { return !removedSet[l.id]; });
                 }
             } catch(e) { console.warn('[Search] Selection cleanup error:', e); }
@@ -19865,7 +20025,7 @@ function parseBudgetValue(td) {
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function getFilteredListings(skipPagination) {
-            var listings = (searchResultsState.filteredListings || mockListings).slice();
+            var listings = (searchResultsState.filteredListings || listings).slice();
             // ══════════════════════════════════════════════════════════════════
             // COMPLIANCE HARD-BLOCK (Defense-in-depth)
             // ══════════════════════════════════════════════════════════════════
@@ -20172,7 +20332,7 @@ function parseBudgetValue(td) {
                 var tbodyHTML = '<tbody class="divide-y divide-gray-100">';
                 console.log('[Render] Grid: ' + listings.length + ' listings to render, viewMode=' + searchResultsState.viewMode);
                 if (listings.length === 0) {
-                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (mockListings.length || 0) + ' listings loaded.</td></tr>';
+                    tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (listings.length || 0) + ' listings loaded.</td></tr>';
                 } else {
                     listings.forEach(function(listing) {
                         try {
@@ -20760,7 +20920,7 @@ function parseBudgetValue(td) {
         }
 
         function showListingInDetailPanel(listingId) {
-            var listing = mockListings.find(l => l.id === listingId);
+            var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
@@ -21105,12 +21265,12 @@ function parseBudgetValue(td) {
         }
 
         /**
-         * Apply fetched media to the listing object in mockListings for detail panel use.
+         * Apply fetched media to the listing object in listings for detail panel use.
          */
         function _applyMediaToListing(listingId, mediaItems) {
             if (!mediaItems || !mediaItems.length) return;
-            if (typeof mockListings === 'undefined') return;
-            var listing = mockListings.find(function(l) { return l.lid === listingId || String(l._listingKey) === listingId; });
+            if (typeof listings === 'undefined') return;
+            var listing = listings.find(function(l) { return l.lid === listingId || String(l._listingKey) === listingId; });
             if (!listing) return;
 
             // Build typed arrays
@@ -21212,7 +21372,7 @@ function parseBudgetValue(td) {
 
         function removeFromResults() {
             // Validate: only keep IDs that exist in the current result set
-            var currentIds = (searchResultsState.filteredListings || mockListings).map(function(l) { return l.id; });
+            var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
             searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
                 return currentIds.indexOf(id) !== -1;
             });
@@ -21226,8 +21386,8 @@ function parseBudgetValue(td) {
             var removeSet = {};
             searchResultsState.selectedListings.forEach(function(id) { removeSet[id] = true; });
 
-            // Actually remove from the filtered results (or create filtered copy of mockListings)
-            var source = searchResultsState.filteredListings || mockListings.slice();
+            // Actually remove from the filtered results (or create filtered copy of listings)
+            var source = searchResultsState.filteredListings || listings.slice();
             searchResultsState.filteredListings = source.filter(function(l) {
                 return !removeSet[l.id];
             });
@@ -21368,7 +21528,7 @@ function parseBudgetValue(td) {
             var blocked = 0;
 
             searchResultsState.selectedListings.forEach(function(listingId) {
-                var listing = mockListings.find(function(l) { return l.id === listingId; });
+                var listing = listings.find(function(l) { return l.id === listingId; });
                 if (!listing) return;
 
                 // REBNY RLS Distribution Gates: Block non-displayable listings from client portfolio
@@ -21439,7 +21599,7 @@ function parseBudgetValue(td) {
                 pl.status = (pl.status === feedback) ? 'new' : feedback;
             } else {
                 // Not in portfolio yet — add it with feedback (auto-save)
-                var listing = mockListings.find(function(l) { return l.id === listingId; });
+                var listing = listings.find(function(l) { return l.id === listingId; });
                 var feedbackPerm = listing ? (listing.permissions || {}) : {};
                 if (listing && (feedbackPerm.ownerOptOut === true || listing.internetDisplayYN === false)) {
                     console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — Owner Opt-Out or InternetEntireListingDisplayYN=false');
@@ -22319,7 +22479,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
  * Toggle: toggleResultsMap() — called from the toolbar map button.
  */
 
-/* global maplibregl, mockListings, searchResultsState, getFilteredListings, showListingDetail */
+/* global maplibregl, listings, searchResultsState, getFilteredListings, showListingDetail */
 
 (function () {
   'use strict';
@@ -22510,7 +22670,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     if (!_map || !_isOpen) return;
     var listings = (typeof getFilteredListings === 'function')
       ? getFilteredListings(true) // skipPagination = true to get ALL results
-      : (searchResultsState && searchResultsState.filteredListings) || mockListings || [];
+      : (searchResultsState && searchResultsState.filteredListings) || listings || [];
     addMarkers(listings);
   }
 
@@ -22564,7 +22724,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
   // ── Pan to listing (called when clicking a card) ──
   window.panToListing = function (listingId) {
     if (!_map || !_isOpen) return;
-    var listings = (searchResultsState && searchResultsState.filteredListings) || mockListings || [];
+    var listings = (searchResultsState && searchResultsState.filteredListings) || listings || [];
     var l = listings.find(function (x) { return x.id === listingId; });
     if (!l) return;
     var lat = l.latitude || (l.geo && l.geo.lat);
@@ -22721,7 +22881,7 @@ function openPrintableWindow(html, options) {
             var countEl = document.getElementById('reportDescCharCount');
             if (!descEl) return;
             // Get description from first selected listing
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var selIds = reportState.selectedListingIds || [];
             var listing = null;
             if (selIds.length > 0) {
@@ -22786,7 +22946,7 @@ function openPrintableWindow(html, options) {
                 }
             }
             // Check IDX opt-out listings
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var selectedIds = reportState.selectedListingIds;
             var selectedListings = selectedIds.length > 0
                 ? allListings.filter(function(l) { return selectedIds.indexOf(l.id) > -1; })
@@ -22803,7 +22963,7 @@ function openPrintableWindow(html, options) {
         // ── Open / Close modal ──
         function openReportsModal(selectedIds, presetOutput) {
             // Enforce 250 cap at selection model
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var selIds = selectedIds || searchResultsState.selectedListings || [];
             reportState.selectedListingIds = selIds.slice(0, 250);
 
@@ -23171,22 +23331,22 @@ function openPrintableWindow(html, options) {
             var agentInfo = typeof AGENT_PROFILE !== 'undefined' ? {
                 name: AGENT_PROFILE.name || '',
                 title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || 'Licensed Real Estate Broker',
-                company: AGENT_PROFILE.company || 'Mallan Real Estate Inc.',
+                company: AGENT_PROFILE.company || '',
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
                 license: AGENT_PROFILE.license || '',
-                companyLicense: AGENT_PROFILE.companyLicense || '#10991205323',
-                address: AGENT_PROFILE.address || '400 East 90th Street, Suite 17C, New York, NY 10128',
+                companyLicense: AGENT_PROFILE.companyLicense || '',
+                address: AGENT_PROFILE.address || '',
                 photo: AGENT_PROFILE.photo || ''
             } : {
                 name: '',
                 title: 'Licensed Real Estate Broker',
-                company: 'Mallan Real Estate Inc.',
+                company: '',
                 email: '',
                 phone: '',
                 license: '',
-                companyLicense: '#10991205323',
-                address: '400 East 90th Street, Suite 17C, New York, NY 10128',
+                companyLicense: '',
+                address: '',
                 photo: ''
             };
 
@@ -24521,7 +24681,7 @@ function openPrintableWindow(html, options) {
 
         // ── Wrap format-specific report HTML in an email-safe shell ──
         function wrapReportForEmail(reportBody, title, preparedFor, listings) {
-            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '', address: '400 East 90th Street, Suite 17C, New York, NY 10128', website: 'mallan.nyc' };
+            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
             var listingCount = listings ? listings.length : 0;
@@ -24554,7 +24714,7 @@ function openPrintableWindow(html, options) {
             h += '<tr><td style="padding:16px 32px;background:#1a1a1a;">';
             h += '<p style="margin:0;font-size:10px;color:#d1d5db;">Equal Housing Opportunity &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + '</p>';
             h += '<p style="margin:8px 0 0 0;font-size:9px;color:#6b7280;line-height:1.4;">';
-            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + '. ';
+            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '') + '. ';
             h += 'If you no longer wish to receive property updates, please reply with "Unsubscribe" in the subject line.</p>';
             h += '</td></tr>';
 
@@ -24565,7 +24725,7 @@ function openPrintableWindow(html, options) {
         // ── Build branded HTML email body (table-based, inline styles for Outlook) ──
         // NOTE: This is the legacy card-based email. Used by copyReportAndEmail() fallback.
         function buildBrandedEmailHTML(listings, title, preparedFor) {
-            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '', address: '400 East 90th Street, Suite 17C, New York, NY 10128', website: 'mallan.nyc' };
+            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
 
@@ -24612,7 +24772,7 @@ function openPrintableWindow(html, options) {
             h += '<span style="font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">Prepared By</span><br>';
             h += '<span style="font-size:14px;font-weight:600;color:#1a1a1a;">' + agent.name + '</span><br>';
             h += '<span style="font-size:12px;color:#4b5563;">' + (agent.licenseTitle || agent.title || 'Licensed Real Estate Broker') + '</span><br>';
-            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '#10991205323') + '</span><br>';
+            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '') + '</span><br>';
             h += '<span style="font-size:12px;color:#6b7280;">' + (agent.phone || '') + ' &middot; ' + (agent.email || '') + '</span>';
             h += '</td>';
             h += '<td style="vertical-align:top;width:50%;text-align:right;">';
@@ -24694,8 +24854,8 @@ function openPrintableWindow(html, options) {
             h += '<p style="margin:0 0 6px 0;font-size:10px;color:#6b7280;font-style:italic;">';
             h += 'Commission rates are not set by law and are fully negotiable. The commission on any particular listing is set by the listing participant and is disclosed to cooperating brokers.</p>';
             h += '<p style="margin:0;font-size:10px;color:#9ca3af;">';
-            h += agent.name + ', ' + (agent.title || 'Licensed Real Estate Broker') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '#10991205323') + '<br>';
-            h += (agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + ' &middot; ' + (agent.phone || '') + ' &middot; ' + (agent.website || 'mallan.nyc') + '</p>';
+            h += agent.name + ', ' + (agent.title || 'Licensed Real Estate Broker') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '') + '<br>';
+            h += (agent.address || '') + ' &middot; ' + (agent.phone || '') + ' &middot; ' + (agent.website || 'mallan.nyc') + '</p>';
             h += '</td></tr>';
 
             // ── Equal Housing + CAN-SPAM Footer ──
@@ -24708,7 +24868,7 @@ function openPrintableWindow(html, options) {
             h += '</td>';
             h += '</tr></table>';
             h += '<p style="margin:8px 0 0 0;font-size:9px;color:#6b7280;line-height:1.4;">';
-            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + '. ';
+            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '') + '. ';
             h += 'If you no longer wish to receive property updates, please reply with "Unsubscribe" in the subject line.</p>';
             h += '</td></tr>';
 
@@ -24942,7 +25102,7 @@ function openPrintableWindow(html, options) {
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
             var reportSel = reportSelRadio ? reportSelRadio.value : 'all';
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var listings;
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
@@ -24974,17 +25134,17 @@ function openPrintableWindow(html, options) {
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
                 license: AGENT_PROFILE.license || '',
-                companyLicense: AGENT_PROFILE.companyLicense || '#10991205323',
-                address: AGENT_PROFILE.address || '400 East 90th Street, Suite 17C, New York, NY 10128'
+                companyLicense: AGENT_PROFILE.companyLicense || '',
+                address: AGENT_PROFILE.address || ''
             } : {
                 name: '',
                 title: 'Licensed Real Estate Broker',
-                company: 'Mallan Real Estate Inc.',
+                company: '',
                 email: '',
                 phone: '',
                 license: '',
-                companyLicense: '#10991205323',
-                address: '400 East 90th Street, Suite 17C, New York, NY 10128'
+                companyLicense: '',
+                address: ''
             };
         }
 
@@ -24992,7 +25152,7 @@ function openPrintableWindow(html, options) {
         // Called from List report address links — shows Detail format without
         // listing agent info or building contact (customer version)
         function openClientDetailReport(listingId) {
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var l = null;
             for (var i = 0; i < allListings.length; i++) {
                 if (allListings[i].id === listingId) { l = allListings[i]; break; }
@@ -25438,7 +25598,7 @@ function openPrintableWindow(html, options) {
 
         // ── Quick print: open a single-listing Detail report in a new tab ──
         function quickPrintReport(listingId) {
-            var listing = mockListings.find(function(l) { return l.id === listingId; });
+            var listing = listings.find(function(l) { return l.id === listingId; });
             if (!listing) return;
 
             // Save current state
@@ -26465,9 +26625,10 @@ function printCurrentCalc() {
     printHTML += '.results{border:1px solid #eee;border-radius:8px;padding:16px;margin-top:16px;}';
     printHTML += '.footer{text-align:center;border-top:1px solid #ddd;padding-top:8px;font-size:8pt;color:#999;margin-top:24px;}';
     printHTML += '</style></head><body>';
-    printHTML += '<div class="header"><h1>MALLAN REAL ESTATE INC.</h1>';
-    printHTML += '<p>400 East 90th Street, Suite 17C, New York, NY 10128 | 646-258-4460</p>';
-    printHTML += '<p>Licensed Real Estate Brokerage | Lic. #10991205323</p></div>';
+    var _co = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
+    printHTML += '<div class="header"><h1>' + (_co.company || 'MALLAN REAL ESTATE INC.') + '</h1>';
+    printHTML += '<p>' + (_co.address || '') + (_co.phone ? ' | ' + _co.phone : '') + '</p>';
+    printHTML += '<p>Licensed Real Estate Brokerage' + (_co.companyLicense ? ' | Lic. ' + _co.companyLicense : '') + '</p></div>';
     printHTML += '<h2 style="font-size:14pt;color:#B8860B;margin-bottom:12px;">' + title + '</h2>';
     if (results) printHTML += '<div class="results">' + results.innerHTML + '</div>';
     printHTML += '<div class="footer"><p>Estimates only. Consult a financial advisor for actual figures.</p>';
@@ -26500,7 +26661,8 @@ function emailCurrentCalc() {
         });
     }
 
-    text += '\n---\nPrepared by Mallan Real Estate Inc.\n646-258-4460 | info@mallan.nyc\nEstimates only. Consult a financial advisor.';
+    var _co2 = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
+    text += '\n---\nPrepared by ' + (_co2.company || 'Mallan Real Estate Inc.') + '\n' + (_co2.phone || '') + ' | ' + (_co2.email || '') + '\nEstimates only. Consult a financial advisor.';
 
     // Copy and open mailto
     navigator.clipboard.writeText(text).catch(function() {});
@@ -26550,7 +26712,7 @@ function emailCurrentCalc() {
 
         function showListingDetail(listingId) {
             try {
-            var listing = mockListings.find(l => l.id === listingId);
+            var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
             _detailCurrentId = listingId;
             _detailPhotoIdx = 0;
@@ -27657,7 +27819,7 @@ function emailCurrentCalc() {
 
         // ── Share listing link (copy or native share) ──
         function shareListing(listingId) {
-            var listing = mockListings.find(function(l) { return l.id == listingId; });
+            var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) return;
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var isSale = listing.listingCategory !== 'rental';
@@ -27677,7 +27839,7 @@ function emailCurrentCalc() {
 
         // ── Send Agent Inquiry — emails the listing agent directly from the system ──
         function sendAgentInquiry(listingId) {
-            var listing = mockListings.find(function(l) { return l.id === listingId; });
+            var listing = listings.find(function(l) { return l.id === listingId; });
             if (!listing) { showToast('Listing not found.', 'error'); return; }
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var agentName = agent.name || '';
@@ -27754,7 +27916,7 @@ function emailCurrentCalc() {
         }
 
         function detailSetPhoto(idx) {
-            var listing = mockListings.find(l => l.id === _detailCurrentId);
+            var listing = listings.find(l => l.id === _detailCurrentId);
             if (!listing || !listing.images) return;
             _detailPhotoIdx = idx;
             var img = document.getElementById('detailMainPhotoImg');
@@ -27764,14 +27926,14 @@ function emailCurrentCalc() {
         }
 
         function detailPhotoPrev() {
-            var listing = mockListings.find(l => l.id === _detailCurrentId);
+            var listing = listings.find(l => l.id === _detailCurrentId);
             if (!listing || !listing.images) return;
             _detailPhotoIdx = (_detailPhotoIdx - 1 + listing.images.length) % listing.images.length;
             detailSetPhoto(_detailPhotoIdx);
         }
 
         function detailPhotoNext() {
-            var listing = mockListings.find(l => l.id === _detailCurrentId);
+            var listing = listings.find(l => l.id === _detailCurrentId);
             if (!listing || !listing.images) return;
             _detailPhotoIdx = (_detailPhotoIdx + 1) % listing.images.length;
             detailSetPhoto(_detailPhotoIdx);
@@ -27781,7 +27943,7 @@ function emailCurrentCalc() {
         var _lightboxIdx = 0;
 
         function openPhotoLightbox(idx) {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images || !listing.images.length) return;
             _lightboxIdx = idx || 0;
 
@@ -27826,7 +27988,7 @@ function emailCurrentCalc() {
         }
 
         function updateLightbox(listing) {
-            if (!listing) listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images) return;
             var img = listing.images[_lightboxIdx];
             if (!img) return;
@@ -27850,14 +28012,14 @@ function emailCurrentCalc() {
         }
 
         function lightboxPrev() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images) return;
             _lightboxIdx = (_lightboxIdx - 1 + listing.images.length) % listing.images.length;
             updateLightbox(listing);
         }
 
         function lightboxNext() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing || !listing.images) return;
             _lightboxIdx = (_lightboxIdx + 1) % listing.images.length;
             updateLightbox(listing);
@@ -27949,7 +28111,7 @@ function emailCurrentCalc() {
         }
 
         function printListingDetail() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) return;
             var isSale = listing.listingCategory !== 'rental';
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
@@ -27958,7 +28120,7 @@ function emailCurrentCalc() {
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '', address: '400 East 90th Street, Suite 17C, New York, NY 10128' };
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
 
             // Build full HTML string (CSP-safe — no document.write)
             var h = '<!DOCTYPE html><html><head><title>' + displayAddress + displayUnit + ' — Listing Detail</title>';
@@ -28000,7 +28162,7 @@ function emailCurrentCalc() {
 
             // Dual agent blocks — prepared by (our agent) + listing agent (from RLS)
             h += '<div class="dual-agent">';
-            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '#10991205323') + '<br>' + (_agent.address || '400 East 90th St, Suite 17C, NY 10128') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
+            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '') + '<br>' + (_agent.address || '') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
             h += '<div><div class="label">Listing Agent</div><div class="name">' + escapeHtml(listing.agentName || '---') + '</div><div class="info">' + escapeHtml(listing.company || '---') + '<br>' + escapeHtml(listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + escapeHtml(listing.agentEmail) : '') + '<br>' + escapeHtml(listing.listingType || 'Exclusive') + '</div></div>';
             h += '</div>';
 
@@ -28063,7 +28225,7 @@ function emailCurrentCalc() {
             h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
 
             // Footer
-            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '#10991205323') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
+            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
 
             // Toolbar (hidden when printing)
             h += '<div class="print-toolbar" style="position:sticky;top:0;z-index:100;background:#1e293b;padding:10px 20px;display:flex;align-items:center;gap:16px;font-family:Manrope,sans-serif;margin:-40px -48px 20px -48px"><span style="color:#fff;font-weight:700;font-size:15px">' + displayAddress + displayUnit + '</span><span style="flex:1"></span><button onclick="window.print()" style="background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-print"></i> Print</button><button onclick="window.close()" style="background:#475569;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer">Close</button></div>';
@@ -28074,13 +28236,13 @@ function emailCurrentCalc() {
         }
 
         function emailListingDetail() {
-            var listing = mockListings.find(function(l) { return l.id === _detailCurrentId; });
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) return;
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
-            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nListing Agent: ' + (listing.agentName || '---') + ' — ' + (listing.company || '---') + '\nPhone: ' + (listing.agentPhone || '---') + '\nEmail: ' + (listing.agentEmail || '---') + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\nPrepared by ' + _agent.name + '\n' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '\n' + _agent.company + ' | Lic. ' + (_agent.companyLicense || '#10991205323') + '\n' + _agent.phone + ' | ' + _agent.email + (_agent.license ? '\nAgent License ' + _agent.license : '') + '\n\nEqual Housing Opportunity');
+            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nListing Agent: ' + (listing.agentName || '---') + ' — ' + (listing.company || '---') + '\nPhone: ' + (listing.agentPhone || '---') + '\nEmail: ' + (listing.agentEmail || '---') + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\nPrepared by ' + _agent.name + '\n' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '\n' + _agent.company + ' | Lic. ' + (_agent.companyLicense || '') + '\n' + _agent.phone + ' | ' + _agent.email + (_agent.license ? '\nAgent License ' + _agent.license : '') + '\n\nEqual Housing Opportunity');
             window.open('mailto:?subject=' + subject + '&body=' + body);
         }
 
@@ -28544,7 +28706,7 @@ function emailCurrentCalc() {
 
             // Mockup: simulate commute times based on distance
             // In production this would call Google Directions or MapBox
-            var listing = mockListings.find(function(l) { return l.id == listingId; });
+            var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) listing = { latitude: 40.7831, longitude: -73.9554 };
 
             // Simulate reasonable NYC commute times
@@ -29158,7 +29320,7 @@ function emailCurrentCalc() {
                 filterState.statusFilters[flag] = !filterState.statusFilters[flag];
                 var isActive = filterState.statusFilters[flag];
                 if (isActive) {
-                    var count = (searchResultsState.filteredListings || mockListings).filter(function(l) { return getListingFlag(l.id, flag); }).length;
+                    var count = (searchResultsState.filteredListings || listings).filter(function(l) { return getListingFlag(l.id, flag); }).length;
                     if (count === 0) {
                         showFlagToast('No listings flagged as "' + flag + '" yet. Select listings first, then click to flag them.');
                         filterState.statusFilters[flag] = false;
@@ -29292,16 +29454,16 @@ function emailCurrentCalc() {
                 MallanAPI.idx.search(params).then(function(result) {
                     _serverSearchActive = false;
                     if (result.listings && result.listings.length > 0) {
-                        mockListings.length = 0;
-                        result.listings.forEach(function(l) { mockListings.push(l); });
-                        mockListings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+                        listings.length = 0;
+                        result.listings.forEach(function(l) { listings.push(l); });
+                        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
                         if (typeof resolveNeighborhoodCanonical === 'function') {
-                            mockListings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
+                            listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
                         }
                         // Re-filter and render
                         var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
                         searchResultsState.filteredListings = typeof filterListings === 'function'
-                            ? filterListings(mockListings, criteria) : mockListings.slice();
+                            ? filterListings(listings, criteria) : listings.slice();
                         searchResultsState.currentPage = 1;
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -29870,7 +30032,7 @@ function emailCurrentCalc() {
         }
 
         function _computeMatchEstimate() {
-            if (typeof mockListings === 'undefined' || !mockListings || mockListings.length === 0) return;
+            if (typeof listings === 'undefined' || !listings || listings.length === 0) return;
             if (typeof collectSearchCriteria !== 'function') return;
             if (typeof filterListings !== 'function') return;
 
@@ -29894,7 +30056,7 @@ function emailCurrentCalc() {
                     return;
                 }
 
-                var matched = filterListings(mockListings, criteria);
+                var matched = filterListings(listings, criteria);
                 countEl.textContent = matched.length.toLocaleString();
                 wrapper.classList.remove('hidden');
                 wrapper.classList.add('flex');
@@ -30002,7 +30164,7 @@ function emailCurrentCalc() {
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
             // Opened in a new tab — show only the listing detail
-            // Must wait for data to load before showing detail (mockListings starts empty)
+            // Must wait for data to load before showing detail (listings starts empty)
             // routeParam can be: sequential id (legacy: "107") or lid (stable: "RLS20059088")
             var detailId = routeParam;
             var detailIdInt = parseInt(routeParam, 10);
@@ -30023,11 +30185,11 @@ function emailCurrentCalc() {
 
                 function _tryShowDetail() {
                     // Check if data is available
-                    if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
+                    if (typeof listings !== 'undefined' && listings.length > 0) {
                         // Try lid first (stable across sessions), fall back to sequential id
-                        var listing = mockListings.find(function(l) { return l.lid === detailId; });
+                        var listing = listings.find(function(l) { return l.lid === detailId; });
                         if (!listing && isLegacyId) {
-                            listing = mockListings.find(function(l) { return l.id === detailIdInt; });
+                            listing = listings.find(function(l) { return l.id === detailIdInt; });
                         }
                         if (listing) {
                             showListingDetail(listing.id);
@@ -30089,11 +30251,11 @@ function emailCurrentCalc() {
                                 if (_detailResolved) return;
                                 if (result.listings && result.listings.length > 0) {
                                     var fetched = result.listings[0];
-                                    // Add to mockListings so showListingDetail can find it
-                                    if (typeof mockListings !== 'undefined') {
+                                    // Add to listings so showListingDetail can find it
+                                    if (typeof listings !== 'undefined') {
                                         // Assign a sequential id if missing
-                                        if (!fetched.id) fetched.id = mockListings.length + 1;
-                                        mockListings.push(fetched);
+                                        if (!fetched.id) fetched.id = listings.length + 1;
+                                        listings.push(fetched);
                                     }
                                     _markResolved();
                                     showListingDetail(fetched.id);
@@ -30158,12 +30320,12 @@ function emailCurrentCalc() {
             } else if (newRoute === 'results') {
                 _navigateToResults(false);
             } else if (newRoute === 'detail' && newParam) {
-                if (typeof showListingDetail === 'function' && typeof mockListings !== 'undefined') {
+                if (typeof showListingDetail === 'function' && typeof listings !== 'undefined') {
                     // Try lid first (stable), then sequential id (legacy)
-                    var listing = mockListings.find(function(l) { return l.lid === newParam; });
+                    var listing = listings.find(function(l) { return l.lid === newParam; });
                     if (!listing) {
                         var numId = parseInt(newParam, 10);
-                        if (!isNaN(numId)) listing = mockListings.find(function(l) { return l.id === numId; });
+                        if (!isNaN(numId)) listing = listings.find(function(l) { return l.id === numId; });
                     }
                     if (listing) {
                         window._suppressHashUpdate = true;
@@ -30264,15 +30426,15 @@ function emailCurrentCalc() {
                 // _replaceListings dispatches 'mallan:data:ready' when data arrives
                 window.addEventListener('mallan:data:ready', function onDataReady() {
                     window.removeEventListener('mallan:data:ready', onDataReady);
-                    // Data loaded — restore search state now that mockListings is populated
+                    // Data loaded — restore search state now that listings is populated
                     if (typeof _restoreSearchState === 'function') {
                         _restoreSearchState();
                     }
                     if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
-                    } else if (typeof mockListings !== 'undefined' && mockListings.length > 0) {
-                        searchResultsState.filteredListings = mockListings.slice();
+                    } else if (typeof listings !== 'undefined' && listings.length > 0) {
+                        searchResultsState.filteredListings = listings.slice();
                         searchResultsState.currentPage = 1;
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -30285,7 +30447,7 @@ function emailCurrentCalc() {
                 });
                 // Safety timeout: if data doesn't load in 10s, go to search form
                 setTimeout(function() {
-                    if (typeof mockListings === 'undefined' || mockListings.length === 0) {
+                    if (typeof listings === 'undefined' || listings.length === 0) {
                         if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
                         if (searchFormContainer) searchFormContainer.style.display = 'block';
                         if (searchResultsSection) searchResultsSection.style.display = 'none';
@@ -30737,7 +30899,7 @@ function checkListingCompliance(listingIds, displayContext) {
     displayContext = displayContext || (typeof searchDisplayContext !== 'undefined' ? searchDisplayContext : 'idx');
     var result = { passed: [], blocked: [], warnings: [] };
     listingIds.forEach(function(id) {
-        var listing = mockListings.find(function(l) { return l.id === id; });
+        var listing = listings.find(function(l) { return l.id === id; });
         if (!listing) return;
 
         var perm = listing.permissions || {};
@@ -32319,8 +32481,8 @@ function REBNYWiringTest(options) {
         document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
-        if (typeof mockListings !== 'undefined') {
-            mockListings.forEach(function(l) {
+        if (typeof listings !== 'undefined') {
+            listings.forEach(function(l) {
                 if (l.listingCategory && ['sale','rental'].indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '"');
             });
         }
@@ -32335,8 +32497,8 @@ function REBNYWiringTest(options) {
             var t = el.textContent.trim();
             if (t === 'undefined' || t === 'null' || t === 'NaN' || t === '$NaN' || t === '$undefined') problems.push('"' + t + '" in <' + el.tagName.toLowerCase() + '>');
         });
-        if (typeof mockListings !== 'undefined') {
-            mockListings.forEach(function(l) {
+        if (typeof listings !== 'undefined') {
+            listings.forEach(function(l) {
                 if (l.price == null) problems.push('Null price L-' + l.id);
                 if (l.status == null) problems.push('Null status L-' + l.id);
             });
@@ -32373,8 +32535,8 @@ function REBNYWiringTest(options) {
 
     // ── W6: Regression Snapshot ────────────────────────────────────────
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('W6', 'Regression Snapshot', 'FAIL', 'mockListings undefined — required test data missing'); return; }
-        var snap = { count: mockListings.length, ids: mockListings.map(function(l){return l.id;}).sort(function(a,b){return a-b;}).join(',') };
+        if (typeof listings === 'undefined') { addResult('W6', 'Regression Snapshot', 'FAIL', 'listings undefined — required test data missing'); return; }
+        var snap = { count: listings.length, ids: listings.map(function(l){return l.id;}).sort(function(a,b){return a-b;}).join(',') };
         var key = 'rebny_regression_snapshot', prev = null;
         try { prev = JSON.parse(localStorage.getItem(key)); } catch(e) {}
         localStorage.setItem(key, JSON.stringify(snap));
@@ -32479,8 +32641,8 @@ function REBNYBehaviorTest(options) {
     // ── B1: Zero-Result Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B1', 'Zero-Result', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and mockListings array both must exist'); return; }
-        var r = filterListings(mockListings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and listings array both must exist'); return; }
+        var r = filterListings(listings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
         var noErr = true;
         try { r.slice().sort(function(a,b){return a.price-b.price;}); } catch(e) { noErr = false; }
         addResult('B1', 'Zero-Result', (r.length === 0 && noErr) ? 'PASS' : 'FAIL', r.length === 0 ? 'Impossible criteria → 0 results, no error' : 'Got ' + r.length + ' results');
@@ -32489,14 +32651,14 @@ function REBNYBehaviorTest(options) {
     // ── B2: High Volume Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B2', 'High Volume', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof mockListings === 'undefined' || typeof getFilteredListings !== 'function') { addResult('B2', 'High Volume', 'FAIL', 'Required globals missing: mockListings and getFilteredListings must exist'); return; }
-        var origLen = mockListings.length, tpl = mockListings[0];
-        for (var i = 0; i < 200; i++) { var f = {}; for (var k in tpl) { if (tpl.hasOwnProperty(k)) f[k] = tpl[k]; } f.id = 90000+i; f.lid = 'FAKE-'+i; f.price = Math.floor(Math.random()*5e6)+5e5; mockListings.push(f); }
+        if (typeof listings === 'undefined' || typeof getFilteredListings !== 'function') { addResult('B2', 'High Volume', 'FAIL', 'Required globals missing: listings and getFilteredListings must exist'); return; }
+        var origLen = listings.length, tpl = listings[0];
+        for (var i = 0; i < 200; i++) { var f = {}; for (var k in tpl) { if (tpl.hasOwnProperty(k)) f[k] = tpl[k]; } f.id = 90000+i; f.lid = 'FAKE-'+i; f.price = Math.floor(Math.random()*5e6)+5e5; listings.push(f); }
         var t0 = performance.now();
         var pg = getFilteredListings(false);
         var all = getFilteredListings(true);
         var ms = Math.round(performance.now() - t0);
-        mockListings.splice(origLen);
+        listings.splice(origLen);
         var pgOK = pg.length <= (searchResultsState.perPage || 50);
         addResult('B2', 'High Volume', (pgOK && ms < 500) ? 'PASS' : 'FAIL', '200+ listings: ' + pg.length + '/' + all.length + ' paginated, ' + ms + 'ms (limit: 500ms, page size: ' + (searchResultsState.perPage || 50) + ')');
     })();
@@ -32620,10 +32782,10 @@ function REBNYComplianceExtended(options) {
         ['listings','allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD','REBNY_TOKEN','accessToken','secretKey'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exp.push('window.' + g);
         });
-        if (typeof window.mockListings !== 'undefined') {
-            for (var i = 0; i < Math.min(window.mockListings.length, 5); i++) {
-                var l = window.mockListings[i];
-                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('mockListings has private fields'); break; }
+        if (typeof window.listings !== 'undefined') {
+            for (var i = 0; i < Math.min(window.listings.length, 5); i++) {
+                var l = window.listings[i];
+                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('listings has private fields'); break; }
             }
         }
         var html = document.documentElement.outerHTML.substring(0, 100000);
@@ -32635,15 +32797,15 @@ function REBNYComplianceExtended(options) {
     // ── C5: Violation Injection Test (ACTIVE) ──────────────────────────
     (function() {
         if (!runActive) { addResult('C5', 'Violation Injection', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof checkListingCompliance !== 'function' || typeof mockListings === 'undefined') {
-            addResult('C5', 'Violation Injection', 'FAIL', 'checkListingCompliance or mockListings not found'); return;
+        if (typeof checkListingCompliance !== 'function' || typeof listings === 'undefined') {
+            addResult('C5', 'Violation Injection', 'FAIL', 'checkListingCompliance or listings not found'); return;
         }
-        var origLen = mockListings.length;
+        var origLen = listings.length;
         // Inject 2 test listings: one IDX-blocked, one address-suppressed
-        mockListings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
-        mockListings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
+        listings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
+        listings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
         var r = checkListingCompliance([99901, 99902]);
-        mockListings.splice(origLen);
+        listings.splice(origLen);
         var idxBlocked = r.blocked.some(function(b) { return b.id === 99901; });
         var addrWarned = r.warnings.some(function(w) { return w.id === 99902; });
         var caught = [];
@@ -32934,9 +33096,9 @@ function markFallbackUsed(functionName, details) {
 
 // Stable hash of listing IDs + compliance fields
 function computeDatasetHash() {
-    if (typeof mockListings === 'undefined') return 'NO_DATA';
+    if (typeof listings === 'undefined') return 'NO_DATA';
     var parts = [];
-    mockListings.forEach(function(l) {
+    listings.forEach(function(l) {
         parts.push([l.id, l.status, l.updatedDate || '',
             l.addressDisplayYN === undefined ? 'UNDEF' : String(l.addressDisplayYN),
             l.idxDisplayYN === undefined ? 'UNDEF' : String(l.idxDisplayYN),
@@ -32948,7 +33110,7 @@ function computeDatasetHash() {
         hash = ((hash << 5) - hash) + str.charCodeAt(i);
         hash = hash & hash;
     }
-    return 'H' + Math.abs(hash).toString(36) + '_L' + mockListings.length;
+    return 'H' + Math.abs(hash).toString(36) + '_L' + listings.length;
 }
 
 function setupStrictGuards() {
@@ -33166,54 +33328,54 @@ function SourceIntegrityTests(options) {
 
     // SRC-01: Required fields present in raw data (pre-render)
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) {
-            addResult('SRC-01', 'Required Fields in Raw Data', 'FAIL', 'mockListings undefined or empty');
+        if (typeof listings === 'undefined' || listings.length === 0) {
+            addResult('SRC-01', 'Required Fields in Raw Data', 'FAIL', 'listings undefined or empty');
             return;
         }
         var required = ['id','address','price','status','beds','baths','neighborhood'];
         var violations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             required.forEach(function(f) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') violations.push('L-' + l.id + '.' + f);
             });
         });
         addResult('SRC-01', 'Required Fields in Raw Data',
             violations.length === 0 ? 'PASS' : 'FAIL',
-            violations.length === 0 ? mockListings.length + ' listings, all ' + required.length + ' required fields present' :
+            violations.length === 0 ? listings.length + ' listings, all ' + required.length + ' required fields present' :
             violations.length + ' missing: ' + violations.slice(0, 10).join(', '));
     })();
 
     // SRC-02: Unknown / invalid enum tokens → FAIL
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'mockListings undefined'); return; }
+        if (typeof listings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'listings undefined'); return; }
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var VC = ['sale','rental','Sale','Rental'];
         var violations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.status && VS.indexOf(l.status) === -1) violations.push('L-' + l.id + '.status="' + l.status + '"');
             if (l.borough && VB.indexOf(l.borough) === -1) violations.push('L-' + l.id + '.borough="' + l.borough + '"');
             if (l.listingCategory && VC.indexOf(l.listingCategory) === -1) violations.push('L-' + l.id + '.category="' + l.listingCategory + '"');
         });
         addResult('SRC-02', 'Enum Token Validity',
             violations.length === 0 ? 'PASS' : 'FAIL',
-            violations.length === 0 ? mockListings.length + ' listings, all enum values valid' :
+            violations.length === 0 ? listings.length + ' listings, all enum values valid' :
             violations.length + ' invalid: ' + violations.slice(0, 5).join(', '));
     })();
 
     // SRC-03: Compliance flags fail-closed (missing = FAIL, not default-to-true)
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'FAIL', 'mockListings undefined'); return; }
+        if (typeof listings === 'undefined') { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'FAIL', 'listings undefined'); return; }
         var complianceFlags = ['idxDisplayYN','addressDisplayYN'];
         var violations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             complianceFlags.forEach(function(flag) {
                 if (l[flag] === undefined) violations.push('L-' + l.id + '.' + flag + '=undefined');
             });
         });
         addResult('SRC-03', 'Compliance Flags Fail-Closed',
             violations.length === 0 ? 'PASS' : 'FAIL',
-            violations.length === 0 ? mockListings.length + ' listings, all compliance flags explicitly set' :
+            violations.length === 0 ? listings.length + ' listings, all compliance flags explicitly set' :
             violations.length + ' missing (treated as restricted): ' + violations.slice(0, 10).join(', '));
     })();
 
@@ -33414,14 +33576,14 @@ function AllowlistLeakTests(options) {
     // AL4: Customization tab writeback guard (ACTIVE)
     (function() {
         if (!runActive) { addResult('AL4', 'Writeback Guard', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('AL4', 'Writeback Guard', 'FAIL', 'mockListings undefined or empty — cannot test writeback guard'); return; }
-        var before = JSON.stringify(mockListings[0]);
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('AL4', 'Writeback Guard', 'FAIL', 'listings undefined or empty — cannot test writeback guard'); return; }
+        var before = JSON.stringify(listings[0]);
         try {
             if (typeof getOptionalContentConfig === 'function') getOptionalContentConfig();
             if (typeof getSelectedReportFields === 'function') getSelectedReportFields();
             if (typeof getSortedListings === 'function') getSortedListings();
         } catch(e) { /* ignore */ }
-        var after = JSON.stringify(mockListings[0]);
+        var after = JSON.stringify(listings[0]);
         addResult('AL4', 'Writeback Guard', before === after ? 'PASS' : 'FAIL',
             before === after ? 'Listing object not mutated by report config reads' : 'Listing MUTATED — side effect in report generators');
     })();
@@ -33456,9 +33618,9 @@ function SearchCorrectnessTests(options) {
     // S1: Type coercion test (ACTIVE)
     (function() {
         if (!runActive) { addResult('S1', 'Type Coercion', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
-        var numResult = filterListings(mockListings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
-        var strResult = filterListings(mockListings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and listings must exist'); return; }
+        var numResult = filterListings(listings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
+        var strResult = filterListings(listings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
         var numIds = numResult.map(function(l) { return l.id; }).sort();
         var strIds = strResult.map(function(l) { return l.id; }).sort();
         var match = numIds.length === strIds.length && numIds.every(function(id, i) { return id === strIds[i]; });
@@ -33469,9 +33631,9 @@ function SearchCorrectnessTests(options) {
     // S2: Range normalization (ACTIVE)
     (function() {
         if (!runActive) { addResult('S2', 'Range Normalization', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         var noErr = true, result = [];
-        try { result = filterListings(mockListings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
+        try { result = filterListings(listings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
         addResult('S2', 'Range Normalization', noErr ? 'PASS' : 'FAIL',
             noErr ? 'Min>Max handled gracefully → ' + result.length + ' results (no crash)' : 'Exception thrown on inverted range');
     })();
@@ -33479,8 +33641,8 @@ function SearchCorrectnessTests(options) {
     // S3: Multi-select AND/OR semantics (ACTIVE)
     (function() {
         if (!runActive) { addResult('S3', 'Multi-Select Semantics', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
-        var saleOnly = filterListings(mockListings, { searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and listings must exist'); return; }
+        var saleOnly = filterListings(listings, { searchTab: 'sale' });
         var checks = [], issues = [];
         // Property type multi-select should be OR (broader results)
         if (saleOnly.length > 0) {
@@ -33488,8 +33650,8 @@ function SearchCorrectnessTests(options) {
             saleOnly.forEach(function(l) { if (l.propertyType) types[l.propertyType] = true; });
             var typeKeys = Object.keys(types);
             if (typeKeys.length >= 2) {
-                var single = filterListings(mockListings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
-                var multi = filterListings(mockListings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
+                var single = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
+                var multi = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
                 if (multi.length >= single.length) checks.push('type-OR(' + single.length + '→' + multi.length + ')');
                 else issues.push('Multi-type returned fewer results (AND instead of OR?)');
             } else { checks.push('single-type-only'); }
@@ -33603,14 +33765,14 @@ function SecurityHardeningV2Tests(options) {
          'REBNY_TOKEN','accessToken','secretKey','customerDatabase','clientDatabase'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exposed.push('window.' + g);
         });
-        // Check mockListings for private fields
-        if (typeof window.mockListings !== 'undefined' && window.mockListings.length > 0) {
-            var sample = window.mockListings[0];
+        // Check listings for private fields
+        if (typeof window.listings !== 'undefined' && window.listings.length > 0) {
+            var sample = window.listings[0];
             var privateInMock = [];
             ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN'].forEach(function(f) {
                 if (sample[f]) privateInMock.push(f);
             });
-            if (privateInMock.length > 0) exposed.push('mockListings has: ' + privateInMock.join(','));
+            if (privateInMock.length > 0) exposed.push('listings has: ' + privateInMock.join(','));
         }
         // Scan HTML for API keys
         var html = document.documentElement.outerHTML.substring(0, 100000);
@@ -33695,10 +33857,10 @@ function AccessibilityRESOPerfTests(options) {
 
     // RESO1: Field type coercion (numeric fields are numbers)
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'mockListings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var issues = [];
         var numericFields = ['price','beds','baths','sqft','daysOnMarket','pricePerSqft','lotSize','stories','units','garageSpaces'];
-        mockListings.forEach(function(l, idx) {
+        listings.forEach(function(l, idx) {
             numericFields.forEach(function(f) {
                 var val = l[f];
                 if (val !== undefined && val !== null && val !== '' && typeof val !== 'number' && isNaN(Number(val))) {
@@ -33707,17 +33869,17 @@ function AccessibilityRESOPerfTests(options) {
             });
         });
         addResult('RESO1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length === 0 ? 'All numeric fields valid across all ' + mockListings.length + ' listings' : issues.slice(0, 10).join('; '));
+            issues.length === 0 ? 'All numeric fields valid across all ' + listings.length + ' listings' : issues.slice(0, 10).join('; '));
     })();
 
     // RESO2: Required fields completeness
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'mockListings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var coreRequired = ['id','address','price','status','beds','baths','neighborhood'];
         var extended = ['borough','listingCategory'];
         var coreViolations = [];
         var extViolations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             coreRequired.forEach(function(f) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') coreViolations.push('L-' + l.id + '.' + f);
             });
@@ -33726,24 +33888,24 @@ function AccessibilityRESOPerfTests(options) {
             });
         });
         addResult('RESO2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
-            coreViolations.length === 0 ? mockListings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
+            coreViolations.length === 0 ? listings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
     })();
 
     // RESO3: Enumeration enforcement
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'mockListings undefined — required test data missing'); return; }
+        if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
         var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
             'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var validCategories = ['sale','rental','Sale','Rental'];
         var issues = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.status && validStatuses.indexOf(l.status) === -1) issues.push('Status:"' + l.status + '" L-' + l.id);
             if (l.borough && validBoroughs.indexOf(l.borough) === -1) issues.push('Borough:"' + l.borough + '" L-' + l.id);
             if (l.listingCategory && validCategories.indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '" L-' + l.id);
         });
         addResult('RESO3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length === 0 ? 'All status/borough/category enums valid across ' + mockListings.length + ' listings' : issues.slice(0, 5).join('; '));
+            issues.length === 0 ? 'All status/borough/category enums valid across ' + listings.length + ' listings' : issues.slice(0, 5).join('; '));
     })();
 
     // PERF1: Render time threshold (ACTIVE)
@@ -33785,7 +33947,7 @@ function MutationRegressionTests(options) {
     // R1: Golden snapshot stability (ACTIVE)
     (function() {
         if (!runActive) { addResult('R1', 'Golden Snapshot', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         // 5 canonical test cases
         var cases = [
             { name: 'All sales', criteria: { searchTab: 'sale' } },
@@ -33797,7 +33959,7 @@ function MutationRegressionTests(options) {
         var snapKey = 'golden_snapshot_v1';
         var current = {};
         cases.forEach(function(c) {
-            var r = filterListings(mockListings, c.criteria);
+            var r = filterListings(listings, c.criteria);
             current[c.name] = { count: r.length, ids: r.slice(0, 5).map(function(l) { return l.id; }).join(',') };
         });
         var prev = null;
@@ -33821,17 +33983,17 @@ function MutationRegressionTests(options) {
     // R2: Break injection — red-team compliance gates (ACTIVE)
     (function() {
         if (!runActive) { addResult('R2', 'Break Injection', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof checkListingCompliance !== 'function' || typeof mockListings === 'undefined') {
-            addResult('R2', 'Break Injection', 'FAIL', 'Required: checkListingCompliance and mockListings must exist'); return;
+        if (typeof checkListingCompliance !== 'function' || typeof listings === 'undefined') {
+            addResult('R2', 'Break Injection', 'FAIL', 'Required: checkListingCompliance and listings must exist'); return;
         }
-        var origLen = mockListings.length;
+        var origLen = listings.length;
         // Inject 4 violation types
-        mockListings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
-        mockListings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
-        mockListings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
-        mockListings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
+        listings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
+        listings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
         var r = checkListingCompliance([88801, 88802, 88803, 88804]);
-        mockListings.splice(origLen); // restore
+        listings.splice(origLen); // restore
         var caught = [], missed = [];
         if (r.blocked.some(function(b) { return b.id === 88801; })) caught.push('IDX-block');
         else missed.push('IDX-block');
@@ -33847,7 +34009,7 @@ function MutationRegressionTests(options) {
     // R3: Fuzz test — random criteria (ACTIVE)
     (function() {
         if (!runActive) { addResult('R3', 'Fuzz Test', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         var errors = 0, runs = 100, dupRuns = 0;
         var boroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
         for (var i = 0; i < runs; i++) {
@@ -33859,7 +34021,7 @@ function MutationRegressionTests(options) {
                 boroughs: Math.random() > 0.5 ? [boroughs[Math.floor(Math.random() * boroughs.length)]] : undefined
             };
             try {
-                var result = filterListings(mockListings, criteria);
+                var result = filterListings(listings, criteria);
                 // Check for duplicates
                 var ids = {};
                 result.forEach(function(l) {

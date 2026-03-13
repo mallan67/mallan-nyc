@@ -65,8 +65,13 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
   }
 
-  const body = await req.json();
-  const { channel, direction, template_id, subject, body_preview, outcome, consent_verified } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { channel, direction, template_id, subject, body_preview, outcome, consent_verified } = body as { channel?: string; direction?: string; template_id?: string; subject?: string; body_preview?: string; outcome?: string; consent_verified?: boolean };
 
   // Validate channel
   if (!channel || !OUTREACH_CHANNELS.includes(channel as OutreachChannel)) {

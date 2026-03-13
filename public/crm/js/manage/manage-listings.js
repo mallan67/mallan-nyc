@@ -1132,7 +1132,7 @@ function manageCreateListing() {
     if (currentManageMode === 'sales') {
         window.open('SALE-FORM-REDESIGN.html', '_blank');
     } else {
-        window.open('RENTAL-FORM-STANDALONE.html', '_blank');
+        window.open('RENTAL-FORM-REDESIGN.html', '_blank');
     }
 }
 function manageEditListing(id) {

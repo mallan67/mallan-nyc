@@ -12,7 +12,7 @@ function checkListingCompliance(listingIds, displayContext) {
     displayContext = displayContext || (typeof searchDisplayContext !== 'undefined' ? searchDisplayContext : 'idx');
     var result = { passed: [], blocked: [], warnings: [] };
     listingIds.forEach(function(id) {
-        var listing = mockListings.find(function(l) { return l.id === id; });
+        var listing = listings.find(function(l) { return l.id === id; });
         if (!listing) return;
 
         var perm = listing.permissions || {};
@@ -1594,8 +1594,8 @@ function REBNYWiringTest(options) {
         document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
-        if (typeof mockListings !== 'undefined') {
-            mockListings.forEach(function(l) {
+        if (typeof listings !== 'undefined') {
+            listings.forEach(function(l) {
                 if (l.listingCategory && ['sale','rental'].indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '"');
             });
         }
@@ -1610,8 +1610,8 @@ function REBNYWiringTest(options) {
             var t = el.textContent.trim();
             if (t === 'undefined' || t === 'null' || t === 'NaN' || t === '$NaN' || t === '$undefined') problems.push('"' + t + '" in <' + el.tagName.toLowerCase() + '>');
         });
-        if (typeof mockListings !== 'undefined') {
-            mockListings.forEach(function(l) {
+        if (typeof listings !== 'undefined') {
+            listings.forEach(function(l) {
                 if (l.price == null) problems.push('Null price L-' + l.id);
                 if (l.status == null) problems.push('Null status L-' + l.id);
             });
@@ -1648,8 +1648,8 @@ function REBNYWiringTest(options) {
 
     // ── W6: Regression Snapshot ────────────────────────────────────────
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('W6', 'Regression Snapshot', 'FAIL', 'mockListings undefined — required test data missing'); return; }
-        var snap = { count: mockListings.length, ids: mockListings.map(function(l){return l.id;}).sort(function(a,b){return a-b;}).join(',') };
+        if (typeof listings === 'undefined') { addResult('W6', 'Regression Snapshot', 'FAIL', 'listings undefined — required test data missing'); return; }
+        var snap = { count: listings.length, ids: listings.map(function(l){return l.id;}).sort(function(a,b){return a-b;}).join(',') };
         var key = 'rebny_regression_snapshot', prev = null;
         try { prev = JSON.parse(localStorage.getItem(key)); } catch(e) {}
         localStorage.setItem(key, JSON.stringify(snap));
@@ -1754,8 +1754,8 @@ function REBNYBehaviorTest(options) {
     // ── B1: Zero-Result Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B1', 'Zero-Result', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and mockListings array both must exist'); return; }
-        var r = filterListings(mockListings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and listings array both must exist'); return; }
+        var r = filterListings(listings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
         var noErr = true;
         try { r.slice().sort(function(a,b){return a.price-b.price;}); } catch(e) { noErr = false; }
         addResult('B1', 'Zero-Result', (r.length === 0 && noErr) ? 'PASS' : 'FAIL', r.length === 0 ? 'Impossible criteria → 0 results, no error' : 'Got ' + r.length + ' results');
@@ -1764,14 +1764,14 @@ function REBNYBehaviorTest(options) {
     // ── B2: High Volume Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B2', 'High Volume', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof mockListings === 'undefined' || typeof getFilteredListings !== 'function') { addResult('B2', 'High Volume', 'FAIL', 'Required globals missing: mockListings and getFilteredListings must exist'); return; }
-        var origLen = mockListings.length, tpl = mockListings[0];
-        for (var i = 0; i < 200; i++) { var f = {}; for (var k in tpl) { if (tpl.hasOwnProperty(k)) f[k] = tpl[k]; } f.id = 90000+i; f.lid = 'FAKE-'+i; f.price = Math.floor(Math.random()*5e6)+5e5; mockListings.push(f); }
+        if (typeof listings === 'undefined' || typeof getFilteredListings !== 'function') { addResult('B2', 'High Volume', 'FAIL', 'Required globals missing: listings and getFilteredListings must exist'); return; }
+        var origLen = listings.length, tpl = listings[0];
+        for (var i = 0; i < 200; i++) { var f = {}; for (var k in tpl) { if (tpl.hasOwnProperty(k)) f[k] = tpl[k]; } f.id = 90000+i; f.lid = 'FAKE-'+i; f.price = Math.floor(Math.random()*5e6)+5e5; listings.push(f); }
         var t0 = performance.now();
         var pg = getFilteredListings(false);
         var all = getFilteredListings(true);
         var ms = Math.round(performance.now() - t0);
-        mockListings.splice(origLen);
+        listings.splice(origLen);
         var pgOK = pg.length <= (searchResultsState.perPage || 50);
         addResult('B2', 'High Volume', (pgOK && ms < 500) ? 'PASS' : 'FAIL', '200+ listings: ' + pg.length + '/' + all.length + ' paginated, ' + ms + 'ms (limit: 500ms, page size: ' + (searchResultsState.perPage || 50) + ')');
     })();
@@ -1895,10 +1895,10 @@ function REBNYComplianceExtended(options) {
         ['listings','allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD','REBNY_TOKEN','accessToken','secretKey'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exp.push('window.' + g);
         });
-        if (typeof window.mockListings !== 'undefined') {
-            for (var i = 0; i < Math.min(window.mockListings.length, 5); i++) {
-                var l = window.mockListings[i];
-                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('mockListings has private fields'); break; }
+        if (typeof window.listings !== 'undefined') {
+            for (var i = 0; i < Math.min(window.listings.length, 5); i++) {
+                var l = window.listings[i];
+                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('listings has private fields'); break; }
             }
         }
         var html = document.documentElement.outerHTML.substring(0, 100000);
@@ -1910,15 +1910,15 @@ function REBNYComplianceExtended(options) {
     // ── C5: Violation Injection Test (ACTIVE) ──────────────────────────
     (function() {
         if (!runActive) { addResult('C5', 'Violation Injection', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof checkListingCompliance !== 'function' || typeof mockListings === 'undefined') {
-            addResult('C5', 'Violation Injection', 'FAIL', 'checkListingCompliance or mockListings not found'); return;
+        if (typeof checkListingCompliance !== 'function' || typeof listings === 'undefined') {
+            addResult('C5', 'Violation Injection', 'FAIL', 'checkListingCompliance or listings not found'); return;
         }
-        var origLen = mockListings.length;
+        var origLen = listings.length;
         // Inject 2 test listings: one IDX-blocked, one address-suppressed
-        mockListings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
-        mockListings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
+        listings.push({ id: 99901, address: '1 Test IDX Block', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
+        listings.push({ id: 99902, address: '2 Test Addr Suppress', unit: '', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 1000000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
         var r = checkListingCompliance([99901, 99902]);
-        mockListings.splice(origLen);
+        listings.splice(origLen);
         var idxBlocked = r.blocked.some(function(b) { return b.id === 99901; });
         var addrWarned = r.warnings.some(function(w) { return w.id === 99902; });
         var caught = [];
@@ -2209,9 +2209,9 @@ function markFallbackUsed(functionName, details) {
 
 // Stable hash of listing IDs + compliance fields
 function computeDatasetHash() {
-    if (typeof mockListings === 'undefined') return 'NO_DATA';
+    if (typeof listings === 'undefined') return 'NO_DATA';
     var parts = [];
-    mockListings.forEach(function(l) {
+    listings.forEach(function(l) {
         parts.push([l.id, l.status, l.updatedDate || '',
             l.addressDisplayYN === undefined ? 'UNDEF' : String(l.addressDisplayYN),
             l.idxDisplayYN === undefined ? 'UNDEF' : String(l.idxDisplayYN),
@@ -2223,7 +2223,7 @@ function computeDatasetHash() {
         hash = ((hash << 5) - hash) + str.charCodeAt(i);
         hash = hash & hash;
     }
-    return 'H' + Math.abs(hash).toString(36) + '_L' + mockListings.length;
+    return 'H' + Math.abs(hash).toString(36) + '_L' + listings.length;
 }
 
 function setupStrictGuards() {
@@ -2441,54 +2441,54 @@ function SourceIntegrityTests(options) {
 
     // SRC-01: Required fields present in raw data (pre-render)
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) {
-            addResult('SRC-01', 'Required Fields in Raw Data', 'FAIL', 'mockListings undefined or empty');
+        if (typeof listings === 'undefined' || listings.length === 0) {
+            addResult('SRC-01', 'Required Fields in Raw Data', 'FAIL', 'listings undefined or empty');
             return;
         }
         var required = ['id','address','price','status','beds','baths','neighborhood'];
         var violations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             required.forEach(function(f) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') violations.push('L-' + l.id + '.' + f);
             });
         });
         addResult('SRC-01', 'Required Fields in Raw Data',
             violations.length === 0 ? 'PASS' : 'FAIL',
-            violations.length === 0 ? mockListings.length + ' listings, all ' + required.length + ' required fields present' :
+            violations.length === 0 ? listings.length + ' listings, all ' + required.length + ' required fields present' :
             violations.length + ' missing: ' + violations.slice(0, 10).join(', '));
     })();
 
     // SRC-02: Unknown / invalid enum tokens → FAIL
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'mockListings undefined'); return; }
+        if (typeof listings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'listings undefined'); return; }
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var VC = ['sale','rental','Sale','Rental'];
         var violations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.status && VS.indexOf(l.status) === -1) violations.push('L-' + l.id + '.status="' + l.status + '"');
             if (l.borough && VB.indexOf(l.borough) === -1) violations.push('L-' + l.id + '.borough="' + l.borough + '"');
             if (l.listingCategory && VC.indexOf(l.listingCategory) === -1) violations.push('L-' + l.id + '.category="' + l.listingCategory + '"');
         });
         addResult('SRC-02', 'Enum Token Validity',
             violations.length === 0 ? 'PASS' : 'FAIL',
-            violations.length === 0 ? mockListings.length + ' listings, all enum values valid' :
+            violations.length === 0 ? listings.length + ' listings, all enum values valid' :
             violations.length + ' invalid: ' + violations.slice(0, 5).join(', '));
     })();
 
     // SRC-03: Compliance flags fail-closed (missing = FAIL, not default-to-true)
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'FAIL', 'mockListings undefined'); return; }
+        if (typeof listings === 'undefined') { addResult('SRC-03', 'Compliance Flags Fail-Closed', 'FAIL', 'listings undefined'); return; }
         var complianceFlags = ['idxDisplayYN','addressDisplayYN'];
         var violations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             complianceFlags.forEach(function(flag) {
                 if (l[flag] === undefined) violations.push('L-' + l.id + '.' + flag + '=undefined');
             });
         });
         addResult('SRC-03', 'Compliance Flags Fail-Closed',
             violations.length === 0 ? 'PASS' : 'FAIL',
-            violations.length === 0 ? mockListings.length + ' listings, all compliance flags explicitly set' :
+            violations.length === 0 ? listings.length + ' listings, all compliance flags explicitly set' :
             violations.length + ' missing (treated as restricted): ' + violations.slice(0, 10).join(', '));
     })();
 
@@ -2689,14 +2689,14 @@ function AllowlistLeakTests(options) {
     // AL4: Customization tab writeback guard (ACTIVE)
     (function() {
         if (!runActive) { addResult('AL4', 'Writeback Guard', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('AL4', 'Writeback Guard', 'FAIL', 'mockListings undefined or empty — cannot test writeback guard'); return; }
-        var before = JSON.stringify(mockListings[0]);
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('AL4', 'Writeback Guard', 'FAIL', 'listings undefined or empty — cannot test writeback guard'); return; }
+        var before = JSON.stringify(listings[0]);
         try {
             if (typeof getOptionalContentConfig === 'function') getOptionalContentConfig();
             if (typeof getSelectedReportFields === 'function') getSelectedReportFields();
             if (typeof getSortedListings === 'function') getSortedListings();
         } catch(e) { /* ignore */ }
-        var after = JSON.stringify(mockListings[0]);
+        var after = JSON.stringify(listings[0]);
         addResult('AL4', 'Writeback Guard', before === after ? 'PASS' : 'FAIL',
             before === after ? 'Listing object not mutated by report config reads' : 'Listing MUTATED — side effect in report generators');
     })();
@@ -2731,9 +2731,9 @@ function SearchCorrectnessTests(options) {
     // S1: Type coercion test (ACTIVE)
     (function() {
         if (!runActive) { addResult('S1', 'Type Coercion', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
-        var numResult = filterListings(mockListings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
-        var strResult = filterListings(mockListings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and listings must exist'); return; }
+        var numResult = filterListings(listings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
+        var strResult = filterListings(listings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
         var numIds = numResult.map(function(l) { return l.id; }).sort();
         var strIds = strResult.map(function(l) { return l.id; }).sort();
         var match = numIds.length === strIds.length && numIds.every(function(id, i) { return id === strIds[i]; });
@@ -2744,9 +2744,9 @@ function SearchCorrectnessTests(options) {
     // S2: Range normalization (ACTIVE)
     (function() {
         if (!runActive) { addResult('S2', 'Range Normalization', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         var noErr = true, result = [];
-        try { result = filterListings(mockListings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
+        try { result = filterListings(listings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
         addResult('S2', 'Range Normalization', noErr ? 'PASS' : 'FAIL',
             noErr ? 'Min>Max handled gracefully → ' + result.length + ' results (no crash)' : 'Exception thrown on inverted range');
     })();
@@ -2754,8 +2754,8 @@ function SearchCorrectnessTests(options) {
     // S3: Multi-select AND/OR semantics (ACTIVE)
     (function() {
         if (!runActive) { addResult('S3', 'Multi-Select Semantics', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
-        var saleOnly = filterListings(mockListings, { searchTab: 'sale' });
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and listings must exist'); return; }
+        var saleOnly = filterListings(listings, { searchTab: 'sale' });
         var checks = [], issues = [];
         // Property type multi-select should be OR (broader results)
         if (saleOnly.length > 0) {
@@ -2763,8 +2763,8 @@ function SearchCorrectnessTests(options) {
             saleOnly.forEach(function(l) { if (l.propertyType) types[l.propertyType] = true; });
             var typeKeys = Object.keys(types);
             if (typeKeys.length >= 2) {
-                var single = filterListings(mockListings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
-                var multi = filterListings(mockListings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
+                var single = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
+                var multi = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
                 if (multi.length >= single.length) checks.push('type-OR(' + single.length + '→' + multi.length + ')');
                 else issues.push('Multi-type returned fewer results (AND instead of OR?)');
             } else { checks.push('single-type-only'); }
@@ -2878,14 +2878,14 @@ function SecurityHardeningV2Tests(options) {
          'REBNY_TOKEN','accessToken','secretKey','customerDatabase','clientDatabase'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exposed.push('window.' + g);
         });
-        // Check mockListings for private fields
-        if (typeof window.mockListings !== 'undefined' && window.mockListings.length > 0) {
-            var sample = window.mockListings[0];
+        // Check listings for private fields
+        if (typeof window.listings !== 'undefined' && window.listings.length > 0) {
+            var sample = window.listings[0];
             var privateInMock = [];
             ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN'].forEach(function(f) {
                 if (sample[f]) privateInMock.push(f);
             });
-            if (privateInMock.length > 0) exposed.push('mockListings has: ' + privateInMock.join(','));
+            if (privateInMock.length > 0) exposed.push('listings has: ' + privateInMock.join(','));
         }
         // Scan HTML for API keys
         var html = document.documentElement.outerHTML.substring(0, 100000);
@@ -2970,10 +2970,10 @@ function AccessibilityRESOPerfTests(options) {
 
     // RESO1: Field type coercion (numeric fields are numbers)
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'mockListings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var issues = [];
         var numericFields = ['price','beds','baths','sqft','daysOnMarket','pricePerSqft','lotSize','stories','units','garageSpaces'];
-        mockListings.forEach(function(l, idx) {
+        listings.forEach(function(l, idx) {
             numericFields.forEach(function(f) {
                 var val = l[f];
                 if (val !== undefined && val !== null && val !== '' && typeof val !== 'number' && isNaN(Number(val))) {
@@ -2982,17 +2982,17 @@ function AccessibilityRESOPerfTests(options) {
             });
         });
         addResult('RESO1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length === 0 ? 'All numeric fields valid across all ' + mockListings.length + ' listings' : issues.slice(0, 10).join('; '));
+            issues.length === 0 ? 'All numeric fields valid across all ' + listings.length + ' listings' : issues.slice(0, 10).join('; '));
     })();
 
     // RESO2: Required fields completeness
     (function() {
-        if (typeof mockListings === 'undefined' || mockListings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'mockListings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var coreRequired = ['id','address','price','status','beds','baths','neighborhood'];
         var extended = ['borough','listingCategory'];
         var coreViolations = [];
         var extViolations = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             coreRequired.forEach(function(f) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') coreViolations.push('L-' + l.id + '.' + f);
             });
@@ -3001,24 +3001,24 @@ function AccessibilityRESOPerfTests(options) {
             });
         });
         addResult('RESO2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
-            coreViolations.length === 0 ? mockListings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
+            coreViolations.length === 0 ? listings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
     })();
 
     // RESO3: Enumeration enforcement
     (function() {
-        if (typeof mockListings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'mockListings undefined — required test data missing'); return; }
+        if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
         var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
             'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var validCategories = ['sale','rental','Sale','Rental'];
         var issues = [];
-        mockListings.forEach(function(l) {
+        listings.forEach(function(l) {
             if (l.status && validStatuses.indexOf(l.status) === -1) issues.push('Status:"' + l.status + '" L-' + l.id);
             if (l.borough && validBoroughs.indexOf(l.borough) === -1) issues.push('Borough:"' + l.borough + '" L-' + l.id);
             if (l.listingCategory && validCategories.indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '" L-' + l.id);
         });
         addResult('RESO3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length === 0 ? 'All status/borough/category enums valid across ' + mockListings.length + ' listings' : issues.slice(0, 5).join('; '));
+            issues.length === 0 ? 'All status/borough/category enums valid across ' + listings.length + ' listings' : issues.slice(0, 5).join('; '));
     })();
 
     // PERF1: Render time threshold (ACTIVE)
@@ -3060,7 +3060,7 @@ function MutationRegressionTests(options) {
     // R1: Golden snapshot stability (ACTIVE)
     (function() {
         if (!runActive) { addResult('R1', 'Golden Snapshot', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         // 5 canonical test cases
         var cases = [
             { name: 'All sales', criteria: { searchTab: 'sale' } },
@@ -3072,7 +3072,7 @@ function MutationRegressionTests(options) {
         var snapKey = 'golden_snapshot_v1';
         var current = {};
         cases.forEach(function(c) {
-            var r = filterListings(mockListings, c.criteria);
+            var r = filterListings(listings, c.criteria);
             current[c.name] = { count: r.length, ids: r.slice(0, 5).map(function(l) { return l.id; }).join(',') };
         });
         var prev = null;
@@ -3096,17 +3096,17 @@ function MutationRegressionTests(options) {
     // R2: Break injection — red-team compliance gates (ACTIVE)
     (function() {
         if (!runActive) { addResult('R2', 'Break Injection', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof checkListingCompliance !== 'function' || typeof mockListings === 'undefined') {
-            addResult('R2', 'Break Injection', 'FAIL', 'Required: checkListingCompliance and mockListings must exist'); return;
+        if (typeof checkListingCompliance !== 'function' || typeof listings === 'undefined') {
+            addResult('R2', 'Break Injection', 'FAIL', 'Required: checkListingCompliance and listings must exist'); return;
         }
-        var origLen = mockListings.length;
+        var origLen = listings.length;
         // Inject 4 violation types
-        mockListings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
-        mockListings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
-        mockListings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
-        mockListings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88801, address: '1 IDX Block', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: false, addressDisplayYN: true });
+        listings.push({ id: 88802, address: '2 Addr Suppress', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: false });
+        listings.push({ id: 88803, address: '3 Unknown Status', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: 500000, status: 'INVALID_STATUS', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
+        listings.push({ id: 88804, address: '4 Missing Date', neighborhood: 'Test', borough: 'Manhattan', beds: 1, baths: 1, price: null, status: 'ACTIVE', listingCategory: 'sale', idxDisplayYN: true, addressDisplayYN: true });
         var r = checkListingCompliance([88801, 88802, 88803, 88804]);
-        mockListings.splice(origLen); // restore
+        listings.splice(origLen); // restore
         var caught = [], missed = [];
         if (r.blocked.some(function(b) { return b.id === 88801; })) caught.push('IDX-block');
         else missed.push('IDX-block');
@@ -3122,7 +3122,7 @@ function MutationRegressionTests(options) {
     // R3: Fuzz test — random criteria (ACTIVE)
     (function() {
         if (!runActive) { addResult('R3', 'Fuzz Test', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof mockListings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and mockListings must exist'); return; }
+        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and listings must exist'); return; }
         var errors = 0, runs = 100, dupRuns = 0;
         var boroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
         for (var i = 0; i < runs; i++) {
@@ -3134,7 +3134,7 @@ function MutationRegressionTests(options) {
                 boroughs: Math.random() > 0.5 ? [boroughs[Math.floor(Math.random() * boroughs.length)]] : undefined
             };
             try {
-                var result = filterListings(mockListings, criteria);
+                var result = filterListings(listings, criteria);
                 // Check for duplicates
                 var ids = {};
                 result.forEach(function(l) {

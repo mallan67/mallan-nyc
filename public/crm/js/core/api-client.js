@@ -283,6 +283,18 @@ var MallanAPI = (function () {
         method: 'DELETE',
       });
     },
+
+    // Agent self-edit endpoints
+    me: function () {
+      return _fetch('/api/crm/agents/me');
+    },
+
+    updateMe: function (data) {
+      return _fetch('/api/crm/agents/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
   };
 
   // ─── Deals ──────────────────────────────────────────────────────────────
@@ -367,16 +379,57 @@ var MallanAPI = (function () {
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.date_from) qs.push('date_from=' + encodeURIComponent(params.date_from));
       if (params.date_to) qs.push('date_to=' + encodeURIComponent(params.date_to));
+      if (params.type) qs.push('type=' + encodeURIComponent(params.type));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/crm/showings' + query);
     },
 
+    create: function (data) {
+      return _fetch('/api/crm/showings', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
     update: function (id, data) {
       return _fetch('/api/crm/showings/' + encodeURIComponent(id), {
         method: 'PATCH',
         body: JSON.stringify(data),
+      });
+    },
+  };
+
+  // ─── Past Deals ─────────────────────────────────────────────────────────
+
+  var pastDeals = {
+    list: function (params) {
+      params = params || {};
+      var qs = [];
+      if (params.agent_id) qs.push('agent_id=' + encodeURIComponent(params.agent_id));
+      if (params.deal_type) qs.push('deal_type=' + encodeURIComponent(params.deal_type));
+      var query = qs.length ? '?' + qs.join('&') : '';
+      return _fetch('/api/crm/past-deals' + query);
+    },
+
+    create: function (data) {
+      return _fetch('/api/crm/past-deals', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    update: function (id, data) {
+      return _fetch('/api/crm/past-deals/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+
+    remove: function (id) {
+      return _fetch('/api/crm/past-deals/' + encodeURIComponent(id), {
+        method: 'DELETE',
       });
     },
   };
@@ -443,7 +496,7 @@ var MallanAPI = (function () {
   var idx = {
     /**
      * Search listings via Trestle/REBNY RLS.
-     * Returns listings in CRM flat shape (same as mockListings).
+     * Returns listings in CRM flat shape (same as listings).
      * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip }
      */
     search: function (params) {
@@ -557,6 +610,7 @@ var MallanAPI = (function () {
     deals: deals,
     portal: portal,
     showings: showings,
+    pastDeals: pastDeals,
     savedSearches: savedSearches,
     email: email,
     idx: idx,

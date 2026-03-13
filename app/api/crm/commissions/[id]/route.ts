@@ -20,7 +20,12 @@ export async function PATCH(
   const existing = await prisma.commissionPayment.findUnique({ where: { id: paymentId } });
   if (!existing) return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
 
-  const body = await req.json();
+  let body: { status?: string; date?: string; reference?: string; notes?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
   const data: Record<string, unknown> = {};
   if (body.status) data.status = body.status;
   if (body.date) data.date = new Date(body.date);

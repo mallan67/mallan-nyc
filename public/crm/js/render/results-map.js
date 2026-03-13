@@ -8,7 +8,7 @@
  * Toggle: toggleResultsMap() — called from the toolbar map button.
  */
 
-/* global maplibregl, mockListings, searchResultsState, getFilteredListings, showListingDetail */
+/* global maplibregl, listings, searchResultsState, getFilteredListings, showListingDetail */
 
 (function () {
   'use strict';
@@ -199,7 +199,7 @@
     if (!_map || !_isOpen) return;
     var listings = (typeof getFilteredListings === 'function')
       ? getFilteredListings(true) // skipPagination = true to get ALL results
-      : (searchResultsState && searchResultsState.filteredListings) || mockListings || [];
+      : (searchResultsState && searchResultsState.filteredListings) || listings || [];
     addMarkers(listings);
   }
 
@@ -253,7 +253,7 @@
   // ── Pan to listing (called when clicking a card) ──
   window.panToListing = function (listingId) {
     if (!_map || !_isOpen) return;
-    var listings = (searchResultsState && searchResultsState.filteredListings) || mockListings || [];
+    var listings = (searchResultsState && searchResultsState.filteredListings) || listings || [];
     var l = listings.find(function (x) { return x.id === listingId; });
     if (!l) return;
     var lat = l.latitude || (l.geo && l.geo.lat);

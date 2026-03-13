@@ -1,12 +1,12 @@
 // /api/crm/past-deals
-// GET: List past deals (broker sees all, agent sees own). POST: Create. Broker-only for now.
+// GET: List past deals (broker sees all, agent sees own). POST: Create (agent creates own, broker creates for any).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireBroker(req);
+  const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
   const url = new URL(req.url);
@@ -14,7 +14,14 @@ export async function GET(req: NextRequest) {
   const dealType = url.searchParams.get("deal_type"); // "sale" | "rent"
 
   const where: Record<string, unknown> = {};
-  if (agentId) where.agent_id = BigInt(agentId);
+
+  // Ownership: agent sees only own deals, broker sees all (or filtered by agent_id)
+  if (auth.role !== "BROKER") {
+    where.agent_id = auth.userId;
+  } else if (agentId) {
+    where.agent_id = BigInt(agentId);
+  }
+
   if (dealType) where.deal_type = dealType;
 
   const deals = await prisma.pastDeal.findMany({
@@ -56,7 +63,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
-  const auth = await requireBroker(req);
+  const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
   let body: Record<string, unknown>;
@@ -66,13 +73,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const agentId = body.agent_id as string | undefined;
   const street = body.street as string | undefined;
   const dealType = body.deal_type as string | undefined;
 
-  if (!agentId || !street || !dealType) {
+  if (!street || !dealType) {
     return NextResponse.json(
-      { error: "agent_id, street, and deal_type are required" },
+      { error: "street and deal_type are required" },
       { status: 400 }
     );
   }
@@ -84,9 +90,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Agents always create deals for themselves. Broker can specify agent_id.
+  let targetAgentId: bigint;
+  if (auth.role === "BROKER" && body.agent_id) {
+    targetAgentId = BigInt(body.agent_id as string);
+  } else {
+    targetAgentId = auth.userId;
+  }
+
   const deal = await prisma.pastDeal.create({
     data: {
-      agent_id: BigInt(agentId),
+      agent_id: targetAgentId,
       street,
       unit: (body.unit as string) || null,
       city: (body.city as string) || "New York",
@@ -114,7 +128,7 @@ export async function POST(req: NextRequest) {
     "past_deal",
     deal.id.toString(),
     auth,
-    { street, deal_type: dealType },
+    { street, deal_type: dealType, agent_id: targetAgentId.toString() },
     req.headers.get("x-forwarded-for") ?? undefined
   );
 

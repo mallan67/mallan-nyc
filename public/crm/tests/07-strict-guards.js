@@ -36,9 +36,9 @@ function markFallbackUsed(functionName, details) {
 
 // Stable hash of listing IDs + compliance fields
 function computeDatasetHash() {
-    if (typeof mockListings === 'undefined') return 'NO_DATA';
+    if (typeof listings === 'undefined') return 'NO_DATA';
     var parts = [];
-    mockListings.forEach(function(l) {
+    listings.forEach(function(l) {
         parts.push([l.id, l.status, l.updatedDate || '',
             l.addressDisplayYN === undefined ? 'UNDEF' : String(l.addressDisplayYN),
             l.idxDisplayYN === undefined ? 'UNDEF' : String(l.idxDisplayYN),
@@ -51,7 +51,7 @@ function computeDatasetHash() {
         hash = ((hash << 5) - hash) + str.charCodeAt(i);
         hash = hash & hash;
     }
-    return 'H' + Math.abs(hash).toString(36) + '_L' + mockListings.length;
+    return 'H' + Math.abs(hash).toString(36) + '_L' + listings.length;
 }
 
 function setupStrictGuards() {

@@ -63,13 +63,23 @@ The backend CRM supports 6 portal types, each with different access levels:
 >
 > **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure, 24hr TTL with auto-rotation). Bearer fully removed.
 >
+> **Listing fetch strategy:** DB-first (Prisma, 20-80ms) → Trestle direct fallback (10s timeout) → API endpoint fallback. AbortController timeouts on all external calls (10s fetch, 8s auth). Graceful null returns on failure — pages never crash from Trestle outages.
+>
 > **Media pipeline:** Trestle photos/floor plans cached to R2 during ISR. `/api/media/proxy` as fallback (Bearer auth server-side, 7-day CDN cache).
 >
-> **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance.
+> **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance. Contact form has honeypot bot protection.
 >
 > **Commission system:** `CommissionPayment` model with fail-closed split validation. `FinancialLedger` for immutable transaction logging with tamper-detection hash chain.
 >
 > **CRM analytics (14 systems):** Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
+>
+> **Frontend resilience (added 2026-03-13):**
+> - Error boundaries: 7 error.tsx files (global + per-section)
+> - Loading states: 5 loading.tsx skeleton files
+> - SEO metadata: 9 layout.tsx files for client-side pages (noindex on private routes)
+> - Structured data: JSON-LD BreadcrumbList on listing pages
+> - Resource hints: preconnect/dns-prefetch for Trestle API
+> - Input validation: API pagination caps (200 listings, 50 transit), zip code OData injection prevention
 >
 > **Compliance libraries (server-side):**
 > - RLS Enforcement Gate (`lib/compliance/rls-enforcement.ts`) — 19 mandatory fields, 6 distribution gates, Fair Housing scanning

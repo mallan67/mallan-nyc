@@ -729,7 +729,7 @@ var SearchCore = (function() {
      *
      * @param {object} state - searchResultsState object with:
      *   { filteredListings, sortField, sortOrder, currentPage, perPage }
-     * @param {Array} allListings - Full mockListings array (fallback if no filter)
+     * @param {Array} allListings - Full listings array (fallback if no filter)
      * @param {boolean} [skipPagination] - True to get all results (for totals)
      * @returns {object} - { items, page, pageSize, totalItems, totalPages }
      *   or just the sorted array if skipPagination=true
@@ -757,7 +757,7 @@ var SearchCore = (function() {
      * Reads input values from the Quick Search card that contains the button.
      *
      * @param {HTMLElement} btn - The clicked Search button
-     * @param {Array} listings - Full mockListings array
+     * @param {Array} listings - Full listings array
      * @returns {Array} - Filtered results
      */
     function quickSearch(btn, listings) {

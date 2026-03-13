@@ -85,7 +85,7 @@
             var countEl = document.getElementById('reportDescCharCount');
             if (!descEl) return;
             // Get description from first selected listing
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var selIds = reportState.selectedListingIds || [];
             var listing = null;
             if (selIds.length > 0) {
@@ -150,7 +150,7 @@
                 }
             }
             // Check IDX opt-out listings
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var selectedIds = reportState.selectedListingIds;
             var selectedListings = selectedIds.length > 0
                 ? allListings.filter(function(l) { return selectedIds.indexOf(l.id) > -1; })
@@ -167,7 +167,7 @@
         // ── Open / Close modal ──
         function openReportsModal(selectedIds, presetOutput) {
             // Enforce 250 cap at selection model
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var selIds = selectedIds || searchResultsState.selectedListings || [];
             reportState.selectedListingIds = selIds.slice(0, 250);
 
@@ -535,22 +535,22 @@
             var agentInfo = typeof AGENT_PROFILE !== 'undefined' ? {
                 name: AGENT_PROFILE.name || '',
                 title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || 'Licensed Real Estate Broker',
-                company: AGENT_PROFILE.company || 'Mallan Real Estate Inc.',
+                company: AGENT_PROFILE.company || '',
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
                 license: AGENT_PROFILE.license || '',
-                companyLicense: AGENT_PROFILE.companyLicense || '#10991205323',
-                address: AGENT_PROFILE.address || '400 East 90th Street, Suite 17C, New York, NY 10128',
+                companyLicense: AGENT_PROFILE.companyLicense || '',
+                address: AGENT_PROFILE.address || '',
                 photo: AGENT_PROFILE.photo || ''
             } : {
                 name: '',
                 title: 'Licensed Real Estate Broker',
-                company: 'Mallan Real Estate Inc.',
+                company: '',
                 email: '',
                 phone: '',
                 license: '',
-                companyLicense: '#10991205323',
-                address: '400 East 90th Street, Suite 17C, New York, NY 10128',
+                companyLicense: '',
+                address: '',
                 photo: ''
             };
 
@@ -1885,7 +1885,7 @@
 
         // ── Wrap format-specific report HTML in an email-safe shell ──
         function wrapReportForEmail(reportBody, title, preparedFor, listings) {
-            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '', address: '400 East 90th Street, Suite 17C, New York, NY 10128', website: 'mallan.nyc' };
+            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
             var listingCount = listings ? listings.length : 0;
@@ -1918,7 +1918,7 @@
             h += '<tr><td style="padding:16px 32px;background:#1a1a1a;">';
             h += '<p style="margin:0;font-size:10px;color:#d1d5db;">Equal Housing Opportunity &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + '</p>';
             h += '<p style="margin:8px 0 0 0;font-size:9px;color:#6b7280;line-height:1.4;">';
-            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + '. ';
+            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '') + '. ';
             h += 'If you no longer wish to receive property updates, please reply with "Unsubscribe" in the subject line.</p>';
             h += '</td></tr>';
 
@@ -1929,7 +1929,7 @@
         // ── Build branded HTML email body (table-based, inline styles for Outlook) ──
         // NOTE: This is the legacy card-based email. Used by copyReportAndEmail() fallback.
         function buildBrandedEmailHTML(listings, title, preparedFor) {
-            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '', address: '400 East 90th Street, Suite 17C, New York, NY 10128', website: 'mallan.nyc' };
+            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
 
@@ -1976,7 +1976,7 @@
             h += '<span style="font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">Prepared By</span><br>';
             h += '<span style="font-size:14px;font-weight:600;color:#1a1a1a;">' + agent.name + '</span><br>';
             h += '<span style="font-size:12px;color:#4b5563;">' + (agent.licenseTitle || agent.title || 'Licensed Real Estate Broker') + '</span><br>';
-            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '#10991205323') + '</span><br>';
+            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '') + '</span><br>';
             h += '<span style="font-size:12px;color:#6b7280;">' + (agent.phone || '') + ' &middot; ' + (agent.email || '') + '</span>';
             h += '</td>';
             h += '<td style="vertical-align:top;width:50%;text-align:right;">';
@@ -2058,8 +2058,8 @@
             h += '<p style="margin:0 0 6px 0;font-size:10px;color:#6b7280;font-style:italic;">';
             h += 'Commission rates are not set by law and are fully negotiable. The commission on any particular listing is set by the listing participant and is disclosed to cooperating brokers.</p>';
             h += '<p style="margin:0;font-size:10px;color:#9ca3af;">';
-            h += agent.name + ', ' + (agent.title || 'Licensed Real Estate Broker') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '#10991205323') + '<br>';
-            h += (agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + ' &middot; ' + (agent.phone || '') + ' &middot; ' + (agent.website || 'mallan.nyc') + '</p>';
+            h += agent.name + ', ' + (agent.title || 'Licensed Real Estate Broker') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '') + '<br>';
+            h += (agent.address || '') + ' &middot; ' + (agent.phone || '') + ' &middot; ' + (agent.website || 'mallan.nyc') + '</p>';
             h += '</td></tr>';
 
             // ── Equal Housing + CAN-SPAM Footer ──
@@ -2072,7 +2072,7 @@
             h += '</td>';
             h += '</tr></table>';
             h += '<p style="margin:8px 0 0 0;font-size:9px;color:#6b7280;line-height:1.4;">';
-            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '400 East 90th Street, Suite 17C, New York, NY 10128') + '. ';
+            h += 'This email was sent by ' + agent.name + ' at ' + (agent.company || 'Mallan Real Estate Inc.') + ', ' + (agent.address || '') + '. ';
             h += 'If you no longer wish to receive property updates, please reply with "Unsubscribe" in the subject line.</p>';
             h += '</td></tr>';
 
@@ -2306,7 +2306,7 @@
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
             var reportSel = reportSelRadio ? reportSelRadio.value : 'all';
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var listings;
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
@@ -2338,17 +2338,17 @@
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
                 license: AGENT_PROFILE.license || '',
-                companyLicense: AGENT_PROFILE.companyLicense || '#10991205323',
-                address: AGENT_PROFILE.address || '400 East 90th Street, Suite 17C, New York, NY 10128'
+                companyLicense: AGENT_PROFILE.companyLicense || '',
+                address: AGENT_PROFILE.address || ''
             } : {
                 name: '',
                 title: 'Licensed Real Estate Broker',
-                company: 'Mallan Real Estate Inc.',
+                company: '',
                 email: '',
                 phone: '',
                 license: '',
-                companyLicense: '#10991205323',
-                address: '400 East 90th Street, Suite 17C, New York, NY 10128'
+                companyLicense: '',
+                address: ''
             };
         }
 
@@ -2356,7 +2356,7 @@
         // Called from List report address links — shows Detail format without
         // listing agent info or building contact (customer version)
         function openClientDetailReport(listingId) {
-            var allListings = searchResultsState.filteredListings || mockListings;
+            var allListings = searchResultsState.filteredListings || listings;
             var l = null;
             for (var i = 0; i < allListings.length; i++) {
                 if (allListings[i].id === listingId) { l = allListings[i]; break; }
@@ -2802,7 +2802,7 @@
 
         // ── Quick print: open a single-listing Detail report in a new tab ──
         function quickPrintReport(listingId) {
-            var listing = mockListings.find(function(l) { return l.id === listingId; });
+            var listing = listings.find(function(l) { return l.id === listingId; });
             if (!listing) return;
 
             // Save current state

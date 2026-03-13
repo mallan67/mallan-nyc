@@ -71,8 +71,13 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const { name, description, experiment_type, target_sample_size, control_arm, treatment_arm } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { name, description, experiment_type, target_sample_size, control_arm, treatment_arm } = body as { name?: string; description?: string; experiment_type?: string; target_sample_size?: number; control_arm?: { name?: string; config?: Record<string, unknown> }; treatment_arm?: { name?: string; config?: Record<string, unknown> } };
 
   if (!name || typeof name !== "string") {
     return NextResponse.json({ ok: false, error: "name is required" }, { status: 400 });

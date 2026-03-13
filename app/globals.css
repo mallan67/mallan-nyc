@@ -398,6 +398,30 @@ header button:focus-visible {
 /* Color contrast: Tailwind v4 gray-500 (#6b7280) passes AA 4.5:1 on white */
 /* Color contrast: Tailwind v4 gray-400 (#9ca3af) — decorative/non-essential only */
 
+/* ---------- Print Stylesheet ---------- */
+@media print {
+  header, footer, nav,
+  .cookie-consent, .exit-intent,
+  .skip-link, .translate-widget,
+  [data-analytics-cta] { display: none !important; }
+
+  body { background: white !important; color: black !important; font-size: 12pt; }
+
+  main { padding: 0 !important; margin: 0 !important; }
+
+  a { color: black !important; text-decoration: underline; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #666; }
+  a[href^="#"]::after, a[href^="tel:"]::after, a[href^="mailto:"]::after { content: ""; }
+
+  img { max-width: 100% !important; page-break-inside: avoid; }
+
+  h1, h2, h3 { page-break-after: avoid; }
+
+  .glass-card { background: white !important; box-shadow: none !important; border: 1px solid #ddd !important; }
+
+  @page { margin: 1cm; }
+}
+
 /* ═══ SEARCH PAGE — Filter panel slide-in ═══ */
 @keyframes slideInRight {
   from { transform: translateX(100%); }

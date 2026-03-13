@@ -1,12 +1,28 @@
-import { NextResponse } from "next/server";
-export const runtime = "nodejs";
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import prisma from '@/lib/prisma';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const key = searchParams.get('key');
-  const expectedKey = process.env.PRIVATE_COLLECTION_PASS;
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-  if (!expectedKey || key !== expectedKey) {
+/**
+ * GET /api/health/env
+ *
+ * Returns boolean indicators for environment variable presence.
+ * Broker-only — requires session cookie auth.
+ */
+export async function GET(_request: NextRequest) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session_token')?.value;
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const session = await prisma.session.findUnique({
+    where: { token },
+    select: { role: true, expires_at: true },
+  });
+  if (!session || session.expires_at < new Date() || session.role !== 'BROKER') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -22,9 +38,6 @@ export async function GET(request: Request) {
       SODA_DATASET_ACRIS_MASTER: !!process.env.SODA_DATASET_ACRIS_MASTER,
       SODA_DATASET_ACRIS_REALPROPERTY: !!process.env.SODA_DATASET_ACRIS_REALPROPERTY,
       NYC_GEOCLIENT_SUBSCRIPTION_KEY: !!process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY,
-      NYC_GEOCLIENT_APP_ID: !!process.env.NYC_GEOCLIENT_APP_ID,
-      NYC_GEOCLIENT_APP_KEY: !!process.env.NYC_GEOCLIENT_APP_KEY,
-      GEOCLIENT_APP_KEY: !!process.env.GEOCLIENT_APP_KEY,
     },
   });
 }

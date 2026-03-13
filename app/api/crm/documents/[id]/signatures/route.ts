@@ -24,12 +24,17 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  }
 
   // If signature_id provided, record a signature
   if (body.signature_id) {
     try {
-      const sig = await recordSignature(BigInt(body.signature_id), body.ip_address);
+      const sig = await recordSignature(BigInt(body.signature_id as string), body.ip_address as string | undefined);
       await logAuditEvent("sign", "document_signature", sig.id.toString(), auth);
       return NextResponse.json({
         ok: true,
@@ -42,7 +47,7 @@ export async function POST(
   }
 
   // Otherwise, add a new signer
-  const { signer_name, signer_email, signer_role } = body;
+  const { signer_name, signer_email, signer_role } = body as { signer_name?: string; signer_email?: string; signer_role?: string };
   if (!signer_name || !signer_email || !signer_role) {
     return NextResponse.json({ ok: false, error: "signer_name, signer_email, signer_role required" }, { status: 400 });
   }

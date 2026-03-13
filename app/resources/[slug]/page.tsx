@@ -31,8 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: `https://mallan.nyc/resources/${slug}` },
-    openGraph: { title, description, url: `https://mallan.nyc/resources/${slug}` },
-    twitter: { card: 'summary_large_image', title, description },
+    openGraph: {
+      title,
+      description,
+      url: `https://mallan.nyc/resources/${slug}`,
+      images: [{ url: 'https://mallan.nyc/images/og-default.png', width: 1200, height: 630, alt: titles[slug] || 'Resource' }],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: ['https://mallan.nyc/images/og-default.png'] },
   };
 }
 

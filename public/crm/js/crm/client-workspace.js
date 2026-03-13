@@ -3390,10 +3390,10 @@
             var newCount = 0;
             var today = new Date().toISOString().slice(0, 10);
 
-            // Scan each saved search against mockListings
+            // Scan each saved search against listings
             c.savedSearches.forEach(function(search) {
                 var criteria = search.criteria || {};
-                var matches = (typeof mockListings !== 'undefined' ? mockListings : []).filter(function(listing) {
+                var matches = (typeof listings !== 'undefined' ? listings : []).filter(function(listing) {
                     if (!listing || listing.status === 'CLOSED') return false;
                     // ── UCBA Distribution Gate Enforcement (6 gates) ──
                     // Gate 1: Owner Opt-Out — NEVER deliver opted-out listings
@@ -3475,7 +3475,7 @@
             var today = new Date().toISOString().slice(0, 10);
 
             portfolioListings.forEach(function(pl) {
-                var listing = (typeof mockListings !== 'undefined' ? mockListings : []).find(function(ml) {
+                var listing = (typeof listings !== 'undefined' ? listings : []).find(function(ml) {
                     return String(ml.id) === pl.listingId || ml.address + (ml.unit ? ' ' + ml.unit : '') === pl.address;
                 });
                 if (!listing || !listing.priceChange) return;

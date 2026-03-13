@@ -41,6 +41,8 @@ export default function ContactPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  // Honeypot: invisible field to catch bots. If filled, silently reject.
+  const [hp, setHp] = useState('');
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -75,6 +77,12 @@ export default function ContactPage() {
     e.preventDefault();
 
     if (!validateForm()) return;
+
+    // Honeypot: if bot filled the invisible field, fake success without sending
+    if (hp) {
+      setSubmitStatus('success');
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitStatus('idle');
@@ -202,6 +210,19 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} noValidate>
+                    {/* Honeypot field — invisible to users, catches bots */}
+                    <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                      <label htmlFor="website">Website</label>
+                      <input
+                        type="text"
+                        id="website"
+                        name="website"
+                        value={hp}
+                        onChange={(e) => setHp(e.target.value)}
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+                    </div>
                     <div className="space-y-6">
                       {/* Name */}
                       <div>

@@ -149,6 +149,7 @@ model Lead {
   agent_id        BigInt?  @map("agent_id")
   agent           Agent?   @relation(fields: [agent_id], references: [id])
   source          String   @default("website") // website, referral, manual
+  anonymous_session_id String? @map("anonymous_session_id") // links pre-identification behavioral events
   consent_captured_at DateTime? @map("consent_captured_at") // TCPA/CAN-SPAM consent timestamp
   preferences     ClientPreference?
   actions         ClientListingAction[]
@@ -1067,4 +1068,150 @@ model FinancialLedger {
   @@index([entry_type])
   @@index([created_at])
   @@map("financial_ledger")
+}
+
+// ═══════════════════════════════════════════════════════════
+// S. BEHAVIORAL EVENT — Granular micro-signal tracking
+// ═══════════════════════════════════════════════════════════
+model BehavioralEvent {
+  id              BigInt    @id @default(autoincrement())
+  session_id      String    @map("session_id")           // anonymous or authenticated session
+  lead_id         BigInt?   @map("lead_id")              // nullable until identified
+  listing_id      String?   @map("listing_id")
+  event_type      String    @map("event_type")           // scroll_back_price, photo_dwell, calculator_depth, return_visit, comparison_add, share, transit_check, school_check, favorite_remove, search_narrow
+  value           Float?                                  // numeric value (e.g., dwell seconds, calculator iterations)
+  metadata        Json      @default("{}")                // additional context
+  page_path       String?   @map("page_path")
+  recorded_at     DateTime  @default(now()) @map("recorded_at")
+
+  @@index([session_id])
+  @@index([lead_id])
+  @@index([listing_id])
+  @@index([event_type])
+  @@index([recorded_at])
+  @@index([lead_id, event_type])
+  @@map("behavioral_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// T. CONVICTION SCORE — Buyer readiness assessment
+// ═══════════════════════════════════════════════════════════
+model ConvictionScore {
+  id                    BigInt    @id @default(autoincrement())
+  lead_id               BigInt    @unique @map("lead_id")
+  score                 Int       @default(0)              // 0-100
+  stage                 String    @default("browsing")     // browsing, considering, convinced, ready
+  milestone_flags       Json      @default("{}")           // { repeated_views, shared, used_calculator, compared, checked_transit, checked_schools, requested_showing }
+  hesitation_signals    Json      @default("{}")           // { price_scroll_backs, tab_switches, long_gaps }
+  ghost_status          String    @default("active")       // active, cooling, silent, gone
+  last_active_at        DateTime? @map("last_active_at")
+  silence_days          Int       @default(0) @map("silence_days")
+  search_narrowing_trend Float?  @map("search_narrowing_trend")
+  top_listings          Json      @default("[]")           // top 5 listing IDs by engagement
+  last_computed         DateTime  @default(now()) @map("last_computed")
+
+  created_at            DateTime  @default(now()) @map("created_at")
+  updated_at            DateTime  @updatedAt @map("updated_at")
+
+  @@index([score])
+  @@index([ghost_status])
+  @@map("conviction_scores")
+}
+
+// ═══════════════════════════════════════════════════════════
+// U. LISTING MOMENTUM — Per-listing performance score
+// ═══════════════════════════════════════════════════════════
+model ListingMomentum {
+  id              BigInt    @id @default(autoincrement())
+  listing_id      String    @unique @map("listing_id")
+  score           Int       @default(0)                    // 0-100
+  view_velocity   Float     @default(0) @map("view_velocity")     // views per day
+  save_rate       Float     @default(0) @map("save_rate")         // saves / views
+  inquiry_rate    Float     @default(0) @map("inquiry_rate")      // inquiries / views
+  showing_rate    Float     @default(0) @map("showing_rate")      // showing requests / views
+  avg_dwell_secs  Float     @default(0) @map("avg_dwell_secs")    // avg time on listing page
+  comp_avg_score  Int       @default(50) @map("comp_avg_score")   // avg score of comparable listings
+  percentile_rank Int       @default(50) @map("percentile_rank")  // 0-100 vs all active listings
+  components      Json      @default("{}")                         // breakdown of score components
+  last_computed   DateTime  @default(now()) @map("last_computed")
+
+  @@index([score])
+  @@map("listing_momentum")
+}
+
+// ═══════════════════════════════════════════════════════════
+// V. SOCIAL PROOF CACHE — Anonymized demand signals per listing
+// ═══════════════════════════════════════════════════════════
+model SocialProofCache {
+  id                   BigInt    @id @default(autoincrement())
+  listing_id           String    @unique @map("listing_id")
+  view_count_7d        Int       @default(0) @map("view_count_7d")
+  save_count           Int       @default(0) @map("save_count")
+  showings_this_week   Int       @default(0) @map("showings_this_week")
+  similar_sold_speed   Int?      @map("similar_sold_speed")        // avg days to sell for similar
+  demand_level         String    @default("moderate")              // low, moderate, high, very_high
+  last_computed        DateTime  @default(now()) @map("last_computed")
+
+  @@map("social_proof_cache")
+}
+
+// ═══════════════════════════════════════════════════════════
+// W. MICRO-COMMITMENT — Progressive identity capture
+// ═══════════════════════════════════════════════════════════
+model MicroCommitment {
+  id                    BigInt    @id @default(autoincrement())
+  anonymous_session_id  String    @map("anonymous_session_id")
+  lead_id               BigInt?   @map("lead_id")
+  stage                 String    @default("anonymous")            // anonymous, soft_identity, full_identity
+  email                 String?
+  source                String?                                     // price_alert, save_search, cma_offer, registration_gate, calculator
+  consent_captured_at   DateTime? @map("consent_captured_at")
+  created_at            DateTime  @default(now()) @map("created_at")
+  updated_at            DateTime  @updatedAt @map("updated_at")
+
+  @@index([anonymous_session_id])
+  @@index([lead_id])
+  @@index([email])
+  @@map("micro_commitments")
+}
+
+// ═══════════════════════════════════════════════════════════
+// X. LIFECYCLE TRIGGERS — Event-driven automation rules
+// ═══════════════════════════════════════════════════════════
+model LifecycleTrigger {
+  id                BigInt    @id @default(autoincrement())
+  name              String
+  trigger_type      String    @map("trigger_type")       // conviction_threshold, ghost_detected, comparable_sale, market_window, momentum_drop, inquiry_stale
+  conditions        Json      @default("{}")              // e.g., { min_score: 75 } or { silence_days: 7 }
+  action_type       String    @map("action_type")        // notification, email, agent_alert, crm_task
+  action_config     Json      @default("{}")              // template, recipients, etc.
+  enabled           Boolean   @default(true)
+  cooldown_hours    Int       @default(24) @map("cooldown_hours")
+  last_executed_at  DateTime? @map("last_executed_at")
+  execution_count   Int       @default(0) @map("execution_count")
+
+  executions        TriggerExecution[]
+
+  created_at        DateTime  @default(now()) @map("created_at")
+  updated_at        DateTime  @updatedAt @map("updated_at")
+
+  @@index([trigger_type])
+  @@index([enabled])
+  @@map("lifecycle_triggers")
+}
+
+model TriggerExecution {
+  id              BigInt    @id @default(autoincrement())
+  trigger_id      BigInt    @map("trigger_id")
+  trigger         LifecycleTrigger @relation(fields: [trigger_id], references: [id])
+  target_type     String    @map("target_type")          // lead, listing, agent
+  target_id       String    @map("target_id")
+  context         Json      @default("{}")
+  result          String    @default("success")          // success, suppressed, failed
+  created_at      DateTime  @default(now()) @map("created_at")
+
+  @@index([trigger_id])
+  @@index([target_type, target_id])
+  @@index([created_at])
+  @@map("trigger_executions")
 }

@@ -13,9 +13,9 @@
       "trestle-metadata.xml (OData baseline)"
     ],
     "stats": {
-      "totalFields": 889,
+      "totalFields": 893,
       "rebnyFields": 448,
-      "trestleOnlyFields": 432,
+      "trestleOnlyFields": 436,
       "supplementFields": 9,
       "totalEnums": 164,
       "rebnyEnums": 105,
@@ -32,6 +32,77 @@
         "system": 83
       },
       "complianceGates": 5
+    },
+    "trestleArchitecture": {
+      "description": "Documents how REBNY RLS fields are accessed via the Trestle API. Three distinct mechanisms exist.",
+      "lastUpdated": "2026-03-13",
+      "mechanisms": {
+        "1_PropertyEntity": {
+          "description": "Standard RESO fields on the Trestle Property entity. Accessed directly via OData $select.",
+          "fieldCount": "~580 fields",
+          "examples": [
+            "ListPrice",
+            "BedroomsTotal",
+            "Heating",
+            "PetsAllowed"
+          ]
+        },
+        "2_CustomPropertyEntity": {
+          "description": "Extension fields on Trestle's CustomProperty entity. Requires $expand=CustomProperty in the API call. Contains both named typed columns (AdditionalFee*) and a CustomFields JSON blob (MaxLength 100000).",
+          "accessMethod": "$expand=CustomProperty",
+          "namedColumns": [
+            "AdditionalFee",
+            "AdditionalFeeYN",
+            "AdditionalFeeDescription",
+            "AdditionalFeeFrequency"
+          ],
+          "customFieldsBlob": "CustomFields (Edm.String, MaxLength=100000) — JSON blob where REBNY-specific fields may be stored"
+        },
+        "3_BuildingLevelSplit": {
+          "description": "REBNY defines separate building-level fields (e.g., BuildingHeating) that do NOT exist as typed Trestle fields. Instead, Trestle implements building-level values as Building*-prefixed enum members within parent fields (e.g., Heating enum includes BuildingCitySteam, BuildingElectric). Consumer must parse and split these from unit-level values.",
+          "fields": [
+            "BuildingAccessibilityFeatures → AccessibilityFeatures parent",
+            "BuildingCooling → Cooling parent",
+            "BuildingExteriorFeatures → ExteriorFeatures parent",
+            "BuildingFencing → Fencing parent",
+            "BuildingHeating → Heating parent",
+            "BuildingLaundryFeatures → LaundryFeatures parent",
+            "BuildingParkingFeatures → ParkingFeatures parent",
+            "BuildingPatioAndPorchFeatures → PatioAndPorchFeatures parent",
+            "BuildingPetsAllowed → PetsAllowed parent",
+            "BuildingPoolFeatures → PoolFeatures parent",
+            "BuildingSecurityFeatures → SecurityFeatures parent"
+          ]
+        },
+        "4_RebnyCustomFields": {
+          "description": "~10 fields defined by REBNY that have NO equivalent on Trestle's Property or CustomProperty typed schema. These were created by REBNY and hosted on the Trestle platform. Likely accessed via the CustomFields JSON blob on CustomProperty entity. Requires verification with live API calls.",
+          "fields": [
+            "AttendanceType",
+            "BuildingStaffType",
+            "BuildingRules",
+            "BuildingCondition",
+            "BathroomCondition",
+            "KitchenCondition",
+            "FlipTaxType",
+            "LeaseType",
+            "CoBrokeAgreement",
+            "Permissions"
+          ],
+          "nycContext": "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national RESO standard."
+        }
+      },
+      "knownCsvErrors": [
+        {
+          "field": "StreetSuffix",
+          "line": 1945,
+          "issue": "REBNY CSV maps abbreviation 'Mews' to value 'Meadows'. Mews is a distinct NYC street suffix (Washington Mews, Sniffen Court Mews). Meadows does not exist as a NYC street suffix."
+        },
+        {
+          "field": "BuildingStaffType",
+          "line": 677,
+          "issue": "Value 'ResidenManagerFullTime' — likely typo, missing 't' (should be 'ResidentManagerFullTime'). Registry preserves CSV value exactly. Column C uses 'BuildingStaff' while Column F uses 'BuildingStaffType' — name mismatch in CSV."
+        }
+      ]
     }
   },
   "fields": {
@@ -593,12 +664,12 @@
     "AttendanceType": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "AttendanceType",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "The types of building attendants on the property.",
       "lmpAddEdit": true,
@@ -610,7 +681,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "AvailabilityDate": {
       "isRebny": true,
@@ -725,12 +797,12 @@
     "BathroomCondition": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BathroomCondition",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "General condition of the property's bathroom(s).",
       "lmpAddEdit": true,
@@ -742,7 +814,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "BathroomsFull": {
       "isRebny": true,
@@ -1045,13 +1118,13 @@
     "BuildingAccessibilityFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingAccessibilityFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list or description of the accessibility features in the building. (Not pertaining to the specific listing that is for sale or lease)",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1062,7 +1135,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent AccessibilityFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingAreaSource": {
       "isRebny": true,
@@ -1136,12 +1210,12 @@
     "BuildingCondition": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingCondition",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "A listing describing the condition of the building.",
       "lmpAddEdit": true,
@@ -1153,18 +1227,19 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "BuildingCooling": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingCooling",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list describing the cooling features of the buildings common areas.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1175,7 +1250,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent Cooling field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingEntryLocation": {
       "isRebny": true,
@@ -1202,13 +1278,13 @@
     "BuildingExteriorFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingExteriorFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list of features or description of the exterior of the building.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1219,7 +1295,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent ExteriorFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingFeatures": {
       "isRebny": true,
@@ -1246,13 +1323,13 @@
     "BuildingFencing": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingFencing",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list of types of fencing found at the building.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1263,18 +1340,19 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent Fencing field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingHeating": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingHeating",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list describing the heating features of the building.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1285,18 +1363,19 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent Heating field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingLaundryFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingLaundryFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "Pick list of features/services and locations where the laundry is located in the building including dry cleaning/laundry services.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1307,7 +1386,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent LaundryFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingName": {
       "isRebny": true,
@@ -1340,13 +1420,13 @@
     "BuildingParkingFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingParkingFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list of features or description of the parking included in the building.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1357,7 +1437,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent ParkingFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingParkingTotal": {
       "isRebny": true,
@@ -1384,13 +1465,13 @@
     "BuildingPatioAndPorchFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingPatioAndPorchFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list of features or description of the patio or porch on the property. This includes: terrace or roof deck",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1401,18 +1482,19 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent PatioAndPorchFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingPetsAllowed": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingPetsAllowed",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "Indicate the pet policy for the building. Please note, the building policy can be different from what the unit owner will permit.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1423,7 +1505,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent PetsAllowed field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingPetsAllowedComments": {
       "isRebny": true,
@@ -1450,13 +1533,13 @@
     "BuildingPoolFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingPoolFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list of features or description of the pool for common use or access for the building residents",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1467,18 +1550,19 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent PoolFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingRules": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingRules",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "Building-level property rules.",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1489,18 +1573,19 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "BuildingSecurityFeatures": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingSecurityFeatures",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "A list describing the security features on the property",
       "lmpAddEdit": true,
       "lmpSearch": true,
@@ -1511,7 +1596,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "Building-level split: REBNY treats this as a separate field. On Trestle, building-level values exist as Building*-prefixed enum members within the parent SecurityFeatures field on the Property entity. Consumer must split Building*-prefixed values from unit-level values. Also may appear in CustomFields JSON on CustomProperty entity."
     },
     "BuildingSmokeFreeYN": {
       "isRebny": true,
@@ -1560,12 +1646,12 @@
     "BuildingStaffType": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "BuildingStaffType",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "Types of staff employed by the building or association.",
       "lmpAddEdit": true,
@@ -1577,7 +1663,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "BuildingTaxLot": {
       "isRebny": true,
@@ -2402,12 +2489,12 @@
     "CoBrokeAgreement": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "CoBrokeAgreement",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "REBNY co-brokerage agreement type.  REBNY Universal Co-broke/REBNY New Development Co-broke/RUNDBA.",
       "lmpAddEdit": true,
@@ -2419,7 +2506,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "CoBuyerAgentDirectPhone": {
       "isRebny": true,
@@ -4353,12 +4441,12 @@
     "FlipTaxType": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "FlipTaxType",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "A list of types to clarify the value entered in the FlipTax field. For example $, % or some other clarification of the FlipTax.",
       "lmpAddEdit": true,
@@ -4370,7 +4458,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "Flooring": {
       "isRebny": true,
@@ -5129,12 +5218,12 @@
     "KitchenCondition": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "KitchenCondition",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "General condition of the property's kitchen(s).",
       "lmpAddEdit": true,
@@ -5146,7 +5235,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "LaborInformation": {
       "isRebny": true,
@@ -5377,12 +5467,12 @@
     "LeaseType": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "LeaseType",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": false,
       "rebnyDescription": "The lease type. Options are Stabilized lease and Non-stabilized lease.",
       "lmpAddEdit": true,
@@ -5394,7 +5484,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "LegalRoomsTotal": {
       "isRebny": true,
@@ -7657,13 +7748,13 @@
     "Permissions": {
       "isRebny": true,
       "trestleMatch": false,
-      "dataType": null,
+      "dataType": "Permissions",
       "maxLength": null,
       "precision": null,
       "scale": null,
       "nullable": null,
-      "isEnum": false,
-      "isMultiEnum": false,
+      "isEnum": true,
+      "isMultiEnum": true,
       "rebnyDescription": "The level of access permission for the listing. Only listings marked Private (Participant's Only Listing) will be accessible.",
       "lmpAddEdit": true,
       "lmpSearch": false,
@@ -7674,7 +7765,8 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": null,
+      "trestleAccessMethod": "REBNY-custom field. NOT on Trestle Property or CustomProperty typed columns. Defined by REBNY, hosted by Trestle. Likely accessed via CustomFields JSON blob on CustomProperty entity ($expand=CustomProperty). Requires verification with live API call."
     },
     "PestControlExpense": {
       "isRebny": true,
@@ -17254,7 +17346,7 @@
       "precision": null,
       "scale": null,
       "nullable": true,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": true,
       "rebnyDescription": null,
       "lmpAddEdit": false,
@@ -17266,7 +17358,7 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": "FARE Act (NYC LL 119/2024) fee disclosure field. NOT in REBNY 448-field list (isRebny=false) but REBNY lookup CSV provides values (lookup isRebny=true). This is intentional: REBNY defines values for this Trestle-global field. Accessed on Trestle Property entity."
     },
     "OpenHouseModificationTimestamp": {
       "isRebny": false,
@@ -19234,7 +19326,7 @@
       "precision": null,
       "scale": null,
       "nullable": true,
-      "isEnum": false,
+      "isEnum": true,
       "isMultiEnum": true,
       "rebnyDescription": null,
       "lmpAddEdit": false,
@@ -19246,7 +19338,7 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": "FARE Act (NYC LL 119/2024) fee disclosure field. NOT in REBNY 448-field list (isRebny=false) but REBNY lookup CSV provides values (lookup isRebny=true). This is intentional: REBNY defines values for this Trestle-global field. Accessed on Trestle Property entity."
     },
     "TenantPaysDescription": {
       "isRebny": false,
@@ -19268,7 +19360,7 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": null
+      "complianceNotes": "FARE Act (NYC LL 119/2024) companion field. NOT in REBNY 448-field list. Free-text description accompanying TenantPays picklist. Accessed on Trestle Property entity."
     },
     "Topography": {
       "isRebny": false,
@@ -19863,6 +19955,98 @@
       "allowedSurfaces": null,
       "searchDomIds": null,
       "complianceNotes": null
+    },
+    "AdditionalFee": {
+      "isRebny": false,
+      "trestleMatch": true,
+      "dataType": "Decimal",
+      "maxLength": null,
+      "precision": 14,
+      "scale": 2,
+      "nullable": true,
+      "isEnum": false,
+      "isMultiEnum": false,
+      "rebnyDescription": null,
+      "lmpAddEdit": false,
+      "lmpSearch": false,
+      "required": "No",
+      "conditionalRule": null,
+      "displayTier": "idx",
+      "canonicalKey": null,
+      "label": null,
+      "allowedSurfaces": null,
+      "searchDomIds": null,
+      "trestleAccessMethod": "CustomProperty entity — requires $expand=CustomProperty in Trestle API call",
+      "complianceNotes": "FARE Act (NYC LL 119/2024). On Trestle CustomProperty entity (NOT Property). Requires $expand=CustomProperty. Dollar amount of additional fee."
+    },
+    "AdditionalFeeYN": {
+      "isRebny": false,
+      "trestleMatch": true,
+      "dataType": "Boolean",
+      "maxLength": null,
+      "precision": null,
+      "scale": null,
+      "nullable": true,
+      "isEnum": false,
+      "isMultiEnum": false,
+      "rebnyDescription": null,
+      "lmpAddEdit": false,
+      "lmpSearch": false,
+      "required": "No",
+      "conditionalRule": null,
+      "displayTier": "idx",
+      "canonicalKey": null,
+      "label": null,
+      "allowedSurfaces": null,
+      "searchDomIds": null,
+      "trestleAccessMethod": "CustomProperty entity — requires $expand=CustomProperty in Trestle API call",
+      "complianceNotes": "FARE Act (NYC LL 119/2024). On Trestle CustomProperty entity (NOT Property). Requires $expand=CustomProperty. Boolean: does an additional fee apply?"
+    },
+    "AdditionalFeeDescription": {
+      "isRebny": false,
+      "trestleMatch": true,
+      "dataType": "String",
+      "maxLength": "1024",
+      "precision": null,
+      "scale": null,
+      "nullable": true,
+      "isEnum": false,
+      "isMultiEnum": false,
+      "rebnyDescription": null,
+      "lmpAddEdit": false,
+      "lmpSearch": false,
+      "required": "No",
+      "conditionalRule": null,
+      "displayTier": "idx",
+      "canonicalKey": null,
+      "label": null,
+      "allowedSurfaces": null,
+      "searchDomIds": null,
+      "trestleAccessMethod": "CustomProperty entity — requires $expand=CustomProperty in Trestle API call",
+      "complianceNotes": "FARE Act (NYC LL 119/2024). On Trestle CustomProperty entity (NOT Property). Requires $expand=CustomProperty. Free-text description of additional fee."
+    },
+    "AdditionalFeeFrequency": {
+      "isRebny": false,
+      "trestleMatch": true,
+      "dataType": "FeeFrequency",
+      "maxLength": null,
+      "precision": null,
+      "scale": null,
+      "nullable": true,
+      "isEnum": true,
+      "isMultiEnum": false,
+      "rebnyDescription": null,
+      "lmpAddEdit": false,
+      "lmpSearch": false,
+      "required": "No",
+      "conditionalRule": null,
+      "displayTier": "idx",
+      "canonicalKey": null,
+      "label": null,
+      "allowedSurfaces": null,
+      "searchDomIds": null,
+      "trestleAccessMethod": "CustomProperty entity — requires $expand=CustomProperty in Trestle API call. Uses FeeFrequency enum (same as AssociationFeeFrequency). NOTE: Trestle field name is AdditionalFeeFrequency, NOT FeeFrequency.",
+      "complianceNotes": "FARE Act (NYC LL 119/2024). On Trestle CustomProperty entity. Field name is AdditionalFeeFrequency (NOT FeeFrequency as incorrectly used in some codebase files). Uses FeeFrequency enum values."
     }
   },
   "enums": {
@@ -24087,7 +24271,8 @@
         "AssociationFee3Frequency",
         "AssociationFeeFrequency",
         "LandLeaseAmountFrequency",
-        "LeaseAmountFrequency"
+        "LeaseAmountFrequency",
+        "AdditionalFeeFrequency"
       ],
       "values": [
         {
@@ -27873,7 +28058,11 @@
         },
         {
           "value": "Meadows",
-          "description": "The street suffix is Meadows."
+          "description": "The street suffix is Meadows. NOTE: REBNY CSV line 1945 erroneously uses abbreviation 'Mews' for this value — Mews is a distinct NYC street suffix (see Mews entry)."
+        },
+        {
+          "value": "Mews",
+          "description": "The street suffix is Mews. A narrow lane or alley behind houses, common in NYC (e.g., Washington Mews in Greenwich Village). NOTE: REBNY CSV line 1945 erroneously maps abbreviation 'Mews' to value 'Meadows' — this is a CSV data error. Mews and Meadows are distinct street suffix types."
         },
         {
           "value": "Park",
