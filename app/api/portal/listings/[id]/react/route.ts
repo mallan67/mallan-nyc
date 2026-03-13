@@ -53,7 +53,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
+  // Distribution gate checks — all 3 gates must pass
   if (listing.owner_opt_out) {
+    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
+  }
+  if (listing.participant_only) {
+    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
+  }
+  if (listing.internet_entire_listing_display_yn === false) {
     return NextResponse.json({ error: "Listing not available" }, { status: 403 });
   }
 

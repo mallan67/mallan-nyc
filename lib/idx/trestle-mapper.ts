@@ -613,8 +613,15 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
   const internetAddress = raw.InternetAddressDisplayYN !== false;
   const participantOnly = raw.ParticipantOnlyYN === true;
-  // Owner opt-out: if IDXEntireListingDisplayYN or IDXParticipationYN explicitly false
-  const ownerOptOut = raw.IDXEntireListingDisplayYN === false || raw.IDXParticipationYN === false;
+  // Owner opt-out: derived from Permissions field (RESO standard), NOT from IDX display flags.
+  // IDXEntireListingDisplayYN = false means IDX display disabled (separate gate).
+  // Permissions = "OwnerOptOut" / "Owner Opt-Out" / "Private" means owner opted out entirely.
+  const permissions = typeof raw.Permissions === 'string' ? raw.Permissions : '';
+  const ownerOptOut =
+    permissions === 'OwnerOptOut' ||
+    permissions === 'Owner Opt-Out' ||
+    permissions === 'Private' ||
+    String(raw.MlsStatus || '') === 'OwnerOptOut';
 
   // JSONB columns — pick fields by category
   const address = pick(raw, B1_ADDRESS);
@@ -705,9 +712,20 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
 } {
   const normalized = normalizeRenames(raw);
 
-  // Gate 1: Owner Opt-Out (IDXEntireListingDisplayYN = false)
+  // Gate 1a: Owner Opt-Out (via Permissions field)
+  const permissions = typeof normalized.Permissions === 'string' ? String(normalized.Permissions) : '';
+  if (
+    permissions === 'OwnerOptOut' ||
+    permissions === 'Owner Opt-Out' ||
+    permissions === 'Private' ||
+    String(normalized.MlsStatus || '') === 'OwnerOptOut'
+  ) {
+    return { displayable: false, reason: "Owner opted out" };
+  }
+
+  // Gate 1b: IDX Entire Listing Display disabled
   if (normalized.IDXEntireListingDisplayYN === false) {
-    return { displayable: false, reason: "Owner opted out of IDX display" };
+    return { displayable: false, reason: "IDX display disabled by listing" };
   }
 
   // Gate 2: Participant Only

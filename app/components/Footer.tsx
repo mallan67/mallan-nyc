@@ -73,7 +73,7 @@ export default function Footer() {
   });
 
   return (
-    <footer className="px-6 md:px-12 lg:px-20 pt-6 md:pt-8 pb-3 md:pb-4 border-t border-black/5">
+    <footer role="contentinfo" aria-label="Site footer" className="px-6 md:px-12 lg:px-20 pt-6 md:pt-8 pb-3 md:pb-4 border-t border-black/5">
       <div className="max-w-[1440px] mx-auto">
         {/* Main grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 md:gap-10 mb-6">

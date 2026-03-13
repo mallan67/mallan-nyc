@@ -942,7 +942,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
             <span className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-medium px-3.5 py-1.5 rounded-full z-10">
               {listing._displayCompliance.comingSoonDate
                 ? `Coming Soon. No Showings or Open House until ${new Date(listing._displayCompliance.comingSoonDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
-                : 'Coming Soon'}
+                : 'Coming Soon. No Showings or Open House Permitted'}
             </span>
           ) : null
         }
@@ -1009,10 +1009,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       />
                     </div>
                     {/* Neighborhood — the selling point in NYC */}
-                    {neighborhood && neighborhood !== borough && (
+                    {neighborhood && neighborhood !== borough ? (
                       <h1 className="font-display font-bold text-xl md:text-2xl text-brand-dark tracking-tight mb-0.5">
                         {neighborhood}
                       </h1>
+                    ) : (
+                      <h1 className="sr-only">{fullAddress}</h1>
                     )}
                     <p className="text-brand-dark text-[15px]">{fullAddress}</p>
                     <p className="text-brand-dark/80 text-[13px]">
@@ -1662,7 +1664,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <section className="border-t border-black/[0.06] py-5 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="text-[13px] text-brand-dark/70">
-            Listing courtesy of <span className="font-medium text-brand-dark/85">{listing.listAgentFullName || 'Listing Agent'}</span>, {listing.listOfficeName || 'Listing Office'}
+            Listing courtesy of <span className="font-medium text-brand-dark/85">{listing.listOfficeName || 'Listing Office'}</span>
           </p>
           <span className="text-brand-dark/30">|</span>
           <p className="text-[13px] text-brand-dark/50">

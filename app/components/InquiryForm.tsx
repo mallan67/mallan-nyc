@@ -64,10 +64,10 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
 
   if (isSubmitted) {
     return (
-      <div className="glass-card rounded-3xl p-6 bg-green-50/50">
+      <div className="glass-card rounded-3xl p-6 bg-green-50/50" role="status" aria-live="polite">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
@@ -210,7 +210,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
         </div>
 
         {error && (
-          <p className="text-red-600 text-sm">{error}</p>
+          <p role="alert" className="text-red-600 text-sm">{error}</p>
         )}
 
         <button

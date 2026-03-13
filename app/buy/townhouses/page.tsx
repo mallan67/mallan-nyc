@@ -548,7 +548,7 @@ export default function BuyTownhousesPage() {
             </h2>
             <p className="text-white/70 text-[15px] font-light max-w-lg mx-auto mb-10 leading-relaxed">
               Search available townhouses across NYC, or speak with a specialist
-              who can identify off-market opportunities and guide you through
+              who can identify exclusive opportunities and guide you through
               every step of the process.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

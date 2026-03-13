@@ -35,11 +35,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ offers: [] });
   }
 
-  // Find listings managed by this client's agent (exclude owner opt-out)
+  // Find listings managed by this client's agent (exclude all restricted listings)
   const agentListings = await prisma.listing.findMany({
     where: {
       agent_id: lead.agent_id,
       owner_opt_out: false,
+      participant_only: false,
+      internet_entire_listing_display_yn: true,
     },
     select: {
       id: true,

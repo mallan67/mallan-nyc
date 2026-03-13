@@ -46,7 +46,7 @@ export default function ExclusivesVault() {
             </div>
             <h2 className="font-display font-bold text-white text-2xl md:text-3xl lg:text-4xl mb-4">Private Collection</h2>
             <p className="text-white/60 text-sm font-light leading-relaxed mb-10 max-w-sm mx-auto">
-              Pre-launch opportunities and pocket listings for registered clients only.
+              Curated exclusive listings for registered clients only.
             </p>
             <div className="flex justify-center gap-10 md:gap-14 mb-10">
               <div className="flex items-center gap-2 text-white/50 text-xs font-light">

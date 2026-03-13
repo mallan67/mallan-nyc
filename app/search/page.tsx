@@ -439,8 +439,9 @@ function SearchClient() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[#FEFEFE]">
+      <h1 className="sr-only">Search Properties — Mallan Real Estate</h1>
       {/* ── Search Toolbar ── */}
-      <div ref={toolbarRef} className="flex-shrink-0 bg-white border-b border-black/8 z-40">
+      <div ref={toolbarRef} role="search" aria-label="Property search filters" className="flex-shrink-0 bg-white border-b border-black/8 z-40">
         <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-3">
           {/* Row 1: Tabs + Search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -651,7 +652,7 @@ function SearchClient() {
                   </div>
                 )}
                 {/* REBNY compliance disclaimer — bottom of listings */}
-                <p className="text-[9px] text-brand-dark/30 text-center py-2 leading-relaxed">
+                <p className="text-[11px] text-brand-dark/50 text-center py-3 leading-relaxed">
                   Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Data is for personal, non-commercial use only. Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
                 </p>
               </div>

@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify listing exists
+  // Verify listing exists and passes distribution gates
   const listingId = safeBigInt(listingIdStr);
   if (!listingId) {
     return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
@@ -125,6 +125,25 @@ export async function POST(req: NextRequest) {
   });
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  // Distribution gate checks — cannot schedule showing on restricted listings
+  if (listing.owner_opt_out) {
+    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
+  }
+  if (listing.participant_only) {
+    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
+  }
+  if (listing.internet_entire_listing_display_yn === false) {
+    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
+  }
+
+  // Coming Soon block — no showings allowed (UCBA D3)
+  if (listing.status === "ComingSoon") {
+    return NextResponse.json(
+      { error: "Showings are not permitted for Coming Soon listings" },
+      { status: 422 }
+    );
   }
 
   // Resolve agent from lead's assigned agent

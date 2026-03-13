@@ -125,7 +125,7 @@ export default function Header() {
 
   const exclusivesItems = [
     { title: 'Mallan Exclusives', href: '/sign-in' },
-    { title: 'Private Exclusives', href: '/sign-in' },
+    { title: 'Exclusive Listings', href: '/sign-in' },
     { title: 'Coming Soon', href: '/sign-in' },
   ];
 
