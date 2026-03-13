@@ -207,6 +207,11 @@ function ListingCard({ listing }: { listing: FeaturedListing }) {
               Listing Courtesy of {listing.listOfficeName}
             </p>
           )}
+          {listing.mlsId && (
+            <p className="text-[10px] text-brand-dark/50 font-light">
+              REBNY RLS #{listing.mlsId}
+            </p>
+          )}
         </Link>
 
         <div className="mt-3 pt-3 border-t border-black/5">
@@ -326,7 +331,9 @@ export default function FeaturedListings() {
           </Link>
         </div>
 
-        <IDXDisclaimer variant="compact" lastUpdated={lastUpdated || new Date()} />
+        <div className="mt-8 pt-6 border-t border-black/5">
+          <IDXDisclaimer variant="compact" lastUpdated={lastUpdated || new Date()} />
+        </div>
       </div>
     </section>
   );
