@@ -403,7 +403,7 @@ Vercel (mallan.nyc)
   └── RENTAL-FORM-WITH-TOOLS ──→   └── portal/*
 ```
 
-- **CRM Mockups:** `https://mallan.nyc/crm/` (same-origin static files)
+- **CRM Backend:** `https://mallan.nyc/crm/` (same-origin static files)
 - **API:** `https://mallan.nyc/api/` (Vercel, Next.js 16.1.6 App Router)
 - **Database:** PostgreSQL on Neon (Prisma ORM)
 - **Auth:** httpOnly cookie only (`session_token`, SameSite=Lax, Secure)
@@ -605,7 +605,7 @@ The listing detail page (`app/listing/[id]/page.tsx`) displays property data in 
 - **2026-03-06:** CSP fix — added `api.cotality.com`, `api-trestle.corelogic.com`, `api-prod.corelogic.com` to `img-src` and `connect-src` in both global and CRM CSP headers (`vercel.json`). Prevents image/fetch blocks after Trestle/Cotality API migration (deadline March 31, 2026). Legacy domains removable after deadline.
 - **2026-03-05:** Upgraded Next.js 14 → 16.1.6. Created server-side media proxy for Trestle photos (Bearer auth). Added agent photo upload pipeline (Sharp → R2). Security audit: removed env exposure from `/api/health` and `/api/ai/env-check`, removed hardcoded seed passwords, removed vulnerable `xlsx` package. npm audit: 0 vulnerabilities.
 - **Sprint 10 (2026-03-02):** Security hardening — Bearer auth fully removed (cookie-only), RLS enforcement on all write paths, DOM tracking (UCBA 2026), portal DTO centralized.
-- **Sprint 10 (2026-03-01):** Moved CRM mockups to `public/crm/` for same-origin serving on Vercel. Redesigned login page. Fixed `DATABASE_URL` env var. Removed exposed Google Maps API key from source. Added `/crm/*` CSP headers and noindex directives.
+- **Sprint 10 (2026-03-01):** Moved CRM files to `public/crm/` for same-origin serving on Vercel. Redesigned login page. Fixed `DATABASE_URL` env var. Removed exposed Google Maps API key from source. Added `/crm/*` CSP headers and noindex directives.
 
 ---
 
@@ -767,7 +767,7 @@ client-portal, tenant-portal, seller-portal, landlord-portal
 - 11 CRM JS frontend modules with sidebar buttons, content divs, and compliance banners
 - TypeScript: 0 errors
 
-### Sprint 9 — Wire Mockups to Live Backend (2026-03-01)
+### Sprint 9 — Wire CRM to Live Backend (2026-03-01)
 
 **Completed:**
 - Cookie-only auth on all API routes (Bearer removed in Sprint 10)
@@ -789,7 +789,7 @@ client-portal, tenant-portal, seller-portal, landlord-portal
 
 ### Sprint 6 — Client Management & Portal Wiring (2026-03-01)
 - 6 client CRUD endpoints, 6 portal endpoints, agent roster write API
-- Showing management, CRM mockup wired to all endpoints
+- Showing management, CRM wired to all endpoints
 - PII cleanup: 112→0 hardcoded occurrences across all files
 
 ### Sprint 5 — Write Operations (2026-03-01)
@@ -854,7 +854,7 @@ npm run dev
 ### Compliance Validation
 
 ```bash
-# Run RLS compliance validator against mockup files
+# Run RLS compliance validator against CRM production files
 npm run rls:validate
 
 # Run RLS validator tests (42 assertions)

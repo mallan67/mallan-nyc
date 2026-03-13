@@ -2,7 +2,7 @@
 
 > **Single document. Every field has everything: Exhibit A ref, RESO name, distribution, rules, sharing, cross-references.**
 > **Source Data:** `data/rebny-rls-property-fields.csv` + `data/UCBA-2026-Requirements.md` + REBNY-MASTER.md Parts 1-3
-> **Date:** 2026-02-09 | **Mockup:** `Desktop/1/Old/MALLAN-NYC-CRM-FINAL2.html`
+> **Date:** 2026-02-09 | **CRM File:** `public/crm/MALLAN-NYC-CRM-FINAL2.html`
 
 ---
 

@@ -5,7 +5,7 @@
 
 ## PART 1: FIELD COMPARISON - WHAT YOU HAVE vs WHAT'S AVAILABLE
 
-### YOUR CURRENT SEARCH FIELDS (Mockup)
+### YOUR CURRENT SEARCH FIELDS
 
 | Category | Fields You Have |
 |----------|-----------------|
@@ -295,7 +295,7 @@ Based on REBNY RLS Data Rules, the following syndication fields exist:
 
 ### UPLOAD DESTINATION OPTIONS
 
-**Mockup UI - Listing Upload Panel:**
+**Listing Upload Panel:**
 ```
 +--------------------------------------------------+
 | PUBLISH LISTING                                   |
@@ -341,7 +341,7 @@ Trestle integrates with these syndication channels:
 
 ---
 
-## PART 5: RECOMMENDED MOCKUP ENHANCEMENTS
+## PART 5: RECOMMENDED ENHANCEMENTS
 
 ### PRIORITY 1: ADD TO SEARCH FORM
 
@@ -487,12 +487,12 @@ StreetNumber, StreetName, StreetSuffix, UnitNumber, City, CityRegion, CountyOrPa
 
 ## IMPLEMENTATION NOTES
 
-This is a MOCKUP specification. When implementing:
+This is the production specification. When implementing:
 
 1. **Phase 1**: Add missing search fields (Views, Pets, Financing, DOM)
 2. **Phase 2**: Build flexible results table with column customization
 3. **Phase 3**: Add client assignment workflow
-4. **Phase 4**: Build syndication panel (mockup only - actual API integration later)
+4. **Phase 4**: Build syndication panel (wired to live Trestle API)
 5. **Phase 5**: Create listing management dashboard
 
 All UI should follow the existing Tailwind CSS styling and remain responsive across all device sizes per CLAUDE.md requirements.

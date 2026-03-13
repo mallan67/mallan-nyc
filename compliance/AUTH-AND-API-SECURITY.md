@@ -1,8 +1,8 @@
 # Auth & API Security — Sprint 9
 
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
-> **Date:** 2026-03-01 | **Sprint:** 9 — Wire Mockups to Live Backend
-> **Topology:** GitHub Pages (mockups) + Vercel (API)
+> **Date:** 2026-03-01 | **Sprint:** 9 — Wire CRM Files to Live Backend
+> **Topology:** Vercel (full-stack — frontend + API + static CRM files)
 
 ---
 
@@ -117,7 +117,7 @@ Sessions are stored in PostgreSQL (Prisma `Session` model):
 
 ## 6. Frontend Auth Gates
 
-All mockup files check authentication on load and redirect to `login.html` if not authenticated:
+All CRM files check authentication on load and redirect to `login.html` if not authenticated:
 
 | File | Gate Location |
 |------|--------------|
