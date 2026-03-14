@@ -9,6 +9,7 @@
  *
  * Provides:
  * - CRON_SECRET auth check (Bearer token)
+ * - Distributed lock via Upstash Redis (prevents overlapping runs)
  * - try/catch with structured error response
  * - Timing (duration_ms in response)
  * - Console logging with cron name prefix
@@ -21,6 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
+import redis from "@/lib/redis";
 
 type CronResult = Record<string, unknown> | number | void;
 
@@ -28,6 +30,35 @@ type CronResult = Record<string, unknown> | number | void;
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/**
+ * Acquire a distributed lock for this cron job.
+ * Uses Redis SET NX EX — atomic "set if not exists" with TTL.
+ * Returns true if lock acquired, false if another instance is already running.
+ * Lock TTL = maxLockSeconds (default 55s, just under Vercel's 60s function timeout).
+ */
+async function acquireLock(name: string, maxLockSeconds = 55): Promise<boolean> {
+  if (!redis) return true; // No Redis → always allow (single-instance behavior)
+  try {
+    const result = await redis.set(`cronlock:${name}`, Date.now(), {
+      nx: true,
+      ex: maxLockSeconds,
+    });
+    return result === "OK";
+  } catch {
+    // Redis down → fail open (allow cron to run)
+    return true;
+  }
+}
+
+async function releaseLock(name: string): Promise<void> {
+  if (!redis) return;
+  try {
+    await redis.del(`cronlock:${name}`);
+  } catch {
+    // Best-effort; TTL will clean it up
+  }
 }
 
 export function createCronHandler(
@@ -41,7 +72,7 @@ export function createCronHandler(
   }
 
   async function logAudit(
-    status: "success" | "failure",
+    status: "success" | "failure" | "skipped",
     duration_ms: number,
     data: Record<string, unknown>,
     error?: string
@@ -84,6 +115,14 @@ export function createCronHandler(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Distributed lock: prevent overlapping runs
+    const lockAcquired = await acquireLock(name);
+    if (!lockAcquired) {
+      console.warn(`[cron/${name}] Skipped — another instance is already running`);
+      await logAudit("skipped", 0, { reason: "lock_held" });
+      return NextResponse.json({ ok: true, skipped: true, reason: "Another instance is already running" });
+    }
+
     const start = Date.now();
     let result = await attempt();
 
@@ -95,6 +134,9 @@ export function createCronHandler(
     }
 
     const duration_ms = Date.now() - start;
+
+    // Release lock after completion
+    await releaseLock(name);
 
     if (result.ok) {
       console.log(`[cron/${name}] OK (${duration_ms}ms)`, JSON.stringify(result.data));

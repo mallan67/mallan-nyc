@@ -41,7 +41,7 @@ function setCorsHeaders(response: NextResponse, origin: string): NextResponse {
   return response;
 }
 
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin");
 
@@ -55,8 +55,8 @@ export default function middleware(req: NextRequest) {
   const botBlock = checkBot(req, pathname);
   if (botBlock) return botBlock;
 
-  // ── 2. Rate limiting ──
-  const rateBlock = checkRateLimits(req, pathname);
+  // ── 2. Rate limiting (async — Upstash Redis with in-memory fallback) ──
+  const rateBlock = await checkRateLimits(req, pathname);
   if (rateBlock) return rateBlock;
 
   // ── 3. CSRF protection ──
