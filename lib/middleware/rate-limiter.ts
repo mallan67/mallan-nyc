@@ -14,9 +14,9 @@ import redis from "@/lib/redis";
  */
 
 // ── Constants ──
-const GENERAL_RATE_LIMIT = 120;
-const API_RATE_LIMIT = 30;
-const LOGIN_RATE_LIMIT = 5;
+const GENERAL_RATE_LIMIT = 300;
+const API_RATE_LIMIT = 60;
+const LOGIN_RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 const PENALTY_DURATIONS_S = [60, 300, 900, 3600, 14400]; // 1m, 5m, 15m, 1h, 4h
@@ -36,6 +36,9 @@ const apiRl = redis
 const loginRl = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(LOGIN_RATE_LIMIT, "60 s"), prefix: "rl:login", ephemeralCache: new Map() })
   : null;
+
+// Note: Ratelimit instances use constants above. If you change the limits,
+// existing Redis windows may still enforce old values until they expire (60s).
 const idxSyncRl = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(1, "300 s"), prefix: "rl:idx-sync", ephemeralCache: new Map() })
   : null;
