@@ -236,17 +236,16 @@ export default function middleware(req: NextRequest) {
   }
 
   // ── 4c. CRM page protection ──
-  // All /crm/* HTML pages require auth. Unauthenticated visitors get redirected to /login.
-  // Excludes: /crm/login (the login page itself), /crm/js/* and /crm/css/* (static assets needed by login).
+  // All /crm/* HTML pages require auth. Unauthenticated visitors get redirected to /sign-in.
+  // Excludes: /crm/js/* and /crm/css/* (static assets).
   if (
     pathname.startsWith("/crm") &&
-    !pathname.startsWith("/crm/login") &&
     !pathname.startsWith("/crm/js/") &&
     !pathname.startsWith("/crm/css/")
   ) {
     if (!req.cookies.has(SESSION_COOKIE)) {
       const loginUrl = req.nextUrl.clone();
-      loginUrl.pathname = "/login";
+      loginUrl.pathname = "/sign-in";
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
