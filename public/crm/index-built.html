@@ -20025,7 +20025,7 @@ function parseBudgetValue(td) {
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function getFilteredListings(skipPagination) {
-            var listings = (searchResultsState.filteredListings || listings).slice();
+            var listings = (searchResultsState.filteredListings || []).slice();
             // ══════════════════════════════════════════════════════════════════
             // COMPLIANCE HARD-BLOCK (Defense-in-depth)
             // ══════════════════════════════════════════════════════════════════
@@ -24126,7 +24126,7 @@ function openPrintableWindow(html, options) {
             document.getElementById('previewComparison').innerHTML = c;
 
             // ═══════════════ FACT SHEET FORMAT ═══════════════
-            // Blue header + agent bar (shared), RealPlus-style body: address/price, 2-col (photos | description + table), agent contact, floor plan page
+            // Blue header + agent bar (shared), 2-col body: address/price, photos | description + table, agent contact, floor plan page
             var fs = '';
             var fsDisclaimer = '<div style="border-top:1px solid #999;margin-top:auto;padding-top:8px">' +
                 '<p style="font-size:7.5px;color:#555;line-height:1.4;margin:0;font-style:italic">' +
