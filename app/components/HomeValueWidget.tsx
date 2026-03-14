@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
+import { trackInquiry } from '@/lib/posthog';
 
 export default function HomeValueWidget() {
   const ref = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
@@ -47,6 +48,7 @@ export default function HomeValueWidget() {
       }
 
       setStatus('success');
+      trackInquiry(null, 'cma_request');
       setFormData({ name: '', address: '', email: '', phone: '', tcpaConsent: false });
     } catch (err) {
       setStatus('error');

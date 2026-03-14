@@ -11,6 +11,7 @@ import SearchFilterPanel from '@/app/components/SearchFilterPanel';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { TAB_CONFIG } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
+import { trackSearch } from '@/lib/posthog';
 
 // Client component — data fetched via useListings hook (no force-dynamic needed)
 
@@ -248,6 +249,27 @@ function SearchClient() {
     address: searchQuery || undefined,
     limit: 50,
   });
+
+  // ── PostHog: track search when results load ──
+  const prevTotal = useRef<number | null>(null);
+  useEffect(() => {
+    if (!loading && total !== prevTotal.current) {
+      prevTotal.current = total;
+      const pMin = filters.minPrice;
+      const pMax = filters.maxPrice;
+      const bucket = pMin || pMax
+        ? `${pMin ? formatPriceShort(pMin) : '0'}-${pMax && pMax < 99999999 ? formatPriceShort(pMax) : 'any'}`
+        : undefined;
+      trackSearch({
+        borough: boroughParam || undefined,
+        neighborhood: neighborhoodParam || filters.neighborhood,
+        property_type: filters.propertySubTypes?.join(',') || undefined,
+        bed_min: filters.beds ?? undefined,
+        price_bucket: bucket,
+        result_count: total,
+      });
+    }
+  }, [loading, total]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Client-side text/zip post-filter ──
   const filteredListings = useMemo(() => {

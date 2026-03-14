@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSavedSearches, type SavedSearchEntry } from '@/lib/hooks/useSavedSearches';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 interface SaveSearchButtonProps {
   type: 'buy' | 'rent';
@@ -68,6 +69,7 @@ export default function SaveSearchButton({ type, filters }: SaveSearchButtonProp
 
     setSaving(false);
     setSaved(true);
+    trackMicroCommitment(wantsAlerts ? 'alert_subscribe' : 'save_search');
     setTimeout(() => {
       setShowModal(false);
       setSaved(false);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 interface OpenHouseRSVPProps {
   openHouseId: string;
@@ -75,6 +76,7 @@ export default function OpenHouseRSVP({
       }
 
       setIsSubmitted(true);
+      trackMicroCommitment('schedule_open_house', openHouseId);
     } catch {
       setError('Failed to submit RSVP. Please try again or call us at (646) 258-4460.');
     } finally {

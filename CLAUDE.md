@@ -59,7 +59,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 > - **API layer** — `app/api/` (169 route files, 221 HTTP handlers: auth, CRM, portal, IDX, media, AI, compliance, cron)
 > - **Database** — PostgreSQL on Neon (Prisma ORM, 42 models)
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
-> - **Cron** — 10 scheduled jobs via `vercel.json` (DOM reset, sync, analytics, scoring, market snapshots)
+> - **Cron** — 16 scheduled jobs via `vercel.json` (data retention, DOM reset, IDX sync, listing expiration, search alerts, seller/lead/conviction scoring, demand signals, intent profiles, agent metrics, experiment metrics, listing momentum, social proof, lifecycle triggers, market snapshots)
 >
 > **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure, 24hr TTL with auto-rotation). Bearer fully removed.
 >
@@ -189,6 +189,9 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `prisma/schema.prisma` | Database schema — 42 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, FinancialLedger, AuditEvent, etc.) |
 | `lib/compliance/` | Server-side compliance: RLS enforcement gate, DOM tracker, portal DTO sanitizer |
 | `lib/rls-validator/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
+| `compliance/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY |
+| `compliance/rules/ucba-audit-checklist.json` | Machine-readable audit checklist — used by `scripts/ucba-compliance-audit.js` for regression detection |
+| `scripts/ucba-compliance-audit.js` | UCBA compliance validator — `npm run ucba:audit` — detects regressions if passing rules break |
 | `data/rebny-rls-property-fields.csv` | All 448 REBNY RLS property fields |
 | `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
 | `data/UCBA-2026-Requirements.md` | UCBA 2026 rules extracted (56 pages) — all compliance requirements |
@@ -200,7 +203,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 - **Primary Feed:** REBNY RLS via Trestle (Cotality, formerly CoreLogic) — migrated Feb 2025 from Perchwell
 - **Trestle API:** `api.cotality.com/trestle` — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated, hard deadline March 31, 2026. Media proxy allowlists all 3 domains during transition.
-- **LMP:** RealPlus
+- **Trestle License:** IDX Plus - WebAPI (direct, independent — NOT through RealPlus or any LMP)
 - **Total Fields:** 448 Property fields
 - **Picklist Values:** 2,066 lookup values
 - **Data Dictionary:** `Desktop/mallan nyc web/Trestle fields/Data_Migration_2025_RLS_Data_Rules.xlsx`
@@ -256,7 +259,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 |----------|-------|-------|
 | **Direct Network Portal** | 3 | openigloo, Samaki.com, TBI Listings |
 | **VOW** | 3 | Lofty, OLR, Zenlist |
-| **LMP** | 8 | BrokersNYC, Leadkit, Lofty, OLR, Perchwell, **RealPlus (ours)**, RealtyMX, RESoft |
+| **LMP** | 8 | BrokersNYC, Leadkit, Lofty, OLR, Perchwell, RealPlus, RealtyMX, RESoft |
 | **IDX** | 30 | blankslate, blueroof360, BoomTown, CINC, Constellation RE, Home ASAP, HomeJunction, IDX (Elm Street), iHomefinder, kvCORE, Leadkit, Lofty, Luxury Presence, MoxiWorks, OLR, propertybase, PropMiX, RE Webmasters, RealGeeks, RealPlus, RealtyMX, Realtyna, RealtyWatch, RESoft, Sierra Interactive, Smarter Agent, The House Club, TREM Group, Xome, Ylopo |
 | **Product** | 10 | BoldTrail, brokerloop, Core Present, Espresso Agent, Haystack, LiveBy, Nancy Packes, PerryStory, UrbanDigs, Vulcan7 |
 
@@ -282,7 +285,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 All deployments and CI/CD workflows must maintain compliance with the above standards.
 
-**Cron jobs (vercel.json):** 10 scheduled tasks — DOM reset (daily), listing sync, demand index (daily 10am), buyer intent (daily 11am), agent performance (weekly Mon), market snapshots (monthly 1st), lead scoring (daily 1pm), search alert emails, closed listing cleanup, cache warming.
+**Cron jobs (vercel.json):** 16 scheduled tasks — data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 4h), listing expiration (daily 7am), search alerts (daily 7:30am), seller scoring (daily 8am), experiment metrics (daily 9am), demand signals (daily 10am), intent profiles (daily 11am), agent metrics (weekly Mon 12pm), lead scoring (daily 1pm), conviction scores (daily 2pm), listing momentum (daily 3pm), social proof (daily 4pm), lifecycle triggers (daily 5pm), market snapshots (monthly 1st 6am).
 
 ---
 

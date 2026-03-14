@@ -524,17 +524,25 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 | `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
 | `/api/idx/status` | GET | IDX connection status + sync stats |
 
-#### Cron Jobs (10)
+#### Cron Jobs (16)
 | Route | Schedule | Purpose |
 |-------|----------|---------|
-| `/api/cron/dom-reset` | Daily | Reset DOM for Withdrawn/Cancelled ≥30 days |
-| `/api/cron/sync-listings` | Daily | IDX listing sync |
-| `/api/cron/listing-alerts` | Daily | Saved search email alerts |
-| `/api/cron/demand-signals` | Daily 10am | Demand index recompute |
+| `/api/cron/data-retention` | Daily 3am | NY SHIELD Act data cleanup (sessions, tokens, closed listings) |
+| `/api/cron/dom-reset` | Daily 6am | Reset DOM for Withdrawn/Cancelled ≥30 days (UCBA 2026) |
+| `/api/cron/idx-sync` | Every 4 hours | Incremental IDX listing sync from Trestle |
+| `/api/cron/listing-expiration` | Daily 7am | UCBA protected period enforcement + notifications |
+| `/api/cron/search-alerts` | Daily 7:30am | Saved search email alerts to clients |
+| `/api/cron/seller-scoring` | Daily 8am | Batch re-score stale seller leads |
+| `/api/cron/experiment-metrics` | Daily 9am | Pricing experiment aggregation + auto-conclude |
+| `/api/cron/demand-signals` | Daily 10am | Demand heatmap reindex |
 | `/api/cron/intent-profiles` | Daily 11am | Buyer intent profile recompute |
 | `/api/cron/agent-metrics` | Weekly Mon 12pm | Agent performance reindex |
-| `/api/cron/market-snapshots` | Monthly 1st 6am | Market snapshot computation |
 | `/api/cron/lead-scoring` | Daily 1pm | Lead score batch recompute |
+| `/api/cron/conviction-scores` | Daily 2pm | Lead conviction scores + ghost detection |
+| `/api/cron/listing-momentum` | Daily 3pm | Listing momentum scores for active listings |
+| `/api/cron/social-proof` | Daily 4pm | Social proof cache for listings with activity |
+| `/api/cron/lifecycle-triggers` | Daily 5pm | Evaluate lifecycle triggers (runs after momentum/conviction) |
+| `/api/cron/market-snapshots` | Monthly 1st 6am | Neighborhood market snapshot computation |
 
 ### Media Pipeline
 
@@ -763,7 +771,7 @@ client-portal, tenant-portal, seller-portal, landlord-portal
 - 14 CRM tool systems (D through Q) — full stack: Prisma models, library engines, API routes, cron jobs, CRM JS modules, sidebar wiring
 - 11 new Prisma models (CmaReport, ShowingFeedback, Notification, NotificationPreference, Document, DocumentSignature, MarketSnapshot, LeadScore, LeadAssignmentRule, CommissionPayment, ListingAudit)
 - 32+ new API routes across 8 system groups
-- 10 cron jobs in vercel.json (demand signals, intent profiles, agent metrics, market snapshots, lead scoring, DOM reset, sync, alerts)
+- 16 cron jobs in vercel.json (data retention, DOM reset, IDX sync, listing expiration, search alerts, seller scoring, experiment metrics, demand signals, intent profiles, agent metrics, lead scoring, conviction scores, listing momentum, social proof, lifecycle triggers, market snapshots)
 - 11 CRM JS frontend modules with sidebar buttons, content divs, and compliance banners
 - TypeScript: 0 errors
 
@@ -836,10 +844,10 @@ npm run dev
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DATABASE_URL` | Yes | PostgreSQL connection (pooled) |
-| `DIRECT_URL` | Yes | PostgreSQL connection (unpooled, for migrations) |
-| `SENDGRID_API_KEY` | Yes | Email sending |
-| `SENDGRID_FROM_EMAIL` | Yes | Sender address |
+| `DATABASE_URL` | Yes | PostgreSQL connection (pooled, for queries) |
+| `DATABASE_URL_UNPOOLED` | Yes | PostgreSQL connection (unpooled, for Prisma migrations) |
+| `CRON_SECRET` | Yes | Bearer token for Vercel Cron job authentication |
+| `NEXT_PUBLIC_SITE_URL` | Yes | Public site URL (`https://mallan.nyc`) |
 | `PRIVATE_COLLECTION_PASS` | Yes | Legacy admin auth |
 | `IDX_ENABLED` | No | Enable Trestle/IDX fetch (`true`/`false`, default `false`) |
 | `TRESTLE_API_URL` | No | Trestle API base URL (`https://api.cotality.com/trestle`) |
@@ -850,6 +858,8 @@ npm run dev
 | `R2_SECRET_ACCESS_KEY` | No | Cloudflare R2 secret key |
 | `R2_BUCKET_NAME` | No | Cloudflare R2 bucket name |
 | `R2_PUBLIC_URL` | No | Cloudflare R2 public URL for serving images |
+| `OPENAI_MODEL` | No | OpenAI model for AI features (default `gpt-4o`) |
+| `ANTHROPIC_API_KEY` | No | Anthropic API key for compliance AI validation |
 
 ### Compliance Validation
 

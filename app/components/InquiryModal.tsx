@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { trackInquiry } from '@/lib/posthog';
 
 type InquiryMode = 'showing' | 'question';
 
@@ -138,6 +139,7 @@ export default function InquiryModal({
       }
 
       setIsSubmitted(true);
+      trackInquiry(listingId ?? null, isShowing ? 'schedule_showing' : 'contact');
     } catch {
       setError('Failed to submit. Please try again or call us at (646) 258-4460.');
     } finally {

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { headers } from 'next/headers';
 import { Urbanist, Inter } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
@@ -14,6 +15,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import FavoriteEmailProvider from './components/FavoriteEmailProvider';
 import RegistrationGate from './components/RegistrationGate';
+import PostHogProvider from './components/PostHogProvider';
 
 // Bright & Liquid design system fonts
 const urbanist = Urbanist({
@@ -96,7 +98,9 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/images/mallan-m-icon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/images/mallan-m-icon.png', sizes: '16x16', type: 'image/png' },
     ],
+    shortcut: '/images/mallan-m-icon.png',
     apple: [
       { url: '/images/mallan-logo.png', sizes: '180x180', type: 'image/png' },
     ],
@@ -165,7 +169,9 @@ const jsonLd = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const nonce = (await headers()).get('x-nonce') ?? '';
+
   return (
     <html lang="en" className={`${urbanist.variable} ${inter.variable}`}>
       <head>
@@ -179,13 +185,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {/* Google Translate */}
+        {/* Google Translate — nonce required for CSP strict-dynamic */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'en',includedLanguages:'en,es,zh-CN,zh-TW,ko,ru,fr,he,ar,ja,pt,it,de,pl',layout:google.translate.TranslateElement.InlineLayout.HORIZONTAL,autoDisplay:false},'google_translate_element');}`,
           }}
         />
-        <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async />
+        <script nonce={nonce} src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async />
       </head>
       <body className="antialiased font-sans">
         <SkipLink />
@@ -206,6 +213,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <BehavioralTracker />
         <SoftIdentityCapture />
         <Analytics />
+        <PostHogProvider />
       </body>
     </html>
   );

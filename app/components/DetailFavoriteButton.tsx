@@ -2,6 +2,7 @@
 
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import { useFavoriteEmailPrompt } from './FavoriteEmailProvider';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 interface DetailFavoriteButtonProps {
   id: string;
@@ -28,6 +29,7 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
       onClick={() => {
         toggleFavorite(entry);
         if (!active) {
+          trackMicroCommitment('favorite', props.id);
           const allFavs = [...favorites, entry];
           notifyFavoriteAdded(
             allFavs.length,
