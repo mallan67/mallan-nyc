@@ -33,6 +33,7 @@ import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
+import TrackListingView from '@/app/components/TrackListingView';
 import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 
 import { getAccessToken } from '@/lib/idx/auth';
@@ -879,6 +880,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
       <ListingViewTracker />
+      <TrackListingView listingId={listing.id} />
       <RecentlyViewedTracker
         id={listing.id}
         slug={listing.slug}

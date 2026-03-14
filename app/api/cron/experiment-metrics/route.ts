@@ -1,22 +1,21 @@
-// /api/cron/experiment-metrics
-// POST: Daily aggregation of experiment metrics + auto-conclude check
+// Fixed: was POST-only (Vercel Cron sends GET)
+// Kept inline because it has experiment-specific loop + auto-conclude logic
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { aggregateExperimentMetrics, shouldConclude } from "@/lib/pricing-experiments/stats";
 import { concludeExperiment } from "@/lib/pricing-experiments/lifecycle";
 import { AUTO_CONCLUDE_AFTER_DAYS } from "@/lib/pricing-experiments/config";
 
-export const runtime = "nodejs";
-export const maxDuration = 30;
+export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const start = Date.now();
   try {
-    // Find all active experiments
     const active = await prisma.pricingExperiment.findMany({
       where: { status: "active" },
       select: { id: true, start_date: true },
@@ -27,11 +26,9 @@ export async function POST(req: NextRequest) {
 
     for (const exp of active) {
       try {
-        // Aggregate metrics
         await aggregateExperimentMetrics(exp.id);
         aggregated++;
 
-        // Check auto-conclude conditions
         const reachedTarget = await shouldConclude(exp.id);
         const expiredDuration = exp.start_date &&
           (Date.now() - exp.start_date.getTime()) > AUTO_CONCLUDE_AFTER_DAYS * 24 * 60 * 60 * 1000;
@@ -45,11 +42,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`[cron/experiment-metrics] Aggregated: ${aggregated}, Auto-concluded: ${concluded}`);
-    return NextResponse.json({ ok: true, aggregated, concluded });
+    const duration_ms = Date.now() - start;
+    console.log(`[cron/experiment-metrics] OK (${duration_ms}ms) aggregated=${aggregated} concluded=${concluded}`);
+    return NextResponse.json({ ok: true, aggregated, concluded, duration_ms });
   } catch (err: unknown) {
+    const duration_ms = Date.now() - start;
     const msg = err instanceof Error ? err.message : "Cron failed";
-    console.error("[cron/experiment-metrics] Error:", msg);
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    console.error(`[cron/experiment-metrics] FAIL (${duration_ms}ms):`, msg);
+    return NextResponse.json({ ok: false, error: msg, duration_ms }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trackInquiry } from '@/lib/posthog';
 
 interface InquiryFormProps {
   listingId?: string;
@@ -55,6 +56,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
       }
 
       setIsSubmitted(true);
+      trackInquiry(listingId ?? null, 'contact');
     } catch {
       setError('Failed to submit inquiry. Please try again or call us at (646) 258-4460.');
     } finally {

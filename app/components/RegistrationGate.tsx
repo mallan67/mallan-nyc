@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 const GATE_SHOWN_KEY = 'mallan_reg_gate_shown';
 const GATE_DISMISSED_KEY = 'mallan_reg_gate_dismissed';
@@ -98,6 +99,7 @@ export default function RegistrationGate() {
       localStorage.setItem(REG_CAPTURED_KEY, email);
       localStorage.setItem(EMAIL_CAPTURED_KEY, email);
       setIsSuccess(true);
+      trackMicroCommitment('alert_subscribe');
 
       setTimeout(() => {
         setVisible(false);

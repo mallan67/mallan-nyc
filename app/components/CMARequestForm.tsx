@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { trackInquiry } from '@/lib/posthog';
 
 export default function CMARequestForm() {
   const [formData, setFormData] = useState({
@@ -53,6 +54,7 @@ export default function CMARequestForm() {
       }
 
       setIsSubmitted(true);
+      trackInquiry(null, 'cma_request');
     } catch {
       setError('Network error. Please check your connection and try again.');
     } finally {

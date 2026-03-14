@@ -3,6 +3,7 @@
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import { useFavoriteEmailPrompt } from './FavoriteEmailProvider';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 interface FavoriteButtonProps {
   listing: DisplayListing;
@@ -42,6 +43,7 @@ export default function FavoriteButton({ listing, size = 'sm', className = '' }:
         toggleFavorite(entry);
         // Notify provider when adding (not removing)
         if (!active) {
+          trackMicroCommitment('favorite', listing.id);
           const allFavs = [...favorites, entry];
           notifyFavoriteAdded(
             allFavs.length,
