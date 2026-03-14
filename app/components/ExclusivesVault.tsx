@@ -44,16 +44,16 @@ export default function ExclusivesVault() {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <h2 className="font-display font-bold text-white text-2xl md:text-3xl lg:text-4xl mb-4">Private Collection</h2>
+            <h2 className="font-display font-bold text-white text-2xl md:text-3xl lg:text-4xl mb-4">Our Listings</h2>
             <p className="text-white/60 text-sm font-light leading-relaxed mb-10 max-w-sm mx-auto">
-              Curated exclusive listings for registered clients only.
+              View properties listed by Mallan Real Estate. Sign in to save favorites and schedule showings.
             </p>
             <div className="flex justify-center gap-10 md:gap-14 mb-10">
               <div className="flex items-center gap-2 text-white/50 text-xs font-light">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="text-brand-gold/60">
                   <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                Exclusive access for registered clients
+                Sign in for full details and client tools
               </div>
             </div>
             <Link
@@ -73,10 +73,10 @@ export default function ExclusivesVault() {
         <div className="relative z-10 px-6 md:px-12 lg:px-20 max-w-[1440px] mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-8">
             <div className="w-2 h-2 rounded-full bg-brand-gold-deep gold-pulse" />
-            <span className="text-brand-gold-deep text-[13px] font-medium gold-glow-text">Private Collection</span>
+            <span className="text-brand-gold-deep text-[13px] font-medium gold-glow-text">Our Listings</span>
           </div>
           <p className="text-white/60 text-sm font-light max-w-md mx-auto">
-            No exclusive listings at this time. Check back soon for new opportunities.
+            No listings at this time. Check back soon for new properties.
           </p>
         </div>
       )}

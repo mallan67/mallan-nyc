@@ -1420,6 +1420,9 @@
                         <button onclick="showTab('listing-auditor'); initListingAuditor();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-clipboard-check text-xs text-gray-400"></i> Listing Auditor
                         </button>
+                        <button onclick="showTab('protected-periods'); initProtectedPeriods();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-shield-alt text-xs text-gray-400"></i> Protected Periods
+                        </button>
 
                         <div class="sidebar-divider" style="margin:4px 12px"></div>
 
@@ -12001,7 +12004,7 @@
                                     <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><i class="fas fa-plug text-blue-500 text-xs"></i></div>
                                     <div>
                                         <p class="text-sm font-medium">Integrations</p>
-                                        <p class="text-[10px] text-gray-400">Trestle, StreetEasy, RealPlus, Zillow</p>
+                                        <p class="text-[10px] text-gray-400">Trestle, StreetEasy, Zillow</p>
                                     </div>
                                 </div>
                                 <span class="flex items-center gap-1"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-medium">3 pending</span></span>
@@ -25117,6 +25120,64 @@
                 </div>
             </div>
 
+            <div id="protected-periods" class="tab-content p-6" style="display:none;">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-shield-alt text-indigo-500 mr-2"></i>Protected Periods (UCBA A6/A7/A8)</h2>
+                    <p class="text-gray-600">Track expired listing agreements, protected buyer names, and 90-day compensation windows.</p>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-indigo-800"><i class="fas fa-info-circle mr-1"></i><strong>Internal compliance only</strong> — not sent to RLS/Trestle. Required for REBNY audit readiness. Agent has 7 business days after expiration to submit up to 6 protected buyer names + notice of expired listing.</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex gap-3 mb-4 flex-wrap">
+                    <select id="ppStatusFilter" onchange="loadProtectedPeriods()" class="text-sm border rounded px-3 py-1.5">
+                        <option value="">All Statuses</option>
+                        <option value="pending_names">Pending Names</option>
+                        <option value="active">Active (90-day)</option>
+                        <option value="converted">Converted</option>
+                        <option value="expired">Expired</option>
+                        <option value="missed_deadline">Missed Deadline</option>
+                    </select>
+                    <button onclick="loadProtectedPeriods()" class="text-sm bg-indigo-600 text-white px-4 py-1.5 rounded hover:bg-indigo-700"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-700">Listing</th>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-700">Agent</th>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-700">Expired</th>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-700">Names Deadline</th>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-700">90-Day Ends</th>
+                                <th class="text-center px-3 py-2 font-semibold text-gray-700">Buyers</th>
+                                <th class="text-center px-3 py-2 font-semibold text-gray-700">Notice</th>
+                                <th class="text-center px-3 py-2 font-semibold text-gray-700">Status</th>
+                                <th class="text-center px-3 py-2 font-semibold text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ppTableBody">
+                            <tr><td colspan="9" class="text-center py-8 text-gray-400">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Detail Modal -->
+                <div id="ppDetailModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-shield-alt text-indigo-500 mr-2"></i>Protected Period Detail</h3>
+                                <button onclick="closePPModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                            </div>
+                            <div id="ppDetailContent">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="marketing-hub" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
                     <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-bullhorn text-amber-500 mr-2"></i>Marketing Hub</h2>
@@ -28207,9 +28268,11 @@ Equal Housing Opportunity
                     // Update local agent with server ID
                     agent.serverId = res.id;
                     persistRoster();
-                    if (mode === 'invite') {
+                    if (mode === 'invite' && res.tempPassword) {
+                        // Show temp password to broker so they can share it with the agent
+                        showTempPasswordModal(firstName + ' ' + lastName, email, res.tempPassword);
+                    } else if (mode === 'invite') {
                         showToast('Agent created and invite sent to ' + email + '!', 'success');
-                        setTimeout(function() { openSetPasswordModal(agentId); }, 500);
                     } else {
                         showToast('Agent saved as draft.', 'success');
                     }
@@ -28217,7 +28280,6 @@ Equal Housing Opportunity
                     console.warn('[CRM] API agent create failed:', err.message);
                     if (mode === 'invite') {
                         showToast('Agent created locally. API sync failed (' + err.message + ') — invite will retry on reconnect.', 'warning');
-                        setTimeout(function() { openSetPasswordModal(agentId); }, 500);
                     } else {
                         showToast('Agent saved as draft locally. API sync failed — will retry on reconnect.', 'warning');
                     }
@@ -28231,6 +28293,60 @@ Equal Housing Opportunity
                     showToast('Agent saved as draft. You can send the invite later from the Agent Roster.', 'success');
                 }
             }
+        }
+
+        function showTempPasswordModal(agentName, email, tempPassword) {
+            // Remove any existing temp password modal
+            var existing = document.getElementById('tempPasswordModal');
+            if (existing) existing.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'tempPasswordModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl w-full max-w-md m-4 overflow-hidden">' +
+                '<div class="p-6 border-b bg-green-50">' +
+                    '<div class="flex items-center gap-3">' +
+                        '<div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">' +
+                            '<i class="fas fa-check text-white text-lg"></i>' +
+                        '</div>' +
+                        '<div>' +
+                            '<h3 class="text-lg font-bold text-gray-900">Agent Created</h3>' +
+                            '<p class="text-sm text-gray-600">' + agentName + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="p-6">' +
+                    '<p class="text-sm text-gray-700 mb-4">Share these login credentials with the agent. The temporary password should be changed on first login.</p>' +
+                    '<div class="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">' +
+                        '<div>' +
+                            '<label class="block text-xs font-medium text-gray-500 mb-1">Email</label>' +
+                            '<div class="flex items-center gap-2">' +
+                                '<code class="text-sm font-mono text-gray-900 flex-1">' + email + '</code>' +
+                                '<button onclick="navigator.clipboard.writeText(\'' + email + '\');showToast(\'Email copied\',\'success\')" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i></button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-xs font-medium text-gray-500 mb-1">Temporary Password</label>' +
+                            '<div class="flex items-center gap-2">' +
+                                '<code id="tempPwDisplay" class="text-sm font-mono text-gray-900 flex-1 select-all">' + tempPassword + '</code>' +
+                                '<button onclick="navigator.clipboard.writeText(\'' + tempPassword + '\');showToast(\'Password copied\',\'success\')" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i></button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-xs font-medium text-gray-500 mb-1">Login URL</label>' +
+                            '<code class="text-xs font-mono text-gray-700">mallan.nyc/crm/</code>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">' +
+                        '<p class="text-xs text-amber-800"><i class="fas fa-exclamation-triangle mr-1"></i> This password is shown <strong>once</strong>. Copy it now and send it to the agent securely.</p>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="p-4 border-t bg-gray-50 flex justify-end gap-3">' +
+                    '<button onclick="var cp=\'' + tempPassword + '\';navigator.clipboard.writeText(\'Email: ' + email + '\\nPassword: \'+cp+\'\\nLogin: mallan.nyc/crm/\');showToast(\'All credentials copied!\',\'success\')" class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-semibold hover:bg-gray-700"><i class="fas fa-clipboard mr-1"></i> Copy All</button>' +
+                    '<button onclick="document.getElementById(\'tempPasswordModal\').remove()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Done</button>' +
+                '</div>' +
+            '</div>';
+            document.body.appendChild(modal);
         }
 
         function clearAddAgentForm() {
@@ -37853,6 +37969,7 @@ function saveShowingFeedback() {
 <script src="js/crm/commission-tracker.js"></script>
 <script src="js/crm/featured-config.js"></script>
 <script src="js/crm/listing-auditor.js"></script>
+<script src="js/crm/protected-periods.js"></script>
 
 </body>
 </html>

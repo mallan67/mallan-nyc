@@ -1,0 +1,435 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "date": "2026-03-13",
+    "source": "UCBA Master Copy (January 2026 Redline Revision)",
+    "description": "Machine-readable UCBA 2026 audit checklist — 145 verifiable rules. Used by compliance validators, CI checks, and audit agents.",
+    "verdicts": ["PASS", "FAIL", "EVALUATE_CLOSELY"],
+    "priority": ["immediate", "high", "medium", "low", "procedural"]
+  },
+  "sections": {
+    "A": {
+      "name": "DOM & Protected Period",
+      "rules": [
+        {
+          "id": "A1", "name": "DOM Reset After 30 Days", "ucbaRef": "Art. I, Sec. 11",
+          "requirement": "DOM resets to zero after 30 consecutive days in Withdrawn or Cancelled status",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/dom-tracker.ts"],
+          "verifyPattern": "DOM_RESET_DAYS\\s*=\\s*30",
+          "verifyDescription": "Check DOM_RESET_DAYS constant equals 30 and shouldResetDom() checks Withdrawn/Cancelled duration"
+        },
+        {
+          "id": "A2", "name": "DOM Starts at RLS Transmission", "ucbaRef": "Art. I, Sec. 11",
+          "requirement": "DOM starts when listing is transmitted to RLS, NOT listing contract date",
+          "verdict": "EVALUATE_CLOSELY",
+          "verifyFiles": ["lib/compliance/dom-tracker.ts"],
+          "verifyPattern": "first_active_date",
+          "verifyDescription": "Check DOM start uses status transition timestamp (approximates RLS transmission) and NOT listing_contract_date"
+        },
+        {
+          "id": "A3", "name": "DOM Resets on Close", "ucbaRef": "Art. I, Sec. 11",
+          "requirement": "DOM resets on sold (closed) or rented (closed)",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/dom-tracker.ts"],
+          "verifyPattern": "Sold|Rented",
+          "verifyDescription": "Check Sold/Rented transitions freeze DOM at final value"
+        },
+        {
+          "id": "A4", "name": "Coming Soon / Participant Only No DOM", "ucbaRef": "Art. I, Sec. 11",
+          "requirement": "Coming Soon and Participant Only do NOT accrue DOM",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/dom-tracker.ts"],
+          "verifyPattern": "DOM_ACCRUING_STATUSES|DOM_SUPPRESSING_PERMISSIONS",
+          "verifyDescription": "Check ComingSoon excluded from accruing statuses AND Participant Only in suppressing permissions"
+        },
+        {
+          "id": "A5", "name": "No DOM Circumvention", "ucbaRef": "Art. I, Sec. 11",
+          "requirement": "Cannot circumvent DOM by re-naming or re-listing",
+          "verdict": "EVALUATE_CLOSELY",
+          "verifyFiles": ["lib/compliance/dom-tracker.ts"],
+          "verifyPattern": "cumulative_days_on_market",
+          "verifyDescription": "Check cumulative DOM preserves history. Verify if re-listing detection by address exists."
+        },
+        {
+          "id": "A6", "name": "Protected Period — 6 Names", "ucbaRef": "Art. II, Sec. 13",
+          "requirement": "Within 7 business days after listing expiration, Exclusive Broker delivers up to 6 names to Owner",
+          "verdict": "PASS",
+          "priority": "medium",
+          "verifyFiles": ["prisma/schema.prisma", "app/api/crm/protected-periods/", "public/crm/js/crm/protected-periods.js"],
+          "verifyPattern": "ProtectedPeriod|ProtectedBuyer|protected_periods|names_deadline",
+          "verifyDescription": "ProtectedPeriod + ProtectedBuyer models, 5 API routes, CRM UI tab, cron notifications at 30d/7d/expiration, 7 biz day deadline enforcement."
+        },
+        {
+          "id": "A7", "name": "Protected Period — 90 Days", "ucbaRef": "Art. II, Sec. 13",
+          "requirement": "If contract/lease executed within 90 days with one of the 6 names, Exclusive Broker entitled to compensation",
+          "verdict": "PASS",
+          "priority": "medium",
+          "verifyFiles": ["prisma/schema.prisma", "app/api/crm/protected-periods/[id]/convert/route.ts"],
+          "verifyPattern": "protection_ends_at|deal_executed|converted",
+          "verifyDescription": "90-day window tracked via protection_ends_at. Convert endpoint marks deal_executed + period status=converted. Cron expires active periods after 90 days."
+        },
+        {
+          "id": "A8", "name": "Owner Must Notify New Broker", "ucbaRef": "Art. II, Sec. 13",
+          "requirement": "Owner must notify any New Exclusive Broker of the protected period provision",
+          "verdict": "PASS",
+          "priority": "medium",
+          "verifyFiles": ["app/api/crm/protected-periods/[id]/route.ts", "public/crm/js/crm/protected-periods.js"],
+          "verifyPattern": "listing_expiration|protected_period|notify.*broker|Notify Broker",
+          "verifyDescription": "Broker notified via listing_expiration notifications on expiration + missed deadline. CRM detail modal shows period info. Internal audit document — notice not sent to RLS."
+        }
+      ]
+    },
+    "C": {
+      "name": "Listing Input Rules",
+      "rules": [
+        {
+          "id": "C1", "name": "Exclusive Only", "ucbaRef": "Art. I, Sec. 4",
+          "requirement": "RLS only accepts Exclusive Listings. No Open, FSBO, or Ours Alone.",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts", "lib/compliance/rebny-field-tables.ts"],
+          "verifyPattern": "ListingAgreement|ExclusiveRightToSell|ExclusiveAgency",
+          "verifyDescription": "Check ListingAgreement enum whitelist contains only exclusive types AND enforcement gate rejects others"
+        },
+        {
+          "id": "C2", "name": "Simultaneous Distribution", "ucbaRef": "Art. I, Sec. 5",
+          "requirement": "Must disseminate to RLS simultaneously with ANY public dissemination or first showing",
+          "verdict": "EVALUATE_CLOSELY",
+          "verifyFiles": ["app/api/crm/listings/route.ts"],
+          "verifyPattern": "STATUS_INITIAL|Draft",
+          "verifyDescription": "Check if listings auto-submit to RLS on publish or require manual transition from Draft"
+        },
+        {
+          "id": "C3", "name": "Owner Opt-Out Form Required", "ucbaRef": "Art. I, Sec. 5(A)",
+          "requirement": "Requires signed Owner Opt-Out Form (Exhibit B) within 48 hours",
+          "verdict": "PASS",
+          "verifyFiles": ["public/crm/SALE-FORM-REDESIGN.html"],
+          "verifyPattern": "saleOptOutFormUpload|Exhibit B",
+          "verifyDescription": "Check form has file upload field for Exhibit B with 48-hour warning text"
+        },
+        {
+          "id": "C4", "name": "Owner Opt-Out No Public", "ucbaRef": "Art. I, Sec. 5(A)",
+          "requirement": "Opt-Out listings: NO public dissemination whatsoever",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts", "lib/idx/trestle-mapper.ts", "lib/idx/db-to-public-dto.ts"],
+          "verifyPattern": "owner_opt_out|OwnerOptOut|Owner Opt-Out",
+          "verifyDescription": "Check triple-layer block: enforcement gate + Trestle mapper + DB filter"
+        },
+        {
+          "id": "C7", "name": "No Agent Info in Description", "ucbaRef": "Art. I, Sec. 5(C)",
+          "requirement": "No agent name, contact info, or URL in property description, photos, comments, or internet remarks",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "AGENT_INFO_PATTERNS",
+          "verifyDescription": "Check scanner blocks phone numbers, emails, URLs, and promotional phrases in PublicRemarks"
+        },
+        {
+          "id": "C8", "name": "No Off-Market Language", "ucbaRef": "Art. I, Sec. 5(D)",
+          "requirement": "Cannot describe or promote any Exclusive Listing as Off-Market",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "OFF_MARKET_PATTERNS|off.market|pocket.listing",
+          "verifyDescription": "Check 5 off-market patterns are blocked server-side"
+        },
+        {
+          "id": "C9", "name": "No Compensation in Description", "ucbaRef": "Art. I, Sec. 5(E)",
+          "requirement": "No broker fees, closing costs, or compensation info in descriptions or comments",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "COMPENSATION_PATTERNS",
+          "verifyDescription": "Check 5 compensation patterns are blocked server-side"
+        },
+        {
+          "id": "C12", "name": "Closing Price Within 24hrs", "ucbaRef": "Art. I, Sec. 7",
+          "requirement": "Must provide Closing Price within 24hrs of closing",
+          "verdict": "PASS",
+          "priority": "medium",
+          "verifyFiles": ["app/api/crm/listings/[id]/status/route.ts"],
+          "verifyPattern": "ClosePrice|close_price",
+          "verifyDescription": "Check if ClosePrice is REQUIRED when transitioning to Sold/Rented status"
+        },
+        {
+          "id": "C13", "name": "Closed Listings Removed 24hrs", "ucbaRef": "Art. I, Sec. 6",
+          "requirement": "Closed listings must be removed or marked closed on broker website within 24hrs",
+          "verdict": "PASS",
+          "verifyFiles": ["app/api/cron/data-retention/route.ts", "lib/idx/trestle-mapper.ts"],
+          "verifyPattern": "idx_display_yn.*false|Closed.*24",
+          "verifyDescription": "Check cron job sets idx_display_yn=false for closed >24h AND Trestle mapper blocks at query time"
+        },
+        {
+          "id": "C15", "name": "Auction Listing Requirements", "ucbaRef": "Art. I, Sec. 15",
+          "requirement": "Must include: minimum bid, date/time/location, registration, inspection, buyer's premium",
+          "verdict": "FAIL",
+          "priority": "low",
+          "verifyFiles": ["public/crm/SALE-FORM-REDESIGN.html"],
+          "verifyPattern": "auction|minimum.bid|buyer.*premium",
+          "verifyDescription": "Check for auction-specific fields in sale form. If zero matches, FAIL."
+        },
+        {
+          "id": "C16", "name": "Commission Negotiability", "ucbaRef": "Art. I, Sec. 17",
+          "requirement": "Must disclose: Broker commissions are not set by law and are fully negotiable",
+          "verdict": "PASS",
+          "verifyFiles": ["public/crm/SALE-FORM-REDESIGN.html", "public/crm/RENTAL-FORM-REDESIGN.html", "app/search/page.tsx"],
+          "verifyPattern": "negotiable|not set by law",
+          "verifyDescription": "Check disclosure checkbox on CRM forms AND disclosure text on public pages"
+        },
+        {
+          "id": "C18", "name": "Fair Housing Language", "ucbaRef": "Exhibit C",
+          "requirement": "All descriptions must comply with FHA, NY State HRL, NYC HRL Title 8",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "FAIR_HOUSING_HARD_BLOCKS",
+          "verifyDescription": "Check scanner covers Federal FHA (7), NY HRL (4), NYC HRL Title 8 (6) protected classes. Must find 17+ patterns."
+        }
+      ]
+    },
+    "D": {
+      "name": "Coming Soon Rules",
+      "rules": [
+        {
+          "id": "D1", "name": "Sales Only", "ucbaRef": "Art. I, Sec. 16",
+          "requirement": "Coming Soon NOT allowed for rentals or new developments",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "CS-001|CS-002|rental.*ComingSoon|ComingSoon.*rental",
+          "verifyDescription": "Check enforcement gate blocks Coming Soon for rent and new development"
+        },
+        {
+          "id": "D2", "name": "Maximum 14 Calendar Days", "ucbaRef": "Art. I, Sec. 16",
+          "requirement": "From RLS submission to expiration",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "diffDays.*14|14.*days|CS-003",
+          "verifyDescription": "Check 14-day max enforcement as BLOCKER"
+        },
+        {
+          "id": "D3", "name": "No Showings", "ucbaRef": "Art. I, Sec. 16",
+          "requirement": "No showings under any circumstances during Coming Soon",
+          "verdict": "PASS",
+          "verifyFiles": ["app/api/portal/showings/route.ts"],
+          "verifyPattern": "ComingSoon.*422|ComingSoon.*block|Showings.*not permitted",
+          "verifyDescription": "Check showing POST returns 422 for ComingSoon listings"
+        },
+        {
+          "id": "D7", "name": "Display Badge Required", "ucbaRef": "Art. I, Sec. 16(C)",
+          "requirement": "Must display: Coming Soon. No Showings or Open House until [Start Showing Date]",
+          "verdict": "PASS",
+          "verifyFiles": ["app/components/SearchListingCard.tsx", "app/listing/[id]/page.tsx"],
+          "verifyPattern": "Coming Soon.*No Showings.*Open House",
+          "verifyDescription": "Check badge text matches REBNY requirement exactly on search cards AND detail page"
+        },
+        {
+          "id": "D9", "name": "One-Time Use Per Address", "ucbaRef": "Art. I, Sec. 16",
+          "requirement": "One-time per address/owner unless off-market 60+ days",
+          "verdict": "PASS",
+          "priority": "high",
+          "verifyFiles": ["app/api/crm/listings/route.ts", "app/api/crm/listings/[id]/status/route.ts"],
+          "verifyPattern": "_wasComingSoon|Coming Soon.*already been used|UCBA D9",
+          "verifyDescription": "Check for DB query that looks up previous Coming Soon listings by address via _wasComingSoon flag"
+        },
+        {
+          "id": "D12", "name": "Showing Start Date Immutable", "ucbaRef": "Art. I, Sec. 16",
+          "requirement": "ActivationDate cannot be changed once set",
+          "verdict": "PASS",
+          "priority": "high",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts", "app/api/crm/listings/[id]/"],
+          "verifyPattern": "activationDateImmutable|ActivationDate.*immutable|ActivationDate.*change",
+          "verifyDescription": "Check if update path blocks changes to ActivationDate when previously set"
+        }
+      ]
+    },
+    "E": {
+      "name": "Selling/Leasing Procedures",
+      "rules": [
+        {
+          "id": "E7", "name": "Buyer Rep Agreement Before Showing", "ucbaRef": "Art. II, Sec. 16",
+          "requirement": "Co-Broker must have executed Buyer Representation Agreement before any showing",
+          "verdict": "PASS",
+          "priority": "high",
+          "verifyFiles": ["app/api/portal/showings/route.ts"],
+          "verifyPattern": "buyer_rep|buyerRep|representation.*agreement",
+          "verifyDescription": "Check if showing POST verifies buyer rep agreement exists before allowing creation"
+        }
+      ]
+    },
+    "F": {
+      "name": "Prohibitions",
+      "rules": [
+        {
+          "id": "F1", "name": "No Unauthorized Use", "ucbaRef": "Art. III, Sec. 1",
+          "requirement": "Listing data may not be disclosed/sold/leased/exploited or provided to third parties",
+          "verdict": "PASS",
+          "verifyFiles": ["middleware.ts", "app/robots.ts"],
+          "verifyPattern": "BLOCKED_BOTS|rate.*limit|GPTBot|ClaudeBot",
+          "verifyDescription": "Check bot blocking, rate limiting, auth on data endpoints"
+        },
+        {
+          "id": "F6", "name": "IDX/VOW Attribution Required", "ucbaRef": "Art. III, Sec. 2(C)",
+          "requirement": "Must include Listing Courtesy of [Broker] in reasonably prominent location",
+          "verdict": "PASS",
+          "verifyFiles": ["app/listing/[id]/page.tsx", "app/components/SearchListingCard.tsx"],
+          "verifyPattern": "Listing [Cc]ourtesy|listOfficeName|RLS.*listOfficeName",
+          "verifyDescription": "Check attribution text appears on listing detail page AND search cards"
+        },
+        {
+          "id": "F12", "name": "Data Accuracy Required", "ucbaRef": "Art. III, Sec. 4",
+          "requirement": "Incomplete mandatory items or incorrect data = violation",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts", "lib/compliance/rebny-field-tables.ts"],
+          "verifyPattern": "MANDATORY_FIELDS|agentSubmitted|mandatoryCount",
+          "verifyDescription": "Check enforcement gate validates all 48 mandatory + 51 conditional fields"
+        }
+      ]
+    },
+    "G": {
+      "name": "Compensation Rules",
+      "rules": [
+        {
+          "id": "G1", "name": "No Compensation on RLS", "ucbaRef": "Art. IV, Sec. 2",
+          "requirement": "RLS does NOT collect or display any offers of compensation",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/dto.ts", "lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "REMOVED_FIELDS|BuyerAgencyCompensation|SubAgencyCompensation",
+          "verifyDescription": "Check compensation fields stripped at all DTO tiers AND rejected on write path"
+        },
+        {
+          "id": "G3", "name": "Fully Negotiable", "ucbaRef": "Art. I, Sec. 17",
+          "requirement": "Must disclose commissions are fully negotiable",
+          "verdict": "PASS",
+          "verifyFiles": ["app/components/IDXDisclaimer.tsx"],
+          "verifyPattern": "fully negotiable|not set by law",
+          "verifyDescription": "Check disclosure text appears on listing pages, search results, and calculator"
+        }
+      ]
+    },
+    "H": {
+      "name": "IDX/VOW Frontend Display",
+      "rules": [
+        {
+          "id": "H1", "name": "Attribution Required", "ucbaRef": "Art. III, Sec. 2(C)",
+          "requirement": "Every listing must show Listing Courtesy of [Broker Name]",
+          "verdict": "PASS",
+          "verifyFiles": ["app/listing/[id]/page.tsx", "app/components/SearchListingCard.tsx", "app/components/PropertySearch.tsx"],
+          "verifyPattern": "courtesy|listOfficeName",
+          "verifyDescription": "Check attribution on detail page, search cards, and all listing display surfaces"
+        },
+        {
+          "id": "H3", "name": "Respect Owner Opt-Outs", "ucbaRef": "Art. I, Sec. 5(A)",
+          "requirement": "Owner Opt-Out listings must NEVER appear publicly",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/idx/trestle-mapper.ts", "lib/compliance/dto.ts", "app/api/listings/route.ts", "lib/idx/db-to-public-dto.ts"],
+          "verifyPattern": "owner_opt_out.*false|ownerOptOut|Owner.*opted.*out",
+          "verifyDescription": "Check owner opt-out filtering at ALL layers: Trestle gate, DB query, portal DTO, detail page"
+        },
+        {
+          "id": "H4", "name": "Respect Participant Only", "ucbaRef": "Definitions (W)",
+          "requirement": "Participant Only listings: authorized Participant view only, NOT public",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/idx/trestle-mapper.ts", "lib/compliance/dto.ts", "app/api/listings/route.ts"],
+          "verifyPattern": "participant_only.*false|ParticipantOnlyYN",
+          "verifyDescription": "Check participant-only filtering at Trestle gate, DB query, and portal DTO"
+        },
+        {
+          "id": "H7", "name": "Coming Soon Display Badge", "ucbaRef": "Art. I, Sec. 16(C)",
+          "requirement": "Must display: Coming Soon. No Showings or Open House until [Start Showing Date]",
+          "verdict": "PASS",
+          "verifyFiles": ["app/components/SearchListingCard.tsx", "app/listing/[id]/page.tsx", "app/components/neighborhoods/LiveListingsWidget.tsx"],
+          "verifyPattern": "Coming Soon.*No Showings",
+          "verifyDescription": "Check ALL listing display surfaces show full required text including LiveListingsWidget"
+        },
+        {
+          "id": "H10", "name": "Protect Confidential Fields", "ucbaRef": "Art. VIII, Sec. 2",
+          "requirement": "InternetAddressDisplayYN=False → hide address. ExpirationDate → never display.",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/dto.ts"],
+          "verifyPattern": "InternetAddressDisplayYN|Address Undisclosed|ExpirationDate",
+          "verifyDescription": "Check address suppression replaces with 'Address Undisclosed' and ExpirationDate stripped"
+        },
+        {
+          "id": "H11", "name": "No Compensation Displayed", "ucbaRef": "Art. IV, Sec. 2",
+          "requirement": "No commission/fee fields on any listing display",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/dto.ts"],
+          "verifyPattern": "REMOVED_FIELDS|BuyerAgencyCompensation",
+          "verifyDescription": "Check all compensation fields in REMOVED_FIELDS and no amounts in frontend components"
+        }
+      ]
+    },
+    "GATES": {
+      "name": "Distribution Gates",
+      "rules": [
+        {
+          "id": "GATE-1", "name": "Owner Opt-Out", "ucbaRef": "Art. I, Sec. 5(A)",
+          "requirement": "ALL fields blocked from ALL channels when owner opts out",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/idx/trestle-mapper.ts", "lib/compliance/dto.ts", "app/api/listings/route.ts", "lib/idx/db-to-public-dto.ts", "app/listing/[id]/page.tsx", "app/api/portal/showings/route.ts"],
+          "verifyPattern": "owner_opt_out",
+          "verifyDescription": "Check owner_opt_out filtering at ALL 9 enforcement points"
+        },
+        {
+          "id": "GATE-2", "name": "Participant Only", "ucbaRef": "Definitions (W)",
+          "requirement": "All fields to RLS only. No IDX, VOW, Syndication, websites.",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/idx/trestle-mapper.ts", "lib/compliance/dto.ts", "app/api/listings/route.ts"],
+          "verifyPattern": "participant_only",
+          "verifyDescription": "Check participant_only filtering at all entry points"
+        },
+        {
+          "id": "GATE-3", "name": "IDX Display", "ucbaRef": "Art. III, Sec. 2(C)",
+          "requirement": "IDXEntireListingDisplayYN=False → excluded from IDX websites",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/idx/trestle-mapper.ts", "app/api/listings/route.ts", "lib/idx/db-to-public-dto.ts"],
+          "verifyPattern": "idx_display_yn|IDXEntireListingDisplayYN",
+          "verifyDescription": "Check idx_display_yn filtering at Trestle gate, DB queries, and DTO"
+        },
+        {
+          "id": "GATE-4", "name": "Syndication", "ucbaRef": "UCBA General",
+          "requirement": "SyndicateYN=False → excluded from syndication portals",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
+          "verifyPattern": "SyndicateYN",
+          "verifyDescription": "Check SyndicateYN enforcement on write path. Correctly scoped to 3rd-party portals."
+        },
+        {
+          "id": "GATE-5", "name": "Coming Soon", "ucbaRef": "Art. I, Sec. 16",
+          "requirement": "Badge required, showings restricted, 14-day max",
+          "verdict": "PASS",
+          "verifyFiles": ["lib/compliance/rls-enforcement.ts", "app/api/portal/showings/route.ts", "app/components/SearchListingCard.tsx"],
+          "verifyPattern": "ComingSoon|Coming Soon",
+          "verifyDescription": "Check Coming Soon badge display + showing block + 14-day enforcement"
+        },
+        {
+          "id": "GATE-6", "name": "Closed Status", "ucbaRef": "Art. I, Sec. 6-7",
+          "requirement": "Must remove/mark closed within 24hrs",
+          "verdict": "PASS",
+          "verifyFiles": ["app/api/cron/data-retention/route.ts", "lib/idx/trestle-mapper.ts"],
+          "verifyPattern": "Closed.*24|idx_display_yn.*false",
+          "verifyDescription": "Check cron + Trestle gate enforce 24hr removal"
+        }
+      ]
+    },
+    "EXHIBIT_A": {
+      "name": "Mandatory Fields",
+      "rules": [
+        {
+          "id": "EXHA-49", "name": "NumberOfShares (Co-op)", "ucbaRef": "Exhibit A",
+          "requirement": "Required for co-op/condop listings",
+          "verdict": "PASS",
+          "priority": "immediate",
+          "verifyFiles": ["public/crm/SALE-FORM-REDESIGN.html"],
+          "verifyPattern": "NumberOfShares|saleUnitShares",
+          "verifyDescription": "Check field exists WITHOUT data-rls-ignore AND is mapped in payload builder to NumberOfShares"
+        },
+        {
+          "id": "EXHA-52", "name": "TaxMonthlyAmount (Condo)", "ucbaRef": "Exhibit A",
+          "requirement": "Required for condo listings",
+          "verdict": "PASS",
+          "priority": "immediate",
+          "verifyFiles": ["public/crm/SALE-FORM-REDESIGN.html"],
+          "verifyPattern": "TaxMonthlyAmount",
+          "verifyDescription": "Check field exists in sale form. TaxAnnualAmount is NOT the same field."
+        }
+      ]
+    }
+  }
+}

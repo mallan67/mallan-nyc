@@ -802,7 +802,7 @@ function SearchClient() {
               Need Help Finding Your Perfect Property?
             </h2>
             <p className="text-brand-dark/85 mb-8">
-              Our agents have access to exclusive listings and can help you find exactly what you&apos;re looking for.
+              Our agents can help you find exactly what you&apos;re looking for across all available listings.
             </p>
             <a href="/agents" className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors">
               Contact an Agent

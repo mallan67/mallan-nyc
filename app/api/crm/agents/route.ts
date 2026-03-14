@@ -93,8 +93,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Generate a temporary password for invite-based onboarding
-  const tempPassword = `Mallan${Date.now().toString(36)}!`;
+  // Generate a cryptographically random temporary password for invite-based onboarding
+  const crypto = await import("crypto");
+  const tempPassword = `Mallan-${crypto.randomBytes(8).toString("hex")}`;
   const passwordHash = await hashPassword(tempPassword);
 
   const slug =
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
       id: agent.id.toString(),
       email: agent.email,
       status: agent.status,
+      tempPassword, // Broker sees this once to share with agent
     },
     { status: 201 }
   );

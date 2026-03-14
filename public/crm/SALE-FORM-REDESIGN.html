@@ -656,8 +656,13 @@ body { font-family: Manrope, sans-serif; }
                     </select>
                 </div>
                 <div id="saleRETaxesField">
+                    <label class="field-label">RE Taxes (Annual)</label>
+                    <input type="number" id="saleRETaxes" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="TaxAnnualAmount" oninput="autoCalcTaxMonthly()">
+                </div>
+                <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
-                    <input type="number" id="saleRETaxes" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="TaxAnnualAmount">
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="TaxMonthlyAmount">
+                    <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -1019,7 +1024,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="field-label">Unit Shares <span class="text-red-500 sale-req-star hidden">*</span></label>
-                    <input type="number" id="saleUnitShares" placeholder="0" class="field-input" required data-rls-ignore="true">
+                    <input type="number" id="saleUnitShares" placeholder="0" class="field-input" required data-rls-field="NumberOfShares">
                 </div>
                 <div>
                     <label class="field-label">Unit Sq Ft</label>
@@ -1742,6 +1747,26 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Staff Bathrooms</label>
                     <input type="number" placeholder="0" class="field-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Condition -->
+        <div class="form-card">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Property Condition</label>
+                    <select id="saleCondition" class="field-input" data-rls-field="PropertyCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fixer">Fixer</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                        <option value="UnderConstruction">Under Construction</option>
+                        <option value="NewConstruction">New Construction</option>
+                        <option value="Updated">Updated/Remodeled</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -2491,7 +2516,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label"># Residential Units <span class="text-red-500">*</span></label>
-                    <input type="number" id="saleTHUnitsTotal" placeholder="0" class="field-input" required data-rls-field="NumberOfUnitsTotal">
+                    <input type="number" id="saleTHUnitsTotal" placeholder="0" class="field-input" required data-rls-field="NumberOfUnitsTotal" onchange="applySalesFieldRules()">
                 </div>
                 <div>
                     <label class="field-label"># Professional Units</label>
@@ -3081,6 +3106,17 @@ body { font-family: Manrope, sans-serif; }
         <div>
             <p class="text-sm font-semibold text-yellow-800">Non-RLS Commercial Listing</p>
             <p class="text-xs text-yellow-700 mt-1">This listing type is not eligible for REBNY RLS distribution. It will only appear on <strong>mallan.nyc (WWW)</strong>. All other distribution channels are disabled.</p>
+        </div>
+    </div>
+
+    <!-- UCBA Sec. 5(F) Mixed-Use Notice (shown for mixed-use in ≤5 unit buildings) -->
+    <div id="saleMixedUseNotice" class="mb-4 p-3 rounded-lg border border-blue-300 bg-blue-50" style="display:none;">
+        <div class="flex items-start gap-2">
+            <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
+            <div>
+                <p class="text-sm font-semibold text-blue-800">Mixed-Use: Full RLS Rules Apply</p>
+                <p class="text-xs text-blue-700 mt-1">Per UCBA Art. I, Sec. 5(F), professional/retail units within residential properties of <strong>5 units or fewer</strong> are subject to all REBNY RLS rules, including mandatory fields, distribution gates, and compliance validation.</p>
+            </div>
         </div>
     </div>
 
@@ -4141,7 +4177,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Total Units <span class="text-red-500">*</span></label>
-                                <input type="number" id="saleBldgTotalUnits" placeholder="100" class="field-input" data-rls-field="NumberOfUnitsTotal">
+                                <input type="number" id="saleBldgTotalUnits" placeholder="100" class="field-input" data-rls-field="NumberOfUnitsTotal" onchange="applySalesFieldRules()">
                             </div>
                             <div>
                                 <label class="field-label">Residential Units</label>
@@ -4593,7 +4629,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-field="MaximumFinancingAmount">
+                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-field="MaximumFinancingPercent">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
@@ -6181,6 +6217,7 @@ const SALES_FIELD_VISIBILITY_RULES = {
     saleBoardApplicationField: ['COOP', 'CONDO', 'CONDOP', 'COMMERCIAL_CONDO', 'COMMERCIAL_COOP', 'OFFICE_CONDO', 'OFFICE_COOP', 'OFFICE_CONDOP', 'RETAIL_CONDO', 'RETAIL_COOP', 'RETAIL_CONDOP'],
     saleMaintCCField: ['COOP', 'CONDO', 'CONDOP', 'LOFT', 'COMMERCIAL_CONDO', 'COMMERCIAL_COOP', 'OFFICE_CONDO', 'OFFICE_COOP', 'OFFICE_CONDOP', 'RETAIL_CONDO', 'RETAIL_COOP', 'RETAIL_CONDOP'],
     saleRETaxesField: ['CONDO', 'CONDOP', 'LOFT', 'SINGLE_FAMILY_TOWNHOUSE', 'MULTI_FAMILY_TOWNHOUSE', 'SINGLE_FAMILY', 'MULTI_FAMILY', 'MIXED_USE', 'DUPLEX_BUILDING', 'TRIPLEX_BUILDING', 'QUADRUPLEX_BUILDING', 'LAND', 'DEEDED_PARKING', 'COMMERCIAL_CONDO', 'COMMERCIAL_BUILDING', 'OFFICE_CONDO', 'OFFICE_CONDOP', 'OFFICE_TOWNHOUSE', 'OFFICE_MIXED_USE', 'OFFICE', 'RETAIL_CONDO', 'RETAIL_CONDOP', 'RETAIL_TOWNHOUSE', 'RETAIL_MIXED_USE', 'RETAIL'],
+    saleTaxMonthlyField: ['CONDO', 'CONDOP', 'LOFT', 'SINGLE_FAMILY_TOWNHOUSE', 'MULTI_FAMILY_TOWNHOUSE', 'SINGLE_FAMILY', 'MULTI_FAMILY', 'MIXED_USE', 'DUPLEX_BUILDING', 'TRIPLEX_BUILDING', 'QUADRUPLEX_BUILDING', 'LAND', 'DEEDED_PARKING', 'COMMERCIAL_CONDO', 'COMMERCIAL_BUILDING', 'OFFICE_CONDO', 'OFFICE_CONDOP', 'OFFICE_TOWNHOUSE', 'OFFICE_MIXED_USE', 'OFFICE', 'RETAIL_CONDO', 'RETAIL_CONDOP', 'RETAIL_TOWNHOUSE', 'RETAIL_MIXED_USE', 'RETAIL'],
     saleTotalMonthlyField: ['CONDO', 'CONDOP', 'LOFT', 'SINGLE_FAMILY_TOWNHOUSE', 'MULTI_FAMILY_TOWNHOUSE', 'SINGLE_FAMILY', 'MULTI_FAMILY', 'MIXED_USE', 'DUPLEX_BUILDING', 'TRIPLEX_BUILDING', 'QUADRUPLEX_BUILDING', 'LAND', 'DEEDED_PARKING', 'COMMERCIAL_CONDO', 'COMMERCIAL_BUILDING', 'OFFICE_CONDO', 'OFFICE_CONDOP', 'OFFICE_TOWNHOUSE', 'OFFICE_MIXED_USE', 'OFFICE', 'RETAIL_CONDO', 'RETAIL_CONDOP', 'RETAIL_TOWNHOUSE', 'RETAIL_MIXED_USE', 'RETAIL']
 };
 
@@ -6221,11 +6258,22 @@ function applySalesFieldRules() {
             }
         }
     });
-    // Handle Commercial distribution lockdown
-    if (propertyType === 'Commercial') {
+    // Handle Commercial/Mixed-Use distribution logic
+    // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
+    const isMixedUseSubtype = propertyType === 'MixedUse';
+    const totalUnits = parseInt(document.getElementById('saleTHUnitsTotal')?.value || document.getElementById('saleBldgTotalUnits')?.value || '0') || 0;
+    const mixedUseSmallBuilding = isMixedUseSubtype && totalUnits > 0 && totalUnits <= 5;
+
+    if (propertyType === 'Commercial' || (isMixedUseSubtype && totalUnits > 5)) {
         applyCommercialDistribution('sale');
     } else {
         clearCommercialDistribution('sale');
+    }
+
+    // Show/hide UCBA Sec. 5(F) mixed-use notice
+    const muNotice = document.getElementById('saleMixedUseNotice');
+    if (muNotice) {
+        muNotice.style.display = mixedUseSmallBuilding ? '' : 'none';
     }
 
     // Show/grey-out Tab 3 sidebar + mobile tab based on property type
@@ -6309,6 +6357,17 @@ function calculateSaleTotalMonthly() {
     if (totalField) {
         totalField.value = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+}
+
+// Auto-calculate TaxMonthlyAmount from TaxAnnualAmount (Exhibit A #52)
+function autoCalcTaxMonthly() {
+    const monthlyField = document.getElementById('saleTaxMonthly');
+    if (!monthlyField || monthlyField.value) return; // Don't overwrite manual entry
+    const annual = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
+    if (annual > 0) {
+        monthlyField.value = (annual / 12).toFixed(2);
+    }
+    calculateSaleTotalMonthly();
 }
 
 // ═══════════════════════════════════════════════════════════

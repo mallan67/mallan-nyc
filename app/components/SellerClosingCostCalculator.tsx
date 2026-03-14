@@ -31,12 +31,14 @@ export default function SellerClosingCostCalculator() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [salePrice, setSalePrice] = useState(1500000);
   const [mortgageBalance, setMortgageBalance] = useState(0);
+  const [commissionPct, setCommissionPct] = useState<number | ''>('');
   const [propertyType, setPropertyType] = useState<PropertyType>('condo');
   const [timeline, setTimeline] = useState<Timeline>('30-60');
 
   const calculations = useMemo(() => {
-    // Broker commission (estimated — rates are negotiable)
-    const brokerCommission = salePrice * 0.05;
+    // Broker commission — user-entered, fully negotiable
+    const pct = typeof commissionPct === 'number' ? commissionPct : 0;
+    const brokerCommission = salePrice * (pct / 100);
 
     // NYC transfer tax: 1% under $500K, 1.425% at $500K+
     const nycTransferRate = salePrice < 500000 ? 0.01 : 0.01425;
@@ -73,7 +75,7 @@ export default function SellerClosingCostCalculator() {
       totalClosingCosts,
       netProceeds,
     };
-  }, [salePrice, mortgageBalance, propertyType]);
+  }, [salePrice, mortgageBalance, propertyType, commissionPct]);
 
   return (
     <div className="glass-card rounded-3xl overflow-hidden">
@@ -113,7 +115,7 @@ export default function SellerClosingCostCalculator() {
           {/* Breakdown */}
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between py-1">
-              <span className="text-brand-dark/90">Broker commission (est. 5%*)</span>
+              <span className="text-brand-dark/90">Broker commission{typeof commissionPct === 'number' ? ` (${commissionPct}%)` : ''}</span>
               <span className="font-medium text-brand-dark">${Math.round(calculations.brokerCommission).toLocaleString()}</span>
             </div>
             {paysTransferTax(propertyType) && (
@@ -190,6 +192,32 @@ export default function SellerClosingCostCalculator() {
               />
             </div>
 
+            {/* Broker Commission */}
+            <div>
+              <label className="block text-sm text-brand-dark/90 mb-2">Broker Commission (%)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={commissionPct}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '') { setCommissionPct(''); return; }
+                    const n = parseFloat(v);
+                    if (!isNaN(n) && n >= 0 && n <= 10) setCommissionPct(n);
+                  }}
+                  placeholder="Enter rate"
+                  className="w-full py-2 px-3 text-sm bg-white/60 rounded-2xl ring-1 ring-black/5 focus:ring-brand-gold focus:outline-none"
+                  min={0}
+                  max={10}
+                  step={0.5}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-brand-dark/50">%</span>
+              </div>
+              <p className="text-xs text-brand-dark/60 mt-1">
+                Commission rates are not set by law and are fully negotiable.
+              </p>
+            </div>
+
             {/* Property Type */}
             <div>
               <label className="block text-sm text-brand-dark/90 mb-2">Property Type</label>
@@ -241,7 +269,7 @@ export default function SellerClosingCostCalculator() {
           </Link>
 
           <p className="mt-3 text-xs text-brand-dark/90">
-            *Estimates only. Broker commission rates are not set by law and are fully
+            Estimates only. Broker commission rates are not set by law and are fully
             negotiable. Co-op sellers typically do not pay transfer taxes directly.
             Flip tax rates vary by building (1–3%). Actual costs depend on your property
             and transaction terms. Consult a real estate attorney for exact figures.
@@ -250,7 +278,7 @@ export default function SellerClosingCostCalculator() {
           <CalculatorLeadCapture
             calculatorType="closing-cost"
             hasCalculated={isExpanded}
-            resultsSummary={`Sale price: $${salePrice.toLocaleString()} (${propertyType}). Net proceeds: $${calculations.netProceeds.toLocaleString()}. Total closing costs: $${Math.round(calculations.totalClosingCosts).toLocaleString()}.`}
+            resultsSummary={`Sale price: $${salePrice.toLocaleString()} (${propertyType}). Commission: ${typeof commissionPct === 'number' ? commissionPct + '%' : 'not set'}. Net proceeds: $${calculations.netProceeds.toLocaleString()}. Total closing costs: $${Math.round(calculations.totalClosingCosts).toLocaleString()}.`}
           />
         </div>
       )}

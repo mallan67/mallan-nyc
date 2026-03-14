@@ -34,11 +34,13 @@ export async function GET(req: NextRequest) {
   });
   results.audit_events_older_than_2yr = oldAuditCount;
 
-  // 3. Flag closed listings not yet marked (REBNY: remove display within 24h)
+  // 3. Flag closed/terminal listings not yet marked (REBNY RLS Sec. 2.05: remove within 24h)
+  // Note: filterDisplayableDbListings() already excludes non-active statuses in real-time,
+  // so this is a belt-and-suspenders DB cleanup for any edge cases (direct DB queries, etc.)
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
-      status: { in: ["Closed", "Sold", "Leased", "Rented"] },
+      status: { in: ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] },
       status_changed_at: { lt: closedCutoff },
       idx_display_yn: true, // still marked for IDX display
     },
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest) {
         user_type: "system",
         user_id: null,
         changes: {
-          reason: "Closed listing >24h — REBNY RLS Sec. 2.05 compliance",
+          reason: "Terminal/closed listing >24h — REBNY RLS Sec. 2.05 compliance",
           status: l.status,
           status_changed_at: l.status_changed_at?.toISOString(),
         },

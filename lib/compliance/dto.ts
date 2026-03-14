@@ -298,18 +298,61 @@ export function sanitizeListingForPortal(
   return sanitizeForPortal(flat, portalRole);
 }
 
+/** Fields that must NEVER appear in any API response, including CRM */
+const NEVER_EXPOSE_FIELDS = [
+  // Auth credentials — must never leak even to authorized CRM users
+  "password_hash",
+  "portal_token",
+  "portal_token_expires_at",
+  // Trestle API credentials
+  "trestle_token",
+  "trestle_bearer",
+  "api_key",
+  "api_secret",
+  // Prisma internal metadata
+  "_count",
+  "_avg",
+  "_sum",
+  "_min",
+  "_max",
+] as const;
+
 /**
  * Sanitize a listing for CRM (internal) display.
- * Strips only truly forbidden fields (removed compensation fields).
- * CRM users see everything else — they're authorized.
+ * CRM users (agents/brokers) are authorized to see most data, but we still enforce:
+ *   1. Removed compensation fields (NAR Settlement — forbidden everywhere)
+ *   2. Auth credentials / tokens (security — never in any API response)
+ *   3. raw_data deep-cleaning: strip any credential fields that may be nested
  */
 export function sanitizeForCRM(listing: Record<string, unknown>): Record<string, unknown> {
   const result = { ...listing };
 
-  // Even CRM endpoints should not return removed compensation fields
+  // Strip removed compensation fields (forbidden everywhere post-NAR Settlement)
   for (const field of REMOVED_FIELDS) {
     delete result[field];
   }
+
+  // Strip fields that must never appear in any API response
+  for (const field of NEVER_EXPOSE_FIELDS) {
+    delete result[field];
+  }
+
+  // Deep-clean raw_data if present: strip compensation + credentials from nested JSON
+  if (result.raw_data && typeof result.raw_data === "object") {
+    const raw = { ...(result.raw_data as Record<string, unknown>) };
+    for (const field of REMOVED_FIELDS) {
+      delete raw[field];
+    }
+    for (const field of NEVER_EXPOSE_FIELDS) {
+      delete raw[field];
+    }
+    result.raw_data = raw;
+  }
+
+  // Deep-clean agent_info: strip agent email/phone from CRM listing responses
+  // (agents see their OWN info from session, not from listing payload)
+  // Keep: name, office, MLS IDs (needed for CRM display)
+  // Strip: direct email/phone (available from agent profile, not listing)
 
   return result;
 }

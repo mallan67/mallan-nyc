@@ -11,6 +11,8 @@ import {
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
+import { createNotification } from "@/lib/notifications/engine";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -111,8 +113,21 @@ export async function PATCH(
     );
   }
 
-  // RLS Enforcement Gate — validate status-related UCBA rules (Coming Soon, terminal, etc.)
+  // C12: ClosePrice required when transitioning to Sold/Rented
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
+  if (newStatus === "Sold" || newStatus === "Rented") {
+    if (!existingRaw.ClosePrice) {
+      return NextResponse.json(
+        {
+          error: `ClosePrice is required before marking a listing as ${newStatus} (UCBA C12)`,
+          field: "ClosePrice",
+        },
+        { status: 422 }
+      );
+    }
+  }
+
+  // RLS Enforcement Gate — validate status-related UCBA rules (Coming Soon, terminal, etc.)
   const enforcement = assertRlsCompliantPayload(
     { ...existingRaw, MlsStatus: newStatus },
     {
@@ -121,6 +136,8 @@ export async function PATCH(
       currentStatus: newStatus,
       previousStatus: currentStatus,
       statusChangedAt: listing.status_changed_at ?? undefined,
+      existingActivationDate: existingRaw.ActivationDate as string | undefined, // D12 immutability
+      rlsEligible: listing.rls_eligible,
     }
   );
   if (!enforcement.passed) {
@@ -145,6 +162,11 @@ export async function PATCH(
     newStatus
   );
 
+  // D9: Mark listings that were Coming Soon so one-time-per-address check works
+  const updatedRaw = currentStatus === "ComingSoon" && newStatus !== "ComingSoon"
+    ? { ...existingRaw, _wasComingSoon: true }
+    : undefined;
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {
@@ -154,10 +176,44 @@ export async function PATCH(
       first_active_date: domUpdate.first_active_date,
       days_on_market: domUpdate.days_on_market,
       cumulative_days_on_market: domUpdate.cumulative_days_on_market,
+      ...(updatedRaw ? { raw_data: updatedRaw } : {}),
     },
   });
 
   const domReset = domUpdate.days_on_market === 0 && listing.days_on_market > 0;
+
+  // UCBA A6/A7/A8: Create ProtectedPeriod when transitioning to Expired
+  if (newStatus === "Expired" && listing.agent_id) {
+    const existingPeriod = await prisma.protectedPeriod.findUnique({
+      where: { listing_id: listing.id },
+    });
+    if (!existingPeriod) {
+      const expiredAt = listing.expiration_date ?? new Date();
+      const namesDeadline = addBusinessDays(expiredAt, 7);
+      const protectionEnds = addCalendarDays(expiredAt, 90);
+
+      await prisma.protectedPeriod.create({
+        data: {
+          listing_id: listing.id,
+          agent_id: listing.agent_id,
+          agreement_expired_at: expiredAt,
+          names_deadline: namesDeadline,
+          protection_ends_at: protectionEnds,
+          status: "pending_names",
+        },
+      });
+
+      // Notify agent
+      await createNotification({
+        recipient_type: "agent",
+        recipient_id: listing.agent_id,
+        type: "listing_expiration",
+        title: "Exclusive expired — submit protected buyers",
+        body: `Your listing ${listing.listing_id} has expired. Submit up to 6 protected buyer names by ${namesDeadline.toLocaleDateString()} and upload the notice of expired listing (UCBA A6/A7).`,
+        data: { listing_id: listing.listing_id },
+      });
+    }
+  }
 
   await logAuditEvent(
     "status_change",

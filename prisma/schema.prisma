@@ -52,6 +52,7 @@ model Agent {
   cma_reports         CmaReport[]
   documents           Document[]
   assignment_rules    LeadAssignmentRule[]
+  protected_periods   ProtectedPeriod[]
 
   created_at     DateTime  @default(now()) @map("created_at")
   updated_at     DateTime  @updatedAt @map("updated_at")
@@ -162,6 +163,8 @@ model Lead {
   intent_profile  BuyerIntentProfile?
   lead_score      LeadScore?
   showing_feedback ShowingFeedback[]
+  buyer_rep_agreement      Boolean   @default(false) @map("buyer_rep_agreement")       // UCBA E7: buyer rep agreement on file
+  buyer_rep_agreement_date DateTime? @map("buyer_rep_agreement_date") // Date agreement was signed
   created_at      DateTime @default(now()) @map("created_at")
   updated_at      DateTime @updatedAt @map("updated_at")
 
@@ -226,6 +229,12 @@ model Listing {
   first_active_date           DateTime? @map("first_active_date")
   days_on_market              Int       @default(0) @map("days_on_market")
   cumulative_days_on_market   Int       @default(0) @map("cumulative_days_on_market")
+
+  // --- Protected Period (UCBA A6/A7/A8) ---
+  expiration_date             DateTime? @map("expiration_date")          // Exclusive agreement expiration (promoted from raw_data)
+  expiration_30d_notified     Boolean   @default(false) @map("expiration_30d_notified")
+  expiration_7d_notified      Boolean   @default(false) @map("expiration_7d_notified")
+  protected_period            ProtectedPeriod?
 
   // --- Sync tracking (Trestle IDX pipeline) ---
   last_synced_from_trestle DateTime? @map("last_synced_from_trestle")
@@ -876,6 +885,7 @@ model NotificationPreference {
   price_drop      Boolean   @default(true) @map("price_drop")
   showing_updates Boolean   @default(true) @map("showing_updates")
   offer_updates   Boolean   @default(true) @map("offer_updates")
+  listing_expiration Boolean @default(true) @map("listing_expiration")  // UCBA A6: expiration warnings
   email_digest    String    @default("daily")       // "none" | "instant" | "daily" | "weekly"
   sms_enabled     Boolean   @default(false) @map("sms_enabled")
 
@@ -1232,4 +1242,65 @@ model FeaturedConfig {
   updated_at      DateTime  @updatedAt @map("updated_at")
 
   @@map("featured_configs")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Z. PROTECTED PERIOD — UCBA A6/A7/A8 exclusive expiration
+// Internal audit compliance — NOT sent to RLS/Trestle.
+// Agent has 7 business days to submit up to 6 buyer names after
+// exclusive expires. 90-day protection window for compensation.
+// ═══════════════════════════════════════════════════════════
+model ProtectedPeriod {
+  id                    BigInt    @id @default(autoincrement())
+  listing_id            BigInt    @unique @map("listing_id")
+  listing               Listing   @relation(fields: [listing_id], references: [id])
+  agent_id              BigInt    @map("agent_id")
+  agent                 Agent     @relation(fields: [agent_id], references: [id])
+
+  // Dates
+  agreement_expired_at  DateTime  @map("agreement_expired_at")     // When the exclusive agreement expired
+  names_deadline        DateTime  @map("names_deadline")           // 7 business days after expiration
+  protection_ends_at    DateTime  @map("protection_ends_at")       // 90 calendar days after expiration
+  names_submitted_at    DateTime? @map("names_submitted_at")
+  notice_uploaded_at    DateTime? @map("notice_uploaded_at")       // When notice of expired listing was uploaded
+
+  // Status tracking
+  // pending_names → active → expired | converted
+  // pending_names → missed_deadline (if 7 biz days pass with no names)
+  status                String    @default("pending_names")
+
+  // Notice document (internal audit — not sent to RLS)
+  notice_document_id    BigInt?   @map("notice_document_id")
+
+  created_at            DateTime  @default(now()) @map("created_at")
+  updated_at            DateTime  @updatedAt @map("updated_at")
+
+  protected_buyers      ProtectedBuyer[]
+
+  @@index([agent_id])
+  @@index([status])
+  @@index([protection_ends_at])
+  @@index([names_deadline])
+  @@map("protected_periods")
+}
+
+model ProtectedBuyer {
+  id                    BigInt          @id @default(autoincrement())
+  protected_period_id   BigInt          @map("protected_period_id")
+  protected_period      ProtectedPeriod @relation(fields: [protected_period_id], references: [id], onDelete: Cascade)
+
+  buyer_name            String          @map("buyer_name")
+  buyer_email           String?         @map("buyer_email")
+  buyer_phone           String?         @map("buyer_phone")
+  notes                 String?         @db.Text
+
+  // If a deal is executed with this buyer within 90 days
+  deal_executed         Boolean         @default(false) @map("deal_executed")
+  deal_executed_at      DateTime?       @map("deal_executed_at")
+  deal_price            Decimal?        @db.Decimal(14,2) @map("deal_price")
+
+  created_at            DateTime        @default(now()) @map("created_at")
+
+  @@index([protected_period_id])
+  @@map("protected_buyers")
 }

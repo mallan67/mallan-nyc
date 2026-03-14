@@ -239,7 +239,6 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     storiesTotal: features.StoriesTotal ? Number(features.StoriesTotal) : undefined,
     roomsTotal: features.Rooms ? Number(features.Rooms) : undefined,
     listOfficeName: agentInfo.ListOfficeName || 'Mallan Real Estate Inc.',
-    listAgentFullName: agentInfo.ListAgentFullName || '',
     media,
     photosCount: media.length,
     publicRemarks: features.PublicRemarks || undefined,

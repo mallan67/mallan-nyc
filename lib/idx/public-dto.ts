@@ -98,9 +98,8 @@ export interface PublicListingDTO {
   yearBuilt: number | null;
   storiesTotal?: number;
   roomsTotal?: number;
-  // Agent — office + name only (no email, phone, or MLS IDs)
+  // Agent — office/broker name only (REBNY: public attribution = office, not agent)
   listOfficeName: string;
-  listAgentFullName: string;
   // Media
   media: { url: string; mediaType: string; order: number }[];
   photosCount?: number;
@@ -234,9 +233,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     yearBuilt: listing.yearBuilt,
     storiesTotal: listing.storiesTotal,
     roomsTotal: listing.roomsTotal,
-    // Agent: office name + agent name only — NO email, phone, or MLS IDs
+    // Agent: office/broker name only — agent name stripped for public (REBNY attribution = office)
     listOfficeName: listing.listOfficeName,
-    listAgentFullName: listing.listAgentFullName,
     // Media — proxy Trestle URLs through our API (they require Bearer auth)
     media: listing.media.map(m => ({ ...m, url: proxyMediaUrl(m.url) })),
     photosCount: listing.photosCount,
