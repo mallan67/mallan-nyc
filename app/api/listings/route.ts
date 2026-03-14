@@ -273,6 +273,18 @@ export async function GET(request: Request) {
             case 'newest': dbOrderBy = { modification_timestamp: 'desc' }; break;
             case 'sqft-desc': dbOrderBy = { living_area: 'desc' }; break;
             case 'beds-desc': dbOrderBy = { bedrooms_total: 'desc' }; break;
+            case 'exclusives':
+              // Only Mallan exclusive listings (agent_id is set = our listing)
+              dbWhere.agent_id = { not: null };
+              dbOrderBy = { modification_timestamp: 'desc' };
+              break;
+            case 'neighborhood':
+              dbOrderBy = { neighborhood: 'asc' };
+              break;
+            case 'new-development':
+              dbWhere.property_sub_type = { in: ['NewConstruction', 'New Construction'] };
+              dbOrderBy = { modification_timestamp: 'desc' };
+              break;
           }
 
           const [dbListings, dbTotal] = await Promise.all([
@@ -610,6 +622,15 @@ export async function GET(request: Request) {
           case 'price-desc': orderby = 'ListPrice desc'; break;
           case 'sqft-desc': orderby = 'LivingArea desc'; break;
           case 'beds-desc': orderby = 'BedroomsTotal desc'; break;
+          case 'neighborhood': orderby = 'City asc'; break;
+          case 'new-development':
+            filterParts.push("PropertySubType eq 'NewConstruction'");
+            orderby = 'ModificationTimestamp desc';
+            break;
+          case 'exclusives':
+            // Exclusives are DB-only (our own listings) — skip Trestle, handled by merge
+            orderby = 'ModificationTimestamp desc';
+            break;
           case 'newest': default: orderby = 'ModificationTimestamp desc'; break;
         }
 

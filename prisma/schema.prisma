@@ -1233,7 +1233,7 @@ model FeaturedConfig {
   id              BigInt    @id @default(autoincrement())
   pinned_ids      String[]  @default([])              // listing IDs or MLS IDs to pin first
   filters         Json      @default("{}")             // { type, boroughs, neighborhoods, minPrice, maxPrice, minBeds }
-  sort            String    @default("price-desc")     // price-desc, price-asc, newest
+  sort            String    @default("price-desc")     // price-desc, price-asc, newest, exclusives, neighborhood, new-development
   display_limit   Int       @default(6) @map("display_limit")
   is_active       Boolean   @default(true) @map("is_active")
   updated_by      BigInt?   @map("updated_by")

@@ -57,7 +57,7 @@ export async function PUT(req: NextRequest) {
   if (display_limit !== undefined && (display_limit < 1 || display_limit > 24)) {
     return NextResponse.json({ error: "display_limit must be 1-24" }, { status: 400 });
   }
-  if (sort && !["price-desc", "price-asc", "newest"].includes(sort)) {
+  if (sort && !["price-desc", "price-asc", "newest", "exclusives", "neighborhood", "new-development"].includes(sort)) {
     return NextResponse.json({ error: "Invalid sort value" }, { status: 400 });
   }
 
