@@ -28072,7 +28072,7 @@
             // Highlight active link - use passed event or fallback to window.event
             var e = evt || window.event;
             var activeBtn = null;
-            if (e && e.target) {
+            if (e && e.target && typeof e.target.closest === 'function') {
                 activeBtn = e.target.closest('button');
                 if (activeBtn) activeBtn.classList.add('active');
             } else {
@@ -34890,8 +34890,7 @@
         </div>
     </div>
 
-    <!-- Radix UI Behavior Parity — vanilla JS (a11y: focus trap, ARIA, arrow keys) -->
-    <script src="radix-behavior-parity.js"></script>
+    <!-- Radix UI Behavior Parity — removed (file not created yet) -->
 
     <!-- ========================================= -->
     <!-- A8: SKELETON LOADING HELPERS              -->
