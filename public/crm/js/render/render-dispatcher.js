@@ -80,7 +80,7 @@
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function getFilteredListings(skipPagination) {
-            var listings = (searchResultsState.filteredListings || listings).slice();
+            var listings = (searchResultsState.filteredListings || []).slice();
             // ══════════════════════════════════════════════════════════════════
             // COMPLIANCE HARD-BLOCK (Defense-in-depth)
             // ══════════════════════════════════════════════════════════════════
