@@ -45,7 +45,6 @@
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",
         "@aws-sdk/client-s3": "^3.986.0",
-        "@highlight-run/next": "^7.9.38",
         "@maplibre/maplibre-gl-leaflet": "^0.1.3",
         "@prisma/client": "^6.17.1",
         "@radix-ui/react-dialog": "^1.1.15",

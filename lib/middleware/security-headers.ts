@@ -27,7 +27,7 @@ function buildPublicCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://translate.googleapis.com https://www.gstatic.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://images.unsplash.com https://www.google-analytics.com https://www.facebook.com https://*.trestle.com https://api.cotality.com https://*.r2.dev https://images.mallan.nyc https://*.tile.openstreetmap.org https://unpkg.com https://tiles.openfreemap.org https://translate.google.com https://www.google.com https://www.gstatic.com https://fonts.gstatic.com",
-    "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://api.cotality.com https://tiles.openfreemap.org https://translate.googleapis.com https://api.openai.com https://api.anthropic.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.ingest.sentry.io https://pub.highlight.io",
+    "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://api.cotality.com https://tiles.openfreemap.org https://translate.googleapis.com https://api.openai.com https://api.anthropic.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.ingest.sentry.io",
     "worker-src 'self' blob:",
     "frame-src https://translate.google.com https://www.google.com https://maps.google.com https://www.youtube.com https://player.vimeo.com https://my.matterport.com https://vercel.live",
     "media-src 'self' https://*.r2.dev https://images.mallan.nyc",
