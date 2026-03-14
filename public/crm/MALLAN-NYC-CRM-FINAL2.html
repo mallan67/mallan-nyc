@@ -2760,7 +2760,11 @@
                         <h2 class="text-2xl font-bold text-gray-900">Sold &amp; Rented</h2>
                         <p class="text-gray-600">Your closed deals — sales and rentals</p>
                     </div>
-                    <button onclick="loadSoldTab()" class="px-3 py-1.5 border rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+                    <div class="flex items-center gap-2">
+                        <button onclick="_openAddDealModal()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition"><i class="fas fa-plus mr-1.5"></i>Add Deal</button>
+                        <button onclick="_openCSVUploadModal()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"><i class="fas fa-file-csv mr-1.5"></i>Upload CSV</button>
+                        <button onclick="loadSoldTab(true)" class="px-3 py-1.5 border rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+                    </div>
                 </div>
 
                 <!-- Stats row -->
@@ -27586,9 +27590,9 @@ Equal Housing Opportunity
 
         // ── Sold Tab (standalone — reuses pastDeals data) ──
         var _soldTabLoaded = false;
-        function loadSoldTab() {
-            // Reuse pastDeals if already loaded
-            if (_pastDealsLoaded && _pastDealsData) {
+        function loadSoldTab(forceRefresh) {
+            // Reuse pastDeals if already loaded (unless force-refresh)
+            if (!forceRefresh && _pastDealsLoaded && _pastDealsData) {
                 _renderSoldTab();
                 _soldTabLoaded = true;
                 return;
@@ -27665,6 +27669,366 @@ Equal Housing Opportunity
                 if (salesSec) salesSec.style.display = 'none';
                 if (rentalsSec) rentalsSec.style.display = '';
             }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // ADD DEAL MODAL — Single deal entry
+        // ══════════════════════════════════════════════════════
+        function _openAddDealModal() {
+            var existing = document.getElementById('_addDealOverlay');
+            if (existing) existing.remove();
+
+            var overlay = document.createElement('div');
+            overlay.id = '_addDealOverlay';
+            overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+            overlay.innerHTML =
+                '<div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4">' +
+                    '<div class="p-5 border-b flex items-center justify-between sticky top-0 bg-white z-10">' +
+                        '<h3 class="text-lg font-bold text-gray-900"><i class="fas fa-plus-circle text-blue-600 mr-2"></i>Add Closed Deal</h3>' +
+                        '<button onclick="document.getElementById(\'_addDealOverlay\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>' +
+                    '</div>' +
+                    '<div class="p-5 space-y-3">' +
+                        '<div class="grid grid-cols-2 gap-3">' +
+                            '<div class="col-span-2"><label class="block text-[10px] font-semibold text-gray-600 mb-1">Street Address *</label><input id="_adStreet" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="123 Park Avenue"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Unit</label><input id="_adUnit" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="4A"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Neighborhood</label><input id="_adNeighborhood" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Upper East Side"></div>' +
+                        '</div>' +
+                        '<div class="grid grid-cols-2 gap-3">' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Deal Type *</label><select id="_adDealType" class="w-full border rounded-lg px-3 py-2 text-sm"><option value="sale">Sale</option><option value="rent">Rental</option></select></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Property Type</label><select id="_adPropType" class="w-full border rounded-lg px-3 py-2 text-sm"><option value="">Select...</option><option>Condo</option><option>Co-op</option><option>Condop</option><option>Townhouse</option><option>Single Family</option><option>Multi-Family</option><option>Commercial</option><option>Land</option></select></div>' +
+                        '</div>' +
+                        '<div class="grid grid-cols-3 gap-3">' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Close Price</label><input id="_adPrice" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$1,500,000" oninput="this.value=this.value.replace(/[^0-9.]/g,\'\')"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Close Date</label><input id="_adDate" type="date" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Zip Code</label><input id="_adZip" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="10028" maxlength="5"></div>' +
+                        '</div>' +
+                        '<div class="grid grid-cols-4 gap-3">' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Beds</label><input id="_adBeds" type="number" min="0" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="2"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Full Baths</label><input id="_adBathsFull" type="number" min="0" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="2"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Half Baths</label><input id="_adBathsHalf" type="number" min="0" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="0"></div>' +
+                            '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Sqft</label><input id="_adSqft" type="number" min="0" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="1200"></div>' +
+                        '</div>' +
+                        '<div><label class="block text-[10px] font-semibold text-gray-600 mb-1">Listing Courtesy</label><input id="_adCourtesy" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Listing courtesy of [broker] (for buyer-rep deals)"></div>' +
+                        '<p class="text-xs text-red-600 hidden" id="_adError"></p>' +
+                    '</div>' +
+                    '<div class="p-5 border-t flex justify-between items-center bg-gray-50 rounded-b-xl">' +
+                        '<button onclick="document.getElementById(\'_addDealOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>' +
+                        '<button id="_adSaveBtn" onclick="_submitAddDeal()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"><i class="fas fa-check mr-1.5"></i>Save Deal</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+        }
+
+        function _submitAddDeal() {
+            var street = document.getElementById('_adStreet').value.trim();
+            var dealType = document.getElementById('_adDealType').value;
+            var errEl = document.getElementById('_adError');
+            var btn = document.getElementById('_adSaveBtn');
+
+            errEl.classList.add('hidden');
+            if (!street) { errEl.textContent = 'Street address is required.'; errEl.classList.remove('hidden'); return; }
+
+            var payload = { street: street, deal_type: dealType };
+            var unit = document.getElementById('_adUnit').value.trim();
+            var neighborhood = document.getElementById('_adNeighborhood').value.trim();
+            var propType = document.getElementById('_adPropType').value;
+            var price = document.getElementById('_adPrice').value.trim();
+            var date = document.getElementById('_adDate').value;
+            var zip = document.getElementById('_adZip').value.trim();
+            var beds = document.getElementById('_adBeds').value;
+            var bathsFull = document.getElementById('_adBathsFull').value;
+            var bathsHalf = document.getElementById('_adBathsHalf').value;
+            var sqft = document.getElementById('_adSqft').value;
+            var courtesy = document.getElementById('_adCourtesy').value.trim();
+
+            if (unit) payload.unit = unit;
+            if (neighborhood) payload.neighborhood = neighborhood;
+            if (propType) payload.property_type = propType;
+            if (price) payload.close_price = parseFloat(price);
+            if (date) payload.close_date = date;
+            if (zip) payload.postal_code = zip;
+            if (beds) payload.beds = parseInt(beds);
+            if (bathsFull) payload.baths_full = parseInt(bathsFull);
+            if (bathsHalf) payload.baths_half = parseInt(bathsHalf);
+            if (sqft) payload.sqft = parseInt(sqft);
+            if (courtesy) payload.listing_courtesy = courtesy;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Saving...';
+
+            fetch('/api/crm/past-deals', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+            .then(function(res) {
+                if (res.ok) {
+                    document.getElementById('_addDealOverlay').remove();
+                    showToast('Deal added successfully', 'success');
+                    _pastDealsLoaded = false;
+                    loadSoldTab(true);
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check mr-1.5"></i>Save Deal';
+                    errEl.textContent = res.data.error || 'Failed to save deal.';
+                    errEl.classList.remove('hidden');
+                }
+            })
+            .catch(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check mr-1.5"></i>Save Deal';
+                errEl.textContent = 'Network error. Please try again.';
+                errEl.classList.remove('hidden');
+            });
+        }
+
+        // ══════════════════════════════════════════════════════
+        // CSV UPLOAD — Bulk import closed deals
+        // ══════════════════════════════════════════════════════
+        function _openCSVUploadModal() {
+            var existing = document.getElementById('_csvUploadOverlay');
+            if (existing) existing.remove();
+
+            var overlay = document.createElement('div');
+            overlay.id = '_csvUploadOverlay';
+            overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+            overlay.innerHTML =
+                '<div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">' +
+                    '<div class="p-5 border-b flex items-center justify-between sticky top-0 bg-white z-10">' +
+                        '<h3 class="text-lg font-bold text-gray-900"><i class="fas fa-file-csv text-green-600 mr-2"></i>Upload Closed Deals (CSV)</h3>' +
+                        '<button onclick="document.getElementById(\'_csvUploadOverlay\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>' +
+                    '</div>' +
+                    '<div class="p-5 space-y-4">' +
+                        '<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-800">' +
+                            '<p class="font-semibold mb-1"><i class="fas fa-info-circle mr-1"></i>CSV Format</p>' +
+                            '<p class="mb-2">Required columns: <strong>street</strong>, <strong>deal_type</strong> (sale or rent)</p>' +
+                            '<p class="mb-2">Optional: unit, neighborhood, property_type, close_price, close_date (YYYY-MM-DD), postal_code, beds, baths_full, baths_half, sqft, listing_courtesy</p>' +
+                            '<p class="text-blue-600 cursor-pointer hover:underline" onclick="_downloadCSVTemplate()"><i class="fas fa-download mr-1"></i>Download template CSV</p>' +
+                        '</div>' +
+                        '<div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-400 hover:bg-blue-50/30 transition cursor-pointer" onclick="document.getElementById(\'_csvFileInput\').click()" id="_csvDropZone">' +
+                            '<input type="file" id="_csvFileInput" accept=".csv,text/csv" class="hidden">' +
+                            '<i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-3"></i>' +
+                            '<p class="text-sm font-medium text-gray-600">Click to select CSV file</p>' +
+                            '<p class="text-xs text-gray-400 mt-1">or drag and drop</p>' +
+                        '</div>' +
+                        '<div id="_csvPreview" class="hidden"></div>' +
+                        '<div id="_csvProgress" class="hidden"></div>' +
+                        '<p class="text-xs text-red-600 hidden" id="_csvError"></p>' +
+                    '</div>' +
+                    '<div class="p-5 border-t flex justify-between items-center bg-gray-50 rounded-b-xl">' +
+                        '<button onclick="document.getElementById(\'_csvUploadOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>' +
+                        '<button id="_csvImportBtn" onclick="_importCSVDeals()" class="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition hidden"><i class="fas fa-upload mr-1.5"></i>Import <span id="_csvImportCount">0</span> Deals</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+
+            // Wire file input
+            var fileInput = document.getElementById('_csvFileInput');
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files && fileInput.files[0]) _parseCSVFile(fileInput.files[0]);
+            });
+
+            // Drag and drop
+            var dropZone = document.getElementById('_csvDropZone');
+            dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('border-blue-400', 'bg-blue-50/50'); });
+            dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('border-blue-400', 'bg-blue-50/50'); });
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-400', 'bg-blue-50/50');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) _parseCSVFile(e.dataTransfer.files[0]);
+            });
+        }
+
+        var _csvParsedDeals = [];
+
+        function _downloadCSVTemplate() {
+            var header = 'street,unit,neighborhood,deal_type,property_type,close_price,close_date,postal_code,beds,baths_full,baths_half,sqft,listing_courtesy';
+            var example = '"123 Park Avenue","4A","Upper East Side","sale","Condo","2500000","2024-06-15","10028","2","2","1","1200",""';
+            var blob = new Blob([header + '\n' + example + '\n'], { type: 'text/csv' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'closed-deals-template.csv';
+            a.click();
+        }
+
+        function _parseCSVFile(file) {
+            var errEl = document.getElementById('_csvError');
+            errEl.classList.add('hidden');
+            if (!file.name.endsWith('.csv')) { errEl.textContent = 'Please select a .csv file.'; errEl.classList.remove('hidden'); return; }
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var text = e.target.result;
+                var lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
+                if (lines.length < 2) { errEl.textContent = 'CSV must have a header row and at least one data row.'; errEl.classList.remove('hidden'); return; }
+
+                var headers = _parseCSVLine(lines[0]).map(function(h) { return h.trim().toLowerCase().replace(/\s+/g, '_'); });
+                var streetIdx = headers.indexOf('street');
+                var dealTypeIdx = headers.indexOf('deal_type');
+
+                if (streetIdx === -1) { errEl.textContent = 'Missing required column: "street". Check your CSV headers.'; errEl.classList.remove('hidden'); return; }
+                if (dealTypeIdx === -1) { errEl.textContent = 'Missing required column: "deal_type". Check your CSV headers.'; errEl.classList.remove('hidden'); return; }
+
+                _csvParsedDeals = [];
+                var errors = [];
+                for (var i = 1; i < lines.length; i++) {
+                    var cols = _parseCSVLine(lines[i]);
+                    var deal = {};
+                    headers.forEach(function(h, idx) { if (cols[idx] !== undefined) deal[h] = cols[idx].trim(); });
+
+                    if (!deal.street) { errors.push('Row ' + (i + 1) + ': missing street'); continue; }
+                    if (!deal.deal_type || (deal.deal_type !== 'sale' && deal.deal_type !== 'rent')) {
+                        errors.push('Row ' + (i + 1) + ': deal_type must be "sale" or "rent"');
+                        continue;
+                    }
+
+                    // Normalize numeric fields
+                    if (deal.close_price) deal.close_price = parseFloat(deal.close_price.replace(/[$,]/g, '')) || null;
+                    if (deal.beds) deal.beds = parseInt(deal.beds) || null;
+                    if (deal.baths_full) deal.baths_full = parseInt(deal.baths_full) || null;
+                    if (deal.baths_half) deal.baths_half = parseInt(deal.baths_half) || null;
+                    if (deal.sqft) deal.sqft = parseInt(deal.sqft) || null;
+
+                    _csvParsedDeals.push(deal);
+                }
+
+                // Show preview
+                var preview = document.getElementById('_csvPreview');
+                var importBtn = document.getElementById('_csvImportBtn');
+                var countEl = document.getElementById('_csvImportCount');
+
+                if (_csvParsedDeals.length === 0) {
+                    errEl.textContent = 'No valid deals found. ' + (errors.length ? errors[0] : '');
+                    errEl.classList.remove('hidden');
+                    preview.classList.add('hidden');
+                    importBtn.classList.add('hidden');
+                    return;
+                }
+
+                var sales = _csvParsedDeals.filter(function(d) { return d.deal_type === 'sale'; }).length;
+                var rentals = _csvParsedDeals.length - sales;
+
+                var html = '<div class="bg-gray-50 border rounded-lg p-3">';
+                html += '<p class="text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-check-circle text-green-500 mr-1.5"></i>' + _csvParsedDeals.length + ' deals ready to import</p>';
+                html += '<div class="flex gap-4 text-xs text-gray-600 mb-2"><span><i class="fas fa-home text-green-500 mr-1"></i>' + sales + ' sales</span><span><i class="fas fa-key text-blue-500 mr-1"></i>' + rentals + ' rentals</span></div>';
+                if (errors.length > 0) {
+                    html += '<p class="text-xs text-amber-600 mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>' + errors.length + ' row(s) skipped:</p>';
+                    html += '<ul class="text-[10px] text-amber-600 list-disc ml-4">';
+                    errors.slice(0, 5).forEach(function(err) { html += '<li>' + err + '</li>'; });
+                    if (errors.length > 5) html += '<li>...and ' + (errors.length - 5) + ' more</li>';
+                    html += '</ul>';
+                }
+                // Preview first 5 rows
+                html += '<div class="mt-2 overflow-x-auto"><table class="w-full text-[10px]"><thead><tr class="text-gray-400 uppercase"><th class="py-1 pr-2 text-left">Address</th><th class="py-1 pr-2">Type</th><th class="py-1 pr-2">Property</th><th class="py-1 pr-2 text-right">Price</th><th class="py-1">Date</th></tr></thead><tbody>';
+                _csvParsedDeals.slice(0, 5).forEach(function(d) {
+                    var addr = d.street + (d.unit ? ', ' + d.unit : '');
+                    var price = d.close_price ? '$' + Number(d.close_price).toLocaleString() : '—';
+                    html += '<tr class="border-t border-gray-200"><td class="py-1 pr-2">' + addr + '</td><td class="py-1 pr-2 text-center capitalize">' + d.deal_type + '</td><td class="py-1 pr-2 text-center">' + (d.property_type || '—') + '</td><td class="py-1 pr-2 text-right">' + price + '</td><td class="py-1">' + (d.close_date || '—') + '</td></tr>';
+                });
+                if (_csvParsedDeals.length > 5) html += '<tr class="border-t border-gray-200"><td colspan="5" class="py-1 text-center text-gray-400">...and ' + (_csvParsedDeals.length - 5) + ' more</td></tr>';
+                html += '</tbody></table></div></div>';
+
+                preview.innerHTML = html;
+                preview.classList.remove('hidden');
+                countEl.textContent = _csvParsedDeals.length;
+                importBtn.classList.remove('hidden');
+            };
+            reader.readAsText(file);
+        }
+
+        // Simple CSV line parser (handles quoted fields with commas)
+        function _parseCSVLine(line) {
+            var result = [];
+            var current = '';
+            var inQuotes = false;
+            for (var i = 0; i < line.length; i++) {
+                var c = line[i];
+                if (c === '"') { inQuotes = !inQuotes; continue; }
+                if (c === ',' && !inQuotes) { result.push(current); current = ''; continue; }
+                current += c;
+            }
+            result.push(current);
+            return result;
+        }
+
+        function _importCSVDeals() {
+            if (!_csvParsedDeals.length) return;
+            var btn = document.getElementById('_csvImportBtn');
+            var progress = document.getElementById('_csvProgress');
+            var errEl = document.getElementById('_csvError');
+            errEl.classList.add('hidden');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Importing...';
+            progress.classList.remove('hidden');
+            progress.innerHTML = '<div class="bg-gray-100 rounded-full h-2 overflow-hidden"><div id="_csvProgressBar" class="bg-green-500 h-full transition-all duration-300" style="width:0%"></div></div><p class="text-xs text-gray-500 mt-1" id="_csvProgressText">0 / ' + _csvParsedDeals.length + '</p>';
+
+            var total = _csvParsedDeals.length;
+            var done = 0;
+            var failed = 0;
+            var failedRows = [];
+
+            function importNext() {
+                if (done + failed >= total) {
+                    // All done
+                    btn.disabled = false;
+                    if (failed === 0) {
+                        document.getElementById('_csvUploadOverlay').remove();
+                        showToast(done + ' deals imported successfully!', 'success');
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-check mr-1.5"></i>Done (' + failed + ' failed)';
+                        errEl.textContent = failed + ' deal(s) failed to import: ' + failedRows.slice(0, 3).join('; ');
+                        errEl.classList.remove('hidden');
+                        showToast(done + ' imported, ' + failed + ' failed', 'warning');
+                    }
+                    _pastDealsLoaded = false;
+                    loadSoldTab(true);
+                    return;
+                }
+
+                var deal = _csvParsedDeals[done + failed];
+                var idx = done + failed;
+                var payload = { street: deal.street, deal_type: deal.deal_type };
+                if (deal.unit) payload.unit = deal.unit;
+                if (deal.neighborhood) payload.neighborhood = deal.neighborhood;
+                if (deal.property_type) payload.property_type = deal.property_type;
+                if (deal.close_price) payload.close_price = deal.close_price;
+                if (deal.close_date) payload.close_date = deal.close_date;
+                if (deal.postal_code) payload.postal_code = deal.postal_code;
+                if (deal.beds) payload.beds = deal.beds;
+                if (deal.baths_full) payload.baths_full = deal.baths_full;
+                if (deal.baths_half) payload.baths_half = deal.baths_half;
+                if (deal.sqft) payload.sqft = deal.sqft;
+                if (deal.listing_courtesy) payload.listing_courtesy = deal.listing_courtesy;
+                if (deal.city) payload.city = deal.city;
+
+                fetch('/api/crm/past-deals', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(function(r) {
+                    if (r.ok) { done++; } else { failed++; failedRows.push(deal.street); }
+                    var pct = Math.round(((done + failed) / total) * 100);
+                    document.getElementById('_csvProgressBar').style.width = pct + '%';
+                    document.getElementById('_csvProgressText').textContent = (done + failed) + ' / ' + total + (failed > 0 ? ' (' + failed + ' failed)' : '');
+                    importNext();
+                })
+                .catch(function() {
+                    failed++; failedRows.push(deal.street);
+                    var pct = Math.round(((done + failed) / total) * 100);
+                    document.getElementById('_csvProgressBar').style.width = pct + '%';
+                    document.getElementById('_csvProgressText').textContent = (done + failed) + ' / ' + total + ' (' + failed + ' failed)';
+                    importNext();
+                });
+            }
+
+            importNext();
         }
 
         // ══════════════════════════════════════════════════════
