@@ -21,6 +21,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import * as Sentry from "@sentry/nextjs";
 import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 
@@ -145,6 +146,10 @@ export function createCronHandler(
     }
 
     console.error(`[cron/${name}] FAIL (${duration_ms}ms):`, result.error);
+    Sentry.captureException(new Error(`Cron ${name} failed: ${result.error}`), {
+      tags: { cron: name },
+      extra: { duration_ms },
+    });
     await logAudit("failure", duration_ms, {}, result.error);
     return NextResponse.json(
       { ok: false, error: result.error, duration_ms },

@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from 'react';
 
 export default function ContactError({
@@ -10,7 +11,7 @@ export default function ContactError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[Contact Error]', error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

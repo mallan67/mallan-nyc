@@ -1,3 +1,5 @@
+const { withSentryConfig } = require("@sentry/nextjs");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -7,7 +9,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
       { protocol: 'https', hostname: '*.trestle.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'api.cotality.com', pathname: '/**' }, // <-- added
+      { protocol: 'https', hostname: 'api.cotality.com', pathname: '/**' },
       { protocol: 'https', hostname: '*.r2.dev', pathname: '/**' },
       { protocol: 'https', hostname: 'images.mallan.nyc', pathname: '/**' },
     ],
@@ -26,4 +28,25 @@ const nextConfig = {
   // No headers() function needed — all headers set in middleware
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  // Suppress source map upload logs during build
+  silent: true,
+
+  // Upload source maps for readable stack traces
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Hide source maps from browser devtools (security)
+  hideSourceMaps: true,
+
+  // Automatically instrument API routes and server components
+  autoInstrumentServerFunctions: true,
+  autoInstrumentMiddleware: true,
+  autoInstrumentAppDirectory: true,
+
+  // Tree-shake Sentry debug code in production
+  disableLogger: true,
+
+  // Don't fail build if Sentry upload fails (env vars may not be set yet)
+  silentError: true,
+});
