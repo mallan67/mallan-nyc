@@ -50,7 +50,7 @@ function renderShowingFeedback() {
               <td style="padding:8px 12px;">${new Date(s.date).toLocaleDateString()}</td>
               <td style="padding:8px 12px;">${s.listing?.address || s.listing_id || '-'}</td>
               <td style="padding:8px 12px;">${s.lead?.first_name || ''} ${s.lead?.last_name || ''}</td>
-              <td style="padding:8px 12px;text-align:center;">${fb ? '${'&#9733;'.repeat(fb.rating)}' : '-'}</td>
+              <td style="padding:8px 12px;text-align:center;">${fb ? '&#9733;'.repeat(fb.rating) : '-'}</td>
               <td style="padding:8px 12px;text-align:center;">${il ? `<span style="color:${il.color};font-weight:600;">${il.label}</span>` : '-'}</td>
               <td style="padding:8px 12px;text-align:center;">
                 <button onclick="showFeedbackModal('${s.id}')" style="background:none;border:1px solid #d1d5db;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">${fb ? 'Edit' : 'Add'} Feedback</button>
