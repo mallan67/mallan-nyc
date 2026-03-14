@@ -1185,14 +1185,37 @@
                         <div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold" id="currentUserAvatar">--</div>
                         <span class="text-sm font-medium text-gray-700" id="currentUserName">--</span>
                         <span class="text-xs text-gray-500" id="currentUserRole">--</span>
-                        <a href="/api/auth/logout" title="Sign Out" class="ml-2 p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
-                            <i class="fas fa-sign-out-alt text-sm"></i>
-                        </a>
+                        <div class="relative ml-2" id="settingsDropdownWrap">
+                            <button onclick="document.getElementById('settingsDropdown').classList.toggle('hidden')" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Settings">
+                                <i class="fas fa-cog text-sm"></i>
+                            </button>
+                            <div id="settingsDropdown" class="hidden absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-200 z-50 py-1 text-sm">
+                                <button onclick="document.getElementById('settingsDropdown').classList.add('hidden'); _openChangePassword();" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2.5 text-gray-700">
+                                    <i class="fas fa-key text-gray-400 w-4 text-center"></i> Change Password
+                                </button>
+                                <button onclick="document.getElementById('settingsDropdown').classList.add('hidden'); _openAgentSelfEdit();" class="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2.5 text-gray-700">
+                                    <i class="fas fa-user-edit text-gray-400 w-4 text-center"></i> Edit My Profile
+                                </button>
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <a href="/api/auth/logout" class="block px-4 py-2.5 hover:bg-red-50 flex items-center gap-2.5 text-red-600">
+                                    <i class="fas fa-sign-out-alt w-4 text-center"></i> Sign Out
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </nav>
+
+    <script>
+    // Close settings dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        var wrap = document.getElementById('settingsDropdownWrap');
+        var dd = document.getElementById('settingsDropdown');
+        if (wrap && dd && !wrap.contains(e.target)) dd.classList.add('hidden');
+    });
+    </script>
 
     <!-- ═══ A7: BREADCRUMB NAVIGATION ═══ -->
     <div class="breadcrumb-bar" id="breadcrumbBar">
@@ -28986,6 +29009,108 @@ Equal Housing Opportunity
         };
 
         // ══════════════════════════════════════════════════════
+        // CHANGE PASSWORD MODAL (all users)
+        // ══════════════════════════════════════════════════════
+        window._openChangePassword = function() {
+            var existing = document.getElementById('_changePwOverlay');
+            if (existing) existing.remove();
+
+            var overlay = document.createElement('div');
+            overlay.id = '_changePwOverlay';
+            overlay.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+            overlay.innerHTML =
+                '<div class="bg-white rounded-xl shadow-2xl w-full max-w-md m-4">' +
+                    '<div class="p-6 border-b flex items-center justify-between">' +
+                        '<div><h3 class="text-lg font-bold text-gray-900"><i class="fas fa-key text-amber-500 mr-2"></i>Change Password</h3>' +
+                        '<p class="text-xs text-gray-500 mt-0.5">Enter your current password and choose a new one</p></div>' +
+                        '<button onclick="document.getElementById(\'_changePwOverlay\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>' +
+                    '</div>' +
+                    '<div class="p-6 space-y-4">' +
+                        '<div>' +
+                            '<label class="block text-xs font-semibold text-gray-700 mb-1.5">Current Password</label>' +
+                            '<div class="relative">' +
+                                '<input type="password" id="_cpCurrent" class="w-full border rounded-lg px-3 py-2.5 text-sm pr-10" placeholder="Enter current password">' +
+                                '<button type="button" onclick="var i=document.getElementById(\'_cpCurrent\');i.type=i.type===\'password\'?\'text\':\'password\'" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><i class="fas fa-eye text-xs"></i></button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-xs font-semibold text-gray-700 mb-1.5">New Password</label>' +
+                            '<div class="relative">' +
+                                '<input type="password" id="_cpNew" class="w-full border rounded-lg px-3 py-2.5 text-sm pr-10" placeholder="At least 8 characters">' +
+                                '<button type="button" onclick="var i=document.getElementById(\'_cpNew\');i.type=i.type===\'password\'?\'text\':\'password\'" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><i class="fas fa-eye text-xs"></i></button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-xs font-semibold text-gray-700 mb-1.5">Confirm New Password</label>' +
+                            '<input type="password" id="_cpConfirm" class="w-full border rounded-lg px-3 py-2.5 text-sm" placeholder="Re-enter new password">' +
+                        '</div>' +
+                        '<p class="text-xs text-red-600 hidden" id="_cpError"></p>' +
+                        '<p class="text-xs text-green-600 hidden" id="_cpSuccess"></p>' +
+                    '</div>' +
+                    '<div class="p-6 border-t flex justify-between items-center bg-gray-50 rounded-b-xl">' +
+                        '<button onclick="document.getElementById(\'_changePwOverlay\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>' +
+                        '<button id="_cpSaveBtn" onclick="_submitChangePassword()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"><i class="fas fa-check mr-1.5"></i>Update Password</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+
+            // Focus first field
+            setTimeout(function() { document.getElementById('_cpCurrent').focus(); }, 100);
+        };
+
+        window._submitChangePassword = function() {
+            var current = document.getElementById('_cpCurrent').value;
+            var newPw = document.getElementById('_cpNew').value;
+            var confirm = document.getElementById('_cpConfirm').value;
+            var errEl = document.getElementById('_cpError');
+            var successEl = document.getElementById('_cpSuccess');
+            var btn = document.getElementById('_cpSaveBtn');
+
+            errEl.classList.add('hidden');
+            successEl.classList.add('hidden');
+
+            if (!current) { errEl.textContent = 'Please enter your current password.'; errEl.classList.remove('hidden'); return; }
+            if (!newPw || newPw.length < 8) { errEl.textContent = 'New password must be at least 8 characters.'; errEl.classList.remove('hidden'); return; }
+            if (newPw !== confirm) { errEl.textContent = 'New passwords do not match.'; errEl.classList.remove('hidden'); return; }
+            if (current === newPw) { errEl.textContent = 'New password must be different from current password.'; errEl.classList.remove('hidden'); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Updating...';
+
+            var baseUrl = (typeof MallanAPI !== 'undefined' && MallanAPI._baseUrl) ? MallanAPI._baseUrl : '';
+            fetch(baseUrl + '/api/auth/change-password', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword: current, newPassword: newPw })
+            })
+            .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+            .then(function(res) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check mr-1.5"></i>Update Password';
+                if (res.ok) {
+                    successEl.textContent = 'Password updated successfully!';
+                    successEl.classList.remove('hidden');
+                    setTimeout(function() {
+                        var overlay = document.getElementById('_changePwOverlay');
+                        if (overlay) overlay.remove();
+                        showToast('Password updated successfully', 'success');
+                    }, 1500);
+                } else {
+                    errEl.textContent = res.data.error || 'Failed to update password.';
+                    errEl.classList.remove('hidden');
+                }
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check mr-1.5"></i>Update Password';
+                errEl.textContent = 'Network error. Please try again.';
+                errEl.classList.remove('hidden');
+            });
+        };
+
         // AGENT SELF-EDIT PROFILE (agent or broker editing own profile)
         // ══════════════════════════════════════════════════════
         window._openAgentSelfEdit = function() {
