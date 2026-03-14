@@ -1169,7 +1169,7 @@
                         <span class="hidden sm:inline">Search...</span>
                         <kbd class="hidden sm:inline px-1.5 py-0.5 border border-gray-200 rounded text-[10px] font-semibold bg-gray-50">Ctrl K</kbd>
                     </button>
-                    <select id="roleSelector" onchange="switchPortal(this.value)" class="border border-gray-200 rounded px-3 py-1.5 text-sm cursor-pointer" data-rls-ignore="true">
+                    <select id="roleSelector" onchange="switchPortal(this.value)" class="border border-gray-200 rounded px-3 py-1.5 text-sm cursor-pointer hidden" data-rls-ignore="true">
                         <option value="broker" selected>Broker Portal</option>
                         <option value="agent">Agent Portal</option>
                         <option value="client">Buyer Portal</option>
@@ -12231,6 +12231,12 @@
                             <button onclick="openBuyerInviteModal()" class="px-4 py-2 border border-blue-300 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition">
                                 <i class="fas fa-user-plus mr-2"></i> Invite Family Member
                             </button>
+                            <button onclick="_openChangePassword()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition" title="Change Password">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <a href="/api/auth/logout" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition" title="Sign Out">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </a>
                             <span class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
                                 <i class="fas fa-user mr-2"></i> Buyer Portal
                             </span>
@@ -14688,6 +14694,12 @@
                             <button onclick="openTenantInviteModal()" class="px-4 py-2 border border-teal-300 text-teal-600 rounded-lg text-sm font-semibold hover:bg-teal-50 transition">
                                 <i class="fas fa-user-plus mr-2"></i> Invite Family Member
                             </button>
+                            <button onclick="_openChangePassword()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition" title="Change Password">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <a href="/api/auth/logout" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition" title="Sign Out">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </a>
                             <span class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold">
                                 <i class="fas fa-key mr-2"></i> Tenant Portal
                             </span>
@@ -15577,6 +15589,12 @@
                             <button class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
                                 <i class="fas fa-share-alt mr-2"></i> Share with Seller
                             </button>
+                            <button onclick="_openChangePassword()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition" title="Change Password">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <a href="/api/auth/logout" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition" title="Sign Out">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </a>
                             <span class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold">
                                 <i class="fas fa-home mr-2"></i> Seller Portal
                             </span>
@@ -16688,6 +16706,12 @@
                             <button class="px-4 py-2 border border-teal-300 text-teal-700 rounded-lg text-sm font-medium hover:bg-teal-50 transition">
                                 <i class="fas fa-share-alt mr-2"></i> Share with Landlord
                             </button>
+                            <button onclick="_openChangePassword()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition" title="Change Password">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <a href="/api/auth/logout" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition" title="Sign Out">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </a>
                             <span class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold">
                                 <i class="fas fa-key mr-2"></i> Landlord Portal
                             </span>
@@ -27801,22 +27825,22 @@ Equal Housing Opportunity
                     break;
                 case 'client':
                     document.getElementById('client-portal').style.display = 'block';
-                    userName.textContent = 'Buyer Client';
+                    userName.textContent = _u.name || 'Buyer Client';
                     userRole.textContent = 'Buyer';
                     break;
                 case 'tenant':
                     document.getElementById('tenant-portal').style.display = 'block';
-                    userName.textContent = 'Tenant Client';
+                    userName.textContent = _u.name || 'Tenant Client';
                     userRole.textContent = 'Tenant';
                     break;
                 case 'seller':
                     document.getElementById('seller-portal').style.display = 'block';
-                    userName.textContent = 'Property Owner';
+                    userName.textContent = _u.name || 'Property Owner';
                     userRole.textContent = 'Seller';
                     break;
                 case 'landlord':
                     document.getElementById('landlord-portal').style.display = 'block';
-                    userName.textContent = 'Property Owner';
+                    userName.textContent = _u.name || 'Property Owner';
                     userRole.textContent = 'Landlord';
                     break;
             }
@@ -28176,9 +28200,31 @@ Equal Housing Opportunity
                         role: userRole
                     };
 
-                    // Role-based portal routing: agents go to agent dashboard, brokers to broker portal
+                    // Portal selector: ONLY visible to broker
+                    var roleSelector = document.getElementById('roleSelector');
+                    if (roleSelector) {
+                        if (userRole === 'broker') {
+                            roleSelector.classList.remove('hidden');
+                        } else {
+                            roleSelector.classList.add('hidden');
+                            roleSelector.style.display = 'none';
+                        }
+                    }
+
+                    // Adjust settings dropdown based on role (hide "Edit My Profile" for clients)
+                    var editProfileBtn = document.querySelector('#settingsDropdown [onclick*="_openAgentSelfEdit"]');
+                    var clientRoles = ['buyer', 'tenant', 'seller', 'landlord'];
+                    if (editProfileBtn && clientRoles.indexOf(userRole) !== -1) {
+                        editProfileBtn.style.display = 'none';
+                    }
+
+                    // Role-based portal routing
                     if (userRole === 'agent') {
                         completeSwitchToAgent(window.crmLoggedInAgent);
+                    } else if (clientRoles.indexOf(userRole) !== -1) {
+                        // Client portal users — route to their portal
+                        var clientPortalMap = { buyer: 'client', tenant: 'tenant', seller: 'seller', landlord: 'landlord' };
+                        if (typeof switchPortal === 'function') switchPortal(clientPortalMap[userRole] || 'client');
                     }
 
                     // Load dashboard data (deferred — functions defined later in file)
