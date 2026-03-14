@@ -51,6 +51,8 @@
         "@radix-ui/react-navigation-menu": "^1.2.14",
         "@tailwindcss/postcss": "^4.1.18",
         "@types/leaflet": "^1.9.21",
+        "@upstash/ratelimit": "^2.0.8",
+        "@upstash/redis": "^1.37.0",
         "bcryptjs": "^3.0.2",
         "gsap": "^3.14.2",
         "gtfs-realtime-bindings": "^1.1.1",
