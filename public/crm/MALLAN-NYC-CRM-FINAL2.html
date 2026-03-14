@@ -28654,18 +28654,18 @@ Equal Housing Opportunity
             if (dash) { dash.style.display = 'block'; dash.classList.add('active'); }
 
             // Update dashboard greeting to agent's name
-            var greeting = document.getElementById('dashboardGreeting');
+            var greeting = document.getElementById('agentDashGreeting');
             if (greeting) {
                 var hour = new Date().getHours();
                 var timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-                greeting.textContent = timeGreeting + ', ' + agent.firstName;
+                greeting.textContent = timeGreeting + ', ' + (agent.firstName || agent.name || '--');
             }
 
             // Update header identity
             var userName = document.getElementById('currentUserName');
             var userRole = document.getElementById('currentUserRole');
             if (userName) userName.textContent = agent.name;
-            if (userRole) userRole.textContent = (agent.licenseType || 'Agent') + ' #' + agent.license;
+            if (userRole) userRole.textContent = (agent.licenseType || 'Agent') + (agent.license ? ' #' + agent.license : '');
 
             // Update avatar (CSS-based, no PII in URLs)
             var avatarEl = document.getElementById('currentUserAvatar');
@@ -28674,8 +28674,25 @@ Equal Housing Opportunity
                 avatarEl.textContent = agentInitials || '--';
             }
 
+            // Hide portal selector — agents cannot switch portals
+            var roleSelector = document.getElementById('roleSelector');
+            if (roleSelector) roleSelector.style.display = 'none';
+
+            // Update breadcrumb to show Agent Portal
+            var bcPortal = document.getElementById('bc-portal');
+            if (bcPortal) bcPortal.textContent = 'Agent Portal';
+
             // Scope sidebar: hide broker-only items
             document.querySelectorAll('.broker-only').forEach(function(el) { el.style.display = 'none'; });
+
+            // Rebuild sidebar for agent portal
+            if (typeof _rebuildSidebarForPortal === 'function') {
+                _rebuildSidebarForPortal('agent');
+            }
+
+            // Reveal page
+            var rb = document.getElementById('crmRenderBlock');
+            if (rb) rb.remove();
 
             // Enforce all access restrictions — HARD LOCK
             enforceInternalAccess();
@@ -37715,11 +37732,14 @@ Equal Housing Opportunity
                 }
             });
 
-            // Back to broker link (for non-broker portals)
-            html += '<div class="spn-divider"></div>';
-            html += '<button class="spn-link" onclick="document.getElementById(\'roleSelector\').value=\'broker\';switchPortal(\'broker\')" style="color:#6B7280;font-size:12px">';
-            html += '<i class="fas fa-arrow-left text-gray-400"></i> Back to Broker Portal';
-            html += '</button>';
+            // Back to broker link — only show if the actual user is a broker (not when a real agent is logged in)
+            var isTrueBroker = window.crmLoggedInAgent && window.crmLoggedInAgent.role === 'broker';
+            if (isTrueBroker) {
+                html += '<div class="spn-divider"></div>';
+                html += '<button class="spn-link" onclick="document.getElementById(\'roleSelector\').value=\'broker\';switchPortal(\'broker\')" style="color:#6B7280;font-size:12px">';
+                html += '<i class="fas fa-arrow-left text-gray-400"></i> Back to Broker Portal';
+                html += '</button>';
+            }
 
             html += '</div>';
             sidebarNav.innerHTML = html;
