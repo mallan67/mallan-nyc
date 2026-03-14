@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         const valid = await verifyPassword(password, agent.password_hash);
         if (!valid) {
           return NextResponse.json(
-            { error: "Invalid email or password" },
+            { error: "Invalid email or password", step, foundAgent: true, hashPrefix: agent.password_hash.substring(0, 7), pwLen: password.length },
             { status: 401 }
           );
         }
