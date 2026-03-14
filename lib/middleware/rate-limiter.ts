@@ -230,6 +230,12 @@ async function rateLimitCheck(
  * Async because Upstash calls are async (1-2ms from edge).
  */
 export async function checkRateLimits(req: NextRequest, pathname: string): Promise<NextResponse | null> {
+  // Authenticated users (brokers, agents, clients) bypass rate limiting.
+  // They already passed auth — no need to throttle normal usage.
+  if (req.cookies.get("session_token")?.value) {
+    return null;
+  }
+
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
