@@ -16,6 +16,7 @@ import Footer from './components/Footer';
 import FavoriteEmailProvider from './components/FavoriteEmailProvider';
 import RegistrationGate from './components/RegistrationGate';
 import PostHogProvider from './components/PostHogProvider';
+import HighlightProvider from './components/HighlightProvider';
 
 // Bright & Liquid design system fonts
 const urbanist = Urbanist({
@@ -214,6 +215,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <SoftIdentityCapture />
         <Analytics />
         <PostHogProvider />
+        <HighlightProvider />
       </body>
     </html>
   );
