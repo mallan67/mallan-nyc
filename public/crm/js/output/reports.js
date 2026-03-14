@@ -1330,7 +1330,7 @@
             document.getElementById('previewComparison').innerHTML = c;
 
             // ═══════════════ FACT SHEET FORMAT ═══════════════
-            // Blue header + agent bar (shared), RealPlus-style body: address/price, 2-col (photos | description + table), agent contact, floor plan page
+            // Blue header + agent bar (shared), 2-col body: address/price, photos | description + table, agent contact, floor plan page
             var fs = '';
             var fsDisclaimer = '<div style="border-top:1px solid #999;margin-top:auto;padding-top:8px">' +
                 '<p style="font-size:7.5px;color:#555;line-height:1.4;margin:0;font-style:italic">' +
@@ -1784,9 +1784,11 @@
         var sentEmails = JSON.parse(localStorage.getItem(_sentEmailsKey)) || [];
 
         function sendEmailDirect(opts) {
+            // Sanitize user-supplied strings to prevent XSS in innerHTML contexts
+            function escapeHTML(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: 'Mallan Real Estate Inc.' };
-            var to = opts.to || '';
-            var toName = opts.toName || to;
+            var to = escapeHTML(opts.to || '');
+            var toName = escapeHTML(opts.toName || to);
             var subject = opts.subject || 'Property Report — Mallan Real Estate';
             var count = opts.count || 0;
             var useRealEmail = (typeof isEmailConfigured === 'function') && isEmailConfigured();
@@ -1929,6 +1931,9 @@
         // ── Build branded HTML email body (table-based, inline styles for Outlook) ──
         // NOTE: This is the legacy card-based email. Used by copyReportAndEmail() fallback.
         function buildBrandedEmailHTML(listings, title, preparedFor) {
+            // Sanitize user-supplied strings to prevent XSS in HTML email body
+            function escapeHTML(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+            title = escapeHTML(title || ''); preparedFor = escapeHTML(preparedFor || '');
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';

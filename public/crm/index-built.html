@@ -24580,9 +24580,11 @@ function openPrintableWindow(html, options) {
         var sentEmails = JSON.parse(localStorage.getItem(_sentEmailsKey)) || [];
 
         function sendEmailDirect(opts) {
+            // Sanitize user-supplied strings to prevent XSS in innerHTML contexts
+            function escapeHTML(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: 'Mallan Real Estate Inc.' };
-            var to = opts.to || '';
-            var toName = opts.toName || to;
+            var to = escapeHTML(opts.to || '');
+            var toName = escapeHTML(opts.toName || to);
             var subject = opts.subject || 'Property Report — Mallan Real Estate';
             var count = opts.count || 0;
             var useRealEmail = (typeof isEmailConfigured === 'function') && isEmailConfigured();
@@ -24725,6 +24727,9 @@ function openPrintableWindow(html, options) {
         // ── Build branded HTML email body (table-based, inline styles for Outlook) ──
         // NOTE: This is the legacy card-based email. Used by copyReportAndEmail() fallback.
         function buildBrandedEmailHTML(listings, title, preparedFor) {
+            // Sanitize user-supplied strings to prevent XSS in HTML email body
+            function escapeHTML(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+            title = escapeHTML(title || ''); preparedFor = escapeHTML(preparedFor || '');
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';

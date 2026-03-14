@@ -80,15 +80,18 @@ function SecurityHardeningV2Tests(options) {
     // X3: No raw dataset on window
     (function() {
         var exposed = [];
-        ['listings','allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD',
+        // Check for dangerous globals (credentials, raw unsanitized data stores)
+        // Note: window.listings is expected in the non-IIFE architecture (IDX data only, no private fields)
+        ['allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD',
          'REBNY_TOKEN','accessToken','secretKey','customerDatabase','clientDatabase'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exposed.push('window.' + g);
         });
-        // Check listings for private fields
+        // Check listings for private fields (the real security concern — IDX data must not leak agent PII)
         if (typeof window.listings !== 'undefined' && window.listings.length > 0) {
             var sample = window.listings[0];
             var privateInMock = [];
-            ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN'].forEach(function(f) {
+            ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN',
+             'BuyerAgentCompensation','BuyerBrokerageCompensation','LockBoxSerialNumber','KeyLocation'].forEach(function(f) {
                 if (sample[f]) privateInMock.push(f);
             });
             if (privateInMock.length > 0) exposed.push('listings has: ' + privateInMock.join(','));
