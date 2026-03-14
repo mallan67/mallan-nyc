@@ -34204,12 +34204,32 @@ Equal Housing Opportunity
                 if (savedTab && portalTabMap[savedTab] && typeof switchPortal === 'function') {
                     // Defer until auth resolves so role check in switchPortal works
                     if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
-                        MallanAPI.onReady(function() { switchPortal(portalTabMap[savedTab]); });
+                        MallanAPI.onReady(function() {
+                            // Agents must always land on agent dashboard — never restore broker portal
+                            var agent = window.crmLoggedInAgent;
+                            if (agent && agent.role === 'agent') {
+                                if (typeof completeSwitchToAgent === 'function') completeSwitchToAgent(agent);
+                                return;
+                            }
+                            switchPortal(portalTabMap[savedTab]);
+                        });
                     } else {
                         switchPortal(portalTabMap[savedTab]);
                     }
                 } else if (savedTab) {
-                    showTab(savedTab);
+                    // Agents: always route to agent dashboard regardless of savedTab
+                    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+                        MallanAPI.onReady(function() {
+                            var agent = window.crmLoggedInAgent;
+                            if (agent && agent.role === 'agent') {
+                                if (typeof completeSwitchToAgent === 'function') completeSwitchToAgent(agent);
+                                return;
+                            }
+                            showTab(savedTab);
+                        });
+                    } else {
+                        showTab(savedTab);
+                    }
                 } else {
                     // First visit — no saved state. MallanAPI.init() will route to correct portal by role.
                     // Show nothing here; the auth callback in MallanAPI.init() handles it via completeSwitchToAgent() or goHome().

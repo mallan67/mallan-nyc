@@ -320,11 +320,13 @@
         var senderType = opts.senderType || 'agent';
         var thread = getOrCreateThread({ clientId: opts.clientId, collectionId: opts.collectionId || null, listingId: opts.listingId || null });
         var mid = uid('msg');
+        // Sanitize message body — stored as text, rendered via textContent (not innerHTML)
+        var sanitizedBody = (opts.body || '').replace(/<[^>]*>/g, '');
         DB.messages[mid] = {
             id: mid,
             threadId: thread.id,
             senderType: senderType,
-            body: opts.body,
+            body: sanitizedBody,
             createdAt: nowISO(),
             readAt: null
         };
