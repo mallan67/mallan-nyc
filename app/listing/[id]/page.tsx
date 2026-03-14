@@ -384,7 +384,6 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
       yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
       listOfficeName: agentInfo.company || '',
-      listAgentFullName: agentInfo.name || '',
       media: mediaArr.map(m => ({
         ...m,
         url: m.url && (m.url.includes('cotality.com') || m.url.includes('corelogic.com'))

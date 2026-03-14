@@ -10,8 +10,10 @@ import {
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
+import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -94,12 +96,23 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
   const merged = { ...existingRaw, ...body };
 
+  // Re-classify RLS eligibility on update (unit count or property type may have changed)
+  const eligibility = classifyRlsEligibility(merged, {
+    explicitOptOut: body.rls_eligible === false || (!body.rls_eligible && !listing.rls_eligible),
+    commercialSubType: (body.commercial_sub_type as string) || (listing.commercial_sub_type as string | null) || undefined,
+    commercialOwnership: (body.commercial_ownership as string) || (listing.commercial_ownership as string | null) || undefined,
+  });
+  const effectiveRlsEligible = eligibility.rlsEligible;
+
   // RLS Enforcement Gate — same gate as POST (create)
   const enforcement = assertRlsCompliantPayload(merged, {
     listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
     isNewDevelopment: merged.NewDevelopmentYN === true,
     currentStatus: (merged.MlsStatus as string) || listing.status || undefined,
     previousStatus: listing.status || undefined,
+    existingActivationDate: existingRaw.ActivationDate as string | undefined, // D12 immutability
+    rlsEligible: effectiveRlsEligible,
+    mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
   });
   if (!enforcement.passed) {
     return NextResponse.json(
@@ -120,6 +133,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     modification_timestamp: new Date(),
   };
 
+  // Update rls_eligible if classification changed (e.g., unit count or property type updated)
+  if (effectiveRlsEligible !== listing.rls_eligible) {
+    update.rls_eligible = effectiveRlsEligible;
+    // If reclassified as website-only, disable IDX distribution
+    if (!effectiveRlsEligible) {
+      update.idx_display_yn = false;
+    }
+  }
+
   if (body.PropertyType !== undefined) update.property_type = String(body.PropertyType);
   if (body.PropertySubType !== undefined) update.property_sub_type = String(body.PropertySubType);
   if (body.ListPrice !== undefined) update.list_price = Number(body.ListPrice);
@@ -131,11 +153,20 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.Neighborhood !== undefined) update.neighborhood = String(body.Neighborhood);
   if (body.City !== undefined) update.city = String(body.City);
   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
+  // Distribution gates — all use canonical RESO/RLS field names (YN suffix)
   if (body.IDXEntireListingDisplayYN !== undefined) update.idx_display_yn = body.IDXEntireListingDisplayYN !== false;
   if (body.InternetEntireListingDisplayYN !== undefined) update.internet_entire_listing_display_yn = body.InternetEntireListingDisplayYN !== false;
   if (body.InternetAddressDisplayYN !== undefined) update.internet_address_display_yn = body.InternetAddressDisplayYN !== false;
-  if (body.ParticipantOnly !== undefined) update.participant_only = body.ParticipantOnly === true;
-  if (body.OwnerOptOut !== undefined) update.owner_opt_out = body.OwnerOptOut === true;
+  // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
+  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
+  if (body.Permissions !== undefined) {
+    const permBools = derivePermissionBooleans(body.Permissions);
+    update.participant_only = permBools.participant_only;
+    update.owner_opt_out = permBools.owner_opt_out;
+  } else {
+    if (body.ParticipantOnlyYN !== undefined) update.participant_only = body.ParticipantOnlyYN === true;
+    if (body.OwnerOptOutYN !== undefined) update.owner_opt_out = body.OwnerOptOutYN === true;
+  }
 
   // Update JSON columns by merging
   const existingAddress = (listing.address as Record<string, unknown>) ?? {};
@@ -179,12 +210,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   update.agent_info = updatedAgentInfo as Prisma.InputJsonValue;
 
-  // Update compliance with latest validation
+  // Update compliance with latest validation + eligibility classification
   update.compliance = {
     validation_result: validation.compliance,
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,
     valid: validation.valid,
+    rls_eligibility: {
+      eligible: eligibility.rlsEligible,
+      reason: eligibility.reason,
+      ucbaRef: eligibility.ucbaRef,
+      mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
+    },
   } as unknown as Prisma.InputJsonValue;
 
   // Store full merged data as raw_data

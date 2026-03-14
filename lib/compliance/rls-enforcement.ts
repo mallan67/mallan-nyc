@@ -49,15 +49,35 @@ export type ListingContext = {
   currentStatus?: string;
   previousStatus?: string;
   statusChangedAt?: Date;
+  existingActivationDate?: string; // For D12 immutability check
+  rlsEligible?: boolean; // false = website-only (commercial), skip RLS-specific type checks
+  /** True if this is a mixed-use unit in a ≤5 unit building (UCBA Sec. 5(F)) */
+  mixedUseSmallBuilding?: boolean;
 };
 
 // ─── Derived from REBNY_FIELD_TABLES (single source of truth) ─────────────
 
 const REMOVED_FIELDS = new Set<string>(REBNY_FIELD_TABLES.removedFields);
 
-// Agent-submitted mandatory fields from authority table (48 fields)
-// StandardStatus is system-generated but checked at write time
+// Agent-submitted mandatory fields from authority table
 const MANDATORY_FIELDS = REBNY_FIELD_TABLES.requiredFields.agentSubmitted;
+
+// System-generated fields — NEVER block agent payloads for these.
+// Backend populates them before Trestle submission.
+const SYSTEM_GENERATED_FIELDS = new Set<string>(
+  REBNY_FIELD_TABLES.requiredFields.systemGenerated
+);
+
+// Fields with documented RLS defaults — warn if missing, don't block.
+// LMPs MUST default these to true per RLS rules, so the backend can auto-fill.
+const DEFAULTABLE_FIELDS = new Set<string>([
+  "IDXEntireListingDisplayYN",        // Default: true (RLS rules)
+  "InternetEntireListingDisplayYN",   // Default: true
+  "InternetAddressDisplayYN",         // Default: true
+  "InternetAutomatedValuationDisplayYN", // Default: true
+  "InternetConsumerCommentYN",        // Default: true
+  "SyndicateYN",                      // Default: true (RLS rules)
+]);
 
 // ─── Content Scanning Patterns (from authority table) ─────────────────────
 
@@ -147,16 +167,34 @@ export function assertRlsCompliantPayload(
   }
 
   // ── 2. Validate mandatory fields ───────────────────────────────────
+  // Only check agent-submitted fields. System-generated fields are populated by
+  // the backend before Trestle submission — never block agent payloads for them.
+  // Defaultable fields (distribution gates) get a warning, not a blocker,
+  // because the backend auto-fills RLS-mandated defaults before submission.
   for (const field of MANDATORY_FIELDS) {
+    // Skip any system-generated field that leaked into the agent list
+    if (SYSTEM_GENERATED_FIELDS.has(field)) continue;
+
     const value = payload[field];
     if (value === undefined || value === null || value === "") {
-      blockers.push({
-        code: "MF-001",
-        severity: "BLOCKER",
-        field,
-        message: `Mandatory RLS field "${field}" is missing or empty.`,
-        ucbaRef: "RLS Data Rules",
-      });
+      if (DEFAULTABLE_FIELDS.has(field)) {
+        // Warn but don't block — backend will apply RLS-mandated default
+        warnings.push({
+          code: "MF-001W",
+          severity: "WARNING",
+          field,
+          message: `Field "${field}" not provided — backend will apply RLS default.`,
+          ucbaRef: "RLS Data Rules",
+        });
+      } else {
+        blockers.push({
+          code: "MF-001",
+          severity: "BLOCKER",
+          field,
+          message: `Mandatory RLS field "${field}" is missing or empty.`,
+          ucbaRef: "RLS Data Rules",
+        });
+      }
     }
   }
 
@@ -182,15 +220,49 @@ export function assertRlsCompliantPayload(
     });
   }
 
-  // PropertyType must be Residential or ResidentialLease
-  const pt = payload.PropertyType;
-  if (pt && pt !== "Residential" && pt !== "ResidentialLease") {
-    blockers.push({
-      code: "MF-004",
-      severity: "BLOCKER",
-      field: "PropertyType",
-      message: `PropertyType "${pt}" is not valid. Must be "Residential" or "ResidentialLease".`,
-      ucbaRef: "RLS Data Rules",
+  // PropertyType validation — REBNY RLS only accepts "Residential" or "ResidentialLease".
+  // Website-only listings (commercial, rls_eligible=false) can use any RESO PropertyType.
+  const pt = payload.PropertyType as string | undefined;
+  if (pt) {
+    const RLS_PROPERTY_TYPES = ["Residential", "ResidentialLease"];
+    const RESO_PROPERTY_TYPES = [
+      "Residential", "ResidentialLease", "ResidentialIncome",
+      "Commercial", "CommercialLease", "CommercialSale",
+      "Land", "Farm", "MultiFamily",
+    ];
+    if (ctx.rlsEligible === false) {
+      // Website-only: accept any RESO type, warn on unknown
+      if (!RESO_PROPERTY_TYPES.includes(pt)) {
+        warnings.push({
+          code: "MF-004W",
+          severity: "WARNING",
+          field: "PropertyType",
+          message: `PropertyType "${pt}" is non-standard. Expected one of: ${RESO_PROPERTY_TYPES.join(", ")}.`,
+          ucbaRef: "RESO Data Dictionary",
+        });
+      }
+    } else {
+      // RLS-eligible: must be Residential or ResidentialLease
+      if (!RLS_PROPERTY_TYPES.includes(pt)) {
+        blockers.push({
+          code: "MF-004",
+          severity: "BLOCKER",
+          field: "PropertyType",
+          message: `PropertyType "${pt}" is not valid for RLS submission. Must be "Residential" or "ResidentialLease". For commercial listings, set rls_eligible=false.`,
+          ucbaRef: "RLS Data Rules",
+        });
+      }
+    }
+  }
+
+  // UCBA Sec. 5(F): Mixed-use small building — inform agent that full RLS rules apply
+  if (ctx.mixedUseSmallBuilding) {
+    warnings.push({
+      code: "MU-001",
+      severity: "WARNING",
+      field: "PropertySubType",
+      message: "Mixed-use unit in a building with 5 or fewer units. All UCBA/RLS rules apply to this listing per Art. I, Sec. 5(F).",
+      ucbaRef: "UCBA Art. I, Sec. 5(F)",
     });
   }
 
@@ -243,12 +315,12 @@ export function assertRlsCompliantPayload(
     perm === "Owner Opt-Out" ||
     perm === "Private"
   ) {
-    const displayFields = [
+    // Check boolean display flags
+    const booleanDisplayFields = [
       "IDXEntireListingDisplayYN",
       "InternetEntireListingDisplayYN",
-      "SyndicateYN",
     ];
-    for (const field of displayFields) {
+    for (const field of booleanDisplayFields) {
       if (payload[field] === true) {
         blockers.push({
           code: "DG-002",
@@ -258,6 +330,27 @@ export function assertRlsCompliantPayload(
           ucbaRef: "UCBA Art. I, Sec. 7",
         });
       }
+    }
+    // Syndication: forms submit SyndicateYN (boolean), Trestle returns SyndicateTo (string list).
+    // Block both: SyndicateYN=true or SyndicateTo being a non-empty string/list.
+    if (payload.SyndicateYN === true) {
+      blockers.push({
+        code: "DG-002",
+        severity: "BLOCKER",
+        field: "SyndicateYN",
+        message: "SyndicateYN must be false for Owner Opt-Out / Participant Only listings.",
+        ucbaRef: "UCBA Art. I, Sec. 7",
+      });
+    }
+    const syndicateTo = payload.SyndicateTo;
+    if (syndicateTo && (syndicateTo === true || (typeof syndicateTo === "string" && syndicateTo.length > 0) || (Array.isArray(syndicateTo) && syndicateTo.length > 0))) {
+      blockers.push({
+        code: "DG-002",
+        severity: "BLOCKER",
+        field: "SyndicateTo",
+        message: "SyndicateTo must be empty for Owner Opt-Out / Participant Only listings.",
+        ucbaRef: "UCBA Art. I, Sec. 7",
+      });
     }
   }
 
@@ -309,6 +402,21 @@ export function assertRlsCompliantPayload(
         field: "ActivationDate",
         message: "ActivationDate is required for Coming Soon listings (UCBA D7).",
         ucbaRef: "UCBA Sec. D, Rule 7",
+      });
+    }
+
+    // D12: ActivationDate is immutable once set on a Coming Soon listing
+    if (
+      ctx.existingActivationDate &&
+      payload.ActivationDate &&
+      String(payload.ActivationDate) !== String(ctx.existingActivationDate)
+    ) {
+      blockers.push({
+        code: "CS-005",
+        severity: "BLOCKER",
+        field: "ActivationDate",
+        message: "ActivationDate cannot be changed once set on a Coming Soon listing (UCBA D12).",
+        ucbaRef: "UCBA Sec. D, Rule 12",
       });
     }
   }

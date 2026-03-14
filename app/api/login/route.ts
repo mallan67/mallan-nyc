@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * POST /api/login
  *
- * Legacy login for Private Collection / admin access.
+ * Legacy login for client portal / admin access.
  * Sets pc_auth cookie with the validated password so middleware can verify.
  */
 export async function POST(req: NextRequest) {

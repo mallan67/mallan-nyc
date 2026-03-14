@@ -2167,7 +2167,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label"># Residential Units <span class="text-red-500">*</span></label>
-            <input type="number" id="rentalTHUnitsTotal" placeholder="0" class="field-input" required data-rls-field="NumberOfUnitsTotal">
+            <input type="number" id="rentalTHUnitsTotal" placeholder="0" class="field-input" required data-rls-field="NumberOfUnitsTotal" onchange="applyRentalFieldRules()">
         </div>
         <div>
             <label class="field-label"># Professional Units</label>
@@ -2570,6 +2570,17 @@ body { font-family: Manrope, sans-serif; }
     <div>
         <p class="text-sm font-semibold text-yellow-800">Non-RLS Commercial Listing</p>
         <p class="text-xs text-yellow-700 mt-1">This listing type is not eligible for REBNY RLS distribution. It will only appear on <strong>mallan.nyc (WWW)</strong>.</p>
+    </div>
+</div>
+
+<!-- UCBA Sec. 5(F) Mixed-Use Notice (shown for mixed-use in ≤5 unit buildings) -->
+<div id="rentalMixedUseNotice" class="mb-4 p-3 rounded-lg border border-blue-300 bg-blue-50" style="display:none;">
+    <div class="flex items-start gap-2">
+        <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
+        <div>
+            <p class="text-sm font-semibold text-blue-800">Mixed-Use: Full RLS Rules Apply</p>
+            <p class="text-xs text-blue-700 mt-1">Per UCBA Art. I, Sec. 5(F), professional/retail units within residential properties of <strong>5 units or fewer</strong> are subject to all REBNY RLS rules, including mandatory fields, distribution gates, and compliance validation.</p>
+        </div>
     </div>
 </div>
 
@@ -4877,11 +4888,22 @@ function applyRentalFieldRules() {
     // Toggle Office/Retail building type sub-selector
     toggleOfficeRetailBuildingType('rental');
 
-    // Handle Commercial distribution lockdown (Non-RLS commercial = WWW only)
-    if (propertyType === 'Commercial') {
+    // Handle Commercial/Mixed-Use distribution logic
+    // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
+    const isMixedUseSubtype = propertyType === 'MixedUse';
+    const totalUnits = parseInt(document.getElementById('rentalTHUnitsTotal')?.value || document.getElementById('rentalBldgTotalUnits')?.value || '0') || 0;
+    const mixedUseSmallBuilding = isMixedUseSubtype && totalUnits > 0 && totalUnits <= 5;
+
+    if (propertyType === 'Commercial' || (isMixedUseSubtype && totalUnits > 5)) {
         applyCommercialDistribution('rental');
     } else {
         clearCommercialDistribution('rental');
+    }
+
+    // Show/hide UCBA Sec. 5(F) mixed-use notice
+    const muNotice = document.getElementById('rentalMixedUseNotice');
+    if (muNotice) {
+        muNotice.style.display = mixedUseSmallBuilding ? '' : 'none';
     }
 
     // Resolve the rental listing subtype (e.g., COOP, CONDO, TOWNHOUSE, RENTAL_BUILDING)

@@ -233,9 +233,10 @@ describe('toPublicDTO', () => {
     const dto = toPublicDTO(listing);
     const json = JSON.stringify(dto);
 
-    // Agent name and office name ARE included (public info)
-    expect(dto.listAgentFullName).toBe('Test Agent');
+    // Office name IS included (public attribution = broker/office only)
     expect(dto.listOfficeName).toBe('Test Brokerage');
+    // Agent name must NOT be in public DTO (REBNY: public attribution = office only)
+    expect(json).not.toContain('listAgentFullName');
 
     // PII must NOT be present anywhere in the DTO
     expect(json).not.toContain('secret@brokerage.com');

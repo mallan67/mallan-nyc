@@ -429,8 +429,7 @@ export const REBNY_REQUIRED_DISPLAY_FIELDS = [
   'bedroomsTotal',
   'bathroomsFull',
   'propertyType',
-  'listAgentFullName',
-  'listOfficeName',
+  'listOfficeName', // Public attribution = office/broker name only (not agent)
 ] as const;
 
 /**

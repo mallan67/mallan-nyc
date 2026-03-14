@@ -124,9 +124,9 @@ export default function Header() {
   ];
 
   const exclusivesItems = [
-    { title: 'Mallan Exclusives', href: '/sign-in' },
-    { title: 'Exclusive Listings', href: '/sign-in' },
-    { title: 'Coming Soon', href: '/sign-in' },
+    { title: 'Our Listings', href: '/sign-in' },
+    { title: 'New to Market', href: '/buy?sort=newest' },
+    { title: 'Client Portal', href: '/sign-in' },
   ];
 
   const neighborhoodItems = [
@@ -212,7 +212,7 @@ export default function Header() {
               <li><NavDropdown label="Buy" items={buyItems} dark={dark} /></li>
               <li><NavDropdown label="Rent" items={rentItems} dark={dark} /></li>
               <li><NavDropdown label="Sell" items={sellItems} dark={dark} /></li>
-              <li><NavDropdown label="Exclusives" items={exclusivesItems} dark={dark} /></li>
+              <li><NavDropdown label="Listings" items={exclusivesItems} dark={dark} /></li>
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
 
               <li>
@@ -364,14 +364,14 @@ export default function Header() {
                 )}
               </div>
 
-              {/* Exclusives */}
+              {/* Listings */}
               <div>
                 <button
                   type="button"
                   onClick={() => setExclusivesOpen(!exclusivesOpen)}
                   className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
-                  Exclusives
+                  Listings
                   <ChevronIcon open={exclusivesOpen} />
                 </button>
                 {exclusivesOpen && (

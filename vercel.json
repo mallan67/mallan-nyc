@@ -14,8 +14,12 @@
       "schedule": "0 */4 * * *"
     },
     {
-      "path": "/api/cron/search-alerts",
+      "path": "/api/cron/listing-expiration",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/search-alerts",
+      "schedule": "30 7 * * *"
     },
     {
       "path": "/api/cron/seller-scoring",
@@ -47,7 +51,7 @@
     },
     {
       "path": "/api/cron/data-retention",
-      "schedule": "0 3 * * 0"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/conviction-scores",

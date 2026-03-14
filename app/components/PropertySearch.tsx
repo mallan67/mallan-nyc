@@ -613,7 +613,7 @@ export default function PropertySearch({ type, initialListings, initialTotal, in
             Don&apos;t See What You&apos;re Looking For?
           </h2>
           <p className="text-brand-dark/90 mb-8">
-            Our agents have access to exclusive listings and can help you find the perfect property.
+            Our agents can help you find the perfect property across all available listings.
           </p>
           <Link
             href="/agents"

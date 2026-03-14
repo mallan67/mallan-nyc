@@ -7,6 +7,7 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import type { Prisma } from "@prisma/client";
 
@@ -150,11 +151,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Determine if this is a website-only commercial listing (not RLS-eligible)
-  const isCommercial = body.PropertyType === "Commercial" ||
-    body.commercial_sub_type !== undefined ||
-    body.rls_eligible === false;
-  const rlsEligible = !isCommercial;
+  // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
+  // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
+  const eligibility = classifyRlsEligibility(body, {
+    explicitOptOut: body.rls_eligible === false,
+    commercialSubType: body.commercial_sub_type as string | undefined,
+    commercialOwnership: body.commercial_ownership as string | undefined,
+  });
+  const rlsEligible = eligibility.rlsEligible;
 
   // Run REBNY RLS compliance validation (only for RLS-eligible listings)
   let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
@@ -182,6 +186,8 @@ export async function POST(req: NextRequest) {
       listingType: listingType as "sale" | "rent",
       isNewDevelopment: body.NewDevelopmentYN === true,
       currentStatus: (body.MlsStatus as string) || undefined,
+      rlsEligible,
+      mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
     });
     if (!enforcement.passed) {
       return NextResponse.json(
@@ -192,6 +198,34 @@ export async function POST(req: NextRequest) {
         },
         { status: 422 }
       );
+    }
+
+    // D9: Coming Soon is one-time per address — cannot re-use for same property
+    if (body.MlsStatus === "ComingSoon" && body.StreetName) {
+      const priorComingSoon = await prisma.listing.findFirst({
+        where: {
+          postal_code: (body.PostalCode as string) || undefined,
+          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Cancelled"] },
+          raw_data: {
+            path: ["_wasComingSoon"],
+            equals: true,
+          },
+          address: {
+            path: ["StreetName"],
+            equals: body.StreetName as string,
+          },
+        },
+        select: { id: true, listing_id: true },
+      });
+      if (priorComingSoon) {
+        return NextResponse.json(
+          {
+            error: "Coming Soon status has already been used for this address (UCBA D9). Each address may only use Coming Soon once.",
+            prior_listing_id: priorComingSoon.listing_id,
+          },
+          { status: 422 }
+        );
+      }
     }
   }
 
@@ -214,6 +248,12 @@ export async function POST(req: NextRequest) {
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,
     stripped_fields: stripped, // Track which removed fields were stripped
+    rls_eligibility: {
+      eligible: eligibility.rlsEligible,
+      reason: eligibility.reason,
+      ucbaRef: eligibility.ucbaRef,
+      mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
+    },
   };
 
   const now = new Date();

@@ -74,7 +74,6 @@ export interface DisplayListing {
   associationFee?: number;
   associationFeeFrequency?: string;
   listOfficeName: string;
-  listAgentFullName: string;
   modificationTimestamp: string;
   media: { url: string; mediaType: string; order: number }[];
   photosCount?: number;
@@ -123,7 +122,6 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     associationFee: dto.associationFee,
     associationFeeFrequency: dto.associationFeeFrequency,
     listOfficeName: dto.listOfficeName,
-    listAgentFullName: dto.listAgentFullName,
     modificationTimestamp: dto.modificationTimestamp,
     media: dto.media,
     photosCount: dto.photosCount,
@@ -194,7 +192,6 @@ export function toDisplayListing(raw: any): DisplayListing {
     associationFee: raw.nycSpecific?.maintenanceFee,
     associationFeeFrequency: raw.nycSpecific?.maintenanceFee ? 'Monthly' : undefined,
     listOfficeName: raw.agent?.listOfficeName || '',
-    listAgentFullName: raw.agent?.listAgentFullName || '',
     modificationTimestamp: raw.listing?.modificationTimestamp || '',
     media: raw.media?.images?.map((img: { url: string }, i: number) => ({
       url: img.url,

@@ -5,7 +5,7 @@
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 
-export type NotificationType = 'new_match' | 'price_drop' | 'showing_confirmed' | 'offer_status' | 'listing_update' | 'system';
+export type NotificationType = 'new_match' | 'price_drop' | 'showing_confirmed' | 'offer_status' | 'listing_update' | 'listing_expiration' | 'system';
 export type NotificationChannel = 'in_app' | 'email' | 'sms';
 
 export interface CreateNotificationInput {
@@ -39,6 +39,7 @@ export async function createNotification(input: CreateNotificationInput) {
     if (typeKey === 'price_drop' && !prefs.price_drop) return null;
     if ((typeKey === 'showing_confirmed') && !prefs.showing_updates) return null;
     if (typeKey === 'offer_status' && !prefs.offer_updates) return null;
+    if (typeKey === 'listing_expiration' && !prefs.listing_expiration) return null;
 
     // Check channel
     if (input.channel === 'sms' && !prefs.sms_enabled) {
