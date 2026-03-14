@@ -28120,31 +28120,44 @@ Equal Housing Opportunity
             MallanAPI.init().then(function(data) {
                 if (data.authenticated && data.user) {
                     var u = data.user;
+                    var userRole = (data.role || '').toLowerCase();
+                    var nameParts = (u.name || '--').split(' ');
+                    var firstName = nameParts[0] || '';
+                    var lastName = nameParts.slice(1).join(' ') || '';
                     window.crmLoggedInAgent = {
                         id: u.id || '',
                         name: u.name || '--',
+                        firstName: firstName,
+                        lastName: lastName,
                         phone: u.phone || '',
                         email: u.email || '',
                         license: u.license || '',
+                        licenseType: u.licenseTitle || 'Agent',
                         companyKey: u.companyKey || 'mallan',
                         companyName: u.companyName || '--',
-                        role: (data.role || '').toLowerCase()
+                        role: userRole
                     };
+
+                    // Role-based portal routing: agents go to agent dashboard, brokers to broker portal
+                    if (userRole === 'agent') {
+                        completeSwitchToAgent(window.crmLoggedInAgent);
+                    }
+
                     // Load dashboard data (deferred — functions defined later in file)
                     setTimeout(function() {
                         if (typeof loadDealPipeline === 'function') loadDealPipeline();
                         if (typeof loadAgentDashboardStats === 'function') loadAgentDashboardStats();
-                        if (typeof loadBrokerDashboardStats === 'function') loadBrokerDashboardStats();
+                        if (userRole === 'broker' && typeof loadBrokerDashboardStats === 'function') loadBrokerDashboardStats();
                     }, 500);
                 } else {
-                    // Not authenticated — redirect to broker admin login (preserve hash for post-login routing)
-                    window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.hash);
+                    // Not authenticated — redirect to sign-in (preserve path for post-login routing)
+                    window.location.href = '/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.hash);
                 }
             });
         }
         // Handle 401 events from API calls
         window.addEventListener('mallan:auth:unauthorized', function() {
-            window.location.href = '/admin/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.hash);
+            window.location.href = '/sign-in?redirect=' + encodeURIComponent(window.location.pathname + window.location.hash);
         });
 
         // ══════════════════════════════════════════════════════
@@ -34109,8 +34122,8 @@ Equal Housing Opportunity
                 } else if (savedTab) {
                     showTab(savedTab);
                 } else {
-                    // First visit — no saved state, show broker portal as default
-                    showTab('broker-portal');
+                    // First visit — no saved state. MallanAPI.init() will route to correct portal by role.
+                    // Show nothing here; the auth callback in MallanAPI.init() handles it via completeSwitchToAgent() or goHome().
                 }
                 return;
             }
