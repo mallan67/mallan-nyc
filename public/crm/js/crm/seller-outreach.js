@@ -53,7 +53,7 @@ const OUTREACH_TEMPLATES = [
 ];
 
 // ── Grade Colors ──
-const GRADE_COLORS = {
+const SO_GRADE_COLORS = {
   A: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
   B: { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
   C: { bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
@@ -265,7 +265,7 @@ function renderKanbanBoard() {
 }
 
 function renderLeadCard(lead) {
-  const grade = GRADE_COLORS[lead.score_grade] || GRADE_COLORS.F;
+  const grade = SO_GRADE_COLORS[lead.score_grade] || SO_GRADE_COLORS.F;
 
   return `
     <div class="so-lead-card" data-lead-id="${lead.id}"
@@ -296,7 +296,7 @@ async function openLeadDetailModal(leadId) {
   const lead = SellerOutreach.currentLead;
   if (!lead) return;
 
-  const grade = GRADE_COLORS[lead.score_grade] || GRADE_COLORS.F;
+  const grade = SO_GRADE_COLORS[lead.score_grade] || SO_GRADE_COLORS.F;
 
   const modal = document.createElement('div');
   modal.id = 'so-lead-modal';
