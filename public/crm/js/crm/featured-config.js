@@ -14,6 +14,9 @@ const FC_SORT_OPTIONS = [
   { value: 'price-desc', label: 'Price: High to Low' },
   { value: 'price-asc', label: 'Price: Low to High' },
   { value: 'newest', label: 'Newest First' },
+  { value: 'exclusives', label: 'Mallan Exclusives' },
+  { value: 'neighborhood', label: 'By Neighborhood' },
+  { value: 'new-development', label: 'New Development' },
 ];
 
 async function initFeaturedConfig() {
