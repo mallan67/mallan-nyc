@@ -13,9 +13,7 @@ import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
  * "client", "buyer", "tenant", "seller", "landlord" only check the Lead table.
  */
 export async function POST(req: NextRequest) {
-  let step = "init";
   try {
-    step = "parse-body";
     const body = await req.json();
     const { email, password, portalType } = body;
 
@@ -38,7 +36,6 @@ export async function POST(req: NextRequest) {
 
     // --- Try Agent table ---
     if (tryAgent) {
-      step = "find-agent";
       const agent = await prisma.agent.findUnique({
         where: { email: normalizedEmail },
       });
@@ -49,25 +46,22 @@ export async function POST(req: NextRequest) {
             { status: 403 }
           );
         }
-        step = "verify-password";
         const valid = await verifyPassword(password, agent.password_hash);
         if (!valid) {
           return NextResponse.json(
-            { error: "Invalid email or password", step, foundAgent: true, hashPrefix: agent.password_hash.substring(0, 7), pwLen: password.length },
+            { error: "Invalid email or password" },
             { status: 401 }
           );
         }
 
-        step = "create-session";
         const token = await createSession("agent", agent.id, agent.role, ip, ua);
 
-        step = "update-last-login";
+        // Update last_login
         await prisma.agent.update({
           where: { id: agent.id },
           data: { last_login: new Date() },
         });
 
-        step = "build-response";
         const res = NextResponse.json({
           success: true,
           user: {
@@ -93,7 +87,6 @@ export async function POST(req: NextRequest) {
 
     // --- Try Lead table ---
     if (tryLead) {
-      step = "find-lead";
       const lead = await prisma.lead.findUnique({
         where: { email: normalizedEmail },
       });
@@ -104,7 +97,6 @@ export async function POST(req: NextRequest) {
             { status: 401 }
           );
         }
-        step = "verify-lead-password";
         const valid = await verifyPassword(password, lead.password_hash);
         if (!valid) {
           return NextResponse.json(
@@ -115,7 +107,6 @@ export async function POST(req: NextRequest) {
 
         // Use the portal_role stored on the lead, or the requested type, or default to buyer
         const role = lead.portal_role || (type !== "auto" && type !== "client" ? type : "buyer");
-        step = "create-lead-session";
         const token = await createSession("lead", lead.id, role, ip, ua);
 
         const res = NextResponse.json({
@@ -147,10 +138,9 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   } catch (err) {
-    console.error("Login error at step:", step, err);
-    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Login error:", err);
     return NextResponse.json(
-      { error: "Internal server error", step, debug: msg },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
