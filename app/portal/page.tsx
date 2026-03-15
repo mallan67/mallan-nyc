@@ -1184,14 +1184,7 @@ export default function PortalPage() {
                                 {showing.time ? ` at ${showing.time}` : ''}{' — '}
                                 {showing.type === 'openhouse' ? 'Open House' : showing.type === 'virtual' ? 'Virtual Tour' : 'Private Showing'}
                               </p>
-                              {/* Seller-specific: show agent and buyer */}
-                              {isSellerOrLandlord && (showing.agent_name || showing.buyer_name) && (
-                                <p className="text-brand-dark/60 text-xs mt-1">
-                                  {showing.agent_name && <span>Agent: <span className="font-medium text-brand-dark/80">{showing.agent_name}</span></span>}
-                                  {showing.agent_name && showing.buyer_name && <span> &middot; </span>}
-                                  {showing.buyer_name && <span>Buyer: <span className="font-medium text-brand-dark/80">{showing.buyer_name}</span></span>}
-                                </p>
-                              )}
+                              {/* Seller sees showing count, not agent/buyer names */}
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               {/* Seller-specific: interest level badge */}

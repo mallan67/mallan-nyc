@@ -72,8 +72,6 @@ export async function GET(req: NextRequest) {
         },
       },
       ...(isSellerRole ? {
-        lead: { select: { first_name: true, last_name: true } },
-        agent: { select: { full_name: true } },
         feedback: { select: { rating: true, interest_level: true, notes: true } },
       } : {}),
     },
@@ -103,12 +101,11 @@ export async function GET(req: NextRequest) {
       },
     };
 
-    // For sellers, include showing agent, buyer name, and feedback
+    // For sellers, include feedback only — no agent or buyer names
+    // (prevents circumventing co-brokerage relationship)
     if (isSellerRole) {
       return {
         ...base,
-        agent_name: s.agent?.full_name || null,
-        buyer_name: s.lead ? `${s.lead.first_name || ''} ${s.lead.last_name || ''}`.trim() : null,
         feedback: s.feedback ? {
           rating: s.feedback.rating,
           interest_level: s.feedback.interest_level,
