@@ -53,6 +53,7 @@ model Agent {
   documents           Document[]
   assignment_rules    LeadAssignmentRule[]
   protected_periods   ProtectedPeriod[]
+  marketing_activities MarketingActivity[]
 
   created_at     DateTime  @default(now()) @map("created_at")
   updated_at     DateTime  @updatedAt @map("updated_at")
@@ -152,6 +153,10 @@ model Lead {
   source          String   @default("website") // website, referral, manual
   anonymous_session_id String? @map("anonymous_session_id") // links pre-identification behavioral events
   consent_captured_at DateTime? @map("consent_captured_at") // TCPA/CAN-SPAM consent timestamp
+  attorney_name       String?  @map("attorney_name")       // Seller's attorney name
+  attorney_email      String?  @map("attorney_email")      // Seller's attorney email
+  attorney_phone      String?  @map("attorney_phone")      // Seller's attorney phone
+  attorney_firm       String?  @map("attorney_firm")       // Attorney's firm name
   preferences     ClientPreference?
   actions         ClientListingAction[]
   showings        Showing[]
@@ -223,6 +228,8 @@ model Listing {
   actions                 ClientListingAction[]
   showings                Showing[]
   comments                Comment[]
+  price_history           PriceHistory[]
+  marketing_activities    MarketingActivity[]
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at           DateTime? @map("status_changed_at")
@@ -1303,4 +1310,43 @@ model ProtectedBuyer {
 
   @@index([protected_period_id])
   @@map("protected_buyers")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRICE HISTORY — Track listing price changes over time
+// ═══════════════════════════════════════════════════════════
+model PriceHistory {
+  id          BigInt   @id @default(autoincrement())
+  listing_id  BigInt   @map("listing_id")
+  listing     Listing  @relation(fields: [listing_id], references: [id], onDelete: Cascade)
+  price       Decimal  @db.Decimal(14,2)
+  previous_price Decimal? @db.Decimal(14,2) @map("previous_price")
+  change_type String   @default("initial") @map("change_type") // initial, reduction, increase, correction
+  changed_by  BigInt?  @map("changed_by") // agent_id who made the change
+  notes       String?  @db.Text
+  created_at  DateTime @default(now()) @map("created_at")
+
+  @@index([listing_id])
+  @@index([created_at])
+  @@map("price_history")
+}
+
+// ═══════════════════════════════════════════════════════════
+// MARKETING ACTIVITY — Track marketing actions for a listing
+// ═══════════════════════════════════════════════════════════
+model MarketingActivity {
+  id              BigInt   @id @default(autoincrement())
+  listing_id      BigInt   @map("listing_id")
+  listing         Listing  @relation(fields: [listing_id], references: [id], onDelete: Cascade)
+  activity_type   String   @map("activity_type") // photos, video, virtual_tour, streeteasy, zillow, social_media, email_blast, print_ad, open_house_promo, broker_tour, price_reduction_notice
+  title           String
+  description     String?  @db.Text
+  completed_at    DateTime @default(now()) @map("completed_at")
+  agent_id        BigInt?  @map("agent_id")
+  agent           Agent?   @relation(fields: [agent_id], references: [id])
+  metadata        Json     @default("{}")
+
+  @@index([listing_id])
+  @@index([completed_at])
+  @@map("marketing_activities")
 }
