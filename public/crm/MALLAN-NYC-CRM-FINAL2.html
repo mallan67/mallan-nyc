@@ -1414,8 +1414,23 @@
                         <button onclick="showTab('investment-analyzer'); initInvestmentAnalyzer();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-hand-holding-usd text-xs text-gray-400"></i> Investment Analyzer
                         </button>
+                        <button onclick="showTab('neighborhood-sentiment'); initNeighborhoodSentiment();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-smile text-xs text-gray-400"></i> Neighborhood Sentiment
+                        </button>
+                        <button onclick="showTab('property-liquidity'); initPropertyLiquidity();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-tachometer-alt text-xs text-gray-400"></i> Property Liquidity
+                        </button>
+                        <button onclick="showTab('offer-intelligence'); initOfferIntelligence();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-gavel text-xs text-gray-400"></i> Offer Intelligence
+                        </button>
+                        <button onclick="showTab('renovation-estimator'); initRenovationEstimator();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-hammer text-xs text-gray-400"></i> Renovation Estimator
+                        </button>
                         <button onclick="showTab('building-risk'); initBuildingRisk();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-building text-xs text-gray-400"></i> Building Risk
+                        </button>
+                        <button onclick="showTab('market-alerts'); initMarketAlerts();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-bolt text-xs text-gray-400"></i> Market Alerts
                         </button>
                         <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-chart-line text-xs text-gray-400"></i> Seller Readiness
@@ -25192,7 +25207,17 @@
 
             <div id="investment-analyzer" class="tab-content" style="display:none;"></div>
 
+            <div id="neighborhood-sentiment" class="tab-content" style="display:none;"></div>
+
+            <div id="property-liquidity" class="tab-content" style="display:none;"></div>
+
+            <div id="offer-intelligence" class="tab-content" style="display:none;"></div>
+
+            <div id="renovation-estimator" class="tab-content" style="display:none;"></div>
+
             <div id="building-risk" class="tab-content" style="display:none;"></div>
+
+            <div id="market-alerts" class="tab-content" style="display:none;"></div>
 
             <div id="protected-periods" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
@@ -37032,6 +37057,11 @@ function saveShowingFeedback() {
 <script src="js/crm/transaction-probability.js"></script>
 <script src="js/crm/market-liquidity.js"></script>
 <script src="js/crm/investment-analyzer.js"></script>
+<script src="js/crm/neighborhood-sentiment.js"></script>
+<script src="js/crm/property-liquidity.js"></script>
+<script src="js/crm/offer-intelligence.js"></script>
+<script src="js/crm/renovation-estimator.js"></script>
+<script src="js/crm/market-alerts.js"></script>
 <script src="js/crm/protected-periods.js"></script>
 
 </body>
