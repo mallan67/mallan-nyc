@@ -742,12 +742,9 @@ export async function GET(request: Request) {
           });
         }
 
-        if (neighborhood) {
-          const neighborhoodLower = neighborhood.toLowerCase();
-          filtered = filtered.filter(
-            (l) => l.address.cityRegion?.toLowerCase() === neighborhoodLower
-          );
-        }
+        // Neighborhood post-filter REMOVED — CityRegion is unreliable in REBNY data.
+        // Neighborhood filtering is handled by ZIP-code push to OData (line ~631).
+        // The old CityRegion post-filter was discarding ALL results.
 
         // Bounds post-filter: narrow ZIP-based results to precise lat/lng box.
         // Trestle IDX Plus returns Latitude/Longitude as null AND blocks OData
