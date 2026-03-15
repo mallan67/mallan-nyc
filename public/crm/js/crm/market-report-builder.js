@@ -1,6 +1,6 @@
 /**
  * Manhattan Market Report Builder — CRM Module
- * AI-powered market report generation with property type breakdowns.
+ * AI-powered market report with company branding, agent info, send capability.
  */
 /* global MallanAPI, showToast */
 
@@ -9,7 +9,7 @@ var MR_NEIGHBORHOODS = [
   'Upper East Side', 'Upper West Side', 'Midtown', 'Chelsea', 'Tribeca',
   'SoHo', 'West Village', 'East Village', 'Gramercy', 'Murray Hill',
   'Financial District', 'Flatiron', 'Harlem', 'Battery Park City',
-  'Hell\'s Kitchen', 'Carnegie Hill', 'Lenox Hill', 'Yorkville'
+  "Hell's Kitchen", 'Carnegie Hill', 'Lenox Hill', 'Yorkville'
 ];
 
 async function initMarketReportBuilder() {
@@ -31,7 +31,7 @@ async function initMarketReportBuilder() {
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
           <h2 style="font-size:20px;font-weight:700;color:#111827;margin:0;">Manhattan Market Report Builder</h2>
-          <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">AI-powered market analysis for sales &amp; rentals by property type</p>
+          <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">AI-powered market analysis — preview, then send to clients</p>
         </div>
         <div style="display:flex;align-items:center;gap:4px;">
           <span style="width:8px;height:8px;border-radius:50%;background:#B8860B;"></span>
@@ -68,7 +68,7 @@ async function initMarketReportBuilder() {
               <option value="">All Manhattan</option>
               ${nhOptions}
             </select>
-            <p style="font-size:10px;color:#9ca3af;margin-top:4px;">Hold Ctrl/Cmd to select multiple. Leave blank for all Manhattan.</p>
+            <p style="font-size:10px;color:#9ca3af;margin-top:4px;">Hold Ctrl/Cmd to select multiple</p>
           </div>
 
           <button onclick="generateReport()" id="mr-generate-btn" style="width:100%;padding:12px;background:#B8860B;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
@@ -123,7 +123,7 @@ async function generateReport() {
 
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Generating (30-60s)...';
-  output.innerHTML = '<div style="padding:60px;text-align:center;color:#B8860B;"><i class="fas fa-spinner fa-spin" style="font-size:32px;margin-bottom:16px;display:block;"></i><p style="font-size:14px;font-weight:600;">Analyzing market data with AI...</p><p style="font-size:12px;color:#6b7280;margin-top:4px;">Querying listings, computing stats, generating narrative</p></div>';
+  output.innerHTML = '<div style="padding:60px;text-align:center;color:#B8860B;"><i class="fas fa-spinner fa-spin" style="font-size:32px;margin-bottom:16px;display:block;"></i><p style="font-size:14px;font-weight:600;">Analyzing market data with AI...</p></div>';
 
   try {
     var res = await MallanAPI._fetch('/api/crm/market-report', {
@@ -151,7 +151,13 @@ async function generateReport() {
 }
 
 function renderReport(container, report) {
-  // Stats cards by property type
+  // Get agent info from context
+  var ctx = MallanAPI.getContext();
+  var agentName = ctx?.user?.name || ctx?.user?.full_name || 'Your Agent';
+  var agentEmail = ctx?.user?.email || '';
+  var agentPhone = ctx?.user?.phone || '';
+  var agentLicense = ctx?.user?.license_no || '';
+
   var statCards = report.sections.map(function(s) {
     var isRent = s.listing_type === 'rent';
     var priceLabel = isRent ? '/mo' : '';
@@ -174,74 +180,145 @@ function renderReport(container, report) {
     '</div>';
   }).join('');
 
-  // Format narrative paragraphs
   var narrativeHtml = report.narrative.split('\n\n').map(function(p) {
-    return '<p style="margin:0 0 12px;line-height:1.7;">' + p.trim() + '</p>';
+    if (!p.trim()) return '';
+    return '<p style="margin:0 0 14px;line-height:1.8;font-size:14px;color:#374151;">' + p.trim() + '</p>';
   }).join('');
 
-  container.innerHTML = `
-    <div style="background:white;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
-      <!-- Report Header -->
-      <div style="background:linear-gradient(135deg,#111827,#1f2937);padding:24px 28px;color:white;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <div style="width:40px;height:40px;border-radius:8px;background:rgba(184,134,11,0.2);display:flex;align-items:center;justify-content:center;">
-            <span style="font-size:20px;font-weight:800;color:#B8860B;">M</span>
+  // Build the full branded report
+  var reportHtml = `
+    <div id="mr-report-content" style="background:white;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
+      <!-- Company Banner -->
+      <div style="background:linear-gradient(135deg,#111827 0%,#1f2937 50%,#111827 100%);padding:32px;text-align:center;">
+        <div style="display:inline-flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="width:48px;height:48px;border-radius:12px;background:rgba(184,134,11,0.15);display:flex;align-items:center;justify-content:center;border:1px solid rgba(184,134,11,0.3);">
+            <span style="font-size:24px;font-weight:900;color:#B8860B;">M</span>
+          </div>
+          <div style="text-align:left;">
+            <h1 style="font-size:22px;font-weight:800;color:white;margin:0;letter-spacing:-0.02em;">MALLAN REAL ESTATE INC.</h1>
+            <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:0;letter-spacing:0.15em;">LICENSED REAL ESTATE BROKERAGE &middot; NEW YORK</p>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;margin-top:16px;">
+          <h2 style="font-size:20px;font-weight:700;color:white;margin:0;">${report.title}</h2>
+          <p style="font-size:13px;color:rgba(255,255,255,0.6);margin:4px 0 0;">${report.period}</p>
+        </div>
+      </div>
+
+      <!-- Agent Info Bar -->
+      <div style="background:#f8fafc;border-bottom:1px solid #e5e7eb;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:#B8860B;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">
+            ${agentName.split(' ').map(function(n) { return n[0]; }).join('').substring(0,2)}
           </div>
           <div>
-            <h2 style="font-size:20px;font-weight:800;margin:0;letter-spacing:-0.02em;">${report.title}</h2>
-            <p style="font-size:13px;opacity:0.7;margin:2px 0 0;">${report.period} &middot; Mallan Real Estate Inc.</p>
+            <p style="font-size:14px;font-weight:700;color:#111827;margin:0;">Prepared by ${agentName}</p>
+            <p style="font-size:11px;color:#6b7280;margin:1px 0 0;">
+              ${agentEmail ? agentEmail + ' &middot; ' : ''}${agentPhone ? agentPhone + ' &middot; ' : ''}Mallan Real Estate Inc.
+            </p>
           </div>
+        </div>
+        <div style="text-align:right;">
+          <p style="font-size:10px;color:#9ca3af;margin:0;">${new Date(report.generated_at).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}</p>
+          ${agentLicense ? '<p style="font-size:9px;color:#9ca3af;margin:1px 0 0;">Lic# ' + agentLicense + '</p>' : ''}
         </div>
       </div>
 
       <!-- Stats Grid -->
-      <div style="padding:20px 28px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-        <h3 style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 12px;">Market Snapshot</h3>
+      <div style="padding:24px 32px;background:white;border-bottom:1px solid #f3f4f6;">
+        <h3 style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 14px;">Market Snapshot</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;">
           ${statCards}
         </div>
       </div>
 
       <!-- AI Narrative -->
-      <div style="padding:28px;">
-        <h3 style="font-size:14px;font-weight:700;color:#374151;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+      <div style="padding:32px;">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin:0 0 18px;display:flex;align-items:center;gap:8px;">
           <i class="fas fa-pen-fancy" style="color:#B8860B;"></i> Market Analysis
         </h3>
-        <div style="font-size:14px;color:#374151;">
-          ${narrativeHtml}
+        ${narrativeHtml}
+      </div>
+
+      <!-- Contact Footer -->
+      <div style="background:#111827;padding:24px 32px;color:white;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+          <div>
+            <p style="font-size:13px;font-weight:600;margin:0;">${agentName}</p>
+            <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:2px 0 0;">Mallan Real Estate Inc. &middot; 400 East 90th Street, Suite 17C, New York, NY 10128</p>
+          </div>
+          <div style="text-align:right;">
+            <p style="font-size:12px;color:#B8860B;font-weight:600;margin:0;">(646) 258-4460</p>
+            <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:2px 0 0;">mallan.nyc</p>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.1);margin-top:12px;padding-top:10px;display:flex;align-items:center;gap:8px;">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath d='M4 4h12v12H4z'/%3E%3Ctext x='5' y='13' font-size='8' fill='white' font-weight='bold'%3EEHO%3C/text%3E%3C/svg%3E" style="width:16px;height:16px;" alt="Equal Housing Opportunity">
+          <p style="font-size:9px;color:rgba(255,255,255,0.4);margin:0;">Equal Housing Opportunity. ${report.disclaimer}</p>
         </div>
       </div>
+    </div>
 
-      <!-- Disclaimer -->
-      <div style="padding:16px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;">
-        <p style="font-size:10px;color:#9ca3af;margin:0;">${report.disclaimer}</p>
-      </div>
-
-      <!-- Actions -->
-      <div style="padding:16px 28px;border-top:1px solid #e5e7eb;display:flex;gap:8px;">
-        <button onclick="copyReportToClipboard()" style="padding:8px 16px;background:#111827;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
-          <i class="fas fa-copy" style="margin-right:4px;"></i> Copy to Clipboard
-        </button>
-        <button onclick="window.print()" style="padding:8px 16px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
-          <i class="fas fa-print" style="margin-right:4px;"></i> Print
-        </button>
-      </div>
+    <!-- Action Bar (outside printable area) -->
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button onclick="mrCopyHtml()" style="padding:10px 20px;background:#111827;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        <i class="fas fa-copy" style="margin-right:6px;"></i> Copy as HTML
+      </button>
+      <button onclick="mrCopyText()" style="padding:10px 20px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        <i class="fas fa-file-alt" style="margin-right:6px;"></i> Copy as Text
+      </button>
+      <button onclick="mrPrintReport()" style="padding:10px 20px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        <i class="fas fa-print" style="margin-right:6px;"></i> Print / Save PDF
+      </button>
+      <button onclick="mrEmailReport()" style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        <i class="fas fa-paper-plane" style="margin-right:6px;"></i> Email to Client
+      </button>
     </div>
   `;
+
+  container.innerHTML = reportHtml;
 }
 
-function copyReportToClipboard() {
-  var output = document.getElementById('mr-output');
-  if (!output) return;
-  var text = output.innerText;
-  navigator.clipboard.writeText(text).then(function() {
-    showToast('Report copied to clipboard', 'success');
+function mrCopyHtml() {
+  var el = document.getElementById('mr-report-content');
+  if (!el) return;
+  var html = el.outerHTML;
+  navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([el.innerText], { type: 'text/plain' }) })]).then(function() {
+    showToast('Report HTML copied — paste into email', 'success');
   }).catch(function() {
-    showToast('Failed to copy', 'error');
+    navigator.clipboard.writeText(el.innerText).then(function() { showToast('Text copied', 'success'); });
   });
+}
+
+function mrCopyText() {
+  var el = document.getElementById('mr-report-content');
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(function() { showToast('Report text copied', 'success'); });
+}
+
+function mrPrintReport() {
+  var el = document.getElementById('mr-report-content');
+  if (!el) return;
+  var win = window.open('', '_blank');
+  win.opener = null;
+  win.document.write('<!DOCTYPE html><html><head><title>Market Report</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>' + el.outerHTML + '</body></html>');
+  win.document.close();
+  setTimeout(function() { win.print(); }, 500);
+}
+
+function mrEmailReport() {
+  var el = document.getElementById('mr-report-content');
+  if (!el) return;
+  var text = el.innerText.substring(0, 2000);
+  var subject = 'Manhattan Market Report — Mallan Real Estate';
+  window.location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text + '\n\nFull report available at mallan.nyc');
+  showToast('Email client opened', 'success');
 }
 
 window.initMarketReportBuilder = initMarketReportBuilder;
 window.mrSetType = mrSetType;
 window.generateReport = generateReport;
-window.copyReportToClipboard = copyReportToClipboard;
+window.mrCopyHtml = mrCopyHtml;
+window.mrCopyText = mrCopyText;
+window.mrPrintReport = mrPrintReport;
+window.mrEmailReport = mrEmailReport;
