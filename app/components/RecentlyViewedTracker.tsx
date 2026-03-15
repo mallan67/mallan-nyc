@@ -34,6 +34,8 @@ export default function RecentlyViewedTracker({
       filtered.unshift({ id, slug, address, price, photo, beds, baths, type, viewedAt: Date.now() });
       // Cap at MAX_ITEMS
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered.slice(0, MAX_ITEMS)));
+      // Reset dismiss flag so strip reappears with new content
+      localStorage.removeItem('mallan_rv_dismissed');
     } catch {
       // localStorage unavailable — no-op
     }
