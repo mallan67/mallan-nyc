@@ -72,7 +72,7 @@ function renderDemandExchange(container, data) {
       </div>` : '<div style="padding:40px;text-align:center;color:#9ca3af;">No active buyer profiles yet. Data populates from buyer intent cron.</div>'}
       <p style="margin-top:12px;font-size:11px;color:#9ca3af;">
         <i class="fas fa-lock" style="margin-right:4px;"></i>
-        All data is anonymized. Buyer identities are never exposed. Useful for attracting off-market sellers and sourcing pre-market inventory.
+        All data is anonymized. Buyer identities are never exposed. <strong>Fair Housing:</strong> This data reflects market activity only. It must not be used to direct buyers toward or away from any neighborhood based on race, color, religion, sex, national origin, familial status, disability, or any other protected characteristic.
       </p>
     </div>
   `;

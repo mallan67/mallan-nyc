@@ -9,35 +9,35 @@ var LIFESTYLE_FACTORS = [
   { id: 'transit', label: 'Public Transit', icon: 'fa-subway', weight: 1 },
   { id: 'parks', label: 'Parks & Green Space', icon: 'fa-tree', weight: 1 },
   { id: 'dining', label: 'Restaurants & Nightlife', icon: 'fa-utensils', weight: 1 },
-  { id: 'schools', label: 'Schools & Education', icon: 'fa-graduation-cap', weight: 1 },
+  { id: 'walkability', label: 'Walkability & Errands', icon: 'fa-walking', weight: 1 },
   { id: 'shopping', label: 'Shopping & Retail', icon: 'fa-shopping-bag', weight: 1 },
   { id: 'fitness', label: 'Gyms & Fitness', icon: 'fa-dumbbell', weight: 1 },
   { id: 'culture', label: 'Arts & Culture', icon: 'fa-theater-masks', weight: 1 },
-  { id: 'quiet', label: 'Quiet & Residential', icon: 'fa-moon', weight: 1 }
+  { id: 'lowdensity', label: 'Lower Density', icon: 'fa-moon', weight: 1 }
 ];
 
 // NYC neighborhood lifestyle profiles (curated data)
 var NEIGHBORHOOD_PROFILES = {
-  'Upper East Side': { transit: 90, parks: 95, dining: 80, schools: 90, shopping: 85, fitness: 85, culture: 95, quiet: 70 },
-  'Upper West Side': { transit: 90, parks: 95, dining: 75, schools: 90, shopping: 80, fitness: 80, culture: 90, quiet: 75 },
-  'Tribeca': { transit: 80, parks: 70, dining: 95, schools: 70, shopping: 85, fitness: 80, culture: 85, quiet: 60 },
-  'SoHo': { transit: 85, parks: 50, dining: 95, schools: 40, shopping: 95, fitness: 75, culture: 90, quiet: 30 },
-  'Chelsea': { transit: 90, parks: 80, dining: 90, schools: 55, shopping: 90, fitness: 90, culture: 95, quiet: 45 },
-  'West Village': { transit: 85, parks: 70, dining: 95, schools: 50, shopping: 80, fitness: 70, culture: 85, quiet: 55 },
-  'East Village': { transit: 85, parks: 65, dining: 95, schools: 40, shopping: 75, fitness: 70, culture: 90, quiet: 35 },
-  'Gramercy': { transit: 85, parks: 85, dining: 80, schools: 65, shopping: 75, fitness: 80, culture: 70, quiet: 70 },
-  'Midtown': { transit: 95, parks: 60, dining: 85, schools: 30, shopping: 95, fitness: 85, culture: 90, quiet: 15 },
-  'Financial District': { transit: 90, parks: 70, dining: 75, schools: 45, shopping: 70, fitness: 75, culture: 60, quiet: 40 },
-  'Williamsburg': { transit: 75, parks: 70, dining: 90, schools: 55, shopping: 80, fitness: 80, culture: 85, quiet: 45 },
-  'DUMBO': { transit: 70, parks: 80, dining: 80, schools: 50, shopping: 65, fitness: 70, culture: 80, quiet: 55 },
-  'Park Slope': { transit: 80, parks: 95, dining: 80, schools: 90, shopping: 75, fitness: 75, culture: 70, quiet: 75 },
-  'Brooklyn Heights': { transit: 85, parks: 85, dining: 75, schools: 85, shopping: 65, fitness: 65, culture: 70, quiet: 80 },
-  'Long Island City': { transit: 85, parks: 75, dining: 70, schools: 50, shopping: 60, fitness: 75, culture: 65, quiet: 50 },
-  'Astoria': { transit: 80, parks: 70, dining: 85, schools: 65, shopping: 70, fitness: 70, culture: 65, quiet: 60 },
-  'Harlem': { transit: 85, parks: 75, dining: 75, schools: 60, shopping: 65, fitness: 65, culture: 80, quiet: 55 },
-  'Murray Hill': { transit: 90, parks: 50, dining: 80, schools: 45, shopping: 80, fitness: 80, culture: 60, quiet: 50 },
-  'Flatiron': { transit: 90, parks: 75, dining: 90, schools: 40, shopping: 90, fitness: 85, culture: 80, quiet: 35 },
-  'Battery Park City': { transit: 75, parks: 95, dining: 65, schools: 75, shopping: 55, fitness: 70, culture: 55, quiet: 80 }
+  'Upper East Side': { transit: 90, parks: 95, dining: 80, walkability: 90, shopping: 85, fitness: 85, culture: 95, lowdensity: 70 },
+  'Upper West Side': { transit: 90, parks: 95, dining: 75, walkability: 90, shopping: 80, fitness: 80, culture: 90, lowdensity: 75 },
+  'Tribeca': { transit: 80, parks: 70, dining: 95, walkability: 70, shopping: 85, fitness: 80, culture: 85, lowdensity: 60 },
+  'SoHo': { transit: 85, parks: 50, dining: 95, walkability: 40, shopping: 95, fitness: 75, culture: 90, lowdensity: 30 },
+  'Chelsea': { transit: 90, parks: 80, dining: 90, walkability: 55, shopping: 90, fitness: 90, culture: 95, lowdensity: 45 },
+  'West Village': { transit: 85, parks: 70, dining: 95, walkability: 50, shopping: 80, fitness: 70, culture: 85, lowdensity: 55 },
+  'East Village': { transit: 85, parks: 65, dining: 95, walkability: 40, shopping: 75, fitness: 70, culture: 90, lowdensity: 35 },
+  'Gramercy': { transit: 85, parks: 85, dining: 80, walkability: 65, shopping: 75, fitness: 80, culture: 70, lowdensity: 70 },
+  'Midtown': { transit: 95, parks: 60, dining: 85, walkability: 30, shopping: 95, fitness: 85, culture: 90, lowdensity: 15 },
+  'Financial District': { transit: 90, parks: 70, dining: 75, walkability: 45, shopping: 70, fitness: 75, culture: 60, lowdensity: 40 },
+  'Williamsburg': { transit: 75, parks: 70, dining: 90, walkability: 55, shopping: 80, fitness: 80, culture: 85, lowdensity: 45 },
+  'DUMBO': { transit: 70, parks: 80, dining: 80, walkability: 50, shopping: 65, fitness: 70, culture: 80, lowdensity: 55 },
+  'Park Slope': { transit: 80, parks: 95, dining: 80, walkability: 90, shopping: 75, fitness: 75, culture: 70, lowdensity: 75 },
+  'Brooklyn Heights': { transit: 85, parks: 85, dining: 75, walkability: 85, shopping: 65, fitness: 65, culture: 70, lowdensity: 80 },
+  'Long Island City': { transit: 85, parks: 75, dining: 70, walkability: 50, shopping: 60, fitness: 75, culture: 65, lowdensity: 50 },
+  'Astoria': { transit: 80, parks: 70, dining: 85, walkability: 65, shopping: 70, fitness: 70, culture: 65, lowdensity: 60 },
+  'Harlem': { transit: 85, parks: 75, dining: 75, walkability: 60, shopping: 65, fitness: 65, culture: 80, lowdensity: 55 },
+  'Murray Hill': { transit: 90, parks: 50, dining: 80, walkability: 45, shopping: 80, fitness: 80, culture: 60, lowdensity: 50 },
+  'Flatiron': { transit: 90, parks: 75, dining: 90, walkability: 40, shopping: 90, fitness: 85, culture: 80, lowdensity: 35 },
+  'Battery Park City': { transit: 75, parks: 95, dining: 65, walkability: 75, shopping: 55, fitness: 70, culture: 55, lowdensity: 80 }
 };
 
 async function initLifestyleMatch() {
@@ -152,6 +152,9 @@ function runLifestyleMatch() {
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
       ${cards}
+    </div>
+    <div style="margin-top:16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px;">
+      <p style="font-size:11px;color:#92400e;margin:0;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i><strong>Fair Housing Notice:</strong> This tool provides amenity-based neighborhood data only. It must not be used to direct buyers toward or away from any neighborhood based on race, color, religion, sex, national origin, familial status, disability, age, or any other protected characteristic under the Fair Housing Act, NYC Human Rights Law, or REBNY RLS rules. All neighborhood decisions must be buyer-directed.</p>
     </div>
   `;
 }

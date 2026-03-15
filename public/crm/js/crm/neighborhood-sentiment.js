@@ -113,6 +113,9 @@ function renderSentiment(container, sentiments) {
           <tbody>${rows}</tbody>
         </table>
       </div>
+      <p style="margin-top:12px;font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px;">
+        <i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i><strong>Fair Housing:</strong> Sentiment scores reflect market activity data (search volume, inventory, absorption). They must not be used to steer buyers toward or away from neighborhoods based on any protected characteristic.
+      </p>
     </div>
   `;
 }
