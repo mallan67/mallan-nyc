@@ -561,29 +561,19 @@ export async function GET(request: Request) {
         // Property sub-types: PropertySubType can't be pushed to OData (causes 502).
         // But CommonInterest CAN be pushed for Condo/Co-op/Condop (ownership types).
         // Structural types (Loft, Townhouse, etc.) are handled as post-filter.
+        // Property type OData push: ONLY CommonInterest works on Trestle IDX Plus.
+        // PropertySubType, NewConstructionYN, NewDevelopmentYN all cause 502.
+        // Non-CommonInterest types handled as post-filter after fetch.
         if (propertySubTypes) {
-          const types = propertySubTypes.split(',').map(t => t.trim());
-          // Push CommonInterest for ownership types (Condo/Co-op/Condop)
           const commonInterestPush: Record<string, string> = {
             'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
           };
-          const ciFilters = types.map(t => commonInterestPush[t]).filter(Boolean);
-          // Push NewConstructionYN/NewDevelopmentYN for New Development
-          const hasNewDev = types.includes('New Development');
-          const odataParts: string[] = [];
+          const ciFilters = propertySubTypes.split(',')
+            .map(t => commonInterestPush[t.trim()])
+            .filter(Boolean);
           if (ciFilters.length > 0) {
-            odataParts.push(...ciFilters.map(v => `CommonInterest eq '${v}'`));
+            filterParts.push(`(${ciFilters.map(v => `CommonInterest eq '${v}'`).join(' or ')})`);
           }
-          if (hasNewDev) {
-            odataParts.push("NewConstructionYN eq true", "NewDevelopmentYN eq true");
-          }
-          if (odataParts.length > 0) {
-            filterParts.push(`(${odataParts.join(' or ')})`);
-          }
-        }
-        // Sort = new-development also pushes to OData
-        if (sortParam === 'new-development' && !propertySubTypes) {
-          filterParts.push("(NewConstructionYN eq true or NewDevelopmentYN eq true)");
         }
 
         // Ownership types (comma-separated: Condo, Co-op, Condop)
@@ -741,10 +731,16 @@ export async function GET(request: Request) {
           const isNewDev = sortParam === 'new-development' ||
             (propertySubTypes || '').split(',').some(t => t.trim() === 'New Development');
           if (isNewDev) {
-            // New Development uses boolean YN fields, not PropertySubType
-            subTypeFiltered = subTypeFiltered.filter((raw) =>
-              raw.NewConstructionYN === true || raw.NewDevelopmentYN === true
-            );
+            // NewConstructionYN/NewDevelopmentYN not available on IDX Plus $select.
+            // Identify new development from PublicRemarks + YearBuilt.
+            const currentYear = new Date().getFullYear();
+            subTypeFiltered = subTypeFiltered.filter((raw) => {
+              const remarks = String(raw.PublicRemarks || '').toLowerCase();
+              const yearBuilt = Number(raw.YearBuilt) || 0;
+              const isRecent = yearBuilt >= currentYear - 3;
+              const hasKeywords = /new\s*(?:development|construction|building|condo)|sponsor\s*(?:unit|sale)|brand\s*new|never\s*(?:lived|occupied)|first\s*occupan/i.test(remarks);
+              return hasKeywords || isRecent;
+            });
           }
           // Also filter by structural/ownership types if requested (non-new-dev types)
           const nonNewDevTypes = (propertySubTypes || '').split(',')
