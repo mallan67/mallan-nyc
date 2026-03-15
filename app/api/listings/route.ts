@@ -272,8 +272,14 @@ export async function GET(request: Request) {
             const subTypeMap: Record<string, string> = {
               'Condo': 'Condo', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
               'Townhouse': 'SingleFamilyTownhouse', 'Multi-Family': 'MultiFamily',
+              'New Development': 'NewConstruction', 'Single Family': 'SingleFamilyResidence',
+              'Loft': 'Loft', 'Duplex': 'Duplex', 'Triplex': 'Triplex',
             };
-            const types = propertySubTypes.split(',').map(t => subTypeMap[t.trim()] || t.trim()).filter(Boolean);
+            const types = propertySubTypes.split(',').flatMap(t => {
+              const mapped = subTypeMap[t.trim()];
+              if (mapped === 'NewConstruction') return ['NewConstruction', 'New Construction'];
+              return [mapped || t.trim()];
+            }).filter(Boolean);
             if (types.length > 0) {
               dbWhere.property_sub_type = { in: types };
             }
@@ -555,9 +561,12 @@ export async function GET(request: Request) {
         // Property sub-types (comma-separated)
         if (propertySubTypes) {
           const subTypeMap: Record<string, string> = {
+            'Condo': 'Condo', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
             'Townhouse': 'SingleFamilyTownhouse',
             'Multi-Family': 'MultiFamily',
             'Single Family': 'SingleFamilyResidence',
+            'New Development': 'NewConstruction',
+            'Loft': 'Loft', 'Duplex': 'Duplex', 'Triplex': 'Triplex',
             'Office': 'Office', 'Retail': 'Retail', 'Industrial': 'Industrial',
             'Warehouse': 'Warehouse', 'Mixed Use': 'MixedUse',
             'Hospitality': 'Hospitality', 'Healthcare': 'Healthcare', 'Parking': 'Parking',
