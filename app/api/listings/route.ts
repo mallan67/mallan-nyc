@@ -121,7 +121,7 @@ export async function GET(request: Request) {
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
     // New filter params
     const commercial = searchParams.get('commercial') === 'true';
-    const propertySubTypes = searchParams.get('propertySubTypes'); // comma-separated
+    const propertySubTypes = searchParams.get('propertySubTypes') || searchParams.get('subTypes'); // accept both
     const ownershipTypes = searchParams.get('ownershipTypes'); // comma-separated
     const yearBuiltParam = searchParams.get('yearBuilt'); // 'pre-war' | 'post-war'
     const furnishedParam = searchParams.get('furnished') === 'true';
@@ -558,24 +558,8 @@ export async function GET(request: Request) {
           }
         }
 
-        // Property sub-types (comma-separated)
-        if (propertySubTypes) {
-          const subTypeMap: Record<string, string> = {
-            'Condo': 'Condo', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
-            'Townhouse': 'SingleFamilyTownhouse',
-            'Multi-Family': 'MultiFamily',
-            'Single Family': 'SingleFamilyResidence',
-            'New Development': 'NewConstruction',
-            'Loft': 'Loft', 'Duplex': 'Duplex', 'Triplex': 'Triplex',
-            'Office': 'Office', 'Retail': 'Retail', 'Industrial': 'Industrial',
-            'Warehouse': 'Warehouse', 'Mixed Use': 'MixedUse',
-            'Hospitality': 'Hospitality', 'Healthcare': 'Healthcare', 'Parking': 'Parking',
-          };
-          const types = propertySubTypes.split(',').map(t => subTypeMap[t.trim()] || t.trim()).filter(Boolean);
-          if (types.length > 0) {
-            filterParts.push(`(${types.map(t => `PropertySubType eq '${t.replace(/'/g, "''")}'`).join(' or ')})`);
-          }
-        }
+        // Property sub-types: NOT pushed to OData — PropertySubType filter causes
+        // Trestle 400/502 errors. Handled as post-filter after fetch (see below).
 
         // Ownership types (comma-separated: Condo, Co-op, Condop)
         if (ownershipTypes) {
@@ -588,25 +572,19 @@ export async function GET(request: Request) {
           }
         }
 
-        // Legacy single propertyType filter (backward compat)
+        // Legacy single propertyType filter — only push CommonInterest to OData
+        // (PropertySubType causes Trestle 502, handled as post-filter)
         if (propertyTypeFilter && !propertySubTypes && !ownershipTypes) {
           const commonInterestMap: Record<string, string> = {
             'Condo': 'Condominium',
             'Co-op': 'StockCooperative',
             'Condop': 'Condop',
           };
-          const propertySubTypeMap: Record<string, string> = {
-            'Townhouse': 'SingleFamilyTownhouse',
-            'Multi-Family': 'MultiFamily',
-            'Single Family': 'SingleFamilyResidence',
-          };
           const safe = propertyTypeFilter.replace(/'/g, "''");
           if (commonInterestMap[safe]) {
             filterParts.push(`CommonInterest eq '${commonInterestMap[safe]}'`);
-          } else if (propertySubTypeMap[safe]) {
-            filterParts.push(`PropertySubType eq '${propertySubTypeMap[safe]}'`);
           } else {
-            filterParts.push(`(PropertySubType eq '${safe}' or CommonInterest eq '${safe}')`);
+            // Can't push PropertySubType to OData — will be post-filtered;
           }
         }
 
@@ -659,7 +637,7 @@ export async function GET(request: Request) {
           case 'beds-desc': orderby = 'BedroomsTotal desc'; break;
           case 'neighborhood': orderby = 'City asc'; break;
           case 'new-development':
-            filterParts.push("PropertySubType eq 'NewConstruction'");
+            // PropertySubType OData filter crashes Trestle — handled as post-filter
             orderby = 'ModificationTimestamp desc';
             break;
           case 'exclusives':
@@ -720,8 +698,34 @@ export async function GET(request: Request) {
           // These amenities are properly filtered on the DB path (features JSONB).
         }
 
+        // Step 1c: Property sub-type post-filter (can't push to OData — causes 502)
+        let subTypeFiltered = amenityFiltered;
+        if (propertySubTypes || sortParam === 'new-development') {
+          const subTypeMap: Record<string, string[]> = {
+            'Condo': ['Condo', 'Condominium'],
+            'Co-op': ['StockCooperative', 'Stock Cooperative'],
+            'Condop': ['Condop'],
+            'Townhouse': ['SingleFamilyTownhouse', 'Townhouse'],
+            'Multi-Family': ['MultiFamily', 'Multi-Family'],
+            'Single Family': ['SingleFamilyResidence', 'Single Family'],
+            'New Development': ['NewConstruction', 'New Construction'],
+            'Loft': ['Loft'],
+            'Duplex': ['Duplex'],
+            'Triplex': ['Triplex'],
+          };
+          const requestedTypes = sortParam === 'new-development'
+            ? ['NewConstruction', 'New Construction']
+            : (propertySubTypes || '').split(',').flatMap(t => subTypeMap[t.trim()] || [t.trim()]);
+          const lowerTypes = requestedTypes.map(t => t.toLowerCase());
+          subTypeFiltered = subTypeFiltered.filter((raw) => {
+            const pst = String(raw.PropertySubType || '').toLowerCase();
+            const ci = String(raw.CommonInterest || '').toLowerCase();
+            return lowerTypes.some(t => pst.includes(t) || ci.includes(t));
+          });
+        }
+
         // Step 2: Map to IDXListing
-        const mapped = amenityFiltered
+        const mapped = subTypeFiltered
           .map((raw) => mapRESOToInternal(raw))
           .filter((l): l is NonNullable<typeof l> => l !== null);
 
