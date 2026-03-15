@@ -384,7 +384,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       livingArea: dbListing.living_area ? Number(dbListing.living_area) : null,
       lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
       yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
-      listOfficeName: agentInfo.company || '',
+      listOfficeName: agentInfo.ListOfficeName || agentInfo.company || 'Mallan Real Estate Inc.',
       media: mediaArr.map(m => ({
         ...m,
         url: m.url && (m.url.includes('cotality.com') || m.url.includes('corelogic.com'))
@@ -1665,7 +1665,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <section className="border-t border-black/[0.06] py-5 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="text-[13px] text-brand-dark/70">
-            Listing courtesy of <span className="font-medium text-brand-dark/85">{listing.listOfficeName || 'Listing Office'}</span>
+            Listing courtesy of <span className="font-medium text-brand-dark/85">{listing.listOfficeName || 'Mallan Real Estate Inc.'}</span>
           </p>
           <span className="text-brand-dark/30">|</span>
           <p className="text-[13px] text-brand-dark/50">

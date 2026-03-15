@@ -205,7 +205,7 @@ export function toDisplayListing(raw: any): DisplayListing {
     _displayCompliance: {
       comingSoon: raw.status === 'coming-soon' || raw.compliance?.comingSoonDate ? true : undefined,
       comingSoonDate: raw.compliance?.comingSoonDate || raw.activationDate || undefined,
-      attributionText: `Courtesy of ${raw.agent?.listOfficeName || 'Listing Office'}`,
+      attributionText: `Courtesy of ${raw.agent?.listOfficeName || 'Mallan Real Estate Inc.'}`,
       requiresAttribution: true,
     },
   };
