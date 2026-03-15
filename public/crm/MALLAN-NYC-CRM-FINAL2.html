@@ -30189,7 +30189,9 @@
 
         function cpLoadIntelligence() {
             var clientId = window._currentClientId;
+            var clientData = window._currentClientData;
             if (!clientId) return;
+
             // Load lead score
             MallanAPI._fetch('/api/crm/lead-scoring?limit=200').then(function(res) {
                 var scores = res.scores || res.items || [];
@@ -30207,6 +30209,7 @@
                     el.innerHTML = '<p style="font-size:13px;color:#9ca3af;">No score computed yet. Scores update daily.</p>';
                 }
             }).catch(function() {});
+
             // Load conviction
             MallanAPI._fetch('/api/crm/conviction/' + clientId).then(function(res) {
                 var el = document.getElementById('cpConviction');
@@ -30219,6 +30222,108 @@
                     (res.ghost_status && res.ghost_status !== 'active' ? '<p style="font-size:10px;color:#ef4444;margin-top:4px;">Ghost: ' + res.ghost_status + ' (' + res.silence_days + 'd silent)</p>' : '') +
                     '</div>';
             }).catch(function() {});
+
+            // ── Load LIVE market data for this client's neighborhoods ──
+            // Uses the market-intelligence API which pulls from Trestle RLS
+            var prefs = clientData && clientData.preferences;
+            var neighborhoods = prefs && prefs.neighborhoods ? prefs.neighborhoods : [];
+            var isBuyer = clientData && clientData.roles && (clientData.roles.indexOf('buyer') >= 0);
+            var isRenter = clientData && clientData.roles && (clientData.roles.indexOf('renter') >= 0 || clientData.roles.indexOf('tenant') >= 0);
+            var listingType = isRenter ? 'rent' : 'sale';
+
+            if (neighborhoods.length > 0) {
+                var demandEl = document.getElementById('cpDemand');
+                if (demandEl) demandEl.innerHTML = '<p style="font-size:13px;color:#6b7280;"><i class="fas fa-spinner fa-spin mr-1"></i>Loading live market data for ' + neighborhoods.join(', ') + '...</p>';
+
+                MallanAPI._fetch('/api/crm/market-intelligence/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        listing_type: listingType,
+                        neighborhoods: neighborhoods
+                    })
+                }).then(function(res) {
+                    if (!res.ok || !res.data) return;
+                    var d = res.data;
+                    var stats = d.neighborhood_stats || [];
+                    var alerts = d.alerts || [];
+                    var liquidity = d.liquidity || [];
+                    var sentiment = d.sentiment || [];
+                    var summary = d.summary || {};
+
+                    // Render Area Demand card with live Trestle data
+                    if (demandEl && stats.length > 0) {
+                        var html = '';
+                        stats.forEach(function(nh) {
+                            var liq = liquidity.find(function(l) { return l.neighborhood === nh.neighborhood; });
+                            var sent = sentiment.find(function(s) { return s.neighborhood === nh.neighborhood; });
+                            var liqLabel = liq ? liq.label : '--';
+                            var liqColor = liq && liq.index >= 0.6 ? '#059669' : liq && liq.index >= 0.4 ? '#3b82f6' : liq && liq.index >= 0.2 ? '#f59e0b' : '#ef4444';
+                            var sentLabel = sent ? sent.label : '--';
+
+                            html += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:8px;">';
+                            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+                            html += '<span style="font-size:14px;font-weight:700;">' + nh.neighborhood + '</span>';
+                            html += '<span style="font-size:11px;padding:2px 8px;border-radius:9999px;background:' + liqColor + '20;color:' + liqColor + ';font-weight:600;">' + liqLabel + '</span>';
+                            html += '</div>';
+                            html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:11px;">';
+                            html += '<div><p style="color:#6b7280;">Active</p><p style="font-weight:700;">' + nh.activeCount + '</p></div>';
+                            html += '<div><p style="color:#6b7280;">Median</p><p style="font-weight:700;">$' + (nh.medianPrice ? nh.medianPrice.toLocaleString() : '--') + '</p></div>';
+                            html += '<div><p style="color:#6b7280;">Avg DOM</p><p style="font-weight:700;">' + (nh.avgDom || '--') + '</p></div>';
+                            html += '<div><p style="color:#6b7280;">$/sqft</p><p style="font-weight:700;">' + (nh.avgPricePerSqft ? '$' + nh.avgPricePerSqft : '--') + '</p></div>';
+                            html += '</div>';
+                            if (sent && sent.signals && sent.signals.length > 0) {
+                                html += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">';
+                                sent.signals.forEach(function(sig) {
+                                    html += '<span style="font-size:10px;padding:1px 6px;background:#f3f4f6;border-radius:4px;color:#374151;">' + sig + '</span>';
+                                });
+                                html += '</div>';
+                            }
+                            html += '</div>';
+                        });
+
+                        // Client-specific alerts
+                        if (alerts.length > 0) {
+                            html += '<div style="margin-top:12px;">';
+                            html += '<p style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">MARKET ALERTS</p>';
+                            alerts.forEach(function(a) {
+                                var ac = a.severity === 'critical' ? '#dc2626' : a.severity === 'warning' ? '#d97706' : '#2563eb';
+                                html += '<div style="padding:8px;border-left:3px solid ' + ac + ';background:#f9fafb;border-radius:4px;margin-bottom:4px;font-size:11px;">' + a.message + '</div>';
+                            });
+                            html += '</div>';
+                        }
+
+                        html += '<p style="font-size:9px;color:#9ca3af;margin-top:8px;">Live data from REBNY RLS via Trestle. ' + (d.disclaimer || '') + '</p>';
+                        demandEl.innerHTML = html;
+                    } else if (demandEl) {
+                        demandEl.innerHTML = '<p style="font-size:13px;color:#9ca3af;">No listings found in ' + neighborhoods.join(', ') + ' for ' + listingType + '.</p>';
+                    }
+
+                    // Render matching listings count in Lifestyle Fit
+                    var lifeEl = document.getElementById('cpLifestyle');
+                    if (lifeEl && stats.length > 0) {
+                        var matchCount = summary.totalActive || 0;
+                        var priceDrops = summary.priceDropCount || 0;
+                        var newListings = summary.newListings30d || 0;
+                        lifeEl.innerHTML = '<div style="text-align:center;">' +
+                            '<p style="font-size:28px;font-weight:800;color:#3b82f6;">' + matchCount + '</p>' +
+                            '<p style="font-size:12px;color:#6b7280;">active listings in target areas</p>' +
+                            '<div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:12px;">' +
+                            '<span style="color:#059669;font-weight:600;">' + newListings + ' new (30d)</span>' +
+                            '<span style="color:#d97706;font-weight:600;">' + priceDrops + ' price drops</span>' +
+                            '</div></div>';
+                    }
+                }).catch(function(err) {
+                    var demandEl = document.getElementById('cpDemand');
+                    if (demandEl) demandEl.innerHTML = '<p style="font-size:13px;color:#dc2626;">Failed to load market data.</p>';
+                    console.error('[cpIntelligence] Market data error:', err);
+                });
+            } else {
+                var demandEl = document.getElementById('cpDemand');
+                if (demandEl) demandEl.innerHTML = '<p style="font-size:13px;color:#9ca3af;">Set this client\'s search criteria (neighborhoods) to see market data.</p>';
+                var lifeEl = document.getElementById('cpLifestyle');
+                if (lifeEl) lifeEl.innerHTML = '<p style="font-size:13px;color:#9ca3af;">Set search criteria first.</p>';
+            }
         }
 
         window.addClientNote = function() {
