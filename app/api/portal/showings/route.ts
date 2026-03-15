@@ -23,14 +23,43 @@ export async function GET(req: NextRequest) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const showings = await prisma.showing.findMany({
-    where: {
+  // Determine role to fix query: sellers see showings ON their listings,
+  // buyers see showings they requested
+  const lead = await prisma.lead.findUnique({
+    where: { id: auth.userId },
+    select: { portal_role: true, agent_id: true },
+  });
+
+  const isSellerRole = lead?.portal_role === "seller" || lead?.portal_role === "landlord";
+
+  // Sellers: find all showings on listings owned by their agent
+  // Buyers: find showings where they are the lead (original behavior)
+  let showingWhere;
+  if (isSellerRole && lead?.agent_id) {
+    const agentListings = await prisma.listing.findMany({
+      where: { agent_id: lead.agent_id },
+      select: { id: true },
+    });
+    const listingIds = agentListings.map((l) => l.id);
+    showingWhere = {
+      listing_id: { in: listingIds },
+      OR: [
+        { date: { gte: new Date() } },
+        { status: "completed", date: { gte: thirtyDaysAgo } },
+      ],
+    };
+  } else {
+    showingWhere = {
       lead_id: auth.userId,
       OR: [
         { date: { gte: new Date() } },
         { status: "completed", date: { gte: thirtyDaysAgo } },
       ],
-    },
+    };
+  }
+
+  const showings = await prisma.showing.findMany({
+    where: showingWhere,
     include: {
       listing: {
         select: {
@@ -42,17 +71,22 @@ export async function GET(req: NextRequest) {
           internet_address_display_yn: true,
         },
       },
+      ...(isSellerRole ? {
+        lead: { select: { first_name: true, last_name: true } },
+        agent: { select: { full_name: true } },
+        feedback: { select: { rating: true, interest_level: true, notes: true } },
+      } : {}),
     },
     orderBy: { date: "asc" },
   });
 
-  const serialized = showings.map((s) => {
+  const serialized = showings.map((s: any) => {
     // Centralized address suppression via DTO (REBNY RLS compliance)
     const sanitizedListing = sanitizeForPublic({
       address: s.listing.address,
       internet_address_display_yn: s.listing.internet_address_display_yn,
     });
-    return {
+    const base = {
       id: s.id.toString(),
       listing_id: s.listing_id.toString(),
       date: s.date,
@@ -68,6 +102,21 @@ export async function GET(req: NextRequest) {
         listing_type: s.listing.listing_type,
       },
     };
+
+    // For sellers, include showing agent, buyer name, and feedback
+    if (isSellerRole) {
+      return {
+        ...base,
+        agent_name: s.agent?.full_name || null,
+        buyer_name: s.lead ? `${s.lead.first_name || ''} ${s.lead.last_name || ''}`.trim() : null,
+        feedback: s.feedback ? {
+          rating: s.feedback.rating,
+          interest_level: s.feedback.interest_level,
+          notes: s.feedback.notes,
+        } : null,
+      };
+    }
+    return base;
   });
 
   return NextResponse.json({ showings: serialized });
@@ -149,12 +198,20 @@ export async function POST(req: NextRequest) {
   // Resolve agent from lead's assigned agent
   const lead = await prisma.lead.findUnique({
     where: { id: auth.userId },
-    select: { agent_id: true },
+    select: { agent_id: true, buyer_rep_agreement: true, buyer_rep_agreement_date: true },
   });
   if (!lead?.agent_id) {
     return NextResponse.json(
       { error: "No agent assigned to your account" },
       { status: 400 }
+    );
+  }
+
+  // UCBA E7: Buyer representative agreement must be in place before showing
+  if (!lead.buyer_rep_agreement) {
+    return NextResponse.json(
+      { error: "A buyer representative agreement is required before scheduling a showing (UCBA E7)" },
+      { status: 422 }
     );
   }
 
