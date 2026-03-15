@@ -8,6 +8,14 @@ export const EVENT_WEIGHTS: Record<IntentEventType, number> = {
   inquiry: 0.25,
   showing_request: 0.20,
   filter_change: 0.10,
+  // Listing email engagement events
+  listing_email_sent: 0.0,        // System action, not client intent
+  listing_email_opened: 0.08,     // Opened = mild interest
+  listing_link_clicked: 0.15,     // Clicked = strong signal
+  listing_view_duration: 0.12,    // Time spent = consideration
+  listing_browse_from: 0.18,      // Browsed further = active exploration
+  listing_quick_dismiss: -0.05,   // Quick leave = negative signal
+  rent_vs_buy_viewed: 0.10,       // Viewed analysis = considering transition
 };
 
 export const DECAY_HALF_LIFE_DAYS = 14;

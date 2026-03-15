@@ -96,6 +96,70 @@ export async function computeIntentProfile(leadId: bigint): Promise<IntentProfil
 
   const lastEvent = events[0]?.recorded_at ?? null;
 
+  // ─── Rent vs Buy Ratio ──────────────────────────────────
+  // Track whether client engages more with sale or rental listings
+  let saleEngagement = 0;
+  let rentalEngagement = 0;
+  for (const e of events) {
+    const p = e.payload as Record<string, unknown>;
+    if (!p) continue;
+    const listingType = p.listing_type || p.listingType;
+    if (listingType === 'sale' || listingType === 'Residential') {
+      saleEngagement++;
+    } else if (listingType === 'rent' || listingType === 'rental' || listingType === 'Residential Lease') {
+      rentalEngagement++;
+    }
+    // rent_vs_buy_viewed strongly indicates sale consideration
+    if (e.event_type === 'rent_vs_buy_viewed') saleEngagement += 2;
+  }
+  const totalTypeEngagement = saleEngagement + rentalEngagement;
+  const rentVsBuyRatio = totalTypeEngagement > 0
+    ? Math.round((saleEngagement / totalTypeEngagement) * 100) / 100
+    : 0.5; // Default even split if no data
+
+  // ─── Engaged Neighborhoods ──────────────────────────────
+  // Which neighborhoods is the client ACTUALLY clicking/viewing (vs stated prefs)?
+  const engagedNeighborhoods = topN(neighborhoods, 10);
+
+  // ─── Drift Detection ────────────────────────────────────
+  // Compare engaged neighborhoods to stated preferences
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: {
+      preferences: { select: { neighborhoods: true, property_types: true } },
+      roles: true,
+    },
+  });
+
+  let driftDetected = false;
+  let driftDetails: string | null = null;
+
+  if (lead?.preferences && engagedNeighborhoods.length >= 3) {
+    const statedNeighborhoods = new Set(lead.preferences.neighborhoods);
+    const engagedNotStated = engagedNeighborhoods.filter(
+      (n) => !statedNeighborhoods.has(n)
+    );
+
+    // Neighborhood drift: >50% of engaged neighborhoods are NOT in stated preferences
+    if (engagedNotStated.length > engagedNeighborhoods.length * 0.5 && engagedNotStated.length >= 2) {
+      driftDetected = true;
+      driftDetails = `Neighborhood drift: engaging with ${engagedNotStated.join(', ')} (not in stated preferences)`;
+    }
+
+    // Type drift: renter engaging mostly with sale listings or vice versa
+    const isStatedRenter = lead.roles.includes('renter') || lead.roles.includes('tenant');
+    const isStatedBuyer = lead.roles.includes('buyer');
+    if (isStatedRenter && !isStatedBuyer && rentVsBuyRatio >= 0.7 && totalTypeEngagement >= 5) {
+      driftDetected = true;
+      driftDetails = (driftDetails ? driftDetails + '. ' : '') +
+        `Type drift: stated renter but ${Math.round(rentVsBuyRatio * 100)}% sale engagement — likely buyer candidate`;
+    } else if (isStatedBuyer && !isStatedRenter && rentVsBuyRatio <= 0.3 && totalTypeEngagement >= 5) {
+      driftDetected = true;
+      driftDetails = (driftDetails ? driftDetails + '. ' : '') +
+        `Type drift: stated buyer but ${Math.round((1 - rentVsBuyRatio) * 100)}% rental engagement — may be shifting to rental`;
+    }
+  }
+
   const result: IntentProfileResult = {
     lead_id: leadId,
     intent_strength: intentStrength,
@@ -108,6 +172,10 @@ export async function computeIntentProfile(leadId: bigint): Promise<IntentProfil
     amenity_preferences: topN(amenities, 10),
     preferred_boroughs: topN(boroughs, 5),
     event_count: events.length,
+    rent_vs_buy_ratio: rentVsBuyRatio,
+    engaged_neighborhoods: engagedNeighborhoods,
+    drift_detected: driftDetected,
+    drift_details: driftDetails,
   };
 
   // Persist profile
