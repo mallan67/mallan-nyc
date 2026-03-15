@@ -39,10 +39,11 @@ async function initRenovationEstimator() {
         <h3 style="font-size:14px;font-weight:700;color:#374151;margin:0 0 16px;">Property Details</h3>
 
         <div style="margin-bottom:14px;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
-          <label style="font-size:12px;font-weight:600;color:#2563eb;text-transform:uppercase;">BBL or Address (for real permit data)</label>
+          <label style="font-size:12px;font-weight:600;color:#2563eb;text-transform:uppercase;">Building Address (for real permit data)</label>
           <div style="display:flex;gap:6px;margin-top:6px;">
-            <input id="reno-bbl" type="text" placeholder="BBL or street address" style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box;">
-            <button onclick="loadPermitCosts()" style="padding:8px 12px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Pull DOB</button>
+            <input id="reno-house" type="text" placeholder="House #" style="width:80px;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box;">
+            <input id="reno-street" type="text" placeholder="Street name" style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box;">
+            <button onclick="loadPermitCosts()" style="padding:8px 12px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Pull DOB</button>
           </div>
           <div id="reno-permit-status" style="margin-top:6px;font-size:11px;color:#6b7280;"></div>
         </div>
@@ -97,30 +98,31 @@ async function initRenovationEstimator() {
 var _renoPermitData = null;
 
 async function loadPermitCosts() {
-  var bblInput = (document.getElementById('reno-bbl')?.value || '').trim();
+  var house = (document.getElementById('reno-house')?.value || '').trim();
+  var street = (document.getElementById('reno-street')?.value || '').trim();
   var statusEl = document.getElementById('reno-permit-status');
   var permitsEl = document.getElementById('reno-permits');
-  if (!bblInput) { showToast('Enter a BBL or address', 'error'); return; }
+  if (!street) { showToast('Enter a street address', 'error'); return; }
 
-  statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching DOB permits...';
+  statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Looking up building permits...';
 
   try {
-    // Try as BBL first, then as address
-    var isNumeric = /^\d+$/.test(bblInput.replace(/-/g, ''));
+    // Resolve BBL from address via public-records
+    var params = [];
+    if (house) params.push('houseNumber=' + encodeURIComponent(house));
+    params.push('street=' + encodeURIComponent(street));
+    var prRes = await MallanAPI._fetch('/api/public-records?' + params.join('&'));
+    var bbl = prRes.bbl;
+    if (!bbl && prRes.acris && prRes.acris.length > 0) {
+      var a = prRes.acris[0];
+      if (a.borough && a.block && a.lot) bbl = a.borough + a.block.padStart(5, '0') + a.lot.padStart(4, '0');
+    }
     var url;
-    if (isNumeric) {
-      url = '/api/dob/permits?bbl=' + encodeURIComponent(bblInput.replace(/-/g, ''));
+    if (bbl) {
+      url = '/api/dob/permits?bbl=' + encodeURIComponent(bbl);
     } else {
-      // Try public-records with address
-      var parts = bblInput.split(' ');
-      var houseNum = parts[0];
-      var street = parts.slice(1).join(' ');
-      url = '/api/dob/permits?bbl='; // Will fail, but we try
-      // Use public-records instead
-      var prRes = await MallanAPI._fetch('/api/public-records?houseNumber=' + encodeURIComponent(houseNum) + '&street=' + encodeURIComponent(street));
-      if (prRes.bbl) {
-        url = '/api/dob/permits?bbl=' + prRes.bbl;
-      }
+      statusEl.innerHTML = '<span style="color:#f59e0b;"><i class="fas fa-info-circle"></i> Could not resolve address. Using NYC market averages.</span>';
+      return;
     }
 
     var res = await MallanAPI._fetch(url);
