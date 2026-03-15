@@ -602,6 +602,9 @@ var MallanAPI = (function () {
       };
     },
 
+    // Internal fetch — exposed for CRM modules (featured-config, analytics, etc.)
+    _fetch: _fetch,
+
     // Sub-modules
     auth: auth,
     listings: listings,
