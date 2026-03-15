@@ -1344,9 +1344,15 @@
                             </div>
                         </div>
 
-                        <!-- Clients -->
+                        <!-- Clients & Pipeline -->
                         <button onclick="showTab('clients')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-user-friends text-xs text-gray-400"></i> Clients
+                        </button>
+                        <button onclick="showTab('lead-pipeline'); initLeadPipeline();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-columns text-xs text-gray-400"></i> Pipeline
+                        </button>
+                        <button onclick="showTab('agent-tasks'); initAgentTasks();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-tasks text-xs text-gray-400"></i> Tasks &amp; Follow-ups
                         </button>
                         <button onclick="showTab('commissions')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-chart-line text-xs text-gray-400"></i> Track Deal / Commissions
@@ -25213,6 +25219,10 @@
 
 
 
+            <div id="lead-pipeline" class="tab-content" style="display:none;"></div>
+
+            <div id="agent-tasks" class="tab-content" style="display:none;"></div>
+
             <div id="transaction-probability" class="tab-content" style="display:none;"></div>
 
             <div id="market-liquidity" class="tab-content" style="display:none;"></div>
@@ -37086,6 +37096,8 @@ function saveShowingFeedback() {
 <script src="js/crm/premarket-inventory.js"></script>
 <script src="js/crm/buyer-clusters.js"></script>
 <script src="js/crm/lifestyle-match.js"></script>
+<script src="js/crm/agent-tasks.js"></script>
+<script src="js/crm/lead-pipeline.js"></script>
 <script src="js/crm/protected-periods.js"></script>
 
 </body>
