@@ -171,10 +171,15 @@ export default function PortalPage() {
 
   // Family invite state
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteCouple, setInviteCouple] = useState(false);
   const [inviteFirst, setInviteFirst] = useState('');
   const [inviteLast, setInviteLast] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRelationship, setInviteRelationship] = useState('other');
+  const [invite2First, setInvite2First] = useState('');
+  const [invite2Last, setInvite2Last] = useState('');
+  const [invite2Email, setInvite2Email] = useState('');
+  const [invite2Relationship, setInvite2Relationship] = useState('spouse');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState('');
 
@@ -405,6 +410,7 @@ export default function PortalPage() {
     setInviteSubmitting(true);
     setInviteMessage('');
     try {
+      // First person
       const res = await fetch('/api/portal/family/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -414,14 +420,38 @@ export default function PortalPage() {
         }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setInviteMessage(`${data.member.name} has been invited!`);
-        setInviteFirst(''); setInviteLast(''); setInviteEmail(''); setInviteRelationship('other');
-        fetchFamily();
-        setTimeout(() => { setShowInviteForm(false); setInviteMessage(''); }, 2000);
-      } else {
+      if (!res.ok) {
         setInviteMessage(data.error || 'Failed to send invite.');
+        setInviteSubmitting(false);
+        return;
       }
+
+      let msg = `${data.member.name} has been invited!`;
+
+      // Second person (couple)
+      if (inviteCouple && invite2First && invite2Email) {
+        const res2 = await fetch('/api/portal/family/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: invite2First, last_name: invite2Last,
+            email: invite2Email, relationship: invite2Relationship,
+          }),
+        });
+        const data2 = await res2.json();
+        if (res2.ok) {
+          msg = `${data.member.name} and ${data2.member.name} have been invited!`;
+        } else {
+          msg += ` (Second invite failed: ${data2.error || 'unknown error'})`;
+        }
+      }
+
+      setInviteMessage(msg);
+      setInviteFirst(''); setInviteLast(''); setInviteEmail(''); setInviteRelationship('other');
+      setInvite2First(''); setInvite2Last(''); setInvite2Email(''); setInvite2Relationship('spouse');
+      setInviteCouple(false);
+      fetchFamily();
+      setTimeout(() => { setShowInviteForm(false); setInviteMessage(''); }, 3000);
     } catch {
       setInviteMessage('Network error. Please try again.');
     }
@@ -1536,8 +1566,17 @@ export default function PortalPage() {
 
               {showInviteForm && (
                 <div className="mb-4 bg-white rounded-2xl ring-1 ring-black/5 p-5">
-                  <p className="text-sm font-medium mb-3">Invite a family member</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium">Invite family member{inviteCouple ? 's' : ''}</p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={inviteCouple} onChange={(e) => setInviteCouple(e.target.checked)}
+                        className="rounded" style={{ accentColor: '#B8860B' }} />
+                      <span className="text-xs font-medium text-brand-dark/70">Invite a couple</span>
+                    </label>
+                  </div>
                   <form onSubmit={handleFamilyInvite} className="space-y-3">
+                    {/* Person 1 */}
+                    {inviteCouple && <p className="text-[10px] font-bold text-brand-dark/40 uppercase tracking-widest">Person 1</p>}
                     <div className="grid grid-cols-2 gap-3">
                       <input type="text" required value={inviteFirst} onChange={(e) => setInviteFirst(e.target.value)}
                         className={inputClass} placeholder="First name" />
@@ -1552,15 +1591,39 @@ export default function PortalPage() {
                       <option value="sibling">Sibling</option>
                       <option value="other">Other</option>
                     </select>
+
+                    {/* Person 2 (couple mode) */}
+                    {inviteCouple && (
+                      <>
+                        <div className="border-t border-black/5 pt-3">
+                          <p className="text-[10px] font-bold text-brand-dark/40 uppercase tracking-widest mb-2">Person 2</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input type="text" required value={invite2First} onChange={(e) => setInvite2First(e.target.value)}
+                            className={inputClass} placeholder="First name" />
+                          <input type="text" required value={invite2Last} onChange={(e) => setInvite2Last(e.target.value)}
+                            className={inputClass} placeholder="Last name" />
+                        </div>
+                        <input type="email" required value={invite2Email} onChange={(e) => setInvite2Email(e.target.value)}
+                          className={inputClass} placeholder="Email address" />
+                        <select value={invite2Relationship} onChange={(e) => setInvite2Relationship(e.target.value)} className={inputClass}>
+                          <option value="spouse">Spouse / Partner</option>
+                          <option value="parent">Parent</option>
+                          <option value="sibling">Sibling</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </>
+                    )}
+
                     {inviteMessage && (
                       <p className={`text-sm ${inviteMessage.includes('invited') ? 'text-green-600' : 'text-red-600'}`}>{inviteMessage}</p>
                     )}
                     <div className="flex gap-2">
                       <button type="submit" disabled={inviteSubmitting}
                         className="px-4 py-2 text-sm font-medium bg-brand-gold text-white rounded-xl hover:bg-brand-gold/90 transition-colors disabled:opacity-50">
-                        {inviteSubmitting ? 'Sending...' : 'Send Invite'}
+                        {inviteSubmitting ? 'Sending...' : inviteCouple ? 'Send Both Invites' : 'Send Invite'}
                       </button>
-                      <button type="button" onClick={() => { setShowInviteForm(false); setInviteMessage(''); }}
+                      <button type="button" onClick={() => { setShowInviteForm(false); setInviteMessage(''); setInviteCouple(false); }}
                         className="px-4 py-2 text-sm text-brand-dark/90 hover:text-brand-dark rounded-xl">Cancel</button>
                     </div>
                   </form>
