@@ -1382,6 +1382,9 @@
                         <button onclick="showTab('market-activity')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-chart-area text-xs text-gray-400"></i> Market Activity
                         </button>
+                        <button onclick="showTab('market-report-builder'); initMarketReportBuilder();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-file-alt text-xs text-amber-500"></i> Market Report Builder
+                        </button>
 
                         <!-- Reports (expandable) -->
                         <div>
@@ -25219,6 +25222,8 @@
 
 
 
+            <div id="market-report-builder" class="tab-content" style="display:none;"></div>
+
             <div id="lead-pipeline" class="tab-content" style="display:none;"></div>
 
             <div id="agent-tasks" class="tab-content" style="display:none;"></div>
@@ -37098,6 +37103,7 @@ function saveShowingFeedback() {
 <script src="js/crm/lifestyle-match.js"></script>
 <script src="js/crm/agent-tasks.js"></script>
 <script src="js/crm/lead-pipeline.js"></script>
+<script src="js/crm/market-report-builder.js"></script>
 <script src="js/crm/protected-periods.js"></script>
 
 </body>
