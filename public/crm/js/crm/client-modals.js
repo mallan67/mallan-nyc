@@ -115,7 +115,7 @@
             var notesEl = document.getElementById('newClientNotes');
             if (notesEl) notesEl.value = '';
             document.getElementById('coViewersList').innerHTML = '';
-            // New Matches settings (RealPlus-style)
+            // New Matches settings
             var alertEn = document.getElementById('newClientAlertEnabled');
             if (alertEn) alertEn.value = 'true';
             var priceEl = document.getElementById('newClientPriceAlertEnabled');
@@ -358,14 +358,93 @@
             }
 
             closeAddClientModal();
-            populateClientList();
-            renderClientGrid();
-            populateClientSelect();
-            showToast(editId ? 'Client updated successfully' : 'Client "' + name + '" added successfully', 'success');
 
-            // If workspace is open for this client, re-render
-            if (currentWorkspaceClientId === editId) {
-                renderFullWorkspace(customerDB[editId]);
+            // ── Save to API (real database) ──
+            var nameParts = name.split(' ');
+            var firstName = nameParts[0] || '';
+            var lastName = nameParts.slice(1).join(' ') || '';
+
+            if (editId) {
+                // Update existing client via API
+                fetch('/api/crm/clients/' + editId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        phone: phone,
+                        portal_role: clientType,
+                        roles: [clientType]
+                    })
+                }).then(function(r) { return r.json(); }).then(function(res) {
+                    if (res.error) { showToast('Update failed: ' + res.error, 'error'); return; }
+                    // Save preferences
+                    if (neighborhoods.length > 0 || preferences.minPrice || preferences.maxPrice) {
+                        fetch('/api/crm/clients/' + editId + '/preferences', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                property_types: preferences.propertyTypes,
+                                neighborhoods: neighborhoods,
+                                min_beds: preferences.minBeds ? parseInt(preferences.minBeds) : null,
+                                max_beds: preferences.maxBeds ? parseInt(preferences.maxBeds) : null,
+                                min_baths: preferences.minBaths ? parseInt(preferences.minBaths) : null,
+                                max_baths: preferences.maxBaths ? parseInt(preferences.maxBaths) : null,
+                                min_price: preferences.minPrice,
+                                max_price: preferences.maxPrice,
+                                must_haves: preferences.mustHaves,
+                                notes: preferences.notes,
+                                move_in_date: preferences.moveInDate || null
+                            })
+                        }).catch(function() {});
+                    }
+                    showToast('Client updated', 'success');
+                    loadClientsFromAPI();
+                }).catch(function(err) { showToast('Network error: ' + err.message, 'error'); });
+            } else {
+                // Create new client via API
+                fetch('/api/crm/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: email,
+                        phone: phone,
+                        portal_role: clientType,
+                        roles: [clientType],
+                        source: 'manual'
+                    })
+                }).then(function(r) { return r.json(); }).then(function(res) {
+                    if (res.error) { showToast('Failed: ' + res.error, 'error'); return; }
+                    var newId = res.id;
+                    // Save preferences for the new client
+                    if (newId && (neighborhoods.length > 0 || preferences.minPrice || preferences.maxPrice)) {
+                        fetch('/api/crm/clients/' + newId + '/preferences', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                property_types: preferences.propertyTypes,
+                                neighborhoods: neighborhoods,
+                                min_beds: preferences.minBeds ? parseInt(preferences.minBeds) : null,
+                                max_beds: preferences.maxBeds ? parseInt(preferences.maxBeds) : null,
+                                min_baths: preferences.minBaths ? parseInt(preferences.minBaths) : null,
+                                max_baths: preferences.maxBaths ? parseInt(preferences.maxBaths) : null,
+                                min_price: preferences.minPrice,
+                                max_price: preferences.maxPrice,
+                                must_haves: preferences.mustHaves,
+                                notes: preferences.notes,
+                                move_in_date: preferences.moveInDate || null
+                            })
+                        }).catch(function() {});
+                    }
+                    showToast('Client "' + name + '" added', 'success');
+                    loadClientsFromAPI();
+                }).catch(function(err) { showToast('Network error: ' + err.message, 'error'); });
             }
         }
 
