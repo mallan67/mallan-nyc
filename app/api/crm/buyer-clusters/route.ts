@@ -41,11 +41,11 @@ export async function GET(req: NextRequest) {
 
     // Define price-based clusters
     const priceRanges = [
-      { name: "Starter", min: 0, max: 500000, desc: "First-time buyers & studios" },
-      { name: "Mid-Market", min: 500000, max: 1000000, desc: "Young professionals, 1-2BR" },
-      { name: "Move-Up", min: 1000000, max: 2000000, desc: "Growing families, 2-3BR" },
-      { name: "Premium", min: 2000000, max: 5000000, desc: "Luxury buyers, 3-4BR" },
-      { name: "Ultra-Luxury", min: 5000000, max: Infinity, desc: "Trophy properties" },
+      { name: "Entry", min: 0, max: 500000, desc: "Studios & entry-level units" },
+      { name: "Mid-Market", min: 500000, max: 1000000, desc: "1-2 bedroom units" },
+      { name: "Upper-Mid", min: 1000000, max: 2000000, desc: "2-3 bedroom units" },
+      { name: "Premium", min: 2000000, max: 5000000, desc: "3-4 bedroom & premium units" },
+      { name: "Ultra-Premium", min: 5000000, max: Infinity, desc: "Full-floor & penthouse units" },
     ];
 
     const clusters: BuyerCluster[] = priceRanges.map((range) => {
