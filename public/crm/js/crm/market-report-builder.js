@@ -63,9 +63,20 @@ async function initMarketReportBuilder() {
           </div>
 
           <div style="margin-bottom:16px;">
+            <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Borough</label>
+            <select id="mr-borough" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;margin-top:6px;">
+              <option value="Manhattan">Manhattan</option>
+              <option value="Brooklyn">Brooklyn</option>
+              <option value="Queens">Queens</option>
+              <option value="Bronx">Bronx</option>
+              <option value="Staten Island">Staten Island</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px;">
             <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Neighborhoods (optional)</label>
             <select id="mr-neighborhoods" multiple size="4" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;margin-top:6px;">
-              <option value="">All Manhattan</option>
+              <option value="">All in selected borough</option>
               ${nhOptions}
             </select>
             <p style="font-size:10px;color:#9ca3af;margin-top:4px;">Hold Ctrl/Cmd to select multiple</p>
@@ -132,6 +143,7 @@ async function generateReport() {
       body: JSON.stringify({
         report_type: window._mrReportType || 'both',
         property_types: types,
+        borough: document.getElementById('mr-borough')?.value || 'Manhattan',
         neighborhoods: neighborhoods.length > 0 ? neighborhoods : undefined,
       })
     });
