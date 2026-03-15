@@ -674,13 +674,11 @@ export async function GET(request: Request) {
         const hasPostFilter = !!(boundsParam || borough || neighborhood);
         const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 2.5 : 1.2) + 10), 1000);
 
-        // When amenity filters are active, add the required fields to $select
-        const amenityFields = amenitiesParam ? [
-          'BuildingFeatures', 'InteriorFeatures', 'ExteriorFeatures',
-          'Appliances', 'Cooling', 'View', 'ParkingFeatures', 'LaundryFeatures',
-          'GarageYN', 'AttendanceType',
-        ] : [];
-        const selectFields = [...CARD_SELECT_FIELDS, ...amenityFields.filter(f => !CARD_SELECT_FIELDS.includes(f))];
+        // Amenity fields are NOT added to Trestle $select — many are unavailable
+        // on IDX Plus feed and Trestle rejects unknown fields (causes 400/502).
+        // Amenity filtering uses PetsAllowed (already in CARD_SELECT_FIELDS) for
+        // pet-friendly, and relies on DB path for all other amenity filters.
+        const selectFields = [...CARD_SELECT_FIELDS];
 
         // $expand=Media eliminates separate photo batch-fetch (saves 5-10s).
         // Trestle supports it for $top ≤ ~200. For larger queries, batch-fetch separately.
@@ -704,34 +702,22 @@ export async function GET(request: Request) {
         );
 
         // Step 1b: Amenity filters on RAW Trestle data (before mapping)
-        // Uses PascalCase field names directly from Trestle response.
-        // Multi-value picklist fields contain comma-separated values (e.g. "Elevators,IndoorPool")
+        // Only pet-friendly is filterable on Trestle path (PetsAllowed is in $select).
+        // Other amenity fields (BuildingFeatures, InteriorFeatures, etc.) are NOT
+        // available on IDX Plus $select — those filters only work on DB path.
         let amenityFiltered = displayable;
         if (amenitiesParam) {
-          const { AMENITY_FIELD_MAP } = await import('@/lib/search/types');
-          const requestedAmenities = amenitiesParam.split(',').filter(
-            (a): a is import('@/lib/search/types').AmenityFilter => a in AMENITY_FIELD_MAP
-          );
-          for (const amenityKey of requestedAmenities) {
-            const mapping = AMENITY_FIELD_MAP[amenityKey];
-            const fields = mapping.field.split(',');
-            const matchValues = mapping.values.map(v => v.toLowerCase());
-
-            if (amenityKey === 'pet-friendly') {
-              amenityFiltered = amenityFiltered.filter((raw) => {
-                const val = String(raw.PetsAllowed || '').toLowerCase();
-                if (!val) return false;
-                return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
-              });
-            } else {
-              amenityFiltered = amenityFiltered.filter((raw) => {
-                return fields.some(fieldName => {
-                  const val = String(raw[fieldName] || '').toLowerCase();
-                  return matchValues.some(mv => val.includes(mv));
-                });
-              });
-            }
+          const amenityList = amenitiesParam.split(',');
+          if (amenityList.includes('pet-friendly')) {
+            amenityFiltered = amenityFiltered.filter((raw) => {
+              const val = String(raw.PetsAllowed || '').toLowerCase();
+              if (!val) return false;
+              return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
+            });
           }
+          // Note: doorman, gym, elevator, etc. cannot be filtered on Trestle path
+          // because BuildingFeatures/InteriorFeatures are not in IDX Plus $select.
+          // These amenities are properly filtered on the DB path (features JSONB).
         }
 
         // Step 2: Map to IDXListing
