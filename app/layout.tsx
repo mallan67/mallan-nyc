@@ -8,6 +8,7 @@ import ExitIntentPopup from './components/ExitIntentPopup';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
 import BehavioralTracker from './components/BehavioralTracker';
+import IntentTracker from './components/IntentTracker';
 import SoftIdentityCapture from './components/SoftIdentityCapture';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthProvider from './components/AuthProvider';
@@ -211,6 +212,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <ExitIntentPopup />
         <RegistrationGate />
         <BehavioralTracker />
+        <IntentTracker />
         <SoftIdentityCapture />
         <Analytics />
         <PostHogProvider />

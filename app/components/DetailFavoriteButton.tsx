@@ -28,6 +28,9 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
     <button
       onClick={() => {
         toggleFavorite(entry);
+        window.dispatchEvent(new CustomEvent('mallan:intent', {
+          detail: { type: active ? 'favorite_remove' : 'favorite_add', listing_id: props.id }
+        }));
         if (!active) {
           trackMicroCommitment('favorite', props.id);
           const allFavs = [...favorites, entry];
