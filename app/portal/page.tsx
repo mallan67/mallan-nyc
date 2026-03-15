@@ -144,6 +144,13 @@ export default function PortalPage() {
   const [sellerFomo, setSellerFomo] = useState<SellerFomo | null>(null);
   const [sellerDemand, setSellerDemand] = useState<SellerDemand | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [comparables, setComparables] = useState<any>(null);
+  const [priceHistory, setPriceHistory] = useState<any>(null);
+  const [marketing, setMarketing] = useState<any[]>([]);
+  const [attorney, setAttorney] = useState<any>(null);
+  const [attorneyEditing, setAttorneyEditing] = useState(false);
+  const [attorneyForm, setAttorneyForm] = useState({ name: '', email: '', phone: '', firm: '' });
+  const [attorneySaving, setAttorneySaving] = useState(false);
   const [reactLoading, setReactLoading] = useState<string | null>(null);
 
   // Comments state
@@ -257,13 +264,25 @@ export default function PortalPage() {
 
   const fetchDashboard = useCallback((listingId: string) => {
     setDashboardLoading(true);
+    const lid = encodeURIComponent(listingId);
     Promise.all([
-      fetch(`/api/portal/seller/fomo?listingId=${encodeURIComponent(listingId)}`).then((r) => r.json()).catch(() => null),
-      fetch(`/api/portal/seller/demand?listingId=${encodeURIComponent(listingId)}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/portal/seller/fomo?listingId=${lid}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/portal/seller/demand?listingId=${lid}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/portal/comparables?listingId=${lid}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/portal/price-history?listingId=${lid}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/portal/marketing?listingId=${lid}`).then((r) => r.json()).catch(() => null),
+      fetch('/api/portal/attorney').then((r) => r.json()).catch(() => null),
     ])
-      .then(([fomo, demand]) => {
+      .then(([fomo, demand, comps, prices, mktg, atty]) => {
         if (fomo && !fomo.error) setSellerFomo(fomo);
         if (demand?.demand) setSellerDemand(demand.demand);
+        if (comps && !comps.error) setComparables(comps);
+        if (prices && !prices.error) setPriceHistory(prices);
+        if (mktg?.activities) setMarketing(mktg.activities);
+        if (atty?.attorney) {
+          setAttorney(atty.attorney);
+          setAttorneyForm(atty.attorney);
+        }
       })
       .finally(() => setDashboardLoading(false));
   }, []);
@@ -744,6 +763,168 @@ export default function PortalPage() {
                       </p>
                     </div>
                   )}
+
+                  {/* ── Comparables in Building ── */}
+                  {comparables?.building?.listings?.length > 0 && (
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <h3 className="font-semibold text-sm text-brand-dark">In Your Building</h3>
+                        <p className="text-xs text-brand-dark/50 mt-0.5">{comparables.building.address} &middot; {comparables.building.count} comparable{comparables.building.count !== 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="divide-y divide-black/5">
+                        {comparables.building.listings.slice(0, 5).map((c: any) => (
+                          <div key={c.listing_id} className="px-5 py-3 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-brand-dark">{c.unit ? `Unit ${c.unit}` : c.address}</p>
+                              <p className="text-xs text-brand-dark/50">{c.bedrooms}bd / {c.bathrooms}ba{c.living_area ? ` \u00B7 ${c.living_area.toLocaleString()} sf` : ''}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-brand-dark">${c.price.toLocaleString()}{c.listing_type === 'rent' ? '/mo' : ''}</p>
+                              <p className={`text-[10px] font-medium ${c.status === 'Active' ? 'text-green-600' : c.status === 'Closed' || c.status === 'Sold' ? 'text-purple-600' : 'text-gray-500'}`}>
+                                {c.status}{c.days_on_market ? ` \u00B7 ${c.days_on_market} DOM` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Comparables in Area ── */}
+                  {comparables?.area?.listings?.length > 0 && (
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <h3 className="font-semibold text-sm text-brand-dark">In {comparables.area.neighborhood}</h3>
+                        <p className="text-xs text-brand-dark/50 mt-0.5">{comparables.area.count} comparable listing{comparables.area.count !== 1 ? 's' : ''} in your price range</p>
+                      </div>
+                      <div className="divide-y divide-black/5">
+                        {comparables.area.listings.slice(0, 6).map((c: any) => (
+                          <div key={c.listing_id} className="px-5 py-3 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-brand-dark">{c.address}</p>
+                              <p className="text-xs text-brand-dark/50">{c.property_type} &middot; {c.bedrooms}bd / {c.bathrooms}ba{c.living_area ? ` \u00B7 ${c.living_area.toLocaleString()} sf` : ''}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-brand-dark">${c.price.toLocaleString()}</p>
+                              <p className={`text-[10px] font-medium ${c.status === 'Active' ? 'text-green-600' : 'text-purple-600'}`}>{c.status}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Price History ── */}
+                  {priceHistory?.history?.length > 0 && (
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <h3 className="font-semibold text-sm text-brand-dark">Price History</h3>
+                      </div>
+                      <div className="divide-y divide-black/5">
+                        {priceHistory.history.map((h: any) => {
+                          const pctChange = h.previous_price ? Math.round(((h.price - h.previous_price) / h.previous_price) * 100) : null;
+                          return (
+                            <div key={h.id} className="px-5 py-3 flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-brand-dark">${h.price.toLocaleString()}</p>
+                                <p className="text-xs text-brand-dark/50">
+                                  {new Date(h.date).toLocaleDateString()} &middot; {h.change_type === 'initial' ? 'Listed' : h.change_type === 'reduction' ? 'Price Reduction' : h.change_type === 'increase' ? 'Price Increase' : 'Correction'}
+                                </p>
+                              </div>
+                              {pctChange !== null && (
+                                <span className={`text-xs font-bold ${pctChange < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                  {pctChange > 0 ? '+' : ''}{pctChange}%
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Marketing Activity ── */}
+                  {marketing.length > 0 && (
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <h3 className="font-semibold text-sm text-brand-dark">Marketing Activity</h3>
+                        <p className="text-xs text-brand-dark/50 mt-0.5">{marketing.length} action{marketing.length !== 1 ? 's' : ''} completed by your agent</p>
+                      </div>
+                      <div className="divide-y divide-black/5">
+                        {marketing.map((m: any) => {
+                          const icons: Record<string, string> = {
+                            photos: '\uD83D\uDCF7', video: '\uD83C\uDFA5', virtual_tour: '\uD83C\uDF10',
+                            streeteasy: '\uD83C\uDFE2', zillow: '\uD83C\uDFE0', social_media: '\uD83D\uDCF1',
+                            email_blast: '\u2709\uFE0F', print_ad: '\uD83D\uDCF0', open_house_promo: '\uD83C\uDFE1',
+                            broker_tour: '\uD83D\uDC54', price_reduction_notice: '\uD83D\uDCC9',
+                          };
+                          return (
+                            <div key={m.id} className="px-5 py-3 flex items-center gap-3">
+                              <span className="text-xl flex-shrink-0">{icons[m.type] || '\u2705'}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-brand-dark">{m.title}</p>
+                                {m.description && <p className="text-xs text-brand-dark/50 mt-0.5 truncate">{m.description}</p>}
+                              </div>
+                              <p className="text-[10px] text-brand-dark/40 flex-shrink-0">{new Date(m.completed_at).toLocaleDateString()}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Attorney Information ── */}
+                  <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-sm text-brand-dark">Attorney Information</h3>
+                        <p className="text-xs text-brand-dark/50 mt-0.5">Your real estate attorney for this transaction</p>
+                      </div>
+                      {!attorneyEditing && (
+                        <button onClick={() => setAttorneyEditing(true)} className="text-xs font-medium text-blue-600 hover:text-blue-800">
+                          {attorney?.name ? 'Edit' : 'Add Attorney'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      {attorneyEditing ? (
+                        <div className="space-y-3">
+                          <input value={attorneyForm.name || ''} onChange={(e) => setAttorneyForm({ ...attorneyForm, name: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border rounded-xl" placeholder="Attorney Name" />
+                          <input value={attorneyForm.firm || ''} onChange={(e) => setAttorneyForm({ ...attorneyForm, firm: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border rounded-xl" placeholder="Law Firm" />
+                          <input value={attorneyForm.email || ''} onChange={(e) => setAttorneyForm({ ...attorneyForm, email: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border rounded-xl" placeholder="Email" type="email" />
+                          <input value={attorneyForm.phone || ''} onChange={(e) => setAttorneyForm({ ...attorneyForm, phone: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border rounded-xl" placeholder="Phone" type="tel" />
+                          <div className="flex gap-2">
+                            <button disabled={attorneySaving} onClick={async () => {
+                              setAttorneySaving(true);
+                              try {
+                                await fetch('/api/portal/attorney', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(attorneyForm) });
+                                setAttorney(attorneyForm);
+                                setAttorneyEditing(false);
+                              } catch { /* noop */ }
+                              setAttorneySaving(false);
+                            }} className="px-4 py-2 text-sm font-medium bg-brand-dark text-white rounded-xl disabled:opacity-50">
+                              {attorneySaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button onClick={() => { setAttorneyEditing(false); if (attorney) setAttorneyForm(attorney); }}
+                              className="px-4 py-2 text-sm text-brand-dark/70 rounded-xl">Cancel</button>
+                          </div>
+                        </div>
+                      ) : attorney?.name ? (
+                        <div className="space-y-1.5">
+                          <p className="text-sm font-medium text-brand-dark">{attorney.name}</p>
+                          {attorney.firm && <p className="text-xs text-brand-dark/60">{attorney.firm}</p>}
+                          {attorney.email && <p className="text-xs text-brand-dark/60">{attorney.email}</p>}
+                          {attorney.phone && <p className="text-xs text-brand-dark/60">{attorney.phone}</p>}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-brand-dark/40 text-center py-4">No attorney information added. Click &ldquo;Add Attorney&rdquo; above.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
