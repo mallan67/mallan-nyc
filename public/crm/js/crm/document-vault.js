@@ -10,7 +10,7 @@ const DOC_TYPE_LABELS = { contract: 'Contract', disclosure: 'Disclosure', co_bro
 const DOC_STATUS_COLORS = { uploaded: '#6b7280', sent: '#3b82f6', viewed: '#f59e0b', signed: '#059669', countersigned: '#7c3aed', expired: '#ef4444' };
 
 async function initDocumentVault() {
-  const c = document.getElementById('document-vault');
+  const c = document.getElementById('docVaultView');
   if (!c) return;
   c.innerHTML = '<div style="padding:24px;color:#6b7280;">Loading documents...</div>';
   try {
@@ -25,7 +25,7 @@ async function initDocumentVault() {
 }
 
 function renderDocumentVault() {
-  const c = document.getElementById('document-vault');
+  const c = document.getElementById('docVaultView');
   if (!c) return;
   const docs = DocVault.documents;
 

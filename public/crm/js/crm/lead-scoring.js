@@ -8,7 +8,7 @@ const LeadScoring = { scores: [], stats: null, rules: [] };
 const GRADE_COLORS = { A: '#059669', B: '#3b82f6', C: '#f59e0b', D: '#f97316', F: '#ef4444' };
 
 async function initLeadScoring() {
-  const c = document.getElementById('lead-scoring');
+  const c = document.getElementById('clientsScoringView');
   if (!c) return;
   c.innerHTML = '<div style="padding:24px;color:#6b7280;">Loading lead scores...</div>';
   try {
@@ -28,7 +28,7 @@ async function loadLeadScores() {
 }
 
 function renderLeadScoring() {
-  const c = document.getElementById('lead-scoring');
+  const c = document.getElementById('clientsScoringView');
   if (!c) return;
   const stats = LeadScoring.stats || {};
   const scores = LeadScoring.scores || [];
