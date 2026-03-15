@@ -82,7 +82,16 @@ export type AmenityFilter =
   // Views
   | 'park-views'
   | 'river-views'
-  | 'skyline-views';
+  | 'skyline-views'
+  | 'views'
+  // Additional unit features
+  | 'walk-in-closet'
+  | 'high-ceilings'
+  | 'fireplace'
+  | 'natural-light'
+  | 'renovated'
+  | 'quiet'
+  | 'no-fee';
 
 /**
  * Maps each amenity filter to the Trestle field + values it searches.
@@ -122,6 +131,15 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'park-views':    { field: 'View', values: ['Park', 'ParkGreenbelt'], label: 'Park Views', group: 'Views' },
   'river-views':   { field: 'View', values: ['River', 'Water'], label: 'River Views', group: 'Views' },
   'skyline-views': { field: 'View', values: ['City', 'CityLights', 'Skyline', 'Downtown'], label: 'Skyline Views', group: 'Views' },
+  'views':         { field: 'View', values: ['Park', 'ParkGreenbelt', 'River', 'Water', 'City', 'CityLights', 'Skyline', 'Downtown'], label: 'Views', group: 'Views' },
+  // Additional unit features
+  'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets', 'WalkInCloset'], label: 'Walk-in Closet', group: 'Unit Features' },
+  'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings', 'HighCeiling'], label: 'High Ceilings', group: 'Unit Features' },
+  'fireplace':     { field: 'InteriorFeatures', values: ['WoodBurningFireplace', 'DecorativeFireplace', 'Fireplace'], label: 'Fireplace', group: 'Unit Features' },
+  'natural-light': { field: 'InteriorFeatures', values: ['NaturalLight'], label: 'Natural Light', group: 'Unit Features' },
+  'renovated':     { field: 'InteriorFeatures', values: ['Renovated', 'GutRenovated', 'NewlyRenovated'], label: 'Renovated', group: 'Unit Features' },
+  'quiet':         { field: 'InteriorFeatures', values: ['Quiet'], label: 'Quiet', group: 'Unit Features' },
+  'no-fee':        { field: 'ListingTerms', values: ['NoFee', 'OwnerPays'], label: 'No Fee', group: 'Rental' },
 };
 
 /** Tab configuration — maps UI tab to API params and available filter sections */

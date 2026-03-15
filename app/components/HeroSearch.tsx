@@ -24,13 +24,23 @@ const DEFAULT_HERO: HeroSettings = {
   heroTagline: 'New York Real Estate, Reimagined.',
 };
 
-// Default suggestions shown before user types (popular neighborhoods)
+// Default suggestions shown before user types
 const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
   { type: 'neighborhood', label: 'Upper East Side', sublabel: 'Manhattan', value: 'upper-east-side' },
   { type: 'neighborhood', label: 'Upper West Side', sublabel: 'Manhattan', value: 'upper-west-side' },
   { type: 'neighborhood', label: 'Tribeca', sublabel: 'Manhattan', value: 'tribeca' },
   { type: 'neighborhood', label: 'Chelsea', sublabel: 'Manhattan', value: 'chelsea' },
   { type: 'neighborhood', label: 'Williamsburg', sublabel: 'Brooklyn', value: 'williamsburg' },
+];
+
+// Example queries shown as placeholder hints (rotate)
+const EXAMPLE_QUERIES = [
+  '2 bed midtown, pets, doorman',
+  'studio under $500K in Chelsea',
+  '3 bed condo UES with views',
+  'rent 1 bed Williamsburg no fee',
+  'pre-war co-op Upper West Side',
+  'loft in Tribeca under $3M',
 ];
 
 export default function HeroSearch() {
@@ -41,6 +51,7 @@ export default function HeroSearch() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -58,6 +69,15 @@ export default function HeroSearch() {
       })
       .catch(() => {});
   }, []);
+
+  // Rotate placeholder examples
+  useEffect(() => {
+    if (query) return; // Don't rotate while user is typing
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % EXAMPLE_QUERIES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [query]);
 
   // GSAP entrance animation
   useEffect(() => {
@@ -135,7 +155,7 @@ export default function HeroSearch() {
     const q = query.trim();
 
     // Detect natural language intent: has price, beds, amenity, or neighborhood keywords
-    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pet|laundry|gym|furnished|pool|parking)/i;
+    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no\s*fee|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
     if (q && nlSignals.test(q)) {
       const parsed = parseNaturalLanguageSearch(q);
       const params = new URLSearchParams();
@@ -343,7 +363,7 @@ export default function HeroSearch() {
                 }
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search by address, neighborhood, or try &quot;2BR condo under $2M in Tribeca&quot;"
+              placeholder={`Try "${EXAMPLE_QUERIES[placeholderIndex]}" or an address, zip, neighborhood...`}
               className="flex-1 min-w-0 px-3 md:px-4 py-3 md:py-6 text-sm md:text-base text-brand-dark bg-transparent outline-none placeholder:text-brand-dark/85 font-light tracking-wide"
               autoComplete="off"
               role="combobox"

@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { logTrestleAccess } from '@/lib/audit/trestle-logger';
+import { reportApiError } from '@/lib/sentry-report';
 import { lookupNeighborhoodZips } from '@/lib/geo/neighborhood-zips';
 
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
@@ -1021,6 +1022,7 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error('Error fetching listings:', error);
+    reportApiError(error, { route: '/api/listings', method: 'GET' });
     return NextResponse.json(
       { success: false, error: 'Failed to fetch listings' },
       { status: 500 }
