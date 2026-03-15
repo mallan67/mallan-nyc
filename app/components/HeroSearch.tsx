@@ -151,37 +151,103 @@ export default function HeroSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSearch = () => {
-    const q = query.trim();
+  // Build URL params from parsed filters (shared by AI and regex paths)
+  const buildSearchUrl = useCallback((filters: Record<string, unknown>) => {
+    const params = new URLSearchParams();
+    const tab = (filters.tab as string) || (activeTab === 'rent' ? 'rent-residential' : 'buy-residential');
+    params.set('tab', tab);
+    if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
+    if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
+    if (filters.beds != null) params.set('beds', String(filters.beds));
+    if (filters.baths != null) params.set('baths', String(filters.baths));
+    if (filters.propertySubTypes && (filters.propertySubTypes as string[]).length) {
+      params.set('subTypes', (filters.propertySubTypes as string[]).join(','));
+    }
+    if (filters.yearBuilt && filters.yearBuilt !== 'any') params.set('yearBuilt', String(filters.yearBuilt));
+    if (filters.furnished) params.set('furnished', 'true');
+    if (filters.amenities && (filters.amenities as string[]).length) {
+      params.set('amenities', (filters.amenities as string[]).join(','));
+    }
+    if (filters.openHouse) params.set('openHouse', 'true');
+    if (filters.minSqft) params.set('minSqft', String(filters.minSqft));
+    if (filters.neighborhood) params.set('neighborhood', String(filters.neighborhood));
+    if (filters.borough) params.set('borough', String(filters.borough));
+    if (filters.q) params.set('q', String(filters.q));
+    if (filters.remainingQuery) params.set('q', String(filters.remainingQuery));
+    return `/search?${params.toString()}`;
+  }, [activeTab]);
 
-    // Detect natural language intent: has price, beds, amenity, or neighborhood keywords
-    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no\s*fee|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
-    if (q && nlSignals.test(q)) {
-      const parsed = parseNaturalLanguageSearch(q);
+  // Regex fallback — instant, no API call
+  const regexParse = useCallback((q: string) => {
+    const parsed = parseNaturalLanguageSearch(q);
+    return {
+      tab: parsed.tab,
+      ...parsed.filters,
+      neighborhood: parsed.neighborhood,
+      borough: parsed.borough,
+      remainingQuery: parsed.remainingQuery,
+    };
+  }, []);
+
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async () => {
+    const q = query.trim();
+    if (!q) {
+      router.push(`/search?type=${activeTab}`);
+      return;
+    }
+
+    // Simple queries (just a neighborhood name, zip, or short text) — skip AI
+    const isSimple = /^\d{5}$/.test(q) || q.length < 4;
+    if (isSimple) {
       const params = new URLSearchParams();
-      params.set('tab', parsed.tab || (activeTab === 'rent' ? 'rent-residential' : 'buy-residential'));
-      if (parsed.filters.minPrice) params.set('minPrice', parsed.filters.minPrice.toString());
-      if (parsed.filters.maxPrice) params.set('maxPrice', parsed.filters.maxPrice.toString());
-      if (parsed.filters.beds != null) params.set('beds', parsed.filters.beds.toString());
-      if (parsed.filters.baths != null) params.set('baths', parsed.filters.baths.toString());
-      if (parsed.filters.propertySubTypes?.length) params.set('subTypes', parsed.filters.propertySubTypes.join(','));
-      if (parsed.filters.yearBuilt && parsed.filters.yearBuilt !== 'any') params.set('yearBuilt', parsed.filters.yearBuilt);
-      if (parsed.filters.furnished) params.set('furnished', 'true');
-      if (parsed.filters.amenities?.length) params.set('amenities', parsed.filters.amenities.join(','));
-      if (parsed.filters.openHouse) params.set('openHouse', 'true');
-      if (parsed.filters.minSqft) params.set('minSqft', parsed.filters.minSqft.toString());
-      if (parsed.neighborhood) params.set('neighborhood', parsed.neighborhood);
-      if (parsed.borough) params.set('borough', parsed.borough);
-      if (parsed.remainingQuery) params.set('q', parsed.remainingQuery);
+      params.set('type', activeTab);
+      params.set('q', q);
       router.push(`/search?${params.toString()}`);
+      return;
+    }
+
+    // Try AI parsing first, fall back to regex
+    setIsSearching(true);
+    try {
+      const res = await fetch('/api/search/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q }),
+        signal: AbortSignal.timeout(3000), // 3s max — if AI is slow, use regex
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.filters) {
+          // AI parsed successfully — add the active tab context if AI didn't detect intent
+          if (!data.filters.tab) {
+            data.filters.tab = activeTab === 'rent' ? 'rent-residential' : 'buy-residential';
+          }
+          router.push(buildSearchUrl(data.filters));
+          setIsSearching(false);
+          return;
+        }
+      }
+    } catch {
+      // AI failed or timed out — fall through to regex
+    }
+
+    // Regex fallback (instant)
+    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no\s*fee|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
+    if (nlSignals.test(q)) {
+      router.push(buildSearchUrl(regexParse(q)));
+      setIsSearching(false);
       return;
     }
 
     // Standard search
     const params = new URLSearchParams();
     params.set('type', activeTab);
-    if (q) params.set('q', q);
+    params.set('q', q);
     router.push(`/search?${params.toString()}`);
+    setIsSearching(false);
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
@@ -375,10 +441,11 @@ export default function HeroSearch() {
             />
             <button
               onClick={handleSearch}
+              disabled={isSearching}
               data-analytics-cta="hero_search"
-              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-5 md:px-10 py-3 md:py-6 rounded-xl md:rounded-full m-1 md:m-1.5 flex-shrink-0 transition-colors"
+              className="btn-liquid bg-brand-dark hover:bg-brand-gold-deep text-white text-sm font-medium px-5 md:px-10 py-3 md:py-6 rounded-xl md:rounded-full m-1 md:m-1.5 flex-shrink-0 transition-colors disabled:opacity-70"
             >
-              Search
+              {isSearching ? 'Searching...' : 'Search'}
             </button>
           </div>
 
