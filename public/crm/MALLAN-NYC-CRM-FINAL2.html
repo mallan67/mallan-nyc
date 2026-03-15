@@ -1405,6 +1405,18 @@
                             <i class="fas fa-comment-dots text-xs text-gray-400"></i> Feedback
                         </button>
 
+                        <button onclick="showTab('transaction-probability'); initTransactionProbability();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-percentage text-xs text-gray-400"></i> Transaction Probability
+                        </button>
+                        <button onclick="showTab('market-liquidity'); initMarketLiquidity();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-water text-xs text-gray-400"></i> Market Liquidity
+                        </button>
+                        <button onclick="showTab('investment-analyzer'); initInvestmentAnalyzer();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-hand-holding-usd text-xs text-gray-400"></i> Investment Analyzer
+                        </button>
+                        <button onclick="showTab('building-risk'); initBuildingRisk();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-building text-xs text-gray-400"></i> Building Risk
+                        </button>
                         <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-chart-line text-xs text-gray-400"></i> Seller Readiness
                         </button>
@@ -25174,6 +25186,14 @@
 
 
 
+            <div id="transaction-probability" class="tab-content" style="display:none;"></div>
+
+            <div id="market-liquidity" class="tab-content" style="display:none;"></div>
+
+            <div id="investment-analyzer" class="tab-content" style="display:none;"></div>
+
+            <div id="building-risk" class="tab-content" style="display:none;"></div>
+
             <div id="protected-periods" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
                     <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-shield-alt text-indigo-500 mr-2"></i>Protected Periods (UCBA A6/A7/A8)</h2>
@@ -37008,6 +37028,10 @@ function saveShowingFeedback() {
 <script src="js/crm/commission-tracker.js"></script>
 <script src="js/crm/featured-config.js"></script>
 <script src="js/crm/listing-auditor.js"></script>
+<script src="js/crm/building-risk.js"></script>
+<script src="js/crm/transaction-probability.js"></script>
+<script src="js/crm/market-liquidity.js"></script>
+<script src="js/crm/investment-analyzer.js"></script>
 <script src="js/crm/protected-periods.js"></script>
 
 </body>
