@@ -55,6 +55,7 @@
         "@upstash/ratelimit": "^2.0.8",
         "@upstash/redis": "^1.37.0",
         "bcryptjs": "^3.0.2",
+        "groq-sdk": "^1.1.1",
         "gsap": "^3.14.2",
         "gtfs-realtime-bindings": "^1.1.1",
         "leaflet": "^1.9.4",
