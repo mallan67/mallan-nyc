@@ -329,6 +329,11 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
                     </div>
                   )}
                   <div style={{ padding: '10px 12px 8px' }}>
+                    {isComingSoon && (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 4, padding: '4px 8px', marginBottom: 6, fontSize: 10, fontWeight: 600, color: '#92400e' }}>
+                        Coming Soon. No Showings or Open House until {listing._displayCompliance.comingSoonDate ? new Date(listing._displayCompliance.comingSoonDate).toLocaleDateString() : 'TBD'}
+                      </div>
+                    )}
                     <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>
                       {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
                     </div>
