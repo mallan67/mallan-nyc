@@ -562,15 +562,28 @@ export async function GET(request: Request) {
         // But CommonInterest CAN be pushed for Condo/Co-op/Condop (ownership types).
         // Structural types (Loft, Townhouse, etc.) are handled as post-filter.
         if (propertySubTypes) {
+          const types = propertySubTypes.split(',').map(t => t.trim());
+          // Push CommonInterest for ownership types (Condo/Co-op/Condop)
           const commonInterestPush: Record<string, string> = {
             'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
           };
-          const ciFilters = propertySubTypes.split(',')
-            .map(t => commonInterestPush[t.trim()])
-            .filter(Boolean);
+          const ciFilters = types.map(t => commonInterestPush[t]).filter(Boolean);
+          // Push NewConstructionYN/NewDevelopmentYN for New Development
+          const hasNewDev = types.includes('New Development');
+          const odataParts: string[] = [];
           if (ciFilters.length > 0) {
-            filterParts.push(`(${ciFilters.map(v => `CommonInterest eq '${v}'`).join(' or ')})`);
+            odataParts.push(...ciFilters.map(v => `CommonInterest eq '${v}'`));
           }
+          if (hasNewDev) {
+            odataParts.push("NewConstructionYN eq true", "NewDevelopmentYN eq true");
+          }
+          if (odataParts.length > 0) {
+            filterParts.push(`(${odataParts.join(' or ')})`);
+          }
+        }
+        // Sort = new-development also pushes to OData
+        if (sortParam === 'new-development' && !propertySubTypes) {
+          filterParts.push("(NewConstructionYN eq true or NewDevelopmentYN eq true)");
         }
 
         // Ownership types (comma-separated: Condo, Co-op, Condop)
@@ -725,15 +738,27 @@ export async function GET(request: Request) {
             'Duplex': ['Duplex'],
             'Triplex': ['Triplex'],
           };
-          const requestedTypes = sortParam === 'new-development'
-            ? ['NewConstruction', 'New Construction']
-            : (propertySubTypes || '').split(',').flatMap(t => subTypeMap[t.trim()] || [t.trim()]);
-          const lowerTypes = requestedTypes.map(t => t.toLowerCase());
-          subTypeFiltered = subTypeFiltered.filter((raw) => {
-            const pst = String(raw.PropertySubType || '').toLowerCase();
-            const ci = String(raw.CommonInterest || '').toLowerCase();
-            return lowerTypes.some(t => pst.includes(t) || ci.includes(t));
-          });
+          const isNewDev = sortParam === 'new-development' ||
+            (propertySubTypes || '').split(',').some(t => t.trim() === 'New Development');
+          if (isNewDev) {
+            // New Development uses boolean YN fields, not PropertySubType
+            subTypeFiltered = subTypeFiltered.filter((raw) =>
+              raw.NewConstructionYN === true || raw.NewDevelopmentYN === true
+            );
+          }
+          // Also filter by structural/ownership types if requested (non-new-dev types)
+          const nonNewDevTypes = (propertySubTypes || '').split(',')
+            .filter(t => t.trim() !== 'New Development')
+            .flatMap(t => subTypeMap[t.trim()] || [t.trim()])
+            .filter(Boolean);
+          if (nonNewDevTypes.length > 0 && !isNewDev) {
+            const lowerTypes = nonNewDevTypes.map(t => t.toLowerCase());
+            subTypeFiltered = subTypeFiltered.filter((raw) => {
+              const pst = String(raw.PropertySubType || '').toLowerCase();
+              const ci = String(raw.CommonInterest || '').toLowerCase();
+              return lowerTypes.some(t => pst.includes(t) || ci.includes(t));
+            });
+          }
         }
 
         // Step 2: Map to IDXListing
