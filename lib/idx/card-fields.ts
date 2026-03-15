@@ -46,6 +46,8 @@ export const CARD_SELECT_FIELDS = [
   "PublicRemarks",
   // Display gates
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
+  // New Development flags
+  "NewConstructionYN", "NewDevelopmentYN",
   // Rental
   "PetsAllowed", "Furnished",
   "MoveInCosts", "OngoingFees", "TenantPays", "TenantPaysDescription",
