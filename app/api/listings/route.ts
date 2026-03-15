@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { logTrestleAccess } from '@/lib/audit/trestle-logger';
+import { lookupNeighborhoodZips } from '@/lib/geo/neighborhood-zips';
 
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
 export const maxDuration = 60;
@@ -230,9 +231,21 @@ export async function GET(request: Request) {
             dbWhere.borough = { contains: borough, mode: 'insensitive' };
           }
 
-          // Neighborhood
+          // Neighborhood — CityRegion is unreliable in REBNY data, so resolve to ZIP codes
           if (neighborhood) {
-            dbWhere.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+            const nZips = lookupNeighborhoodZips(neighborhood);
+            if (nZips.length > 0) {
+              // Use AND to add neighborhood filter without overwriting distribution gate OR
+              const neighborhoodCondition: Prisma.ListingWhereInput = {
+                OR: [
+                  { postal_code: { in: nZips } },
+                  { neighborhood: { equals: neighborhood, mode: 'insensitive' } },
+                ],
+              };
+              dbWhere.AND = [...(Array.isArray(dbWhere.AND) ? dbWhere.AND : dbWhere.AND ? [dbWhere.AND] : []), neighborhoodCondition];
+            } else {
+              dbWhere.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+            }
           }
 
           // ZIP codes
@@ -601,6 +614,18 @@ export async function GET(request: Request) {
             filterParts.push(`PostalCode eq '${zips[0]}'`);
           } else if (zips.length > 1) {
             filterParts.push(`(${zips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
+          }
+        }
+
+        // Neighborhood → ZIP push for Trestle OData (CityRegion is unreliable)
+        if (neighborhood && !zipCodes) {
+          const nZips = lookupNeighborhoodZips(neighborhood);
+          if (nZips.length > 0) {
+            if (nZips.length === 1) {
+              filterParts.push(`PostalCode eq '${nZips[0]}'`);
+            } else {
+              filterParts.push(`(${nZips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
+            }
           }
         }
 
@@ -1045,7 +1070,12 @@ async function fetchExclusiveListings(
     }
 
     if (neighborhood) {
-      where.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+      const nZips = lookupNeighborhoodZips(neighborhood);
+      if (nZips.length > 0) {
+        where.AND = [{ OR: [{ postal_code: { in: nZips } }, { neighborhood: { equals: neighborhood, mode: 'insensitive' } }] }];
+      } else {
+        where.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+      }
     }
 
     const dbListings = await prisma.listing.findMany({
