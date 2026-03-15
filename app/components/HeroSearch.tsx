@@ -47,6 +47,13 @@ export default function HeroSearch() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<SearchTab>('buy');
   const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Reset search state when navigating back to homepage
+  useEffect(() => {
+    setQuery('');
+    setIsSearching(false);
+  }, []);
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(DEFAULT_HERO);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -188,8 +195,6 @@ export default function HeroSearch() {
       remainingQuery: parsed.remainingQuery,
     };
   }, []);
-
-  const [isSearching, setIsSearching] = useState(false);
 
   const handleSearch = async () => {
     const q = query.trim();
