@@ -1432,6 +1432,18 @@
                         <button onclick="showTab('market-alerts'); initMarketAlerts();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-bolt text-xs text-gray-400"></i> Market Alerts
                         </button>
+                        <button onclick="showTab('buyer-demand-exchange'); initBuyerDemandExchange();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-exchange-alt text-xs text-gray-400"></i> Buyer Demand Exchange
+                        </button>
+                        <button onclick="showTab('premarket-inventory'); initPremarketInventory();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-binoculars text-xs text-gray-400"></i> Pre-Market Inventory
+                        </button>
+                        <button onclick="showTab('buyer-clusters'); initBuyerClusters();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-project-diagram text-xs text-gray-400"></i> Buyer Clusters
+                        </button>
+                        <button onclick="showTab('lifestyle-match'); initLifestyleMatch();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
+                            <i class="fas fa-heart text-xs text-gray-400"></i> Lifestyle Match
+                        </button>
                         <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
                             <i class="fas fa-chart-line text-xs text-gray-400"></i> Seller Readiness
                         </button>
@@ -25219,6 +25231,14 @@
 
             <div id="market-alerts" class="tab-content" style="display:none;"></div>
 
+            <div id="buyer-demand-exchange" class="tab-content" style="display:none;"></div>
+
+            <div id="premarket-inventory" class="tab-content" style="display:none;"></div>
+
+            <div id="buyer-clusters" class="tab-content" style="display:none;"></div>
+
+            <div id="lifestyle-match" class="tab-content" style="display:none;"></div>
+
             <div id="protected-periods" class="tab-content p-6" style="display:none;">
                 <div class="mb-6">
                     <h2 class="text-2xl font-bold text-gray-900"><i class="fas fa-shield-alt text-indigo-500 mr-2"></i>Protected Periods (UCBA A6/A7/A8)</h2>
@@ -37062,6 +37082,10 @@ function saveShowingFeedback() {
 <script src="js/crm/offer-intelligence.js"></script>
 <script src="js/crm/renovation-estimator.js"></script>
 <script src="js/crm/market-alerts.js"></script>
+<script src="js/crm/buyer-demand-exchange.js"></script>
+<script src="js/crm/premarket-inventory.js"></script>
+<script src="js/crm/buyer-clusters.js"></script>
+<script src="js/crm/lifestyle-match.js"></script>
 <script src="js/crm/protected-periods.js"></script>
 
 </body>
