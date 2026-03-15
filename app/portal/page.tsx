@@ -80,7 +80,25 @@ interface Preferences {
   notes: string | null;
 }
 
-type Tab = 'listings' | 'showings' | 'family' | 'preferences' | 'offers' | 'profile';
+type Tab = 'dashboard' | 'listings' | 'showings' | 'family' | 'preferences' | 'offers' | 'profile';
+
+interface SellerFomo {
+  momentum: { score: number; tier: string; percentileRank: number } | null;
+  activity: { views7d: number; saves: number; demandLevel: string };
+  showings: { completed: number; scheduled: number; cancelled: number };
+  market: { medianPrice: number | null; avgDOM: number; inventory: number; closedSales: number } | null;
+  daysOnMarket: number;
+  whatIf: { currentPrice: number; reducedPrice: number; currentBuyerMatch: number; reducedBuyerMatch: number; additionalBuyers: number; reductionPercent: number };
+}
+
+interface SellerDemand {
+  totalMatchingBuyers: number;
+  exactPriceMatch: number;
+  recentSearchers: number;
+  demandTrend: number;
+  neighborhood: string | null;
+  priceRange: { min: number; max: number };
+}
 
 export default function PortalPage() {
   const router = useRouter();
@@ -88,6 +106,13 @@ export default function PortalPage() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('listings');
+  // Switch to dashboard tab for sellers once role is known
+  useEffect(() => {
+    if ((role === 'seller' || role === 'landlord') && activeTab === 'listings') {
+      setActiveTab('dashboard');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const [listings, setListings] = useState<PortalListing[]>([]);
   const [showings, setShowings] = useState<PortalShowing[]>([]);
@@ -99,6 +124,11 @@ export default function PortalPage() {
   const [familyLoading, setFamilyLoading] = useState(false);
   const [offersLoading, setOffersLoading] = useState(false);
   const [prefsLoading, setPrefsLoading] = useState(false);
+
+  // Seller dashboard state
+  const [sellerFomo, setSellerFomo] = useState<SellerFomo | null>(null);
+  const [sellerDemand, setSellerDemand] = useState<SellerDemand | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [reactLoading, setReactLoading] = useState<string | null>(null);
 
   // Comments state
@@ -201,6 +231,19 @@ export default function PortalPage() {
       .finally(() => setOffersLoading(false));
   }, []);
 
+  const fetchDashboard = useCallback((listingId: string) => {
+    setDashboardLoading(true);
+    Promise.all([
+      fetch(`/api/portal/seller/fomo?listingId=${encodeURIComponent(listingId)}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/portal/seller/demand?listingId=${encodeURIComponent(listingId)}`).then((r) => r.json()).catch(() => null),
+    ])
+      .then(([fomo, demand]) => {
+        if (fomo && !fomo.error) setSellerFomo(fomo);
+        if (demand?.demand) setSellerDemand(demand.demand);
+      })
+      .finally(() => setDashboardLoading(false));
+  }, []);
+
   const fetchPreferences = useCallback(() => {
     setPrefsLoading(true);
     fetch('/api/portal/preferences')
@@ -222,6 +265,13 @@ export default function PortalPage() {
       if (role === 'buyer' || role === 'tenant') fetchPreferences();
     }
   }, [loading, user, role, fetchListings, fetchShowings, fetchFamily, fetchOffers, fetchPreferences]);
+
+  // Fetch seller dashboard data once listings are loaded
+  useEffect(() => {
+    if ((role === 'seller' || role === 'landlord') && listings.length > 0 && !sellerFomo) {
+      fetchDashboard(listings[0].listing_id);
+    }
+  }, [role, listings, sellerFomo, fetchDashboard]);
 
   async function fetchComments(listingId: string) {
     setCommentsLoading(true);
@@ -414,6 +464,7 @@ export default function PortalPage() {
   const isSellerOrLandlord = role === 'seller' || role === 'landlord';
 
   const tabs: { id: Tab; label: string }[] = [
+    ...(isSellerOrLandlord ? [{ id: 'dashboard' as Tab, label: 'Dashboard' }] : []),
     { id: 'listings', label: isBuyerOrTenant ? 'Listings' : 'My Properties' },
     { id: 'showings', label: 'Showings' },
     ...(isSellerOrLandlord ? [{ id: 'offers' as Tab, label: 'Offers' }] : []),
@@ -482,6 +533,192 @@ export default function PortalPage() {
               </button>
             ))}
           </div>
+
+          {/* ── SELLER DASHBOARD TAB ── */}
+          {activeTab === 'dashboard' && isSellerOrLandlord && (
+            <div>
+              {dashboardLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-32" />)}
+                </div>
+              ) : !sellerFomo && !sellerDemand ? (
+                <div className="text-center py-16">
+                  <svg className="w-14 h-14 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <p className="text-brand-dark/90 mb-2">Dashboard data loading</p>
+                  <p className="text-brand-dark/85 text-sm">Performance data will appear once your listing is active.</p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* ── Momentum Hero ── */}
+                  {sellerFomo?.momentum && (
+                    <div className={`rounded-2xl p-6 ${
+                      sellerFomo.momentum.tier === 'hot' ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' :
+                      sellerFomo.momentum.tier === 'warm' ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white' :
+                      'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-800'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium opacity-90">Listing Momentum</p>
+                          <p className="text-4xl font-extrabold mt-1">{sellerFomo.momentum.score}<span className="text-lg font-medium opacity-75">/100</span></p>
+                          <p className="text-sm mt-2 opacity-80">
+                            {sellerFomo.momentum.tier === 'hot' ? 'Your listing is generating significant buyer interest' :
+                             sellerFomo.momentum.tier === 'warm' ? 'Good activity — buyers are engaging with your listing' :
+                             'Activity is slow — consider a price adjustment or fresh photos'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-5xl font-black opacity-20">
+                            {sellerFomo.momentum.tier === 'hot' ? '🔥' : sellerFomo.momentum.tier === 'warm' ? '📈' : '📊'}
+                          </p>
+                          <p className="text-xs opacity-70 mt-2">
+                            Top {Math.round(100 - sellerFomo.momentum.percentileRank)}% of listings
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Key Metrics Row ── */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 p-4 text-center">
+                      <p className="text-[10px] font-semibold text-brand-dark/50 uppercase tracking-widest">Views (7 days)</p>
+                      <p className="text-3xl font-extrabold text-brand-dark mt-1">{sellerFomo?.activity.views7d ?? 0}</p>
+                    </div>
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 p-4 text-center">
+                      <p className="text-[10px] font-semibold text-brand-dark/50 uppercase tracking-widest">Saves</p>
+                      <p className="text-3xl font-extrabold text-brand-dark mt-1">{sellerFomo?.activity.saves ?? 0}</p>
+                    </div>
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 p-4 text-center">
+                      <p className="text-[10px] font-semibold text-brand-dark/50 uppercase tracking-widest">Showings</p>
+                      <p className="text-3xl font-extrabold text-brand-dark mt-1">{sellerFomo?.showings.completed ?? 0}</p>
+                      {(sellerFomo?.showings.scheduled ?? 0) > 0 && (
+                        <p className="text-[10px] text-green-600 font-medium mt-0.5">+{sellerFomo!.showings.scheduled} scheduled</p>
+                      )}
+                    </div>
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 p-4 text-center">
+                      <p className="text-[10px] font-semibold text-brand-dark/50 uppercase tracking-widest">Days on Market</p>
+                      <p className={`text-3xl font-extrabold mt-1 ${
+                        (sellerFomo?.daysOnMarket ?? 0) <= 30 ? 'text-green-600' :
+                        (sellerFomo?.daysOnMarket ?? 0) <= 60 ? 'text-amber-500' : 'text-red-500'
+                      }`}>{sellerFomo?.daysOnMarket ?? 0}</p>
+                    </div>
+                  </div>
+
+                  {/* ── Buyer Demand Intelligence ── */}
+                  {sellerDemand && (
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <h3 className="font-semibold text-sm text-brand-dark">Buyer Demand for Your Property</h3>
+                        <p className="text-xs text-brand-dark/50 mt-0.5">
+                          Anonymized buyer search activity in {sellerDemand.neighborhood || 'your area'}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 divide-x divide-black/5">
+                        <div className="p-5 text-center">
+                          <p className="text-3xl font-extrabold text-blue-600">{sellerDemand.totalMatchingBuyers}</p>
+                          <p className="text-[10px] font-semibold text-brand-dark/50 uppercase mt-1">Active Buyers</p>
+                          <p className="text-[10px] text-brand-dark/40 mt-0.5">searching your area & price range</p>
+                        </div>
+                        <div className="p-5 text-center">
+                          <p className="text-3xl font-extrabold text-green-600">{sellerDemand.exactPriceMatch}</p>
+                          <p className="text-[10px] font-semibold text-brand-dark/50 uppercase mt-1">Exact Matches</p>
+                          <p className="text-[10px] text-brand-dark/40 mt-0.5">budget matches your price</p>
+                        </div>
+                        <div className="p-5 text-center">
+                          <p className="text-3xl font-extrabold text-purple-600">{sellerDemand.recentSearchers}</p>
+                          <p className="text-[10px] font-semibold text-brand-dark/50 uppercase mt-1">Recent Searchers</p>
+                          <p className="text-[10px] text-brand-dark/40 mt-0.5">active in last 30 days</p>
+                        </div>
+                      </div>
+                      {sellerDemand.demandTrend !== 0 && (
+                        <div className={`px-5 py-3 text-xs font-medium ${
+                          sellerDemand.demandTrend > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {sellerDemand.demandTrend > 0
+                            ? `Demand is up ${sellerDemand.demandTrend}% vs last month — buyer interest is growing`
+                            : `Demand is down ${Math.abs(sellerDemand.demandTrend)}% vs last month`}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Market Context ── */}
+                  {sellerFomo?.market && (
+                    <div className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <h3 className="font-semibold text-sm text-brand-dark">Your Market at a Glance</h3>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-black/5">
+                        <div className="p-4 text-center">
+                          <p className="text-lg font-bold text-brand-dark">
+                            {sellerFomo.market.medianPrice ? `$${(sellerFomo.market.medianPrice / 1000000).toFixed(1)}M` : '—'}
+                          </p>
+                          <p className="text-[10px] text-brand-dark/50 font-semibold uppercase">Median Price</p>
+                        </div>
+                        <div className="p-4 text-center">
+                          <p className="text-lg font-bold text-brand-dark">{sellerFomo.market.avgDOM}</p>
+                          <p className="text-[10px] text-brand-dark/50 font-semibold uppercase">Avg Days to Sell</p>
+                        </div>
+                        <div className="p-4 text-center">
+                          <p className="text-lg font-bold text-brand-dark">{sellerFomo.market.inventory}</p>
+                          <p className="text-[10px] text-brand-dark/50 font-semibold uppercase">Competing Listings</p>
+                        </div>
+                        <div className="p-4 text-center">
+                          <p className="text-lg font-bold text-brand-dark">{sellerFomo.market.closedSales}</p>
+                          <p className="text-[10px] text-brand-dark/50 font-semibold uppercase">Recent Sales</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── What-If Price Reduction ── */}
+                  {sellerFomo?.whatIf && sellerFomo.whatIf.additionalBuyers > 0 && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl ring-1 ring-blue-100 p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-sm text-blue-900">Price Insight</h4>
+                          <p className="text-sm text-blue-800/80 mt-1">
+                            A {sellerFomo.whatIf.reductionPercent}% price reduction to <span className="font-semibold">${sellerFomo.whatIf.reducedPrice.toLocaleString()}</span> could unlock <span className="font-bold text-blue-900">{sellerFomo.whatIf.additionalBuyers} additional buyer{sellerFomo.whatIf.additionalBuyers !== 1 ? 's' : ''}</span> currently searching in your area.
+                          </p>
+                          <p className="text-xs text-blue-600/70 mt-2">
+                            Currently {sellerFomo.whatIf.currentBuyerMatch} buyer{sellerFomo.whatIf.currentBuyerMatch !== 1 ? 's' : ''} match your price &rarr; {sellerFomo.whatIf.reducedBuyerMatch} at reduced price
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Demand Level Badge ── */}
+                  {sellerFomo?.activity && (
+                    <div className={`rounded-2xl p-4 text-center ${
+                      sellerFomo.activity.demandLevel === 'high' ? 'bg-green-50 ring-1 ring-green-200' :
+                      sellerFomo.activity.demandLevel === 'moderate' ? 'bg-amber-50 ring-1 ring-amber-200' :
+                      'bg-gray-50 ring-1 ring-gray-200'
+                    }`}>
+                      <p className={`text-xs font-bold uppercase tracking-widest ${
+                        sellerFomo.activity.demandLevel === 'high' ? 'text-green-700' :
+                        sellerFomo.activity.demandLevel === 'moderate' ? 'text-amber-700' :
+                        'text-gray-600'
+                      }`}>
+                        {sellerFomo.activity.demandLevel === 'high' ? 'High Demand' :
+                         sellerFomo.activity.demandLevel === 'moderate' ? 'Moderate Demand' : 'Building Interest'}
+                      </p>
+                      <p className="text-xs text-brand-dark/50 mt-1">
+                        Based on buyer search activity, saved listings, and showing requests in your neighborhood
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── LISTINGS TAB ── */}
           {activeTab === 'listings' && (
