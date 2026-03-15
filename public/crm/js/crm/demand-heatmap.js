@@ -38,10 +38,10 @@ function scoreColor(score) {
 async function initDemandHeatmap() {
   const container = document.getElementById('demand-heatmap');
   if (!container) return;
-  container.innerHTML = '<div style="padding:24px;color:#6b7280;">Loading demand data...</div>';
+  container.innerHTML = '<div style="padding:24px;color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> Loading demand data from live RLS...</div>';
 
   try {
-    await Promise.all([loadDemandStats(), loadDemandIndices(), loadDemandAlerts()]);
+    await loadDemandFromTrestle();
     renderDemandHeatmap();
   } catch (err) {
     container.innerHTML = '<div style="padding:24px;color:#dc2626;">Failed to load demand data.</div>';
@@ -49,28 +49,42 @@ async function initDemandHeatmap() {
   }
 }
 
-async function loadDemandStats() {
-  const res = await MallanAPI._fetch('/api/crm/demand/stats');
-  if (res.ok) DemandHeatmap.stats = res.stats;
-}
-
-async function loadDemandIndices() {
-  const f = DemandHeatmap.filters;
-  const params = new URLSearchParams();
-  if (f.borough) params.set('borough', f.borough);
-  if (f.min_score) params.set('min_score', f.min_score);
-  if (f.trend) params.set('trend', f.trend);
-  params.set('sort', f.sort);
-  params.set('order', f.order);
-  params.set('limit', '200');
-
-  const res = await MallanAPI._fetch('/api/crm/demand?' + params.toString());
-  if (res.ok) DemandHeatmap.indices = res.items;
-}
-
-async function loadDemandAlerts() {
-  const res = await MallanAPI._fetch('/api/crm/demand/alerts');
-  if (res.ok) DemandHeatmap.alerts = res.items;
+async function loadDemandFromTrestle() {
+  var body = { listing_type: 'sale' };
+  var f = DemandHeatmap.filters;
+  if (f.borough) body.borough = f.borough;
+  var res = await MallanAPI._fetch('/api/crm/market-intelligence/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(res.error || 'API error');
+  var d = res.data;
+  // Map neighborhood stats to DemandIndex-like format for existing renderer
+  var nhStats = d.neighborhood_stats || [];
+  var sentiments = d.sentiment || [];
+  DemandHeatmap.indices = nhStats.map(function(nh, i) {
+    var sent = sentiments.find(function(s) { return s.neighborhood === nh.neighborhood; }) || {};
+    return {
+      neighborhood: nh.neighborhood,
+      borough: nh.borough,
+      score: sent.score || 50,
+      trend: nh.newListings30d > nh.activeCount * 0.2 ? 'up' : nh.avgDom > 60 ? 'down' : 'stable',
+      trend_delta: 0
+    };
+  });
+  // Build stats
+  var scores = DemandHeatmap.indices.map(function(x) { return x.score; });
+  var avgScore = scores.length > 0 ? Math.round(scores.reduce(function(a,b){return a+b;},0) / scores.length) : 0;
+  var upCount = DemandHeatmap.indices.filter(function(x){return x.trend==='up';}).length;
+  DemandHeatmap.stats = {
+    total_neighborhoods: DemandHeatmap.indices.length,
+    avg_score: avgScore,
+    trend_counts: { up: upCount, down: DemandHeatmap.indices.filter(function(x){return x.trend==='down';}).length, stable: DemandHeatmap.indices.filter(function(x){return x.trend==='stable';}).length },
+    signals_7d: d.summary?.newListings30d || 0,
+    top_neighborhoods: DemandHeatmap.indices.sort(function(a,b){return b.score-a.score;}).slice(0,5)
+  };
+  DemandHeatmap.alerts = [];
 }
 
 // ── Render ──
@@ -199,7 +213,10 @@ async function filterDemand() {
   f.borough = document.getElementById('dh-borough-filter')?.value || '';
   f.trend = document.getElementById('dh-trend-filter')?.value || '';
   f.min_score = document.getElementById('dh-min-score')?.value || '';
-  await loadDemandIndices();
+  await loadDemandFromTrestle();
+  // Apply client-side filters for trend and min_score
+  if (f.trend) DemandHeatmap.indices = DemandHeatmap.indices.filter(function(x){return x.trend===f.trend;});
+  if (f.min_score) DemandHeatmap.indices = DemandHeatmap.indices.filter(function(x){return x.score>=parseInt(f.min_score);});
   renderDemandHeatmap();
 }
 
