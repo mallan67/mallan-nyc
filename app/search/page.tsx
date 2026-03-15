@@ -487,6 +487,7 @@ function SearchClient() {
                 value={searchQuery}
                 onChange={setSearchQuery}
                 onSelect={handleAutocompleteSelect}
+                onClear={clearFilters}
                 placeholder="Address, neighborhood, zip..."
               />
             </div>
@@ -593,9 +594,9 @@ function SearchClient() {
               {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
             </p>
 
-            {activeFilterPills.length > 0 && (
-              <button onClick={clearFilters} className="text-xs text-brand-dark/60 hover:text-brand-dark underline whitespace-nowrap font-medium">
-                Clear
+            {(activeFilterPills.length > 0 || searchQuery) && (
+              <button onClick={clearFilters} className="text-xs bg-gray-100 hover:bg-gray-200 text-brand-dark/70 hover:text-brand-dark px-3 py-1.5 rounded-full whitespace-nowrap font-medium transition-colors">
+                Reset Search
               </button>
             )}
           </div>

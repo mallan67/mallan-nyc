@@ -18,6 +18,7 @@ interface SearchAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onSelect: (suggestion: Suggestion) => void;
+  onClear?: () => void;
   placeholder?: string;
 }
 
@@ -50,6 +51,7 @@ export default function SearchAutocomplete({
   value,
   onChange,
   onSelect,
+  onClear,
   placeholder = 'Neighborhood, ZIP, address, or listing #',
 }: SearchAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -243,9 +245,9 @@ export default function SearchAutocomplete({
         )}
         {!loading && value && (
           <button
-            onClick={() => { onChange(''); setSuggestions([]); setIsOpen(false); }}
+            onClick={() => { onChange(''); setSuggestions([]); setIsOpen(false); if (onClear) onClear(); }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-dark/40 hover:text-brand-dark/70 transition-colors"
-            aria-label="Clear search"
+            aria-label="Clear search and reset all filters"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
