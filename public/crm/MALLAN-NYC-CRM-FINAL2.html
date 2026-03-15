@@ -1832,12 +1832,14 @@
                                 <span><i class="fas fa-phone text-gray-400 mr-1"></i> <span id="cpPhone">--</span></span>
                                 <span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i> New York, NY</span>
                             </div>
-                            <div class="flex items-center gap-2 mt-3">
+                            <div class="flex items-center gap-2 mt-3 flex-wrap">
                                 <button class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"><i class="fas fa-envelope mr-1"></i> Email</button>
                                 <button class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700"><i class="fas fa-phone mr-1"></i> Call</button>
                                 <button class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-paper-plane mr-1"></i> Send Listings</button>
                                 <button class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-calendar mr-1"></i> Schedule</button>
-                                <button class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-ellipsis-h"></i></button>
+                                <button onclick="cpSendMarketReport()" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600"><i class="fas fa-chart-bar mr-1"></i> Market Report</button>
+                                <button onclick="cpAddTask()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-tasks mr-1"></i> Add Task</button>
+                                <button onclick="cpUpdateStage()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-arrow-right mr-1"></i> Move Stage</button>
                             </div>
                         </div>
                     </div>
@@ -1859,6 +1861,8 @@
                     <button class="client-tab-btn" onclick="switchClientTab('search-criteria',this)">Search Criteria</button>
                     <button class="client-tab-btn" onclick="switchClientTab('sent-listings',this)">Sent Listings</button>
                     <button class="client-tab-btn" onclick="switchClientTab('activity-log',this)">Activity</button>
+                    <button class="client-tab-btn" onclick="switchClientTab('intelligence',this)">Intelligence</button>
+                    <button class="client-tab-btn" onclick="switchClientTab('client-tasks',this)">Tasks</button>
                     <button class="client-tab-btn" onclick="switchClientTab('documents',this)">Documents</button>
                     <button class="client-tab-btn" onclick="switchClientTab('notes',this)">Notes</button>
                 </div>
@@ -1948,6 +1952,93 @@
                         <h3 class="font-semibold text-sm mb-4 flex items-center gap-2"><i class="fas fa-stream text-purple-600"></i> Full Activity Log</h3>
                         <div class="space-y-4" id="cpActivityLog">
                             <p class="text-sm text-gray-400 text-center py-6">No activity logged yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Intelligence Sub-Tab -->
+                <div id="cp-intelligence" class="cp-subtab" style="display:none">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <!-- Lead Score Card -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-star-half-alt text-purple-600"></i> Lead Score</h3>
+                            <div id="cpLeadScore" class="text-center py-4">
+                                <p class="text-sm text-gray-400">Loading...</p>
+                            </div>
+                        </div>
+                        <!-- Conviction Score Card -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-bullseye text-green-600"></i> Buyer Readiness</h3>
+                            <div id="cpConviction" class="text-center py-4">
+                                <p class="text-sm text-gray-400">Loading...</p>
+                            </div>
+                        </div>
+                        <!-- Market Report (contextual) -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5 lg:col-span-2">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-semibold text-sm flex items-center gap-2"><i class="fas fa-chart-bar text-amber-500"></i> Market Report for This Client</h3>
+                                <button onclick="cpGenerateReport()" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600">
+                                    <i class="fas fa-magic mr-1"></i> Generate
+                                </button>
+                            </div>
+                            <div id="cpMarketReport">
+                                <p class="text-sm text-gray-400 text-center py-4">Click Generate to create a personalized market report based on this client's search criteria and preferences.</p>
+                            </div>
+                        </div>
+                        <!-- Neighborhood Demand -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-fire text-red-500"></i> Area Demand</h3>
+                            <div id="cpDemand">
+                                <p class="text-sm text-gray-400 text-center py-4">Demand data for client's target neighborhoods</p>
+                            </div>
+                        </div>
+                        <!-- Lifestyle Match -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-heart text-pink-500"></i> Lifestyle Fit</h3>
+                            <div id="cpLifestyle">
+                                <p class="text-sm text-gray-400 text-center py-4">Best neighborhood matches for this client's preferences</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks Sub-Tab -->
+                <div id="cp-client-tasks" class="cp-subtab" style="display:none">
+                    <div class="bg-white rounded-xl shadow-sm border p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-sm flex items-center gap-2"><i class="fas fa-tasks text-blue-600"></i> Follow-Up Tasks</h3>
+                            <button onclick="cpAddTask()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"><i class="fas fa-plus mr-1"></i> New Task</button>
+                        </div>
+                        <div id="cpTasksList">
+                            <p class="text-sm text-gray-400 text-center py-6">No tasks for this client. Click New Task to create one.</p>
+                        </div>
+                    </div>
+                    <!-- Quick Task Form -->
+                    <div id="cpTaskForm" class="mt-4 bg-white rounded-xl shadow-sm border p-5" style="display:none">
+                        <h4 class="font-semibold text-sm mb-3">New Follow-Up Task</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input type="text" id="cpTaskTitle" placeholder="Task title (e.g. Call about pricing)" class="border rounded-lg px-3 py-2 text-sm">
+                            <input type="date" id="cpTaskDate" class="border rounded-lg px-3 py-2 text-sm">
+                            <select id="cpTaskType" class="border rounded-lg px-3 py-2 text-sm">
+                                <option value="follow_up">Follow Up</option>
+                                <option value="call">Phone Call</option>
+                                <option value="email">Email</option>
+                                <option value="showing">Schedule Showing</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="renewal_check">Renewal Check</option>
+                                <option value="buyer_conversion">Buyer Conversion</option>
+                            </select>
+                            <select id="cpTaskPriority" class="border rounded-lg px-3 py-2 text-sm">
+                                <option value="low">Low Priority</option>
+                                <option value="medium" selected>Medium Priority</option>
+                                <option value="high">High Priority</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <textarea id="cpTaskDesc" placeholder="Notes (optional)" class="w-full border rounded-lg px-3 py-2 text-sm mt-3 resize-none h-16"></textarea>
+                        <div class="flex gap-2 mt-3">
+                            <button onclick="cpSaveTask()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">Save Task</button>
+                            <button onclick="document.getElementById('cpTaskForm').style.display='none'" class="px-4 py-2 border rounded-lg text-xs font-semibold hover:bg-gray-50">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -35669,7 +35760,44 @@
             if (target) target.style.display = '';
             document.querySelectorAll('.client-tab-btn').forEach(function(b) { b.classList.remove('active'); });
             if (btn) btn.classList.add('active');
+            // Load contextual data for Intelligence and Tasks tabs
+            if (tabId === 'intelligence') cpLoadIntelligence();
+            if (tabId === 'client-tasks') cpLoadTasks();
         };
+
+        function cpLoadIntelligence() {
+            var clientId = window._currentClientId;
+            if (!clientId) return;
+            // Load lead score
+            MallanAPI._fetch('/api/crm/lead-scoring?limit=200').then(function(res) {
+                var scores = res.scores || res.items || [];
+                var mine = scores.find(function(s) { return s.lead_id === clientId || String(s.lead_id) === String(clientId); });
+                var el = document.getElementById('cpLeadScore');
+                if (!el) return;
+                if (mine) {
+                    var gc = mine.grade === 'A' ? '#059669' : mine.grade === 'B' ? '#3b82f6' : mine.grade === 'C' ? '#f59e0b' : '#ef4444';
+                    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:16px;">' +
+                        '<div style="width:56px;height:56px;border-radius:50%;border:3px solid ' + gc + ';display:flex;align-items:center;justify-content:center;">' +
+                        '<span style="font-size:20px;font-weight:800;color:' + gc + ';">' + mine.grade + '</span></div>' +
+                        '<div style="text-align:left;"><p style="font-size:24px;font-weight:800;color:#111827;">' + mine.score + '<span style="font-size:12px;color:#9ca3af;">/100</span></p>' +
+                        '<p style="font-size:10px;color:#6b7280;">Source: ' + (mine.source_score || 0) + ' | Engage: ' + (mine.engagement_score || 0) + ' | Recency: ' + (mine.recency_score || 0) + ' | Fit: ' + (mine.fit_score || 0) + '</p></div></div>';
+                } else {
+                    el.innerHTML = '<p style="font-size:13px;color:#9ca3af;">No score computed yet. Scores update daily.</p>';
+                }
+            }).catch(function() {});
+            // Load conviction
+            MallanAPI._fetch('/api/crm/conviction/' + clientId).then(function(res) {
+                var el = document.getElementById('cpConviction');
+                if (!el || !res.score) return;
+                var stageColors = { browsing: '#9ca3af', considering: '#f59e0b', convinced: '#3b82f6', ready: '#059669' };
+                var c = stageColors[res.stage] || '#9ca3af';
+                el.innerHTML = '<div style="text-align:center;">' +
+                    '<p style="font-size:32px;font-weight:800;color:' + c + ';">' + res.score + '</p>' +
+                    '<p style="font-size:13px;font-weight:600;color:' + c + ';text-transform:capitalize;">' + res.stage + '</p>' +
+                    (res.ghost_status && res.ghost_status !== 'active' ? '<p style="font-size:10px;color:#ef4444;margin-top:4px;">Ghost: ' + res.ghost_status + ' (' + res.silence_days + 'd silent)</p>' : '') +
+                    '</div>';
+            }).catch(function() {});
+        }
 
         window.addClientNote = function() {
             var input = document.getElementById('cpNoteInput');
@@ -35682,6 +35810,118 @@
                 showToast('Note saved successfully', 'success');
                 input.value = '';
             }
+        };
+
+        // ── Client Profile Contextual Actions ──
+        window.cpAddTask = function() {
+            switchClientTab('client-tasks', document.querySelector('.client-tab-btn:nth-child(6)'));
+            var form = document.getElementById('cpTaskForm');
+            if (form) form.style.display = '';
+            var dateInput = document.getElementById('cpTaskDate');
+            if (dateInput) {
+                var tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+                dateInput.value = tomorrow.toISOString().split('T')[0];
+            }
+        };
+
+        window.cpSaveTask = function() {
+            var clientId = window._currentClientId;
+            if (!clientId) { showToast('No client selected', 'error'); return; }
+            var title = document.getElementById('cpTaskTitle')?.value;
+            var date = document.getElementById('cpTaskDate')?.value;
+            var type = document.getElementById('cpTaskType')?.value || 'follow_up';
+            var priority = document.getElementById('cpTaskPriority')?.value || 'medium';
+            var desc = document.getElementById('cpTaskDesc')?.value || '';
+            if (!title || !date) { showToast('Title and date required', 'error'); return; }
+
+            MallanAPI._fetch('/api/crm/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lead_id: clientId, title: title, due_date: date, task_type: type, priority: priority, description: desc })
+            }).then(function() {
+                showToast('Task created', 'success');
+                document.getElementById('cpTaskForm').style.display = 'none';
+                document.getElementById('cpTaskTitle').value = '';
+                document.getElementById('cpTaskDesc').value = '';
+                cpLoadTasks();
+            }).catch(function() { showToast('Failed to create task', 'error'); });
+        };
+
+        window.cpLoadTasks = function() {
+            var clientId = window._currentClientId;
+            if (!clientId) return;
+            var container = document.getElementById('cpTasksList');
+            if (!container) return;
+            container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+
+            MallanAPI._fetch('/api/crm/tasks?status=all&limit=20').then(function(res) {
+                var tasks = (res.tasks || []).filter(function(t) { return t.lead_id === clientId; });
+                if (tasks.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No tasks for this client.</p>';
+                    return;
+                }
+                container.innerHTML = tasks.map(function(t) {
+                    var prioColor = t.priority === 'urgent' ? '#ef4444' : t.priority === 'high' ? '#f59e0b' : '#3b82f6';
+                    var isDone = t.status === 'completed';
+                    return '<div class="flex items-center gap-3 py-2 border-b last:border-0">' +
+                        '<span style="width:8px;height:8px;border-radius:50%;background:' + prioColor + ';flex-shrink:0;"></span>' +
+                        '<div class="flex-1 min-w-0"><p class="text-sm font-medium ' + (isDone ? 'line-through text-gray-400' : '') + '">' + t.title + '</p>' +
+                        '<p class="text-[10px] text-gray-500">' + t.task_type + ' &middot; Due ' + new Date(t.due_date).toLocaleDateString() + '</p></div>' +
+                        (isDone ? '<span class="text-xs text-green-600 font-semibold">Done</span>' :
+                        '<button onclick="completeTask(\'' + t.id + '\'); setTimeout(cpLoadTasks, 500);" class="px-2 py-1 bg-green-600 text-white rounded text-[10px] font-semibold">Done</button>') +
+                    '</div>';
+                }).join('');
+            }).catch(function() {
+                container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">Failed to load tasks.</p>';
+            });
+        };
+
+        window.cpSendMarketReport = function() {
+            switchClientTab('intelligence', document.querySelector('.client-tab-btn:nth-child(5)'));
+            cpGenerateReport();
+        };
+
+        window.cpGenerateReport = function() {
+            var container = document.getElementById('cpMarketReport');
+            if (!container) return;
+            container.innerHTML = '<p class="text-sm text-amber-600 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i> Generating AI market report...</p>';
+
+            MallanAPI._fetch('/api/crm/market-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ report_type: 'both', property_types: ['Condo', 'Co-op', 'Condop', 'Townhouse'] })
+            }).then(function(res) {
+                if (!res.report) { container.innerHTML = '<p class="text-red-500 text-sm">Failed to generate.</p>'; return; }
+                var r = res.report;
+                var narrative = r.narrative.split('\n\n').map(function(p) { return '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#374151;">' + p + '</p>'; }).join('');
+                container.innerHTML = '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">' +
+                    '<p style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 8px;">' + r.title + ' — ' + r.period + '</p>' +
+                    narrative +
+                    '<p style="font-size:9px;color:#9ca3af;margin:8px 0 0;">' + r.disclaimer + '</p></div>' +
+                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'cpMarketReport\').innerText);showToast(\'Copied\',\'success\');" class="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold"><i class="fas fa-copy mr-1"></i> Copy Report</button>';
+            }).catch(function() {
+                container.innerHTML = '<p class="text-red-500 text-sm">Failed to generate report.</p>';
+            });
+        };
+
+        window.cpUpdateStage = function() {
+            var clientId = window._currentClientId;
+            if (!clientId) return;
+            var stages = ['new', 'contacted', 'nurturing', 'active', 'showing', 'offer', 'deal', 'closed', 'past'];
+            var currentEl = document.getElementById('cpStage');
+            var current = currentEl ? currentEl.textContent.toLowerCase() : 'new';
+            var idx = stages.indexOf(current);
+            var next = stages[Math.min(idx + 1, stages.length - 1)];
+            if (next === current) { showToast('Already at final stage', 'info'); return; }
+
+            MallanAPI._fetch('/api/crm/clients/' + clientId, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pipeline_stage: next })
+            }).then(function() {
+                if (currentEl) currentEl.textContent = next;
+                showToast('Moved to ' + next, 'success');
+            }).catch(function() { showToast('Failed to update stage', 'error'); });
         };
 
         // ──────────────────────────────────────
