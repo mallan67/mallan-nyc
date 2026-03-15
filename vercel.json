@@ -36,8 +36,8 @@
   ],
   "rewrites": [
     { "source": "/login", "destination": "/crm/login.html" },
-    { "source": "/crm", "destination": "/crm/dashboard.html" },
-    { "source": "/crm/dashboard", "destination": "/crm/dashboard.html" },
+    { "source": "/crm", "destination": "/crm/MALLAN-NYC-CRM-FINAL2.html" },
+    { "source": "/crm/dashboard", "destination": "/crm/MALLAN-NYC-CRM-FINAL2.html" },
     { "source": "/crm/login", "destination": "/crm/login.html" },
     { "source": "/crm/search", "destination": "/crm/index-built.html" },
     { "source": "/crm/sale-listing", "destination": "/crm/SALE-FORM-REDESIGN.html" },
