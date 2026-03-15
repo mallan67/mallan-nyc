@@ -97,10 +97,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/images/mallan-m-icon.png', sizes: '32x32', type: 'image/png' },
-      { url: '/images/mallan-m-icon.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
+      { url: '/images/mallan-m-icon.png', sizes: '192x192', type: 'image/png' },
     ],
-    shortcut: '/images/mallan-m-icon.png',
+    shortcut: '/favicon.ico',
     apple: [
       { url: '/images/mallan-logo.png', sizes: '180x180', type: 'image/png' },
     ],
