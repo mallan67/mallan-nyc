@@ -126,6 +126,9 @@ function renderBuyerClusters(container, data) {
         <i class="fas fa-info-circle" style="margin-right:4px;"></i>
         Clusters based on buyer intent profiles. Use for listing targeting, marketing segmentation, and recommendation matching.
       </p>
+      <p style="margin-top:8px;font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px;">
+        <i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i><strong>Fair Housing:</strong> Buyer clusters reflect stated price and property preferences only. They must not be used to direct buyers toward or away from neighborhoods based on race, color, religion, sex, national origin, familial status, disability, age, or any other protected characteristic.
+      </p>
     </div>
   `;
 }
