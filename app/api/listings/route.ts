@@ -565,15 +565,36 @@ export async function GET(request: Request) {
         // PropertySubType, NewConstructionYN, NewDevelopmentYN all cause 502.
         // Non-CommonInterest types handled as post-filter after fetch.
         if (propertySubTypes) {
+          const types = propertySubTypes.split(',').map(t => t.trim());
+          const odataParts: string[] = [];
+
+          // CommonInterest for ownership types
           const commonInterestPush: Record<string, string> = {
             'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
           };
-          const ciFilters = propertySubTypes.split(',')
-            .map(t => commonInterestPush[t.trim()])
-            .filter(Boolean);
-          if (ciFilters.length > 0) {
-            filterParts.push(`(${ciFilters.map(v => `CommonInterest eq '${v}'`).join(' or ')})`);
+          for (const t of types) {
+            if (commonInterestPush[t]) {
+              odataParts.push(`CommonInterest eq '${commonInterestPush[t]}'`);
+            }
           }
+
+          // New Development — push PublicRemarks contains to OData
+          if (types.includes('New Development')) {
+            odataParts.push(
+              "contains(PublicRemarks,'new development')",
+              "contains(PublicRemarks,'new construction')",
+              "contains(PublicRemarks,'sponsor unit')",
+              "contains(PublicRemarks,'brand new')",
+            );
+          }
+
+          if (odataParts.length > 0) {
+            filterParts.push(`(${odataParts.join(' or ')})`);
+          }
+        }
+        // Sort = new-development
+        if (sortParam === 'new-development' && !propertySubTypes) {
+          filterParts.push("(contains(PublicRemarks,'new development') or contains(PublicRemarks,'new construction') or contains(PublicRemarks,'sponsor unit'))");
         }
 
         // Ownership types (comma-separated: Condo, Co-op, Condop)
