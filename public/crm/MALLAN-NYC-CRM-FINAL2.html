@@ -1786,10 +1786,10 @@
                 <!-- Client Tab Navigation -->
                 <div class="client-tab-nav" id="clientTabNav">
                     <button class="client-tab-btn active" onclick="switchClientTab('overview',this)">Overview</button>
-                    <button class="client-tab-btn" onclick="switchClientTab('search-criteria',this)">Search Criteria</button>
-                    <button class="client-tab-btn" onclick="switchClientTab('sent-listings',this)">Sent Listings</button>
+                    <button class="client-tab-btn" onclick="switchClientTab('market',this)">Market</button>
+                    <button class="client-tab-btn" onclick="switchClientTab('listings',this)">Listings</button>
+                    <button class="client-tab-btn" onclick="switchClientTab('tools',this)">Tools</button>
                     <button class="client-tab-btn" onclick="switchClientTab('activity-log',this)">Activity</button>
-                    <button class="client-tab-btn" onclick="switchClientTab('intelligence',this)">Intelligence</button>
                     <button class="client-tab-btn" onclick="switchClientTab('client-tasks',this)">Tasks</button>
                     <button class="client-tab-btn" onclick="switchClientTab('documents',this)">Documents</button>
                     <button class="client-tab-btn" onclick="switchClientTab('notes',this)">Notes</button>
@@ -1871,47 +1871,114 @@
                     </div>
                 </div>
 
-                <!-- Intelligence Sub-Tab -->
-                <div id="cp-intelligence" class="cp-subtab" style="display:none">
+                <!-- ═══ MARKET TAB — All market data for THIS client's neighborhoods ═══ -->
+                <div id="cp-market" class="cp-subtab" style="display:none">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <!-- Lead Score Card -->
-                        <div class="bg-white rounded-xl shadow-sm border p-5">
-                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-star-half-alt text-purple-600"></i> Lead Score</h3>
-                            <div id="cpLeadScore" class="text-center py-4">
-                                <p class="text-sm text-gray-400">Loading...</p>
+                        <!-- Area Market Stats -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5 lg:col-span-2">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-chart-area text-blue-600"></i> Market Conditions</h3>
+                            <div id="cpDemand">
+                                <p class="text-sm text-gray-400 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i> Loading market data for this client's neighborhoods...</p>
                             </div>
                         </div>
-                        <!-- Conviction Score Card -->
+                        <!-- Matching Active Listings Count -->
                         <div class="bg-white rounded-xl shadow-sm border p-5">
-                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-bullseye text-green-600"></i> Buyer Readiness</h3>
-                            <div id="cpConviction" class="text-center py-4">
-                                <p class="text-sm text-gray-400">Loading...</p>
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-home text-green-600"></i> Matching Inventory</h3>
+                            <div id="cpLifestyle">
+                                <p class="text-sm text-gray-400 text-center py-4">Loading...</p>
                             </div>
                         </div>
-                        <!-- Market Report (contextual) -->
+                        <!-- Lead Score + Buyer Readiness -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-star-half-alt text-purple-600"></i> Lead Score &amp; Readiness</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div id="cpLeadScore" class="text-center py-2">
+                                    <p class="text-sm text-gray-400">--</p>
+                                </div>
+                                <div id="cpConviction" class="text-center py-2">
+                                    <p class="text-sm text-gray-400">--</p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- AI Market Report -->
                         <div class="bg-white rounded-xl shadow-sm border p-5 lg:col-span-2">
                             <div class="flex items-center justify-between mb-3">
-                                <h3 class="font-semibold text-sm flex items-center gap-2"><i class="fas fa-chart-bar text-amber-500"></i> Market Report for This Client</h3>
+                                <h3 class="font-semibold text-sm flex items-center gap-2"><i class="fas fa-chart-bar text-amber-500"></i> AI Market Report</h3>
                                 <button onclick="cpGenerateReport()" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600">
                                     <i class="fas fa-magic mr-1"></i> Generate
                                 </button>
                             </div>
                             <div id="cpMarketReport">
-                                <p class="text-sm text-gray-400 text-center py-4">Click Generate to create a personalized market report based on this client's search criteria and preferences.</p>
+                                <p class="text-sm text-gray-400 text-center py-4">Click Generate to create a personalized market report for this client's target areas.</p>
                             </div>
                         </div>
-                        <!-- Neighborhood Demand -->
+                    </div>
+                </div>
+
+                <!-- ═══ LISTINGS TAB — Listings sent/matched for THIS client ═══ -->
+                <div id="cp-listings" class="cp-subtab" style="display:none">
+                    <div class="bg-white rounded-xl shadow-sm border p-5 mb-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-sm flex items-center gap-2"><i class="fas fa-paper-plane text-blue-600"></i> Listings for This Client</h3>
+                            <button onclick="cpSendListings()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"><i class="fas fa-search mr-1"></i> Find &amp; Send Listings</button>
+                        </div>
+                        <div id="cpSentListings">
+                            <p class="text-sm text-gray-400 text-center py-8">No listings shared with this client yet. Click "Find & Send Listings" to search for matching properties.</p>
+                        </div>
+                    </div>
+                    <!-- Client Reactions -->
+                    <div class="bg-white rounded-xl shadow-sm border p-5">
+                        <h3 class="font-semibold text-sm mb-4 flex items-center gap-2"><i class="fas fa-thumbs-up text-green-600"></i> Client Reactions</h3>
+                        <div id="cpReactions">
+                            <p class="text-sm text-gray-400 text-center py-4">Reactions will appear here when the client interacts with sent listings.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ TOOLS TAB — All analytical tools for THIS client ═══ -->
+                <div id="cp-tools" class="cp-subtab" style="display:none">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <!-- CMA / Comparables -->
                         <div class="bg-white rounded-xl shadow-sm border p-5">
-                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-fire text-red-500"></i> Area Demand</h3>
-                            <div id="cpDemand">
-                                <p class="text-sm text-gray-400 text-center py-4">Demand data for client's target neighborhoods</p>
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-balance-scale text-blue-600"></i> Comparables (CMA)</h3>
+                            <div id="cpCmaTool">
+                                <p class="text-sm text-gray-400 text-center py-4">Generate a comparable market analysis for this client's target area.</p>
+                                <button onclick="cpGenerateReport()" class="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"><i class="fas fa-magic mr-1"></i> Generate CMA</button>
                             </div>
                         </div>
-                        <!-- Lifestyle Match -->
+                        <!-- Investment Analyzer -->
                         <div class="bg-white rounded-xl shadow-sm border p-5">
-                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-heart text-pink-500"></i> Lifestyle Fit</h3>
-                            <div id="cpLifestyle">
-                                <p class="text-sm text-gray-400 text-center py-4">Best neighborhood matches for this client's preferences</p>
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-calculator text-green-600"></i> Investment Analyzer</h3>
+                            <div id="cpInvestmentTool">
+                                <p class="text-sm text-gray-400 text-center py-4">Calculate ROI, cap rate, cash flow for properties this client is considering.</p>
+                            </div>
+                        </div>
+                        <!-- Renovation Estimator -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-hammer text-amber-600"></i> Renovation Estimator</h3>
+                            <div id="cpRenovationTool">
+                                <p class="text-sm text-gray-400 text-center py-4">Estimate renovation costs for properties this client is viewing.</p>
+                            </div>
+                        </div>
+                        <!-- Building Risk -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-exclamation-triangle text-red-500"></i> Building Risk</h3>
+                            <div id="cpBuildingRiskTool">
+                                <p class="text-sm text-gray-400 text-center py-4">DOB violations and building complaints for properties of interest.</p>
+                            </div>
+                        </div>
+                        <!-- Rent vs Buy (for renters) -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-exchange-alt text-teal-600"></i> Rent vs Buy Analysis</h3>
+                            <div id="cpRentVsBuyTool">
+                                <p class="text-sm text-gray-400 text-center py-4">Compare renting vs buying costs in this client's target neighborhoods.</p>
+                            </div>
+                        </div>
+                        <!-- Transaction Probability -->
+                        <div class="bg-white rounded-xl shadow-sm border p-5">
+                            <h3 class="font-semibold text-sm mb-3 flex items-center gap-2"><i class="fas fa-chart-pie text-purple-600"></i> Transaction Probability</h3>
+                            <div id="cpTransactionProb">
+                                <p class="text-sm text-gray-400 text-center py-4">Likelihood of closing based on market conditions and client engagement.</p>
                             </div>
                         </div>
                     </div>
@@ -30159,8 +30226,9 @@
             if (target) target.style.display = '';
             document.querySelectorAll('.client-tab-btn').forEach(function(b) { b.classList.remove('active'); });
             if (btn) btn.classList.add('active');
-            // Load contextual data for Intelligence and Tasks tabs
-            if (tabId === 'intelligence') cpLoadIntelligence();
+            // Load contextual data when tabs are clicked
+            if (tabId === 'market') cpLoadIntelligence();
+            if (tabId === 'intelligence') cpLoadIntelligence(); // backward compat
             if (tabId === 'client-tasks') cpLoadTasks();
         };
 
