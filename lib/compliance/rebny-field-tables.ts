@@ -1259,7 +1259,7 @@ export const REBNY_FIELD_TABLES = {
       kind: 'lmp-stable-submission-id' as const,
       public: false,
       required: true,
-      description: 'LMP (RealPlus) submission ID — stable across edits',
+      description: 'LMP submission ID — stable across edits',
     },
     trestleListingKey: {
       field: 'ListingKey',

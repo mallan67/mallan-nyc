@@ -202,10 +202,10 @@ function ListingCard({ listing }: { listing: ListingItem }) {
           </div>
         )}
 
-        {/* Coming Soon badge — REBNY H7/D7 exact wording */}
+        {/* Coming Soon badge — REBNY UCBA Art. I, Sec. 16(C) exact wording */}
         {isComingSoon && (
-          <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded">
-            Coming Soon
+          <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded leading-tight max-w-[90%]">
+            Coming Soon. No Showings or Open House Permitted
           </div>
         )}
       </div>

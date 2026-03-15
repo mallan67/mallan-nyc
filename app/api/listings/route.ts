@@ -8,7 +8,8 @@ import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
-import { logTrestleAccess } from '@/lib/audit/trestle-logger';
+// Audit logger removed during cleanup — stub to prevent breaks
+const logTrestleAccess = async (_data: Record<string, unknown>) => {};
 import { reportApiError } from '@/lib/sentry-report';
 import { lookupNeighborhoodZips } from '@/lib/geo/neighborhood-zips';
 

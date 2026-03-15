@@ -5,78 +5,11 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "crons": [
-    {
-      "path": "/api/cron/dom-reset",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/idx-sync",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/cron/listing-expiration",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/search-alerts",
-      "schedule": "30 7 * * *"
-    },
-    {
-      "path": "/api/cron/seller-scoring",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/experiment-metrics",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/demand-signals",
-      "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/intent-profiles",
-      "schedule": "0 11 * * *"
-    },
-    {
-      "path": "/api/cron/agent-metrics",
-      "schedule": "0 12 * * 1"
-    },
-    {
-      "path": "/api/cron/market-snapshots",
-      "schedule": "0 6 1 * *"
-    },
-    {
-      "path": "/api/cron/lead-scoring",
-      "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/data-retention",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/conviction-scores",
-      "schedule": "0 14 * * *"
-    },
-    {
-      "path": "/api/cron/listing-momentum",
-      "schedule": "0 15 * * *"
-    },
-    {
-      "path": "/api/cron/social-proof",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/lifecycle-triggers",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/cron/lease-alerts",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/quarterly-reports",
-      "schedule": "0 9 1 1,4,7,10 *"
-    }
+    { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/idx-sync", "schedule": "0 */4 * * *" },
+    { "path": "/api/cron/listing-expiration", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/search-alerts", "schedule": "30 7 * * *" },
+    { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" }
   ],
   "functions": {
     "app/api/**/*.ts": {

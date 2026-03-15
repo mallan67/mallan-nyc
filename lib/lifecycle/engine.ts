@@ -246,25 +246,38 @@ async function findStaleInquiryTargets(
 async function findLeaseExpiringTargets(
   daysFromNow: number
 ): Promise<{ type: string; id: string; context: Record<string, unknown> }[]> {
-  const { getLeaseExpirationCandidates } = await import('@/lib/market-intelligence/client-matcher');
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() + daysFromNow);
+  const windowStart = new Date(targetDate);
+  windowStart.setDate(windowStart.getDate() - 7);
+  const windowEnd = new Date(targetDate);
+  windowEnd.setDate(windowEnd.getDate() + 7);
 
-  // Find all tenants across all agents whose lease expires around this milestone
-  const candidates = await getLeaseExpirationCandidates(null, daysFromNow, 7);
-
-  return candidates.map((c) => ({
-    type: 'lead',
-    id: String(c.id),
-    context: {
-      trigger: `lease_expiring_${daysFromNow}d`,
-      days_to_expiry: c.daysToExpiry,
-      lease_end_date: c.leaseEndDate.toISOString(),
-      is_buyer_candidate: c.isBuyerCandidate,
-      annual_income: c.annualIncome,
-      credit_score: c.creditScoreRange,
-      pre_approved: c.preApproved,
-      milestone_days: daysFromNow,
+  const candidates = await prisma.lead.findMany({
+    where: {
+      lease_end_date: { gte: windowStart, lte: windowEnd },
+      pipeline_stage: { in: ['new', 'contacted', 'nurturing', 'active', 'showing'] },
+      roles: { hasSome: ['renter', 'tenant'] },
     },
-  }));
+    select: { id: true, lease_end_date: true, annual_income: true, credit_score_range: true, pre_approved: true },
+  });
+
+  return candidates.filter(c => c.lease_end_date).map((c) => {
+    const daysToExpiry = Math.ceil((c.lease_end_date!.getTime() - Date.now()) / 86400000);
+    const income = c.annual_income ? Number(c.annual_income) : null;
+    const isBuyerCandidate = (income != null && income >= 80000) && (c.credit_score_range === 'excellent' || c.credit_score_range === 'good');
+    return {
+      type: 'lead',
+      id: String(c.id),
+      context: {
+        trigger: `lease_expiring_${daysFromNow}d`,
+        days_to_expiry: daysToExpiry,
+        lease_end_date: c.lease_end_date!.toISOString(),
+        is_buyer_candidate: isBuyerCandidate,
+        milestone_days: daysFromNow,
+      },
+    };
+  });
 }
 
 // ─── Quarterly Nurture Targets ────────────────────────────
@@ -362,10 +375,24 @@ async function executeAction(
       break;
     }
     case 'email': {
-      // Send automated listing email based on trigger context
-      const triggerName = target.context.trigger as string || '';
-      if (triggerName.startsWith('lease_expiring_') || triggerName === 'quarterly_nurture') {
-        await executeMarketIntelEmail(target);
+      // Email action — creates agent notification for now.
+      // Full branded email send will be built inside client workspace (Phase 5).
+      if (target.type === 'lead') {
+        const lead = await prisma.lead.findUnique({
+          where: { id: BigInt(target.id) },
+          select: { agent_id: true, first_name: true, last_name: true },
+        });
+        if (lead?.agent_id) {
+          await prisma.notification.create({
+            data: {
+              recipient_type: 'agent',
+              recipient_id: lead.agent_id,
+              type: target.context.trigger as string || 'system',
+              title: generateNotificationTitle(target.context),
+              body: generateNotificationBody(target.context, `${lead.first_name} ${lead.last_name}`),
+            },
+          });
+        }
       }
       break;
     }
@@ -375,188 +402,13 @@ async function executeAction(
   }
 }
 
-/**
- * Execute market intelligence email for lease expiration or quarterly nurture triggers.
- * Fetches matching listings from Trestle, builds branded email, sends to client.
- */
-async function executeMarketIntelEmail(
-  target: { type: string; id: string; context: Record<string, unknown> }
-): Promise<void> {
-  const { matchListingsForClient, getAgentClientsWithPrefs } = await import('@/lib/market-intelligence/client-matcher');
-  const { sendListingEmail, getAgentBranding } = await import('@/lib/market-intelligence/auto-send');
-  const { fetchMarketData, fetchListingsForPreferences } = await import('@/lib/market-intelligence/fetcher');
-  const { computeRentVsBuy } = await import('@/lib/market-intelligence/calculator');
-
-  const leadId = BigInt(target.id);
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: {
-      first_name: true,
-      last_name: true,
-      email: true,
-      roles: true,
-      agent_id: true,
-      lease_end_date: true,
-      annual_income: true,
-      credit_score_range: true,
-      pre_approved: true,
-      preferences: {
-        select: {
-          neighborhoods: true,
-          property_types: true,
-          min_beds: true,
-          max_beds: true,
-          min_price: true,
-          max_price: true,
-          boroughs: true,
-        },
-      },
-    },
-  });
-
-  if (!lead || !lead.agent_id || !lead.preferences) {
-    console.warn(`[Lifecycle] Cannot send market intel email — lead ${target.id} missing agent or preferences`);
-    return;
-  }
-
-  const agent = await getAgentBranding(lead.agent_id);
-  const prefs = lead.preferences;
-  const triggerName = target.context.trigger as string;
-  const milestoneDays = target.context.milestone_days as number | undefined;
-  const isBuyerCandidate = target.context.is_buyer_candidate as boolean;
-
-  // Fetch market data for client's neighborhoods
-  const saleData = prefs.neighborhoods.length > 0
-    ? await fetchMarketData({
-        listingType: 'sale',
-        neighborhoods: prefs.neighborhoods,
-        propertyTypes: prefs.property_types.length > 0 ? prefs.property_types : undefined,
-      })
-    : null;
-
-  // Match listings based on trigger type
-  const clientForMatch = {
-    roles: lead.roles,
-    preferences: {
-      neighborhoods: prefs.neighborhoods,
-      propertyTypes: prefs.property_types,
-      minBeds: prefs.min_beds,
-      maxBeds: prefs.max_beds,
-      minPrice: prefs.min_price ? Number(prefs.min_price) : null,
-      maxPrice: prefs.max_price ? Number(prefs.max_price) : null,
-      boroughs: prefs.boroughs,
-    },
-  };
-
-  let saleListings: import('@/lib/market-intelligence/fetcher').TrestleListing[] = [];
-  let rentalListings: import('@/lib/market-intelligence/fetcher').TrestleListing[] = [];
-  let rentVsBuy: import('@/lib/market-intelligence/calculator').RentVsBuyAnalysis | undefined;
-  let subject: string;
-  let personalMessage: string;
-  let emailType: 'lease_180d' | 'lease_90d' | 'lease_30d' | 'quarterly_nurture';
-
-  if (triggerName === 'lease_expiring_180d') {
-    // 6 months: Rent vs Buy + sale listings (convert tenant to buyer)
-    emailType = 'lease_180d';
-    const matched = await matchListingsForClient(clientForMatch, { includeSale: true, includeRental: false, limit: 8 });
-    saleListings = matched.map((m) => m.listing);
-
-    // Compute rent vs buy for their top neighborhood
-    if (saleData && saleData.neighborhoodStats.length > 0) {
-      const rentalData = await fetchMarketData({
-        listingType: 'rent',
-        neighborhoods: [saleData.neighborhoodStats[0].neighborhood],
-      });
-      const rentalStats = rentalData.neighborhoodStats[0] || null;
-      rentVsBuy = computeRentVsBuy(
-        saleData.neighborhoodStats[0],
-        rentalStats,
-        {
-          downPaymentPct: lead.pre_approved ? 0.2 : 0.1,
-          mortgageRate: 6.5,
-        }
-      );
-    }
-
-    const leaseDate = lead.lease_end_date
-      ? new Date(lead.lease_end_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      : 'soon';
-
-    subject = `Your lease is up in ${leaseDate} — let's look at your options`;
-    personalMessage = `Hi ${lead.first_name},<br><br>` +
-      `With your lease ending in about 6 months, now is the perfect time to explore your options. ` +
-      (isBuyerCandidate
-        ? `Based on your financial profile, you're in a great position to consider purchasing. I've included a rent vs buy analysis and some properties that match what you're looking for.`
-        : `I've put together some properties for you to consider — both to buy and to rent. Take a look and let me know what interests you.`);
-
-  } else if (triggerName === 'lease_expiring_90d') {
-    // 90 days: Both sale AND rental options (including no-fee)
-    emailType = 'lease_90d';
-    const saleMatched = await matchListingsForClient(clientForMatch, { includeSale: true, includeRental: false, limit: 5 });
-    const rentalMatched = await matchListingsForClient(clientForMatch, { includeSale: false, includeRental: true, limit: 5 });
-    saleListings = saleMatched.map((m) => m.listing);
-    rentalListings = rentalMatched.map((m) => m.listing);
-
-    subject = `90 days until your lease ends — sale & rental options for you`;
-    personalMessage = `Hi ${lead.first_name},<br><br>` +
-      `Your lease is up in about 3 months. I've put together both purchase and rental options in your preferred areas — including no-fee rentals. ` +
-      `Take a look and let me know which direction feels right. Either way, I'm here to help you find the perfect next home.`;
-
-  } else if (triggerName === 'lease_expiring_30d') {
-    // 30 days: Urgency — both options + strong CTA
-    emailType = 'lease_30d';
-    const saleMatched = await matchListingsForClient(clientForMatch, { includeSale: true, includeRental: false, limit: 3 });
-    const rentalMatched = await matchListingsForClient(clientForMatch, { includeSale: false, includeRental: true, limit: 5 });
-    saleListings = saleMatched.map((m) => m.listing);
-    rentalListings = rentalMatched.map((m) => m.listing);
-
-    subject = `Your lease expires next month — let's secure your next home`;
-    personalMessage = `Hi ${lead.first_name},<br><br>` +
-      `Your lease ends in about 30 days. If you haven't made plans yet, here are your best options right now. ` +
-      `I can schedule showings this week — just let me know what catches your eye and I'll set everything up.`;
-
-  } else {
-    // Quarterly nurture
-    emailType = 'quarterly_nurture';
-    const isBuyer = lead.roles.includes('buyer');
-    const isRenter = lead.roles.includes('renter') || lead.roles.includes('tenant');
-    if (isBuyer) {
-      const matched = await matchListingsForClient(clientForMatch, { includeSale: true, includeRental: false, limit: 5 });
-      saleListings = matched.map((m) => m.listing);
-    }
-    if (isRenter) {
-      const matched = await matchListingsForClient(clientForMatch, { includeSale: false, includeRental: true, limit: 5 });
-      rentalListings = matched.map((m) => m.listing);
-    }
-
-    const quarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`;
-    subject = `${quarter} Market Update — ${prefs.neighborhoods.slice(0, 2).join(', ')}`;
-    personalMessage = `Hi ${lead.first_name},<br><br>` +
-      `Here's your quarterly market update for the areas you're interested in. ` +
-      `I've included a few listings that match what you were originally looking for — let me know if anything stands out.`;
-  }
-
-  await sendListingEmail({
-    recipientName: `${lead.first_name} ${lead.last_name}`,
-    recipientEmail: lead.email,
-    subject,
-    saleListings: saleListings.length > 0 ? saleListings : undefined,
-    rentalListings: rentalListings.length > 0 ? rentalListings : undefined,
-    rentVsBuy,
-    neighborhoodStats: saleData?.neighborhoodStats.slice(0, 5),
-    personalMessage,
-    emailType,
-    agent,
-  });
-
-  // Update last_contacted_at
-  await prisma.lead.update({
-    where: { id: leadId },
-    data: { last_contacted_at: new Date() },
-  });
-}
+// executeMarketIntelEmail removed during Phase 1 cleanup.
+// Full branded email send will be rebuilt inside the client workspace (Phase 5).
+// For now, lease/nurture triggers create agent notifications instead of sending emails.
 
 // ─── Notification Content ──────────────────────────────────
+// (moved up — the old executeMarketIntelEmail block between here and generateNotificationTitle was deleted)
+
 function generateNotificationTitle(context: Record<string, unknown>): string {
   const trigger = context.trigger as string || '';
   switch (trigger) {

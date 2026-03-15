@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { getMomentumTier } from '@/lib/momentum/scorer';
+function getMomentumTier(score: number): string {
+  if (score >= 80) return 'hot';
+  if (score >= 60) return 'warm';
+  if (score >= 40) return 'moderate';
+  return 'cool';
+}
 
 export const dynamic = 'force-dynamic';
 

@@ -1,7 +1,7 @@
 # Compliance Updates Log
 
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** Direct (mallan.nyc)
 
 ---
 
@@ -128,7 +128,7 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 | FARE Act fee fields | REBNY | TBD ("will take some time") | Rental forms — currently using PublicRemarks + MoveInCosts |
 | FARE Act Second Circuit ruling | Courts | TBD | Could modify or uphold FARE Act requirements |
 | RESO Building Resource | RESO | TBD | New building-level fields in feeds |
-| Official neighborhood picklist | REBNY/RealPlus | TBD | SubdivisionName validation |
+| Official neighborhood picklist | REBNY | TBD | SubdivisionName validation |
 | RESO DD 2.1 | RESO | TBD | Association Management + Offer Management |
 | RESO DD 2.2 | RESO | TBD | webp MediaType, High-Speed Internet fields |
 | RESO DD 3.0 | RESO | TBD | WaterBodyRestrictions fields |

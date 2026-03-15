@@ -1,6 +1,6 @@
 # Backend Validation Engine
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** Direct (mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
