@@ -70,6 +70,8 @@ export async function GET(req: NextRequest) {
           id: true,
           first_name: true,
           last_name: true,
+          email: true,
+          phone: true,
         },
       },
     },
@@ -100,6 +102,8 @@ export async function GET(req: NextRequest) {
         ? {
             id: a.lead.id.toString(),
             name: `${a.lead.first_name} ${a.lead.last_name}`,
+            email: a.lead.email,
+            phone: a.lead.phone,
           }
         : null,
     };

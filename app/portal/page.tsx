@@ -1238,14 +1238,11 @@ export default function PortalPage() {
                 <div className="space-y-3">
                   {offers.map((offer) => (
                     <div key={offer.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{offer.listing_address || 'Address Undisclosed'}</p>
                           {offer.list_price && (
                             <p className="text-brand-dark/85 text-xs mt-0.5">List Price: ${Number(offer.list_price).toLocaleString()}</p>
-                          )}
-                          {offer.from && (
-                            <p className="text-brand-dark/90 text-xs mt-0.5">From: {offer.from.name}</p>
                           )}
                         </div>
                         <div className="text-right flex-shrink-0">
@@ -1255,6 +1252,19 @@ export default function PortalPage() {
                           </p>
                         </div>
                       </div>
+                      {/* Full buyer info on offers */}
+                      {offer.from && (
+                        <div className="mt-3 bg-blue-50 rounded-xl p-3">
+                          <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-1">Buyer Information</p>
+                          <p className="text-sm font-medium text-brand-dark">{offer.from.name}</p>
+                          {(offer.from as any).email && (
+                            <p className="text-xs text-brand-dark/60 mt-0.5">{(offer.from as any).email}</p>
+                          )}
+                          {(offer.from as any).phone && (
+                            <p className="text-xs text-brand-dark/60">{(offer.from as any).phone}</p>
+                          )}
+                        </div>
+                      )}
                       {offer.comment && (
                         <p className="mt-2 text-sm text-brand-dark/90 bg-gray-50 rounded-xl px-3 py-2">{offer.comment}</p>
                       )}
