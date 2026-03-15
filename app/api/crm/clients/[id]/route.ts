@@ -57,6 +57,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
+  // Fetch recent activity logs
+  const activityLogs = await prisma.activityLog.findMany({
+    where: { lead_id: lead.id },
+    orderBy: { created_at: "desc" },
+    take: 10,
+  }).catch(() => []);
+
   return NextResponse.json({
     id: lead.id.toString(),
     first_name: lead.first_name,
@@ -65,11 +72,24 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     phone: lead.phone,
     roles: lead.roles,
     status: lead.status,
+    pipeline_stage: lead.pipeline_stage,
     portal_role: lead.portal_role,
     agent_id: lead.agent_id?.toString() ?? null,
     source: lead.source,
+    annual_income: lead.annual_income?.toString() ?? null,
+    credit_score_range: lead.credit_score_range,
+    pre_approved: lead.pre_approved,
+    pre_approved_amount: lead.pre_approved_amount?.toString() ?? null,
+    lease_end_date: lead.lease_end_date,
     created_at: lead.created_at,
     updated_at: lead.updated_at,
+    activity_logs: activityLogs.map((a) => ({
+      id: a.id.toString(),
+      activity_type: a.activity_type,
+      title: a.title,
+      detail: a.detail,
+      created_at: a.created_at,
+    })),
     preferences: lead.preferences
       ? {
           ...lead.preferences,

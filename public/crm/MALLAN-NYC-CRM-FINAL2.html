@@ -30104,49 +30104,99 @@
         } : {};
 
         window.openClientProfile = function(clientId) {
-            // Try API first, fall back to CLIENT_DATA for dev mock mode
             if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
                 MallanAPI.clients.get(clientId).then(function(c) {
-                    var name = c.first_name + ' ' + c.last_name;
+                    var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || 'Client';
                     var bg = '4F46E5';
                     var avatarEl = document.getElementById('cpAvatar');
                     var initials = name.split(' ').filter(Boolean).slice(0,2).map(function(p){ return p[0].toUpperCase(); }).join('');
                     avatarEl.textContent = initials || '--';
                     avatarEl.style.backgroundColor = '#' + bg;
+
+                    // ── Header ──
                     document.getElementById('cpName').textContent = name;
-                    document.getElementById('cpEmail').textContent = c.email;
-                    document.getElementById('cpPhone').textContent = c.phone;
-                    document.getElementById('cpType').textContent = c.portal_role || (c.roles && c.roles[0]) || 'Client';
-                    document.getElementById('cpStage').textContent = c.status;
+                    document.getElementById('cpEmail').textContent = c.email || '--';
+                    document.getElementById('cpPhone').textContent = c.phone || '--';
+                    var role = c.portal_role || (c.roles && c.roles[0]) || 'Client';
+                    document.getElementById('cpType').textContent = role.charAt(0).toUpperCase() + role.slice(1);
+                    document.getElementById('cpStage').textContent = c.pipeline_stage || c.status || 'New';
+
+                    // ── Stats ──
                     var actions = c.actions || [];
-                    document.getElementById('cpSent').textContent = actions.length;
-                    document.getElementById('cpToured').textContent = actions.filter(function(a) { return a.action === 'schedule'; }).length;
-                    document.getElementById('cpOffers').textContent = actions.filter(function(a) { return a.action === 'offer'; }).length;
-                    document.getElementById('cpLiked').textContent = actions.filter(function(a) { return a.action === 'liked'; }).length;
-                    var daysSince = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 86400000);
+                    document.getElementById('cpSent').textContent = actions.length || '0';
+                    document.getElementById('cpToured').textContent = actions.filter(function(a) { return a.action === 'schedule'; }).length || '0';
+                    document.getElementById('cpOffers').textContent = actions.filter(function(a) { return a.action === 'offer'; }).length || '0';
+                    document.getElementById('cpLiked').textContent = actions.filter(function(a) { return a.action === 'liked'; }).length || '0';
+                    var daysSince = c.created_at ? Math.floor((Date.now() - new Date(c.created_at).getTime()) / 86400000) : 0;
                     document.getElementById('cpDays').textContent = daysSince;
-                    document.getElementById('cpInteractions').textContent = actions.length;
+                    document.getElementById('cpInteractions').textContent = actions.length || '0';
+
+                    // ── Overview: Contact Details ──
+                    var _s = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val || '--'; };
+                    _s('cpDetailName', name);
+                    _s('cpDetailEmail', c.email);
+                    _s('cpDetailPhone', c.phone);
+                    _s('cpDetailSource', c.source ? c.source.charAt(0).toUpperCase() + c.source.slice(1) : '--');
+                    _s('cpDetailAdded', c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '--');
+                    _s('cpAssignedAgent', 'Maya Allan');
+
+                    // ── Overview: Financial Profile ──
+                    var prefs = c.preferences || {};
+                    if (prefs.min_price || prefs.max_price) {
+                        var fmt = function(v) { return '$' + Number(v).toLocaleString(); };
+                        var budgetStr = '';
+                        if (prefs.min_price && prefs.max_price) budgetStr = fmt(prefs.min_price) + ' – ' + fmt(prefs.max_price);
+                        else if (prefs.max_price) budgetStr = 'Up to ' + fmt(prefs.max_price);
+                        else budgetStr = fmt(prefs.min_price) + '+';
+                        _s('cpBudgetRange', budgetStr);
+                    }
+                    _s('cpPreApproval', c.pre_approved ? 'Yes' + (c.pre_approved_amount ? ' — $' + Number(c.pre_approved_amount).toLocaleString() : '') : 'Not yet');
+                    _s('cpLender', c.lender || '--');
+                    _s('cpDownPayment', '--');
+                    _s('cpFinancingType', '--');
+                    _s('cpPreApprovalExpires', '--');
+                    if (c.annual_income) _s('cpBudgetRange', '$' + Number(c.annual_income).toLocaleString() + '/yr income');
+
+                    // ── Overview: Recent Activity ──
+                    var actEl = document.getElementById('cpRecentActivity');
+                    if (actEl) {
+                        if (c.activity_logs && c.activity_logs.length > 0) {
+                            actEl.innerHTML = c.activity_logs.slice(0, 5).map(function(a) {
+                                return '<div class="flex items-start gap-2 text-sm py-2 border-b border-gray-50">' +
+                                    '<i class="fas fa-circle text-xs text-blue-400 mt-1.5"></i>' +
+                                    '<div><p class="text-gray-700">' + (a.title || a.detail || 'Activity') + '</p>' +
+                                    '<p class="text-xs text-gray-400">' + (a.created_at ? new Date(a.created_at).toLocaleDateString() : '') + '</p></div></div>';
+                            }).join('');
+                        } else {
+                            actEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No activity yet.</p>';
+                        }
+                    }
+
+                    // ── Search Criteria tab ──
+                    if (prefs) {
+                        _s('cpCritType', (prefs.property_types || []).join(', ') || '--');
+                        _s('cpCritBeds', prefs.min_beds ? prefs.min_beds + '+' : '--');
+                        _s('cpCritBaths', prefs.min_baths ? prefs.min_baths + '+' : '--');
+                        var priceRange = '--';
+                        if (prefs.min_price || prefs.max_price) {
+                            var fmt2 = function(v) { return '$' + Number(v).toLocaleString(); };
+                            if (prefs.min_price && prefs.max_price) priceRange = fmt2(prefs.min_price) + ' – ' + fmt2(prefs.max_price);
+                            else if (prefs.max_price) priceRange = 'Up to ' + fmt2(prefs.max_price);
+                            else priceRange = fmt2(prefs.min_price) + '+';
+                        }
+                        _s('cpCritPrice', priceRange);
+                        _s('cpCritNeighborhoods', (prefs.neighborhoods || []).join(', ') || '--');
+                    }
+
+                    // ── Sent Listings ──
+                    cpRenderSentListings(actions);
+
                     window._currentClientId = clientId;
                     window._currentClientData = c;
-
-                    // Populate Sent Listings with rich cards
-                    cpRenderSentListings(c.actions || []);
-
-                    // Populate financial details if available
-                    if (c.pipeline_stage) document.getElementById('cpStage').textContent = c.pipeline_stage;
-                    if (c.pre_approved) {
-                        var preEl = document.getElementById('cpPreApproval');
-                        if (preEl) preEl.textContent = 'Yes' + (c.pre_approved_amount ? ' — $' + Number(c.pre_approved_amount).toLocaleString() : '');
-                    }
-                    if (c.annual_income) {
-                        var budgetEl = document.getElementById('cpBudgetRange');
-                        if (budgetEl && budgetEl.textContent === '--') budgetEl.textContent = '$' + Number(c.annual_income).toLocaleString() + '/yr';
-                    }
-
                     switchClientTab('overview', document.querySelector('.client-tab-btn'));
                     showTab('client-profile');
-                }).catch(function() {
-                    // Fallback to local data
+                }).catch(function(err) {
+                    console.error('Failed to load client:', err);
                     _openClientProfileLocal(clientId);
                 });
             } else {
