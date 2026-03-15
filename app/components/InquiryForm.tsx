@@ -57,6 +57,10 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
 
       setIsSubmitted(true);
       trackInquiry(listingId ?? null, 'contact');
+      // Fire intent event for buyer tracking
+      window.dispatchEvent(new CustomEvent('mallan:intent', {
+        detail: { type: 'inquiry_submit', listing_id: listingId }
+      }));
     } catch {
       setError('Failed to submit inquiry. Please try again or call us at (646) 258-4460.');
     } finally {

@@ -41,6 +41,10 @@ export default function FavoriteButton({ listing, size = 'sm', className = '' }:
         e.preventDefault();
         e.stopPropagation();
         toggleFavorite(entry);
+        // Fire intent event for buyer tracking
+        window.dispatchEvent(new CustomEvent('mallan:intent', {
+          detail: { type: active ? 'favorite_remove' : 'favorite_add', listing_id: listing.id }
+        }));
         // Notify provider when adding (not removing)
         if (!active) {
           trackMicroCommitment('favorite', listing.id);
