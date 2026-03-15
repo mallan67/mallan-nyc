@@ -1378,85 +1378,11 @@
                     </div>
                     <div class="sidebar-section-body" style="max-height:500px">
 
-                        <!-- ═══ MARKET INTELLIGENCE ═══ -->
-                        <div>
-                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-chart-line text-xs text-blue-500 mr-1"></i> Market Intelligence</span>
-                                <i class="fas fa-chevron-right parent-chevron"></i>
-                            </button>
-                            <div class="sidebar-children">
-                                <button onclick="showTab('market-report-builder'); initMarketReportBuilder();" class="sidebar-child sidebar-link"><i class="fas fa-magic text-xs text-amber-500 mr-1"></i> AI Report Builder</button>
-                                <button onclick="showTab('market-pulse'); initMarketPulse();" class="sidebar-child sidebar-link">Market Pulse</button>
-                                <button onclick="showTab('market-liquidity'); initMarketLiquidity();" class="sidebar-child sidebar-link">Liquidity Index</button>
-                                <button onclick="showTab('neighborhood-sentiment'); initNeighborhoodSentiment();" class="sidebar-child sidebar-link">Neighborhood Sentiment</button>
-                                <button onclick="showTab('market-alerts'); initMarketAlerts();" class="sidebar-child sidebar-link">Market Alerts</button>
-                                <button onclick="showTab('demand-heatmap'); initDemandHeatmap();" class="sidebar-child sidebar-link">Demand Heatmap</button>
-                            </div>
-                        </div>
-
-                        <!-- ═══ LISTING ANALYTICS ═══ -->
-                        <div>
-                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-home text-xs text-green-500 mr-1"></i> Listing Analytics</span>
-                                <i class="fas fa-chevron-right parent-chevron"></i>
-                            </button>
-                            <div class="sidebar-children">
-                                <button onclick="showTab('transaction-probability'); initTransactionProbability();" class="sidebar-child sidebar-link">Transaction Probability</button>
-                                <button onclick="showTab('property-liquidity'); initPropertyLiquidity();" class="sidebar-child sidebar-link">Property Liquidity</button>
-                                <button onclick="showTab('pricing-experiments'); initPricingExperiments();" class="sidebar-child sidebar-link">Pricing Experiments</button>
-                                <button onclick="showTab('offer-intelligence'); initOfferIntelligence();" class="sidebar-child sidebar-link">Offer Intelligence</button>
-                                <button onclick="showTab('public-records-lookup'); initPublicRecords();" class="sidebar-child sidebar-link">Property Records (ACRIS/DOB)</button>
-                                <button onclick="showTab('building-risk'); initBuildingRisk();" class="sidebar-child sidebar-link">Building Risk</button>
-                                <button onclick="showTab('renovation-estimator'); initRenovationEstimator();" class="sidebar-child sidebar-link">Renovation Estimator</button>
-                                <button onclick="showTab('investment-analyzer'); initInvestmentAnalyzer();" class="sidebar-child sidebar-link">Investment Analyzer</button>
-                            </div>
-                        </div>
-
-                        <!-- ═══ BUYER & SELLER INTELLIGENCE ═══ -->
-                        <div>
-                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-users text-xs text-purple-500 mr-1"></i> Buyer &amp; Seller Intel</span>
-                                <i class="fas fa-chevron-right parent-chevron"></i>
-                            </button>
-                            <div class="sidebar-children">
-                                <button onclick="showTab('buyer-demand-exchange'); initBuyerDemandExchange();" class="sidebar-child sidebar-link">Buyer Demand Exchange</button>
-                                <button onclick="showTab('buyer-clusters'); initBuyerClusters();" class="sidebar-child sidebar-link">Buyer Clusters</button>
-                                <button onclick="showTab('buyer-intent'); initBuyerIntent();" class="sidebar-child sidebar-link">Buyer Intent</button>
-                                <button onclick="showTab('lifestyle-match'); initLifestyleMatch();" class="sidebar-child sidebar-link">Lifestyle Match</button>
-                                <button onclick="showTab('premarket-inventory'); initPremarketInventory();" class="sidebar-child sidebar-link">Pre-Market Inventory</button>
-                                <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-child sidebar-link">Seller Readiness</button>
-                            </div>
-                        </div>
-
-                        <!-- ═══ AGENT TOOLS ═══ -->
-                        <div>
-                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-toolbox text-xs text-amber-500 mr-1"></i> Agent Tools</span>
-                                <i class="fas fa-chevron-right parent-chevron"></i>
-                            </button>
-                            <div class="sidebar-children">
-                                <button onclick="showTab('agent-performance'); initAgentPerformance();" class="sidebar-child sidebar-link">Performance Index</button>
-                                <button onclick="showTab('showing-feedback'); initShowingFeedback();" class="sidebar-child sidebar-link">Showing Feedback</button>
-                                <button onclick="showTab('notification-center'); initNotificationCenter();" class="sidebar-child sidebar-link">Notifications</button>
-                                <button onclick="showTab('protected-periods'); initProtectedPeriods();" class="sidebar-child sidebar-link">Protected Periods</button>
-                            </div>
-                        </div>
-
-                        <!-- ═══ REPORTS & REFERENCE ═══ -->
-                        <div>
-                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-book text-xs text-gray-400 mr-1"></i> Reports &amp; Reference</span>
-                                <i class="fas fa-chevron-right parent-chevron"></i>
-                            </button>
-                            <div class="sidebar-children">
-                                <button onclick="showTab('market-activity')" class="sidebar-child sidebar-link">Market Activity</button>
-                                <button onclick="showTab('analytics-master')" class="sidebar-child sidebar-link">Market Analytics</button>
-                                <button onclick="showTab('analytics-deals')" class="sidebar-child sidebar-link">Deal Analytics</button>
-                                <button onclick="showTab('rebny-rules')" class="sidebar-child sidebar-link">REBNY Rules</button>
-                                <button onclick="showTab('knowledge-base')" class="sidebar-child sidebar-link">Knowledge Base</button>
-                                <button onclick="showTab('calculator')" class="sidebar-child sidebar-link">Payment Calculator</button>
-                            </div>
-                        </div>
+                        <!-- ═══ ALL TOOLS REMOVED FROM SIDEBAR ═══ -->
+                        <!-- Per rebuild spec: Market Intelligence, Listing Analytics, Buyer & Seller Intel, -->
+                        <!-- Agent Tools, and Reports & Reference are NO LONGER standalone sidebar sections. -->
+                        <!-- All tools now live INSIDE the client workspace — open a client to access them. -->
+                        <!-- Sidebar kept clean: Dashboard, Clients, Pipeline, Tasks, Listings, Deals, Docs. -->
                     </div>
                 </div>
 
