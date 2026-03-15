@@ -80,7 +80,18 @@ interface Preferences {
   notes: string | null;
 }
 
-type Tab = 'dashboard' | 'listings' | 'showings' | 'family' | 'preferences' | 'offers' | 'profile';
+type Tab = 'dashboard' | 'listings' | 'showings' | 'family' | 'preferences' | 'offers' | 'documents' | 'profile';
+
+interface PortalDocument {
+  id: string;
+  name: string;
+  doc_type: string;
+  status: string;
+  requires_signature: boolean;
+  file_url: string | null;
+  created_at: string;
+  signatures: { id: string; signer_name: string; signer_role: string; status: string; signed_at: string | null }[];
+}
 
 interface SellerFomo {
   momentum: { score: number; tier: string; percentileRank: number } | null;
@@ -124,6 +135,10 @@ export default function PortalPage() {
   const [familyLoading, setFamilyLoading] = useState(false);
   const [offersLoading, setOffersLoading] = useState(false);
   const [prefsLoading, setPrefsLoading] = useState(false);
+
+  // Documents state
+  const [documents, setDocuments] = useState<PortalDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   // Seller dashboard state
   const [sellerFomo, setSellerFomo] = useState<SellerFomo | null>(null);
@@ -231,6 +246,15 @@ export default function PortalPage() {
       .finally(() => setOffersLoading(false));
   }, []);
 
+  const fetchDocuments = useCallback(() => {
+    setDocumentsLoading(true);
+    fetch('/api/portal/documents')
+      .then((r) => r.json())
+      .then((data) => setDocuments(data.documents || []))
+      .catch(() => {})
+      .finally(() => setDocumentsLoading(false));
+  }, []);
+
   const fetchDashboard = useCallback((listingId: string) => {
     setDashboardLoading(true);
     Promise.all([
@@ -261,7 +285,7 @@ export default function PortalPage() {
       fetchListings();
       fetchShowings();
       fetchFamily();
-      if (role === 'seller' || role === 'landlord') fetchOffers();
+      if (role === 'seller' || role === 'landlord') { fetchOffers(); fetchDocuments(); }
       if (role === 'buyer' || role === 'tenant') fetchPreferences();
     }
   }, [loading, user, role, fetchListings, fetchShowings, fetchFamily, fetchOffers, fetchPreferences]);
@@ -468,6 +492,7 @@ export default function PortalPage() {
     { id: 'listings', label: isBuyerOrTenant ? 'Listings' : 'My Properties' },
     { id: 'showings', label: 'Showings' },
     ...(isSellerOrLandlord ? [{ id: 'offers' as Tab, label: 'Offers' }] : []),
+    ...(isSellerOrLandlord ? [{ id: 'documents' as Tab, label: 'Documents' }] : []),
     ...(isBuyerOrTenant ? [{ id: 'preferences' as Tab, label: 'Preferences' }] : []),
     { id: 'family', label: 'Family' },
     { id: 'profile', label: 'Profile' },
@@ -546,8 +571,12 @@ export default function PortalPage() {
                   <svg className="w-14 h-14 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  <p className="text-brand-dark/90 mb-2">Dashboard data loading</p>
-                  <p className="text-brand-dark/85 text-sm">Performance data will appear once your listing is active.</p>
+                  <p className="text-brand-dark/90 mb-2">No listing data yet</p>
+                  <p className="text-brand-dark/85 text-sm">
+                    {listings.length === 0
+                      ? 'Your dashboard will come to life once your agent adds your listing. In the meantime, explore the other tabs.'
+                      : 'Performance data will appear once your listing receives buyer activity.'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-5">
@@ -932,22 +961,85 @@ export default function PortalPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {showings.map((showing) => (
-                    <div key={showing.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{showing.listing?.address || 'Address Undisclosed'}</p>
-                        <p className="text-brand-dark/85 text-xs mt-1">
-                          {new Date(showing.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                          {showing.time ? ` at ${showing.time}` : ''}{' — '}
-                          {showing.type === 'openhouse' ? 'Open House' : showing.type === 'virtual' ? 'Virtual' : 'Private'}
-                        </p>
+                <div className="space-y-4">
+                  {/* Open Houses section for sellers */}
+                  {isSellerOrLandlord && showings.some((s: any) => s.type === 'openhouse') && (
+                    <div>
+                      <h3 className="text-xs font-bold text-brand-dark/50 uppercase tracking-widest mb-2">Open Houses</h3>
+                      <div className="space-y-2">
+                        {showings.filter((s: any) => s.type === 'openhouse').map((showing: any) => (
+                          <div key={showing.id} className="bg-amber-50 rounded-2xl ring-1 ring-amber-200 p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-sm text-amber-900">
+                                  {new Date(showing.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                  {showing.time ? ` at ${showing.time}` : ''}
+                                </p>
+                                <p className="text-xs text-amber-700 mt-0.5">{showing.listing?.address || 'Your Property'}</p>
+                              </div>
+                              <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${statusColors[showing.status] || 'bg-gray-50 text-gray-700'}`}>
+                                {showing.status.charAt(0).toUpperCase() + showing.status.slice(1)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${statusColors[showing.status] || 'bg-gray-50 text-gray-700'}`}>
-                        {showing.status.charAt(0).toUpperCase() + showing.status.slice(1)}
-                      </span>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Private Showings */}
+                  <div>
+                    {isSellerOrLandlord && showings.some((s: any) => s.type === 'openhouse') && (
+                      <h3 className="text-xs font-bold text-brand-dark/50 uppercase tracking-widest mb-2">Private Showings</h3>
+                    )}
+                    <div className="space-y-2">
+                      {showings.filter((s: any) => !isSellerOrLandlord || s.type !== 'openhouse').map((showing: any) => (
+                        <div key={showing.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{showing.listing?.address || 'Address Undisclosed'}</p>
+                              <p className="text-brand-dark/85 text-xs mt-1">
+                                {new Date(showing.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                {showing.time ? ` at ${showing.time}` : ''}{' — '}
+                                {showing.type === 'openhouse' ? 'Open House' : showing.type === 'virtual' ? 'Virtual Tour' : 'Private Showing'}
+                              </p>
+                              {/* Seller-specific: show agent and buyer */}
+                              {isSellerOrLandlord && (showing.agent_name || showing.buyer_name) && (
+                                <p className="text-brand-dark/60 text-xs mt-1">
+                                  {showing.agent_name && <span>Agent: <span className="font-medium text-brand-dark/80">{showing.agent_name}</span></span>}
+                                  {showing.agent_name && showing.buyer_name && <span> &middot; </span>}
+                                  {showing.buyer_name && <span>Buyer: <span className="font-medium text-brand-dark/80">{showing.buyer_name}</span></span>}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {/* Seller-specific: interest level badge */}
+                              {isSellerOrLandlord && showing.feedback?.interest_level && (
+                                <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-wide ${
+                                  showing.feedback.interest_level === 'very_interested' ? 'bg-green-100 text-green-700' :
+                                  showing.feedback.interest_level === 'interested' ? 'bg-blue-100 text-blue-700' :
+                                  showing.feedback.interest_level === 'neutral' ? 'bg-gray-100 text-gray-600' :
+                                  'bg-red-100 text-red-600'
+                                }`}>
+                                  {showing.feedback.interest_level.replace('_', ' ')}
+                                </span>
+                              )}
+                              <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${statusColors[showing.status] || 'bg-gray-50 text-gray-700'}`}>
+                                {showing.status.charAt(0).toUpperCase() + showing.status.slice(1)}
+                              </span>
+                            </div>
+                          </div>
+                          {/* Seller-specific: feedback notes */}
+                          {isSellerOrLandlord && showing.feedback?.notes && (
+                            <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2">
+                              <p className="text-[10px] font-semibold text-brand-dark/50 uppercase mb-1">Buyer Feedback</p>
+                              <p className="text-xs text-brand-dark/80">{showing.feedback.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -994,6 +1086,107 @@ export default function PortalPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── DOCUMENTS TAB (Seller/Landlord only) ── */}
+          {activeTab === 'documents' && isSellerOrLandlord && (
+            <div>
+              {documentsLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-20" />)}</div>
+              ) : documents.length === 0 ? (
+                <div className="text-center py-16">
+                  <svg className="w-12 h-12 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-brand-dark/90 mb-2">No documents yet</p>
+                  <p className="text-brand-dark/85 text-sm">
+                    Your agent will share agreements, disclosures, and other documents here for your review and signature.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Group by type */}
+                  {['contract', 'disclosure', 'co_broke', 'rider', 'amendment', 'other'].map((docType) => {
+                    const docsOfType = documents.filter((d) => d.doc_type === docType);
+                    if (docsOfType.length === 0) return null;
+                    const typeLabels: Record<string, string> = {
+                      contract: 'Agreements & Contracts',
+                      disclosure: 'Disclosures',
+                      co_broke: 'Co-Brokerage Agreements',
+                      rider: 'Riders',
+                      amendment: 'Amendments',
+                      other: 'Other Documents',
+                    };
+                    return (
+                      <div key={docType}>
+                        <h3 className="text-xs font-bold text-brand-dark/50 uppercase tracking-widest mb-2">{typeLabels[docType] || docType}</h3>
+                        <div className="space-y-2">
+                          {docsOfType.map((doc) => {
+                            const statusColors: Record<string, string> = {
+                              uploaded: 'bg-gray-100 text-gray-600',
+                              sent: 'bg-blue-50 text-blue-700',
+                              viewed: 'bg-amber-50 text-amber-700',
+                              signed: 'bg-green-50 text-green-700',
+                              countersigned: 'bg-purple-50 text-purple-700',
+                              expired: 'bg-red-50 text-red-600',
+                            };
+                            const needsAction = doc.requires_signature && doc.status !== 'signed' && doc.status !== 'countersigned';
+                            return (
+                              <div key={doc.id} className={`bg-white rounded-2xl ring-1 ${needsAction ? 'ring-amber-300 bg-amber-50/30' : 'ring-black/5'} p-4`}>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium text-sm truncate">{doc.name}</p>
+                                      {needsAction && (
+                                        <span className="inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-400 text-white uppercase">Action Required</span>
+                                      )}
+                                    </div>
+                                    <p className="text-brand-dark/50 text-xs mt-0.5">
+                                      {new Date(doc.created_at).toLocaleDateString()}
+                                      {doc.signatures.length > 0 && ` \u00B7 ${doc.signatures.filter((s) => s.status === 'signed').length}/${doc.signatures.length} signed`}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <span className={`inline-flex px-2.5 py-1 text-[10px] font-medium rounded-full ${statusColors[doc.status] || 'bg-gray-50 text-gray-700'}`}>
+                                      {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                                    </span>
+                                    {doc.file_url && (
+                                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                                        className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 rounded-full">
+                                        View
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Signature tracking */}
+                                {doc.signatures.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-black/5">
+                                    <p className="text-[10px] font-semibold text-brand-dark/40 uppercase mb-1.5">Signers</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {doc.signatures.map((sig) => (
+                                        <span key={sig.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] rounded-full ${
+                                          sig.status === 'signed' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                                        }`}>
+                                          {sig.status === 'signed' ? '\u2713' : '\u25CB'} {sig.signer_name} ({sig.signer_role})
+                                          {sig.signed_at && <span className="text-[9px] opacity-60">{new Date(sig.signed_at).toLocaleDateString()}</span>}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[10px] text-brand-dark/40 mt-4">
+                    Documents are uploaded by your agent. Contact your agent for questions about any disclosure or agreement.
+                  </p>
                 </div>
               )}
             </div>
