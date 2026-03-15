@@ -1834,13 +1834,14 @@
                                 <span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i> New York, NY</span>
                             </div>
                             <div class="flex items-center gap-2 mt-3 flex-wrap">
-                                <button class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"><i class="fas fa-envelope mr-1"></i> Email</button>
-                                <button class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700"><i class="fas fa-phone mr-1"></i> Call</button>
-                                <button class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-paper-plane mr-1"></i> Send Listings</button>
-                                <button class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-calendar mr-1"></i> Schedule</button>
+                                <button onclick="cpEmailClient()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"><i class="fas fa-envelope mr-1"></i> Email</button>
+                                <button onclick="cpCallClient()" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700"><i class="fas fa-phone mr-1"></i> Call</button>
+                                <button onclick="cpSendListings()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-paper-plane mr-1"></i> Send Listings</button>
+                                <button onclick="cpScheduleShowing()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-calendar mr-1"></i> Schedule</button>
                                 <button onclick="cpSendMarketReport()" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600"><i class="fas fa-chart-bar mr-1"></i> Market Report</button>
                                 <button onclick="cpAddTask()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-tasks mr-1"></i> Add Task</button>
-                                <button onclick="cpUpdateStage()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-arrow-right mr-1"></i> Move Stage</button>
+                                <button onclick="cpMoveStage()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-arrow-right mr-1"></i> Move Stage</button>
+                                <button onclick="cpEditClient()" class="px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-gray-50"><i class="fas fa-pen mr-1"></i> Edit</button>
                             </div>
                         </div>
                     </div>
@@ -30606,6 +30607,206 @@
                 if (currentEl) currentEl.textContent = next;
                 showToast('Moved to ' + next, 'success');
             }).catch(function() { showToast('Failed to update stage', 'error'); });
+        };
+
+        // ── Email Client ──
+        window.cpEmailClient = function() {
+            var c = window._currentClientData;
+            if (!c || !c.email) { showToast('No email address', 'error'); return; }
+            var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+            var subject = encodeURIComponent('Following up — ' + name);
+            var body = encodeURIComponent('Hi ' + (c.first_name || '') + ',\n\nI wanted to follow up on your property search.\n\nBest regards,\nMaya Allan\nMallan Real Estate Inc.\n646-258-4460');
+            window.open('mailto:' + c.email + '?subject=' + subject + '&body=' + body, '_self');
+        };
+
+        // ── Call Client ──
+        window.cpCallClient = function() {
+            var c = window._currentClientData;
+            if (!c || !c.phone || c.phone === '--' || c.phone === '') {
+                var phone = prompt('No phone number on file. Enter phone number to add:');
+                if (phone && phone.trim()) {
+                    MallanAPI._fetch('/api/crm/clients/' + window._currentClientId, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: phone.trim() })
+                    }).then(function() {
+                        document.getElementById('cpPhone').textContent = phone.trim();
+                        var detailPhone = document.getElementById('cpDetailPhone');
+                        if (detailPhone) detailPhone.textContent = phone.trim();
+                        window._currentClientData.phone = phone.trim();
+                        showToast('Phone saved: ' + phone.trim(), 'success');
+                        window.open('tel:' + phone.trim().replace(/[^0-9+]/g, ''));
+                    }).catch(function() { showToast('Failed to save phone', 'error'); });
+                }
+                return;
+            }
+            window.open('tel:' + c.phone.replace(/[^0-9+]/g, ''));
+        };
+
+        // ── Send Listings — find matching from Trestle and compose email ──
+        window.cpSendListings = function() {
+            var c = window._currentClientData;
+            if (!c) { showToast('No client loaded', 'error'); return; }
+            var prefs = c.preferences || {};
+            var neighborhoods = prefs.neighborhoods || [];
+
+            if (neighborhoods.length === 0) {
+                showToast('Set search criteria first (neighborhoods)', 'warning');
+                switchClientTab('search-criteria', document.querySelector('.client-tab-btn:nth-child(2)'));
+                return;
+            }
+
+            showToast('Finding matching listings...', 'info');
+            var listingType = (c.portal_role === 'tenant' || (c.roles && c.roles.indexOf('renter') >= 0)) ? 'rent' : 'sale';
+
+            MallanAPI._fetch('/api/crm/market-intelligence/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    listing_type: listingType,
+                    neighborhoods: neighborhoods,
+                    property_types: prefs.property_types || [],
+                    price_range: (prefs.min_price || prefs.max_price) ? { min: Number(prefs.min_price) || undefined, max: Number(prefs.max_price) || undefined } : undefined
+                })
+            }).then(function(res) {
+                if (!res.ok || !res.data) { showToast('No listings found', 'warning'); return; }
+                var listings = res.data.listings.new_listings.concat(res.data.listings.coming_soon || []).slice(0, 8);
+                if (listings.length === 0) { showToast('No matching listings in ' + neighborhoods.join(', '), 'info'); return; }
+
+                // Build email body with listings
+                var name = c.first_name || 'there';
+                var subject = encodeURIComponent('Properties for you in ' + neighborhoods.slice(0,2).join(' & '));
+                var body = 'Hi ' + name + ',\n\nI found ' + listings.length + ' properties that match your criteria in ' + neighborhoods.join(', ') + ':\n\n';
+                listings.forEach(function(l, i) {
+                    var addr = (l.StreetNumber || '') + ' ' + (l.StreetName || '') + (l.UnitNumber ? ' #' + l.UnitNumber : '');
+                    var price = listingType === 'rent' ? '$' + Number(l.ListPrice).toLocaleString() + '/mo' : '$' + Number(l.ListPrice).toLocaleString();
+                    body += (i+1) + '. ' + addr.trim() + ' — ' + price + '\n';
+                    body += '   ' + (l.BedroomsTotal || 0) + ' bed / ' + (l.BathroomsFull || 0) + ' bath';
+                    if (l.LivingArea) body += ' / ' + Number(l.LivingArea).toLocaleString() + ' sqft';
+                    body += ' — ' + (l.MLSAreaMajor || '') + '\n';
+                    body += '   https://mallan.nyc/listings/' + l.ListingId + '\n\n';
+                });
+                body += 'Let me know which ones interest you and I will schedule showings.\n\nBest regards,\nMaya Allan\nMallan Real Estate Inc.\n646-258-4460';
+
+                window.open('mailto:' + c.email + '?subject=' + subject + '&body=' + encodeURIComponent(body), '_self');
+                showToast(listings.length + ' listings ready to send', 'success');
+            }).catch(function(err) {
+                showToast('Failed to find listings: ' + err.message, 'error');
+            });
+        };
+
+        // ── Schedule Showing ──
+        window.cpScheduleShowing = function() {
+            var c = window._currentClientData;
+            if (!c) { showToast('No client loaded', 'error'); return; }
+            var date = prompt('Showing date (YYYY-MM-DD):');
+            if (!date) return;
+            var time = prompt('Time (e.g., 2:00 PM):');
+            var notes = prompt('Notes (optional):') || '';
+
+            MallanAPI._fetch('/api/crm/showings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lead_id: window._currentClientId,
+                    date: date,
+                    time: time || null,
+                    type: 'private',
+                    status: 'requested',
+                    notes: notes
+                })
+            }).then(function(res) {
+                if (res.error) { showToast('Failed: ' + res.error, 'error'); return; }
+                showToast('Showing scheduled for ' + date, 'success');
+            }).catch(function() { showToast('Failed to schedule', 'error'); });
+        };
+
+        // ── Move Stage (alias for cpUpdateStage) ──
+        window.cpMoveStage = window.cpUpdateStage;
+
+        // ── Edit Client (inline) ──
+        window.cpEditClient = function() {
+            var c = window._currentClientData;
+            if (!c) { showToast('No client loaded', 'error'); return; }
+            var clientId = window._currentClientId;
+
+            // Build simple edit form
+            var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+            var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;" id="cpEditModal" onclick="if(event.target===this)this.remove()">';
+            html += '<div style="background:white;border-radius:12px;padding:24px;width:500px;max-height:80vh;overflow-y:auto;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+            html += '<h3 style="font-size:16px;font-weight:700;">Edit Client</h3>';
+            html += '<button onclick="document.getElementById(\'cpEditModal\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;">&times;</button>';
+            html += '</div>';
+            html += '<div style="display:grid;gap:12px;">';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">First Name</label><input id="ceFirstName" value="' + (c.first_name || '') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Last Name</label><input id="ceLastName" value="' + (c.last_name || '') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Phone</label><input id="cePhone" value="' + (c.phone || '') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;" placeholder="(917) 555-1234"></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Type</label><select id="ceType" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;">';
+            ['buyer','renter','seller','landlord'].forEach(function(t) { html += '<option value="' + t + '"' + (c.portal_role === t ? ' selected' : '') + '>' + t.charAt(0).toUpperCase() + t.slice(1) + '</option>'; });
+            html += '</select></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Pipeline Stage</label><select id="ceStage" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;">';
+            ['new','contacted','nurturing','active','showing','offer','deal','closed','past'].forEach(function(s) { html += '<option value="' + s + '"' + (c.pipeline_stage === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>'; });
+            html += '</select></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Neighborhoods (comma-separated)</label><input id="ceNeighborhoods" value="' + ((c.preferences && c.preferences.neighborhoods) || []).join(', ') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;" placeholder="Upper West Side, Lincoln Square"></div>';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Min Budget</label><input id="ceMinPrice" value="' + ((c.preferences && c.preferences.min_price) || '') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;" placeholder="500000"></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Max Budget</label><input id="ceMaxPrice" value="' + ((c.preferences && c.preferences.max_price) || '') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;" placeholder="2000000"></div></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Lease End Date (tenants)</label><input id="ceLeaseEnd" type="date" value="' + (c.lease_end_date ? c.lease_end_date.split('T')[0] : '') + '" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"></div>';
+            html += '<div><label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Notes</label><textarea id="ceNotes" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;height:60px;resize:none;" placeholder="Agent notes..."></textarea></div>';
+            html += '</div>';
+            html += '<div style="display:flex;gap:8px;margin-top:16px;">';
+            html += '<button onclick="document.getElementById(\'cpEditModal\').remove()" style="flex:1;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>';
+            html += '<button onclick="cpSaveEdit()" style="flex:1;padding:10px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Save Changes</button>';
+            html += '</div></div></div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+        };
+
+        window.cpSaveEdit = function() {
+            var clientId = window._currentClientId;
+            if (!clientId) return;
+            var firstName = document.getElementById('ceFirstName').value.trim();
+            var lastName = document.getElementById('ceLastName').value.trim();
+            var phone = document.getElementById('cePhone').value.trim();
+            var type = document.getElementById('ceType').value;
+            var stage = document.getElementById('ceStage').value;
+            var neighborhoods = document.getElementById('ceNeighborhoods').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+            var minPrice = document.getElementById('ceMinPrice').value.replace(/[^0-9]/g, '') || null;
+            var maxPrice = document.getElementById('ceMaxPrice').value.replace(/[^0-9]/g, '') || null;
+            var leaseEnd = document.getElementById('ceLeaseEnd').value || null;
+
+            // Update client
+            MallanAPI._fetch('/api/crm/clients/' + clientId, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name: firstName,
+                    last_name: lastName,
+                    phone: phone,
+                    portal_role: type,
+                    roles: [type],
+                    pipeline_stage: stage,
+                    lease_end_date: leaseEnd
+                })
+            }).then(function(res) {
+                if (res.error) { showToast('Failed: ' + res.error, 'error'); return; }
+
+                // Update preferences
+                fetch('/api/crm/clients/' + clientId + '/preferences', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        neighborhoods: neighborhoods,
+                        min_price: minPrice ? parseInt(minPrice) : null,
+                        max_price: maxPrice ? parseInt(maxPrice) : null
+                    })
+                }).catch(function() {});
+
+                // Refresh UI
+                document.getElementById('cpEditModal').remove();
+                showToast('Client updated', 'success');
+                openClientProfile(clientId); // Reload profile
+            }).catch(function(err) { showToast('Failed: ' + err.message, 'error'); });
         };
 
         // ──────────────────────────────────────
