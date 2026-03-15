@@ -1,18 +1,22 @@
 /**
  * Market Liquidity Index — CRM Module
- * Measure how easy it is to buy/sell in a neighborhood.
+ * Now powered by /api/crm/market-intelligence/query (live Trestle data).
  */
-/* global MallanAPI, showToast */
+/* global MallanAPI */
 
 async function initMarketLiquidity() {
   var c = document.getElementById('market-liquidity');
   if (!c) return;
-  c.innerHTML = '<div style="padding:24px;color:#6b7280;">Loading liquidity data...</div>';
+  c.innerHTML = '<div style="padding:24px;color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> Computing liquidity from live RLS data...</div>';
 
   try {
-    var res = await MallanAPI._fetch('/api/crm/market-liquidity?type=sale');
-    if (!res.ok) { c.innerHTML = '<div style="padding:24px;color:#dc2626;">Failed to load.</div>'; return; }
-    renderMarketLiquidity(c, res.neighborhoods || []);
+    var res = await MallanAPI._fetch('/api/crm/market-intelligence/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_type: 'sale' })
+    });
+    if (!res.ok) throw new Error(res.error);
+    renderMarketLiquidity(c, res.data.liquidity || [], res.data.disclaimer);
   } catch (e) {
     c.innerHTML = '<div style="padding:24px;color:#dc2626;">Failed to load liquidity data.</div>';
   }
@@ -25,20 +29,19 @@ function liqColor(idx) {
   return '#ef4444';
 }
 
-function renderMarketLiquidity(container, neighborhoods) {
+function renderMarketLiquidity(container, neighborhoods, disclaimer) {
   if (neighborhoods.length === 0) {
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">No market data available yet. Data populates from monthly Market Pulse cron.</div>';
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">No liquidity data available. Try refreshing.</div>';
     return;
   }
 
   var rows = neighborhoods.map(function(n) {
     var barWidth = Math.round(n.index * 100);
     var color = liqColor(n.index);
-    var comps = (n.components || []).map(function(c) {
-      return c.name + ': ' + c.detail;
-    }).join(' | ');
+    var comps = n.components || {};
+    var detail = 'DOM: ' + (comps.absorptionSpeed?.value || '-') + ' | Inventory: ' + (comps.inventoryLevel?.value || '-') + ' | New: ' + (comps.supplyTrend?.value || '-');
 
-    return '<tr style="border-top:1px solid #f3f4f6;" title="' + comps + '">' +
+    return '<tr style="border-top:1px solid #f3f4f6;" title="' + detail + '">' +
       '<td style="padding:10px 12px;font-size:13px;font-weight:600;">' + n.neighborhood + '</td>' +
       '<td style="padding:10px 12px;">' +
         '<div style="display:flex;align-items:center;gap:8px;">' +
@@ -49,35 +52,27 @@ function renderMarketLiquidity(container, neighborhoods) {
         '</div>' +
       '</td>' +
       '<td style="padding:10px 12px;font-size:12px;font-weight:600;color:' + color + ';">' + n.label + '</td>' +
-      '<td style="padding:10px 12px;font-size:12px;color:#6b7280;max-width:300px;">' + n.interpretation + '</td>' +
+      '<td style="padding:10px 12px;font-size:11px;color:#6b7280;max-width:300px;">' + n.interpretation + '</td>' +
     '</tr>';
   }).join('');
 
-  container.innerHTML = `
-    <div style="padding:20px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-      <h2 style="font-size:20px;font-weight:700;color:#111827;margin:0;">Market Liquidity Index</h2>
-      <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">How easy it is to buy or sell in each neighborhood (1.0 = highly liquid)</p>
-    </div>
-    <div style="padding:16px 24px;">
-      <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f9fafb;">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Neighborhood</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;width:200px;">Index</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Level</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Interpretation</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <p style="margin-top:12px;font-size:11px;color:#9ca3af;">
-        <i class="fas fa-info-circle" style="margin-right:4px;"></i>
-        Index combines absorption speed, inventory level, buyer demand, and supply trends. Hover rows for component details.
-      </p>
-    </div>
-  `;
+  container.innerHTML =
+    '<div style="padding:20px 24px;">' +
+      '<h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Market Liquidity Index</h3>' +
+      '<p style="font-size:12px;color:#6b7280;margin-bottom:16px;">How easy is it to buy or sell in each neighborhood? Scores from 0.00 (stagnant) to 1.00 (highly liquid).</p>' +
+    '</div>' +
+    '<div style="padding:0 24px 24px;overflow-x:auto;">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+        '<thead><tr style="background:#f8fafc;">' +
+          '<th style="padding:8px 12px;text-align:left;">Neighborhood</th>' +
+          '<th style="padding:8px 12px;text-align:left;min-width:200px;">Liquidity</th>' +
+          '<th style="padding:8px 12px;text-align:left;">Rating</th>' +
+          '<th style="padding:8px 12px;text-align:left;">Interpretation</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<p style="font-size:10px;color:#9ca3af;padding:0 24px 16px;line-height:1.5;">' + (disclaimer || '') + '</p>';
 }
 
 window.initMarketLiquidity = initMarketLiquidity;

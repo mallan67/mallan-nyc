@@ -1,123 +1,73 @@
 /**
- * Neighborhood Sentiment Index (#10) — CRM Module
- * Aggregates buyer sentiment from demand signals, search activity, and inventory.
- * Uses existing /api/crm/demand and /api/crm/market-pulse endpoints.
+ * Neighborhood Sentiment — CRM Module
+ * Now powered by /api/crm/market-intelligence/query (live Trestle data).
  */
 /* global MallanAPI */
 
 async function initNeighborhoodSentiment() {
   var c = document.getElementById('neighborhood-sentiment');
   if (!c) return;
-  c.innerHTML = '<div style="padding:24px;color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> Loading sentiment data...</div>';
+  c.innerHTML = '<div style="padding:24px;color:#6b7280;"><i class="fas fa-spinner fa-spin"></i> Analyzing neighborhood sentiment from live data...</div>';
 
   try {
-    var [demandRes, pulseRes] = await Promise.all([
-      MallanAPI._fetch('/api/crm/demand?limit=100'),
-      MallanAPI._fetch('/api/crm/market-pulse?limit=100')
-    ]);
-
-    var demands = demandRes.indices || demandRes.items || [];
-    var snapshots = pulseRes.snapshots || pulseRes.items || [];
-
-    // Build lookup from snapshots
-    var snapshotMap = {};
-    (snapshots).forEach(function(s) { snapshotMap[s.neighborhood] = s; });
-
-    // Compute sentiment per neighborhood
-    var sentiments = demands.map(function(d) {
-      var snap = snapshotMap[d.neighborhood] || {};
-      var demandScore = d.score || 0;
-      var trend = d.trend || 'stable';
-      var inventory = snap.inventory || 0;
-      var avgDom = snap.avg_dom || 60;
-
-      // Sentiment = demand strength + low inventory + fast absorption
-      var sentimentScore = 0;
-      sentimentScore += demandScore * 0.5; // 50% from demand
-      sentimentScore += Math.max(0, (100 - inventory)) * 0.25; // 25% from low inventory (capped)
-      sentimentScore += Math.max(0, (100 - avgDom)) * 0.25; // 25% from fast absorption
-
-      var label = sentimentScore >= 70 ? 'Very Positive' : sentimentScore >= 50 ? 'Positive' : sentimentScore >= 30 ? 'Neutral' : 'Negative';
-      var color = sentimentScore >= 70 ? '#059669' : sentimentScore >= 50 ? '#3b82f6' : sentimentScore >= 30 ? '#f59e0b' : '#ef4444';
-
-      var reasons = [];
-      if (demandScore >= 60) reasons.push('high buyer search activity');
-      else if (demandScore <= 25) reasons.push('low buyer interest');
-      if (inventory <= 30) reasons.push('low inventory');
-      else if (inventory >= 100) reasons.push('high inventory');
-      if (avgDom <= 30) reasons.push('fast absorption');
-      else if (avgDom >= 90) reasons.push('slow sales');
-      if (trend === 'up') reasons.push('demand trending up');
-      else if (trend === 'down') reasons.push('demand declining');
-
-      return {
-        neighborhood: d.neighborhood,
-        borough: d.borough || 'Manhattan',
-        score: Math.round(sentimentScore),
-        label: label,
-        color: color,
-        trend: trend,
-        reasons: reasons.length > 0 ? reasons : ['balanced market'],
-        demand: demandScore,
-        inventory: inventory,
-        avgDom: avgDom
-      };
-    }).sort(function(a, b) { return b.score - a.score; });
-
-    renderSentiment(c, sentiments);
+    var res = await MallanAPI._fetch('/api/crm/market-intelligence/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_type: 'sale' })
+    });
+    if (!res.ok) throw new Error(res.error);
+    renderSentiment(c, res.data.sentiment || [], res.data.disclaimer);
   } catch (e) {
     c.innerHTML = '<div style="padding:24px;color:#dc2626;">Failed to load sentiment data.</div>';
   }
 }
 
-function renderSentiment(container, sentiments) {
+function sentColor(label) {
+  if (label === 'Hot') return { bg: '#fef2f2', text: '#dc2626', badge: '#fee2e2' };
+  if (label === 'Warm') return { bg: '#fffbeb', text: '#d97706', badge: '#fef3c7' };
+  if (label === 'Neutral') return { bg: '#f9fafb', text: '#6b7280', badge: '#f3f4f6' };
+  if (label === 'Cool') return { bg: '#eff6ff', text: '#2563eb', badge: '#dbeafe' };
+  return { bg: '#f9fafb', text: '#6b7280', badge: '#f3f4f6' };
+}
+
+function renderSentiment(container, sentiments, disclaimer) {
   if (sentiments.length === 0) {
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">No demand data yet. Data populates from daily Demand Signals cron.</div>';
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">No sentiment data available. Try refreshing.</div>';
     return;
   }
 
-  var rows = sentiments.map(function(s) {
-    var trendIcon = s.trend === 'up' ? '<i class="fas fa-arrow-up" style="color:#059669;"></i>' :
-                    s.trend === 'down' ? '<i class="fas fa-arrow-down" style="color:#ef4444;"></i>' :
-                    '<i class="fas fa-minus" style="color:#9ca3af;"></i>';
-    return '<tr style="border-top:1px solid #f3f4f6;">' +
-      '<td style="padding:10px 12px;font-size:13px;font-weight:600;">' + s.neighborhood + '</td>' +
-      '<td style="padding:10px 12px;font-size:13px;color:#6b7280;">' + s.borough + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;">' +
-        '<span style="display:inline-block;width:36px;height:36px;border-radius:50%;background:' + s.color + ';color:white;font-weight:700;font-size:12px;line-height:36px;text-align:center;">' + s.score + '</span>' +
-      '</td>' +
-      '<td style="padding:10px 12px;font-size:13px;font-weight:600;color:' + s.color + ';">' + s.label + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;">' + trendIcon + '</td>' +
-      '<td style="padding:10px 12px;font-size:12px;color:#6b7280;">' + s.reasons.join(', ') + '</td>' +
-    '</tr>';
+  var sorted = sentiments.sort(function(a, b) { return b.score - a.score; });
+
+  var cards = sorted.map(function(s) {
+    var sc = sentColor(s.label);
+    var signals = (s.signals || []).map(function(sig) {
+      return '<span style="display:inline-block;padding:2px 8px;background:#f3f4f6;border-radius:4px;font-size:11px;color:#374151;margin:2px;">' + sig + '</span>';
+    }).join('');
+
+    return '<div style="background:' + sc.bg + ';border:1px solid #e5e7eb;border-radius:10px;padding:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+        '<span style="font-size:14px;font-weight:700;">' + s.neighborhood + '</span>' +
+        '<span style="padding:3px 10px;background:' + sc.badge + ';color:' + sc.text + ';border-radius:9999px;font-size:11px;font-weight:700;">' + s.label + ' (' + s.score + ')</span>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+        '<div style="flex:1;background:#e5e7eb;border-radius:9999px;height:6px;overflow:hidden;">' +
+          '<div style="background:' + sc.text + ';height:100%;width:' + s.score + '%;border-radius:9999px;"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#6b7280;">' + s.borough + '</div>' +
+      (signals ? '<div style="margin-top:8px;">' + signals + '</div>' : '') +
+    '</div>';
   }).join('');
 
-  container.innerHTML = `
-    <div style="padding:20px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-      <h2 style="font-size:20px;font-weight:700;color:#111827;margin:0;">Neighborhood Sentiment Index</h2>
-      <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Aggregate buyer sentiment from search activity, inventory levels, and absorption speed</p>
-    </div>
-    <div style="padding:16px 24px;">
-      <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f9fafb;">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Neighborhood</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Borough</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Score</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Sentiment</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Trend</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Key Factors</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <p style="margin-top:12px;font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px;">
-        <i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i><strong>Fair Housing:</strong> Sentiment scores reflect market activity data (search volume, inventory, absorption). They must not be used to steer buyers toward or away from neighborhoods based on any protected characteristic.
-      </p>
-    </div>
-  `;
+  container.innerHTML =
+    '<div style="padding:20px 24px;">' +
+      '<h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">Neighborhood Sentiment</h3>' +
+      '<p style="font-size:12px;color:#6b7280;margin-bottom:16px;">Market mood for each neighborhood based on inventory, absorption speed, price movements, and buyer activity.</p>' +
+    '</div>' +
+    '<div style="padding:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">' +
+      cards +
+    '</div>' +
+    '<p style="font-size:10px;color:#9ca3af;padding:0 24px 16px;line-height:1.5;">' + (disclaimer || '') + '</p>';
 }
 
 window.initNeighborhoodSentiment = initNeighborhoodSentiment;
