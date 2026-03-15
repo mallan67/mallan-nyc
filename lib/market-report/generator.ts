@@ -17,6 +17,7 @@ const anthropic = new Anthropic({
 export interface MarketReportInput {
   report_type: "sale" | "rent" | "both";
   property_types: string[];
+  borough?: string;
   neighborhoods?: string[];
   period?: string;
 }
@@ -73,6 +74,7 @@ const TYPE_FILTERS: Record<string, string> = {
 async function fetchTrestleStats(
   listingType: string,
   propertyType: string,
+  borough?: string,
   neighborhoods?: string[]
 ): Promise<MarketReportSection | null> {
   const typeFilter = TYPE_FILTERS[propertyType];
@@ -84,8 +86,15 @@ async function fetchTrestleStats(
 
   let filter = `${statusFilter} and (${typeFilter})`;
 
-  // Borough filter — Manhattan
-  filter += " and CountyOrParish eq 'New York'";
+  // Borough filter
+  if (borough) {
+    const boroughMap: Record<string, string> = {
+      'Manhattan': 'New York', 'Brooklyn': 'Kings', 'Queens': 'Queens',
+      'Bronx': 'Bronx', 'Staten Island': 'Richmond',
+    };
+    const county = boroughMap[borough] || borough;
+    filter += ` and CountyOrParish eq '${county}'`;
+  }
 
   // Neighborhood filter
   if (neighborhoods && neighborhoods.length > 0) {
@@ -298,13 +307,13 @@ export async function generateMarketReport(
 
   if (input.report_type === "sale" || input.report_type === "both") {
     for (const pt of propertyTypes) {
-      promises.push(fetchTrestleStats("sale", pt, input.neighborhoods));
+      promises.push(fetchTrestleStats("sale", pt, input.borough, input.neighborhoods));
     }
   }
 
   if (input.report_type === "rent" || input.report_type === "both") {
     for (const pt of propertyTypes) {
-      promises.push(fetchTrestleStats("rent", pt, input.neighborhoods));
+      promises.push(fetchTrestleStats("rent", pt, input.borough, input.neighborhoods));
     }
   }
 
@@ -314,8 +323,12 @@ export async function generateMarketReport(
   const narrative = await generateNarrative(sections, period);
   const totalListings = sections.reduce((s, sec) => s + sec.stats.active_count, 0);
 
+  const area = input.neighborhoods && input.neighborhoods.length > 0
+    ? input.neighborhoods.join(", ")
+    : input.borough || "Manhattan";
+
   return {
-    title: `Manhattan ${input.report_type === "rent" ? "Rental" : input.report_type === "both" ? "Sale & Rental" : "Sale"} Market Report`,
+    title: `${area} ${input.report_type === "rent" ? "Rental" : input.report_type === "both" ? "Sale & Rental" : "Sale"} Market Report`,
     period,
     generated_at: new Date().toISOString(),
     sections,

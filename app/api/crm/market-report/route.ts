@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     const {
       report_type = "both",
       property_types = ["Condo", "Co-op", "Condop", "Townhouse"],
+      borough,
       neighborhoods,
       period,
     } = body;
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
     const report = await generateMarketReport({
       report_type,
       property_types,
+      borough: borough || undefined,
       neighborhoods: neighborhoods || undefined,
       period: period || undefined,
     });
