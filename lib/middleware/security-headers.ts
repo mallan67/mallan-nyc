@@ -44,7 +44,7 @@ const CRM_CSP = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
   "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://tiles.openfreemap.org data:",
-  "img-src 'self' data: blob: https://*.trestle.com https://api.cotality.com https://*.r2.dev https://images.mallan.nyc https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://tiles.openfreemap.org",
+  "img-src 'self' data: blob: https://images.unsplash.com https://*.trestle.com https://api.cotality.com https://*.r2.dev https://images.mallan.nyc https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://tiles.openfreemap.org",
   "connect-src 'self' https://nominatim.openstreetmap.org https://api.mapbox.com https://*.basemaps.cartocdn.com https://tiles.openfreemap.org https://api.cotality.com",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
