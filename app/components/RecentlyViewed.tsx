@@ -20,9 +20,9 @@ export default function RecentlyViewed() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Check if user dismissed during this session
+    // Check if user dismissed (persists across refreshes)
     try {
-      if (sessionStorage.getItem('mallan_rv_dismissed') === '1') {
+      if (localStorage.getItem('mallan_rv_dismissed') === '1') {
         setDismissed(true);
         return;
       }
@@ -32,12 +32,16 @@ export default function RecentlyViewed() {
 
   const handleDismiss = () => {
     setDismissed(true);
-    try { sessionStorage.setItem('mallan_rv_dismissed', '1'); } catch { /* no-op */ }
+    try { localStorage.setItem('mallan_rv_dismissed', '1'); } catch { /* no-op */ }
   };
 
   const handleClear = () => {
-    try { localStorage.removeItem('mallan_recently_viewed'); } catch { /* no-op */ }
+    try {
+      localStorage.removeItem('mallan_recently_viewed');
+      localStorage.setItem('mallan_rv_dismissed', '1');
+    } catch { /* no-op */ }
     setItems([]);
+    setDismissed(true);
   };
 
   if (dismissed || items.length === 0) return null;
