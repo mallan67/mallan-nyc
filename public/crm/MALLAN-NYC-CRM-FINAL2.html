@@ -1378,122 +1378,82 @@
                     </div>
                     <div class="sidebar-section-body" style="max-height:500px">
 
-                        <!-- Market Activity (standalone) -->
-                        <button onclick="showTab('market-activity')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-chart-area text-xs text-gray-400"></i> Market Activity
-                        </button>
-                        <button onclick="showTab('market-report-builder'); initMarketReportBuilder();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-file-alt text-xs text-amber-500"></i> Market Report Builder
-                        </button>
-
-                        <!-- Reports (expandable) -->
+                        <!-- ═══ MARKET INTELLIGENCE ═══ -->
                         <div>
                             <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-chart-bar text-xs text-gray-400 mr-1"></i> Reports</span>
+                                <span><i class="fas fa-chart-line text-xs text-blue-500 mr-1"></i> Market Intelligence</span>
                                 <i class="fas fa-chevron-right parent-chevron"></i>
                             </button>
                             <div class="sidebar-children">
-                                <button onclick="showTab('analytics-master')" class="sidebar-child sidebar-link">Market Analytics</button>
-                                <button onclick="showTab('analytics-deals')" class="sidebar-child sidebar-link">Deal Analytics</button>
-                                <button onclick="showTab('analytics-customer')" class="sidebar-child sidebar-link">Customer Analytics</button>
-                                <button onclick="showTab('mortgage-rates')" class="sidebar-child sidebar-link">Mortgage Rates</button>
-                                <button onclick="showTab('calculator')" class="sidebar-child sidebar-link">Payment Calculator</button>
-                                <button onclick="showTab('building-permits')" class="sidebar-child sidebar-link">Building Permits</button>
-                                <button onclick="showTab('market-indices')" class="sidebar-child sidebar-link">S&amp;P / Russell / NASDAQ / Crypto</button>
+                                <button onclick="showTab('market-report-builder'); initMarketReportBuilder();" class="sidebar-child sidebar-link"><i class="fas fa-magic text-xs text-amber-500 mr-1"></i> AI Report Builder</button>
+                                <button onclick="showTab('market-pulse'); initMarketPulse();" class="sidebar-child sidebar-link">Market Pulse</button>
+                                <button onclick="showTab('market-liquidity'); initMarketLiquidity();" class="sidebar-child sidebar-link">Liquidity Index</button>
+                                <button onclick="showTab('neighborhood-sentiment'); initNeighborhoodSentiment();" class="sidebar-child sidebar-link">Neighborhood Sentiment</button>
+                                <button onclick="showTab('market-alerts'); initMarketAlerts();" class="sidebar-child sidebar-link">Market Alerts</button>
+                                <button onclick="showTab('demand-heatmap'); initDemandHeatmap();" class="sidebar-child sidebar-link">Demand Heatmap</button>
                             </div>
                         </div>
 
-                        <!-- Standalone items -->
-                        <button onclick="showTab('rebny-rules')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-gavel text-xs text-gray-400"></i> REBNY Rules
-                        </button>
-                        <button onclick="showTab('knowledge-base')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-book text-xs text-gray-400"></i> Knowledge Base
-                        </button>
-                        <button onclick="showTab('feedback')" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-comment-dots text-xs text-gray-400"></i> Feedback
-                        </button>
-
-                        <button onclick="showTab('transaction-probability'); initTransactionProbability();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-percentage text-xs text-gray-400"></i> Transaction Probability
-                        </button>
-                        <button onclick="showTab('market-liquidity'); initMarketLiquidity();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-water text-xs text-gray-400"></i> Market Liquidity
-                        </button>
-                        <button onclick="showTab('investment-analyzer'); initInvestmentAnalyzer();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-hand-holding-usd text-xs text-gray-400"></i> Investment Analyzer
-                        </button>
-                        <button onclick="showTab('neighborhood-sentiment'); initNeighborhoodSentiment();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-smile text-xs text-gray-400"></i> Neighborhood Sentiment
-                        </button>
-                        <button onclick="showTab('property-liquidity'); initPropertyLiquidity();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-tachometer-alt text-xs text-gray-400"></i> Property Liquidity
-                        </button>
-                        <button onclick="showTab('offer-intelligence'); initOfferIntelligence();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-gavel text-xs text-gray-400"></i> Offer Intelligence
-                        </button>
-                        <button onclick="showTab('renovation-estimator'); initRenovationEstimator();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-hammer text-xs text-gray-400"></i> Renovation Estimator
-                        </button>
-                        <button onclick="showTab('building-risk'); initBuildingRisk();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-building text-xs text-gray-400"></i> Building Risk
-                        </button>
-                        <button onclick="showTab('market-alerts'); initMarketAlerts();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-bolt text-xs text-gray-400"></i> Market Alerts
-                        </button>
-                        <button onclick="showTab('buyer-demand-exchange'); initBuyerDemandExchange();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-exchange-alt text-xs text-gray-400"></i> Buyer Demand Exchange
-                        </button>
-                        <button onclick="showTab('premarket-inventory'); initPremarketInventory();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-binoculars text-xs text-gray-400"></i> Pre-Market Inventory
-                        </button>
-                        <button onclick="showTab('buyer-clusters'); initBuyerClusters();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-project-diagram text-xs text-gray-400"></i> Buyer Clusters
-                        </button>
-                        <button onclick="showTab('lifestyle-match'); initLifestyleMatch();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-heart text-xs text-gray-400"></i> Lifestyle Match
-                        </button>
-                        <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-chart-line text-xs text-gray-400"></i> Seller Readiness
-                        </button>
-                        <button onclick="showTab('pricing-experiments'); initPricingExperiments();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-flask text-xs text-gray-400"></i> Pricing Experiments
-                        </button>
-                        <button onclick="showTab('demand-heatmap'); initDemandHeatmap();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-fire text-xs text-gray-400"></i> Demand Heatmap
-                        </button>
-                        <button onclick="showTab('buyer-intent'); initBuyerIntent();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-bullseye text-xs text-gray-400"></i> Buyer Intent
-                        </button>
-                        <button onclick="showTab('agent-performance'); initAgentPerformance();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-trophy text-xs text-gray-400"></i> Agent Performance
-                        </button>
-                        <button onclick="showTab('showing-feedback'); initShowingFeedback();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-comment-dots text-xs text-gray-400"></i> Showing Feedback
-                        </button>
-                        <button onclick="showTab('notification-center'); initNotificationCenter();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-bell text-xs text-gray-400"></i> Notifications
-                        </button>
-                        <button onclick="showTab('market-pulse'); initMarketPulse();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-chart-line text-xs text-gray-400"></i> Market Pulse
-                        </button>
-                        <button onclick="showTab('protected-periods'); initProtectedPeriods();" class="sidebar-link w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm text-left">
-                            <i class="fas fa-shield-alt text-xs text-gray-400"></i> Protected Periods
-                        </button>
-
-                        <div class="sidebar-divider" style="margin:4px 12px"></div>
-
-                        <!-- Marketing Hub (expandable) -->
+                        <!-- ═══ LISTING ANALYTICS ═══ -->
                         <div>
                             <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
-                                <span><i class="fas fa-bullhorn text-xs text-gray-400 mr-1"></i> Marketing Hub</span>
+                                <span><i class="fas fa-home text-xs text-green-500 mr-1"></i> Listing Analytics</span>
                                 <i class="fas fa-chevron-right parent-chevron"></i>
                             </button>
                             <div class="sidebar-children">
-                                <button onclick="showTab('marketing-hub'); showMarketingSubTab('mkt-campaigns');" class="sidebar-child sidebar-link">Campaigns</button>
-                                <button onclick="showTab('marketing-hub'); showMarketingSubTab('mkt-social');" class="sidebar-child sidebar-link">Social Media</button>
-                                <button onclick="showTab('marketing-hub'); showMarketingSubTab('mkt-lead-magnets');" class="sidebar-child sidebar-link">Lead Magnets</button>
-                                <button onclick="showTab('marketing-hub'); showMarketingSubTab('mkt-performance');" class="sidebar-child sidebar-link">Performance</button>
+                                <button onclick="showTab('transaction-probability'); initTransactionProbability();" class="sidebar-child sidebar-link">Transaction Probability</button>
+                                <button onclick="showTab('property-liquidity'); initPropertyLiquidity();" class="sidebar-child sidebar-link">Property Liquidity</button>
+                                <button onclick="showTab('pricing-experiments'); initPricingExperiments();" class="sidebar-child sidebar-link">Pricing Experiments</button>
+                                <button onclick="showTab('offer-intelligence'); initOfferIntelligence();" class="sidebar-child sidebar-link">Offer Intelligence</button>
+                                <button onclick="showTab('building-risk'); initBuildingRisk();" class="sidebar-child sidebar-link">Building Risk</button>
+                                <button onclick="showTab('renovation-estimator'); initRenovationEstimator();" class="sidebar-child sidebar-link">Renovation Estimator</button>
+                                <button onclick="showTab('investment-analyzer'); initInvestmentAnalyzer();" class="sidebar-child sidebar-link">Investment Analyzer</button>
+                            </div>
+                        </div>
+
+                        <!-- ═══ BUYER & SELLER INTELLIGENCE ═══ -->
+                        <div>
+                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
+                                <span><i class="fas fa-users text-xs text-purple-500 mr-1"></i> Buyer &amp; Seller Intel</span>
+                                <i class="fas fa-chevron-right parent-chevron"></i>
+                            </button>
+                            <div class="sidebar-children">
+                                <button onclick="showTab('buyer-demand-exchange'); initBuyerDemandExchange();" class="sidebar-child sidebar-link">Buyer Demand Exchange</button>
+                                <button onclick="showTab('buyer-clusters'); initBuyerClusters();" class="sidebar-child sidebar-link">Buyer Clusters</button>
+                                <button onclick="showTab('buyer-intent'); initBuyerIntent();" class="sidebar-child sidebar-link">Buyer Intent</button>
+                                <button onclick="showTab('lifestyle-match'); initLifestyleMatch();" class="sidebar-child sidebar-link">Lifestyle Match</button>
+                                <button onclick="showTab('premarket-inventory'); initPremarketInventory();" class="sidebar-child sidebar-link">Pre-Market Inventory</button>
+                                <button onclick="showTab('seller-outreach'); initSellerOutreach();" class="sidebar-child sidebar-link">Seller Readiness</button>
+                            </div>
+                        </div>
+
+                        <!-- ═══ AGENT TOOLS ═══ -->
+                        <div>
+                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
+                                <span><i class="fas fa-toolbox text-xs text-amber-500 mr-1"></i> Agent Tools</span>
+                                <i class="fas fa-chevron-right parent-chevron"></i>
+                            </button>
+                            <div class="sidebar-children">
+                                <button onclick="showTab('agent-performance'); initAgentPerformance();" class="sidebar-child sidebar-link">Performance Index</button>
+                                <button onclick="showTab('showing-feedback'); initShowingFeedback();" class="sidebar-child sidebar-link">Showing Feedback</button>
+                                <button onclick="showTab('notification-center'); initNotificationCenter();" class="sidebar-child sidebar-link">Notifications</button>
+                                <button onclick="showTab('protected-periods'); initProtectedPeriods();" class="sidebar-child sidebar-link">Protected Periods</button>
+                            </div>
+                        </div>
+
+                        <!-- ═══ REPORTS & REFERENCE ═══ -->
+                        <div>
+                            <button class="sidebar-parent-btn" onclick="toggleSidebarParent(this)">
+                                <span><i class="fas fa-book text-xs text-gray-400 mr-1"></i> Reports &amp; Reference</span>
+                                <i class="fas fa-chevron-right parent-chevron"></i>
+                            </button>
+                            <div class="sidebar-children">
+                                <button onclick="showTab('market-activity')" class="sidebar-child sidebar-link">Market Activity</button>
+                                <button onclick="showTab('analytics-master')" class="sidebar-child sidebar-link">Market Analytics</button>
+                                <button onclick="showTab('analytics-deals')" class="sidebar-child sidebar-link">Deal Analytics</button>
+                                <button onclick="showTab('rebny-rules')" class="sidebar-child sidebar-link">REBNY Rules</button>
+                                <button onclick="showTab('knowledge-base')" class="sidebar-child sidebar-link">Knowledge Base</button>
+                                <button onclick="showTab('calculator')" class="sidebar-child sidebar-link">Payment Calculator</button>
                             </div>
                         </div>
                     </div>
