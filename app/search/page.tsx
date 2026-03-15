@@ -273,11 +273,15 @@ function SearchClient() {
 
   // ── Client-side text/zip post-filter ──
   const filteredListings = useMemo(() => {
+    // Skip client-side text filter when API already filtered by structured params
+    const hasApiFilters = !!(neighborhoodParam || filters.propertySubTypes?.length ||
+      filters.beds != null || filters.amenities?.length || filters.minPrice || filters.maxPrice);
+
     return listings.filter((listing) => {
-      // Skip client-side text filter when query matches the neighborhood already filtered by API
+      // Skip text filter when neighborhood matches or structured filters are active
       const isNeighborhoodQuery = neighborhoodParam &&
         searchQuery.toLowerCase() === neighborhoodParam.toLowerCase();
-      if (searchQuery && !isNeighborhoodQuery) {
+      if (searchQuery && !isNeighborhoodQuery && !hasApiFilters) {
         const q = searchQuery.toLowerCase();
         const addr = `${listing.address.streetNumber} ${listing.address.streetName} ${listing.address.unitNumber || ''}`.toLowerCase();
         const mlsId = (listing.mlsId || '').toLowerCase();
@@ -294,7 +298,7 @@ function SearchClient() {
       if (zipParam && listing.address.postalCode !== zipParam) return false;
       return true;
     });
-  }, [listings, searchQuery, neighborhoodParam, zipParam]);
+  }, [listings, searchQuery, neighborhoodParam, zipParam, filters]);
 
   // ── Sort (Manhattan always first, then by selected sort) ──
   const sortedListings = useMemo(() => {
