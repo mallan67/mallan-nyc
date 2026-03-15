@@ -558,8 +558,20 @@ export async function GET(request: Request) {
           }
         }
 
-        // Property sub-types: NOT pushed to OData — PropertySubType filter causes
-        // Trestle 400/502 errors. Handled as post-filter after fetch (see below).
+        // Property sub-types: PropertySubType can't be pushed to OData (causes 502).
+        // But CommonInterest CAN be pushed for Condo/Co-op/Condop (ownership types).
+        // Structural types (Loft, Townhouse, etc.) are handled as post-filter.
+        if (propertySubTypes) {
+          const commonInterestPush: Record<string, string> = {
+            'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
+          };
+          const ciFilters = propertySubTypes.split(',')
+            .map(t => commonInterestPush[t.trim()])
+            .filter(Boolean);
+          if (ciFilters.length > 0) {
+            filterParts.push(`(${ciFilters.map(v => `CommonInterest eq '${v}'`).join(' or ')})`);
+          }
+        }
 
         // Ownership types (comma-separated: Condo, Co-op, Condop)
         if (ownershipTypes) {
@@ -648,9 +660,9 @@ export async function GET(request: Request) {
         }
 
         // Fetch extra to account for gate filtering + post-filters
-        // Neighborhood/borough/bounds queries need more headroom (heavy post-filtering)
-        const hasPostFilter = !!(boundsParam || borough || neighborhood);
-        const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 2.5 : 1.2) + 10), 1000);
+        // Property type, neighborhood, borough all need heavy post-filtering headroom
+        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
+        const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 4 : 1.2) + 20), 1000);
 
         // Amenity fields are NOT added to Trestle $select — many are unavailable
         // on IDX Plus feed and Trestle rejects unknown fields (causes 400/502).
