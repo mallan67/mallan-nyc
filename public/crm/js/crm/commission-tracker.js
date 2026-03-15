@@ -8,7 +8,7 @@ const CommTracker = { payments: [], pnl: null };
 const PAY_STATUS_COLORS = { pending: '#f59e0b', received: '#059669', paid: '#3b82f6', void: '#ef4444' };
 
 async function initCommissionTracker() {
-  const c = document.getElementById('commission-tracker');
+  const c = document.getElementById('commAnalyticsView');
   if (!c) return;
   c.innerHTML = '<div style="padding:24px;color:#6b7280;">Loading commissions...</div>';
   try {
@@ -23,7 +23,7 @@ async function initCommissionTracker() {
 }
 
 function renderCommissionTracker() {
-  const c = document.getElementById('commission-tracker');
+  const c = document.getElementById('commAnalyticsView');
   if (!c) return;
   const pnl = CommTracker.pnl || {};
   const payments = CommTracker.payments || [];

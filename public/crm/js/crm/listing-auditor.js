@@ -14,7 +14,7 @@ function auditScoreColor(score) {
 }
 
 async function initListingAuditor() {
-  const c = document.getElementById('listing-auditor');
+  const c = document.getElementById('lmAuditView');
   if (!c) return;
   c.innerHTML = '<div style="padding:24px;color:#6b7280;">Loading audit history...</div>';
   try {
@@ -25,7 +25,7 @@ async function initListingAuditor() {
 }
 
 function renderListingAuditor() {
-  const c = document.getElementById('listing-auditor');
+  const c = document.getElementById('lmAuditView');
   if (!c) return;
   const audits = ListingAuditor.audits || [];
   const passed = audits.filter(a => a.passed).length;
