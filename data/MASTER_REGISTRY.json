@@ -29587,5 +29587,97 @@
         "description": "Distribution to openigloo, Samaki, TBI via Trestle opt-in toggles"
       }
     }
+  },
+  "ucbaAudit": {
+    "_meta": {
+      "description": "UCBA 2026 full compliance audit results — source-verified against actual code",
+      "auditDate": "2026-03-13",
+      "source": "UCBA Master Copy (January 2026 Redline Revision)",
+      "totalRules": 145,
+      "reportFile": "compliance/FULL-AUDIT-2026-03-13.md",
+      "checklistFile": "compliance/rules/ucba-audit-checklist.json",
+      "validatorScript": "scripts/ucba-compliance-audit.js",
+      "runCommand": "npm run ucba:audit"
+    },
+    "summary": {
+      "pass": 109,
+      "fail": 9,
+      "evaluateClosely": 27,
+      "regressions": 0
+    },
+    "sectionScores": {
+      "A_DOM_ProtectedPeriod": { "total": 8, "pass": 3, "fail": 3, "evaluate": 2 },
+      "C_ListingInputRules": { "total": 18, "pass": 11, "fail": 1, "evaluate": 6 },
+      "D_ComingSoon": { "total": 12, "pass": 5, "fail": 2, "evaluate": 5 },
+      "E_SellingLeasing": { "total": 1, "pass": 0, "fail": 1, "evaluate": 0 },
+      "F_Prohibitions": { "total": 13, "pass": 9, "fail": 0, "evaluate": 4 },
+      "G_Compensation": { "total": 5, "pass": 4, "fail": 0, "evaluate": 1 },
+      "H_IDX_VOW_Frontend": { "total": 12, "pass": 10, "fail": 0, "evaluate": 2 },
+      "DistributionGates": { "total": 6, "pass": 6, "fail": 0, "evaluate": 0 },
+      "DTO_PortalSecurity": { "total": 5, "pass": 5, "fail": 0, "evaluate": 0 },
+      "ExhibitA_MandatoryFields": { "total": 61, "pass": 55, "fail": 2, "evaluate": 4 },
+      "K_L_O_NewDev_OptOut_Suspended": { "total": 4, "pass": 1, "fail": 0, "evaluate": 3 }
+    },
+    "failures": [
+      {
+        "id": "A6_A7_A8",
+        "name": "Protected Period After Listing Termination",
+        "ucbaRef": "Art. II, Sec. 13",
+        "priority": "medium",
+        "description": "6-name delivery within 7 business days + 90-day compensation window. Entirely unimplemented."
+      },
+      {
+        "id": "C15",
+        "name": "Auction Listing Requirements",
+        "ucbaRef": "Art. I, Sec. 15",
+        "priority": "low",
+        "description": "No auction-specific fields. Low risk if brokerage never handles auctions."
+      },
+      {
+        "id": "D9",
+        "name": "Coming Soon One-Time Use Per Address",
+        "ucbaRef": "Art. I, Sec. 16",
+        "priority": "high",
+        "description": "Documented in field tables but no enforcement code. Incurable violation risk."
+      },
+      {
+        "id": "D12",
+        "name": "Showing Start Date Immutable",
+        "ucbaRef": "Art. I, Sec. 16",
+        "priority": "high",
+        "description": "Documented but not enforced on update path."
+      },
+      {
+        "id": "E7",
+        "name": "Buyer Rep Agreement Before Showing",
+        "ucbaRef": "Art. II, Sec. 16",
+        "priority": "high",
+        "description": "Showings endpoint has no buyer rep agreement check."
+      },
+      {
+        "id": "EXHA_49",
+        "name": "NumberOfShares (Co-op)",
+        "ucbaRef": "Exhibit A",
+        "priority": "immediate",
+        "description": "Form field has data-rls-ignore=true and payload never maps to NumberOfShares. Blocks co-op listing creation."
+      },
+      {
+        "id": "EXHA_52",
+        "name": "TaxMonthlyAmount (Condo)",
+        "ucbaRef": "Exhibit A",
+        "priority": "immediate",
+        "description": "Field missing from sale form entirely. Blocks condo listing creation."
+      }
+    ],
+    "keyPasses": [
+      "6 distribution gates — ALL enforced at 4+ layers",
+      "DTO 4-tier sanitization (Public/VOW/Portal/CRM) — ALL verified",
+      "Fair Housing scanner — 17 patterns across Federal FHA + NY HRL + NYC HRL Title 8",
+      "Content restrictions — off-market (5), compensation (5), agent info (4), free services",
+      "Attribution — on all listing display surfaces",
+      "55/61 Exhibit A mandatory fields — present + validated + persisted",
+      "Commission negotiability — disclosed on all 4 CRM forms + public pages",
+      "Anti-scraping — 25+ bots blocked, rate limiting, CSRF, CSP"
+    ]
   }
 }

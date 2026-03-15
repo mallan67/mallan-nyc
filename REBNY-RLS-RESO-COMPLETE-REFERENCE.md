@@ -2,7 +2,7 @@
 
 > **Brokerage:** Mallan Real Estate Inc. (#10991205323)
 > **Agent:** Maya Allan (#10311201806)
-> **LMP:** RealPlus
+> **LMP:** Direct (mallan.nyc)
 > **RLS Backend:** Trestle / Cotality (formerly CoreLogic)
 > **Compiled:** 2026-02-19
 > **Sources:** UCBA 2026 (Jan revision), REBNY RLS Data Dictionary, RESO DD 2.0, Trestle API docs
@@ -476,7 +476,7 @@ Any statistics derived from RLS data must include:
 | `SyndicateYN` | **True** | LMP default (agent adjustable) | Must be True for syndication |
 
 ### CRITICAL Default Requirements
-- LMPs (including RealPlus) are **REQUIRED** to default `IDXEntireListingDisplayYN = True`
+- LMPs are **REQUIRED** to default `IDXEntireListingDisplayYN = True`
 - LMPs are **REQUIRED** to default `SyndicateYN = True`
 - Sale listings with `Permissions = Null` **CANNOT** set `InternetEntireListingDisplayYN = False`
 
@@ -779,8 +779,8 @@ When `$expand` is used, limits drop to ~1/4 of normal.
 | `ListingKey` | String (RESO standard key) | Trestle/RLS | No | System-generated unique identifier |
 | `ListingKeyNumeric` | Integer | Trestle/RLS | No | Numeric version of ListingKey |
 | `ListingID` | "RLS" + digits (e.g., RLS1234567) | RLS Matrix DB | No | New format since Jan 2025 |
-| `SourceSystemKey` | String | LMP (RealPlus) | Yes | LMP's internal listing ID |
-| `SourceSystemName` | String | LMP | No | "RealPlus" |
+| `SourceSystemKey` | String | LMP (mallan.nyc) | Yes | LMP's internal listing ID |
+| `SourceSystemName` | String | LMP | No | "mallan.nyc" |
 
 ## Agent & Office IDs
 
@@ -836,7 +836,7 @@ Examples:
 
 ### Submission to RLS via LMP
 ```
-Form Data (HTML) → collectFormData() → JSON payload → RealPlus API → REBNY RLS (Trestle)
+Form Data (HTML) → collectFormData() → JSON payload → Trestle Add/Edit API → REBNY RLS
 ```
 
 Each field in the JSON payload must use the RESO field name as the key:
@@ -870,7 +870,7 @@ Each field in the JSON payload must use the RESO field name as the key:
 ## How Listings Flow
 
 ```
-Agent → CRM Form → RealPlus (LMP) → REBNY RLS (Trestle/Cotality)
+Agent → CRM Form → Trestle Add/Edit API → REBNY RLS (Cotality)
                                            ↓
               ┌────────────────────────────┼─────────────────────────┐
               ↓                            ↓                         ↓
@@ -1260,7 +1260,7 @@ Owner Opt-Out Form must include:
 3. Lofty
 4. OLR (Online Residential)
 5. Perchwell
-6. **RealPlus** (ours)
+6. RealPlus
 7. RealtyMX
 8. RESoft
 
@@ -1385,7 +1385,7 @@ RESO defines a minimum set of 219 fields that MLSs must include in IDX feeds. Th
 | **RESO** | Real Estate Standards Organization |
 | **IDX** | Internet Data Exchange (reciprocal broker display) |
 | **VOW** | Virtual Office Website (consumer portal with login) |
-| **LMP** | Listing Management Platform (e.g., RealPlus) |
+| **LMP** | Listing Management Platform |
 | **Trestle** | RLS backend technology (Cotality, formerly CoreLogic) |
 | **DOM** | Days on Market |
 | **RUNDBA** | Registered Uniform New Development Brokerage Agreement |

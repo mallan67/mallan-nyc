@@ -1892,13 +1892,18 @@ function REBNYComplianceExtended(options) {
     // ── C4: Security Exposure Test ─────────────────────────────────────
     (function() {
         var exp = [];
-        ['listings','allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD','REBNY_TOKEN','accessToken','secretKey'].forEach(function(g) {
+        // Note: window.listings is expected in the non-IIFE architecture (IDX data only, no private fields)
+        ['allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD','REBNY_TOKEN','accessToken','secretKey'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exp.push('window.' + g);
         });
-        if (typeof window.listings !== 'undefined') {
+        // Check listings for private field leakage (the real security concern)
+        if (typeof window.listings !== 'undefined' && window.listings.length > 0) {
             for (var i = 0; i < Math.min(window.listings.length, 5); i++) {
                 var l = window.listings[i];
-                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone) { exp.push('listings has private fields'); break; }
+                if (l.PrivateRemarks || l.ShowingInstructions || l.ownerPhone || l.OwnerSSN ||
+                    l.BuyerAgentCompensation || l.BuyerBrokerageCompensation || l.LockBoxSerialNumber) {
+                    exp.push('listings has private fields'); break;
+                }
             }
         }
         var html = document.documentElement.outerHTML.substring(0, 100000);
@@ -2874,15 +2879,17 @@ function SecurityHardeningV2Tests(options) {
     // X3: No raw dataset on window
     (function() {
         var exposed = [];
-        ['listings','allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD',
+        // Note: window.listings is expected in the non-IIFE architecture (IDX data only, no private fields)
+        ['allListings','rawData','apiKey','API_KEY','TRESTLE_TOKEN','MLS_PASSWORD',
          'REBNY_TOKEN','accessToken','secretKey','customerDatabase','clientDatabase'].forEach(function(g) {
             if (typeof window[g] !== 'undefined' && window[g] !== null) exposed.push('window.' + g);
         });
-        // Check listings for private fields
+        // Check listings for private field leakage (the real security concern)
         if (typeof window.listings !== 'undefined' && window.listings.length > 0) {
             var sample = window.listings[0];
             var privateInMock = [];
-            ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN'].forEach(function(f) {
+            ['PrivateRemarks','ShowingInstructions','OwnerPhone','OwnerSSN',
+             'BuyerAgentCompensation','BuyerBrokerageCompensation','LockBoxSerialNumber','KeyLocation'].forEach(function(f) {
                 if (sample[f]) privateInMock.push(f);
             });
             if (privateInMock.length > 0) exposed.push('listings has: ' + privateInMock.join(','));

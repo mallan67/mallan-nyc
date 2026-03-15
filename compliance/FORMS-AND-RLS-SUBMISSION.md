@@ -1,6 +1,6 @@
 # Forms & RLS Submission
 
-> **LMP:** RealPlus | **Feed:** REBNY RLS via Trestle (Cotality)
+> **LMP:** Direct (mallan.nyc) | **Feed:** REBNY RLS via Trestle (Cotality)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---

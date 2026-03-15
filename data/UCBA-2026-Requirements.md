@@ -3,7 +3,7 @@
 > **Source:** `UCBA_Master_Copy_rev._2026__redline_.pdf` (January 2026)
 > **Extracted:** 2026-02-08
 > **Applies to:** Mallan Real Estate Inc. (Brokerage #10991205323)
-> **LMP:** RealPlus
+> **LMP:** Direct (mallan.nyc)
 
 ---
 

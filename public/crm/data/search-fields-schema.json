@@ -951,7 +951,7 @@
     "oldUrlsNote": "Deprecated hosts removed (ceased March 31, 2026)",
     "migrationDeadline": "2026-03-31",
     "dataStandard": "RESO DD 2.0",
-    "lmp": "RealPlus",
+    "lmp": "Direct (mallan.nyc)",
     "compensationFieldsRemoved": "2025-08-01",
     "fareActFeeFields": "LIVE — MoveInCosts, OngoingFees, TenantPays, TenantPaysDescription, AdditionalFee/Description/YN, FeeFrequency",
     "cacheTTL": 300,

@@ -427,7 +427,7 @@ The following table defines the single canonical enum for each controlled vocabu
 | `PetsAllowed` | `Cats`, `Dogs`, `Yes`, `No`, `Call`, `Conditional` | Boolean checkbox, text `rentalPetPolicy`, "Pets Allowed" checkbox | RESO PetsAllowed enum |
 | `CommissionBasis` | `Percentage`, `Months`, `FlatFee` | "months / % / flat", "%" only | Internal |
 | `Borough` | `Manhattan`, `Brooklyn`, `Queens`, `Bronx`, `StatenIsland` | "BK", "SI", full names (inconsistent) | NYC official |
-| `Neighborhood` | REBNY official `SubdivisionName` picklist (pending from RealPlus) | Hardcoded checkbox arrays, auto-populated, polygon list | REBNY RLS |
+| `Neighborhood` | REBNY official `SubdivisionName` picklist (pending from REBNY) | Hardcoded checkbox arrays, auto-populated, polygon list | REBNY RLS |
 | `PropertyType` | `Condo`, `Coop`, `Condop`, `Townhouse`, `SingleFamily`, `MultiFamily`, `MixedUse`, `Land`, `Commercial`, `RentalBuilding` | Various per form | RESO PropertySubType |
 | `ListingAgreement` | `ExclusiveRightToSell`, `ExclusiveAgency`, `ExclusiveWithExceptions`, `CoExclusive`, `InHouse`, `OwnerOptOut`, `BrokerOptOut`, `OpenListing`, `NetListing` | Full text strings (inconsistent) | REBNY + RESO ListingAgreement |
 | `ContactMethod` | `Email`, `Phone`, `Text`, `Any` | Not standardized | Internal |
@@ -1451,7 +1451,7 @@ A brokerage CRM without notifications is fundamentally incomplete. Agents and cl
 | **EmailJS / SendGrid** | Outbound | On delivery action | Fire-and-forget currently — needs delivery confirmation callback | Partial (EmailJS, no logging) |
 | **Google Maps** | Outbound | On search/map interaction | Read-only | Implemented (search engine) |
 | **REBNY company/agent lookup** | Outbound | On editor agent selection | Read-only | Implemented (editor dropdowns) |
-| **Future: RealPlus LMP** | Bidirectional | On listing lifecycle events | LMP is system of record for listing management | Not implemented |
+| **Trestle Add/Edit API** | Bidirectional | On listing lifecycle events | Direct submission to RLS | Not implemented |
 
 **Webhook model:** Not defined. Required for:
 - Cotality/Trestle → CRM: listing status updates from other agents

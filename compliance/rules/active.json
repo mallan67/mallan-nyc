@@ -6,7 +6,7 @@
     "brokerage": "Mallan Real Estate Inc.",
     "license": "#10991205323",
     "feed": "REBNY RLS via Trestle (Cotality)",
-    "lmp": "RealPlus",
+    "lmp": "Direct (mallan.nyc)",
     "fieldAuthorityOrder": [
       "1. UCBA governs everything",
       "2. REBNY RLS rules + RLS fields",
@@ -37,5 +37,12 @@
     "tests": "scripts/test-rls-bindings.js",
     "run": "npm run rls:validate",
     "testRun": "npm run test:rls"
+  },
+  "ucbaAudit": {
+    "checklist": "compliance/rules/ucba-audit-checklist.json",
+    "report": "compliance/FULL-AUDIT-2026-03-13.md",
+    "validator": "scripts/ucba-compliance-audit.js",
+    "run": "node scripts/ucba-compliance-audit.js",
+    "description": "UCBA 2026 full compliance audit — 145 rules, regression detection, pattern verification"
   }
 }

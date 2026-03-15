@@ -2,7 +2,7 @@
 
 > **Researched:** 2026-02-08
 > **Brokerage:** Mallan Real Estate Inc.
-> **LMP:** RealPlus
+> **LMP:** Direct (mallan.nyc)
 > **RLS Backend:** CoreLogic / Trestle (migrated Feb 2025 from Perchwell)
 
 ---
@@ -129,7 +129,7 @@ Major consumer portals have their **own direct data license agreements** with RE
 
 ### Listing Flow
 ```
-You → RealPlus (LMP) → REBNY RLS (Trestle/CoreLogic)
+You → mallan.nyc CRM → Trestle Add/Edit API → REBNY RLS (Cotality)
                                     ↓
               ┌─────────────────────┼──────────────────────┐
               ↓                     ↓                      ↓
@@ -184,7 +184,7 @@ Your `IDXEntireListingDisplayYN = True` opt-in is what allows all licensed partn
 3. Lofty
 4. OLR (Online Residential)
 5. Perchwell
-6. **RealPlus** (ours)
+6. RealPlus
 7. RealtyMX
 8. RESoft
 

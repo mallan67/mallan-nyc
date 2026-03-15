@@ -3,7 +3,7 @@
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 > **Agent:** Maya Allan | **License:** #10311201806
 > **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS via Trestle (Cotality)
-> **LMP:** RealPlus | **Stage:** Live Production
+> **LMP:** Direct (mallan.nyc) | **Stage:** Live Production
 
 ---
 
@@ -39,6 +39,7 @@
 | [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
 | [`RLS-VALIDATOR-V2.md`](RLS-VALIDATOR-V2.md) | Deterministic RLS compliance validator — 4-layer pipeline, 10 sections, 42 tests, production file validation | Backend, QA |
 | [`MASTER-AUDIT-REPORT-v3.md`](MASTER-AUDIT-REPORT-v3.md) | Full system audit — 225 findings, 39 passes, 6 schemas, enterprise controls, production roadmap, Trestle migration enforcement | All |
+| [`FULL-AUDIT-2026-03-13.md`](FULL-AUDIT-2026-03-13.md) | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY. Every rule verified against actual code with line-number evidence. | All |
 | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
 
 ## Machine-Readable Enforcement
@@ -61,6 +62,7 @@
 | [`rules/reso-rls-renames.json`](rules/reso-rls-renames.json) | 23 RESO → RLS name mappings (foreign keys, case diffs, renames, splits) | RLS CSV |
 | [`rules/status-rules.json`](rules/status-rules.json) | 9 status definitions, valid/invalid transitions, DOM rules, 5 timing SLAs | UCBA 2026 Art. I |
 | [`rules/content-restrictions.json`](rules/content-restrictions.json) | 11 content restriction rules + 4 scanner definitions (Fair Housing, Agent Info, Off-Market, Compensation) | UCBA 2026 Art. I, III, VIII + Exhibit C |
+| [`rules/ucba-audit-checklist.json`](rules/ucba-audit-checklist.json) | **Machine-readable UCBA 2026 audit checklist** — 145 verifiable rules with file paths, regex patterns, and verdicts. Used by `scripts/ucba-compliance-audit.js` for regression detection. | UCBA 2026 (all sections) |
 
 ---
 
@@ -94,5 +96,5 @@
 |----------|---------|
 | REBNY RLS Support | rlssupport@rebny.com / 212-616-5270 |
 | Trestle/Cotality Support | trestlesupport@cotality.com |
-| LMP (RealPlus) | Via RealPlus portal |
+| LMP (mallan.nyc) | Direct via Trestle Add/Edit API |
 | Direct Data License | rlssupport@rebny.com |

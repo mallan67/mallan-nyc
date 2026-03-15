@@ -1,6 +1,6 @@
 # Third-Party & Feed Governance
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** Direct (mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -55,12 +55,12 @@
 
 ---
 
-## 2. RealPlus (LMP — Listing Management Platform)
+## 2. mallan.nyc (LMP — Direct via Trestle Add/Edit API)
 
 ### Role
 
-- Primary listing management platform for Mallan Real Estate
-- Where agents enter/edit listings for RLS submission
+- mallan.nyc serves as its own listing management platform
+- Agents enter/edit listings via CRM forms, submitted directly to RLS via Trestle Add/Edit API
 - Manages distribution settings, status changes, photos
 
 ### Capabilities
@@ -76,8 +76,8 @@
 
 ### Contact
 
-- Via RealPlus portal
-- For REBNY fee field enablement: "Please enable all REBNY RLS fee fields in our account"
+- Via Trestle/Cotality support (trestlesupport@cotality.com)
+- For REBNY fee field enablement: contact REBNY RLS Support
 
 ---
 
@@ -169,7 +169,7 @@ None — these are automatic via REBNY membership. Listings that pass all distri
 
 30 IDX providers are pre-licensed for REBNY data display:
 
-blankslate, blueroof360, BoomTown, CINC, Constellation RE, Home ASAP, HomeJunction, IDX (Elm Street), iHomefinder, kvCORE, Leadkit, Lofty, Luxury Presence, MoxiWorks, OLR, propertybase, PropMiX, RE Webmasters, RealGeeks, **RealPlus**, RealtyMX, Realtyna, RealtyWatch, RESoft, Sierra Interactive, Smarter Agent, The House Club, TREM Group, Xome, Ylopo
+blankslate, blueroof360, BoomTown, CINC, Constellation RE, Home ASAP, HomeJunction, IDX (Elm Street), iHomefinder, kvCORE, Leadkit, Lofty, Luxury Presence, MoxiWorks, OLR, propertybase, PropMiX, RE Webmasters, RealGeeks, RealPlus, RealtyMX, Realtyna, RealtyWatch, RESoft, Sierra Interactive, Smarter Agent, The House Club, TREM Group, Xome, Ylopo
 
 ---
 
@@ -231,5 +231,5 @@ Per UCBA Art. III and Art. VIII:
 | Vercel | Hosting | SOC 2, GDPR |
 | Cloudflare R2 | Image storage | SOC 2, ISO 27001 |
 | Cotality/Trestle | RLS data feed | RESO certified, REBNY authorized |
-| RealPlus | LMP | REBNY authorized |
+| mallan.nyc (Direct) | LMP via Trestle Add/Edit API | REBNY authorized |
 | PostgreSQL (managed) | Database | Per provider (e.g., Supabase, Neon) |

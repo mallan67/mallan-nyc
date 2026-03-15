@@ -86,6 +86,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
+  // UCBA D3/D4: No offers or showings on Coming Soon listings
+  if (listing.status === "ComingSoon" && (action === "offer" || action === "schedule")) {
+    return NextResponse.json(
+      { error: `${action === "offer" ? "Offers" : "Showings"} are not permitted for Coming Soon listings (UCBA D3/D4)` },
+      { status: 422 }
+    );
+  }
+
   const record = await prisma.clientListingAction.upsert({
     where: {
       lead_id_listing_id_action: {
