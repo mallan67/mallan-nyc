@@ -1928,21 +1928,8 @@
 
                 <!-- Sent Listings Sub-Tab -->
                 <div id="cp-sent-listings" class="cp-subtab" style="display:none">
-                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-50"><tr>
-                                <th class="text-left px-4 py-3">Property</th>
-                                <th class="text-left px-4 py-3">Price</th>
-                                <th class="text-left px-4 py-3">Sent</th>
-                                <th class="text-left px-4 py-3">Viewed</th>
-                                <th class="text-left px-4 py-3">Reaction</th>
-                                <th class="text-left px-4 py-3">Status</th>
-                            </tr></thead>
-                            <tbody class="divide-y" id="cpSentListingsBody">
-                                <tr><td colspan="6" class="px-4 py-8 text-center text-sm text-gray-400">No listings sent yet.</td></tr>
-                            </tbody>
-                        </table>
-                        <div class="px-4 py-3 bg-gray-50 border-t text-xs text-gray-500" id="cpSentListingsCount">Showing 0 sent listings</div>
+                    <div id="cpSentListingsCards">
+                        <p class="text-sm text-gray-400 text-center py-8">No listings shared with this client yet.</p>
                     </div>
                 </div>
 
@@ -35721,6 +35708,22 @@
                     document.getElementById('cpDays').textContent = daysSince;
                     document.getElementById('cpInteractions').textContent = actions.length;
                     window._currentClientId = clientId;
+                    window._currentClientData = c;
+
+                    // Populate Sent Listings with rich cards
+                    cpRenderSentListings(c.actions || []);
+
+                    // Populate financial details if available
+                    if (c.pipeline_stage) document.getElementById('cpStage').textContent = c.pipeline_stage;
+                    if (c.pre_approved) {
+                        var preEl = document.getElementById('cpPreApproval');
+                        if (preEl) preEl.textContent = 'Yes' + (c.pre_approved_amount ? ' — $' + Number(c.pre_approved_amount).toLocaleString() : '');
+                    }
+                    if (c.annual_income) {
+                        var budgetEl = document.getElementById('cpBudgetRange');
+                        if (budgetEl && budgetEl.textContent === '--') budgetEl.textContent = '$' + Number(c.annual_income).toLocaleString() + '/yr';
+                    }
+
                     switchClientTab('overview', document.querySelector('.client-tab-btn'));
                     showTab('client-profile');
                 }).catch(function() {
@@ -35810,6 +35813,113 @@
                 showToast('Note saved successfully', 'success');
                 input.value = '';
             }
+        };
+
+        // ── Sent Listings Rich Cards ──
+        window.cpRenderSentListings = function(actions) {
+            var container = document.getElementById('cpSentListingsCards');
+            if (!container) return;
+
+            // Group actions by listing
+            var listingMap = {};
+            actions.forEach(function(a) {
+                var lid = a.listing_id;
+                if (!listingMap[lid]) listingMap[lid] = { listing: a.listing, reactions: [], comments: [] };
+                listingMap[lid].reactions.push(a.action);
+                if (a.comment) listingMap[lid].comments.push(a.comment);
+            });
+
+            var listings = Object.values(listingMap);
+            if (listings.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">No listings shared with this client yet.</p>';
+                return;
+            }
+
+            var cards = listings.map(function(item, idx) {
+                var l = item.listing;
+                var addr = l.address;
+                if (typeof addr === 'object') addr = (addr.streetNumber || '') + ' ' + (addr.streetName || '');
+                var price = Number(l.list_price || 0);
+                var isRent = l.listing_type === 'rent';
+
+                var reactionBadges = item.reactions.map(function(r) {
+                    var rMap = { liked: { icon: '❤️', bg: '#fef2f2', color: '#dc2626' }, disliked: { icon: '👎', bg: '#f3f4f6', color: '#6b7280' }, discuss: { icon: '💬', bg: '#eff6ff', color: '#2563eb' }, schedule: { icon: '📅', bg: '#f0fdf4', color: '#059669' }, offer: { icon: '💰', bg: '#fffbeb', color: '#d97706' } };
+                    var cfg = rMap[r] || { icon: '•', bg: '#f3f4f6', color: '#6b7280' };
+                    return '<span style="display:inline-flex;align-items:center;gap:2px;padding:2px 8px;background:' + cfg.bg + ';color:' + cfg.color + ';border-radius:9999px;font-size:10px;font-weight:600;">' + cfg.icon + ' ' + r + '</span>';
+                }).join(' ');
+
+                var analysisId = 'cp-analysis-' + idx;
+
+                return '<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:10px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:start;gap:12px;">' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<p style="font-size:14px;font-weight:600;color:#111827;margin:0;">' + addr + '</p>' +
+                            '<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">$' + price.toLocaleString() + (isRent ? '/mo' : '') + ' &middot; ' + (l.status || 'Active') + '</p>' +
+                            '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' + reactionBadges + '</div>' +
+                        '</div>' +
+                        '<button onclick="cpAnalyzeListing(\'' + l.listing_id + '\', \'' + analysisId + '\')" style="padding:6px 12px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">' +
+                            '<i class="fas fa-microscope" style="margin-right:4px;"></i> Analyze' +
+                        '</button>' +
+                    '</div>' +
+                    (item.comments.length > 0 ? '<div style="margin-top:8px;padding:8px 12px;background:#f9fafb;border-radius:8px;"><p style="font-size:11px;color:#6b7280;margin:0;">' + item.comments.join(' | ') + '</p></div>' : '') +
+                    '<div id="' + analysisId + '" style="margin-top:8px;"></div>' +
+                '</div>';
+            }).join('');
+
+            container.innerHTML = '<div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<p style="font-size:12px;color:#6b7280;">' + listings.length + ' listing' + (listings.length !== 1 ? 's' : '') + ' shared</p>' +
+                '<button onclick="cpAnalyzeAll()" style="padding:6px 12px;background:#059669;color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">' +
+                    '<i class="fas fa-layer-group" style="margin-right:4px;"></i> Analyze All' +
+                '</button>' +
+            '</div>' + cards;
+        };
+
+        window.cpAnalyzeListing = async function(listingId, targetId) {
+            var el = document.getElementById(targetId);
+            if (!el) return;
+            el.innerHTML = '<div style="padding:8px;color:#6b7280;font-size:11px;"><i class="fas fa-spinner fa-spin"></i> Running analysis...</div>';
+
+            try {
+                var res = await MallanAPI._fetch('/api/crm/transaction-probability?listing_id=' + encodeURIComponent(listingId));
+                if (!res.ok && res.error) { el.innerHTML = '<div style="padding:8px;color:#ef4444;font-size:11px;">' + res.error + '</div>'; return; }
+
+                var pc = function(p) { return p >= 70 ? '#059669' : p >= 50 ? '#3b82f6' : p >= 30 ? '#f59e0b' : '#ef4444'; };
+
+                var factorsHtml = (res.factors || []).map(function(f) {
+                    var bc = f.score >= 60 ? '#059669' : f.score >= 35 ? '#f59e0b' : '#ef4444';
+                    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">' +
+                        '<span style="width:90px;font-size:9px;color:#6b7280;">' + f.name + '</span>' +
+                        '<div style="flex:1;background:#f3f4f6;border-radius:9999px;height:3px;overflow:hidden;">' +
+                            '<div style="background:' + bc + ';height:100%;width:' + f.score + '%;border-radius:9999px;"></div>' +
+                        '</div>' +
+                        '<span style="width:16px;font-size:9px;font-weight:700;color:' + bc + ';">' + f.score + '</span>' +
+                    '</div>';
+                }).join('');
+
+                el.innerHTML = '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">' +
+                    '<div style="display:flex;gap:12px;margin-bottom:8px;">' +
+                        '<div style="text-align:center;flex:1;"><p style="font-size:8px;font-weight:600;color:#6b7280;text-transform:uppercase;margin:0;">30 Day</p><p style="font-size:18px;font-weight:800;color:' + pc(res.prob_30) + ';margin:0;">' + res.prob_30 + '%</p></div>' +
+                        '<div style="text-align:center;flex:1;"><p style="font-size:8px;font-weight:600;color:#6b7280;text-transform:uppercase;margin:0;">60 Day</p><p style="font-size:18px;font-weight:800;color:' + pc(res.prob_60) + ';margin:0;">' + res.prob_60 + '%</p></div>' +
+                        '<div style="text-align:center;flex:1;"><p style="font-size:8px;font-weight:600;color:#6b7280;text-transform:uppercase;margin:0;">90 Day</p><p style="font-size:18px;font-weight:800;color:' + pc(res.prob_90) + ';margin:0;">' + res.prob_90 + '%</p></div>' +
+                    '</div>' + factorsHtml +
+                    '<p style="font-size:9px;color:#9ca3af;margin:6px 0 0;">' + res.neighborhood + ' &middot; ' + res.days_on_market + ' DOM &middot; ' + res.confidence + ' confidence</p>' +
+                '</div>';
+            } catch (e) {
+                el.innerHTML = '<div style="padding:8px;color:#ef4444;font-size:11px;">Analysis failed</div>';
+            }
+        };
+
+        window.cpAnalyzeAll = function() {
+            var cards = document.querySelectorAll('[id^="cp-analysis-"]');
+            cards.forEach(function(card) {
+                var idx = card.id.replace('cp-analysis-', '');
+                var data = window._currentClientData;
+                if (!data || !data.actions) return;
+                var listingMap = {};
+                data.actions.forEach(function(a) { listingMap[a.listing_id] = a.listing; });
+                var listings = Object.values(listingMap);
+                if (listings[idx]) cpAnalyzeListing(listings[idx].listing_id, card.id);
+            });
         };
 
         // ── Client Profile Contextual Actions ──
