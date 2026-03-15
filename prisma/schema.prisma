@@ -54,6 +54,7 @@ model Agent {
   assignment_rules    LeadAssignmentRule[]
   protected_periods   ProtectedPeriod[]
   marketing_activities MarketingActivity[]
+  follow_up_tasks      FollowUpTask[]      @relation("AgentTasks")
 
   created_at     DateTime  @default(now()) @map("created_at")
   updated_at     DateTime  @updatedAt @map("updated_at")
@@ -157,6 +158,16 @@ model Lead {
   attorney_email      String?  @map("attorney_email")      // Seller's attorney email
   attorney_phone      String?  @map("attorney_phone")      // Seller's attorney phone
   attorney_firm       String?  @map("attorney_firm")       // Attorney's firm name
+  lease_end_date      DateTime? @map("lease_end_date")     // For renters: when current lease expires
+  annual_income       Decimal?  @db.Decimal(14,2) @map("annual_income")  // Financial qualification
+  credit_score_range  String?   @map("credit_score_range") // excellent/good/fair/poor
+  pre_approved        Boolean   @default(false) @map("pre_approved")     // Mortgage pre-approval
+  pre_approved_amount Decimal?  @db.Decimal(14,2) @map("pre_approved_amount")
+  pipeline_stage      String    @default("new") @map("pipeline_stage")   // new/contacted/nurturing/active/showing/offer/deal/closed/past
+  last_contacted_at   DateTime? @map("last_contacted_at")
+  next_follow_up      DateTime? @map("next_follow_up")
+  follow_up_tasks     FollowUpTask[]
+  activity_logs       ActivityLog[]
   preferences     ClientPreference?
   actions         ClientListingAction[]
   showings        Showing[]
@@ -1349,4 +1360,47 @@ model MarketingActivity {
   @@index([listing_id])
   @@index([completed_at])
   @@map("marketing_activities")
+}
+
+// ═══════════════════════════════════════════════════════════
+// FOLLOW-UP TASK — Agent reminders and scheduled actions
+// ═══════════════════════════════════════════════════════════
+model FollowUpTask {
+  id          BigInt   @id @default(autoincrement())
+  lead_id     BigInt   @map("lead_id")
+  lead        Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  agent_id    BigInt   @map("agent_id")
+  agent       Agent    @relation("AgentTasks", fields: [agent_id], references: [id])
+  title       String
+  description String?  @db.Text
+  due_date    DateTime @map("due_date")
+  priority    String   @default("medium") // low, medium, high, urgent
+  status      String   @default("pending") // pending, completed, cancelled, overdue
+  task_type   String   @default("follow_up") @map("task_type") // follow_up, call, email, showing, meeting, review, renewal_check, buyer_conversion
+  completed_at DateTime? @map("completed_at")
+  created_at  DateTime @default(now()) @map("created_at")
+
+  @@index([agent_id, status])
+  @@index([due_date])
+  @@index([lead_id])
+  @@map("follow_up_tasks")
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIVITY LOG — Unified timeline per lead
+// ═══════════════════════════════════════════════════════════
+model ActivityLog {
+  id          BigInt   @id @default(autoincrement())
+  lead_id     BigInt   @map("lead_id")
+  lead        Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  activity_type String @map("activity_type") // status_change, score_change, showing, comment, reaction, contact, email, note, task_completed, offer, portal_login, lease_alert, conversion_flag
+  title       String
+  detail      String?  @db.Text
+  metadata    Json     @default("{}")
+  actor_type  String   @default("system") @map("actor_type") // system, agent, broker, client
+  actor_id    BigInt?  @map("actor_id")
+  created_at  DateTime @default(now()) @map("created_at")
+
+  @@index([lead_id, created_at])
+  @@map("activity_logs")
 }
