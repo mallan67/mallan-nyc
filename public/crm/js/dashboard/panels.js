@@ -1471,54 +1471,296 @@ var Panels = (function () {
     });
   }
 
-  // ─── Lead Distribution Hub ───────────────────────────────────────────
+  // ─── Lead Distribution Hub (Kanban Inbox) ───────────────────────────
+  var _leadSourceFilter = 'All';
+  var _leadDataCache = { leads: [], agents: [] };
+  var _bulkSelectedLeads = {};
+
   function leadDistribution() {
     CRM.setPanelTitle('Lead Distribution');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI._fetch('/api/crm/leads?limit=100').then(function (data) {
-      var leads = data.leads || [];
-      c.innerHTML = _renderLeadsPanel(leads);
+    Promise.all([
+      MallanAPI._fetch('/api/crm/leads?limit=200').catch(function () { return { leads: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; })
+    ]).then(function (results) {
+      _leadDataCache.leads = results[0].leads || [];
+      _leadDataCache.agents = results[1].agents || [];
+      _bulkSelectedLeads = {};
+      _leadSourceFilter = 'All';
+      c.innerHTML = _renderLeadsPanel(_leadDataCache.leads, _leadDataCache.agents);
     }).catch(function () {
       c.innerHTML = '<div class="space-y-4">' +
         UI.sectionHeader('Lead Distribution', 'Assign incoming leads to agents') +
-        UI.emptyState('fa-inbox', 'No unassigned leads', '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus"></i> Create Lead</button>') +
+        UI.emptyState('fa-inbox', 'No leads found', '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus"></i> Create Lead</button>') +
       '</div>';
     });
   }
 
-  function _renderLeadsPanel(leads) {
-    var unassigned = leads.filter(function (l) { return !l.assignedAgentId && !l.assigned_agent_id; });
-    var assigned = leads.filter(function (l) { return l.assignedAgentId || l.assigned_agent_id; });
+  function _filterLeadsBySource(source) {
+    _leadSourceFilter = source || 'All';
+    _bulkSelectedLeads = {};
+    var c = _container();
+    c.innerHTML = _renderLeadsPanel(_leadDataCache.leads, _leadDataCache.agents);
+  }
 
-    return '<div class="space-y-4">' +
-      UI.sectionHeader('Lead Distribution', leads.length + ' leads total',
-        '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus"></i> Create Lead</button>') +
-      UI.statGrid([
-        UI.statCard(unassigned.length, 'Unassigned', 'fa-inbox', '#DC2626'),
-        UI.statCard(assigned.length, 'Assigned', 'fa-user-check', '#059669'),
-        UI.statCard(leads.length, 'Total Leads', 'fa-users', '#2563EB'),
-      ]) +
-      UI.dataTable(
-        [
-          { key: 'name', label: 'Lead', render: function (l) {
-            return '<p class="text-sm font-medium">' + E(l.name || l.email || 'Unknown') + '</p>' +
-              '<p class="text-xs text-gray-500">' + E(l.email || '') + '</p>';
-          }},
-          { key: 'source', label: 'Source', render: function (l) { return _sourceWithRefBadge(l.source || ''); }},
-          { key: 'type', label: 'Type', render: function (l) { return UI.roleBadge(l.leadType || l.type || 'buyer'); }},
-          { key: 'status', label: 'Status', render: function (l) { return UI.statusBadge(l.status || 'new'); }},
-          { key: 'agent', label: 'Agent', render: function (l) {
-            var aid = l.assignedAgentId || l.assigned_agent_id;
-            return aid ? '<span class="text-xs">' + E(l.agent_name || aid) + '</span>' :
-              '<button class="btn btn-sm btn-gold" onclick="Panels._assignLead(\'' + E(l.id) + '\')">Assign</button>';
-          }},
-          { key: 'created', label: 'Created', render: function (l) { return '<span class="text-xs text-gray-500">' + Utils.formatTimeAgo(l.created_at || l.createdAt) + '</span>'; }},
-        ],
-        leads,
-        { title: 'All Leads' }
-      ) +
-    '</div>';
+  function _toggleBulkLead(leadId) {
+    if (_bulkSelectedLeads[leadId]) {
+      delete _bulkSelectedLeads[leadId];
+    } else {
+      _bulkSelectedLeads[leadId] = true;
+    }
+    // Update checkbox visually
+    var cb = document.getElementById('bulk-cb-' + leadId);
+    if (cb) cb.checked = !!_bulkSelectedLeads[leadId];
+    // Update bulk button count
+    var countEl = document.getElementById('bulk-assign-count');
+    var cnt = Object.keys(_bulkSelectedLeads).length;
+    if (countEl) countEl.textContent = cnt > 0 ? '(' + cnt + ')' : '';
+  }
+
+  function _bulkAssignLeads() {
+    var ids = Object.keys(_bulkSelectedLeads);
+    if (ids.length === 0) { CRM.toast('No leads selected', 'warning'); return; }
+
+    CRM.openModal('Bulk Assign ' + ids.length + ' Lead' + (ids.length > 1 ? 's' : ''),
+      '<div id="bulkAssignList">' + UI.loading() + '</div>'
+    );
+    MallanAPI.agents.list().then(function (data) {
+      var el = document.getElementById('bulkAssignList');
+      if (!el) return;
+      var agents = data.agents || [];
+      var html = '<div class="space-y-2">';
+      agents.forEach(function (a) {
+        html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3" ' +
+          'onclick="Panels._doBulkAssign(\'' + E(a.id) + '\')">' +
+          UI.avatar(a.full_name || a.name || a.email, 32) +
+          '<span class="text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</span></button>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    }).catch(function () {
+      var el = document.getElementById('bulkAssignList');
+      if (el) el.innerHTML = UI.emptyState('fa-user-tie', 'Unable to load agents');
+    });
+  }
+
+  function _doBulkAssign(agentId) {
+    var ids = Object.keys(_bulkSelectedLeads);
+    if (ids.length === 0) { CRM.closeModal(); return; }
+    var promises = ids.map(function (lid) {
+      return MallanAPI._fetch('/api/crm/leads/' + lid, { method: 'PATCH', body: JSON.stringify({ assigned_agent_id: agentId }) })
+        .catch(function () { return null; });
+    });
+    Promise.all(promises).then(function () {
+      _bulkSelectedLeads = {};
+      Events.log('leads_bulk_assigned', 'lead', null, { agentId: agentId, count: ids.length });
+      CRM.closeModal();
+      CRM.toast(ids.length + ' lead' + (ids.length > 1 ? 's' : '') + ' assigned', 'success');
+      leadDistribution();
+    });
+  }
+
+  function _renderLeadCard(lead, agents) {
+    var isAssigned = lead.assignedAgentId || lead.assigned_agent_id;
+    var status = (lead.status || 'new').toLowerCase();
+    var isConverted = status === 'converted' || lead.convertedClientId || lead.converted_client_id;
+    var showCheckbox = !isAssigned && !isConverted;
+
+    var createdDate = new Date(lead.created_at || lead.createdAt || Date.now());
+    var ageMs = Date.now() - createdDate.getTime();
+    var ageHours = Math.floor(ageMs / 3600000);
+
+    var html = '<div class="p-3 mb-2 rounded-lg border bg-white hover:shadow-sm transition-shadow">';
+
+    // Checkbox row for unassigned
+    if (showCheckbox) {
+      html += '<div class="flex items-start gap-2">' +
+        '<input type="checkbox" id="bulk-cb-' + E(lead.id) + '" class="mt-1 rounded border-gray-300" ' +
+        ((_bulkSelectedLeads[lead.id]) ? 'checked ' : '') +
+        'onchange="Panels._toggleBulkLead(\'' + E(lead.id) + '\')">' +
+        '<div class="flex-1 min-w-0">';
+    } else {
+      html += '<div>';
+    }
+
+    // Name + email
+    html += '<p class="text-sm font-medium truncate">' + E(lead.name || lead.email || 'Unknown') + '</p>';
+    if (lead.email) html += '<p class="text-xs text-gray-500 truncate">' + E(lead.email) + '</p>';
+
+    // Badges row
+    html += '<div class="flex flex-wrap gap-1 mt-1.5">';
+    html += _sourceWithRefBadge(lead.source || '');
+    html += ' ' + UI.roleBadge(lead.leadType || lead.type || 'buyer');
+    html += '</div>';
+
+    // Time
+    html += '<p class="text-xs text-gray-400 mt-1.5"><i class="far fa-clock mr-1"></i>';
+    if (ageHours < 1) {
+      html += 'Just now';
+    } else if (ageHours < 24) {
+      html += ageHours + 'h ago';
+    } else {
+      html += Math.floor(ageHours / 24) + 'd ago';
+    }
+    html += '</p>';
+
+    // Assign button or agent name
+    if (isConverted) {
+      html += '<div class="mt-2"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534"><i class="fas fa-check mr-1"></i>Converted</span></div>';
+    } else if (isAssigned) {
+      html += '<div class="mt-2"><span class="text-xs text-gray-600"><i class="fas fa-user-check mr-1 text-green-500"></i>' + E(lead.agent_name || lead.assignedAgentId || lead.assigned_agent_id) + '</span></div>';
+    } else {
+      html += '<div class="mt-2"><button class="btn btn-sm btn-gold w-full" onclick="Panels._assignLeadSuggested(\'' + E(lead.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button></div>';
+    }
+
+    html += '</div>';
+    if (showCheckbox) html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function _renderLeadsPanel(leads, agents) {
+    // Apply source filter
+    var filtered = leads;
+    if (_leadSourceFilter && _leadSourceFilter !== 'All') {
+      filtered = leads.filter(function (l) {
+        return (l.source || '').toLowerCase() === _leadSourceFilter.toLowerCase();
+      });
+    }
+
+    var now = Date.now();
+    var h24 = 24 * 3600000;
+
+    // Categorize into lanes
+    var laneNew = [];
+    var laneNeedsAssign = [];
+    var laneContacted = [];
+    var laneConverted = [];
+
+    filtered.forEach(function (l) {
+      var assigned = l.assignedAgentId || l.assigned_agent_id;
+      var status = (l.status || 'new').toLowerCase();
+      var isConverted = status === 'converted' || l.convertedClientId || l.converted_client_id;
+      var age = now - new Date(l.created_at || l.createdAt || now).getTime();
+
+      if (isConverted) {
+        laneConverted.push(l);
+      } else if (assigned && status === 'contacted') {
+        laneContacted.push(l);
+      } else if (!assigned && (status === 'contacted' || (status === 'new' && age > h24))) {
+        laneNeedsAssign.push(l);
+      } else if (!assigned && status === 'new') {
+        laneNew.push(l);
+      } else if (assigned) {
+        laneContacted.push(l);
+      } else {
+        laneNew.push(l);
+      }
+    });
+
+    // Source chips
+    var sources = ['All', 'Website', 'StreetEasy', 'Zillow', 'Referral', 'Walk-in', 'Social Media'];
+    var chipsHtml = '<div class="flex flex-wrap gap-2">';
+    sources.forEach(function (s) {
+      var active = _leadSourceFilter === s;
+      chipsHtml += '<button class="px-3 py-1 rounded-full text-xs font-semibold transition-colors ' +
+        (active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '" ' +
+        'onclick="Panels._filterLeadsBySource(\'' + E(s) + '\')">' + E(s);
+      if (s !== 'All') {
+        var cnt = leads.filter(function (l) { return (l.source || '').toLowerCase() === s.toLowerCase(); }).length;
+        if (cnt > 0) chipsHtml += ' <span class="opacity-60">(' + cnt + ')</span>';
+      }
+      chipsHtml += '</button>';
+    });
+    chipsHtml += '</div>';
+
+    var bulkCount = Object.keys(_bulkSelectedLeads).length;
+
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+      '<h3 class="text-lg font-bold text-gray-900">Lead Distribution</h3>' +
+      '<div class="flex items-center gap-2">' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._bulkAssignLeads()" ' +
+          (bulkCount === 0 ? 'disabled style="opacity:0.5"' : '') + '>' +
+          '<i class="fas fa-users-cog mr-1"></i>Bulk Assign <span id="bulk-assign-count">' + (bulkCount > 0 ? '(' + bulkCount + ')' : '') + '</span></button>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus mr-1"></i>Create Lead</button>' +
+      '</div></div>';
+
+    // Source filter chips
+    html += chipsHtml;
+
+    // Kanban lanes
+    var lanes = [
+      { title: 'New', items: laneNew, color: '#DC2626', icon: 'fa-inbox' },
+      { title: 'Needs Assignment', items: laneNeedsAssign, color: '#D97706', icon: 'fa-exclamation-circle' },
+      { title: 'Contacted', items: laneContacted, color: '#2563EB', icon: 'fa-phone-alt' },
+      { title: 'Converted', items: laneConverted, color: '#059669', icon: 'fa-check-circle' }
+    ];
+
+    html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">';
+    lanes.forEach(function (lane) {
+      html += '<div class="rounded-lg border" style="border-left:4px solid ' + lane.color + '">' +
+        '<div class="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">' +
+          '<span class="text-sm font-bold text-gray-800"><i class="fas ' + lane.icon + ' mr-1" style="color:' + lane.color + '"></i>' + lane.title + '</span>' +
+          '<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white" style="background:' + lane.color + '">' + lane.items.length + '</span>' +
+        '</div>' +
+        '<div class="p-2" style="max-height:480px;overflow-y:auto">';
+      if (lane.items.length === 0) {
+        html += '<p class="text-xs text-gray-400 text-center py-6">No leads</p>';
+      } else {
+        lane.items.forEach(function (l) {
+          html += _renderLeadCard(l, agents);
+        });
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function _assignLeadSuggested(leadId) {
+    CRM.openModal('Assign Lead',
+      '<div id="assignLeadList">' + UI.loading() + '</div>'
+    );
+    MallanAPI.agents.list().then(function (data) {
+      var el = document.getElementById('assignLeadList');
+      if (!el) return;
+      var agents = data.agents || [];
+
+      // Find agent with fewest active clients for suggestion
+      var suggestedId = null;
+      var minClients = Infinity;
+      agents.forEach(function (a) {
+        var count = a.active_client_count || a.activeClientCount || a.client_count || 0;
+        if (count < minClients) { minClients = count; suggestedId = a.id; }
+      });
+
+      var html = '<div class="space-y-2">';
+      agents.forEach(function (a) {
+        var isSuggested = a.id === suggestedId;
+        html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3' +
+          (isSuggested ? ' border-green-300 bg-green-50' : '') + '" ' +
+          'onclick="Panels._doAssignLead(\'' + E(leadId) + '\',\'' + E(a.id) + '\')">' +
+          UI.avatar(a.full_name || a.name || a.email, 32) +
+          '<div class="flex-1"><span class="text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</span>';
+        if (isSuggested) {
+          html += ' <span class="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534">Suggested</span>';
+        }
+        var clientCount = a.active_client_count || a.activeClientCount || a.client_count || 0;
+        html += '<p class="text-xs text-gray-500">' + clientCount + ' active client' + (clientCount !== 1 ? 's' : '') + '</p>';
+        html += '</div></button>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    }).catch(function () {
+      var el = document.getElementById('assignLeadList');
+      if (el) el.innerHTML = UI.emptyState('fa-user-tie', 'Unable to load agents');
+    });
   }
 
   function _createLead() {
@@ -1649,15 +1891,11 @@ var Panels = (function () {
       UI.statCard($(netBalance), 'Net Balance', 'fa-balance-scale', netBalance >= 0 ? '#059669' : '#DC2626'),
     ]);
 
-    // Incoming referrals table
-    html += '<div class="card"><div class="card-header"><h3><i class="fas fa-arrow-down text-green-500 mr-2"></i>Incoming Referrals (' + incoming.length + ')</h3></div>' +
-      '<div class="card-body">';
-    if (incoming.length === 0) {
-      html += '<p class="text-sm text-gray-400 text-center py-4">No incoming referrals for ' + year + '</p>';
-    } else {
-      html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+    // Referral table headers (shared)
+    var _refTableHeaders = function (dirLabel) {
+      return '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
         '<th class="text-left px-3 py-2">Date</th>' +
-        '<th class="text-left px-3 py-2">From (Brokerage/Agent)</th>' +
+        '<th class="text-left px-3 py-2">' + dirLabel + '</th>' +
         '<th class="text-left px-3 py-2">Our Agent</th>' +
         '<th class="text-left px-3 py-2">Client</th>' +
         '<th class="text-left px-3 py-2">Type</th>' +
@@ -1666,11 +1904,30 @@ var Panels = (function () {
         '<th class="text-right px-3 py-2">Fee%</th>' +
         '<th class="text-right px-3 py-2">Fee Amount</th>' +
         '<th class="text-left px-3 py-2">Agreement</th>' +
+        '<th class="text-left px-3 py-2">Payment</th>' +
+        '<th class="text-left px-3 py-2">Deal Status</th>' +
         '<th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
-      incoming.forEach(function (r) {
-        html += _referralRow(r);
-      });
+    };
+
+    // Totals row helper
+    var _refTotalsRow = function (rows) {
+      var totalFee = rows.reduce(function (s, r) { return s + (r.feeAmount || r.fee_amount || 0); }, 0);
+      return '<tr class="bg-gray-50 font-semibold border-t-2">' +
+        '<td colspan="8" class="px-3 py-2 text-sm text-right">Total (' + rows.length + ' referral' + (rows.length !== 1 ? 's' : '') + ')</td>' +
+        '<td class="px-3 py-2 text-sm text-right font-bold">' + $(totalFee) + '</td>' +
+        '<td colspan="4"></td></tr>';
+    };
+
+    // Incoming referrals table
+    html += '<div class="card"><div class="card-header"><h3><i class="fas fa-arrow-down text-green-500 mr-2"></i>Incoming Referrals (' + incoming.length + ')</h3></div>' +
+      '<div class="card-body">';
+    if (incoming.length === 0) {
+      html += '<p class="text-sm text-gray-400 text-center py-4">No incoming referrals for ' + year + '</p>';
+    } else {
+      html += _refTableHeaders('From (Brokerage/Agent)');
+      incoming.forEach(function (r) { html += _referralRow(r); });
+      html += _refTotalsRow(incoming);
       html += '</tbody></table></div>';
     }
     html += '</div></div>';
@@ -1681,43 +1938,56 @@ var Panels = (function () {
     if (outgoing.length === 0) {
       html += '<p class="text-sm text-gray-400 text-center py-4">No outgoing referrals for ' + year + '</p>';
     } else {
-      html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
-        '<th class="text-left px-3 py-2">Date</th>' +
-        '<th class="text-left px-3 py-2">To (Brokerage/Agent)</th>' +
-        '<th class="text-left px-3 py-2">Our Agent</th>' +
-        '<th class="text-left px-3 py-2">Client</th>' +
-        '<th class="text-left px-3 py-2">Type</th>' +
-        '<th class="text-left px-3 py-2">Property</th>' +
-        '<th class="text-right px-3 py-2">Price</th>' +
-        '<th class="text-right px-3 py-2">Fee%</th>' +
-        '<th class="text-right px-3 py-2">Fee Amount</th>' +
-        '<th class="text-left px-3 py-2">Agreement</th>' +
-        '<th class="text-left px-3 py-2">Actions</th>' +
-      '</tr></thead><tbody>';
-      outgoing.forEach(function (r) {
-        html += _referralRow(r);
-      });
+      html += _refTableHeaders('To (Brokerage/Agent)');
+      outgoing.forEach(function (r) { html += _referralRow(r); });
+      html += _refTotalsRow(outgoing);
       html += '</tbody></table></div>';
     }
     html += '</div></div>';
 
-    // Pending actions
-    var pending = referrals.filter(function (r) {
-      var s = (r.agreementStatus || r.status || '').toLowerCase();
-      return s === 'pending' || s === 'draft' || s === 'awaiting_signature';
+    // Pending Actions section — expanded criteria
+    var now = Date.now();
+    var day30 = 30 * 24 * 3600000;
+    var pendingActions = [];
+
+    referrals.forEach(function (r) {
+      var agreeStat = (r.agreementStatus || r.agreement_status || '').toLowerCase();
+      var payStat = _resolvePaymentStatus(r);
+      var dealStat = (r.deal_status || r.dealStatus || '').toLowerCase();
+
+      // Agreement awaiting signature
+      if (agreeStat === 'sent') {
+        pendingActions.push({ referral: r, reason: 'Agreement sent, awaiting signature', icon: 'fa-file-signature', color: '#2563EB', action: 'Follow up on agreement', actionFn: 'CRM.toast(\'Follow up sent\',\'info\')' });
+      }
+      // Payment overdue
+      if (payStat === 'overdue') {
+        pendingActions.push({ referral: r, reason: 'Referral fee overdue (30+ days since close)', icon: 'fa-exclamation-triangle', color: '#DC2626', action: 'Send payment reminder', actionFn: 'CRM.toast(\'Payment reminder sent\',\'info\')' });
+      }
+      // Deal closed but no agreement uploaded
+      if ((dealStat === 'closed' || dealStat === 'sold') && (!agreeStat || agreeStat === 'missing' || agreeStat === '')) {
+        pendingActions.push({ referral: r, reason: 'Deal closed but no referral agreement on file', icon: 'fa-folder-open', color: '#D97706', action: 'Upload agreement', actionFn: 'CRM.toast(\'Upload agreement\',\'info\')' });
+      }
+      // Draft agreement
+      if (agreeStat === 'draft' || agreeStat === 'pending') {
+        pendingActions.push({ referral: r, reason: 'Agreement in draft/pending status', icon: 'fa-clock', color: '#D97706', action: 'Finalize agreement', actionFn: 'CRM.toast(\'Open agreement editor\',\'info\')' });
+      }
     });
-    if (pending.length > 0) {
-      html += '<div class="card border-yellow-200"><div class="card-header bg-yellow-50"><h3><i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Pending Actions (' + pending.length + ')</h3></div>' +
+
+    if (pendingActions.length > 0) {
+      html += '<div class="card border-yellow-200"><div class="card-header bg-yellow-50"><h3><i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Pending Actions (' + pendingActions.length + ')</h3></div>' +
         '<div class="card-body"><div class="space-y-2">';
-      pending.forEach(function (r) {
+      pendingActions.forEach(function (pa) {
+        var r = pa.referral;
         var partner = r.referralPartner || r.partner || r.brokerage || 'Unknown';
         var client = r.clientName || r.client_name || '';
         var dir = r.direction === 'outgoing' ? 'Outgoing to' : 'Incoming from';
-        html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100">' +
-          '<i class="fas fa-clock text-yellow-500"></i>' +
-          '<div class="flex-1"><p class="text-sm font-medium">' + E(dir + ' ' + partner) + '</p>' +
-            '<p class="text-xs text-gray-500">' + E(client ? 'Client: ' + client : 'No client assigned') + '</p></div>' +
-          UI.statusBadge(r.agreementStatus || r.status || 'pending') +
+        html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-white border hover:bg-gray-50">' +
+          '<i class="fas ' + pa.icon + '" style="color:' + pa.color + '"></i>' +
+          '<div class="flex-1">' +
+            '<p class="text-sm font-medium">' + E(dir + ' ' + partner) + '</p>' +
+            '<p class="text-xs text-gray-500">' + E(client ? 'Client: ' + client + ' — ' : '') + E(pa.reason) + '</p>' +
+          '</div>' +
+          '<button class="btn btn-sm btn-outline" onclick="' + pa.actionFn + '"><i class="fas fa-arrow-right mr-1"></i>' + E(pa.action) + '</button>' +
         '</div>';
       });
       html += '</div></div></div>';
@@ -1725,6 +1995,66 @@ var Panels = (function () {
 
     html += '</div>';
     c.innerHTML = html;
+  }
+
+  // Resolve payment status from referral data
+  function _resolvePaymentStatus(r) {
+    // Explicit payment status field
+    var ps = (r.payment_status || r.paymentStatus || '').toLowerCase();
+    if (ps === 'paid' || ps === 'received') return 'paid';
+    if (ps === 'overdue') return 'overdue';
+    if (ps === 'due' || ps === 'fee_due') return 'due';
+
+    // Derive from deal status + age
+    var dealStat = (r.deal_status || r.dealStatus || '').toLowerCase();
+    if (dealStat === 'closed' || dealStat === 'sold') {
+      var closedDate = new Date(r.closed_at || r.closedAt || r.updated_at || r.updatedAt || r.created_at || r.createdAt || Date.now());
+      var daysSinceClose = (Date.now() - closedDate.getTime()) / (24 * 3600000);
+      if (daysSinceClose > 30) return 'overdue';
+      return 'due';
+    }
+    return 'pending';
+  }
+
+  // Agreement status badge
+  function _agreementBadge(status) {
+    var s = (status || '').toLowerCase();
+    var map = {
+      'signed': { bg: '#DCFCE7', color: '#166534', label: 'Signed' },
+      'sent': { bg: '#DBEAFE', color: '#1E40AF', label: 'Sent' },
+      'draft': { bg: '#F3F4F6', color: '#374151', label: 'Draft' },
+      'verbal': { bg: '#FEF3C7', color: '#92400E', label: 'Verbal' },
+      'pending': { bg: '#F3F4F6', color: '#374151', label: 'Pending' }
+    };
+    var cfg = map[s] || { bg: '#FEE2E2', color: '#991B1B', label: 'Missing' };
+    return '<span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:' + cfg.bg + ';color:' + cfg.color + '">' + cfg.label + '</span>';
+  }
+
+  // Payment status badge
+  function _paymentBadge(status) {
+    var map = {
+      'paid': { bg: '#DCFCE7', color: '#166534', label: 'Fee Paid', icon: 'fa-check-circle' },
+      'due': { bg: '#FEF3C7', color: '#92400E', label: 'Fee Due', icon: 'fa-clock' },
+      'overdue': { bg: '#FEE2E2', color: '#991B1B', label: 'Fee Overdue', icon: 'fa-exclamation-circle' },
+      'pending': { bg: '#F3F4F6', color: '#6B7280', label: 'Pending', icon: 'fa-hourglass-half' }
+    };
+    var cfg = map[status] || map.pending;
+    return '<span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded" style="background:' + cfg.bg + ';color:' + cfg.color + '"><i class="fas ' + cfg.icon + '"></i> ' + cfg.label + '</span>';
+  }
+
+  // Deal status badge
+  function _dealStatusBadge(status) {
+    var s = (status || '').toLowerCase();
+    var map = {
+      'active': { bg: '#DBEAFE', color: '#1E40AF', label: 'Active' },
+      'in_contract': { bg: '#F3E8FF', color: '#6B21A8', label: 'In Contract' },
+      'in contract': { bg: '#F3E8FF', color: '#6B21A8', label: 'In Contract' },
+      'closed': { bg: '#DCFCE7', color: '#166534', label: 'Closed' },
+      'sold': { bg: '#DCFCE7', color: '#166534', label: 'Closed' },
+      'pending': { bg: '#FEF3C7', color: '#92400E', label: 'Pending' }
+    };
+    var cfg = map[s] || { bg: '#F3F4F6', color: '#6B7280', label: status || 'Unknown' };
+    return '<span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:' + cfg.bg + ';color:' + cfg.color + '">' + cfg.label + '</span>';
   }
 
   function _referralRow(r) {
@@ -1738,7 +2068,16 @@ var Panels = (function () {
     var price = r.dealPrice || r.price || r.amount || 0;
     var feePct = r.feePercent || r.fee_percent || 0;
     var feeAmt = r.feeAmount || r.fee_amount || 0;
-    var agreement = r.agreementStatus || r.status || 'pending';
+    var agreementRaw = r.agreementStatus || r.agreement_status || r.status || '';
+    var dealStat = r.deal_status || r.dealStatus || '';
+    var payStatus = _resolvePaymentStatus(r);
+
+    // Document link
+    var docLink = '';
+    if (r.agreement_url || r.agreementUrl || r.document_id || r.documentId) {
+      var docHref = r.agreement_url || r.agreementUrl || '#';
+      docLink = ' <a href="' + E(docHref) + '" target="_blank" rel="noopener" class="text-blue-500 hover:text-blue-700" title="View agreement"><i class="fas fa-external-link-alt text-xs"></i></a>';
+    }
 
     return '<tr class="border-b hover:bg-gray-50">' +
       '<td class="px-3 py-2 text-xs">' + D(r.created_at || r.createdAt || r.date) + '</td>' +
@@ -1750,7 +2089,9 @@ var Panels = (function () {
       '<td class="px-3 py-2 text-sm text-right font-medium">' + $(price) + '</td>' +
       '<td class="px-3 py-2 text-sm text-right">' + feePct + '%</td>' +
       '<td class="px-3 py-2 text-sm text-right font-bold">' + $(feeAmt) + '</td>' +
-      '<td class="px-3 py-2">' + UI.statusBadge(agreement) + '</td>' +
+      '<td class="px-3 py-2">' + _agreementBadge(agreementRaw) + docLink + '</td>' +
+      '<td class="px-3 py-2">' + _paymentBadge(payStatus) + '</td>' +
+      '<td class="px-3 py-2">' + _dealStatusBadge(dealStat) + '</td>' +
       '<td class="px-3 py-2"><div class="flex gap-1">' +
         '<button class="btn btn-sm btn-outline" title="View" onclick="CRM.toast(\'Referral details\',\'info\')"><i class="fas fa-eye"></i></button>' +
       '</div></td>' +
@@ -4242,7 +4583,12 @@ var Panels = (function () {
     _createLead: _createLead,
     _submitLead: _submitLead,
     _assignLead: _assignLead,
+    _assignLeadSuggested: _assignLeadSuggested,
     _doAssignLead: _doAssignLead,
+    _bulkAssignLeads: _bulkAssignLeads,
+    _doBulkAssign: _doBulkAssign,
+    _toggleBulkLead: _toggleBulkLead,
+    _filterLeadsBySource: _filterLeadsBySource,
     _addReferral: _addReferral,
     _submitReferral: _submitReferral,
     _calcRefFee: _calcRefFee,
