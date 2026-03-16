@@ -504,34 +504,192 @@ var Panels = (function () {
   }
 
   // ─── Client Address Book ─────────────────────────────────────────────
+  var _cabClients = [];
+  var _cabAgentMap = {};
+
   function clientAddressBook() {
     CRM.setPanelTitle('Client Address Book', 'All clients');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.clients.list({ limit: 200 }).then(function (data) {
-      var clients = data.clients || [];
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('All Clients', clients.length + ' total',
-          '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-plus"></i> New Client</button>') +
-        UI.dataTable(
-          [
-            { key: 'name', label: 'Client', render: function (cl) {
-              return '<div class="flex items-center gap-2 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
-                UI.avatar(cl.name || cl.email, 28) +
-                '<div><p class="text-sm font-medium">' + E(cl.name || cl.email) + '</p>' +
-                '<p class="text-xs text-gray-500">' + E(cl.email || '') + '</p></div></div>';
-            }},
-            { key: 'type', label: 'Type', render: function (cl) { return UI.roleBadge(cl.type || cl.client_type); }},
-            { key: 'stage', label: 'Stage', render: function (cl) { return UI.stageBadge(cl.stage || cl.status); }},
-            { key: 'agent', label: 'Agent', render: function (cl) { return '<span class="text-xs text-gray-500">' + E(cl.agent_name || cl.assignedAgentId || '-') + '</span>'; }},
-            { key: 'updated', label: 'Last Updated', render: function (cl) { return '<span class="text-xs text-gray-500">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</span>'; }},
-          ],
-          clients,
-          { title: '' }
-        ) +
-      '</div>';
+    Promise.all([
+      MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+    ]).then(function (r) {
+      _cabClients = r[0].clients || [];
+      var agents = r[1].agents || [];
+
+      // Build agent lookup map (id → name)
+      _cabAgentMap = {};
+      agents.forEach(function (a) { _cabAgentMap[a.id] = a.name || a.email || 'Agent'; });
+
+      // Resolve agent names on clients
+      _cabClients.forEach(function (cl) {
+        var aid = cl.assignedAgentId || cl.assigned_agent_id;
+        cl._agentName = cl.agent_name || (aid ? (_cabAgentMap[aid] || aid) : 'Unassigned');
+        cl._agentId = aid || null;
+      });
+
+      // Get unique values for filter dropdowns
+      var types = _uniqueVals(_cabClients, function (cl) { return cl.type || cl.client_type; });
+      var stages = _uniqueVals(_cabClients, function (cl) { return cl.stage || cl.status; });
+      var agentNames = [];
+      agents.forEach(function (a) { agentNames.push({ id: a.id, name: a.name || a.email }); });
+
+      _renderCAB(c, _cabClients, types, stages, agentNames);
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-address-book', 'Unable to load clients');
+    });
+  }
+
+  function _uniqueVals(arr, fn) {
+    var seen = {};
+    arr.forEach(function (item) { var v = fn(item); if (v) seen[v] = true; });
+    return Object.keys(seen).sort();
+  }
+
+  function _renderCAB(c, clients, types, stages, agentNames) {
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += UI.sectionHeader('All Clients', clients.length + ' total',
+      '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i> New Client</button>');
+
+    // Filter bar
+    html += '<div class="flex flex-wrap gap-3 items-center">' +
+      '<div class="relative flex-1 min-w-[200px] max-w-xs"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
+        '<input type="text" id="cabSearch" placeholder="Search name, email, phone..." class="form-input pl-9 text-sm" oninput="Panels._filterCAB()"></div>' +
+      '<select id="cabTypeFilter" class="form-input form-select text-sm" style="width:auto;min-width:120px" onchange="Panels._filterCAB()">' +
+        '<option value="">All Types</option>';
+    types.forEach(function (t) { html += '<option value="' + E(t) + '">' + E(t.charAt(0).toUpperCase() + t.slice(1)) + '</option>'; });
+    html += '</select>' +
+      '<select id="cabStageFilter" class="form-input form-select text-sm" style="width:auto;min-width:120px" onchange="Panels._filterCAB()">' +
+        '<option value="">All Stages</option>';
+    stages.forEach(function (s) { html += '<option value="' + E(s) + '">' + E(s.charAt(0).toUpperCase() + s.slice(1)) + '</option>'; });
+    html += '</select>' +
+      '<select id="cabAgentFilter" class="form-input form-select text-sm" style="width:auto;min-width:140px" onchange="Panels._filterCAB()">' +
+        '<option value="">All Agents</option>' +
+        '<option value="unassigned">Unassigned</option>';
+    agentNames.forEach(function (a) { html += '<option value="' + E(a.id) + '">' + E(a.name) + '</option>'; });
+    html += '</select></div>';
+
+    // Table
+    html += '<div id="cabTableContainer">' + _cabTable(clients) + '</div>';
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _cabTable(clients) {
+    return '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead><tr>' +
+      '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'name\')">Client <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'type\')">Type <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'stage\')">Stage <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'agent\')">Assigned Agent <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs hidden sm:table-cell">Phone</th>' +
+      '<th class="text-left px-3 py-2 text-xs hidden md:table-cell cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'updated\')">Updated <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs">Actions</th>' +
+    '</tr></thead><tbody>' +
+    (clients.length === 0 ? '<tr><td colspan="7" class="text-center py-8 text-gray-400 text-sm">No clients match filters</td></tr>' :
+      clients.map(function (cl) {
+        return '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2"><div class="flex items-center gap-2 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
+            UI.avatar(cl.name || cl.email, 28) +
+            '<div><p class="text-sm font-medium">' + E(cl.name || cl.email || 'Unknown') + '</p>' +
+            '<p class="text-xs text-gray-500">' + E(cl.email || '') + '</p></div></div></td>' +
+          '<td class="px-3 py-2">' + UI.roleBadge(cl.type || cl.client_type) + '</td>' +
+          '<td class="px-3 py-2">' + UI.stageBadge(cl.stage || cl.status) + '</td>' +
+          '<td class="px-3 py-2"><span class="text-sm ' + (cl._agentName === 'Unassigned' ? 'text-red-500 font-semibold' : 'text-gray-700') + '">' + E(cl._agentName) + '</span></td>' +
+          '<td class="px-3 py-2 text-sm text-gray-600 hidden sm:table-cell">' + E(cl.phone || '-') + '</td>' +
+          '<td class="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</td>' +
+          '<td class="px-3 py-2"><div class="flex gap-1">' +
+            '<button class="btn btn-sm btn-outline" onclick="Panels._reassignClient(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\')" title="Reassign"><i class="fas fa-exchange-alt"></i></button>' +
+            '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')" title="Open"><i class="fas fa-arrow-right"></i></button>' +
+          '</div></td>' +
+        '</tr>';
+      }).join('')) +
+    '</tbody></table></div></div>';
+  }
+
+  var _cabSortKey = null;
+  var _cabSortAsc = true;
+
+  function _filterCAB() {
+    var search = ((document.getElementById('cabSearch') || {}).value || '').toLowerCase();
+    var typeF = (document.getElementById('cabTypeFilter') || {}).value || '';
+    var stageF = (document.getElementById('cabStageFilter') || {}).value || '';
+    var agentF = (document.getElementById('cabAgentFilter') || {}).value || '';
+
+    var filtered = _cabClients.filter(function (cl) {
+      if (search) {
+        var hay = ((cl.name || '') + ' ' + (cl.email || '') + ' ' + (cl.phone || '')).toLowerCase();
+        if (hay.indexOf(search) === -1) return false;
+      }
+      if (typeF && (cl.type || cl.client_type) !== typeF) return false;
+      if (stageF && (cl.stage || cl.status) !== stageF) return false;
+      if (agentF === 'unassigned' && cl._agentId) return false;
+      if (agentF && agentF !== 'unassigned' && cl._agentId !== agentF) return false;
+      return true;
+    });
+
+    var container = document.getElementById('cabTableContainer');
+    if (container) container.innerHTML = _cabTable(filtered);
+  }
+
+  function _sortCAB(key) {
+    if (_cabSortKey === key) { _cabSortAsc = !_cabSortAsc; }
+    else { _cabSortKey = key; _cabSortAsc = true; }
+
+    var dir = _cabSortAsc ? 1 : -1;
+    _cabClients.sort(function (a, b) {
+      var va, vb;
+      switch (key) {
+        case 'name': va = (a.name || a.email || '').toLowerCase(); vb = (b.name || b.email || '').toLowerCase(); break;
+        case 'type': va = (a.type || a.client_type || ''); vb = (b.type || b.client_type || ''); break;
+        case 'stage': va = (a.stage || a.status || ''); vb = (b.stage || b.status || ''); break;
+        case 'agent': va = (a._agentName || '').toLowerCase(); vb = (b._agentName || '').toLowerCase(); break;
+        case 'updated': va = a.updated_at || a.updatedAt || ''; vb = b.updated_at || b.updatedAt || ''; break;
+        default: va = ''; vb = '';
+      }
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+
+    _filterCAB(); // re-render with current filters + new sort
+  }
+
+  function _reassignClient(clientId, clientName) {
+    CRM.openModal('Reassign Client — ' + clientName,
+      '<div id="reassignAgentList">' + UI.loading() + '</div>'
+    );
+    MallanAPI.agents.list().then(function (data) {
+      var el = document.getElementById('reassignAgentList');
+      if (!el) return;
+      var agents = data.agents || [];
+      var html = '<p class="text-sm text-gray-500 mb-3">Select the agent to assign this client to:</p><div class="space-y-2">';
+      agents.forEach(function (a) {
+        html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3 transition-all" ' +
+          'onclick="Panels._doReassign(\'' + E(clientId) + '\',\'' + E(a.id) + '\',\'' + E(a.name || a.email) + '\')">' +
+          UI.avatar(a.name || a.email, 32) +
+          '<div><span class="text-sm font-medium">' + E(a.name || a.email) + '</span>' +
+          '<p class="text-xs text-gray-500">' + E(a.email || '') + '</p></div></button>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    }).catch(function () {
+      var el = document.getElementById('reassignAgentList');
+      if (el) el.innerHTML = UI.emptyState('fa-user-tie', 'Unable to load agents');
+    });
+  }
+
+  function _doReassign(clientId, agentId, agentName) {
+    MallanAPI.clients.update(clientId, { assignedAgentId: agentId, assigned_agent_id: agentId }).then(function () {
+      Events.log('client_reassigned', 'client', clientId, { newAgentId: agentId, newAgentName: agentName });
+      CRM.closeModal();
+      CRM.toast('Client reassigned to ' + agentName, 'success');
+      clientAddressBook(); // refresh
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to reassign'), 'error');
     });
   }
 
@@ -1809,5 +1967,9 @@ var Panels = (function () {
     _agentTab: _agentTab,
     _filterRoster: _filterRoster,
     _deactivateAgent: _deactivateAgent,
+    _filterCAB: _filterCAB,
+    _sortCAB: _sortCAB,
+    _reassignClient: _reassignClient,
+    _doReassign: _doReassign,
   };
 })();
