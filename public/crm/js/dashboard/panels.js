@@ -3926,9 +3926,116 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
     _clearListingModel();
 
-    _loadListingModel().then(function (model) {
-      var listings = model.listings;
-      var agentMap = model.agentMap;
+    // Try server-side audit first, fallback to client-side
+    MallanAPI._fetch('/api/crm/compliance/audit', { method: 'POST' }).then(function (auditResult) {
+      _renderComplianceFromServer(c, auditResult);
+    }).catch(function () {
+      // Server audit unavailable — fall back to client-side analysis
+      _loadListingModel().then(function (model) {
+        _renderComplianceClientSide(c, model);
+      }).catch(function () {
+        c.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load compliance data');
+      });
+    });
+  }
+
+  function _renderComplianceFromServer(c, audit) {
+    var findings = audit.findings || [];
+    var score = audit.score || 0;
+    var scoreColor = score >= 90 ? '#059669' : score >= 70 ? '#F59E0B' : '#DC2626';
+
+    // Group findings by category
+    var buckets = {
+      fair_housing: { label: 'Fair Housing Risk', icon: 'fa-home', severity: 'critical', color: '#DC2626', items: [] },
+      data_quality: { label: 'Missing/Invalid Data', icon: 'fa-database', severity: 'high', color: '#F97316', items: [] },
+      media: { label: 'Media Issues', icon: 'fa-camera', severity: 'medium', color: '#F59E0B', items: [] },
+      stale: { label: 'Stale Listings', icon: 'fa-clock', severity: 'medium', color: '#F59E0B', items: [] },
+      distribution: { label: 'Feed/Display Problems', icon: 'fa-broadcast-tower', severity: 'critical', color: '#DC2626', items: [] },
+      rebny_rls: { label: 'REBNY RLS Issues', icon: 'fa-shield-alt', severity: 'high', color: '#F97316', items: [] },
+    };
+
+    findings.forEach(function (f) {
+      var cat = f.category || 'rebny_rls';
+      if (buckets[cat]) buckets[cat].items.push(f);
+      else buckets.rebny_rls.items.push(f);
+    });
+
+    var html = '<div class="space-y-4">';
+
+    // Score + metadata
+    html += '<div class="card p-6">' +
+      '<div class="flex items-center justify-between">' +
+        '<div class="text-center">' +
+          '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Server-Validated Compliance Score</p>' +
+          '<p class="text-5xl font-bold" style="color:' + scoreColor + '">' + score + '%</p>' +
+          '<p class="text-xs text-gray-500 mt-1">' + audit.listingsAudited + ' listings audited · ' + audit.totalFindings + ' findings</p>' +
+          '<p class="text-[10px] text-gray-400 mt-1">Audited at ' + (audit.auditedAt ? new Date(audit.auditedAt).toLocaleString() : 'now') + '</p>' +
+        '</div>' +
+        '<div class="flex gap-3">' +
+          '<div class="text-center"><p class="text-2xl font-bold text-red-600">' + (audit.critical || 0) + '</p><p class="text-[10px] text-gray-500">Critical</p></div>' +
+          '<div class="text-center"><p class="text-2xl font-bold text-orange-500">' + (audit.high || 0) + '</p><p class="text-[10px] text-gray-500">High</p></div>' +
+          '<div class="text-center"><p class="text-2xl font-bold text-yellow-500">' + (audit.medium || 0) + '</p><p class="text-[10px] text-gray-500">Medium</p></div>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels.complianceDashboard()"><i class="fas fa-sync mr-1"></i> Re-Audit</button>' +
+      '</div>' +
+    '</div>';
+
+    // Bucket cards
+    html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">';
+    Object.keys(buckets).forEach(function (key) {
+      var b = buckets[key];
+      var count = b.items.length;
+      var statusIcon = count === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle';
+      var statusColor = count === 0 ? '#059669' : b.color;
+      html += '<div class="card p-4 text-center cursor-pointer hover:border-gold transition-all" onclick="document.getElementById(\'compQueue\').scrollIntoView({behavior:\'smooth\'})">' +
+        '<i class="fas ' + b.icon + ' text-xl mb-2" style="color:' + statusColor + '"></i>' +
+        '<p class="text-xs font-bold text-gray-700 mb-1">' + E(b.label) + '</p>' +
+        '<p class="text-lg font-bold" style="color:' + statusColor + '">' + count + '</p>' +
+        '<i class="fas ' + statusIcon + ' text-sm mt-1" style="color:' + statusColor + '"></i>' +
+      '</div>';
+    });
+    html += '</div>';
+
+    // Compliance queue — all findings sorted by severity
+    html += '<div id="compQueue" class="card"><div class="card-header"><h3><i class="fas fa-list-alt text-gold mr-2"></i>Compliance Queue (' + findings.length + ' findings)</h3></div>' +
+      '<div class="card-body">';
+    if (findings.length === 0) {
+      html += '<div class="flex flex-col items-center py-8"><i class="fas fa-check-circle text-3xl text-green-500 mb-3"></i>' +
+        '<p class="text-sm font-semibold text-green-700">All listings pass compliance checks</p></div>';
+    } else {
+      var severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      findings.sort(function (a, b) { return (severityOrder[a.severity] || 9) - (severityOrder[b.severity] || 9); });
+
+      html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Severity</th>' +
+        '<th class="text-left px-3 py-2">Listing</th>' +
+        '<th class="text-left px-3 py-2">Category</th>' +
+        '<th class="text-left px-3 py-2">Issue</th>' +
+        '<th class="text-left px-3 py-2">Fix</th>' +
+        '<th class="text-left px-3 py-2">Action</th>' +
+      '</tr></thead><tbody>';
+      findings.forEach(function (f) {
+        var sevColor = f.severity === 'critical' ? '#DC2626' : f.severity === 'high' ? '#F97316' : f.severity === 'medium' ? '#F59E0B' : '#6b7280';
+        html += '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white" style="background:' + sevColor + '">' + E(f.severity) + '</span></td>' +
+          '<td class="px-3 py-2 text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + E(f.listingId) + '/compliance\')">' + E(f.address) + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(f.category.replace(/_/g, ' ')) + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(f.title) + '</td>' +
+          '<td class="px-3 py-2 text-xs text-gray-500">' + E(f.fix) + '</td>' +
+          '<td class="px-3 py-2"><button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/workspace/listing/' + E(f.listingId) + '/compliance\')">Fix</button></td>' +
+        '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div></div>';
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _renderComplianceClientSide(c, model) {
+    var listings = model.listings;
+    var agentMap = model.agentMap;
 
       // ── Bucket counts ──
       var buckets = {
@@ -4107,9 +4214,6 @@ var Panels = (function () {
 
       html += '</div>';
       c.innerHTML = html;
-    }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load compliance data');
-    });
   }
 
   function _complianceItem(label, status, detail) {
