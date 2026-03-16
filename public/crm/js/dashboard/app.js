@@ -35,6 +35,8 @@ var CRM = (function () {
       // Client portal?
       if (Store.isClient()) {
         var role = data.portalRole || 'buyer';
+        // Normalize: backend may return 'tenant', data model uses 'renter'
+        if (role === 'tenant') role = 'renter';
         Portals.init(role);
         _hideLoading();
         return;

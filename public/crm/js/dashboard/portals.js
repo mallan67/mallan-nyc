@@ -54,6 +54,8 @@ var Portals = (function () {
   // INIT — entry point, called from app.js with role
   // ═══════════════════════════════════════════════════════════════════════════
   function init(role) {
+    // Normalize: 'tenant' → 'renter' (data model uses 'renter', display uses 'Tenant')
+    if (role === 'tenant') role = 'renter';
     _role = role;
 
     // Hide agent sidebar, expand main area

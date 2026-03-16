@@ -25,12 +25,14 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const type = portalType || "auto";
+    // Accept both 'tenant' and 'renter' — normalize to 'renter' in data model
+    const rawType = portalType || "auto";
+    const type = rawType === "tenant" ? "renter" : rawType;
 
     const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? undefined;
     const ua = req.headers.get("user-agent") ?? undefined;
 
-    const clientPortals = ["client", "buyer", "tenant", "seller", "landlord"];
+    const clientPortals = ["client", "buyer", "renter", "tenant", "seller", "landlord"];
     const tryAgent = type === "auto" || type === "agent" || type === "broker";
     const tryLead = type === "auto" || clientPortals.includes(type);
 
