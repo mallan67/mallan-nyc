@@ -315,7 +315,9 @@
             }
         }).catch(function () { /* not logged in */ });
 
-        // ── Redirect target (role-aware, safe against open redirect) ──
+        // ── Redirect target ──
+        // Always redirect to /crm/dashboard. The server-authenticated portalRole
+        // drives portal initialization in app.js — no hash needed.
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
             var explicit = params.get('redirect');
@@ -323,16 +325,7 @@
             if (explicit && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(explicit)) {
                 return explicit;
             }
-
-            // Route by portal type
-            var portal = document.getElementById('portalType').value;
-            switch (portal) {
-                case 'buyer':    return '/crm/dashboard#buyer';
-                case 'renter':   return '/crm/dashboard#renter';
-                case 'seller':   return '/crm/dashboard#seller';
-                case 'landlord': return '/crm/dashboard#landlord';
-                default:         return '/crm/dashboard';
-            }
+            return '/crm/dashboard';
         }
 
         function redirectAfterLogin() {
