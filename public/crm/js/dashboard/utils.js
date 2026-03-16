@@ -146,6 +146,39 @@ var Utils = (function () {
     });
   }
 
+  // ─── Offline Queue ──────────────────────────────────────────────────
+  var _offlineQueue = [];
+
+  function queueOfflineAction(action) {
+    _offlineQueue.push({ action: action, timestamp: Date.now() });
+    try { localStorage.setItem('mallan_crm_offline_queue', JSON.stringify(_offlineQueue)); } catch(e) {}
+  }
+
+  function getOfflineQueue() {
+    try { _offlineQueue = JSON.parse(localStorage.getItem('mallan_crm_offline_queue') || '[]'); } catch(e) {}
+    return _offlineQueue;
+  }
+
+  function clearOfflineQueue() {
+    _offlineQueue = [];
+    try { localStorage.removeItem('mallan_crm_offline_queue'); } catch(e) {}
+  }
+
+  function processOfflineQueue() {
+    var queue = getOfflineQueue();
+    if (queue.length === 0) return Promise.resolve();
+
+    var promises = queue.map(function(item) {
+      return MallanAPI._fetch(item.action.url, item.action.options).catch(function() { return null; });
+    });
+
+    return Promise.all(promises).then(function(results) {
+      var failed = results.filter(function(r) { return r === null; });
+      if (failed.length === 0) clearOfflineQueue();
+      return { processed: results.length, failed: failed.length };
+    });
+  }
+
   return {
     esc: esc,
     formatMoney: formatMoney,
@@ -165,5 +198,9 @@ var Utils = (function () {
     truncate: truncate,
     queryString: queryString,
     withRequestState: withRequestState,
+    queueOfflineAction: queueOfflineAction,
+    getOfflineQueue: getOfflineQueue,
+    clearOfflineQueue: clearOfflineQueue,
+    processOfflineQueue: processOfflineQueue,
   };
 })();

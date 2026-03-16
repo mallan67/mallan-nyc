@@ -23,6 +23,11 @@
     }
     </script>
     <link rel="stylesheet" href="/crm/css/dashboard.css">
+    <link rel="manifest" href="/crm/manifest.json">
+    <meta name="theme-color" content="#B8860B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mallan CRM">
 </head>
 <body class="bg-gray-50 font-sans text-gray-900 antialiased">
 
@@ -107,6 +112,25 @@
         <div id="modalFooter" class="modal-footer hidden"></div>
     </div>
 </div>
+
+<!-- ═══ MOBILE BOTTOM NAV ═══ -->
+<nav id="mobileNav" class="mobile-nav">
+    <button onclick="Router.navigate('/ops/dashboard')" class="mobile-nav-btn" data-route="/ops/dashboard">
+        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+    </button>
+    <button onclick="Router.navigate('/ops/search')" class="mobile-nav-btn" data-route="/ops/search">
+        <i class="fas fa-search"></i><span>Search</span>
+    </button>
+    <button onclick="Router.navigate('/ops/clients')" class="mobile-nav-btn" data-route="/ops/clients">
+        <i class="fas fa-users"></i><span>Clients</span>
+    </button>
+    <button onclick="Router.navigate('/ops/listings')" class="mobile-nav-btn" data-route="/ops/listings">
+        <i class="fas fa-building"></i><span>Listings</span>
+    </button>
+    <button onclick="Router.navigate('/ops/tasks')" class="mobile-nav-btn" data-route="/ops/tasks">
+        <i class="fas fa-tasks"></i><span>Tasks</span>
+    </button>
+</nav>
 
 <!-- ═══ TOAST CONTAINER ═══ -->
 <div id="toasts" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>

@@ -56,6 +56,20 @@ var CRM = (function () {
       Router.start();
       _hideLoading();
 
+      // Register service worker for push notifications
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/crm/sw.js').catch(function() { /* SW optional */ });
+      }
+
+      // Process offline queue on reconnect
+      window.addEventListener('online', function() {
+        Utils.processOfflineQueue().then(function(result) {
+          if (result && result.processed > 0) {
+            CRM.toast(result.processed + ' offline actions synced', 'success');
+          }
+        });
+      });
+
     }).catch(function () {
       window.location.href = '/crm/login.html';
     });
@@ -490,8 +504,14 @@ var CRM = (function () {
     });
   }
 
-  // Listen for route changes to update sidebar
-  Store.on('route:changed', function () { updateSidebarActive(); });
+  // Listen for route changes to update sidebar + mobile nav
+  Store.on('route:changed', function () {
+    updateSidebarActive();
+    // Update mobile nav active state
+    document.querySelectorAll('.mobile-nav-btn[data-route]').forEach(function(btn) {
+      btn.classList.toggle('active', Router.isActive(btn.getAttribute('data-route')));
+    });
+  });
 
   // ─── Top Bar ─────────────────────────────────────────────────────────
   function renderTopBar() {

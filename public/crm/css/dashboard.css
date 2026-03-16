@@ -921,3 +921,40 @@ input[type="checkbox"] {
 .kanban-card[draggable="true"] { cursor: grab; }
 .kanban-card[draggable="true"]:active { cursor: grabbing; opacity: 0.7; transform: rotate(2deg); }
 .kanban-col-body.drag-over { background: #FFFBF0 !important; border: 2px dashed #B8860B; border-radius: 8px; }
+
+/* ── Mobile Bottom Navigation ──────────────────────────────────────── */
+.mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    z-index: 50;
+    padding: 4px 0 env(safe-area-inset-bottom, 4px);
+    justify-content: space-around;
+}
+@media (max-width: 1023px) {
+    .mobile-nav { display: flex; }
+    #content { padding-bottom: 72px; }
+}
+.mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: color 0.15s;
+    min-width: 56px;
+}
+.mobile-nav-btn i { font-size: 18px; }
+.mobile-nav-btn.active { color: #B8860B; }
+.mobile-nav-btn:hover { color: #B8860B; }
