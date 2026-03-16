@@ -797,7 +797,17 @@ var Panels = (function () {
         '<option value="">All Agents</option>' +
         '<option value="unassigned">Unassigned</option>';
     agentNames.forEach(function (a) { html += '<option value="' + E(a.id) + '">' + E(a.name) + '</option>'; });
-    html += '</select></div>';
+    html += '</select>' +
+      '<select id="cabSourceFilter" class="form-input form-select text-sm" style="width:auto;min-width:130px" onchange="Panels._filterCAB()">' +
+        '<option value="">All Sources</option>' +
+        '<option value="Website">Website</option>' +
+        '<option value="StreetEasy">StreetEasy</option>' +
+        '<option value="Zillow">Zillow</option>' +
+        '<option value="Referral">Referral</option>' +
+        '<option value="Walk-in">Walk-in</option>' +
+        '<option value="Social Media">Social Media</option>' +
+        '<option value="Other">Other</option>' +
+      '</select></div>';
 
     // Table
     html += '<div id="cabTableContainer">' + _cabTable(clients) + '</div>';
@@ -806,24 +816,39 @@ var Panels = (function () {
     c.innerHTML = html;
   }
 
+  function _sourceWithRefBadge(source) {
+    var src = source || '-';
+    var html = '<span class="text-xs">' + E(src) + '</span>';
+    if (src === 'StreetEasy' || src === 'Zillow' || src === 'Referral') {
+      html += ' <span class="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded cursor-pointer" ' +
+        'style="background:#FFF7ED;color:#EA580C;border:1px solid #FDBA74" ' +
+        'onclick="event.stopPropagation();Router.navigate(\'/broker/leads/referrals\')" ' +
+        'title="Referral fee may apply">&#9888; Referral fee</span>';
+    }
+    return html;
+  }
+
   function _cabTable(clients) {
     return '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead><tr>' +
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'name\')">Client <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'type\')">Type <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'source\')">Source <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'stage\')">Stage <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'agent\')">Assigned Agent <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs hidden sm:table-cell">Phone</th>' +
       '<th class="text-left px-3 py-2 text-xs hidden md:table-cell cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'updated\')">Updated <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs">Actions</th>' +
     '</tr></thead><tbody>' +
-    (clients.length === 0 ? '<tr><td colspan="7" class="text-center py-8 text-gray-400 text-sm">No clients match filters</td></tr>' :
+    (clients.length === 0 ? '<tr><td colspan="8" class="text-center py-8 text-gray-400 text-sm">No clients match filters</td></tr>' :
       clients.map(function (cl) {
+        var src = cl.source || cl.lead_source || '';
         return '<tr class="border-b hover:bg-gray-50">' +
           '<td class="px-3 py-2"><div class="flex items-center gap-2 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
             UI.avatar(cl.name || cl.email, 28) +
             '<div><p class="text-sm font-medium">' + E(cl.name || cl.email || 'Unknown') + '</p>' +
             '<p class="text-xs text-gray-500">' + E(cl.email || '') + '</p></div></div></td>' +
           '<td class="px-3 py-2">' + UI.roleBadge(cl.type || cl.client_type) + '</td>' +
+          '<td class="px-3 py-2">' + _sourceWithRefBadge(src) + '</td>' +
           '<td class="px-3 py-2">' + UI.stageBadge(cl.stage || cl.status) + '</td>' +
           '<td class="px-3 py-2"><span class="text-sm ' + (cl._agentName === 'Unassigned' ? 'text-red-500 font-semibold' : 'text-gray-700') + '">' + E(cl._agentName) + '</span></td>' +
           '<td class="px-3 py-2 text-sm text-gray-600 hidden sm:table-cell">' + E(cl.phone || '-') + '</td>' +
@@ -845,6 +870,7 @@ var Panels = (function () {
     var typeF = (document.getElementById('cabTypeFilter') || {}).value || '';
     var stageF = (document.getElementById('cabStageFilter') || {}).value || '';
     var agentF = (document.getElementById('cabAgentFilter') || {}).value || '';
+    var sourceF = (document.getElementById('cabSourceFilter') || {}).value || '';
 
     var filtered = _cabClients.filter(function (cl) {
       if (search) {
@@ -855,6 +881,7 @@ var Panels = (function () {
       if (stageF && (cl.stage || cl.status) !== stageF) return false;
       if (agentF === 'unassigned' && cl._agentId) return false;
       if (agentF && agentF !== 'unassigned' && cl._agentId !== agentF) return false;
+      if (sourceF && (cl.source || cl.lead_source || '') !== sourceF) return false;
       return true;
     });
 
@@ -872,6 +899,7 @@ var Panels = (function () {
       switch (key) {
         case 'name': va = (a.name || a.email || '').toLowerCase(); vb = (b.name || b.email || '').toLowerCase(); break;
         case 'type': va = (a.type || a.client_type || ''); vb = (b.type || b.client_type || ''); break;
+        case 'source': va = (a.source || a.lead_source || ''); vb = (b.source || b.lead_source || ''); break;
         case 'stage': va = (a.stage || a.status || ''); vb = (b.stage || b.status || ''); break;
         case 'agent': va = (a._agentName || '').toLowerCase(); vb = (b._agentName || '').toLowerCase(); break;
         case 'updated': va = a.updated_at || a.updatedAt || ''; vb = b.updated_at || b.updatedAt || ''; break;
@@ -954,7 +982,7 @@ var Panels = (function () {
             return '<p class="text-sm font-medium">' + E(l.name || l.email || 'Unknown') + '</p>' +
               '<p class="text-xs text-gray-500">' + E(l.email || '') + '</p>';
           }},
-          { key: 'source', label: 'Source', render: function (l) { return '<span class="text-xs">' + E(l.source || '-') + '</span>'; }},
+          { key: 'source', label: 'Source', render: function (l) { return _sourceWithRefBadge(l.source || ''); }},
           { key: 'type', label: 'Type', render: function (l) { return UI.roleBadge(l.leadType || l.type || 'buyer'); }},
           { key: 'status', label: 'Status', render: function (l) { return UI.statusBadge(l.status || 'new'); }},
           { key: 'agent', label: 'Agent', render: function (l) {
@@ -2656,6 +2684,57 @@ var Panels = (function () {
       }
       html += '</tbody></table></div></div></div>';
 
+      // NY DOS Mandatory CE Requirements
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-book-open text-indigo-500 mr-2"></i>NY DOS Mandatory CE Requirements</h3>' +
+        '<p class="text-xs text-gray-500 mt-1">Required for every 2-year license renewal cycle (22.5 total hours)</p></div>' +
+        '<div class="card-body"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">';
+      var mandatoryCourses = [
+        { name: 'Recent Legal Matters', hours: '1 hour', icon: 'fa-gavel', color: '#2563EB' },
+        { name: 'Ethical Business Practices', hours: '2.5 hours', icon: 'fa-balance-scale', color: '#7C3AED' },
+        { name: 'Fair Housing', hours: '3 hours', icon: 'fa-home', color: '#059669' },
+        { name: 'Agency', hours: '1-2 hours', icon: 'fa-handshake', color: '#B8860B' },
+        { name: 'Implicit Bias', hours: '2 hours', icon: 'fa-brain', color: '#DC2626' },
+        { name: 'Cultural Competency', hours: '2 hours', icon: 'fa-users', color: '#0891B2' },
+      ];
+      mandatoryCourses.forEach(function (mc) {
+        html += '<div class="p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all">' +
+          '<div class="flex items-center gap-2 mb-1">' +
+            '<div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:' + mc.color + '15"><i class="fas ' + mc.icon + '" style="color:' + mc.color + ';font-size:12px"></i></div>' +
+            '<div><p class="text-sm font-semibold">' + mc.name + '</p>' +
+            '<p class="text-xs text-gray-500">' + mc.hours + '</p></div>' +
+          '</div></div>';
+      });
+      html += '</div>' +
+        '<p class="text-xs text-gray-500 mt-3 italic"><i class="fas fa-info-circle mr-1"></i>Remaining 11 hours are elective courses</p>' +
+      '</div></div>';
+
+      // CE Course History
+      html += '<div class="card"><div class="card-header flex items-center justify-between flex-wrap gap-2">' +
+        '<h3><i class="fas fa-history text-teal-500 mr-2"></i>CE Course History</h3>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._addCECourse()"><i class="fas fa-plus mr-1"></i> Add Course</button></div>' +
+        '<div class="card-body">' +
+        '<div class="flex flex-wrap gap-2 mb-4" id="ceFilterTabs">' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._filterCECourses(\'all\')">All</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._filterCECourses(\'mandatory\')">Mandatory</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._filterCECourses(\'elective\')">Elective</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._filterCECourses(\'verified\')">Verified</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._filterCECourses(\'pending\')">Pending</button>' +
+        '</div>' +
+        '<div id="ceCoursesTable">' + UI.loading() + '</div>' +
+      '</div></div>';
+
+      // Store agents ref for CE modal
+      window._ceAgents = agents;
+
+      // Load CE courses
+      MallanAPI._fetch('/api/crm/ce-courses?limit=500').then(function (data) {
+        window._ceCourses = data.courses || [];
+        _renderCECoursesTable(window._ceCourses);
+      }).catch(function () {
+        window._ceCourses = [];
+        _renderCECoursesTable([]);
+      });
+
       // E&O Insurance section
       html += '<div class="card"><div class="card-header"><h3><i class="fas fa-shield-alt text-purple-500 mr-2"></i>E&O Insurance</h3></div>' +
         '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
@@ -2701,6 +2780,183 @@ var Panels = (function () {
       c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-id-card', 'Unable to load agent data');
+    });
+  }
+
+  // ─── CE Course Helpers ─────────────────────────────────────────────
+  var _ceMandatoryCategories = ['Recent Legal Matters', 'Ethical Business Practices', 'Fair Housing', 'Agency', 'Implicit Bias', 'Cultural Competency'];
+
+  function _renderCECoursesTable(courses) {
+    var el = document.getElementById('ceCoursesTable');
+    if (!el) return;
+    if (courses.length === 0) {
+      el.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No CE courses recorded</p>';
+      return;
+    }
+    var agentMap = {};
+    (window._ceAgents || []).forEach(function (a) { agentMap[a.id] = a.name || a.email || 'Agent'; });
+
+    var html = '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+      '<th class="text-left px-3 py-2">Agent</th>' +
+      '<th class="text-left px-3 py-2">Course Name</th>' +
+      '<th class="text-left px-3 py-2">Provider</th>' +
+      '<th class="text-left px-3 py-2">Category</th>' +
+      '<th class="text-right px-3 py-2">Hours</th>' +
+      '<th class="text-left px-3 py-2">Completed</th>' +
+      '<th class="text-left px-3 py-2">Certificate</th>' +
+      '<th class="text-left px-3 py-2">Status</th>' +
+      '<th class="text-left px-3 py-2">Actions</th>' +
+    '</tr></thead><tbody>';
+    courses.forEach(function (cr) {
+      var agentName = agentMap[cr.agent_id || cr.agentId] || cr.agent_name || '-';
+      var cat = cr.category || 'Elective';
+      var isMandatory = _ceMandatoryCategories.indexOf(cat) !== -1;
+      var catBadge = isMandatory
+        ? '<span class="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded" style="background:#EEF2FF;color:#4338CA">' + E(cat) + '</span>'
+        : '<span class="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded" style="background:#F3F4F6;color:#6B7280">Elective</span>';
+      var certStatus = (cr.certificate_url || cr.certificateUrl)
+        ? '<span class="text-xs text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Uploaded</span>'
+        : '<span class="text-xs text-red-500 font-semibold"><i class="fas fa-times-circle mr-1"></i>Missing</span>';
+      var verifyStatus = (cr.status === 'verified')
+        ? '<span style="font-size:10px;font-weight:700;color:#059669;text-transform:uppercase">Verified</span>'
+        : '<span style="font-size:10px;font-weight:700;color:#F59E0B;text-transform:uppercase">Pending</span>';
+
+      html += '<tr class="border-b hover:bg-gray-50">' +
+        '<td class="px-3 py-2 text-sm">' + E(agentName) + '</td>' +
+        '<td class="px-3 py-2 text-sm font-medium">' + E(cr.course_name || cr.courseName || '-') + '</td>' +
+        '<td class="px-3 py-2 text-xs">' + E(cr.provider || '-') + '</td>' +
+        '<td class="px-3 py-2">' + catBadge + '</td>' +
+        '<td class="px-3 py-2 text-sm text-right font-bold">' + (cr.credit_hours || cr.creditHours || 0) + '</td>' +
+        '<td class="px-3 py-2 text-xs">' + (cr.completion_date || cr.completionDate ? D(cr.completion_date || cr.completionDate) : '-') + '</td>' +
+        '<td class="px-3 py-2">' + certStatus + '</td>' +
+        '<td class="px-3 py-2">' + verifyStatus + '</td>' +
+        '<td class="px-3 py-2"><div class="flex gap-1">' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._editCECourse(\'' + E(cr.id) + '\')" title="Edit"><i class="fas fa-edit"></i></button>' +
+          '<button class="btn btn-sm btn-outline text-red-500" onclick="Panels._deleteCECourse(\'' + E(cr.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+        '</div></td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  }
+
+  function _filterCECourses(filter) {
+    // Update tab styles
+    var tabs = document.getElementById('ceFilterTabs');
+    if (tabs) {
+      var btns = tabs.querySelectorAll('button');
+      btns.forEach(function (b) { b.className = 'btn btn-sm btn-outline'; });
+      // Highlight selected
+      var idx = { all: 0, mandatory: 1, elective: 2, verified: 3, pending: 4 }[filter] || 0;
+      if (btns[idx]) btns[idx].className = 'btn btn-sm btn-gold';
+    }
+
+    var courses = window._ceCourses || [];
+    if (filter === 'mandatory') {
+      courses = courses.filter(function (cr) { return _ceMandatoryCategories.indexOf(cr.category || '') !== -1; });
+    } else if (filter === 'elective') {
+      courses = courses.filter(function (cr) { return _ceMandatoryCategories.indexOf(cr.category || '') === -1; });
+    } else if (filter === 'verified') {
+      courses = courses.filter(function (cr) { return cr.status === 'verified'; });
+    } else if (filter === 'pending') {
+      courses = courses.filter(function (cr) { return cr.status !== 'verified'; });
+    }
+    _renderCECoursesTable(courses);
+  }
+
+  function _addCECourse(prefill) {
+    var agents = window._ceAgents || [];
+    var p = prefill || {};
+    var isEdit = !!p.id;
+
+    var agentOpts = '<option value="">Select Agent</option>';
+    agents.forEach(function (a) {
+      var sel = (p.agent_id === a.id || p.agentId === a.id) ? ' selected' : '';
+      agentOpts += '<option value="' + E(a.id) + '"' + sel + '>' + E(a.name || a.email) + '</option>';
+    });
+
+    var catOpts = '';
+    var categories = ['Recent Legal Matters', 'Ethical Business Practices', 'Fair Housing', 'Agency', 'Implicit Bias', 'Cultural Competency', 'Elective'];
+    categories.forEach(function (cat) {
+      var sel = ((p.category || '') === cat) ? ' selected' : '';
+      catOpts += '<option value="' + E(cat) + '"' + sel + '>' + E(cat) + '</option>';
+    });
+
+    CRM.openModal(isEdit ? 'Edit CE Course' : 'Add CE Course',
+      '<form id="ceCourseForm" class="space-y-4">' +
+        (isEdit ? '<input type="hidden" name="id" value="' + E(p.id) + '">' : '') +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Agent</label><select class="form-input form-select" name="agent_id" required>' + agentOpts + '</select></div>' +
+          '<div class="form-group"><label class="form-label">Course Name</label><input class="form-input" name="course_name" value="' + E(p.course_name || p.courseName || '') + '" required></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Provider</label><input class="form-input" name="provider" value="' + E(p.provider || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Credit Hours</label><input class="form-input" type="number" step="0.5" min="0" name="credit_hours" value="' + (p.credit_hours || p.creditHours || '') + '" required></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Category</label><select class="form-input form-select" name="category" required>' + catOpts + '</select></div>' +
+          '<div class="form-group"><label class="form-label">Completion Date</label><input class="form-input" type="date" name="completion_date" value="' + E(p.completion_date || p.completionDate || '') + '" required></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Certificate</label><input class="form-input" type="file" name="certificate" accept=".pdf,.jpg,.jpeg,.png"></div>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitCECourse()"><i class="fas fa-save mr-1"></i> ' + (isEdit ? 'Update' : 'Save') + '</button>',
+      }
+    );
+  }
+
+  function _editCECourse(courseId) {
+    var course = (window._ceCourses || []).filter(function (c) { return c.id === courseId; })[0];
+    if (course) _addCECourse(course);
+  }
+
+  function _submitCECourse() {
+    var form = document.getElementById('ceCourseForm');
+    if (!form) return;
+    var data = {};
+    new FormData(form).forEach(function (v, k) {
+      if (k === 'certificate') return; // file handled separately
+      if (v) data[k] = v;
+    });
+    if (!data.agent_id || !data.course_name) {
+      CRM.toast('Agent and Course Name are required', 'error');
+      return;
+    }
+    var agentId = data.agent_id;
+    var courseId = data.id;
+    delete data.id;
+
+    var method = courseId ? 'PUT' : 'POST';
+    var url = '/api/crm/agents/' + encodeURIComponent(agentId) + '/ce-courses' + (courseId ? '/' + encodeURIComponent(courseId) : '');
+
+    MallanAPI._fetch(url, { method: method, body: JSON.stringify(data) }).then(function () {
+      CRM.closeModal();
+      CRM.toast(courseId ? 'Course updated' : 'Course added', 'success');
+      // Reload courses
+      MallanAPI._fetch('/api/crm/ce-courses?limit=500').then(function (d) {
+        window._ceCourses = d.courses || [];
+        _renderCECoursesTable(window._ceCourses);
+      }).catch(function () {});
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to save course'), 'error');
+    });
+  }
+
+  function _deleteCECourse(courseId) {
+    if (!confirm('Delete this CE course record? This cannot be undone.')) return;
+    var course = (window._ceCourses || []).filter(function (c) { return c.id === courseId; })[0];
+    var agentId = course ? (course.agent_id || course.agentId) : null;
+    if (!agentId) {
+      CRM.toast('Unable to determine agent for this course', 'error');
+      return;
+    }
+    MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(agentId) + '/ce-courses/' + encodeURIComponent(courseId), { method: 'DELETE' }).then(function () {
+      CRM.toast('Course deleted', 'success');
+      window._ceCourses = (window._ceCourses || []).filter(function (c) { return c.id !== courseId; });
+      _renderCECoursesTable(window._ceCourses);
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to delete'), 'error');
     });
   }
 
@@ -3456,5 +3712,10 @@ var Panels = (function () {
     _toggleAuditDetail: _toggleAuditDetail,
     _filterAuditLog: _filterAuditLog,
     _exportAuditCSV: _exportAuditCSV,
+    _addCECourse: _addCECourse,
+    _editCECourse: _editCECourse,
+    _submitCECourse: _submitCECourse,
+    _deleteCECourse: _deleteCECourse,
+    _filterCECourses: _filterCECourses,
   };
 })();
