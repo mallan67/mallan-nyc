@@ -17,6 +17,231 @@ var Panels = (function () {
   // BROKER CONSOLE
   // ═══════════════════════════════════════════════════════════════════════
 
+  // ─── Broker Approval Queue (standalone page) ─────────────────────────
+  function brokerApprovalQueue() {
+    CRM.setPanelTitle('Approval Queue');
+    var c = _container(); c.innerHTML = UI.loading();
+
+    Promise.all([
+      MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
+      Documents.listAll ? Documents.listAll().catch(function () { return []; }) : Promise.resolve([]),
+      MallanAPI._fetch('/api/crm/referrals?limit=200').catch(function () { return { referrals: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
+    ]).then(function (r) {
+      var deals = r[0].deals || [];
+      var docs = Array.isArray(r[1]) ? r[1] : [];
+      var referrals = r[2].referrals || [];
+      var listings = r[3].listings || [];
+      var agents = r[4].agents || [];
+      var clients = r[5].clients || [];
+
+      var agentMap = {};
+      agents.forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
+      var clientMap = {};
+      clients.forEach(function (cl) { clientMap[cl.id] = cl.name || cl.full_name || cl.email || 'Client'; });
+
+      // Build queue items from 4 sources
+      var items = [];
+
+      // 1. Pending commission payouts
+      deals.filter(function (d) {
+        var ps = (d.payoutStatus || d.payout_status || '').toLowerCase();
+        return ps === 'pending' || ps === 'submitted';
+      }).forEach(function (d) {
+        var agentName = agentMap[d.assignedAgentId || d.assigned_agent_id] || '';
+        items.push({
+          id: d.id,
+          type: 'payout',
+          typeLabel: 'Commission Payout',
+          typeColor: '#F59E0B',
+          typeIcon: 'fa-dollar-sign',
+          title: $(d.grossCommission || d.commission || 0) + ' — ' + E(d.address || d.title || 'Deal'),
+          subtitle: agentName ? 'Agent: ' + agentName + ' · Split: ' + $(d.splitAmount || d.split_amount || 0) : '',
+          date: d.created_at || d.createdAt || '',
+          age: _daysAgo(d.created_at || d.createdAt),
+          approveAction: "Panels._approvePayout('" + E(d.id) + "')",
+          rejectAction: "Panels._rejectPayout('" + E(d.id) + "')",
+          viewRoute: '/broker/finance/payouts',
+        });
+      });
+
+      // 2. Pending document approvals
+      docs.filter(function (d) {
+        return d.status === 'pending_approval' || d.status === 'requested';
+      }).forEach(function (d) {
+        items.push({
+          id: d.id,
+          type: 'document',
+          typeLabel: 'Document Approval',
+          typeColor: '#7C3AED',
+          typeIcon: 'fa-file-signature',
+          title: E(d.title || d.name || 'Document') + ' (' + E(d.type || 'general') + ')',
+          subtitle: 'Scope: ' + E(d.scope || '') + (d.uploadedBy ? ' · Uploaded by: ' + E(d.uploadedBy) : ''),
+          date: d.created_at || d.createdAt || '',
+          age: _daysAgo(d.created_at || d.createdAt),
+          approveAction: "Panels._approveDoc('" + E(d.id) + "')",
+          rejectAction: "Panels._rejectDoc('" + E(d.id) + "')",
+          viewRoute: '/broker/documents',
+        });
+      });
+
+      // 3. Pending referral agreements
+      referrals.filter(function (ref) {
+        var as = (ref.agreement_status || ref.agreementStatus || '').toLowerCase();
+        return as === 'sent' || as === 'draft' || as === 'pending';
+      }).forEach(function (ref) {
+        var partner = ref.partner || ref.referralPartner || ref.partner_name || 'Unknown';
+        items.push({
+          id: ref.id,
+          type: 'referral',
+          typeLabel: 'Referral Agreement',
+          typeColor: '#2563EB',
+          typeIcon: 'fa-exchange-alt',
+          title: 'Referral with ' + E(partner),
+          subtitle: E(ref.direction || 'incoming') + ' · Fee: ' + (ref.feePercent || ref.fee_percent || '?') + '% · ' + E(ref.agreement_status || ref.agreementStatus || 'pending'),
+          date: ref.created_at || ref.createdAt || '',
+          age: _daysAgo(ref.created_at || ref.createdAt),
+          approveAction: null,
+          rejectAction: null,
+          viewRoute: '/broker/leads/referrals',
+        });
+      });
+
+      // 4. Compliance exceptions
+      listings.forEach(function (l) {
+        if (l.rls_eligible === false) return;
+        var issues = [];
+        if (l.OwnerOptOut || l.owner_opt_out) issues.push('Owner Opt-Out active');
+        if (l.IDXEntireListingDisplayYN === false) issues.push('IDX display disabled');
+        if (issues.length > 0) {
+          items.push({
+            id: l.id || l.listing_id,
+            type: 'compliance',
+            typeLabel: 'Compliance Issue',
+            typeColor: '#DC2626',
+            typeIcon: 'fa-shield-alt',
+            title: E(l.address || l.UnparsedAddress || 'Listing'),
+            subtitle: issues.join(', '),
+            date: l.updated_at || l.updatedAt || '',
+            age: 0,
+            approveAction: null,
+            rejectAction: null,
+            viewRoute: '/broker/listings/compliance',
+          });
+        }
+      });
+
+      // Sort: compliance first, then by age (oldest first within type)
+      var typePriority = { compliance: 0, payout: 1, document: 2, referral: 3 };
+      items.sort(function (a, b) {
+        var pa = typePriority[a.type] !== undefined ? typePriority[a.type] : 9;
+        var pb = typePriority[b.type] !== undefined ? typePriority[b.type] : 9;
+        if (pa !== pb) return pa - pb;
+        return (b.age || 0) - (a.age || 0); // oldest first within same type
+      });
+
+      // Render
+      var html = '<div class="space-y-4">';
+
+      // Summary stats
+      var payoutCount = items.filter(function (i) { return i.type === 'payout'; }).length;
+      var docCount = items.filter(function (i) { return i.type === 'document'; }).length;
+      var refCount = items.filter(function (i) { return i.type === 'referral'; }).length;
+      var compCount = items.filter(function (i) { return i.type === 'compliance'; }).length;
+
+      html += UI.statGrid([
+        UI.statCard(items.length, 'Total Pending', 'fa-inbox', items.length > 0 ? '#F59E0B' : '#059669'),
+        UI.statCard(payoutCount, 'Commission Payouts', 'fa-dollar-sign', payoutCount > 0 ? '#F59E0B' : '#059669'),
+        UI.statCard(docCount, 'Document Approvals', 'fa-file-signature', docCount > 0 ? '#7C3AED' : '#059669'),
+        UI.statCard(compCount, 'Compliance Issues', 'fa-shield-alt', compCount > 0 ? '#DC2626' : '#059669'),
+        UI.statCard(refCount, 'Referral Agreements', 'fa-exchange-alt', refCount > 0 ? '#2563EB' : '#059669'),
+      ]);
+
+      // Filter tabs
+      html += '<div class="flex gap-1 overflow-x-auto">';
+      var filters = [
+        { key: 'all', label: 'All (' + items.length + ')' },
+        { key: 'payout', label: 'Payouts (' + payoutCount + ')' },
+        { key: 'document', label: 'Documents (' + docCount + ')' },
+        { key: 'compliance', label: 'Compliance (' + compCount + ')' },
+        { key: 'referral', label: 'Referrals (' + refCount + ')' },
+      ];
+      filters.forEach(function (f) {
+        html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all bg-white text-gray-600 border-gray-200 hover:border-gold" ' +
+          'onclick="Panels._filterApprovalQueue(\'' + f.key + '\')">' + f.label + '</button>';
+      });
+      html += '</div>';
+
+      // Queue list
+      html += '<div id="approvalQueueList">';
+      html += _renderApprovalItems(items, 'all');
+      html += '</div>';
+
+      html += '</div>';
+      c.innerHTML = html;
+
+      // Store for filtering
+      window._approvalQueueItems = items;
+    }).catch(function () {
+      c.innerHTML = UI.emptyState('fa-inbox', 'Unable to load approval queue');
+    });
+  }
+
+  function _renderApprovalItems(items, filter) {
+    var filtered = filter === 'all' ? items : items.filter(function (i) { return i.type === filter; });
+
+    if (filtered.length === 0) {
+      return '<div class="card p-8 text-center">' +
+        '<div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-3"><i class="fas fa-check-circle text-2xl text-green-500"></i></div>' +
+        '<p class="text-sm font-semibold text-green-700">Nothing waiting on you</p>' +
+        '<p class="text-xs text-gray-500 mt-1">All approvals are up to date</p>' +
+      '</div>';
+    }
+
+    var html = '<div class="space-y-2">';
+    filtered.forEach(function (item) {
+      html += '<div class="card p-4 hover:border-gold transition-all">' +
+        '<div class="flex items-start gap-3">' +
+          '<div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style="background:' + item.typeColor + '15">' +
+            '<i class="fas ' + item.typeIcon + '" style="color:' + item.typeColor + '"></i></div>' +
+          '<div class="flex-1 min-w-0">' +
+            '<div class="flex items-center gap-2 mb-1">' +
+              '<span class="px-2 py-0.5 rounded text-[10px] font-bold text-white" style="background:' + item.typeColor + '">' + item.typeLabel + '</span>' +
+              (item.age > 7 ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">' + item.age + ' days old</span>' : '') +
+            '</div>' +
+            '<p class="text-sm font-medium text-gray-900">' + item.title + '</p>' +
+            (item.subtitle ? '<p class="text-xs text-gray-500 mt-0.5">' + item.subtitle + '</p>' : '') +
+            (item.date ? '<p class="text-xs text-gray-400 mt-1">Submitted ' + Utils.formatTimeAgo(item.date) + '</p>' : '') +
+          '</div>' +
+          '<div class="flex items-center gap-2 flex-shrink-0">';
+      if (item.approveAction) {
+        html += '<button class="btn btn-sm btn-gold" onclick="' + item.approveAction + ';setTimeout(function(){Panels.brokerApprovalQueue()},500)">Approve</button>';
+      }
+      if (item.rejectAction) {
+        html += '<button class="btn btn-sm btn-outline" style="border-color:#DC2626;color:#DC2626" onclick="' + item.rejectAction + ';setTimeout(function(){Panels.brokerApprovalQueue()},500)">Reject</button>';
+      }
+      html += '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'' + item.viewRoute + '\')">View</button>';
+      html += '</div></div></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function _filterApprovalQueue(filter) {
+    var items = window._approvalQueueItems || [];
+    var container = document.getElementById('approvalQueueList');
+    if (container) container.innerHTML = _renderApprovalItems(items, filter);
+  }
+
+  function _daysAgo(dateStr) {
+    if (!dateStr) return 0;
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 0;
+    return Math.max(0, Math.floor((Date.now() - d.getTime()) / (24 * 3600 * 1000)));
+  }
+
   // ─── Broker Dashboard ────────────────────────────────────────────────
   function brokerDashboard() {
     CRM.setPanelTitle('Broker Dashboard');
@@ -9325,6 +9550,8 @@ var Panels = (function () {
   return {
     // Broker Console
     brokerDashboard: brokerDashboard,
+    brokerApprovalQueue: brokerApprovalQueue,
+    _filterApprovalQueue: _filterApprovalQueue,
     agentRoster: agentRoster,
     clientAddressBook: clientAddressBook,
     leadDistribution: leadDistribution,

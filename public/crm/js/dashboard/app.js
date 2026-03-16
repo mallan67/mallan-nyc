@@ -68,6 +68,7 @@ var CRM = (function () {
   function _registerRoutes() {
     // A1. Broker Console
     Router.register('/broker/dashboard',           function () { Panels.brokerDashboard(); });
+    Router.register('/broker/approvals',           function () { Panels.brokerApprovalQueue(); });
     Router.register('/broker/people/agents',       function () { Panels.agentRoster(); });
     Router.register('/broker/people/clients',      function () { Panels.clientAddressBook(); });
     Router.register('/broker/leads/distribution',  function () { Panels.leadDistribution(); });
@@ -360,6 +361,7 @@ var CRM = (function () {
     if (Permissions.canSeeBrokerConsole()) {
       html += _sidebarGroup('BROKER CONSOLE', 'broker', [
         { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
+        { route: '/broker/approvals', icon: 'fa-inbox', label: 'Approval Queue' },
         { heading: 'People' },
         { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agent Roster' },
         { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Client Address Book' },
