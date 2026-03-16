@@ -106,56 +106,332 @@ var Panels = (function () {
     CRM.setPanelTitle('Agent Roster');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.agents.list().then(function (data) {
-      var agents = data.agents || [];
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Agents', agents.length + ' total',
-          '<button class="btn btn-sm btn-gold" onclick="Panels._addAgent()"><i class="fas fa-plus"></i> Add Agent</button>') +
-        UI.dataTable(
-          [
-            { key: 'name', label: 'Name', render: function (a) {
-              return '<div class="flex items-center gap-2">' + UI.avatar(a.name || a.email, 28) +
-                '<div><p class="text-sm font-medium">' + E(a.name || a.email) + '</p>' +
-                '<p class="text-xs text-gray-500">' + E(a.email || '') + '</p></div></div>';
-            }},
-            { key: 'phone', label: 'Phone', render: function (a) { return '<span class="text-sm">' + E(a.phone || '-') + '</span>'; }},
-            { key: 'status', label: 'Status', render: function (a) { return UI.statusBadge(a.status || 'active'); }},
-            { key: 'license', label: 'License #', render: function (a) { return '<span class="text-xs text-gray-500">' + E(a.licenseNumber || a.license_number || '-') + '</span>'; }},
-            { key: 'actions', label: '', render: function (a) {
-              return '<div class="flex gap-1">' +
-                '<button class="btn btn-sm btn-outline" onclick="CRM.doImpersonate(\'' + E(a.id) + '\')"><i class="fas fa-eye"></i></button>' +
-                '<button class="btn btn-sm btn-outline" onclick="Panels._editAgent(\'' + E(a.id) + '\')"><i class="fas fa-edit"></i></button>' +
-              '</div>';
-            }},
-          ],
-          agents,
-          { title: '', onRowClick: '' }
-        ) +
+    Promise.all([
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
+    ]).then(function (r) {
+      var agents = r[0].agents || [];
+      var allListings = r[1].listings || [];
+      var allDeals = r[2].deals || [];
+
+      // Build per-agent stats
+      agents.forEach(function (a) {
+        var aid = a.id;
+        var myListings = allListings.filter(function (l) { return l.assignedAgentId === aid || l.assigned_agent_id === aid; });
+        var myDeals = allDeals.filter(function (d) { return d.assignedAgentId === aid || d.assigned_agent_id === aid; });
+        var closedDeals = myDeals.filter(function (d) { return d.stage === 'closed' || d.status === 'closed'; });
+        a._activeListings = myListings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
+        a._offerListings = myListings.filter(function (l) { return l.status === 'Pending' || l.status === 'pending' || l.status === 'offer'; });
+        a._contractListings = myListings.filter(function (l) { return l.status === 'ActiveUnderContract' || l.status === 'contract'; });
+        a._closedSales = closedDeals.filter(function (d) { return d.dealType === 'sale' || d.deal_type === 'sale'; });
+        a._closedRentals = closedDeals.filter(function (d) { return d.dealType === 'rental' || d.deal_type === 'rental'; });
+        a._ytdGCI = closedDeals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
+        a._allListings = myListings;
+        a._allDeals = myDeals;
+      });
+
+      var html = '<div class="space-y-4">';
+
+      // Header with search + filter + add
+      html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+        '<div class="flex items-center gap-3 flex-1">' +
+          '<div class="relative flex-1 max-w-xs"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
+            '<input type="text" id="rosterSearch" placeholder="Search agents..." class="form-input pl-9 text-sm" oninput="Panels._filterRoster()"></div>' +
+          '<select id="rosterRoleFilter" class="form-input form-select text-sm" style="width:auto" onchange="Panels._filterRoster()">' +
+            '<option value="">All Roles</option>' +
+            '<option value="BROKER">Licensed Broker</option>' +
+            '<option value="AGENT">Licensed Salesperson</option>' +
+          '</select>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._addAgent()"><i class="fas fa-user-plus mr-1"></i> Add Agent</button>' +
       '</div>';
+
+      // Agent cards
+      html += '<div class="space-y-3" id="agentRosterCards">';
+      agents.forEach(function (a, idx) {
+        html += _agentCard(a, idx);
+      });
+      if (agents.length === 0) {
+        html += UI.emptyState('fa-user-tie', 'No agents in roster');
+      }
+      html += '</div></div>';
+
+      c.innerHTML = html;
+      // Store agents for filtering
+      window._rosterAgents = agents;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-user-tie', 'Unable to load agent roster');
     });
   }
 
+  function _agentCard(a, idx) {
+    var name = a.name || a.email || 'Agent';
+    var initials = Utils.initials(name);
+    var role = (a.role || 'AGENT').toUpperCase();
+    var roleLabel = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+    var roleColor = role === 'BROKER' ? 'purple' : 'blue';
+    var license = a.licenseNumber || a.license_number || '';
+
+    return '<div class="border rounded-lg overflow-hidden agent-roster-card" data-name="' + E(name.toLowerCase()) + '" data-role="' + E(role) + '">' +
+      // Header row (always visible)
+      '<div class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition" onclick="Panels._toggleAgentCard(' + idx + ')">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-9 h-9 bg-' + roleColor + '-100 rounded-full flex items-center justify-center text-' + roleColor + '-700 font-bold text-sm">' + E(initials) + '</div>' +
+          '<div>' +
+            '<p class="font-semibold text-sm text-gray-900">' + E(name) + '</p>' +
+            '<p class="text-xs text-gray-500">' + E(license ? roleLabel + ' · #' + license : roleLabel) + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex items-center gap-3">' +
+          '<span class="px-2 py-1 bg-' + roleColor + '-100 text-' + roleColor + '-700 rounded text-xs font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
+          '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">Closed Sales</p><p class="text-sm font-bold text-gray-900">' + a._closedSales.length + '</p></div>' +
+          '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">Closed Rentals</p><p class="text-sm font-bold text-gray-900">' + a._closedRentals.length + '</p></div>' +
+          '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">YTD GCI</p><p class="text-sm font-bold text-green-600">' + $(a._ytdGCI) + '</p></div>' +
+          '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Active</p><p class="text-sm font-bold text-blue-600">' + a._activeListings.length + '</p></div>' +
+          '<i class="fas fa-chevron-down text-gray-400 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
+        '</div>' +
+      '</div>' +
+      // Expanded panel
+      '<div id="agentPanel_' + idx + '" style="display:none">' +
+        '<div class="px-4 py-3 border-t bg-white">' +
+          // Quick actions
+          '<div class="flex items-center justify-between mb-3">' +
+            '<div class="sm:hidden"><span class="px-2 py-1 bg-' + roleColor + '-100 text-' + roleColor + '-700 rounded text-xs font-semibold">' + E(roleLabel) + '</span></div>' +
+            '<div class="flex items-center gap-2">' +
+              '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
+              '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
+              '<button onclick="Panels._deactivateAgent(\'' + E(a.id) + '\',\'' + E(name) + '\')" class="px-3 py-1.5 border border-red-200 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-50 hover:text-red-600 flex items-center gap-1.5"><i class="fas fa-ban"></i> Deactivate</button>' +
+            '</div>' +
+          '</div>' +
+          // Tabs
+          '<div class="flex gap-1 mb-3 border-b">' +
+            '<button onclick="Panels._agentTab(this,' + idx + ',\'listings\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold border-b-2 border-gold text-gold"><i class="fas fa-list mr-1"></i> Listings</button>' +
+            '<button onclick="Panels._agentTab(this,' + idx + ',\'commissions\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700"><i class="fas fa-dollar-sign mr-1"></i> Commissions</button>' +
+            '<button onclick="Panels._agentTab(this,' + idx + ',\'disclosures\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700"><i class="fas fa-file-signature mr-1"></i> Disclosures</button>' +
+          '</div>' +
+          // Tab content
+          '<div id="agentTabContent_' + idx + '">' + _agentListingsView(a) + '</div>' +
+          // Footer
+          '<div class="flex items-center justify-between mt-3 pt-3 border-t">' +
+            '<p class="text-xs text-gray-500">' + E((a.email || '') + (a.phone ? ' · ' + a.phone : '')) + '</p>' +
+            '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="text-gold hover:underline text-xs font-semibold">Edit Agent Profile</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _agentListingsView(a) {
+    var listings = a._allListings || [];
+    var active = listings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
+    var offer = listings.filter(function (l) { return l.status === 'Pending' || l.status === 'pending' || l.status === 'offer'; });
+    var contract = listings.filter(function (l) { return l.status === 'ActiveUnderContract' || l.status === 'contract'; });
+    var sold = listings.filter(function (l) { return l.status === 'Closed' || l.status === 'closed' || l.status === 'sold'; });
+
+    var html = '<div class="flex flex-wrap gap-2 mb-3">' +
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-white">All (' + listings.length + ')</span>' +
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">Active (' + active.length + ')</span>' +
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700">Offer (' + offer.length + ')</span>' +
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700">In Contract (' + contract.length + ')</span>' +
+      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">Sold/Rented (' + sold.length + ')</span>' +
+    '</div>';
+
+    if (listings.length === 0) {
+      html += '<p class="text-sm text-gray-400 text-center py-4">No listings to display.</p>';
+    } else {
+      html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Address</th><th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-left px-3 py-2">Price</th><th class="text-left px-3 py-2">Status</th>' +
+        '<th class="text-left px-3 py-2 hidden sm:table-cell">DOM</th><th class="text-left px-3 py-2">Actions</th>' +
+      '</tr></thead><tbody>';
+      listings.forEach(function (l) {
+        var addr = l.address || l.UnparsedAddress || 'No address';
+        var type = (l.property_type || l.listing_type || l.PropertySubType || 'Sale');
+        html += '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2 text-sm font-medium">' + E(addr) + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(type) + '</td>' +
+          '<td class="px-3 py-2 text-sm font-bold">' + $(l.ListPrice || l.price) + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          '<td class="px-3 py-2 text-xs hidden sm:table-cell">' + (l.cumulative_dom || l.days_on_market || '-') + '</td>' +
+          '<td class="px-3 py-2"><button class="text-gold hover:underline text-xs font-semibold" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">View</button></td>' +
+        '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    return html;
+  }
+
+  function _agentCommissionsView(a) {
+    var deals = a._allDeals || [];
+    var closed = deals.filter(function (d) { return d.stage === 'closed' || d.status === 'closed'; });
+    var pending = deals.filter(function (d) { return d.stage !== 'closed' && d.status !== 'closed'; });
+    var totalGross = closed.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
+    var totalSplit = closed.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
+    var splitPct = a.saleSplit || a.sale_split || a.rentalSplit || a.rental_split || 0;
+
+    var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">' +
+      '<div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">YTD Earned</p><p class="text-lg font-bold text-green-600">' + $(totalGross) + '</p></div>' +
+      '<div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Pending</p><p class="text-lg font-bold text-blue-600">' + pending.length + '</p></div>' +
+      '<div class="bg-gray-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Split</p><p class="text-lg font-bold text-gray-700">' + (splitPct > 1 ? splitPct : Math.round(splitPct * 100)) + '%</p></div>' +
+      '<div class="bg-purple-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Deals Closed</p><p class="text-lg font-bold text-purple-600">' + closed.length + '</p></div>' +
+    '</div>';
+
+    if (deals.length === 0) {
+      html += '<p class="text-sm text-gray-400 text-center py-4">No commission data to display.</p>';
+    } else {
+      html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Property</th><th class="text-left px-3 py-2">Close Date</th>' +
+        '<th class="text-right px-3 py-2">Sale Price</th><th class="text-right px-3 py-2">Gross</th>' +
+        '<th class="text-right px-3 py-2">Agent Split</th><th class="text-left px-3 py-2">Status</th>' +
+      '</tr></thead><tbody>';
+      deals.forEach(function (d) {
+        html += '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2 text-sm">' + E(d.address || d.title || 'Deal') + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + D(d.closeDate || d.close_date) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(d.amount || d.price) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right font-bold">' + $(d.grossCommission || d.commission) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right text-green-600 font-semibold">' + $(d.splitAmount || d.split_amount) + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(d.payoutStatus || d.payout_status || d.stage || 'pending') + '</td>' +
+        '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    return html;
+  }
+
+  function _agentDisclosuresView(a) {
+    var html = '<p class="text-xs text-gray-500 mb-3">Required disclosures per deal. All must be uploaded before closing.</p>';
+    // Placeholder — will show real data when documents are wired
+    html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+      '<th class="text-left px-3 py-2">Property</th><th class="text-left px-3 py-2">Status</th>' +
+      '<th class="text-center px-2 py-2" title="Agency Disclosure">DOS-2105</th>' +
+      '<th class="text-center px-2 py-2" title="Property Condition Disclosure">PCDS</th>' +
+      '<th class="text-center px-2 py-2" title="Fair Housing Notice">Fair Hsg</th>' +
+      '<th class="text-center px-2 py-2" title="Commission Negotiability">Comm. Neg.</th>' +
+      '<th class="text-center px-2 py-2" title="Rep Agreement">Rep Agmt</th>' +
+      '<th class="text-center px-2 py-2" title="Gate Status">Gate</th>' +
+    '</tr></thead><tbody>';
+
+    var deals = a._allDeals || [];
+    if (deals.length === 0) {
+      html += '<tr><td colspan="8" class="px-3 py-6 text-center text-sm text-gray-400">No deals with disclosure requirements yet.</td></tr>';
+    } else {
+      deals.forEach(function (d) {
+        // Show placeholder checks — real data comes from Documents API
+        var check = '<i class="fas fa-check-circle text-green-500 text-xs"></i>';
+        var missing = '<i class="fas fa-times-circle text-red-400 text-xs"></i>';
+        var pending = '<i class="fas fa-clock text-yellow-500 text-xs"></i>';
+        var gate = (d.stage === 'closed' || d.status === 'closed') ? '<span class="text-[10px] font-bold text-green-600">CLEAR</span>' : '<span class="text-[10px] font-bold text-yellow-600">PENDING</span>';
+        html += '<tr class="border-b">' +
+          '<td class="px-3 py-2 text-xs">' + E(d.address || d.title || 'Deal') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(d.stage || d.status || 'active') + '</td>' +
+          '<td class="text-center px-2 py-2">' + check + '</td>' +
+          '<td class="text-center px-2 py-2">' + pending + '</td>' +
+          '<td class="text-center px-2 py-2">' + check + '</td>' +
+          '<td class="text-center px-2 py-2">' + check + '</td>' +
+          '<td class="text-center px-2 py-2">' + missing + '</td>' +
+          '<td class="text-center px-2 py-2">' + gate + '</td>' +
+        '</tr>';
+      });
+    }
+    html += '</tbody></table></div>';
+    html += '<div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">' +
+      '<p class="text-xs text-amber-800"><i class="fas fa-exclamation-triangle mr-1"></i> <strong>Gate Rule:</strong> Deal cannot close until all required disclosures are uploaded.</p></div>';
+    return html;
+  }
+
+  function _toggleAgentCard(idx) {
+    var panel = document.getElementById('agentPanel_' + idx);
+    var chevron = document.getElementById('agentChevron_' + idx);
+    if (!panel) return;
+    var open = panel.style.display === 'none';
+    panel.style.display = open ? 'block' : 'none';
+    if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+  }
+
+  function _agentTab(btn, idx, tab) {
+    // Update tab styles
+    var parent = btn.parentElement;
+    parent.querySelectorAll('.agent-view-tab').forEach(function (b) {
+      b.className = 'agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700';
+    });
+    btn.className = 'agent-view-tab px-3 py-1.5 text-xs font-semibold border-b-2 border-gold text-gold';
+
+    // Render tab content
+    var container = document.getElementById('agentTabContent_' + idx);
+    if (!container || !window._rosterAgents) return;
+    var a = window._rosterAgents[idx];
+    if (!a) return;
+
+    switch (tab) {
+      case 'listings': container.innerHTML = _agentListingsView(a); break;
+      case 'commissions': container.innerHTML = _agentCommissionsView(a); break;
+      case 'disclosures': container.innerHTML = _agentDisclosuresView(a); break;
+    }
+  }
+
+  function _filterRoster() {
+    var search = (document.getElementById('rosterSearch') || {}).value || '';
+    var role = (document.getElementById('rosterRoleFilter') || {}).value || '';
+    search = search.toLowerCase();
+    document.querySelectorAll('.agent-roster-card').forEach(function (card) {
+      var name = card.getAttribute('data-name') || '';
+      var r = card.getAttribute('data-role') || '';
+      var show = true;
+      if (search && name.indexOf(search) === -1) show = false;
+      if (role && r !== role) show = false;
+      card.style.display = show ? '' : 'none';
+    });
+  }
+
+  function _deactivateAgent(id, name) {
+    if (!confirm('Deactivate agent "' + name + '"? Their clients will need to be reassigned.')) return;
+    MallanAPI.agents.deactivate(id).then(function () {
+      CRM.toast('Agent deactivated', 'success');
+      agentRoster();
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
+  }
+
   function _addAgent() {
     CRM.openModal('Add Agent',
       '<form id="addAgentForm" class="space-y-4">' +
+        '<p class="text-xs text-gray-500 mb-2">Add a new agent to the brokerage. They will receive login credentials via email.</p>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Name *</label><input class="form-input" name="name" required></div>' +
-          '<div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" name="email" required></div>' +
+          '<div class="form-group"><label class="form-label">Full Name *</label><input class="form-input" name="name" required placeholder="First Last"></div>' +
+          '<div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" name="email" required placeholder="agent@mallan.nyc"></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="phone"></div>' +
-          '<div class="form-group"><label class="form-label">License #</label><input class="form-input" name="license_number"></div>' +
+          '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" name="phone" placeholder="646-XXX-XXXX"></div>' +
+          '<div class="form-group"><label class="form-label">License Type *</label>' +
+            '<select class="form-input form-select" name="license_type" required>' +
+              '<option value="">Select...</option>' +
+              '<option value="Licensed Real Estate Salesperson">Licensed Real Estate Salesperson</option>' +
+              '<option value="Licensed Associate Broker">Licensed Associate Broker</option>' +
+              '<option value="Licensed Broker">Licensed Broker</option>' +
+            '</select></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Sale Split %</label><input class="form-input" type="number" name="sale_split" value="50"></div>' +
-          '<div class="form-group"><label class="form-label">Rental Split %</label><input class="form-input" type="number" name="rental_split" value="50"></div>' +
+          '<div class="form-group"><label class="form-label">License # *</label><input class="form-input" name="license_number" required placeholder="10XXXXXXXXX"></div>' +
+          '<div class="form-group"><label class="form-label">License Expiry</label><input class="form-input" type="date" name="license_expiry"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Sale Split %</label><input class="form-input" type="number" name="sale_split" value="60" min="0" max="100"></div>' +
+          '<div class="form-group"><label class="form-label">Rental Split %</label><input class="form-input" type="number" name="rental_split" value="60" min="0" max="100"></div>' +
+        '</div>' +
+        '<div class="border-t pt-4 mt-2">' +
+          '<h4 class="text-xs font-bold text-gray-500 uppercase mb-3">Login Credentials</h4>' +
+          '<div class="grid grid-cols-2 gap-4">' +
+            '<div class="form-group"><label class="form-label">Temporary Password *</label><input class="form-input" type="password" name="password" required placeholder="Min 8 characters" minlength="8"></div>' +
+            '<div class="form-group"><label class="form-label">Confirm Password *</label><input class="form-input" type="password" name="password_confirm" required placeholder="Confirm password" minlength="8"></div>' +
+          '</div>' +
+          '<label class="flex items-center gap-2 text-xs text-gray-500 mt-1"><input type="checkbox" name="send_invite" checked> Send welcome email with login instructions</label>' +
         '</div>' +
       '</form>',
       {
+        size: 'lg',
         footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitAddAgent()"><i class="fas fa-save"></i> Save</button>',
+          '<button class="btn btn-gold" onclick="Panels._submitAddAgent()"><i class="fas fa-user-plus"></i> Add Agent</button>',
       }
     );
   }
@@ -1529,5 +1805,9 @@ var Panels = (function () {
     _submitEblast: _submitEblast,
     _saveProfile: _saveProfile,
     _submitEditAgent: _submitEditAgent,
+    _toggleAgentCard: _toggleAgentCard,
+    _agentTab: _agentTab,
+    _filterRoster: _filterRoster,
+    _deactivateAgent: _deactivateAgent,
   };
 })();
