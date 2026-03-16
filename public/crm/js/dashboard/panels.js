@@ -262,7 +262,7 @@ var Panels = (function () {
             '<button onclick="Panels._agentTab(this,' + idx + ',\'disclosures\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700"><i class="fas fa-file-signature mr-1"></i> Disclosures</button>' +
           '</div>' +
           // Tab content
-          '<div id="agentTabContent_' + idx + '">' + _agentListingsView(a) + '</div>' +
+          '<div id="agentTabContent_' + idx + '">' + _agentListingsView(a, idx) + '</div>' +
           // Footer
           '<div class="flex items-center justify-between mt-3 pt-3 border-t">' +
             '<p class="text-xs text-gray-500">' + E((a.email || '') + (a.phone ? ' · ' + a.phone : '')) + '</p>' +
@@ -273,22 +273,43 @@ var Panels = (function () {
     '</div>';
   }
 
-  function _agentListingsView(a) {
+  // Current filter state for roster listing badges
+  var _rosterListingFilter = {};
+
+  function _agentListingsView(a, agentIdx) {
     var listings = a._allListings || [];
-    var active = listings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
-    var offer = listings.filter(function (l) { return l.status === 'Pending' || l.status === 'pending' || l.status === 'offer'; });
-    var contract = listings.filter(function (l) { return l.status === 'ActiveUnderContract' || l.status === 'contract'; });
-    var sold = listings.filter(function (l) { return l.status === 'Closed' || l.status === 'closed' || l.status === 'sold'; });
+    var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx]) ? _rosterListingFilter[agentIdx] : '';
 
-    var html = '<div class="flex flex-wrap gap-2 mb-3">' +
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-white">All (' + listings.length + ')</span>' +
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">Active (' + active.length + ')</span>' +
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700">Offer (' + offer.length + ')</span>' +
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700">In Contract (' + contract.length + ')</span>' +
-      '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">Sold/Rented (' + sold.length + ')</span>' +
-    '</div>';
+    // RLS-aligned status counts
+    var statusDefs = [
+      { key: '',                   label: 'All',                      bg: 'bg-gray-800', text: 'text-white',       count: listings.length },
+      { key: 'Active',             label: 'Active',                   bg: 'bg-blue-50',  text: 'text-blue-700',    count: listings.filter(function (l) { return l.status === 'Active'; }).length },
+      { key: 'Pending',            label: 'Pending',                  bg: 'bg-orange-50', text: 'text-orange-700',  count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
+      { key: 'ActiveUnderContract', label: 'In Contract',             bg: 'bg-purple-50', text: 'text-purple-700',  count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
+      { key: 'Closed',             label: 'Closed',                   bg: 'bg-green-50',  text: 'text-green-700',   count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
+      { key: 'ComingSoon',         label: 'Coming Soon',              bg: 'bg-teal-50',   text: 'text-teal-700',    count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
+      { key: 'Hold',               label: 'Hold (Temp Off Market)',   bg: 'bg-yellow-50', text: 'text-yellow-700',  count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
+      { key: 'Withdrawn',          label: 'Withdrawn (Perm Off Market)', bg: 'bg-red-50', text: 'text-red-700',     count: listings.filter(function (l) { return l.status === 'Withdrawn'; }).length },
+      { key: 'Expired',            label: 'Expired',                  bg: 'bg-gray-100',  text: 'text-gray-600',    count: listings.filter(function (l) { return l.status === 'Expired'; }).length },
+      { key: 'Canceled',           label: 'Canceled',                 bg: 'bg-gray-50',   text: 'text-gray-500',    count: listings.filter(function (l) { return l.status === 'Canceled'; }).length },
+    ];
 
-    if (listings.length === 0) {
+    var html = '<div class="flex flex-wrap gap-2 mb-3">';
+    statusDefs.forEach(function (s) {
+      var isActive = filterStatus === s.key;
+      var ringClass = isActive ? ' ring-2 ring-offset-1 ring-gray-400' : '';
+      var onclick = agentIdx !== undefined ? ' onclick="Panels._filterRosterListings(' + agentIdx + ',\'' + s.key + '\')"' : '';
+      html += '<span class="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer select-none ' + s.bg + ' ' + s.text + ringClass + '"' + onclick + '>' + s.label + ' (' + s.count + ')</span>';
+    });
+    html += '</div>';
+
+    // Apply filter
+    var filtered = listings;
+    if (filterStatus) {
+      filtered = listings.filter(function (l) { return l.status === filterStatus; });
+    }
+
+    if (filtered.length === 0) {
       html += '<p class="text-sm text-gray-400 text-center py-4">No listings to display.</p>';
     } else {
       html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
@@ -296,7 +317,7 @@ var Panels = (function () {
         '<th class="text-left px-3 py-2">Price</th><th class="text-left px-3 py-2">Status</th>' +
         '<th class="text-left px-3 py-2 hidden sm:table-cell">DOM</th><th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
-      listings.forEach(function (l) {
+      filtered.forEach(function (l) {
         var addr = l.address || l.UnparsedAddress || 'No address';
         var type = (l.property_type || l.listing_type || l.PropertySubType || 'Sale');
         html += '<tr class="border-b hover:bg-gray-50">' +
@@ -311,6 +332,20 @@ var Panels = (function () {
       html += '</tbody></table></div>';
     }
     return html;
+  }
+
+  function _filterRosterListings(agentIdx, status) {
+    if (!window._rosterAgents) return;
+    var a = window._rosterAgents[agentIdx];
+    if (!a) return;
+    // Toggle: clicking the same filter again clears it
+    if (_rosterListingFilter[agentIdx] === status) {
+      _rosterListingFilter[agentIdx] = '';
+    } else {
+      _rosterListingFilter[agentIdx] = status;
+    }
+    var container = document.getElementById('agentTabContent_' + agentIdx);
+    if (container) container.innerHTML = _agentListingsView(a, agentIdx);
   }
 
   function _agentCommissionsView(a) {
@@ -416,7 +451,7 @@ var Panels = (function () {
     if (!a) return;
 
     switch (tab) {
-      case 'listings': container.innerHTML = _agentListingsView(a); break;
+      case 'listings': container.innerHTML = _agentListingsView(a, idx); break;
       case 'commissions': container.innerHTML = _agentCommissionsView(a); break;
       case 'disclosures': container.innerHTML = _agentDisclosuresView(a); break;
     }
@@ -445,15 +480,34 @@ var Panels = (function () {
   }
 
   function _addAgent() {
-    CRM.openModal('Add Agent',
-      '<form id="addAgentForm" class="space-y-4">' +
-        '<p class="text-xs text-gray-500 mb-2">Add a new agent to the brokerage. They will receive login credentials via email.</p>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Full Name *</label><input class="form-input" name="name" required placeholder="First Last"></div>' +
-          '<div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" name="email" required placeholder="agent@mallan.nyc"></div>' +
+    var html = '<form id="addAgentForm" class="space-y-5">' +
+
+      // ── Section 1: Personal Information ──
+      '<div>' +
+        '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-user text-gold"></i> Personal Information</h3>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+          '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" required placeholder="First name"></div>' +
+          '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" placeholder="Middle name"></div>' +
+          '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" required placeholder="Last name"></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" name="phone" placeholder="646-XXX-XXXX"></div>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+          '<div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" name="email" required placeholder="agent@mallan.nyc"></div>' +
+          '<div class="form-group"><label class="form-label">Phone *</label><input class="form-input" type="tel" name="phone" required placeholder="646-XXX-XXXX"></div>' +
+          '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" placeholder="Optional"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-3">' +
+          '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" placeholder="Street address"></div>' +
+          '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" value="New York" placeholder="City"></div>' +
+          '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" value="NY" placeholder="State"></div>' +
+          '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
+        '</div>' +
+        '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-camera mr-1"></i> Agent headshot will be collected during onboarding.</p>' +
+      '</div>' +
+
+      // ── Section 2: NY DOS License Information ──
+      '<div class="border-t pt-5">' +
+        '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-id-card text-gold"></i> NY DOS License Information</h3>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
           '<div class="form-group"><label class="form-label">License Type *</label>' +
             '<select class="form-input form-select" name="license_type" required>' +
               '<option value="">Select...</option>' +
@@ -461,43 +515,165 @@ var Panels = (function () {
               '<option value="Licensed Associate Broker">Licensed Associate Broker</option>' +
               '<option value="Licensed Broker">Licensed Broker</option>' +
             '</select></div>' +
+          '<div class="form-group"><label class="form-label">NY DOS License # *</label><input class="form-input" name="license_number" required placeholder="10XXXXXXXXX"></div>' +
+          '<div class="form-group"><label class="form-label">License Expiration *</label><input class="form-input" type="date" name="license_expiry" required></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">License # *</label><input class="form-input" name="license_number" required placeholder="10XXXXXXXXX"></div>' +
-          '<div class="form-group"><label class="form-label">License Expiry</label><input class="form-input" type="date" name="license_expiry"></div>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+          '<div class="form-group"><label class="form-label">DOS License Status</label>' +
+            '<select class="form-input form-select" name="license_status">' +
+              '<option value="Active">Active</option>' +
+              '<option value="Inactive">Inactive</option>' +
+              '<option value="Expired">Expired</option>' +
+              '<option value="Suspended">Suspended</option>' +
+              '<option value="Revoked">Revoked</option>' +
+            '</select></div>' +
+          '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" placeholder="REBNY Member ID"></div>' +
+          '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" placeholder="NRD/NRDS ID"></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Sale Split %</label><input class="form-input" type="number" name="sale_split" value="60" min="0" max="100"></div>' +
-          '<div class="form-group"><label class="form-label">Rental Split %</label><input class="form-input" type="number" name="rental_split" value="60" min="0" max="100"></div>' +
-        '</div>' +
-        '<div class="border-t pt-4 mt-2">' +
-          '<h4 class="text-xs font-bold text-gray-500 uppercase mb-3">Login Credentials</h4>' +
-          '<div class="grid grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Temporary Password *</label><input class="form-input" type="password" name="password" required placeholder="Min 8 characters" minlength="8"></div>' +
-            '<div class="form-group"><label class="form-label">Confirm Password *</label><input class="form-input" type="password" name="password_confirm" required placeholder="Confirm password" minlength="8"></div>' +
+        '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
+          '<h4 class="text-xs font-bold text-yellow-800 uppercase mb-2"><i class="fas fa-graduation-cap mr-1"></i> Continuing Education (CE) Hours</h4>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" min="0" max="100" placeholder="0"></div>' +
+            '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date"></div>' +
+            '<div class="form-group mb-0"><label class="form-label">Fair Housing Completed</label>' +
+              '<select class="form-input form-select" name="fair_housing_completed">' +
+                '<option value="">Select...</option>' +
+                '<option value="Yes">Yes</option>' +
+                '<option value="No">No</option>' +
+              '</select></div>' +
           '</div>' +
-          '<label class="flex items-center gap-2 text-xs text-gray-500 mt-1"><input type="checkbox" name="send_invite" checked> Send welcome email with login instructions</label>' +
         '</div>' +
-      '</form>',
-      {
-        size: 'lg',
-        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitAddAgent()"><i class="fas fa-user-plus"></i> Add Agent</button>',
-      }
-    );
+      '</div>' +
+
+      // ── Section 3: Brokerage & Commission ──
+      '<div class="border-t pt-5">' +
+        '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-handshake text-gold"></i> Brokerage &amp; Commission</h3>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+          '<div class="form-group"><label class="form-label">Start Date *</label><input class="form-input" type="date" name="start_date" required></div>' +
+          '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
+            '<input class="form-input" type="number" name="agent_split" value="60" min="0" max="100" oninput="var bk=document.getElementById(\'brokerageSideCalc\');if(bk)bk.textContent=(100-Number(this.value||0))+\'%\';">' +
+            '<p class="text-xs text-gray-400 mt-1">Brokerage side: <span id="brokerageSideCalc" class="font-semibold text-gray-600">40%</span></p>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Team / Department</label>' +
+            '<select class="form-input form-select" name="team">' +
+              '<option value="">No Team</option>' +
+              '<option value="Sales Team A">Sales Team A</option>' +
+              '<option value="Rental Team">Rental Team</option>' +
+              '<option value="Commercial Team">Commercial Team</option>' +
+              '<option value="Luxury Division">Luxury Division</option>' +
+            '</select></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+          '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" min="0" placeholder="$0.00"></div>' +
+          '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" placeholder="0"></div>' +
+          '<div class="form-group"><label class="form-label">Contract Term</label>' +
+            '<select class="form-input form-select" name="contract_term">' +
+              '<option value="">Select...</option>' +
+              '<option value="1 Year">1 Year</option>' +
+              '<option value="2 Years">2 Years</option>' +
+              '<option value="At-Will">At-Will</option>' +
+            '</select></div>' +
+        '</div>' +
+      '</div>' +
+
+      // ── Section 4: Broker Document Upload ──
+      '<div class="border-t pt-5">' +
+        '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-file-upload text-gold"></i> Broker Document Upload</h3>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
+          '<div>' +
+            '<label class="form-label">Signed ICA (Independent Contractor Agreement) *</label>' +
+            '<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gold transition cursor-pointer" onclick="this.querySelector(\'input\').click()">' +
+              '<i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>' +
+              '<p class="text-sm text-gray-500">Click to upload or drag &amp; drop</p>' +
+              '<p class="text-xs text-gray-400 mt-1">PDF, DOC, DOCX (max 10MB)</p>' +
+              '<input type="file" name="ica_document" accept=".pdf,.doc,.docx" class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files[0])n.textContent=this.files[0].name">' +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<label class="form-label">Other Documents</label>' +
+            '<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gold transition cursor-pointer" onclick="this.querySelector(\'input\').click()">' +
+              '<i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>' +
+              '<p class="text-sm text-gray-500">Click to upload or drag &amp; drop</p>' +
+              '<p class="text-xs text-gray-400 mt-1">PDF, DOC, DOCX (max 10MB)</p>' +
+              '<input type="file" name="other_documents" accept=".pdf,.doc,.docx" multiple class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files.length)n.textContent=this.files.length+\' file(s) selected\'">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-info-circle mr-1"></i> All other documents will be collected from the agent during onboarding.</p>' +
+      '</div>' +
+
+      // ── Section 5: Agent Onboarding Checklist (Read-Only Preview) ──
+      '<div class="border-t pt-5">' +
+        '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-clipboard-check text-gold"></i> Agent Onboarding Checklist <span class="text-xs font-normal text-gray-400 ml-1">(Read-Only Preview)</span></h3>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Set account password</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Upload W-9 Form *</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Upload License Copy *</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Upload E&amp;O Insurance</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Upload Photo ID</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Upload Headshot</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Emergency Contact</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Confirm personal info</label>' +
+          '<label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" disabled> Accept brokerage terms</label>' +
+        '</div>' +
+        '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-bell mr-1"></i> You\'ll be notified when each item is completed. Agent cannot access CRM until required items are done.</p>' +
+      '</div>' +
+
+      // ── Section 6: Internal Notes ──
+      '<div class="border-t pt-5">' +
+        '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-sticky-note text-gold"></i> Internal Notes</h3>' +
+        '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Optional notes about this agent (broker eyes only)..."></textarea></div>' +
+      '</div>' +
+
+    '</form>';
+
+    CRM.openModal('Add Agent to Brokerage', html, {
+      size: 'xl',
+      footer: '<div class="flex items-center justify-between w-full">' +
+        '<p class="text-xs text-gray-400"><i class="fas fa-shield-alt mr-1"></i> Data protected under NY SHIELD Act</p>' +
+        '<div class="flex items-center gap-2">' +
+          '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-outline" onclick="Panels._submitAddAgent(\'draft\')"><i class="fas fa-save mr-1"></i> Save Draft</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitAddAgent(\'invite\')"><i class="fas fa-paper-plane mr-1"></i> Send Invite</button>' +
+        '</div>' +
+      '</div>',
+    });
   }
 
-  function _submitAddAgent() {
+  function _submitAddAgent(mode) {
     var form = document.getElementById('addAgentForm');
-    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
-    var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    if (!form) return;
+    // Only enforce required validation on invite, not draft
+    if (mode === 'invite' && !form.checkValidity()) { form.reportValidity(); return; }
 
-    MallanAPI.agents.create(data).then(function () {
+    var data = { _mode: mode };
+    new FormData(form).forEach(function (v, k) {
+      // Skip file inputs (handled separately)
+      if (k === 'ica_document' || k === 'other_documents') return;
+      if (v) data[k] = v;
+    });
+
+    // Build name from first/last
+    var first = data.first_name || '';
+    var middle = data.middle_name || '';
+    var last = data.last_name || '';
+    data.name = (first + (middle ? ' ' + middle : '') + ' ' + last).trim();
+
+    // Set status based on mode
+    data.status = mode === 'draft' ? 'draft' : 'pending_invite';
+
+    MallanAPI.agents.create(data).then(function (res) {
+      Events.emit('agent:created', { id: (res && res.agent && res.agent.id) || null, mode: mode });
       CRM.closeModal();
-      CRM.toast('Agent added', 'success');
+      if (mode === 'draft') {
+        CRM.toast('Agent saved as draft', 'success');
+      } else {
+        CRM.toast('Invite sent to ' + (data.email || 'agent'), 'success');
+      }
       agentRoster();
-    }).catch(function (err) { CRM.toast('Error: ' + err.message, 'error'); });
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to add agent'), 'error');
+    });
   }
 
   function _editAgent(id) {
@@ -2973,6 +3149,7 @@ var Panels = (function () {
     _sortCAB: _sortCAB,
     _reassignClient: _reassignClient,
     _doReassign: _doReassign,
+    _filterRosterListings: _filterRosterListings,
     _filterReferralYear: _filterReferralYear,
     _open1099Preview: _open1099Preview,
     _generate1099: _generate1099,
