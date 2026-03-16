@@ -377,7 +377,13 @@ var Panels = (function () {
           '<td class="px-3 py-2 text-xs">' + D(d.closeDate || d.close_date) + '</td>' +
           '<td class="px-3 py-2 text-sm text-right">' + $(d.amount || d.price) + '</td>' +
           '<td class="px-3 py-2 text-sm text-right font-bold">' + $(d.grossCommission || d.commission) + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right text-green-600 font-semibold">' + $(d.splitAmount || d.split_amount) + '</td>' +
+          '<td class="px-3 py-2 text-right">' +
+            '<div class="flex items-center justify-end gap-1">' +
+              '<input type="number" class="form-input text-sm w-20 py-0.5 px-1 text-right text-green-600 font-semibold" value="' + (d.splitAmount || d.split_amount || 0) + '" min="0" step="0.01" id="agentSplitInput_' + E(d.id) + '">' +
+              '<span class="text-[10px] text-gray-400">' + ((d.grossCommission || d.commission || 0) > 0 ? Math.round(((d.splitAmount || d.split_amount || 0) / (d.grossCommission || d.commission || 1)) * 100) + '%' : '') + '</span>' +
+              '<button class="text-gray-400 hover:text-gold text-xs px-1" onclick="Panels._saveAgentSplit(\'' + E(d.id) + '\')"><i class="fas fa-save"></i></button>' +
+            '</div>' +
+          '</td>' +
           '<td class="px-3 py-2">' + UI.statusBadge(d.payoutStatus || d.payout_status || d.stage || 'pending') + '</td>' +
         '</tr>';
       });
@@ -1658,7 +1664,16 @@ var Panels = (function () {
           { key: 'agent', label: 'Agent', render: function (d) { return '<span class="text-sm font-medium">' + E(d.agent_name || d.assignedAgentId || '-') + '</span>'; }},
           { key: 'type', label: 'Type', render: function (d) { return '<span class="text-xs">' + E(d.dealType || d.deal_type || '-') + '</span>'; }},
           { key: 'gross', label: 'Gross', render: function (d) { return '<span class="text-sm font-bold">' + $(d.grossCommission || d.commission) + '</span>'; }},
-          { key: 'split', label: 'Agent Split', render: function (d) { return '<span class="text-sm">' + $(d.splitAmount || d.split_amount) + '</span>'; }},
+          { key: 'split', label: 'Agent Split', render: function (d) {
+            var gross = d.grossCommission || d.commission || 0;
+            var split = d.splitAmount || d.split_amount || 0;
+            var pct = gross > 0 ? Math.round((split / gross) * 100) : 0;
+            return '<div class="flex items-center gap-2">' +
+              '<input type="number" class="form-input text-sm w-24 py-1 px-2" value="' + split + '" min="0" step="0.01" id="splitInput_' + E(d.id) + '">' +
+              '<span class="text-xs text-gray-400">(' + pct + '%)</span>' +
+              '<button class="btn btn-sm btn-outline text-xs px-2 py-0.5" onclick="Panels._saveSplit(\'' + E(d.id) + '\')"><i class="fas fa-save"></i></button>' +
+            '</div>';
+          }},
           { key: 'status', label: 'Payout', render: function (d) { return UI.statusBadge(d.payoutStatus || d.payout_status || 'pending'); }},
           { key: 'actions', label: '', render: function (d) {
             if (d.payoutStatus === 'pending' || d.payout_status === 'pending') {
@@ -1670,6 +1685,39 @@ var Panels = (function () {
       '</div>';
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-dollar-sign', 'Unable to load commission data');
+    });
+  }
+
+  function _saveSplit(dealId) {
+    var input = document.getElementById('splitInput_' + dealId);
+    if (!input) return;
+    var newAmount = parseFloat(input.value);
+    if (isNaN(newAmount) || newAmount < 0) {
+      CRM.toast('Invalid split amount', 'warning');
+      return;
+    }
+    MallanAPI.deals.update(dealId, { splitAmount: newAmount }).then(function () {
+      Events.log('split_updated', 'deal', dealId, { splitAmount: newAmount });
+      CRM.toast('Split updated', 'success');
+      commissionPayouts();
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Could not save split'), 'error');
+    });
+  }
+
+  function _saveAgentSplit(dealId) {
+    var input = document.getElementById('agentSplitInput_' + dealId);
+    if (!input) return;
+    var newAmount = parseFloat(input.value);
+    if (isNaN(newAmount) || newAmount < 0) {
+      CRM.toast('Invalid split amount', 'warning');
+      return;
+    }
+    MallanAPI.deals.update(dealId, { splitAmount: newAmount }).then(function () {
+      Events.log('split_updated', 'deal', dealId, { splitAmount: newAmount });
+      CRM.toast('Split updated', 'success');
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Could not save split'), 'error');
     });
   }
 
@@ -3725,6 +3773,8 @@ var Panels = (function () {
     _fillOurAgentDetails: _fillOurAgentDetails,
     _updateRefFormLabels: _updateRefFormLabels,
     _approvePayout: _approvePayout,
+    _saveSplit: _saveSplit,
+    _saveAgentSplit: _saveAgentSplit,
     _toggleFeatured: _toggleFeatured,
     _uploadDoc: _uploadDoc,
     _submitUploadDoc: _submitUploadDoc,

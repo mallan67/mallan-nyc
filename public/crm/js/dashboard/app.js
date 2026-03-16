@@ -130,6 +130,18 @@ var CRM = (function () {
   function renderSidebar() {
     var nav = document.getElementById('sidebarNav');
     if (!nav) return;
+
+    // Restore sidebar state from localStorage
+    try {
+      var saved = localStorage.getItem('mallan_crm_sidebar_state');
+      if (saved) {
+        var parsed = JSON.parse(saved);
+        Object.keys(parsed).forEach(function (key) {
+          Store.ui.sidebarExpandedGroups[key] = parsed[key];
+        });
+      }
+    } catch (e) { /* ignore */ }
+
     var html = '';
 
     // BROKER CONSOLE (Maya-only, hidden when impersonating)
@@ -221,6 +233,8 @@ var CRM = (function () {
     var chevron = document.getElementById('sidebarChevron_' + group);
     if (body) body.style.display = Store.ui.sidebarExpandedGroups[group] ? 'block' : 'none';
     if (chevron) chevron.classList.toggle('-rotate-90', !Store.ui.sidebarExpandedGroups[group]);
+    // Persist sidebar state to localStorage
+    try { localStorage.setItem('mallan_crm_sidebar_state', JSON.stringify(Store.ui.sidebarExpandedGroups)); } catch (e) { /* quota */ }
   }
 
   function updateSidebarActive() {
@@ -249,8 +263,9 @@ var CRM = (function () {
         // Global search
         '<div class="relative hidden sm:block">' +
           '<i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
-          '<input id="globalSearch" type="text" placeholder="Search clients, listings..." ' +
+          '<input id="globalSearch" type="text" placeholder="Search... (\u2318K to command palette)" ' +
             'class="pl-9 pr-4 py-2 w-56 text-sm bg-gray-100 border-0 rounded-lg focus:bg-white focus:ring-2 focus:ring-gold/30 focus:outline-none transition-all">' +
+          '<div id="globalSearchDropdown" class="hidden absolute left-0 top-full mt-1 w-80 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-50 max-h-80 overflow-y-auto"></div>' +
         '</div>' +
         // Quick actions
         '<div class="relative">' +
@@ -303,6 +318,13 @@ var CRM = (function () {
     document.addEventListener('click', function (e) {
       var menu = document.getElementById('quickActionsMenu');
       if (menu && !menu.parentElement.contains(e.target)) menu.classList.add('hidden');
+
+      // Close search dropdown on outside click
+      var searchDropdown = document.getElementById('globalSearchDropdown');
+      var searchInput = document.getElementById('globalSearch');
+      if (searchDropdown && searchInput && !searchDropdown.contains(e.target) && e.target !== searchInput) {
+        searchDropdown.classList.add('hidden');
+      }
     });
   }
 
@@ -312,15 +334,64 @@ var CRM = (function () {
   }
 
   function _globalSearch(q) {
-    // Navigate to clients panel with search
-    Router.navigate('/ops/clients');
-    setTimeout(function () {
-      Store.emit('global:search', q);
-    }, 100);
+    var dropdown = document.getElementById('globalSearchDropdown');
+    if (!dropdown) return;
+    if (q.length < 2) { _closeSearchResults(); return; }
+
+    dropdown.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400">Searching...</div>';
+    dropdown.classList.remove('hidden');
+
+    Promise.all([
+      MallanAPI.clients.list({ limit: 10 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.listings.list({ limit: 10 }).catch(function () { return { listings: [] }; }),
+    ]).then(function (r) {
+      var qLower = q.toLowerCase();
+      var clients = (r[0].clients || []).filter(function (c) {
+        return (c.name || c.email || '').toLowerCase().indexOf(qLower) !== -1;
+      });
+      var listings = (r[1].listings || []).filter(function (l) {
+        var addr = (l.address || l.UnparsedAddress || '').toLowerCase();
+        var mlsId = (l.ListingId || l.listing_id || '').toLowerCase();
+        return addr.indexOf(qLower) !== -1 || mlsId.indexOf(qLower) !== -1;
+      });
+
+      if (clients.length === 0 && listings.length === 0) {
+        dropdown.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">No results found</div>';
+        return;
+      }
+
+      var html = '';
+      if (clients.length > 0) {
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clients</div>';
+        clients.forEach(function (c) {
+          html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+            'onclick="Router.navigate(\'/workspace/client/' + E(c.id) + '/overview\');CRM._closeSearchResults()">' +
+            '<i class="fas fa-user text-xs text-gray-400 w-4"></i>' +
+            '<div><span class="font-medium">' + E(c.name || c.email) + '</span>' +
+            (c.type || c.client_type ? '<span class="ml-2 text-xs text-gray-400">' + E(c.type || c.client_type) + '</span>' : '') +
+            '</div></button>';
+        });
+      }
+      if (listings.length > 0) {
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-t mt-1 pt-1.5">Listings</div>';
+        listings.forEach(function (l) {
+          var lid = l.id || l.listing_id;
+          html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+            'onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\');CRM._closeSearchResults()">' +
+            '<i class="fas fa-building text-xs text-gray-400 w-4"></i>' +
+            '<div><span class="font-medium">' + E(l.address || l.UnparsedAddress || 'No address') + '</span>' +
+            '<span class="ml-2 text-xs text-gray-400">' + Utils.formatMoney(l.ListPrice || l.price) + '</span></div></button>';
+        });
+      }
+      dropdown.innerHTML = html;
+    });
   }
 
   function _closeSearchResults() {
-    // Close any search dropdown
+    var dropdown = document.getElementById('globalSearchDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+    var input = document.getElementById('globalSearch');
+    if (input) input.value = '';
   }
 
   // ─── User Info ───────────────────────────────────────────────────────
@@ -754,6 +825,243 @@ var CRM = (function () {
     toast('Note saved', 'success');
   }
 
+  // ─── Command Palette ─────────────────────────────────────────────────
+  var _cmdPaletteIdx = -1;
+  var _recentRoutes = [];
+
+  // Track recent routes
+  Store.on('route:changed', function (route) {
+    if (!route) return;
+    _recentRoutes = _recentRoutes.filter(function (r) { return r !== route; });
+    _recentRoutes.unshift(route);
+    if (_recentRoutes.length > 5) _recentRoutes = _recentRoutes.slice(0, 5);
+  });
+
+  function _getSidebarRoutes() {
+    var routes = [];
+    // Broker Console
+    if (Permissions.canSeeBrokerConsole()) {
+      routes.push({ route: '/broker/dashboard', label: 'Dashboard', group: 'Broker Console' });
+      routes.push({ route: '/broker/people/agents', label: 'Agent Roster', group: 'Broker Console' });
+      routes.push({ route: '/broker/people/clients', label: 'Client Address Book', group: 'Broker Console' });
+      routes.push({ route: '/broker/leads/distribution', label: 'Lead Distribution', group: 'Broker Console' });
+      routes.push({ route: '/broker/leads/referrals', label: 'Referral Tracking', group: 'Broker Console' });
+      routes.push({ route: '/broker/finance/payouts', label: 'Commission Payouts', group: 'Broker Console' });
+      routes.push({ route: '/broker/finance/revenue', label: 'Revenue Overview', group: 'Broker Console' });
+      routes.push({ route: '/broker/finance/1099', label: '1099 Year-End', group: 'Broker Console' });
+      routes.push({ route: '/broker/listings/company', label: 'Company Listings', group: 'Broker Console' });
+      routes.push({ route: '/broker/listings/compliance', label: 'Compliance Dashboard', group: 'Broker Console' });
+      routes.push({ route: '/broker/listings/featured', label: 'Featured Properties', group: 'Broker Console' });
+      routes.push({ route: '/broker/documents', label: 'Company Vault', group: 'Broker Console' });
+      routes.push({ route: '/broker/system/audit', label: 'Audit Log', group: 'Broker Console' });
+      routes.push({ route: '/broker/system/idx-activity', label: 'IDX/RLS Activity', group: 'Broker Console' });
+      routes.push({ route: '/broker/system/licensing', label: 'License/CE/E&O', group: 'Broker Console' });
+      routes.push({ route: '/broker/system/settings', label: 'System Settings', group: 'Broker Console' });
+    }
+    // Operations
+    routes.push({ route: '/ops/dashboard', label: 'Dashboard', group: 'Operations' });
+    routes.push({ route: '/ops/search', label: 'Property Search', group: 'Operations' });
+    routes.push({ route: '/ops/listings', label: 'My Listings', group: 'Operations' });
+    routes.push({ route: '/ops/clients', label: 'My Clients', group: 'Operations' });
+    routes.push({ route: '/ops/pipeline', label: 'Pipeline', group: 'Operations' });
+    routes.push({ route: '/ops/tasks', label: 'Tasks & Follow-ups', group: 'Operations' });
+    routes.push({ route: '/ops/communications', label: 'Communications', group: 'Operations' });
+    routes.push({ route: '/ops/deals', label: 'Deals & Commissions', group: 'Operations' });
+    routes.push({ route: '/ops/revenue', label: 'Revenue', group: 'Operations' });
+    routes.push({ route: '/ops/market', label: 'Market Activity', group: 'Operations' });
+    // Settings
+    routes.push({ route: '/settings/profile', label: 'My Profile', group: 'Settings' });
+    routes.push({ route: '/settings/notifications', label: 'Notifications', group: 'Settings' });
+    routes.push({ route: '/settings/integrations', label: 'Integrations', group: 'Settings' });
+    return routes;
+  }
+
+  var _quickActions = [
+    { id: 'new-client', label: 'New Client', icon: 'fa-user-plus', action: function () { quickNewClient(); } },
+    { id: 'new-listing', label: 'New Listing', icon: 'fa-home', action: function () { quickNewListing(); } },
+    { id: 'send-listing', label: 'Send Listing', icon: 'fa-paper-plane', action: function () { quickSendListing(); } },
+    { id: 'quick-task', label: 'Quick Task', icon: 'fa-tasks', action: function () { quickTask(); } },
+    { id: 'quick-note', label: 'Quick Note', icon: 'fa-sticky-note', action: function () { quickNote(); } },
+  ];
+
+  function openCommandPalette() {
+    // Remove existing
+    var existing = document.getElementById('cmdPalette');
+    if (existing) existing.remove();
+
+    _cmdPaletteIdx = -1;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cmdPalette';
+    overlay.className = 'fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]';
+    overlay.style.cssText = 'background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);';
+    overlay.onclick = function (e) { if (e.target === overlay) closeCommandPalette(); };
+
+    overlay.innerHTML =
+      '<div class="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden" onclick="event.stopPropagation()">' +
+        '<div class="px-4 py-3 border-b border-gray-100">' +
+          '<div class="relative">' +
+            '<i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>' +
+            '<input id="cmdPaletteInput" type="text" placeholder="Search or jump to... (\u2318K)" ' +
+              'class="w-full pl-10 pr-4 py-2.5 text-sm bg-transparent border-0 focus:outline-none focus:ring-0">' +
+          '</div>' +
+        '</div>' +
+        '<div id="cmdPaletteResults" class="max-h-80 overflow-y-auto py-2"></div>' +
+        '<div class="px-4 py-2 border-t border-gray-100 flex gap-4 text-[10px] text-gray-400">' +
+          '<span><kbd class="px-1 py-0.5 bg-gray-100 rounded text-[10px]">\u2191\u2193</kbd> navigate</span>' +
+          '<span><kbd class="px-1 py-0.5 bg-gray-100 rounded text-[10px]">Enter</kbd> select</span>' +
+          '<span><kbd class="px-1 py-0.5 bg-gray-100 rounded text-[10px]">Esc</kbd> close</span>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    var input = document.getElementById('cmdPaletteInput');
+    if (input) {
+      input.focus();
+      input.addEventListener('input', function () { _renderCmdResults(input.value.trim()); });
+      input.addEventListener('keydown', _cmdPaletteKeydown);
+    }
+
+    _renderCmdResults('');
+  }
+
+  function closeCommandPalette() {
+    var el = document.getElementById('cmdPalette');
+    if (el) el.remove();
+    _cmdPaletteIdx = -1;
+  }
+
+  function _renderCmdResults(query) {
+    var container = document.getElementById('cmdPaletteResults');
+    if (!container) return;
+
+    var qLower = query.toLowerCase();
+    var html = '';
+    var totalIdx = 0;
+
+    // Recent routes (only when no query)
+    if (_recentRoutes.length > 0 && qLower.length === 0) {
+      html += '<div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Recent</div>';
+      var allRoutes = _getSidebarRoutes();
+      _recentRoutes.slice(0, 5).forEach(function (r) {
+        var match = allRoutes.find(function (sr) { return sr.route === r; });
+        var label = match ? match.label : r;
+        html += '<button class="cmd-palette-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" data-idx="' + totalIdx + '" ' +
+          'onclick="Router.navigate(\'' + E(r) + '\');CRM.closeCommandPalette()">' +
+          '<i class="fas fa-clock text-xs text-gray-300 w-4"></i><span>' + E(label) + '</span>' +
+          '<span class="ml-auto text-[10px] text-gray-300">' + E(r) + '</span></button>';
+        totalIdx++;
+      });
+    }
+
+    // Navigation
+    var navRoutes = _getSidebarRoutes();
+    if (qLower.length > 0) {
+      navRoutes = navRoutes.filter(function (r) {
+        return r.label.toLowerCase().indexOf(qLower) !== -1 || r.route.toLowerCase().indexOf(qLower) !== -1 || r.group.toLowerCase().indexOf(qLower) !== -1;
+      });
+    }
+    if (navRoutes.length > 0) {
+      html += '<div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (totalIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Navigation</div>';
+      navRoutes.forEach(function (r) {
+        html += '<button class="cmd-palette-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" data-idx="' + totalIdx + '" ' +
+          'onclick="Router.navigate(\'' + E(r.route) + '\');CRM.closeCommandPalette()">' +
+          '<i class="fas fa-arrow-right text-xs text-gray-300 w-4"></i><span>' + E(r.label) + '</span>' +
+          '<span class="ml-auto text-[10px] text-gray-300">' + E(r.group) + '</span></button>';
+        totalIdx++;
+      });
+    }
+
+    // Quick Actions
+    var filteredActions = _quickActions;
+    if (qLower.length > 0) {
+      filteredActions = _quickActions.filter(function (a) {
+        return a.label.toLowerCase().indexOf(qLower) !== -1;
+      });
+    }
+    if (filteredActions.length > 0) {
+      html += '<div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (totalIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Quick Actions</div>';
+      filteredActions.forEach(function (a) {
+        html += '<button class="cmd-palette-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" data-idx="' + totalIdx + '" ' +
+          'onclick="CRM._cmdAction(\'' + E(a.id) + '\')">' +
+          '<i class="fas ' + a.icon + ' text-xs text-gray-300 w-4"></i><span>' + E(a.label) + '</span></button>';
+        totalIdx++;
+      });
+    }
+
+    if (totalIdx === 0) {
+      html = '<div class="px-4 py-6 text-sm text-gray-400 text-center">No results found</div>';
+    }
+
+    container.innerHTML = html;
+    _cmdPaletteIdx = -1;
+  }
+
+  function _cmdPaletteKeydown(e) {
+    var items = document.querySelectorAll('.cmd-palette-item');
+    if (!items.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _cmdPaletteIdx = Math.min(_cmdPaletteIdx + 1, items.length - 1);
+      _highlightCmdItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _cmdPaletteIdx = Math.max(_cmdPaletteIdx - 1, 0);
+      _highlightCmdItem(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (_cmdPaletteIdx >= 0 && _cmdPaletteIdx < items.length) {
+        items[_cmdPaletteIdx].click();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeCommandPalette();
+    }
+  }
+
+  function _highlightCmdItem(items) {
+    items.forEach(function (el, i) {
+      if (i === _cmdPaletteIdx) {
+        el.classList.add('bg-gold-bg');
+        el.scrollIntoView({ block: 'nearest' });
+      } else {
+        el.classList.remove('bg-gold-bg');
+      }
+    });
+  }
+
+  function _cmdAction(actionId) {
+    closeCommandPalette();
+    var action = _quickActions.find(function (a) { return a.id === actionId; });
+    if (action && action.action) action.action();
+  }
+
+  // Global keydown for command palette
+  document.addEventListener('keydown', function (e) {
+    // Cmd+K (Mac) or Ctrl+K (Windows)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      var existing = document.getElementById('cmdPalette');
+      if (existing) { closeCommandPalette(); } else { openCommandPalette(); }
+      return;
+    }
+    // "/" key (only when not focused on an input)
+    if (e.key === '/' && !_isInputFocused()) {
+      e.preventDefault();
+      var existing2 = document.getElementById('cmdPalette');
+      if (existing2) { closeCommandPalette(); } else { openCommandPalette(); }
+    }
+  });
+
+  function _isInputFocused() {
+    var el = document.activeElement;
+    if (!el) return false;
+    var tag = el.tagName.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
+  }
+
   // ─── Sidebar Toggle (Mobile) ────────────────────────────────────────
   function toggleSidebar() {
     var sidebar = document.getElementById('sidebar');
@@ -800,6 +1108,12 @@ var CRM = (function () {
     submitQuickTask: submitQuickTask,
     quickNote: quickNote,
     submitQuickNote: submitQuickNote,
+
+    // Command Palette
+    openCommandPalette: openCommandPalette,
+    closeCommandPalette: closeCommandPalette,
+    _cmdAction: _cmdAction,
+    _closeSearchResults: _closeSearchResults,
 
     // Impersonation
     showImpersonationPicker: showImpersonationPicker,
