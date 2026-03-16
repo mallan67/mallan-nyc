@@ -20,6 +20,48 @@ async function findAgent(id: string) {
 }
 
 /**
+ * GET /api/crm/agents/[id]
+ * Return single agent detail. Broker-only.
+ */
+export async function GET(req: NextRequest, { params }: RouteParams) {
+  const auth = await requireBroker(req);
+  if (isAuthError(auth)) return auth;
+
+  const { id } = await params;
+  const agent = await findAgent(id);
+
+  if (!agent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    agent: {
+      id: agent.id.toString(),
+      first_name: agent.first_name,
+      last_name: agent.last_name,
+      full_name: agent.full_name,
+      name: agent.full_name,
+      email: agent.email,
+      phone: agent.phone,
+      license_no: agent.license_no,
+      license_type: agent.license_type,
+      license_expiry: agent.license_expiry,
+      sale_split: agent.sale_split?.toString() ?? null,
+      rental_split: agent.rental_split?.toString() ?? null,
+      role: agent.role,
+      status: agent.status,
+      title: agent.title,
+      bio: agent.bio,
+      photo: agent.photo,
+      public_slug: agent.public_slug,
+      featured: agent.featured,
+      specialties: agent.specialties,
+      languages: agent.languages,
+    },
+  });
+}
+
+/**
  * PATCH /api/crm/agents/[id]
  * Update agent fields. Broker-only.
  */

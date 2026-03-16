@@ -52,7 +52,7 @@ var Panels = (function () {
 
       // Upcoming license renewals (<90 days)
       var expiringAgents = agents.filter(function (a) {
-        var exp = a.licenseExpiry || a.license_expiry;
+        var exp = a.license_expiry || a.licenseExpiry;
         return exp && Utils.daysUntil(exp) <= 90;
       });
 
@@ -217,12 +217,12 @@ var Panels = (function () {
   }
 
   function _agentCard(a, idx) {
-    var name = a.name || a.email || 'Agent';
+    var name = a.full_name || a.name || a.email || 'Agent';
     var initials = Utils.initials(name);
     var role = (a.role || 'AGENT').toUpperCase();
     var roleLabel = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
     var roleColor = role === 'BROKER' ? 'purple' : 'blue';
-    var license = a.licenseNumber || a.license_number || '';
+    var license = a.license_no || a.licenseNumber || a.license_number || '';
 
     return '<div class="border rounded-lg overflow-hidden agent-roster-card" data-name="' + E(name.toLowerCase()) + '" data-role="' + E(role) + '">' +
       // Header row (always visible)
@@ -643,32 +643,38 @@ var Panels = (function () {
   function _submitAddAgent(mode) {
     var form = document.getElementById('addAgentForm');
     if (!form) return;
-    // Only enforce required validation on invite, not draft
     if (mode === 'invite' && !form.checkValidity()) { form.reportValidity(); return; }
 
-    var data = { _mode: mode };
+    var raw = {};
     new FormData(form).forEach(function (v, k) {
-      // Skip file inputs (handled separately)
       if (k === 'ica_document' || k === 'other_documents') return;
-      if (v) data[k] = v;
+      if (v) raw[k] = v;
     });
 
-    // Build name from first/last
-    var first = data.first_name || '';
-    var middle = data.middle_name || '';
-    var last = data.last_name || '';
-    data.name = (first + (middle ? ' ' + middle : '') + ' ' + last).trim();
+    // Map form fields to API field names
+    var data = {
+      first_name: raw.first_name || '',
+      last_name: raw.last_name || '',
+      email: raw.email || '',
+      phone: raw.phone || null,
+      license_no: raw.license_number || raw.license_no || null,
+      license_type: raw.license_type || null,
+      sale_split: raw.sale_split ? Number(raw.sale_split) / 100 : null,
+      rental_split: raw.rental_split ? Number(raw.rental_split) / 100 : null,
+    };
 
-    // Set status based on mode
-    data.status = mode === 'draft' ? 'draft' : 'pending_invite';
+    if (!data.first_name || !data.last_name || !data.email) {
+      CRM.toast('First name, last name, and email are required', 'warning');
+      return;
+    }
 
     MallanAPI.agents.create(data).then(function (res) {
-      Events.emit('agent:created', { id: (res && res.agent && res.agent.id) || null, mode: mode });
       CRM.closeModal();
-      if (mode === 'draft') {
-        CRM.toast('Agent saved as draft', 'success');
+      var tempPw = res.tempPassword || '';
+      if (mode === 'invite' && tempPw) {
+        CRM.toast('Agent created. Temp password: ' + tempPw, 'success');
       } else {
-        CRM.toast('Invite sent to ' + (data.email || 'agent'), 'success');
+        CRM.toast('Agent added successfully', 'success');
       }
       agentRoster();
     }).catch(function (err) {
@@ -678,30 +684,62 @@ var Panels = (function () {
 
   function _editAgent(id) {
     MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(id)).then(function (data) {
-      var agent = data.agent || data || {};
-      CRM.openModal('Edit Agent',
+      var a = data.agent || data || {};
+      var firstName = a.first_name || (a.full_name || '').split(' ')[0] || '';
+      var lastName = a.last_name || (a.full_name || '').split(' ').slice(1).join(' ') || '';
+      var splitSale = a.sale_split != null ? Number(a.sale_split) : 50;
+      var splitRental = a.rental_split != null ? Number(a.rental_split) : 50;
+      // Convert decimal splits to percentage if needed
+      if (splitSale > 0 && splitSale < 1) splitSale = Math.round(splitSale * 100);
+      if (splitRental > 0 && splitRental < 1) splitRental = Math.round(splitRental * 100);
+
+      CRM.openModal('Edit Agent — ' + E(a.full_name || a.name || 'Agent'),
         '<form id="editAgentForm" class="space-y-4">' +
           '<input type="hidden" name="id" value="' + E(id) + '">' +
-          '<div class="grid grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Name *</label>' +
-              '<input class="form-input" name="name" value="' + E(agent.name || '') + '" required></div>' +
-            '<div class="form-group"><label class="form-label">Email *</label>' +
-              '<input class="form-input" type="email" name="email" value="' + E(agent.email || '') + '" required></div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            '<div class="form-group"><label class="form-label">First Name *</label>' +
+              '<input class="form-input" name="first_name" value="' + E(firstName) + '" required></div>' +
+            '<div class="form-group"><label class="form-label">Last Name *</label>' +
+              '<input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
+            '<div class="form-group"><label class="form-label">Email</label>' +
+              '<input class="form-input" type="email" name="email" value="' + E(a.email || '') + '" readonly></div>' +
           '</div>' +
-          '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
             '<div class="form-group"><label class="form-label">Phone</label>' +
-              '<input class="form-input" name="phone" value="' + E(agent.phone || '') + '"></div>' +
+              '<input class="form-input" name="phone" value="' + E(a.phone || '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">License Type</label>' +
+              '<select class="form-input form-select" name="license_type">' +
+                '<option value="">Select...</option>' +
+                '<option' + (a.license_type === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
+                '<option' + (a.license_type === 'Licensed Associate Broker' ? ' selected' : '') + '>Licensed Associate Broker</option>' +
+                '<option' + (a.license_type === 'Licensed Broker' ? ' selected' : '') + '>Licensed Broker</option>' +
+              '</select></div>' +
             '<div class="form-group"><label class="form-label">License #</label>' +
-              '<input class="form-input" name="license_number" value="' + E(agent.licenseNumber || agent.license_number || '') + '"></div>' +
+              '<input class="form-input" name="license_no" value="' + E(a.license_no || '') + '"></div>' +
           '</div>' +
-          '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            '<div class="form-group"><label class="form-label">License Expiry</label>' +
+              '<input class="form-input" type="date" name="license_expiry" value="' + E(a.license_expiry ? String(a.license_expiry).substring(0, 10) : '') + '"></div>' +
             '<div class="form-group"><label class="form-label">Sale Split %</label>' +
-              '<input class="form-input" type="number" name="sale_split" min="0" max="100" value="' + (agent.saleSplit || agent.sale_split || 50) + '"></div>' +
+              '<input class="form-input" type="number" name="sale_split" min="0" max="100" value="' + splitSale + '"></div>' +
             '<div class="form-group"><label class="form-label">Rental Split %</label>' +
-              '<input class="form-input" type="number" name="rental_split" min="0" max="100" value="' + (agent.rentalSplit || agent.rental_split || 50) + '"></div>' +
+              '<input class="form-input" type="number" name="rental_split" min="0" max="100" value="' + splitRental + '"></div>' +
           '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
+            '<div class="form-group"><label class="form-label">Title / Bio Tagline</label>' +
+              '<input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
+            '<div class="form-group"><label class="form-label">Status</label>' +
+              '<select class="form-input form-select" name="status">' +
+                '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
+                '<option value="inactive"' + (a.status === 'inactive' ? ' selected' : '') + '>Inactive</option>' +
+                '<option value="suspended"' + (a.status === 'suspended' ? ' selected' : '') + '>Suspended</option>' +
+              '</select></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Bio</label>' +
+            '<textarea class="form-input" name="bio" rows="3" placeholder="Agent bio for public profile...">' + E(a.bio || '') + '</textarea></div>' +
         '</form>',
         {
+          size: 'lg',
           footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
             '<button class="btn btn-gold" onclick="Panels._submitEditAgent()"><i class="fas fa-save"></i> Save</button>',
         }
@@ -718,15 +756,18 @@ var Panels = (function () {
     var agentId;
     new FormData(form).forEach(function (v, k) {
       if (k === 'id') { agentId = v; return; }
-      if (v) data[k] = v;
+      if (v !== '' && v !== null) data[k] = v;
     });
+    // Convert split percentages to decimals for API
+    if (data.sale_split) data.sale_split = Number(data.sale_split) / 100;
+    if (data.rental_split) data.rental_split = Number(data.rental_split) / 100;
 
     MallanAPI.agents.update(agentId, data).then(function () {
       CRM.closeModal();
       CRM.toast('Agent updated', 'success');
       agentRoster();
     }).catch(function (err) {
-      CRM.toast('Failed to update agent: ' + (err.message || 'Unknown error'), 'error');
+      CRM.toast('Failed to update: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
@@ -747,7 +788,7 @@ var Panels = (function () {
 
       // Build agent lookup map (id → name)
       _cabAgentMap = {};
-      agents.forEach(function (a) { _cabAgentMap[a.id] = a.name || a.email || 'Agent'; });
+      agents.forEach(function (a) { _cabAgentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
 
       // Resolve agent names on clients
       _cabClients.forEach(function (cl) {
@@ -760,7 +801,7 @@ var Panels = (function () {
       var types = _uniqueVals(_cabClients, function (cl) { return cl.type || cl.client_type; });
       var stages = _uniqueVals(_cabClients, function (cl) { return cl.stage || cl.status; });
       var agentNames = [];
-      agents.forEach(function (a) { agentNames.push({ id: a.id, name: a.name || a.email }); });
+      agents.forEach(function (a) { agentNames.push({ id: a.id, name: a.full_name || a.name || a.email }); });
 
       _renderCAB(c, _cabClients, types, stages, agentNames);
     }).catch(function () {
@@ -897,7 +938,7 @@ var Panels = (function () {
     _cabClients.sort(function (a, b) {
       var va, vb;
       switch (key) {
-        case 'name': va = (a.name || a.email || '').toLowerCase(); vb = (b.name || b.email || '').toLowerCase(); break;
+        case 'name': va = (a.full_name || a.name || a.email || '').toLowerCase(); vb = (b.name || b.email || '').toLowerCase(); break;
         case 'type': va = (a.type || a.client_type || ''); vb = (b.type || b.client_type || ''); break;
         case 'source': va = (a.source || a.lead_source || ''); vb = (b.source || b.lead_source || ''); break;
         case 'stage': va = (a.stage || a.status || ''); vb = (b.stage || b.status || ''); break;
@@ -924,9 +965,9 @@ var Panels = (function () {
       var html = '<p class="text-sm text-gray-500 mb-3">Select the agent to assign this client to:</p><div class="space-y-2">';
       agents.forEach(function (a) {
         html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3 transition-all" ' +
-          'onclick="Panels._doReassign(\'' + E(clientId) + '\',\'' + E(a.id) + '\',\'' + E(a.name || a.email) + '\')">' +
-          UI.avatar(a.name || a.email, 32) +
-          '<div><span class="text-sm font-medium">' + E(a.name || a.email) + '</span>' +
+          'onclick="Panels._doReassign(\'' + E(clientId) + '\',\'' + E(a.id) + '\',\'' + E(a.full_name || a.name || a.email) + '\')">' +
+          UI.avatar(a.full_name || a.name || a.email, 32) +
+          '<div><span class="text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</span>' +
           '<p class="text-xs text-gray-500">' + E(a.email || '') + '</p></div></button>';
       });
       html += '</div>';
@@ -1041,8 +1082,8 @@ var Panels = (function () {
       (data.agents || []).forEach(function (a) {
         html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3" ' +
           'onclick="Panels._doAssignLead(\'' + E(leadId) + '\',\'' + E(a.id) + '\')">' +
-          UI.avatar(a.name || a.email, 32) +
-          '<span class="text-sm font-medium">' + E(a.name || a.email) + '</span></button>';
+          UI.avatar(a.full_name || a.name || a.email, 32) +
+          '<span class="text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</span></button>';
       });
       html += '</div>';
       el.innerHTML = html;
@@ -1317,7 +1358,7 @@ var Panels = (function () {
 
       var agentOptions = '<option value="">— Select Agent —</option>' +
         agents.map(function (a) {
-          return '<option value="' + E(a.id) + '">' + E(a.name || a.email || 'Agent') + '</option>';
+          return '<option value="' + E(a.id) + '">' + E(a.full_name || a.name || a.email || 'Agent') + '</option>';
         }).join('');
 
       var clientOptions = '<option value="">— Select Client (optional) —</option>' +
@@ -1720,7 +1761,7 @@ var Panels = (function () {
 
         agentRows.push({
           agent: a,
-          name: a.name || a.email,
+          name: a.full_name || a.name || a.email,
           last4: last4,
           dealCount: myDeals.length,
           agentShare: agentShare,
@@ -2393,7 +2434,7 @@ var Panels = (function () {
       '<div><label class="text-[10px] font-bold text-gray-500 uppercase">User</label>' +
         '<select id="auditUserFilter" class="form-input form-select text-sm" onchange="Panels._filterAuditLog()"><option value="">All Users</option>';
     agents.forEach(function (a) {
-      html += '<option value="' + E(a.id) + '">' + E(a.name || a.email) + '</option>';
+      html += '<option value="' + E(a.id) + '">' + E(a.full_name || a.name || a.email) + '</option>';
     });
     html += '</select></div>' +
       '<div><label class="text-[10px] font-bold text-gray-500 uppercase">Action Type</label>' +
@@ -2583,7 +2624,7 @@ var Panels = (function () {
       // Compute stats
       var current = 0, expiringSoon = 0, ceIncomplete = 0, rebnyDue = 0;
       agents.forEach(function (a) {
-        var exp = a.licenseExpiry || a.license_expiry;
+        var exp = a.license_expiry || a.licenseExpiry;
         var days = exp ? Utils.daysUntil(exp) : null;
         if (days === null || days > 90) current++;
         if (days !== null && days <= 90 && days > 0) expiringSoon++;
@@ -2620,7 +2661,7 @@ var Panels = (function () {
         html += '<tr><td colspan="7" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
       } else {
         agents.forEach(function (a) {
-          var exp = a.licenseExpiry || a.license_expiry;
+          var exp = a.license_expiry || a.licenseExpiry;
           var days = exp ? Utils.daysUntil(exp) : null;
           var statusColor, statusLabel;
           if (days === null) { statusColor = '#6b7280'; statusLabel = 'Unknown'; }
@@ -2630,8 +2671,8 @@ var Panels = (function () {
           var role = (a.role || 'AGENT').toUpperCase();
           var title = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
           html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-3 py-2 text-sm font-medium">' + E(a.name || a.email) + '</td>' +
-            '<td class="px-3 py-2 text-xs font-mono">' + E(a.licenseNumber || a.license_number || '-') + '</td>' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + E(a.license_no || a.licenseNumber || a.license_number || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(title) + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (exp ? D(exp) : '-') + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold" style="color:' + statusColor + '">' + (days !== null ? days : '-') + '</td>' +
@@ -2662,7 +2703,7 @@ var Panels = (function () {
           var ceDone = a.ceHoursCompleted || a.ce_hours || 0;
           var ceRemaining = Math.max(0, ceReq - ceDone);
           var pct = Math.min(100, Math.round((ceDone / ceReq) * 100));
-          var exp = a.licenseExpiry || a.license_expiry;
+          var exp = a.license_expiry || a.licenseExpiry;
           var ceCycle = a.ceCyclePeriod || a.ce_cycle || (exp ? (new Date(new Date(exp).getTime() - 2 * 365.25 * 24 * 3600 * 1000).getFullYear() + '-' + new Date(exp).getFullYear()) : '-');
           var ceStatus, ceColor;
           if (pct >= 100) { ceStatus = 'Complete'; ceColor = '#059669'; }
@@ -2671,7 +2712,7 @@ var Panels = (function () {
           var barColor = pct >= 100 ? '#059669' : pct >= 50 ? '#F59E0B' : '#DC2626';
 
           html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-3 py-2 text-sm font-medium">' + E(a.name || a.email) + '</td>' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(ceCycle) + '</td>' +
             '<td class="px-3 py-2 text-sm text-right">' + ceReq + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold">' + ceDone + '</td>' +
@@ -2757,7 +2798,7 @@ var Panels = (function () {
           else if (eoDays <= 90) { eoStatus = 'Expiring Soon'; eoColor = '#F59E0B'; }
           else { eoStatus = 'Current'; eoColor = '#059669'; }
           html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-3 py-2 text-sm font-medium">' + E(a.name || a.email) + '</td>' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.eoCarrier || a.eo_carrier || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs font-mono">' + E(a.eoPolicyNumber || a.eo_policy_number || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.eoCoverage || a.eo_coverage || '-') + '</td>' +
@@ -2794,7 +2835,7 @@ var Panels = (function () {
       return;
     }
     var agentMap = {};
-    (window._ceAgents || []).forEach(function (a) { agentMap[a.id] = a.name || a.email || 'Agent'; });
+    (window._ceAgents || []).forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
 
     var html = '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
       '<th class="text-left px-3 py-2">Agent</th>' +
@@ -2872,7 +2913,7 @@ var Panels = (function () {
     var agentOpts = '<option value="">Select Agent</option>';
     agents.forEach(function (a) {
       var sel = (p.agent_id === a.id || p.agentId === a.id) ? ' selected' : '';
-      agentOpts += '<option value="' + E(a.id) + '"' + sel + '>' + E(a.name || a.email) + '</option>';
+      agentOpts += '<option value="' + E(a.id) + '"' + sel + '>' + E(a.full_name || a.name || a.email) + '</option>';
     });
 
     var catOpts = '';
