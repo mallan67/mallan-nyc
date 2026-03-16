@@ -549,8 +549,17 @@ var CRM = (function () {
         var q = searchInput.value.trim();
         if (q.length >= 2) {
           _globalSearch(q);
+        } else if (q.length === 0) {
+          _showRecentSearches();
+        } else {
+          _closeSearchResults();
         }
       }, 300));
+
+      searchInput.addEventListener('focus', function () {
+        var q = searchInput.value.trim();
+        if (q.length < 2) _showRecentSearches();
+      });
 
       searchInput.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') { searchInput.value = ''; _closeSearchResults(); }
@@ -584,10 +593,17 @@ var CRM = (function () {
     dropdown.innerHTML = '<div class="px-4 py-3 text-xs text-gray-400">Searching...</div>';
     dropdown.classList.remove('hidden');
 
-    Promise.all([
+    var fetches = [
       MallanAPI.clients.list({ limit: 10 }).catch(function () { return { clients: [] }; }),
       MallanAPI.listings.list({ limit: 10 }).catch(function () { return { listings: [] }; }),
-    ]).then(function (r) {
+      MallanAPI.deals.list({ limit: 10 }).catch(function () { return { deals: [] }; }),
+    ];
+    // Agents section only for broker
+    if (Permissions.isBroker()) {
+      fetches.push(MallanAPI.agents.list().catch(function () { return { agents: [] }; }));
+    }
+
+    Promise.all(fetches).then(function (r) {
       var qLower = q.toLowerCase();
       var clients = (r[0].clients || []).filter(function (c) {
         return (c.name || c.email || '').toLowerCase().indexOf(qLower) !== -1;
@@ -597,37 +613,127 @@ var CRM = (function () {
         var mlsId = (l.ListingId || l.listing_id || '').toLowerCase();
         return addr.indexOf(qLower) !== -1 || mlsId.indexOf(qLower) !== -1;
       });
+      var deals = (r[2].deals || []).filter(function (d) {
+        var addr = (d.address || d.property_address || '').toLowerCase();
+        var cname = (d.client_name || '').toLowerCase();
+        return addr.indexOf(qLower) !== -1 || cname.indexOf(qLower) !== -1;
+      });
+      var agents = r[3] ? (r[3].agents || []).filter(function (a) {
+        return (a.full_name || a.name || a.email || '').toLowerCase().indexOf(qLower) !== -1;
+      }) : [];
 
-      if (clients.length === 0 && listings.length === 0) {
+      if (clients.length === 0 && listings.length === 0 && deals.length === 0 && agents.length === 0) {
         dropdown.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">No results found</div>';
         return;
       }
 
+      // Save to recent searches
+      _addRecentSearch(q);
+
       var html = '';
+      var sectionIdx = 0;
+
       if (clients.length > 0) {
         html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clients</div>';
         clients.forEach(function (c) {
           html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
             'onclick="Router.navigate(\'/workspace/client/' + E(c.id) + '/overview\');CRM._closeSearchResults()">' +
-            '<i class="fas fa-user text-xs text-gray-400 w-4"></i>' +
-            '<div><span class="font-medium">' + E(c.name || c.email) + '</span>' +
-            (c.type || c.client_type ? '<span class="ml-2 text-xs text-gray-400">' + E(c.type || c.client_type) + '</span>' : '') +
-            '</div></button>';
+            UI.avatar(c.name || c.email, 24) +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(c.name || c.email) + '</span></div>' +
+            (c.type || c.client_type ? '<span class="shrink-0 text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">' + E(c.type || c.client_type) + '</span>' : '') +
+            '</button>';
         });
+        sectionIdx++;
       }
       if (listings.length > 0) {
-        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-t mt-1 pt-1.5">Listings</div>';
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (sectionIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Listings</div>';
         listings.forEach(function (l) {
           var lid = l.id || l.listing_id;
           html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
             'onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\');CRM._closeSearchResults()">' +
-            '<i class="fas fa-building text-xs text-gray-400 w-4"></i>' +
-            '<div><span class="font-medium">' + E(l.address || l.UnparsedAddress || 'No address') + '</span>' +
-            '<span class="ml-2 text-xs text-gray-400">' + Utils.formatMoney(l.ListPrice || l.price) + '</span></div></button>';
+            '<i class="fas fa-building text-xs text-gray-400 w-5 text-center"></i>' +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(l.address || l.UnparsedAddress || 'No address') + '</span></div>' +
+            '<span class="shrink-0 text-xs text-gray-400">' + Utils.formatMoney(l.ListPrice || l.price) + '</span></button>';
         });
+        sectionIdx++;
       }
+      if (deals.length > 0) {
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (sectionIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Deals</div>';
+        deals.forEach(function (d) {
+          var addr = d.address || d.property_address || 'No address';
+          var stage = d.stage || d.status || '';
+          html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+            'onclick="Router.navigate(\'/ops/deals\');CRM._closeSearchResults()">' +
+            '<i class="fas fa-handshake text-xs text-gray-400 w-5 text-center"></i>' +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(addr) + '</span></div>' +
+            (stage ? '<span class="shrink-0 text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">' + E(stage) + '</span>' : '') +
+            '</button>';
+        });
+        sectionIdx++;
+      }
+      if (agents.length > 0) {
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (sectionIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Agents</div>';
+        agents.forEach(function (a) {
+          html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+            'onclick="Router.navigate(\'/broker/people/agents\');CRM._closeSearchResults()">' +
+            UI.avatar(a.full_name || a.name || a.email, 24) +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(a.full_name || a.name || a.email) + '</span></div>' +
+            '<span class="shrink-0 text-xs text-gray-400">' + E(a.role || 'Agent') + '</span></button>';
+        });
+        sectionIdx++;
+      }
+
+      // Jump-to actions at bottom
+      if (clients.length > 0 || listings.length > 0) {
+        html += '<div class="border-t mt-1 pt-1">';
+        if (clients.length > 0) {
+          html += '<button class="w-full text-left px-4 py-2 text-xs text-gold hover:bg-gold-bg flex items-center gap-2" ' +
+            'onclick="Router.navigate(\'/workspace/client/' + E(clients[0].id) + '/overview\');CRM._closeSearchResults()">' +
+            '<i class="fas fa-arrow-right w-4"></i> Jump to Client Workspace</button>';
+        }
+        if (listings.length > 0) {
+          var firstLid = listings[0].id || listings[0].listing_id;
+          html += '<button class="w-full text-left px-4 py-2 text-xs text-gold hover:bg-gold-bg flex items-center gap-2" ' +
+            'onclick="Router.navigate(\'/workspace/listing/' + E(firstLid) + '/overview\');CRM._closeSearchResults()">' +
+            '<i class="fas fa-arrow-right w-4"></i> Jump to Listing Workspace</button>';
+        }
+        html += '</div>';
+      }
+
       dropdown.innerHTML = html;
+    }).catch(function () {
+      var dd = document.getElementById('globalSearchDropdown');
+      if (dd) dd.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">Search failed</div>';
     });
+  }
+
+  // ─── Recent Searches ─────────────────────────────────────────────────
+  function _addRecentSearch(q) {
+    try {
+      var key = 'mallan_crm_recent_searches';
+      var recent = JSON.parse(localStorage.getItem(key) || '[]');
+      recent = recent.filter(function (r) { return r !== q; });
+      recent.unshift(q);
+      if (recent.length > 5) recent = recent.slice(0, 5);
+      localStorage.setItem(key, JSON.stringify(recent));
+    } catch (e) { /* localStorage unavailable */ }
+  }
+
+  function _showRecentSearches() {
+    var dropdown = document.getElementById('globalSearchDropdown');
+    if (!dropdown) return;
+    try {
+      var recent = JSON.parse(localStorage.getItem('mallan_crm_recent_searches') || '[]');
+      if (recent.length === 0) { dropdown.classList.add('hidden'); return; }
+      var html = '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Recent Searches</div>';
+      recent.forEach(function (q) {
+        html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+          'onclick="var inp=document.getElementById(\'globalSearch\');if(inp){inp.value=\'' + E(q) + '\';inp.dispatchEvent(new Event(\'input\'));}">' +
+          '<i class="fas fa-clock text-xs text-gray-300 w-4"></i><span>' + E(q) + '</span></button>';
+      });
+      dropdown.innerHTML = html;
+      dropdown.classList.remove('hidden');
+    } catch (e) { dropdown.classList.add('hidden'); }
   }
 
   function _closeSearchResults() {
@@ -908,8 +1014,38 @@ var CRM = (function () {
     );
   }
 
+  // ─── Context Helper ──────────────────────────────────────────────────
+  function _getCurrentContext() {
+    var hash = window.location.hash || '';
+    var clientMatch = hash.match(/\/workspace\/client\/([^\/]+)/);
+    if (clientMatch) return { type: 'client', id: clientMatch[1] };
+    var listingMatch = hash.match(/\/workspace\/listing\/([^\/]+)/);
+    if (listingMatch) return { type: 'listing', id: listingMatch[1] };
+    return { type: null, id: null };
+  }
+
+  // ─── Recent Actions Tracking ──────────────────────────────────────────
+  function _trackRecentAction(action) {
+    try {
+      var key = 'mallan_crm_recent_actions';
+      var recent = JSON.parse(localStorage.getItem(key) || '[]');
+      recent.unshift({ action: action, time: Date.now() });
+      if (recent.length > 10) recent = recent.slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(recent));
+    } catch (e) { /* localStorage unavailable */ }
+  }
+
+  function _getRecentActions() {
+    try {
+      return JSON.parse(localStorage.getItem('mallan_crm_recent_actions') || '[]');
+    } catch (e) { return []; }
+  }
+
+  // ─── Quick Send Listing (context-aware) ───────────────────────────────
   function quickSendListing() {
     toggleQuickActions();
+    var ctx = _getCurrentContext();
+
     openModal('Quick Send Listing',
       '<div class="space-y-4">' +
         '<div class="form-group"><label class="form-label">Search Listing</label>' +
@@ -918,9 +1054,27 @@ var CRM = (function () {
         '<div class="form-group"><label class="form-label">Select Client(s)</label>' +
           '<div id="qsSendClients">' + UI.loading() + '</div>' +
         '</div>' +
-      '</form>',
+      '</div>',
       { size: 'lg' }
     );
+
+    // If currently viewing a listing workspace, pre-select it
+    if (ctx.type === 'listing' && ctx.id) {
+      _selectedSendListing = ctx.id;
+      MallanAPI.listings.list({ limit: 10 }).then(function (data) {
+        var match = (data.listings || []).find(function (l) { return (l.id || l.listing_id) === ctx.id; });
+        var addr = match ? (match.address || match.UnparsedAddress || 'Selected listing') : 'Selected listing';
+        var el = document.getElementById('qsSendResults');
+        if (el) el.innerHTML = '<div class="p-2 bg-gold-bg rounded-lg text-sm font-medium"><i class="fas fa-check text-gold mr-2"></i>' + E(addr) + '</div>';
+        // Show send button
+        var footer = document.getElementById('modalFooter');
+        if (footer) {
+          footer.innerHTML = '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+            '<button class="btn btn-gold" onclick="CRM._doQuickSend()"><i class="fas fa-paper-plane"></i> Send</button>';
+          footer.classList.remove('hidden');
+        }
+      }).catch(function () { /* ignore pre-select failure */ });
+    }
 
     // Load clients
     MallanAPI.clients.list({ limit: 100 }).then(function (data) {
@@ -941,6 +1095,8 @@ var CRM = (function () {
       var el = document.getElementById('qsSendClients');
       if (el) el.innerHTML = '<p class="text-sm text-gray-500">Could not load clients</p>';
     });
+
+    _trackRecentAction('Send Listing');
   }
 
   var _selectedSendListing = null;
@@ -962,6 +1118,8 @@ var CRM = (function () {
       });
       html += '</div>';
       el.innerHTML = listings.length ? html : '<p class="text-xs text-gray-400">No matches</p>';
+    }).catch(function () {
+      if (el) el.innerHTML = '<p class="text-xs text-gray-400">Could not search listings</p>';
     });
   }
 
@@ -997,10 +1155,22 @@ var CRM = (function () {
     _selectedSendListing = null;
   }
 
+  // ─── Quick Task (context-aware) ───────────────────────────────────────
   function quickTask() {
     toggleQuickActions();
+    var ctx = _getCurrentContext();
+    var clientIdField = '';
+    var contextNote = '';
+
+    if (ctx.type === 'client' && ctx.id) {
+      clientIdField = '<input type="hidden" name="client_id" value="' + E(ctx.id) + '">';
+      contextNote = '<p class="text-xs text-gold bg-gold-bg rounded-lg px-3 py-1.5 mb-3"><i class="fas fa-link mr-1"></i> Linked to current client workspace</p>';
+    }
+
     openModal('Quick Task',
       '<form id="quickTaskForm" class="space-y-4">' +
+        contextNote +
+        clientIdField +
         '<div class="form-group"><label class="form-label">Title *</label><input class="form-input" name="title" required></div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
           '<div class="form-group"><label class="form-label">Due Date</label><input class="form-input" type="date" name="due_date"></div>' +
@@ -1014,6 +1184,8 @@ var CRM = (function () {
           '<button class="btn btn-gold" onclick="CRM.submitQuickTask()"><i class="fas fa-plus"></i> Create Task</button>',
       }
     );
+
+    _trackRecentAction('Quick Task');
   }
 
   function submitQuickTask() {
@@ -1034,13 +1206,23 @@ var CRM = (function () {
     });
   }
 
+  // ─── Quick Note (context-aware) ───────────────────────────────────────
   function quickNote() {
     toggleQuickActions();
+    var ctx = _getCurrentContext();
+    var prefillClientId = (ctx.type === 'client' && ctx.id) ? ctx.id : '';
+    var contextNote = '';
+
+    if (prefillClientId) {
+      contextNote = '<p class="text-xs text-gold bg-gold-bg rounded-lg px-3 py-1.5 mb-3"><i class="fas fa-link mr-1"></i> Linked to current client workspace</p>';
+    }
+
     openModal('Quick Note',
       '<form id="quickNoteForm" class="space-y-4">' +
+        contextNote +
         '<div class="form-group"><label class="form-label">Client (optional)</label>' +
           '<input class="form-input" id="qnClientSearch" placeholder="Search client name...">' +
-          '<input type="hidden" name="client_id" id="qnClientId">' +
+          '<input type="hidden" name="client_id" id="qnClientId" value="' + E(prefillClientId) + '">' +
         '</div>' +
         '<div class="form-group"><label class="form-label">Note *</label>' +
           '<textarea class="form-input" name="content" rows="4" required placeholder="Enter note..."></textarea></div>' +
@@ -1050,6 +1232,8 @@ var CRM = (function () {
           '<button class="btn btn-gold" onclick="CRM.submitQuickNote()"><i class="fas fa-save"></i> Save Note</button>',
       }
     );
+
+    _trackRecentAction('Quick Note');
   }
 
   function submitQuickNote() {
@@ -1233,6 +1417,22 @@ var CRM = (function () {
       });
     }
 
+    // Recent Actions (only when no query)
+    if (qLower.length === 0) {
+      var recentActions = _getRecentActions();
+      if (recentActions.length > 0) {
+        html += '<div class="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (totalIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Recent Actions</div>';
+        recentActions.slice(0, 5).forEach(function (ra) {
+          var timeAgo = ra.time ? Utils.formatTimeAgo(new Date(ra.time)) : '';
+          html += '<div class="px-4 py-1.5 text-xs text-gray-400 flex items-center gap-3">' +
+            '<i class="fas fa-history text-xs text-gray-300 w-4"></i>' +
+            '<span>' + E(ra.action) + '</span>' +
+            (timeAgo ? '<span class="ml-auto text-[10px]">' + E(timeAgo) + '</span>' : '') +
+          '</div>';
+        });
+      }
+    }
+
     if (totalIdx === 0) {
       html = '<div class="px-4 py-6 text-sm text-gray-400 text-center">No results found</div>';
     }
@@ -1352,11 +1552,16 @@ var CRM = (function () {
     quickNote: quickNote,
     submitQuickNote: submitQuickNote,
 
+    // Search
+    _closeSearchResults: _closeSearchResults,
+
+    // Context
+    _getCurrentContext: _getCurrentContext,
+
     // Command Palette
     openCommandPalette: openCommandPalette,
     closeCommandPalette: closeCommandPalette,
     _cmdAction: _cmdAction,
-    _closeSearchResults: _closeSearchResults,
 
     // Impersonation
     showImpersonationPicker: showImpersonationPicker,

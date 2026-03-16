@@ -691,49 +691,145 @@ var Panels = (function () {
   function _editAgent(id) {
     MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(id)).then(function (data) {
       var a = data.agent || data || {};
-      var firstName = a.first_name || (a.full_name || '').split(' ')[0] || '';
-      var lastName = a.last_name || (a.full_name || '').split(' ').slice(1).join(' ') || '';
+      var nameParts = (a.full_name || '').split(' ').filter(Boolean);
+      var firstName = a.first_name || (nameParts.length > 0 ? nameParts[0] : '');
+      var middleName = nameParts.length === 3 ? nameParts[1] : '';
+      var lastName = a.last_name || (nameParts.length === 3 ? nameParts[2] : nameParts.length >= 2 ? nameParts.slice(1).join(' ') : '');
+
       var splitSale = a.sale_split != null ? Number(a.sale_split) : 50;
       var splitRental = a.rental_split != null ? Number(a.rental_split) : 50;
-      // Convert decimal splits to percentage if needed
       if (splitSale > 0 && splitSale < 1) splitSale = Math.round(splitSale * 100);
       if (splitRental > 0 && splitRental < 1) splitRental = Math.round(splitRental * 100);
 
-      CRM.openModal('Edit Agent — ' + E(a.full_name || a.name || 'Agent'),
-        '<form id="editAgentForm" class="space-y-4">' +
-          '<input type="hidden" name="id" value="' + E(id) + '">' +
+      // License expiry alert
+      var licExpiryStr = a.license_expiry ? String(a.license_expiry).substring(0, 10) : '';
+      var licAlertHtml = '';
+      if (licExpiryStr) {
+        var licDays = Math.ceil((new Date(licExpiryStr) - new Date()) / 86400000);
+        if (licDays < 0) {
+          licAlertHtml = '<div class="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i> License EXPIRED ' + Math.abs(licDays) + ' days ago — renewal required immediately</div>';
+        } else if (licDays < 60) {
+          licAlertHtml = '<div class="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i> License expires in ' + licDays + ' days — renewal required</div>';
+        } else if (licDays < 90) {
+          licAlertHtml = '<div class="mt-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i> License expires in ' + licDays + ' days — plan for renewal</div>';
+        }
+      }
+
+      var specialtiesStr = Array.isArray(a.specialties) ? a.specialties.join(', ') : (a.specialties || '');
+      var languagesStr = Array.isArray(a.languages) ? a.languages.join(', ') : (a.languages || '');
+
+      var html = '<form id="editAgentForm" class="space-y-5">' +
+        '<input type="hidden" name="id" value="' + E(id) + '">' +
+
+        // ── Section 1: Personal Information ──
+        '<div>' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-user text-gold"></i> Personal Information</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group"><label class="form-label">First Name *</label>' +
-              '<input class="form-input" name="first_name" value="' + E(firstName) + '" required></div>' +
-            '<div class="form-group"><label class="form-label">Last Name *</label>' +
-              '<input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
-            '<div class="form-group"><label class="form-label">Email</label>' +
-              '<input class="form-input" type="email" name="email" value="' + E(a.email || '') + '" readonly></div>' +
+            '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" value="' + E(firstName) + '" required></div>' +
+            '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" value="' + E(middleName) + '" placeholder="Middle name"></div>' +
+            '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
           '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" name="email" value="' + E(a.email || '') + '" readonly class="bg-gray-50 text-gray-500 cursor-not-allowed"></div>' +
+            '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" name="phone" value="' + E(a.phone || '') + '" placeholder="646-XXX-XXXX"></div>' +
+            '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" placeholder="Optional"></div>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" placeholder="Street address"></div>' +
+            '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" placeholder="City"></div>' +
+            '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" placeholder="State"></div>' +
+            '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Photo URL</label><input class="form-input" name="photo" value="' + E(a.photo || '') + '" placeholder="https://..."></div>' +
+          '</div>' +
+        '</div>' +
+
+        // ── Section 2: NY DOS License Information ──
+        '<div class="border-t pt-5">' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-id-card text-gold"></i> NY DOS License Information</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group"><label class="form-label">Phone</label>' +
-              '<input class="form-input" name="phone" value="' + E(a.phone || '') + '"></div>' +
             '<div class="form-group"><label class="form-label">License Type</label>' +
               '<select class="form-input form-select" name="license_type">' +
                 '<option value="">Select...</option>' +
-                '<option' + (a.license_type === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
-                '<option' + (a.license_type === 'Licensed Associate Broker' ? ' selected' : '') + '>Licensed Associate Broker</option>' +
-                '<option' + (a.license_type === 'Licensed Broker' ? ' selected' : '') + '>Licensed Broker</option>' +
+                '<option value="Licensed Real Estate Salesperson"' + (a.license_type === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
+                '<option value="Licensed Associate Broker"' + (a.license_type === 'Licensed Associate Broker' ? ' selected' : '') + '>Licensed Associate Broker</option>' +
+                '<option value="Licensed Broker"' + (a.license_type === 'Licensed Broker' ? ' selected' : '') + '>Licensed Broker</option>' +
               '</select></div>' +
-            '<div class="form-group"><label class="form-label">License #</label>' +
-              '<input class="form-input" name="license_no" value="' + E(a.license_no || '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">NY DOS License #</label><input class="form-input" name="license_no" value="' + E(a.license_no || '') + '" placeholder="10XXXXXXXXX"></div>' +
+            '<div class="form-group"><label class="form-label">License Expiration</label><input class="form-input" type="date" name="license_expiry" value="' + E(licExpiryStr) + '"></div>' +
           '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">DOS License Status</label>' +
+              '<select class="form-input form-select" name="license_status">' +
+                '<option value="Active"' + (a.license_status === 'Active' || (!a.license_status && a.status === 'active') ? ' selected' : '') + '>Active</option>' +
+                '<option value="Inactive"' + (a.license_status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
+                '<option value="Expired"' + (a.license_status === 'Expired' ? ' selected' : '') + '>Expired</option>' +
+                '<option value="Suspended"' + (a.license_status === 'Suspended' ? ' selected' : '') + '>Suspended</option>' +
+                '<option value="Revoked"' + (a.license_status === 'Revoked' ? ' selected' : '') + '>Revoked</option>' +
+              '</select></div>' +
+            '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" value="' + E(a.rebny_member_id || '') + '" placeholder="REBNY Member ID"></div>' +
+            '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
+          '</div>' +
+          '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
+            '<h4 class="text-xs font-bold text-yellow-800 uppercase mb-2"><i class="fas fa-graduation-cap mr-1"></i> Continuing Education (CE) Hours</h4>' +
+            '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+              '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" min="0" max="100" value="' + E(a.ce_hours_completed || '') + '" placeholder="0"></div>' +
+              '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" value="' + E(a.ce_cycle_end_date ? String(a.ce_cycle_end_date).substring(0, 10) : '') + '"></div>' +
+              '<div class="form-group mb-0"><label class="form-label">Fair Housing Completed</label>' +
+                '<select class="form-input form-select" name="fair_housing_completed">' +
+                  '<option value="">Select...</option>' +
+                  '<option value="Yes"' + (a.fair_housing_completed === 'Yes' ? ' selected' : '') + '>Yes</option>' +
+                  '<option value="No"' + (a.fair_housing_completed === 'No' ? ' selected' : '') + '>No</option>' +
+                '</select></div>' +
+            '</div>' +
+            licAlertHtml +
+            (a.ce_cycle_end_date ? (function () {
+              var ceDays = Math.ceil((new Date(String(a.ce_cycle_end_date).substring(0, 10)) - new Date()) / 86400000);
+              if (ceDays < 0) return '<div class="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i> CE cycle ended ' + Math.abs(ceDays) + ' days ago — CE renewal overdue</div>';
+              if (ceDays < 60) return '<div class="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i> CE cycle ends in ' + ceDays + ' days — renewal required</div>';
+              if (ceDays < 90) return '<div class="mt-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i> CE cycle ends in ' + ceDays + ' days — plan for renewal</div>';
+              return '';
+            })() : '') +
+          '</div>' +
+        '</div>' +
+
+        // ── Section 3: Brokerage & Commission ──
+        '<div class="border-t pt-5">' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-handshake text-gold"></i> Brokerage &amp; Commission</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group"><label class="form-label">License Expiry</label>' +
-              '<input class="form-input" type="date" name="license_expiry" value="' + E(a.license_expiry ? String(a.license_expiry).substring(0, 10) : '') + '"></div>' +
-            '<div class="form-group"><label class="form-label">Sale Split %</label>' +
-              '<input class="form-input" type="number" name="sale_split" min="0" max="100" value="' + splitSale + '"></div>' +
-            '<div class="form-group"><label class="form-label">Rental Split %</label>' +
-              '<input class="form-input" type="number" name="rental_split" min="0" max="100" value="' + splitRental + '"></div>' +
+            '<div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" name="start_date" value="' + E(a.start_date ? String(a.start_date).substring(0, 10) : '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
+              '<input class="form-input" type="number" name="sale_split" value="' + splitSale + '" min="0" max="100" oninput="var bk=document.getElementById(\'editBrokerageSideCalc\');if(bk)bk.textContent=(100-Number(this.value||0))+\'%\';">' +
+              '<p class="text-xs text-gray-400 mt-1">Brokerage side: <span id="editBrokerageSideCalc" class="font-semibold text-gray-600">' + (100 - splitSale) + '%</span></p>' +
+            '</div>' +
+            '<div class="form-group"><label class="form-label">Team / Department</label>' +
+              '<select class="form-input form-select" name="team">' +
+                '<option value="">No Team</option>' +
+                '<option value="Sales Team A"' + (a.team === 'Sales Team A' ? ' selected' : '') + '>Sales Team A</option>' +
+                '<option value="Rental Team"' + (a.team === 'Rental Team' ? ' selected' : '') + '>Rental Team</option>' +
+                '<option value="Commercial Team"' + (a.team === 'Commercial Team' ? ' selected' : '') + '>Commercial Team</option>' +
+                '<option value="Luxury Division"' + (a.team === 'Luxury Division' ? ' selected' : '') + '>Luxury Division</option>' +
+              '</select></div>' +
           '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" min="0" value="' + E(a.desk_fee || '') + '" placeholder="$0.00"></div>' +
+            '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" value="' + E(a.referral_fee_pct || '') + '" placeholder="0"></div>' +
+            '<div class="form-group"><label class="form-label">Contract Term</label>' +
+              '<select class="form-input form-select" name="contract_term">' +
+                '<option value="">Select...</option>' +
+                '<option value="1 Year"' + (a.contract_term === '1 Year' ? ' selected' : '') + '>1 Year</option>' +
+                '<option value="2 Years"' + (a.contract_term === '2 Years' ? ' selected' : '') + '>2 Years</option>' +
+                '<option value="At-Will"' + (a.contract_term === 'At-Will' ? ' selected' : '') + '>At-Will</option>' +
+              '</select></div>' +
+          '</div>' +
+        '</div>' +
+
+        // ── Section 4: Public Profile (for mallan.nyc) ──
+        '<div class="border-t pt-5">' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-globe text-gold"></i> Public Profile (for mallan.nyc)</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Title / Bio Tagline</label>' +
-              '<input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
+            '<div class="form-group"><label class="form-label">Title / Tagline</label><input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
             '<div class="form-group"><label class="form-label">Status</label>' +
               '<select class="form-input form-select" name="status">' +
                 '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
@@ -741,15 +837,46 @@ var Panels = (function () {
                 '<option value="suspended"' + (a.status === 'suspended' ? ' selected' : '') + '>Suspended</option>' +
               '</select></div>' +
           '</div>' +
-          '<div class="form-group"><label class="form-label">Bio</label>' +
+          '<div class="form-group mt-3"><label class="form-label">Bio</label>' +
             '<textarea class="form-input" name="bio" rows="3" placeholder="Agent bio for public profile...">' + E(a.bio || '') + '</textarea></div>' +
-        '</form>',
-        {
-          size: 'lg',
-          footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-            '<button class="btn btn-gold" onclick="Panels._submitEditAgent()"><i class="fas fa-save"></i> Save</button>',
-        }
-      );
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Photo URL</label><input class="form-input" name="photo_public" value="' + E(a.photo || '') + '" placeholder="https://..."></div>' +
+            '<div class="form-group"><label class="form-label">Public Slug</label>' +
+              '<div class="flex items-center">' +
+                '<span class="text-xs text-gray-400 mr-1 whitespace-nowrap">mallan.nyc/agents/</span>' +
+                '<input class="form-input" name="public_slug" value="' + E(a.public_slug || '') + '" placeholder="jane-doe">' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Specialties</label><input class="form-input" name="specialties" value="' + E(specialtiesStr) + '" placeholder="Luxury, Co-ops, New Development"></div>' +
+            '<div class="form-group"><label class="form-label">Languages</label><input class="form-input" name="languages" value="' + E(languagesStr) + '" placeholder="English, Spanish, Mandarin"></div>' +
+          '</div>' +
+          '<label class="flex items-center gap-2 mt-3 cursor-pointer">' +
+            '<input type="checkbox" name="featured" value="true"' + (a.featured ? ' checked' : '') + ' class="w-4 h-4 rounded border-gray-300 text-gold focus:ring-gold">' +
+            '<span class="text-sm font-medium text-gray-700">Featured agent on mallan.nyc</span>' +
+          '</label>' +
+          '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-sync-alt mr-1"></i> This syncs with the agent\'s public profile on mallan.nyc/agents/' + E(a.public_slug || '{slug}') + '</p>' +
+        '</div>' +
+
+        // ── Section 5: Internal Notes ──
+        '<div class="border-t pt-5">' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-sticky-note text-gold"></i> Internal Notes</h3>' +
+          '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Internal notes about this agent (broker eyes only)...">' + E(a.internal_notes || '') + '</textarea></div>' +
+        '</div>' +
+
+      '</form>';
+
+      CRM.openModal('Edit Agent — ' + E(a.full_name || a.name || 'Agent'), html, {
+        size: 'xl',
+        footer: '<div class="flex items-center justify-between w-full">' +
+          '<p class="text-xs text-gray-400"><i class="fas fa-shield-alt mr-1"></i> Data protected under NY SHIELD Act</p>' +
+          '<div class="flex items-center gap-2">' +
+            '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+            '<button class="btn btn-gold" onclick="Panels._submitEditAgent()"><i class="fas fa-save mr-1"></i> Save Changes</button>' +
+          '</div>' +
+        '</div>',
+      });
     }).catch(function (err) {
       CRM.toast('Failed to load agent: ' + (err.message || 'Unknown error'), 'error');
     });
@@ -758,15 +885,48 @@ var Panels = (function () {
   function _submitEditAgent() {
     var form = document.getElementById('editAgentForm');
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
-    var data = {};
+    var raw = {};
     var agentId;
     new FormData(form).forEach(function (v, k) {
       if (k === 'id') { agentId = v; return; }
-      if (v !== '' && v !== null) data[k] = v;
+      if (v !== '' && v !== null) raw[k] = v;
     });
+
+    // Build API payload with correct field names
+    var data = {};
+    if (raw.first_name) data.first_name = raw.first_name;
+    if (raw.last_name) data.last_name = raw.last_name;
+    if (raw.phone) data.phone = raw.phone;
+    if (raw.license_no) data.license_no = raw.license_no;
+    if (raw.license_type) data.license_type = raw.license_type;
+    if (raw.license_expiry) data.license_expiry = raw.license_expiry;
+    if (raw.title) data.title = raw.title;
+    if (raw.bio) data.bio = raw.bio;
+    if (raw.status) data.status = raw.status;
+    if (raw.public_slug) data.public_slug = raw.public_slug;
+
+    // Photo — prefer photo_public (Section 4) over photo (Section 1)
+    var photoVal = raw.photo_public || raw.photo || '';
+    if (photoVal) data.photo = photoVal;
+
+    // Featured checkbox — unchecked means not in FormData
+    data.featured = form.querySelector('[name="featured"]') ? form.querySelector('[name="featured"]').checked : false;
+
+    // Specialties & languages — split comma-separated strings to arrays
+    if (raw.specialties) {
+      data.specialties = raw.specialties.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    } else {
+      data.specialties = [];
+    }
+    if (raw.languages) {
+      data.languages = raw.languages.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    } else {
+      data.languages = [];
+    }
+
     // Convert split percentages to decimals for API
-    if (data.sale_split) data.sale_split = Number(data.sale_split) / 100;
-    if (data.rental_split) data.rental_split = Number(data.rental_split) / 100;
+    if (raw.sale_split) data.sale_split = Number(raw.sale_split) / 100;
+    if (raw.rental_split) data.rental_split = Number(raw.rental_split) / 100;
 
     MallanAPI.agents.update(agentId, data).then(function () {
       CRM.closeModal();
