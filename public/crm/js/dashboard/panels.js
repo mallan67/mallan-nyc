@@ -7198,140 +7198,840 @@ var Panels = (function () {
   }
 
   // ─── Communications ──────────────────────────────────────────────────
+  var _commsTab = 'email';
+  var _commsClients = [];
+  var _commsTemplates = [];
+  var _commsSelectedRecipients = [];
+  var _commsAttachedListing = null;
+
+  var _defaultTemplates = [
+    { id: 'tpl_1', name: 'New Listing Alert', subject: 'New Listing: {{listing_address}}', body: 'Hi {{client_name}},\n\nI wanted to share an exciting new listing with you:\n\n{{listing_address}} — {{listing_price}}\n\nThis property just hit the market and I think it could be a great fit for you. Let me know if you\'d like to schedule a showing.\n\nBest regards' },
+    { id: 'tpl_2', name: 'Market Update', subject: 'Your Monthly Market Update', body: 'Hi {{client_name}},\n\nHere\'s your monthly market summary for the areas you\'re interested in.\n\nKey trends this month:\n- Inventory levels\n- Average days on market\n- Price movement\n\nLet me know if you\'d like to discuss any of these trends and how they affect your search.\n\nBest regards' },
+    { id: 'tpl_3', name: 'Follow-Up After Showing', subject: 'Following Up on Today\'s Showing', body: 'Hi {{client_name}},\n\nThank you for taking the time to view the property today. I\'d love to hear your thoughts.\n\nWhat did you think of the space? Were there any features you particularly liked or any concerns?\n\nI\'m happy to answer any questions or schedule additional viewings.\n\nBest regards' },
+    { id: 'tpl_4', name: 'Price Reduction Notice', subject: 'Price Reduction: {{listing_address}}', body: 'Hi {{client_name}},\n\nGreat news — a property you may be interested in just had a price reduction:\n\n{{listing_address}} — Now {{listing_price}}\n\nThis could be a great opportunity. Would you like to schedule a viewing?\n\nBest regards' },
+    { id: 'tpl_5', name: 'Lease Expiry Reminder', subject: 'Your Lease is Approaching Renewal', body: 'Hi {{client_name}},\n\nI wanted to reach out as your lease expiration is approaching. Now is a great time to start exploring your options:\n\n- Renew at your current location\n- Explore new apartments on the market\n- Negotiate better terms\n\nLet me know how you\'d like to proceed and I\'ll be happy to help.\n\nBest regards' },
+    { id: 'tpl_6', name: 'Open House Invitation', subject: 'You\'re Invited: Open House at {{listing_address}}', body: 'Hi {{client_name}},\n\nI\'m hosting an open house and I think you should check it out:\n\n{{listing_address}} — {{listing_price}}\n\nDate & Time: [TBD]\n\nNo appointment needed — just stop by. I\'d love to see you there.\n\nBest regards' },
+    { id: 'tpl_7', name: 'CMA Report Cover', subject: 'Your Comparative Market Analysis', body: 'Hi {{client_name}},\n\nAttached is the Comparative Market Analysis (CMA) report we discussed. This report covers:\n\n- Recent comparable sales in your area\n- Current market conditions\n- Recommended pricing strategy\n\nPlease review at your convenience and let\'s schedule a time to discuss the findings.\n\nBest regards' },
+    { id: 'tpl_8', name: 'New Client Welcome', subject: 'Welcome — Let\'s Get Started', body: 'Hi {{client_name}},\n\nWelcome! I\'m excited to work with you on your real estate journey.\n\nHere\'s what you can expect from me:\n- Personalized property recommendations\n- Market insights and analysis\n- Transparent communication every step of the way\n\nTo get started, could you share your preferences (neighborhoods, budget, must-haves)? That way I can begin curating options for you.\n\nLooking forward to working together.\n\nBest regards' },
+  ];
+
+  function _loadTemplates() {
+    try {
+      var stored = localStorage.getItem('mallan_crm_email_templates');
+      if (stored) {
+        _commsTemplates = JSON.parse(stored);
+      } else {
+        _commsTemplates = _defaultTemplates.slice();
+        localStorage.setItem('mallan_crm_email_templates', JSON.stringify(_commsTemplates));
+      }
+    } catch (e) {
+      _commsTemplates = _defaultTemplates.slice();
+    }
+    return _commsTemplates;
+  }
+
+  function _saveTemplates() {
+    try { localStorage.setItem('mallan_crm_email_templates', JSON.stringify(_commsTemplates)); } catch (e) { /* noop */ }
+  }
+
   function communications() {
     CRM.setPanelTitle('Communications');
     var c = _container();
 
-    // Load sent history from events
-    var sentEvents = Events.getByCategory('communications', 100).filter(function (ev) {
-      return ev.type === 'email_sent' || ev.type === 'eblast_sent';
-    });
+    var tabs = [
+      { key: 'email', label: 'Email Center', icon: 'fa-envelope' },
+      { key: 'templates', label: 'Templates', icon: 'fa-file-alt' },
+      { key: 'sent-listings', label: 'Sent Listings', icon: 'fa-share-square' },
+      { key: 'campaigns', label: 'Campaign History', icon: 'fa-bullhorn' },
+    ];
+
+    var tabBar = '<div class="flex gap-1 border-b border-gray-200 mb-4">' +
+      tabs.map(function (t) {
+        var active = _commsTab === t.key;
+        return '<button class="px-4 py-2 text-sm font-medium border-b-2 transition-all ' +
+          (active ? 'border-gold text-gold' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300') +
+          '" onclick="Panels._commsTabSwitch(\'' + t.key + '\')">' +
+          '<i class="fas ' + t.icon + ' mr-1.5"></i>' + E(t.label) + '</button>';
+      }).join('') +
+    '</div>';
 
     c.innerHTML = '<div class="space-y-4">' +
-      UI.sectionHeader('Communications Center', 'Email, eBlast, sent history') +
-      '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-        '<button class="card p-6 text-center hover:border-gold transition-all" onclick="Panels._composeEmail()">' +
-          '<i class="fas fa-envelope text-3xl text-gold mb-3"></i>' +
-          '<p class="text-sm font-bold">Compose Email</p></button>' +
-        '<button class="card p-6 text-center hover:border-gold transition-all" onclick="Panels._composeBulk()">' +
-          '<i class="fas fa-paper-plane text-3xl text-blue-500 mb-3"></i>' +
-          '<p class="text-sm font-bold">eBlast</p></button>' +
-        '<button class="card p-6 text-center hover:border-gold transition-all" onclick="Panels.communications()">' +
-          '<i class="fas fa-history text-3xl text-gray-400 mb-3"></i>' +
-          '<p class="text-sm font-bold">Sent History</p></button>' +
-      '</div>' +
-      UI.card('Sent History',
-        sentEvents.length > 0 ?
-          UI.dataTable([
-            { key: 'type', label: 'Type', render: function (ev) {
-              var isBlast = ev.type === 'eblast_sent';
-              return '<span class="badge badge-' + (isBlast ? 'active' : 'pending') + '">' + (isBlast ? 'eBlast' : 'Email') + '</span>';
-            }},
-            { key: 'to', label: 'To', render: function (ev) { return '<span class="text-sm">' + E(ev.data && ev.data.to || ev.data && ev.data.recipients || '-') + '</span>'; }},
-            { key: 'subject', label: 'Subject', render: function (ev) { return '<span class="text-sm font-medium">' + E(ev.data && ev.data.subject || '-') + '</span>'; }},
-            { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
-          ], sentEvents) :
-          '<p class="text-sm text-gray-500 p-4">No emails sent yet</p>'
-      ) +
+      UI.sectionHeader('Communications Center', 'Email, templates, sent listings, campaigns') +
+      tabBar +
+      '<div id="commsTabContent"></div>' +
     '</div>';
+
+    _commsRenderTab();
   }
 
-  function _composeEmail() {
-    CRM.openModal('Compose Email',
-      '<form id="composeEmailForm" class="space-y-4">' +
-        '<div class="form-group"><label class="form-label">To *</label>' +
-          '<input class="form-input" name="to" type="email" placeholder="recipient@example.com" required></div>' +
-        '<div class="form-group"><label class="form-label">Subject *</label>' +
-          '<input class="form-input" name="subject" placeholder="Email subject" required></div>' +
-        '<div class="form-group"><label class="form-label">Body *</label>' +
-          '<textarea class="form-input" name="body" rows="8" placeholder="Write your email..." required></textarea></div>' +
+  function _commsTabSwitch(tab) {
+    _commsTab = tab;
+    // Update tab bar active state
+    var c = _container();
+    var buttons = c.querySelectorAll('.border-b-2');
+    var tabs = ['email', 'templates', 'sent-listings', 'campaigns'];
+    buttons.forEach(function (btn, i) {
+      if (tabs[i] === tab) {
+        btn.className = btn.className.replace('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'border-gold text-gold');
+      } else {
+        btn.className = btn.className.replace('border-gold text-gold', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300');
+      }
+    });
+    _commsRenderTab();
+  }
+
+  function _commsRenderTab() {
+    var el = document.getElementById('commsTabContent');
+    if (!el) return;
+
+    if (_commsTab === 'email') { _commsRenderEmailCenter(el); }
+    else if (_commsTab === 'templates') { _commsRenderTemplates(el); }
+    else if (_commsTab === 'sent-listings') { _commsRenderSentListings(el); }
+    else if (_commsTab === 'campaigns') { _commsRenderCampaigns(el); }
+  }
+
+  // ── Tab 1: Email Center ──────────────────────────────────────────────
+  function _commsRenderEmailCenter(el) {
+    el.innerHTML = UI.loading();
+
+    var emailEvents = Events.getByCategory('communications', 200).filter(function (ev) {
+      return ev.type === 'email_sent';
+    });
+
+    el.innerHTML =
+      '<div class="flex gap-3 mb-4">' +
+        '<button class="btn btn-gold" onclick="Panels._composeEmail()"><i class="fas fa-pen mr-1.5"></i>Compose Email</button>' +
+        '<button class="btn btn-outline" onclick="Panels._composeBulk()"><i class="fas fa-paper-plane mr-1.5"></i>Compose eBlast</button>' +
+      '</div>' +
+      UI.card('Recent Emails',
+        emailEvents.length > 0 ?
+          UI.dataTable([
+            { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
+            { key: 'to', label: 'To', render: function (ev) {
+              var to = ev.data && ev.data.to || ev.data && ev.data.recipientNames || '-';
+              return '<span class="text-sm">' + E(Array.isArray(to) ? to.join(', ') : to) + '</span>';
+            }},
+            { key: 'subject', label: 'Subject', render: function (ev) { return '<span class="text-sm font-medium">' + E(ev.data && ev.data.subject || '-') + '</span>'; }},
+            { key: 'status', label: 'Status', render: function () { return '<span class="badge badge-active">Sent</span>'; }},
+            { key: 'action', label: '', render: function (ev) {
+              return '<button class="btn btn-sm btn-outline" onclick="Panels._viewEmailDetail(\'' + (ev.id || '') + '\')"><i class="fas fa-eye"></i></button>';
+            }},
+          ], emailEvents) :
+          '<p class="text-sm text-gray-500 p-4">No emails sent yet. Compose your first email above.</p>'
+      );
+  }
+
+  function _viewEmailDetail(eventId) {
+    var events = Events.getByCategory('communications', 500);
+    var ev = null;
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].id === eventId) { ev = events[i]; break; }
+    }
+    if (!ev || !ev.data) { CRM.toast('Email details not found', 'error'); return; }
+
+    var d = ev.data;
+    var to = d.to || d.recipientNames || '-';
+    if (Array.isArray(to)) to = to.join(', ');
+
+    CRM.openModal('Email Detail',
+      '<div class="space-y-3">' +
+        '<div class="flex justify-between items-center border-b pb-2">' +
+          '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>' +
+          '<span class="badge badge-active">Sent</span>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">To</label><p class="text-sm">' + E(to) + '</p></div>' +
+        (d.cc ? '<div class="form-group"><label class="form-label">CC</label><p class="text-sm">' + E(d.cc) + '</p></div>' : '') +
+        '<div class="form-group"><label class="form-label">Subject</label><p class="text-sm font-medium">' + E(d.subject || '-') + '</p></div>' +
+        '<div class="form-group"><label class="form-label">Body</label><div class="text-sm bg-gray-50 p-3 rounded border whitespace-pre-wrap" style="max-height:300px;overflow-y:auto">' + E(d.body || '-') + '</div></div>' +
+        (d.listingAddress ? '<div class="form-group"><label class="form-label">Attached Listing</label><p class="text-sm">' + E(d.listingAddress) + (d.listingPrice ? ' — ' + E(d.listingPrice) : '') + '</p></div>' : '') +
+      '</div>',
+      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Close</button>' }
+    );
+  }
+
+  // ── Tab 2: Templates ─────────────────────────────────────────────────
+  function _commsRenderTemplates(el) {
+    _loadTemplates();
+
+    var cards = _commsTemplates.map(function (tpl, idx) {
+      var preview = (tpl.body || '').substring(0, 80).replace(/\n/g, ' ');
+      if ((tpl.body || '').length > 80) preview += '...';
+      return '<div class="card p-4 space-y-2">' +
+        '<div class="flex justify-between items-start">' +
+          '<h4 class="text-sm font-bold">' + E(tpl.name) + '</h4>' +
+          '<div class="flex gap-1">' +
+            '<button class="btn btn-sm btn-gold" onclick="Panels._useTemplate(' + idx + ')" title="Use"><i class="fas fa-pen"></i> Use</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="Panels._editTemplate(' + idx + ')" title="Edit"><i class="fas fa-edit"></i></button>' +
+            '<button class="btn btn-sm btn-outline text-red-500" onclick="Panels._deleteTemplate(' + idx + ')" title="Delete"><i class="fas fa-trash"></i></button>' +
+          '</div>' +
+        '</div>' +
+        '<p class="text-xs text-gray-500"><strong>Subject:</strong> ' + E(tpl.subject || '') + '</p>' +
+        '<p class="text-xs text-gray-400">' + E(preview) + '</p>' +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="flex justify-between items-center mb-4">' +
+        '<p class="text-sm text-gray-500">' + _commsTemplates.length + ' templates</p>' +
+        '<button class="btn btn-gold" onclick="Panels._createTemplate()"><i class="fas fa-plus mr-1.5"></i>Create Template</button>' +
+      '</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' + cards + '</div>';
+  }
+
+  function _useTemplate(idx) {
+    var tpl = _commsTemplates[idx];
+    if (!tpl) return;
+    _composeEmail(tpl);
+  }
+
+  function _editTemplate(idx) {
+    var tpl = _commsTemplates[idx];
+    if (!tpl) return;
+
+    CRM.openModal('Edit Template',
+      '<form id="editTemplateForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Template Name *</label>' +
+          '<input class="form-input" name="name" value="' + E(tpl.name) + '" required></div>' +
+        '<div class="form-group"><label class="form-label">Subject</label>' +
+          '<input class="form-input" name="subject" value="' + E(tpl.subject || '') + '"></div>' +
+        '<div class="form-group"><label class="form-label">Body</label>' +
+          '<textarea class="form-input" name="body" rows="10">' + E(tpl.body || '') + '</textarea></div>' +
+        '<p class="text-xs text-gray-400">Placeholders: {{client_name}}, {{listing_address}}, {{listing_price}}</p>' +
       '</form>',
       {
         footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitEmail()"><i class="fas fa-paper-plane"></i> Send</button>',
+          '<button class="btn btn-gold" onclick="Panels._saveEditTemplate(' + idx + ')">Save</button>',
       }
     );
   }
 
+  function _saveEditTemplate(idx) {
+    var form = document.getElementById('editTemplateForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var fd = new FormData(form);
+    _commsTemplates[idx].name = fd.get('name') || _commsTemplates[idx].name;
+    _commsTemplates[idx].subject = fd.get('subject') || '';
+    _commsTemplates[idx].body = fd.get('body') || '';
+    _saveTemplates();
+    CRM.closeModal();
+    CRM.toast('Template updated', 'success');
+    _commsRenderTab();
+  }
+
+  function _deleteTemplate(idx) {
+    var tpl = _commsTemplates[idx];
+    if (!tpl) return;
+    if (!confirm('Delete template "' + tpl.name + '"?')) return;
+    _commsTemplates.splice(idx, 1);
+    _saveTemplates();
+    CRM.toast('Template deleted', 'success');
+    _commsRenderTab();
+  }
+
+  function _createTemplate() {
+    CRM.openModal('Create Template',
+      '<form id="createTemplateForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Template Name *</label>' +
+          '<input class="form-input" name="name" placeholder="e.g. Quarterly Check-In" required></div>' +
+        '<div class="form-group"><label class="form-label">Subject</label>' +
+          '<input class="form-input" name="subject" placeholder="Email subject line"></div>' +
+        '<div class="form-group"><label class="form-label">Body</label>' +
+          '<textarea class="form-input" name="body" rows="10" placeholder="Write your template body..."></textarea></div>' +
+        '<p class="text-xs text-gray-400">Placeholders: {{client_name}}, {{listing_address}}, {{listing_price}}</p>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitCreateTemplate()">Create</button>',
+      }
+    );
+  }
+
+  function _submitCreateTemplate() {
+    var form = document.getElementById('createTemplateForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var fd = new FormData(form);
+    var tpl = {
+      id: 'tpl_' + Date.now(),
+      name: fd.get('name'),
+      subject: fd.get('subject') || '',
+      body: fd.get('body') || '',
+    };
+    _commsTemplates.push(tpl);
+    _saveTemplates();
+    CRM.closeModal();
+    CRM.toast('Template created', 'success');
+    _commsRenderTab();
+  }
+
+  // ── Tab 3: Sent Listings ─────────────────────────────────────────────
+  function _commsRenderSentListings(el) {
+    el.innerHTML = UI.loading();
+
+    var allEvents = Events.getByCategory('communications', 500).concat(
+      Events.getByCategory('listings', 500),
+      Events.getByCategory('clients', 500)
+    );
+
+    var sentEvents = allEvents.filter(function (ev) {
+      return ev.type === 'listing_sent' || ev.type === 'quick_send_executed';
+    });
+
+    // Deduplicate by id
+    var seen = {};
+    sentEvents = sentEvents.filter(function (ev) {
+      if (!ev.id || seen[ev.id]) return false;
+      seen[ev.id] = true;
+      return true;
+    });
+
+    // Sort by date descending
+    sentEvents.sort(function (a, b) {
+      return new Date(b.timestamp || b.created_at) - new Date(a.timestamp || a.created_at);
+    });
+
+    // Group by date
+    var now = new Date();
+    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var weekStart = todayStart - (now.getDay() * 86400000);
+    var groups = { today: [], thisWeek: [], earlier: [] };
+
+    sentEvents.forEach(function (ev) {
+      var ts = new Date(ev.timestamp || ev.created_at).getTime();
+      if (ts >= todayStart) groups.today.push(ev);
+      else if (ts >= weekStart) groups.thisWeek.push(ev);
+      else groups.earlier.push(ev);
+    });
+
+    function renderGroup(label, events) {
+      if (events.length === 0) return '';
+      return '<div class="mb-4">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">' + E(label) + '</h4>' +
+        UI.dataTable([
+          { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
+          { key: 'listing', label: 'Listing', render: function (ev) {
+            var d = ev.data || {};
+            var addr = d.listingAddress || d.address || '-';
+            var price = d.listingPrice || d.price || '';
+            return '<span class="text-sm font-medium">' + E(addr) + '</span>' +
+              (price ? '<span class="text-xs text-gray-500 ml-2">' + E(price) + '</span>' : '');
+          }},
+          { key: 'clients', label: 'Client(s)', render: function (ev) {
+            var d = ev.data || {};
+            var names = d.clientName || d.recipientNames || d.to || '-';
+            if (Array.isArray(names)) names = names.join(', ');
+            return '<span class="text-sm">' + E(names) + '</span>';
+          }},
+          { key: 'via', label: 'Sent Via', render: function (ev) {
+            var viaType = ev.type === 'quick_send_executed' ? 'Quick Send' : (ev.data && ev.data.via || 'Workspace');
+            var color = ev.type === 'quick_send_executed' ? 'pending' : 'active';
+            return '<span class="badge badge-' + color + '">' + E(viaType) + '</span>';
+          }},
+          { key: 'status', label: 'Status', render: function () { return '<span class="badge badge-active">Sent</span>'; }},
+        ], events) +
+      '</div>';
+    }
+
+    el.innerHTML = sentEvents.length > 0 ?
+      renderGroup('Today', groups.today) +
+      renderGroup('This Week', groups.thisWeek) +
+      renderGroup('Earlier', groups.earlier) :
+      UI.emptyState('fa-share-square', 'No listings sent yet');
+  }
+
+  // ── Tab 4: Campaign History ──────────────────────────────────────────
+  function _commsRenderCampaigns(el) {
+    el.innerHTML = UI.loading();
+
+    var eblastEvents = Events.getByCategory('communications', 500).filter(function (ev) {
+      return ev.type === 'eblast_sent';
+    });
+
+    eblastEvents.sort(function (a, b) {
+      return new Date(b.timestamp || b.created_at) - new Date(a.timestamp || a.created_at);
+    });
+
+    el.innerHTML = eblastEvents.length > 0 ?
+      UI.card('Campaign History',
+        UI.dataTable([
+          { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
+          { key: 'subject', label: 'Subject', render: function (ev) { return '<span class="text-sm font-medium">' + E(ev.data && ev.data.subject || '-') + '</span>'; }},
+          { key: 'audience', label: 'Audience', render: function (ev) {
+            var d = ev.data || {};
+            var audienceType = d.clientType || d.audienceType || 'all';
+            var count = d.recipientCount || d.recipients || '-';
+            if (typeof count === 'string' && count.indexOf('client') > -1) return '<span class="text-sm">' + E(count) + '</span>';
+            return '<span class="text-sm">' + E(audienceType.charAt(0).toUpperCase() + audienceType.slice(1)) + ' — ' + count + ' recipients</span>';
+          }},
+          { key: 'openRate', label: 'Open Rate', render: function () { return '<span class="text-xs text-gray-400">-</span>'; }},
+          { key: 'clickRate', label: 'Click Rate', render: function () { return '<span class="text-xs text-gray-400">-</span>'; }},
+          { key: 'status', label: 'Status', render: function () { return '<span class="badge badge-active">Sent</span>'; }},
+          { key: 'action', label: '', render: function (ev) {
+            return '<button class="btn btn-sm btn-outline" onclick="Panels._viewCampaignDetail(\'' + (ev.id || '') + '\')"><i class="fas fa-eye"></i></button>';
+          }},
+        ], eblastEvents)
+      ) :
+      UI.emptyState('fa-bullhorn', 'No campaigns sent yet');
+  }
+
+  function _viewCampaignDetail(eventId) {
+    var events = Events.getByCategory('communications', 500);
+    var ev = null;
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].id === eventId) { ev = events[i]; break; }
+    }
+    if (!ev || !ev.data) { CRM.toast('Campaign details not found', 'error'); return; }
+
+    var d = ev.data;
+    var audienceType = d.clientType || d.audienceType || 'all';
+    var count = d.recipientCount || d.recipients || '-';
+
+    CRM.openModal('Campaign Detail',
+      '<div class="space-y-3">' +
+        '<div class="flex justify-between items-center border-b pb-2">' +
+          '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>' +
+          '<span class="badge badge-active">Sent</span>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Subject</label><p class="text-sm font-medium">' + E(d.subject || '-') + '</p></div>' +
+        '<div class="form-group"><label class="form-label">Audience</label><p class="text-sm">' + E(audienceType.charAt(0).toUpperCase() + audienceType.slice(1)) + ' — ' + E(String(count)) + ' recipients</p></div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div class="bg-gray-50 rounded p-3 text-center"><p class="text-xs text-gray-500">Open Rate</p><p class="text-lg font-bold text-gray-400">-</p></div>' +
+          '<div class="bg-gray-50 rounded p-3 text-center"><p class="text-xs text-gray-500">Click Rate</p><p class="text-lg font-bold text-gray-400">-</p></div>' +
+        '</div>' +
+        (d.body ? '<div class="form-group"><label class="form-label">Content</label><div class="text-sm bg-gray-50 p-3 rounded border whitespace-pre-wrap" style="max-height:300px;overflow-y:auto">' + E(d.body) + '</div></div>' : '') +
+        (d.includeListings ? '<div class="form-group"><label class="form-label">Listings</label><p class="text-xs text-gray-500">Auto-included matching active listings for each recipient</p></div>' : '') +
+      '</div>',
+      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Close</button>' }
+    );
+  }
+
+  // ── Compose Email (enhanced) ─────────────────────────────────────────
+  function _composeEmail(template) {
+    _commsSelectedRecipients = [];
+    _commsAttachedListing = null;
+
+    MallanAPI.clients.list({ limit: 500 }).then(function (res) {
+      _commsClients = res.clients || [];
+      _loadTemplates();
+
+      var templateOptions = '<option value="">— No template —</option>' +
+        _commsTemplates.map(function (t, i) { return '<option value="' + i + '"' + (template && template.id === t.id ? ' selected' : '') + '>' + E(t.name) + '</option>'; }).join('');
+
+      var prefillSubject = template ? template.subject : '';
+      var prefillBody = template ? template.body : '';
+
+      CRM.openModal('Compose Email',
+        '<form id="composeEmailForm" class="space-y-4">' +
+          '<div class="form-group"><label class="form-label">To *</label>' +
+            '<div class="relative">' +
+              '<input class="form-input" id="composeEmailTo" type="text" placeholder="Search clients by name or email..." autocomplete="off" oninput="Panels._commsSearchRecipients(this.value, \'to\')" onfocus="Panels._commsSearchRecipients(this.value, \'to\')">' +
+              '<div id="composeEmailToDropdown" class="absolute z-50 w-full bg-white border rounded shadow-lg mt-1 max-h-40 overflow-y-auto hidden"></div>' +
+            '</div>' +
+            '<div id="composeEmailToChips" class="flex flex-wrap gap-1 mt-1"></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">CC</label>' +
+            '<input class="form-input" name="cc" type="text" placeholder="CC email addresses (comma-separated)"></div>' +
+          '<div class="form-group"><label class="form-label">Template</label>' +
+            '<select class="form-input" id="composeEmailTemplate" onchange="Panels._commsApplyTemplate()">' + templateOptions + '</select></div>' +
+          '<div class="form-group"><label class="form-label">Subject *</label>' +
+            '<input class="form-input" name="subject" id="composeEmailSubject" value="' + E(prefillSubject) + '" placeholder="Email subject" required></div>' +
+          '<div class="form-group"><label class="form-label">Body *</label>' +
+            '<textarea class="form-input" name="body" id="composeEmailBody" rows="10" placeholder="Write your email..." required>' + E(prefillBody) + '</textarea></div>' +
+          '<div class="flex gap-2">' +
+            '<button type="button" class="btn btn-sm btn-outline" onclick="Panels._commsAttachListing()"><i class="fas fa-home mr-1"></i>Attach Listing</button>' +
+            '<span id="composeEmailListingBadge" class="text-xs text-gray-400"></span>' +
+          '</div>' +
+        '</form>',
+        {
+          footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+            '<button class="btn btn-gold" onclick="Panels._submitEmail()"><i class="fas fa-paper-plane mr-1"></i>Send</button>',
+        }
+      );
+    }).catch(function (err) {
+      CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _commsSearchRecipients(query, field) {
+    var dropdown = document.getElementById('composeEmail' + (field === 'to' ? 'To' : 'To') + 'Dropdown');
+    if (!dropdown) return;
+
+    var q = (query || '').toLowerCase().trim();
+    if (!q) { dropdown.classList.add('hidden'); return; }
+
+    var filtered = _commsClients.filter(function (cl) {
+      var name = (cl.name || cl.first_name || '').toLowerCase();
+      var email = (cl.email || '').toLowerCase();
+      // Exclude already selected
+      var alreadySelected = _commsSelectedRecipients.some(function (r) { return r.id === cl.id; });
+      return !alreadySelected && (name.indexOf(q) > -1 || email.indexOf(q) > -1);
+    }).slice(0, 8);
+
+    if (filtered.length === 0) { dropdown.classList.add('hidden'); return; }
+
+    dropdown.innerHTML = filtered.map(function (cl) {
+      var name = cl.name || cl.first_name || 'Unknown';
+      var email = cl.email || '';
+      return '<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" ' +
+        'onmousedown="Panels._commsSelectRecipient(\'' + E(cl.id) + '\')">' +
+        '<span class="font-medium">' + E(name) + '</span>' +
+        (email ? '<span class="text-xs text-gray-400 ml-2">' + E(email) + '</span>' : '') +
+      '</div>';
+    }).join('');
+    dropdown.classList.remove('hidden');
+  }
+
+  function _commsSelectRecipient(clientId) {
+    var cl = null;
+    for (var i = 0; i < _commsClients.length; i++) {
+      if (_commsClients[i].id === clientId) { cl = _commsClients[i]; break; }
+    }
+    if (!cl) return;
+
+    _commsSelectedRecipients.push(cl);
+
+    var input = document.getElementById('composeEmailTo');
+    var dropdown = document.getElementById('composeEmailToDropdown');
+    if (input) input.value = '';
+    if (dropdown) dropdown.classList.add('hidden');
+
+    _commsRenderRecipientChips();
+    _commsReplacePlaceholders();
+  }
+
+  function _commsRemoveRecipient(clientId) {
+    _commsSelectedRecipients = _commsSelectedRecipients.filter(function (r) { return r.id !== clientId; });
+    _commsRenderRecipientChips();
+  }
+
+  function _commsRenderRecipientChips() {
+    var container = document.getElementById('composeEmailToChips');
+    if (!container) return;
+
+    container.innerHTML = _commsSelectedRecipients.map(function (cl) {
+      var name = cl.name || cl.first_name || cl.email || 'Unknown';
+      return '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-gold/10 text-gold rounded text-xs font-medium">' +
+        E(name) +
+        '<button type="button" class="hover:text-red-500" onclick="Panels._commsRemoveRecipient(\'' + E(cl.id) + '\')">&times;</button>' +
+      '</span>';
+    }).join('');
+  }
+
+  function _commsApplyTemplate() {
+    var sel = document.getElementById('composeEmailTemplate');
+    if (!sel || sel.value === '') return;
+
+    var tpl = _commsTemplates[parseInt(sel.value, 10)];
+    if (!tpl) return;
+
+    var subjectEl = document.getElementById('composeEmailSubject');
+    var bodyEl = document.getElementById('composeEmailBody');
+    if (subjectEl) subjectEl.value = tpl.subject || '';
+    if (bodyEl) bodyEl.value = tpl.body || '';
+
+    _commsReplacePlaceholders();
+  }
+
+  function _commsReplacePlaceholders() {
+    var subjectEl = document.getElementById('composeEmailSubject');
+    var bodyEl = document.getElementById('composeEmailBody');
+    if (!subjectEl || !bodyEl) return;
+
+    var clientName = _commsSelectedRecipients.length > 0
+      ? (_commsSelectedRecipients[0].name || _commsSelectedRecipients[0].first_name || '')
+      : '{{client_name}}';
+
+    var listingAddr = _commsAttachedListing ? (_commsAttachedListing.address || '') : '{{listing_address}}';
+    var listingPrice = _commsAttachedListing ? (_commsAttachedListing.price || '') : '{{listing_price}}';
+
+    function replacePlaceholders(text) {
+      return text
+        .replace(/\{\{client_name\}\}/g, clientName)
+        .replace(/\{\{listing_address\}\}/g, listingAddr)
+        .replace(/\{\{listing_price\}\}/g, listingPrice);
+    }
+
+    subjectEl.value = replacePlaceholders(subjectEl.value);
+    bodyEl.value = replacePlaceholders(bodyEl.value);
+  }
+
+  function _commsAttachListing() {
+    MallanAPI.listings.list({ limit: 50, status: 'active' }).then(function (res) {
+      var listings = res.listings || [];
+
+      var rows = listings.map(function (l) {
+        var addr = l.address || l.full_address || l.UnparsedAddress || '-';
+        var price = l.price || l.list_price || l.ListPrice || '';
+        return '<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b flex justify-between items-center" ' +
+          'onclick="Panels._commsPickListing(\'' + E(l.id || l.listing_id || '') + '\', \'' + E(addr).replace(/'/g, "\\'") + '\', \'' + E(typeof price === 'number' ? '$' + price.toLocaleString() : price).replace(/'/g, "\\'") + '\')">' +
+          '<span class="text-sm font-medium">' + E(addr) + '</span>' +
+          '<span class="text-sm text-gray-500">' + (typeof price === 'number' ? '$' + price.toLocaleString() : E(price)) + '</span>' +
+        '</div>';
+      }).join('');
+
+      CRM.openModal('Attach Listing',
+        '<div class="space-y-2">' +
+          '<p class="text-xs text-gray-500">Select a listing to attach to your email</p>' +
+          '<div class="border rounded max-h-64 overflow-y-auto">' +
+            (rows || '<p class="p-4 text-sm text-gray-400">No active listings found</p>') +
+          '</div>' +
+        '</div>',
+        { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' }
+      );
+    }).catch(function (err) {
+      CRM.toast('Failed to load listings: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _commsPickListing(listingId, address, price) {
+    _commsAttachedListing = { id: listingId, address: address, price: price };
+    CRM.closeModal();
+
+    // Update badge in compose form
+    var badge = document.getElementById('composeEmailListingBadge');
+    if (badge) badge.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs"><i class="fas fa-home"></i> ' + E(address) + '</span>';
+
+    _commsReplacePlaceholders();
+
+    // Append listing card HTML to body
+    var bodyEl = document.getElementById('composeEmailBody');
+    if (bodyEl) {
+      var card = '\n\n---\n' + address + (price ? ' — ' + price : '') + '\nView listing: mallan.nyc/listings/' + listingId;
+      bodyEl.value += card;
+    }
+  }
+
   function _submitEmail() {
     var form = document.getElementById('composeEmailForm');
-    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
-    var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    if (!form) return;
+
+    if (_commsSelectedRecipients.length === 0) {
+      CRM.toast('Please select at least one recipient', 'error');
+      return;
+    }
+
+    var subjectEl = document.getElementById('composeEmailSubject');
+    var bodyEl = document.getElementById('composeEmailBody');
+    var ccEl = form.querySelector('[name="cc"]');
+
+    var subject = subjectEl ? subjectEl.value.trim() : '';
+    var body = bodyEl ? bodyEl.value.trim() : '';
+    var cc = ccEl ? ccEl.value.trim() : '';
+
+    if (!subject || !body) {
+      CRM.toast('Subject and body are required', 'error');
+      return;
+    }
+
+    var recipientEmails = _commsSelectedRecipients.map(function (r) { return r.email || ''; }).filter(Boolean);
+    var recipientNames = _commsSelectedRecipients.map(function (r) { return r.name || r.first_name || ''; }).filter(Boolean);
+    var recipientIds = _commsSelectedRecipients.map(function (r) { return r.id; }).filter(Boolean);
+
+    var payload = {
+      type: 'email',
+      to: recipientEmails.join(', '),
+      cc: cc,
+      subject: subject,
+      body: body,
+      recipientIds: recipientIds,
+      listingId: _commsAttachedListing ? _commsAttachedListing.id : null,
+      listingAddress: _commsAttachedListing ? _commsAttachedListing.address : null,
+      listingPrice: _commsAttachedListing ? _commsAttachedListing.price : null,
+    };
 
     MallanAPI._fetch('/api/crm/communications/send', {
       method: 'POST',
-      body: JSON.stringify({ type: 'email', to: data.to, subject: data.subject, body: data.body }),
+      body: JSON.stringify(payload),
     }).then(function () {
-      Events.log('email_sent', 'communication', null, { to: data.to, subject: data.subject });
+      // Log to client entities
+      recipientIds.forEach(function (cid) {
+        Events.log('email_sent', 'client', cid, {
+          to: recipientEmails.join(', '),
+          recipientNames: recipientNames.join(', '),
+          cc: cc,
+          subject: subject,
+          body: body,
+          listingAddress: payload.listingAddress,
+          listingPrice: payload.listingPrice,
+        });
+      });
+
+      // Log to listing entity if attached
+      if (_commsAttachedListing && _commsAttachedListing.id) {
+        Events.log('listing_sent', 'listing', _commsAttachedListing.id, {
+          clientName: recipientNames.join(', '),
+          to: recipientEmails.join(', '),
+          subject: subject,
+          via: 'email',
+        });
+      }
+
+      // Log to communications category
+      Events.log('email_sent', 'communication', null, {
+        to: recipientEmails.join(', '),
+        recipientNames: recipientNames.join(', '),
+        cc: cc,
+        subject: subject,
+        body: body,
+        listingAddress: payload.listingAddress,
+        listingPrice: payload.listingPrice,
+      });
+
       CRM.closeModal();
-      CRM.toast('Email sent', 'success');
+      CRM.toast('Email sent to ' + recipientNames.join(', '), 'success');
+      _commsSelectedRecipients = [];
+      _commsAttachedListing = null;
       communications();
     }).catch(function (err) {
       CRM.toast('Failed to send email: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
+  // ── Compose eBlast (enhanced) ────────────────────────────────────────
   function _composeBulk() {
-    MallanAPI.clients.list({ limit: 200 }).then(function (res) {
+    MallanAPI.clients.list({ limit: 500 }).then(function (res) {
       var clients = res.clients || [];
-      var types = ['All', 'Buyer', 'Seller', 'Tenant', 'Landlord'];
+      window._eblastClients = clients;
 
-      CRM.openModal('eBlast',
+      _loadTemplates();
+      var types = ['All', 'Buyer', 'Seller', 'Tenant', 'Landlord'];
+      var stages = ['All Stages', 'Active', 'New', 'Warm', 'Hot', 'Under Contract', 'Closed', 'Inactive'];
+
+      var templateOptions = '<option value="">— No template —</option>' +
+        _commsTemplates.map(function (t, i) { return '<option value="' + i + '">' + E(t.name) + '</option>'; }).join('');
+
+      CRM.openModal('Compose eBlast',
         '<form id="eblastForm" class="space-y-4">' +
-          '<div class="form-group"><label class="form-label">Client Type</label>' +
-            '<select class="form-input" name="clientType" id="eblastClientType" onchange="Panels._updateEblastCount()">' +
-              types.map(function (t) { return '<option value="' + t.toLowerCase() + '">' + E(t) + '</option>'; }).join('') +
-            '</select></div>' +
+          '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="form-group"><label class="form-label">Client Type</label>' +
+              '<select class="form-input" name="clientType" id="eblastClientType" onchange="Panels._updateEblastCount()">' +
+                types.map(function (t) { return '<option value="' + t.toLowerCase() + '">' + E(t) + '</option>'; }).join('') +
+              '</select></div>' +
+            '<div class="form-group"><label class="form-label">Stage</label>' +
+              '<select class="form-input" name="stage" id="eblastStage" onchange="Panels._updateEblastCount()">' +
+                stages.map(function (s) { return '<option value="' + s.toLowerCase().replace(/\s+/g, '_') + '">' + E(s) + '</option>'; }).join('') +
+              '</select></div>' +
+          '</div>' +
+          '<div class="bg-blue-50 border border-blue-200 rounded p-3 text-center">' +
+            '<p class="text-sm font-bold text-blue-700" id="eblastPreviewCount">' + clients.length + ' recipients</p>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Template</label>' +
+            '<select class="form-input" id="eblastTemplate" onchange="Panels._commsApplyEblastTemplate()">' + templateOptions + '</select></div>' +
           '<div class="form-group"><label class="form-label">Subject *</label>' +
-            '<input class="form-input" name="subject" placeholder="eBlast subject" required></div>' +
+            '<input class="form-input" name="subject" id="eblastSubject" placeholder="eBlast subject" required></div>' +
           '<div class="form-group"><label class="form-label">Body *</label>' +
-            '<textarea class="form-input" name="body" rows="8" placeholder="Write your eBlast content..." required></textarea></div>' +
-          '<p class="text-xs text-gray-500" id="eblastPreviewCount">Recipients: ' + clients.length + ' clients</p>' +
+            '<textarea class="form-input" name="body" id="eblastBody" rows="8" placeholder="Write your eBlast content..." required></textarea></div>' +
+          '<div class="flex items-center gap-2">' +
+            '<label class="flex items-center gap-2 cursor-pointer">' +
+              '<input type="checkbox" name="includeListings" id="eblastIncludeListings" class="rounded border-gray-300">' +
+              '<span class="text-sm">Include matching active listings for each recipient</span>' +
+            '</label>' +
+          '</div>' +
         '</form>',
         {
           footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-            '<button class="btn btn-gold" onclick="Panels._submitEblast()"><i class="fas fa-paper-plane"></i> Send eBlast</button>',
+            '<button class="btn btn-gold" onclick="Panels._submitEblast()"><i class="fas fa-paper-plane mr-1"></i>Send eBlast</button>',
         }
       );
-
-      // Store clients for count filtering
-      window._eblastClients = clients;
     }).catch(function (err) {
       CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
+  function _commsApplyEblastTemplate() {
+    var sel = document.getElementById('eblastTemplate');
+    if (!sel || sel.value === '') return;
+    var tpl = _commsTemplates[parseInt(sel.value, 10)];
+    if (!tpl) return;
+    var subjectEl = document.getElementById('eblastSubject');
+    var bodyEl = document.getElementById('eblastBody');
+    if (subjectEl) subjectEl.value = tpl.subject || '';
+    if (bodyEl) bodyEl.value = tpl.body || '';
+  }
+
   function _updateEblastCount() {
-    var sel = document.getElementById('eblastClientType');
+    var typeSel = document.getElementById('eblastClientType');
+    var stageSel = document.getElementById('eblastStage');
     var countEl = document.getElementById('eblastPreviewCount');
-    if (!sel || !countEl || !window._eblastClients) return;
-    var type = sel.value;
+    if (!countEl || !window._eblastClients) return;
+
+    var type = typeSel ? typeSel.value : 'all';
+    var stage = stageSel ? stageSel.value : 'all_stages';
     var clients = window._eblastClients;
-    var filtered = type === 'all' ? clients : clients.filter(function (cl) {
-      return (cl.type || cl.client_type || '').toLowerCase() === type;
+
+    var filtered = clients.filter(function (cl) {
+      var typeMatch = type === 'all' || (cl.type || cl.client_type || '').toLowerCase() === type;
+      var stageMatch = stage === 'all_stages' || (cl.stage || cl.status || '').toLowerCase().replace(/\s+/g, '_') === stage;
+      return typeMatch && stageMatch;
     });
-    countEl.textContent = 'Recipients: ' + filtered.length + ' clients';
+
+    countEl.textContent = filtered.length + ' recipients';
   }
 
   function _submitEblast() {
     var form = document.getElementById('eblastForm');
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
-    var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+
+    var subjectEl = document.getElementById('eblastSubject');
+    var bodyEl = document.getElementById('eblastBody');
+    var typeSel = document.getElementById('eblastClientType');
+    var stageSel = document.getElementById('eblastStage');
+    var includeListings = document.getElementById('eblastIncludeListings');
+
+    var subject = subjectEl ? subjectEl.value.trim() : '';
+    var body = bodyEl ? bodyEl.value.trim() : '';
+    var type = typeSel ? typeSel.value : 'all';
+    var stage = stageSel ? stageSel.value : 'all_stages';
+    var withListings = includeListings ? includeListings.checked : false;
+
+    if (!subject || !body) {
+      CRM.toast('Subject and body are required', 'error');
+      return;
+    }
+
     var clients = window._eblastClients || [];
-    var type = data.clientType || 'all';
-    var filtered = type === 'all' ? clients : clients.filter(function (cl) {
-      return (cl.type || cl.client_type || '').toLowerCase() === type;
+    var filtered = clients.filter(function (cl) {
+      var typeMatch = type === 'all' || (cl.type || cl.client_type || '').toLowerCase() === type;
+      var stageMatch = stage === 'all_stages' || (cl.stage || cl.status || '').toLowerCase().replace(/\s+/g, '_') === stage;
+      return typeMatch && stageMatch;
     });
+
+    if (filtered.length === 0) {
+      CRM.toast('No recipients match the selected filters', 'error');
+      return;
+    }
+
+    var payload = {
+      type: 'eblast',
+      clientType: type,
+      stage: stage,
+      subject: subject,
+      body: body,
+      recipientCount: filtered.length,
+      includeListings: withListings,
+    };
 
     MallanAPI._fetch('/api/crm/communications/send', {
       method: 'POST',
-      body: JSON.stringify({ type: 'eblast', clientType: type, subject: data.subject, body: data.body, recipientCount: filtered.length }),
+      body: JSON.stringify(payload),
     }).then(function () {
-      Events.log('eblast_sent', 'communication', null, { recipients: filtered.length + ' ' + type + ' clients', subject: data.subject });
+      var audienceLabel = (type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)) +
+        (stage !== 'all_stages' ? ' (' + stage.replace(/_/g, ' ') + ')' : '') +
+        ' — ' + filtered.length + ' recipients';
+
+      Events.log('eblast_sent', 'communication', null, {
+        recipients: filtered.length,
+        recipientCount: filtered.length,
+        clientType: type,
+        audienceType: type,
+        stage: stage,
+        subject: subject,
+        body: body,
+        includeListings: withListings,
+        audienceLabel: audienceLabel,
+      });
+
       CRM.closeModal();
-      CRM.toast('eBlast sent to ' + filtered.length + ' clients', 'success');
+      CRM.toast('eBlast sent to ' + filtered.length + ' recipients', 'success');
       delete window._eblastClients;
       communications();
     }).catch(function (err) {
@@ -7636,6 +8336,23 @@ var Panels = (function () {
     _composeBulk: _composeBulk,
     _updateEblastCount: _updateEblastCount,
     _submitEblast: _submitEblast,
+    _commsTabSwitch: _commsTabSwitch,
+    _commsRenderTab: _commsRenderTab,
+    _commsSearchRecipients: _commsSearchRecipients,
+    _commsSelectRecipient: _commsSelectRecipient,
+    _commsRemoveRecipient: _commsRemoveRecipient,
+    _commsApplyTemplate: _commsApplyTemplate,
+    _commsApplyEblastTemplate: _commsApplyEblastTemplate,
+    _commsAttachListing: _commsAttachListing,
+    _commsPickListing: _commsPickListing,
+    _viewEmailDetail: _viewEmailDetail,
+    _viewCampaignDetail: _viewCampaignDetail,
+    _useTemplate: _useTemplate,
+    _editTemplate: _editTemplate,
+    _saveEditTemplate: _saveEditTemplate,
+    _deleteTemplate: _deleteTemplate,
+    _createTemplate: _createTemplate,
+    _submitCreateTemplate: _submitCreateTemplate,
     _saveProfile: _saveProfile,
     _submitEditAgent: _submitEditAgent,
     _toggleAgentCard: _toggleAgentCard,
