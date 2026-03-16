@@ -54,7 +54,7 @@ function BrokerLoginContent() {
       const safeRedirect = redirectParam && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(redirectParam)
         ? redirectParam
         : null;
-      const destination = safeRedirect || '/crm/MALLAN-NYC-CRM-FINAL2.html';
+      const destination = safeRedirect || '/crm/dashboard';
       setTimeout(() => {
         router.push(destination);
       }, 1000);

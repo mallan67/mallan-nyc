@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mallan CRM</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    gold: { DEFAULT: '#B8860B', light: '#D4A017', dark: '#8B6508', bg: '#FFFBF0' },
+                    sidebar: { DEFAULT: '#111827', hover: '#1F2937', active: '#1E293B' }
+                },
+                fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] }
+            }
+        }
+    }
+    </script>
+    <link rel="stylesheet" href="/crm/css/dashboard.css">
+</head>
+<body class="bg-gray-50 font-sans text-gray-900 antialiased">
+
+<!-- ═══ APP SHELL ═══ -->
+<div id="app" class="flex h-screen overflow-hidden">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <nav id="sidebar" class="sidebar">
+        <!-- Brand -->
+        <div class="sidebar-brand">
+            <div>
+                <div class="text-sm font-bold text-white tracking-tight">MALLAN</div>
+                <div class="text-[10px] text-gray-400 tracking-wider uppercase">Real Estate</div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="sidebar-nav" id="sidebarNav">
+            <!-- Populated by app.js based on role -->
+        </div>
+
+        <!-- Bottom -->
+        <div class="sidebar-bottom">
+            <div id="sidebarUser" class="sidebar-user">
+                <!-- User info populated by app.js -->
+            </div>
+            <button onclick="CRM.logout()" class="sidebar-item text-gray-400 hover:text-red-400">
+                <i class="fas fa-sign-out-alt w-5 text-center"></i>
+                <span>Sign Out</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══ MOBILE OVERLAY ═══ -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="CRM.toggleSidebar()"></div>
+
+    <!-- ═══ MAIN CONTENT ═══ -->
+    <main id="main" class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <!-- Top Bar -->
+        <header id="topbar" class="topbar">
+            <div class="flex items-center gap-3">
+                <button id="menuBtn" class="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700" onclick="CRM.toggleSidebar()">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <h1 id="panelTitle" class="text-lg font-bold text-gray-900 tracking-tight"></h1>
+                <span id="panelBadge" class="hidden px-2 py-0.5 bg-gold-bg text-gold-dark text-xs font-bold rounded-full"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="relative hidden sm:block">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input id="globalSearch" type="text" placeholder="Search clients, listings..."
+                        class="pl-9 pr-4 py-2 w-56 text-sm bg-gray-100 border-0 rounded-lg focus:bg-white focus:ring-2 focus:ring-gold/30 focus:outline-none transition-all">
+                </div>
+                <button onclick="CRM.showNotifications()" class="relative p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+                    <i class="fas fa-bell"></i>
+                    <span id="notifBadge" class="hidden absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div id="content" class="flex-1 overflow-y-auto p-4 sm:p-6">
+            <!-- Panels render here -->
+            <div id="loadingState" class="flex items-center justify-center h-64">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin text-2xl text-gold mb-3"></i>
+                    <p class="text-sm text-gray-500">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ═══ MODAL LAYER ═══ -->
+<div id="modalOverlay" class="modal-overlay hidden" onclick="CRM.closeModal(event)">
+    <div id="modalContainer" class="modal-container" onclick="event.stopPropagation()">
+        <div id="modalHeader" class="modal-header">
+            <h2 id="modalTitle" class="text-lg font-bold"></h2>
+            <button onclick="CRM.closeModal()" class="p-1 text-gray-400 hover:text-gray-600 rounded"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+        <div id="modalFooter" class="modal-footer hidden"></div>
+    </div>
+</div>
+
+<!-- ═══ TOAST CONTAINER ═══ -->
+<div id="toasts" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- ═══ SCRIPTS — Load order matters ═══ -->
+<!-- 1. API Client (external dependency) -->
+<script src="/crm/js/core/api-client.js"></script>
+<!-- 2. Foundation (no CRM dependency) -->
+<script src="/crm/js/dashboard/utils.js"></script>
+<script src="/crm/js/dashboard/store.js"></script>
+<!-- 3. Core systems (depend on Store) -->
+<script src="/crm/js/dashboard/permissions.js"></script>
+<script src="/crm/js/dashboard/router.js"></script>
+<script src="/crm/js/dashboard/events.js"></script>
+<script src="/crm/js/dashboard/alerts.js"></script>
+<script src="/crm/js/dashboard/documents.js"></script>
+<!-- 4. UI layer (depends on Utils) -->
+<script src="/crm/js/dashboard/ui-components.js"></script>
+<!-- 5. App shell + views (depends on everything above) -->
+<script src="/crm/js/dashboard/panels.js"></script>
+<script src="/crm/js/dashboard/workspace.js"></script>
+<script src="/crm/js/dashboard/portals.js"></script>
+<script src="/crm/js/dashboard/app.js"></script>
+
+</body>
+</html>
