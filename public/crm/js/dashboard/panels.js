@@ -23,129 +23,310 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
 
     Promise.all([
-      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
-      MallanAPI.listings.list({ limit: 100 }).catch(function () { return { listings: [] }; }),
-      MallanAPI.deals.list({ limit: 100 }).catch(function () { return { deals: [] }; }),
+      MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
       MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
       MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
+      MallanAPI._fetch('/api/crm/leads?limit=200').catch(function () { return { leads: [] }; }),
+      MallanAPI._fetch('/api/crm/referrals?limit=10').catch(function () { return { referrals: [] }; }),
+      MallanAPI.idx.status().catch(function () { return null; }),
+      Documents.list('company').catch(function () { return { documents: [] }; }),
     ]).then(function (r) {
       var clients = r[0].clients || [];
       var listings = r[1].listings || [];
       var deals = r[2].deals || [];
       var agents = r[3].agents || [];
       var tasks = r[4].tasks || [];
+      var leads = r[5].leads || [];
+      var referrals = r[6].referrals || [];
+      var idxStatus = r[7];
+      var docs = r[8].documents || [];
 
-      var activeClients = clients.filter(function (c) { return c.status !== 'closed' && c.status !== 'inactive'; });
-      var activeListings = listings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
-      var closedDeals = deals.filter(function (d) { return d.stage === 'closed' || d.status === 'closed'; });
-      var totalRevenue = closedDeals.reduce(function (sum, d) { return sum + (d.grossCommission || d.commission || 0); }, 0);
-      var overdueTasks = tasks.filter(function (t) { return t.status !== 'completed' && t.due_date && new Date(t.due_date) < new Date(); });
+      var now = new Date();
+      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Compute compliance quick-check
-      var compViolations = 0;
-      listings.forEach(function (l) {
-        if (l.rls_eligible === false) return;
-        if (l.OwnerOptOut || l.owner_opt_out) compViolations++;
-      });
-      var compScore = listings.length > 0 ? Math.round(((listings.length - compViolations) / listings.length) * 100) : 100;
-      var compColor = compScore >= 90 ? '#059669' : compScore >= 70 ? '#F59E0B' : '#DC2626';
+      // ── Derived data ──────────────────────────────────────────────
+      var unassignedLeads = leads.filter(function (l) { return !l.assignedAgentId && !l.assigned_agent_id; });
+      var pendingPayouts = deals.filter(function (d) { return d.payoutStatus === 'pending' || d.payout_status === 'pending'; });
 
-      // Upcoming license renewals (<90 days)
       var expiringAgents = agents.filter(function (a) {
         var exp = a.license_expiry || a.licenseExpiry;
         return exp && Utils.daysUntil(exp) <= 90;
       });
-
-      // Pending commission approvals
-      var pendingPayouts = deals.filter(function (d) {
-        return d.payoutStatus === 'pending' || d.payout_status === 'pending';
+      var urgentExpiring = expiringAgents.filter(function (a) {
+        var exp = a.license_expiry || a.licenseExpiry;
+        return exp && Utils.daysUntil(exp) <= 60;
       });
 
-      var html = '<div class="space-y-6">';
+      var compViolations = 0;
+      listings.forEach(function (l) {
+        if (l.rls_eligible === false) return;
+        if (l.OwnerOptOut || l.owner_opt_out) compViolations++;
+        if (l.rls_eligible !== false && !l.IDXEntireListingDisplayYN && l.IDXEntireListingDisplayYN !== undefined && l.IDXEntireListingDisplayYN !== true) compViolations++;
+      });
 
-      // KPIs
-      html += UI.statGrid([
-        UI.statCard(activeClients.length, 'Active Clients', 'fa-users', '#2563EB'),
-        UI.statCard(activeListings.length, 'Active Listings', 'fa-building', '#059669'),
-        UI.statCard(closedDeals.length, 'Closed Deals', 'fa-handshake', '#B8860B'),
-        UI.statCard($(totalRevenue), 'Total Revenue', 'fa-chart-line', '#7C3AED'),
-        UI.statCard(agents.length, 'Agents', 'fa-user-tie', '#374151'),
-        UI.statCard(overdueTasks.length, 'Overdue Tasks', 'fa-exclamation-triangle', overdueTasks.length > 0 ? '#DC2626' : '#059669'),
-      ]);
+      var pendingDocs = docs.filter(function (d) { return d.status === 'pending_approval'; });
 
-      // Compliance score + Renewals + Pending approvals row
-      html += '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">';
-      // Compliance score card
-      html += '<div class="card p-4 cursor-pointer hover:border-gold transition-all" onclick="Router.navigate(\'/broker/compliance\')">' +
-        '<div class="flex items-center gap-3">' +
-          '<div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:' + compColor + '15"><i class="fas fa-shield-alt" style="color:' + compColor + '"></i></div>' +
-          '<div><p class="text-xs font-bold text-gray-500 uppercase">Compliance Score</p>' +
-          '<p class="text-xl font-bold" style="color:' + compColor + '">' + compScore + '%</p></div>' +
-        '</div>' +
-        (compViolations > 0 ? '<p class="text-xs text-red-500 mt-2"><i class="fas fa-exclamation-circle mr-1"></i>' + compViolations + ' issue(s) need attention</p>' : '<p class="text-xs text-green-600 mt-2"><i class="fas fa-check-circle mr-1"></i>All clear</p>') +
-      '</div>';
-      // Upcoming renewals
-      html += '<div class="card p-4 cursor-pointer hover:border-gold transition-all" onclick="Router.navigate(\'/broker/licensing\')">' +
-        '<div class="flex items-center gap-3">' +
-          '<div class="w-10 h-10 rounded-lg flex items-center justify-center ' + (expiringAgents.length > 0 ? 'bg-red-50' : 'bg-green-50') + '"><i class="fas fa-id-card ' + (expiringAgents.length > 0 ? 'text-red-500' : 'text-green-500') + '"></i></div>' +
-          '<div><p class="text-xs font-bold text-gray-500 uppercase">Upcoming Renewals</p>' +
-          '<p class="text-xl font-bold ' + (expiringAgents.length > 0 ? 'text-red-600' : 'text-green-600') + '">' + expiringAgents.length + '</p></div>' +
-        '</div>' +
-        (expiringAgents.length > 0 ? '<p class="text-xs text-red-500 mt-2"><i class="fas fa-clock mr-1"></i>License(s) expiring within 90 days</p>' : '<p class="text-xs text-green-600 mt-2"><i class="fas fa-check-circle mr-1"></i>All licenses current</p>') +
-      '</div>';
-      // Pending approvals
-      html += '<div class="card p-4 cursor-pointer hover:border-gold transition-all" onclick="Router.navigate(\'/broker/commissions\')">' +
-        '<div class="flex items-center gap-3">' +
-          '<div class="w-10 h-10 rounded-lg flex items-center justify-center ' + (pendingPayouts.length > 0 ? 'bg-yellow-50' : 'bg-green-50') + '"><i class="fas fa-dollar-sign ' + (pendingPayouts.length > 0 ? 'text-yellow-500' : 'text-green-500') + '"></i></div>' +
-          '<div><p class="text-xs font-bold text-gray-500 uppercase">Pending Approvals</p>' +
-          '<p class="text-xl font-bold ' + (pendingPayouts.length > 0 ? 'text-yellow-600' : 'text-green-600') + '">' + pendingPayouts.length + '</p></div>' +
-        '</div>' +
-        (pendingPayouts.length > 0 ? '<p class="text-xs text-yellow-600 mt-2"><i class="fas fa-clock mr-1"></i>Commission payout(s) awaiting approval</p>' : '<p class="text-xs text-green-600 mt-2"><i class="fas fa-check-circle mr-1"></i>No pending payouts</p>') +
-      '</div>';
-      html += '</div>';
+      var overdueTasks = tasks.filter(function (t) {
+        return t.status !== 'completed' && t.due_date && new Date(t.due_date) < today;
+      });
 
-      // Urgent alerts
-      var urgentAlerts = Alerts.getUrgent();
-      if (urgentAlerts.length > 0) {
-        html += '<div class="card"><div class="card-header"><h3><i class="fas fa-exclamation-circle text-red-500 mr-2"></i>Urgent Alerts</h3></div>' +
-          '<div class="card-body space-y-2">';
-        urgentAlerts.forEach(function (a) { html += UI.alertItem(a); });
-        html += '</div></div>';
+      var staleClients = clients.filter(function (cl) {
+        var last = cl.lastActivityAt || cl.last_activity_at || cl.updatedAt || cl.updated_at;
+        if (!last) return true;
+        var diff = (now - new Date(last)) / (1000 * 60 * 60 * 24);
+        return diff >= 30 && cl.status !== 'closed' && cl.status !== 'inactive';
+      });
+
+      var activeListings = listings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
+      var staleListings = activeListings.filter(function (l) {
+        var dom = l.DaysOnMarket || l.days_on_market || 0;
+        var hasPriceChange = l.lastPriceChange || l.last_price_change;
+        return dom >= 60 && !hasPriceChange;
+      });
+
+      var oldPayouts = pendingPayouts.filter(function (d) {
+        var created = d.createdAt || d.created_at;
+        if (!created) return false;
+        return (now - new Date(created)) / (1000 * 60 * 60 * 24) >= 7;
+      });
+
+      var todayShowings = tasks.filter(function (t) {
+        if (t.type !== 'showing' && t.task_type !== 'showing') return false;
+        var d = t.scheduled_at || t.scheduledAt || t.due_date;
+        if (!d) return false;
+        var sd = new Date(d);
+        return sd.getFullYear() === today.getFullYear() && sd.getMonth() === today.getMonth() && sd.getDate() === today.getDate();
+      });
+
+      // ── Helper: action queue card ─────────────────────────────────
+      function _queueCard(icon, count, label, subtext, color, route) {
+        var bgHex = color === '#DC2626' ? '#FEF2F2' : color === '#F59E0B' ? '#FFFBEB' : '#F0FDF4';
+        return '<div class="card p-4 cursor-pointer hover:border-gold hover:shadow-md transition-all text-center" onclick="Router.navigate(\'' + route + '\')">' +
+          '<div class="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:' + bgHex + '">' +
+            '<i class="fas ' + icon + ' text-lg" style="color:' + color + '"></i>' +
+          '</div>' +
+          '<p class="text-2xl font-bold" style="color:' + color + '">' + count + '</p>' +
+          '<p class="text-xs font-semibold text-gray-700 mt-1">' + E(label) + '</p>' +
+          '<p class="text-xs mt-1" style="color:' + color + '">' + E(subtext) + '</p>' +
+        '</div>';
       }
 
-      // Quick Actions
+      // ── Helper: status badge ──────────────────────────────────────
+      function _statusBadge(status) {
+        var colors = { Active: '#2563EB', active: '#2563EB', Pending: '#F59E0B', pending: '#F59E0B', offer: '#F59E0B', ActiveUnderContract: '#7C3AED', contract: '#7C3AED', Closed: '#059669', closed: '#059669', Sold: '#059669', sold: '#059669' };
+        var bg = colors[status] || '#6B7280';
+        return '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white" style="background:' + bg + '">' + E(status || 'Unknown') + '</span>';
+      }
+
+      // ── BUILD HTML ────────────────────────────────────────────────
+      var html = '<div class="space-y-6">';
+
+      // ── ROW 1: Action Queue Cards ─────────────────────────────────
+      html += '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">';
+      html += _queueCard('fa-user-clock', unassignedLeads.length, 'Unassigned Leads',
+        unassignedLeads.length > 0 ? unassignedLeads.length + ' need assignment' : 'All clear',
+        unassignedLeads.length > 0 ? '#DC2626' : '#059669', '/broker/leads/distribution');
+      html += _queueCard('fa-dollar-sign', pendingPayouts.length, 'Pending Payouts',
+        pendingPayouts.length > 0 ? pendingPayouts.length + ' awaiting approval' : 'All clear',
+        pendingPayouts.length > 0 ? '#F59E0B' : '#059669', '/broker/finance/payouts');
+      html += _queueCard('fa-id-card', expiringAgents.length, 'Expiring Licenses',
+        expiringAgents.length > 0 ? expiringAgents.length + ' within 90 days' : 'All clear',
+        urgentExpiring.length > 0 ? '#DC2626' : expiringAgents.length > 0 ? '#F59E0B' : '#059669', '/broker/system/licensing');
+      html += _queueCard('fa-shield-alt', compViolations, 'Compliance Issues',
+        compViolations > 0 ? compViolations + ' items need action' : 'All clear',
+        compViolations > 0 ? '#DC2626' : '#059669', '/broker/listings/compliance');
+      html += _queueCard('fa-file-signature', pendingDocs.length, 'Doc Approvals',
+        pendingDocs.length > 0 ? pendingDocs.length + ' pending review' : 'All clear',
+        pendingDocs.length > 0 ? '#F59E0B' : '#059669', '/broker/documents');
+      html += '</div>';
+
+      // ── ROW 2: Recent Activity (2 columns) ───────────────────────
       html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
 
-      // Recent clients
-      html += '<div class="card"><div class="card-header"><h3>Recent Clients</h3>' +
-        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/clients\')">View All</button></div>' +
-        '<div class="card-body"><div class="space-y-2">';
-      clients.slice(0, 5).forEach(function (cl) {
-        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
-          UI.avatar(cl.name || cl.email, 32) +
-          '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(cl.name || cl.email) + '</p>' +
-            '<p class="text-xs text-gray-500">' + E(cl.type || '') + '</p></div>' +
-          UI.stageBadge(cl.stage || cl.status) +
-        '</div>';
-      });
-      html += '</div></div></div>';
-
-      // Recent listings
-      html += '<div class="card"><div class="card-header"><h3>Active Listings</h3>' +
+      // LEFT: Recent Company Listings
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-building text-gold mr-2"></i>Recent Company Listings</h3>' +
         '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/listings\')">View All</button></div>' +
-        '<div class="card-body"><div class="space-y-2">';
-      activeListings.slice(0, 5).forEach(function (l) {
+        '<div class="card-body"><div class="space-y-1">';
+      var recentListings = listings.slice(0, 8);
+      if (recentListings.length === 0) {
+        html += '<p class="text-sm text-gray-400 text-center py-4">No listings yet</p>';
+      }
+      recentListings.forEach(function (l) {
         var addr = l.address || l.UnparsedAddress || 'No address';
+        var price = l.ListPrice || l.price || 0;
+        var dom = l.DaysOnMarket || l.days_on_market || 0;
+        var agentName = '';
+        if (l.assignedAgentId || l.assigned_agent_id) {
+          var ag = agents.find(function (a) { return a.id === (l.assignedAgentId || l.assigned_agent_id); });
+          agentName = ag ? (ag.name || ag.firstName + ' ' + ag.lastName) : '';
+        }
         html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' +
-          '<div class="w-8 h-8 rounded-lg bg-gold-bg flex items-center justify-center"><i class="fas fa-building text-xs text-gold"></i></div>' +
-          '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
-            '<p class="text-xs text-gray-500">' + $(l.ListPrice || l.price) + '</p></div>' +
+          '<div class="w-8 h-8 rounded-lg bg-gold-bg flex items-center justify-center flex-shrink-0"><i class="fas fa-building text-xs text-gold"></i></div>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
+            '<p class="text-xs text-gray-500">' + $(price) + (agentName ? ' &middot; ' + E(agentName) : '') + ' &middot; ' + dom + ' DOM</p>' +
+          '</div>' +
+          _statusBadge(l.status) +
         '</div>';
       });
       html += '</div></div></div>';
 
-      html += '</div>'; // grid
-      html += '</div>'; // space-y
+      // RIGHT: Referrals + System Status
+      html += '<div class="space-y-6">';
+
+      // Recent Referrals
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-exchange-alt text-gold mr-2"></i>Recent Referrals</h3></div>' +
+        '<div class="card-body"><div class="space-y-1">';
+      if (referrals.length === 0) {
+        html += '<p class="text-sm text-gray-400 text-center py-3">No referrals</p>';
+      }
+      referrals.slice(0, 5).forEach(function (ref) {
+        var partner = ref.partnerName || ref.partner_name || ref.partner || 'Unknown';
+        var dir = ref.direction || 'outgoing';
+        var fee = ref.feeAmount || ref.fee_amount || 0;
+        var st = ref.status || 'pending';
+        var dirBadge = dir === 'incoming'
+          ? '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Incoming</span>'
+          : '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">Outgoing</span>';
+        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
+          '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(partner) + '</p>' +
+            '<p class="text-xs text-gray-500">' + $(fee) + ' &middot; ' + E(st) + '</p></div>' +
+          dirBadge +
+        '</div>';
+      });
+      html += '</div></div></div>';
+
+      // System Status
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-server text-gold mr-2"></i>System Status</h3></div>' +
+        '<div class="card-body space-y-3">';
+      var idxOk = idxStatus && (idxStatus.connected || idxStatus.status === 'ok' || idxStatus.status === 'connected');
+      var lastSync = idxStatus ? (idxStatus.lastSync || idxStatus.last_sync || idxStatus.lastSyncAt || null) : null;
+      html += '<div class="flex items-center justify-between">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="w-2.5 h-2.5 rounded-full inline-block ' + (idxOk ? 'bg-green-500' : 'bg-red-500') + '"></span>' +
+          '<span class="text-sm font-medium">IDX / Trestle</span>' +
+        '</div>' +
+        '<span class="text-xs text-gray-500">' + (idxOk ? 'Connected' : 'Disconnected') + (lastSync ? ' &middot; Synced ' + D(lastSync) : '') + '</span>' +
+      '</div>';
+      html += '<div class="flex items-center justify-between">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="w-2.5 h-2.5 rounded-full inline-block bg-green-500"></span>' +
+          '<span class="text-sm font-medium">REBNY RLS</span>' +
+        '</div>' +
+        '<span class="text-xs text-gray-500">Active</span>' +
+      '</div>';
+      html += '</div></div>';
+
+      html += '</div>'; // end right column space-y
+      html += '</div>'; // end ROW 2 grid
+
+      // ── ROW 3: Quick Launch + Needs Attention ─────────────────────
+      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
+
+      // LEFT: Quick Launch Tiles (2x4 grid)
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-rocket text-gold mr-2"></i>Quick Launch</h3></div>' +
+        '<div class="card-body"><div class="grid grid-cols-2 sm:grid-cols-4 gap-3">';
+      var tiles = [
+        { icon: 'fa-user-plus', label: 'Add Agent', action: 'Panels._addAgent()' },
+        { icon: 'fa-user-tag', label: 'New Client', action: 'CRM.quickNewClient()' },
+        { icon: 'fa-home', label: 'New Sale Listing', action: 'window.open(\'/crm/sale-listing\')' },
+        { icon: 'fa-key', label: 'New Rental', action: 'window.open(\'/crm/rental-listing\')' },
+        { icon: 'fa-search', label: 'Property Search', action: 'window.open(\'/crm/search\')' },
+        { icon: 'fa-exchange-alt', label: 'New Referral', action: 'Panels._addReferral()' },
+        { icon: 'fa-shield-alt', label: 'Compliance Scan', action: 'Panels._runFairHousingScan()' },
+        { icon: 'fa-file-invoice-dollar', label: 'Generate 1099s', action: 'Router.navigate(\'/broker/finance/1099\')' },
+      ];
+      tiles.forEach(function (t) {
+        html += '<button class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 hover:border-gold hover:shadow-sm transition-all text-center" onclick="' + t.action + '">' +
+          '<div class="w-10 h-10 rounded-lg bg-gold-bg flex items-center justify-center"><i class="fas ' + t.icon + ' text-sm text-gold"></i></div>' +
+          '<span class="text-xs font-semibold text-gray-700">' + t.label + '</span>' +
+        '</button>';
+      });
+      html += '</div></div></div>';
+
+      // RIGHT: Needs Attention Today
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-bell text-gold mr-2"></i>Needs Attention Today</h3></div>' +
+        '<div class="card-body">';
+
+      var attentionItems = [];
+
+      // Overdue tasks
+      overdueTasks.slice(0, 3).forEach(function (t) {
+        attentionItems.push({
+          icon: 'fa-clock', color: '#DC2626',
+          text: 'Overdue: ' + (t.title || t.name || 'Untitled task'),
+          action: 'Router.navigate(\'/ops/tasks\')', btn: 'Review'
+        });
+      });
+
+      // Stale clients (no activity 30+ days)
+      staleClients.slice(0, 2).forEach(function (cl) {
+        attentionItems.push({
+          icon: 'fa-user-clock', color: '#F59E0B',
+          text: (cl.name || cl.email || 'Client') + ' — no activity 30+ days',
+          action: 'Router.navigate(\'/workspace/client/' + (cl.id || '') + '/overview\')', btn: 'Follow up'
+        });
+      });
+
+      // Stale listings (60+ DOM, no price change)
+      staleListings.slice(0, 2).forEach(function (l) {
+        var addr = l.address || l.UnparsedAddress || 'Listing';
+        attentionItems.push({
+          icon: 'fa-home', color: '#F59E0B',
+          text: addr + ' — ' + (l.DaysOnMarket || l.days_on_market) + ' DOM, no price change',
+          action: 'Router.navigate(\'/workspace/listing/' + (l.id || l.listing_id || '') + '/overview\')', btn: 'Review'
+        });
+      });
+
+      // Old pending payouts (7+ days)
+      oldPayouts.slice(0, 2).forEach(function (d) {
+        attentionItems.push({
+          icon: 'fa-dollar-sign', color: '#DC2626',
+          text: 'Payout pending 7+ days — ' + $(d.grossCommission || d.commission || 0),
+          action: 'Router.navigate(\'/broker/finance/payouts\')', btn: 'Approve'
+        });
+      });
+
+      // Today's showings
+      todayShowings.slice(0, 2).forEach(function (t) {
+        var time = t.scheduled_at || t.scheduledAt || t.due_date;
+        attentionItems.push({
+          icon: 'fa-calendar-day', color: '#2563EB',
+          text: 'Showing today — ' + (t.title || t.name || 'Untitled') + (time ? ' at ' + new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''),
+          action: 'Router.navigate(\'/ops/showings\')', btn: 'View'
+        });
+      });
+
+      // Sort: red items first, then yellow, then blue
+      var colorPriority = { '#DC2626': 0, '#F59E0B': 1, '#2563EB': 2 };
+      attentionItems.sort(function (a, b) { return (colorPriority[a.color] || 9) - (colorPriority[b.color] || 9); });
+      attentionItems = attentionItems.slice(0, 10);
+
+      if (attentionItems.length === 0) {
+        html += '<div class="flex flex-col items-center justify-center py-8">' +
+          '<div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-3"><i class="fas fa-check-circle text-2xl text-green-500"></i></div>' +
+          '<p class="text-sm font-semibold text-green-700">All caught up!</p>' +
+          '<p class="text-xs text-gray-500 mt-1">Nothing needs your attention right now.</p>' +
+        '</div>';
+      } else {
+        html += '<div class="space-y-2">';
+        attentionItems.forEach(function (item) {
+          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
+            '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:' + item.color + '15">' +
+              '<i class="fas ' + item.icon + ' text-xs" style="color:' + item.color + '"></i></div>' +
+            '<p class="text-sm flex-1 min-w-0 truncate">' + E(item.text) + '</p>' +
+            '<button class="btn btn-sm btn-outline flex-shrink-0" onclick="' + item.action + '">' + item.btn + '</button>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div></div>'; // end Needs Attention card
+
+      html += '</div>'; // end ROW 3 grid
+      html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-tachometer-alt', 'Unable to load dashboard data');
