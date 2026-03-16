@@ -594,9 +594,11 @@ var CRM = (function () {
     dropdown.classList.remove('hidden');
 
     var fetches = [
-      MallanAPI.clients.list({ limit: 10 }).catch(function () { return { clients: [] }; }),
-      MallanAPI.listings.list({ limit: 10 }).catch(function () { return { listings: [] }; }),
-      MallanAPI.deals.list({ limit: 10 }).catch(function () { return { deals: [] }; }),
+      MallanAPI.clients.list({ limit: 20 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.listings.list({ limit: 20 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.deals.list({ limit: 20 }).catch(function () { return { deals: [] }; }),
+      MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
+      Documents.listAll ? Documents.listAll().catch(function () { return []; }) : Promise.resolve([]),
     ];
     // Agents section only for broker
     if (Permissions.isBroker()) {
@@ -618,11 +620,17 @@ var CRM = (function () {
         var cname = (d.client_name || '').toLowerCase();
         return addr.indexOf(qLower) !== -1 || cname.indexOf(qLower) !== -1;
       });
-      var agents = r[3] ? (r[3].agents || []).filter(function (a) {
+      var tasks = (r[3].tasks || []).filter(function (t) {
+        return (t.title || t.description || '').toLowerCase().indexOf(qLower) !== -1;
+      });
+      var docs = (Array.isArray(r[4]) ? r[4] : []).filter(function (d) {
+        return (d.title || d.name || d.type || '').toLowerCase().indexOf(qLower) !== -1;
+      });
+      var agents = r[5] ? (r[5].agents || []).filter(function (a) {
         return (a.full_name || a.name || a.email || '').toLowerCase().indexOf(qLower) !== -1;
       }) : [];
 
-      if (clients.length === 0 && listings.length === 0 && deals.length === 0 && agents.length === 0) {
+      if (clients.length === 0 && listings.length === 0 && deals.length === 0 && agents.length === 0 && tasks.length === 0 && docs.length === 0) {
         dropdown.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">No results found</div>';
         return;
       }
@@ -668,6 +676,31 @@ var CRM = (function () {
             '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(addr) + '</span></div>' +
             (stage ? '<span class="shrink-0 text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">' + E(stage) + '</span>' : '') +
             '</button>';
+        });
+        sectionIdx++;
+      }
+      if (tasks.length > 0) {
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (sectionIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Tasks</div>';
+        tasks.slice(0, 5).forEach(function (t) {
+          var overdue = t.due_date && t.status !== 'completed' && new Date(t.due_date) < new Date();
+          var clientRoute = t.client_id || t.clientId ? '/workspace/client/' + E(t.client_id || t.clientId) + '/pipeline' : '/ops/tasks';
+          html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+            'onclick="Router.navigate(\'' + clientRoute + '\');CRM._closeSearchResults()">' +
+            '<i class="fas fa-tasks text-xs ' + (overdue ? 'text-red-500' : 'text-gray-400') + ' w-5 text-center"></i>' +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block ' + (overdue ? 'text-red-600' : '') + '">' + E(t.title || 'Task') + '</span></div>' +
+            (t.due_date ? '<span class="shrink-0 text-xs ' + (overdue ? 'text-red-500' : 'text-gray-400') + '">' + Utils.formatDate(t.due_date) + '</span>' : '') +
+          '</button>';
+        });
+        sectionIdx++;
+      }
+      if (docs.length > 0) {
+        html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider' + (sectionIdx > 0 ? ' border-t mt-1 pt-1.5' : '') + '">Documents</div>';
+        docs.slice(0, 5).forEach(function (d) {
+          html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
+            'onclick="Router.navigate(\'/broker/documents\');CRM._closeSearchResults()">' +
+            '<i class="fas ' + (Documents.typeIcon ? Documents.typeIcon(d.type) : 'fa-file-alt') + ' text-xs text-gold w-5 text-center"></i>' +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(d.title || d.name || 'Document') + '</span></div>' +
+            '<span class="shrink-0 text-xs text-gray-400">' + E(d.scope || '') + '</span></button>';
         });
         sectionIdx++;
       }
