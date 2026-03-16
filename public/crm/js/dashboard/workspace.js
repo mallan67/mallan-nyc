@@ -90,6 +90,20 @@ var Workspace = (function () {
     // Tabs
     html += UI.tabs(CLIENT_TABS, _clientTab, 'Workspace.switchClientTab');
 
+    // Sticky action bar
+    html += '<div class="workspace-action-bar">' +
+      '<div class="action-group">' +
+        '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">Send Listing</span></button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._quickAddNote()"><i class="fas fa-sticky-note"></i> <span class="hidden sm:inline">Note</span></button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._quickAddTask()"><i class="fas fa-tasks"></i> <span class="hidden sm:inline">Task</span></button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar"></i> <span class="hidden sm:inline">Showing</span></button>' +
+      '</div>' +
+      '<div class="action-group">' +
+        (cl.email ? '<a href="mailto:' + E(cl.email) + '" class="btn btn-sm btn-outline"><i class="fas fa-envelope"></i></a>' : '') +
+        (cl.phone ? '<a href="tel:' + E(cl.phone) + '" class="btn btn-sm btn-outline"><i class="fas fa-phone"></i></a>' : '') +
+      '</div>' +
+    '</div>';
+
     // Content + Right Rail
     html += '<div class="flex gap-4">';
     html += '<div class="flex-1 min-w-0"><div id="wsClientContent" class="workspace-content">' + UI.loading() + '</div></div>';
@@ -332,6 +346,23 @@ var Workspace = (function () {
         '<p class="text-lg font-bold">' + listingCount + '</p>' +
       '</div>' +
     '</div>';
+
+    // Connected listings
+    var sentEvents = Events.getByEntity('client', _clientId).filter(function(e) { return e.type === 'listing_sent'; });
+    if (sentEvents.length > 0) {
+      html += '<div class="flex flex-wrap gap-2 mb-3">';
+      var seenListings = {};
+      var chipCount = 0;
+      sentEvents.forEach(function(e) {
+        var lid = e.payload && (e.payload.listingId || e.payload.listing_id);
+        if (lid && !seenListings[lid] && chipCount < 5) {
+          seenListings[lid] = true;
+          chipCount++;
+          html += '<span class="ws-connection listing" onclick="CRM.navigateToConnected(\'listing\',\'' + E(lid) + '\')"><i class="fas fa-building mr-1"></i>Listing ' + E(lid.substring(0, 8)) + '</span>';
+        }
+      });
+      html += '</div>';
+    }
 
     // Contact info grid
     html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
@@ -2672,6 +2703,19 @@ var Workspace = (function () {
     // Tabs
     html += UI.tabs(LISTING_TABS, _listingTab, 'Workspace.switchListingTab');
 
+    // Sticky action bar
+    var isRental = /rent/i.test(l.PropertyType || l.property_type || l.PropertySubType || '');
+    html += '<div class="workspace-action-bar">' +
+      '<div class="action-group">' +
+        '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">Send</span></button>' +
+        (Permissions.canEditListing(l) ? '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-edit"></i> <span class="hidden sm:inline">Edit</span></button>' : '') +
+        '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-view?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-eye"></i> <span class="hidden sm:inline">View</span></button>' +
+      '</div>' +
+      '<div class="action-group">' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._launchSearch(\'?compareContext=' + E(_listingId) + '\')"><i class="fas fa-search"></i> <span class="hidden sm:inline">Compare</span></button>' +
+      '</div>' +
+    '</div>';
+
     // Content + Right Rail
     html += '<div class="flex gap-4">';
     html += '<div class="flex-1 min-w-0"><div id="wsListingContent" class="workspace-content">' + UI.loading() + '</div></div>';
@@ -2959,6 +3003,24 @@ var Workspace = (function () {
       '<div><p class="text-xs font-bold text-gray-500 uppercase">SqFt</p><p class="text-lg font-bold">' + (l.LivingArea || l.sqft ? Number(l.LivingArea || l.sqft).toLocaleString() : '-') + '</p></div>' +
       '<div><p class="text-xs font-bold text-gray-500 uppercase">Type</p><p class="text-lg font-bold">' + E(l.PropertySubType || l.property_type || '-') + '</p></div>' +
     '</div>';
+
+    // Connected clients (sent to)
+    var sentEvents = Events.getByEntity('listing', _listingId).filter(function(e) { return e.type === 'listing_sent'; });
+    if (sentEvents.length > 0) {
+      html += '<div class="flex flex-wrap gap-2 mb-3">';
+      var seenClients = {};
+      var chipCount = 0;
+      sentEvents.forEach(function(e) {
+        var cid = e.payload && (e.payload.clientId || e.payload.client_id);
+        var cname = e.payload && (e.payload.clientName || e.payload.client_name);
+        if (cid && !seenClients[cid] && chipCount < 5) {
+          seenClients[cid] = true;
+          chipCount++;
+          html += '<span class="ws-connection client" onclick="CRM.navigateToConnected(\'client\',\'' + E(cid) + '\')"><i class="fas fa-user mr-1"></i>' + E(cname || cid.substring(0, 8)) + '</span>';
+        }
+      });
+      html += '</div>';
+    }
 
     // Details + Financials
     html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
@@ -3998,6 +4060,72 @@ var Workspace = (function () {
     CRM.toast('Syndication refresh requested', 'success');
   }
 
+  // ─── Quick Note slide-over ──────────────────────────────────────────
+  function _quickAddNote() {
+    var name = _client ? E(_client.name || 'Client') : 'Client';
+    CRM.openSlideOver('Add Note — ' + name,
+      '<textarea id="slideNoteText" class="form-input w-full" rows="6" placeholder="Write a note..." autofocus></textarea>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeSlideOver()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Workspace._submitSlideNote()"><i class="fas fa-save"></i> Save</button>'
+      }
+    );
+  }
+
+  function _submitSlideNote() {
+    var text = (document.getElementById('slideNoteText') || {}).value;
+    if (!text) return;
+    Events.log('note_added', 'client', _clientId, { content: text });
+    CRM.closeSlideOver();
+    CRM.toast('Note saved', 'success');
+    if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
+  }
+
+  // ─── Quick Task slide-over ────────────────────────────────────────
+  function _quickAddTask() {
+    var name = _client ? E(_client.name || 'Client') : 'Client';
+    CRM.openSlideOver('Quick Task — ' + name,
+      '<form id="slideTaskForm" class="space-y-4">' +
+        '<input type="hidden" name="client_id" value="' + E(_clientId) + '">' +
+        '<div class="form-group"><label class="form-label">Title *</label><input class="form-input" name="title" required autofocus></div>' +
+        '<div class="form-group"><label class="form-label">Due Date</label><input class="form-input" type="date" name="due_date"></div>' +
+        '<div class="form-group"><label class="form-label">Priority</label>' +
+          '<select class="form-input" name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeSlideOver()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Workspace._submitSlideTask()">Create</button>'
+      }
+    );
+  }
+
+  function _submitSlideTask() {
+    var form = document.getElementById('slideTaskForm');
+    if (!form) return;
+    var title = (form.querySelector('[name="title"]') || {}).value;
+    if (!title) { CRM.toast('Title is required', 'error'); return; }
+    var dueDate = (form.querySelector('[name="due_date"]') || {}).value;
+    var priority = (form.querySelector('[name="priority"]') || {}).value || 'normal';
+
+    MallanAPI._fetch('/api/crm/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        client_id: _clientId,
+        title: title,
+        due_date: dueDate || null,
+        priority: priority,
+        status: 'pending'
+      })
+    }).then(function () {
+      Events.log('task_created', 'client', _clientId, { title: title, priority: priority });
+      CRM.closeSlideOver();
+      CRM.toast('Task created', 'success');
+      if (_clientTab === 'pipeline' || _clientTab === 'overview') _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Failed to create task: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────
   return {
     // Client Workspace
@@ -4021,6 +4149,12 @@ var Workspace = (function () {
     _addPipelineTask: _addPipelineTask,
     _submitPipelineTask: _submitPipelineTask,
     _generateCMA: _generateCMA,
+
+    // Quick slide-overs (action bar)
+    _quickAddNote: _quickAddNote,
+    _submitSlideNote: _submitSlideNote,
+    _quickAddTask: _quickAddTask,
+    _submitSlideTask: _submitSlideTask,
 
     // Overview — pinned notes
     _pinNote: _pinNote,

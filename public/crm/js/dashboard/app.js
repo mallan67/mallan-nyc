@@ -1481,8 +1481,13 @@ var CRM = (function () {
     if (action && action.action) action.action();
   }
 
-  // Global keydown for command palette
+  // Global keydown for command palette + slide-over
   document.addEventListener('keydown', function (e) {
+    // Escape: close slide-over first, then modal
+    if (e.key === 'Escape') {
+      var slideOver = document.getElementById('slideOverPanel');
+      if (slideOver) { closeSlideOver(); return; }
+    }
     // Cmd+K (Mac) or Ctrl+K (Windows)
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
@@ -1521,6 +1526,56 @@ var CRM = (function () {
     MallanAPI.auth.logout().finally(function () {
       window.location.href = '/crm/login.html';
     });
+  }
+
+  // ─── Slide-over Panel ────────────────────────────────────────────────
+  function openSlideOver(title, bodyHtml, opts) {
+    opts = opts || {};
+    // Remove existing
+    closeSlideOver();
+
+    var backdrop = document.createElement('div');
+    backdrop.id = 'slideOverBackdrop';
+    backdrop.className = 'slide-over-backdrop open';
+    backdrop.onclick = closeSlideOver;
+
+    var panel = document.createElement('div');
+    panel.id = 'slideOverPanel';
+    panel.className = 'slide-over';
+    panel.innerHTML =
+      '<div class="slide-over-header">' +
+        '<h3 class="text-lg font-bold">' + E(title) + '</h3>' +
+        '<button onclick="CRM.closeSlideOver()" class="p-1 text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>' +
+      '</div>' +
+      '<div class="slide-over-body" id="slideOverBody">' + bodyHtml + '</div>' +
+      (opts.footer ? '<div class="slide-over-footer">' + opts.footer + '</div>' : '');
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+    // Trigger animation
+    requestAnimationFrame(function () { panel.classList.add('open'); });
+  }
+
+  function closeSlideOver() {
+    var panel = document.getElementById('slideOverPanel');
+    var backdrop = document.getElementById('slideOverBackdrop');
+    if (panel) { panel.classList.remove('open'); setTimeout(function () { panel.remove(); }, 300); }
+    if (backdrop) { backdrop.classList.remove('open'); setTimeout(function () { backdrop.remove(); }, 300); }
+  }
+
+  // ─── Inline Edit Helper ────────────────────────────────────────────────
+  function inlineEdit(elementId, currentValue, onSave) {
+    // Toggles an element between display and edit mode
+    // onSave is a function name string to call with the new value
+    var el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.toggle('editing');
+  }
+
+  // ─── Connection Navigation Helper ──────────────────────────────────────
+  function navigateToConnected(type, id, tab) {
+    tab = tab || 'overview';
+    Router.navigate('/workspace/' + type + '/' + id + '/' + tab);
   }
 
   // ─── Public API ──────────────────────────────────────────────────────
@@ -1572,6 +1627,12 @@ var CRM = (function () {
     _toggleFavorite: _toggleFavorite,
     _isFavorite: _isFavorite,
     _loadSidebarBadges: _loadSidebarBadges,
+
+    // Slide-over
+    openSlideOver: openSlideOver,
+    closeSlideOver: closeSlideOver,
+    inlineEdit: inlineEdit,
+    navigateToConnected: navigateToConnected,
 
     // Legacy compat
     esc: Utils.esc,
