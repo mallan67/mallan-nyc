@@ -6581,69 +6581,222 @@ var Panels = (function () {
   }
 
   // ─── My Clients ──────────────────────────────────────────────────────
-  function myClients(opts) {
+  var _myClientsData = [];
+  var _myClientsView = 'all';
+  var _myClientsSearch = '';
+
+  function myClients() {
     CRM.setPanelTitle('My Clients');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.clients.list({ limit: 100 }).then(function (data) {
-      var clients = data.clients || [];
+    Promise.all([
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
+      MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+    ]).then(function (r) {
+      var clients = r[0].clients || [];
+      var tasks = r[1].tasks || [];
+      var listings = r[2].listings || [];
+      var now = new Date();
+      var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      var thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+
+      // Enrich each client with operational data
+      clients.forEach(function (cl) {
+        var cid = cl.id;
+        var clientTasks = tasks.filter(function (t) { return t.client_id === cid || t.clientId === cid; });
+        var sentListings = listings.filter(function (l) { return l.sentToClientId === cid; }); // rough — real count from events
+        var lastUpdated = new Date(cl.updated_at || cl.updatedAt || cl.created_at || 0);
+
+        // Next task
+        var pending = clientTasks.filter(function (t) { return t.status !== 'completed'; });
+        pending.sort(function (a, b) { return new Date(a.due_date || '9999') - new Date(b.due_date || '9999'); });
+        cl._nextTask = pending[0] || null;
+        cl._taskCount = pending.length;
+
+        // Health indicators
+        cl._lastActivity = lastUpdated;
+        cl._isHot = lastUpdated >= sevenDaysAgo;
+        cl._needsFollowUp = lastUpdated < sevenDaysAgo && lastUpdated >= thirtyDaysAgo;
+        cl._isInactive = lastUpdated < thirtyDaysAgo;
+        cl._listingsCount = sentListings.length;
+
+        // Lease expiry for renters
+        var leaseEnd = cl.leaseEndDate || cl.lease_end_date;
+        cl._leaseExpiring = false;
+        if (leaseEnd && (cl.type === 'renter' || cl.client_type === 'renter')) {
+          var daysLeft = Utils.daysUntil(leaseEnd);
+          cl._leaseExpiring = daysLeft !== null && daysLeft <= 180;
+          cl._leaseDaysLeft = daysLeft;
+        }
+
+        // Stage categories
+        var stage = (cl.stage || cl.status || 'new').toLowerCase();
+        cl._isPipeline = ['active', 'showing', 'offer', 'deal'].indexOf(stage) !== -1;
+        cl._isPast = stage === 'closed' || stage === 'past' || cl.status === 'inactive';
+      });
+
+      _myClientsData = clients;
+      _renderMyClients(c);
 
       // Listen for global search
       Store.on('global:search', function (q) {
-        var filtered = clients.filter(function (cl) {
-          var name = (cl.name || cl.email || '').toLowerCase();
-          return name.indexOf(q.toLowerCase()) !== -1;
-        });
-        _renderClientsTable(c, filtered, clients.length);
+        _myClientsSearch = q;
+        _renderMyClients(c);
+      });
+    });
+  }
+
+  function _renderMyClients(c) {
+    var clients = _myClientsData;
+    var view = _myClientsView;
+    var search = _myClientsSearch.toLowerCase();
+
+    // Apply view filter
+    var filtered = clients;
+    if (view === 'hot') filtered = clients.filter(function (cl) { return cl._isHot && (cl.type === 'buyer' || cl.client_type === 'buyer'); });
+    else if (view === 'followup') filtered = clients.filter(function (cl) { return cl._needsFollowUp; });
+    else if (view === 'lease') filtered = clients.filter(function (cl) { return cl._leaseExpiring; });
+    else if (view === 'pipeline') filtered = clients.filter(function (cl) { return cl._isPipeline; });
+    else if (view === 'past') filtered = clients.filter(function (cl) { return cl._isPast; });
+    else if (view === 'buyer') filtered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'buyer'; });
+    else if (view === 'seller') filtered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'seller'; });
+    else if (view === 'renter') filtered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'renter'; });
+    else if (view === 'landlord') filtered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'landlord'; });
+
+    // Apply search
+    if (search) {
+      filtered = filtered.filter(function (cl) {
+        var hay = ((cl.name || '') + ' ' + (cl.email || '') + ' ' + (cl.phone || '')).toLowerCase();
+        return hay.indexOf(search) !== -1;
+      });
+    }
+
+    // Counts
+    var counts = {
+      all: clients.length,
+      hot: clients.filter(function (cl) { return cl._isHot && (cl.type === 'buyer' || cl.client_type === 'buyer'); }).length,
+      followup: clients.filter(function (cl) { return cl._needsFollowUp; }).length,
+      lease: clients.filter(function (cl) { return cl._leaseExpiring; }).length,
+      pipeline: clients.filter(function (cl) { return cl._isPipeline; }).length,
+      past: clients.filter(function (cl) { return cl._isPast; }).length,
+    };
+
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+      '<h2 class="text-lg font-bold text-gray-900">My Clients</h2>' +
+      '<div class="flex gap-2">' +
+        '<div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
+          '<input type="text" placeholder="Search clients..." class="form-input pl-9 text-sm w-48" value="' + E(_myClientsSearch) + '" oninput="Panels._searchMyClients(this.value)"></div>' +
+        '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i> New Client</button>' +
+      '</div>' +
+    '</div>';
+
+    // Saved view tabs
+    var views = [
+      { key: 'all', label: 'All', count: counts.all, color: '' },
+      { key: 'hot', label: 'Hot Buyers', count: counts.hot, color: counts.hot > 0 ? 'bg-green-100 text-green-700 border-green-300' : '' },
+      { key: 'followup', label: 'Needs Follow-Up', count: counts.followup, color: counts.followup > 0 ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : '' },
+      { key: 'lease', label: 'Lease Expiring', count: counts.lease, color: counts.lease > 0 ? 'bg-red-100 text-red-700 border-red-300' : '' },
+      { key: 'pipeline', label: 'Pipeline', count: counts.pipeline, color: '' },
+      { key: 'past', label: 'Past Clients', count: counts.past, color: '' },
+    ];
+    html += '<div class="flex gap-1 overflow-x-auto pb-1">';
+    views.forEach(function (v) {
+      var active = view === v.key;
+      html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+        (active ? 'bg-gray-900 text-white border-gray-900' : v.color || 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
+        '" onclick="Panels._switchMyClientsView(\'' + v.key + '\')">' + E(v.label) + ' (' + v.count + ')</button>';
+    });
+    // Type sub-filters
+    html += '<span class="border-l border-gray-300 mx-1"></span>';
+    ['buyer', 'seller', 'renter', 'landlord'].forEach(function (t) {
+      var active = view === t;
+      html += '<button class="px-2 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-all ' +
+        (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gold') +
+        '" onclick="Panels._switchMyClientsView(\'' + t + '\')">' + E(t.charAt(0).toUpperCase() + t.slice(1)) + 's</button>';
+    });
+    html += '</div>';
+
+    // Results count
+    html += '<p class="text-xs text-gray-500">' + filtered.length + ' client' + (filtered.length !== 1 ? 's' : '') + '</p>';
+
+    // Client table
+    if (filtered.length === 0) {
+      html += UI.emptyState('fa-users', 'No clients match current view');
+    } else {
+      html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Client</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-left px-3 py-2">Stage</th>' +
+        '<th class="text-left px-3 py-2">Health</th>' +
+        '<th class="text-left px-3 py-2">Last Activity</th>' +
+        '<th class="text-left px-3 py-2">Next Task</th>' +
+        '<th class="text-left px-3 py-2 hidden sm:table-cell">Listings</th>' +
+      '</tr></thead><tbody>';
+
+      filtered.forEach(function (cl) {
+        // Determine best workspace tab to open
+        var bestTab = 'overview';
+        if (cl._nextTask) bestTab = 'pipeline';
+        else if (cl._needsFollowUp) bestTab = 'activity';
+        else if (cl._leaseExpiring) bestTab = 'pipeline';
+
+        // Health indicator
+        var healthHtml = '';
+        if (cl._isHot) healthHtml = '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-bold">Hot</span>';
+        else if (cl._needsFollowUp) healthHtml = '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">Follow Up</span>';
+        else if (cl._isInactive) healthHtml = '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[9px] font-bold">Inactive</span>';
+        else healthHtml = '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold">Active</span>';
+        if (cl._leaseExpiring) healthHtml += ' <span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">Lease ' + (cl._leaseDaysLeft || '?') + 'd</span>';
+        if (cl.healthScore) healthHtml += ' <span class="text-[9px] text-gray-400">' + cl.healthScore + '</span>';
+
+        // Next task
+        var taskHtml = '-';
+        if (cl._nextTask) {
+          var t = cl._nextTask;
+          var overdue = t.due_date && new Date(t.due_date) < new Date();
+          taskHtml = '<p class="text-xs ' + (overdue ? 'text-red-600 font-bold' : 'text-gray-600') + ' truncate max-w-[140px]">' + E(t.title || 'Task') + '</p>' +
+            (t.due_date ? '<p class="text-[10px] ' + (overdue ? 'text-red-500' : 'text-gray-400') + '">' + (overdue ? 'Overdue ' : 'Due ') + D(t.due_date) + '</p>' : '');
+        }
+
+        html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/' + bestTab + '\')">' +
+          '<td class="px-3 py-2"><div class="flex items-center gap-2">' +
+            UI.avatar(cl.name || cl.email, 28) +
+            '<div><p class="text-sm font-medium">' + E(cl.name || cl.email || 'Unknown') + '</p>' +
+              '<p class="text-xs text-gray-500">' + E(cl.email || '') + '</p></div></div></td>' +
+          '<td class="px-3 py-2">' + UI.roleBadge(cl.type || cl.client_type) + '</td>' +
+          '<td class="px-3 py-2">' + UI.stageBadge(cl.stage || cl.status) + '</td>' +
+          '<td class="px-3 py-2">' + healthHtml + '</td>' +
+          '<td class="px-3 py-2"><span class="text-xs text-gray-500">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</span></td>' +
+          '<td class="px-3 py-2">' + taskHtml + '</td>' +
+          '<td class="px-3 py-2 hidden sm:table-cell"><span class="text-xs text-gray-500">' + (cl._listingsCount || 0) + '</span></td>' +
+        '</tr>';
       });
 
-      _renderClientsTable(c, clients, clients.length);
-    }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-users', 'Unable to load clients');
-    });
+      html += '</tbody></table></div></div>';
+    }
+
+    html += '</div>';
+    c.innerHTML = html;
   }
 
-  function _renderClientsTable(c, clients, total) {
-    c.innerHTML = '<div class="space-y-4">' +
-      UI.sectionHeader('My Clients', total + ' total',
-        '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-plus"></i> New Client</button>') +
-
-      // Filter bar
-      '<div class="flex gap-2 overflow-x-auto pb-2">' +
-        '<button class="btn btn-sm active" style="background:#111827;color:white" onclick="Panels.myClients()">All</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="Panels._filterClients(\'buyer\')">Buyers</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="Panels._filterClients(\'seller\')">Sellers</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="Panels._filterClients(\'renter\')">Renters</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="Panels._filterClients(\'landlord\')">Landlords</button>' +
-      '</div>' +
-
-      UI.dataTable([
-        { key: 'name', label: 'Client', render: function (cl) {
-          return '<div class="flex items-center gap-2 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
-            UI.avatar(cl.name || cl.email, 28) +
-            '<div><p class="text-sm font-medium">' + E(cl.name || cl.email) + '</p>' +
-            '<p class="text-xs text-gray-500">' + E(cl.email || '') + '</p></div></div>';
-        }},
-        { key: 'type', label: 'Type', render: function (cl) { return UI.roleBadge(cl.type || cl.client_type); }},
-        { key: 'stage', label: 'Stage', render: function (cl) { return UI.stageBadge(cl.stage || cl.status); }},
-        { key: 'updated', label: 'Updated', render: function (cl) { return '<span class="text-xs text-gray-500">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</span>'; }},
-        { key: 'actions', label: '', render: function (cl) {
-          return '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-arrow-right"></i></button>';
-        }},
-      ], clients) +
-    '</div>';
+  function _switchMyClientsView(view) {
+    _myClientsView = view;
+    _renderMyClients(_container());
   }
 
+  function _searchMyClients(q) {
+    _myClientsSearch = q;
+    _renderMyClients(_container());
+  }
+
+  // Legacy alias
   function _filterClients(type) {
-    CRM.setPanelTitle('My Clients — ' + type.charAt(0).toUpperCase() + type.slice(1) + 's');
-    var c = _container(); c.innerHTML = UI.loading();
-
-    MallanAPI.clients.list({ limit: 100 }).then(function (data) {
-      var filtered = (data.clients || []).filter(function (cl) { return (cl.type || cl.client_type) === type; });
-      _renderClientsTable(c, filtered, filtered.length);
-    }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-users', 'Unable to load clients');
-    });
+    _myClientsView = type;
+    _renderMyClients(_container());
   }
 
   // ─── Pipeline ────────────────────────────────────────────────────────
@@ -7212,5 +7365,7 @@ var Panels = (function () {
     _clearSearchHistory: _clearSearchHistory,
     _switchMyListingsView: _switchMyListingsView,
     _quickFilterMyListings: _quickFilterMyListings,
+    _switchMyClientsView: _switchMyClientsView,
+    _searchMyClients: _searchMyClients,
   };
 })();
