@@ -6995,43 +6995,205 @@ var Panels = (function () {
   }
 
   // ─── Tasks ───────────────────────────────────────────────────────────
+  var _tasksData = [];
+  var _tasksView = 'today';
+
   function tasks() {
     CRM.setPanelTitle('Tasks & Follow-ups');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI._fetch('/api/crm/tasks').then(function (data) {
-      var tasks = data.tasks || [];
-      var pending = tasks.filter(function (t) { return t.status !== 'completed'; });
-      var completed = tasks.filter(function (t) { return t.status === 'completed'; });
-      var overdue = pending.filter(function (t) { return t.due_date && new Date(t.due_date) < new Date(); });
+    Promise.all([
+      MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
+    ]).then(function (r) {
+      var allTasks = r[0].tasks || [];
+      var clients = r[1].clients || [];
+      var clientMap = {};
+      clients.forEach(function (cl) { clientMap[cl.id] = cl.name || cl.full_name || cl.email || 'Client'; });
 
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Tasks & Follow-ups', '',
-          '<button class="btn btn-sm btn-gold" onclick="CRM.quickTask()"><i class="fas fa-plus"></i> New Task</button>') +
-        UI.statGrid([
-          UI.statCard(pending.length, 'Pending', 'fa-tasks', '#2563EB'),
-          UI.statCard(overdue.length, 'Overdue', 'fa-exclamation-triangle', overdue.length > 0 ? '#DC2626' : '#059669'),
-          UI.statCard(completed.length, 'Completed', 'fa-check-circle', '#059669'),
-        ]) +
-        UI.dataTable([
-          { key: 'title', label: 'Task', render: function (t) { return '<span class="text-sm font-medium">' + E(t.title) + '</span>'; }},
-          { key: 'due', label: 'Due', render: function (t) {
-            if (!t.due_date) return '<span class="text-xs text-gray-400">No date</span>';
-            var overdue = new Date(t.due_date) < new Date() && t.status !== 'completed';
-            return '<span class="text-xs ' + (overdue ? 'text-red-500 font-bold' : 'text-gray-500') + '">' + D(t.due_date) + '</span>';
-          }},
-          { key: 'priority', label: 'Priority', render: function (t) {
-            var colors = { urgent: '#DC2626', high: '#F59E0B', normal: '#6b7280' };
-            return '<span style="color:' + (colors[t.priority] || '#6b7280') + ';font-size:10px;font-weight:700;text-transform:uppercase">' + E(t.priority || 'normal') + '</span>';
-          }},
-          { key: 'status', label: 'Status', render: function (t) { return UI.statusBadge(t.status || 'pending'); }},
-        ], tasks) +
-      '</div>';
+      // Enrich tasks with client names
+      allTasks.forEach(function (t) {
+        var cid = t.client_id || t.clientId;
+        t._clientName = cid ? (clientMap[cid] || cid) : '';
+        t._clientId = cid || null;
+      });
+
+      _tasksData = allTasks;
+      _renderTasks(c, clientMap);
+    });
+  }
+
+  function _renderTasks(c, clientMap) {
+    var allTasks = _tasksData;
+    var view = _tasksView;
+    var now = new Date();
+    var todayStr = now.toISOString().substring(0, 10);
+    var tomorrowStr = new Date(now.getTime() + 24 * 3600 * 1000).toISOString().substring(0, 10);
+    var weekStr = new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString().substring(0, 10);
+
+    // Categorize
+    var today = allTasks.filter(function (t) { return t.status !== 'completed' && t.due_date && t.due_date.substring(0, 10) === todayStr; });
+    var overdue = allTasks.filter(function (t) { return t.status !== 'completed' && t.due_date && t.due_date.substring(0, 10) < todayStr; });
+    var upcoming = allTasks.filter(function (t) { return t.status !== 'completed' && t.due_date && t.due_date.substring(0, 10) > todayStr && t.due_date.substring(0, 10) <= weekStr; });
+    var noDue = allTasks.filter(function (t) { return t.status !== 'completed' && !t.due_date; });
+    var completed = allTasks.filter(function (t) { return t.status === 'completed'; });
+    var allPending = allTasks.filter(function (t) { return t.status !== 'completed'; });
+
+    // Filter by view
+    var filtered = allTasks;
+    if (view === 'today') filtered = today;
+    else if (view === 'overdue') filtered = overdue;
+    else if (view === 'upcoming') filtered = upcoming.concat(noDue);
+    else if (view === 'completed') filtered = completed;
+    else if (view === 'all') filtered = allTasks;
+
+    // Sort: overdue first, then by due date, then no-date last
+    filtered.sort(function (a, b) {
+      if (a.status === 'completed' && b.status !== 'completed') return 1;
+      if (a.status !== 'completed' && b.status === 'completed') return -1;
+      var da = a.due_date || '9999';
+      var db = b.due_date || '9999';
+      if (da < todayStr && db >= todayStr) return -1;
+      if (da >= todayStr && db < todayStr) return 1;
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+      '<h2 class="text-lg font-bold text-gray-900">Tasks & Follow-ups</h2>' +
+      '<button class="btn btn-sm btn-gold" onclick="CRM.quickTask()"><i class="fas fa-plus mr-1"></i> New Task</button>' +
+    '</div>';
+
+    // Stats
+    html += UI.statGrid([
+      UI.statCard(today.length, 'Due Today', 'fa-calendar-day', '#2563EB'),
+      UI.statCard(overdue.length, 'Overdue', 'fa-exclamation-triangle', overdue.length > 0 ? '#DC2626' : '#059669'),
+      UI.statCard(upcoming.length, 'Upcoming (7d)', 'fa-calendar-week', '#F59E0B'),
+      UI.statCard(completed.length, 'Completed', 'fa-check-circle', '#059669'),
+    ]);
+
+    // View tabs
+    var views = [
+      { key: 'today', label: 'Today', count: today.length, color: '' },
+      { key: 'overdue', label: 'Overdue', count: overdue.length, color: overdue.length > 0 ? 'bg-red-100 text-red-700 border-red-300' : '' },
+      { key: 'upcoming', label: 'Upcoming', count: upcoming.length + noDue.length, color: '' },
+      { key: 'completed', label: 'Completed', count: completed.length, color: '' },
+      { key: 'all', label: 'All', count: allTasks.length, color: '' },
+    ];
+    html += '<div class="flex gap-1 overflow-x-auto">';
+    views.forEach(function (v) {
+      var active = view === v.key;
+      html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+        (active ? 'bg-gray-900 text-white border-gray-900' : v.color || 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
+        '" onclick="Panels._switchTasksView(\'' + v.key + '\')">' + E(v.label) + ' (' + v.count + ')</button>';
+    });
+    html += '</div>';
+
+    // Task list
+    if (filtered.length === 0) {
+      var emptyMsg = view === 'today' ? 'No tasks due today — you\'re all caught up!' :
+                     view === 'overdue' ? 'No overdue tasks!' :
+                     'No tasks in this view';
+      html += UI.emptyState('fa-check-circle', emptyMsg, '<button class="btn btn-sm btn-gold" onclick="CRM.quickTask()"><i class="fas fa-plus"></i> Add Task</button>');
+    } else {
+      html += '<div class="space-y-1">';
+      filtered.forEach(function (t) {
+        var isDone = t.status === 'completed';
+        var isOverdue = !isDone && t.due_date && t.due_date.substring(0, 10) < todayStr;
+        var isToday = !isDone && t.due_date && t.due_date.substring(0, 10) === todayStr;
+
+        // Priority indicator
+        var priColor = t.priority === 'urgent' ? '#DC2626' : t.priority === 'high' ? '#F59E0B' : '#e5e7eb';
+
+        html += '<div class="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-all" style="border-left:3px solid ' + priColor + '">';
+
+        // Checkbox
+        html += '<button class="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ' +
+          (isDone ? 'border-green-500 bg-green-500' : isOverdue ? 'border-red-400 hover:border-gold' : 'border-gray-300 hover:border-gold') + '" ' +
+          'onclick="Panels._toggleTaskStatus(\'' + E(t.id) + '\',' + !isDone + ')">' +
+          (isDone ? '<i class="fas fa-check text-white text-[9px]"></i>' : '') +
+        '</button>';
+
+        // Content
+        html += '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm font-medium ' + (isDone ? 'line-through text-gray-400' : 'text-gray-900') + ' truncate">' + E(t.title || 'Task') + '</p>' +
+          '<div class="flex items-center gap-3 mt-0.5">';
+
+        // Due date
+        if (t.due_date) {
+          html += '<span class="text-xs ' + (isOverdue ? 'text-red-600 font-bold' : isToday ? 'text-blue-600 font-semibold' : 'text-gray-500') + '">' +
+            '<i class="fas fa-clock mr-1"></i>' + (isOverdue ? 'Overdue ' : isToday ? 'Today · ' : '') + D(t.due_date) + '</span>';
+        }
+
+        // Client link
+        if (t._clientName) {
+          html += '<span class="text-xs text-gray-500 cursor-pointer hover:text-gold" onclick="event.stopPropagation();Router.navigate(\'/workspace/client/' + E(t._clientId || '') + '/pipeline\')">' +
+            '<i class="fas fa-user mr-1"></i>' + E(t._clientName) + '</span>';
+        }
+
+        // Priority badge
+        if (t.priority && t.priority !== 'normal') {
+          var pColors = { urgent: 'bg-red-100 text-red-700', high: 'bg-yellow-100 text-yellow-700' };
+          html += '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold ' + (pColors[t.priority] || '') + '">' + E(t.priority) + '</span>';
+        }
+
+        html += '</div></div>';
+
+        // Actions
+        html += '<div class="flex items-center gap-1 flex-shrink-0" onclick="event.stopPropagation()">' +
+          (isDone ?
+            '<button class="text-xs text-gray-400 hover:text-blue-500" onclick="Panels._toggleTaskStatus(\'' + E(t.id) + '\',false)" title="Reopen"><i class="fas fa-undo"></i></button>' :
+            '<button class="text-xs text-gray-400 hover:text-green-500" onclick="Panels._toggleTaskStatus(\'' + E(t.id) + '\',true)" title="Complete"><i class="fas fa-check"></i></button>'
+          ) +
+          '<button class="text-xs text-gray-400 hover:text-red-500" onclick="Panels._deleteTask(\'' + E(t.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+        '</div>';
+
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _switchTasksView(view) {
+    _tasksView = view;
+    _renderTasks(_container());
+  }
+
+  function _toggleTaskStatus(taskId, complete) {
+    MallanAPI._fetch('/api/crm/tasks/' + encodeURIComponent(taskId), {
+      method: 'PATCH',
+      body: JSON.stringify({ status: complete ? 'completed' : 'pending' }),
+    }).then(function () {
+      // Update local data
+      _tasksData.forEach(function (t) {
+        if (t.id === taskId) t.status = complete ? 'completed' : 'pending';
+      });
+      if (complete) Events.log('task_completed', 'task', taskId);
+      CRM.toast(complete ? 'Task completed' : 'Task reopened', 'success');
+      _renderTasks(_container());
     }).catch(function () {
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Tasks & Follow-ups', '') +
-        UI.emptyState('fa-tasks', 'No tasks yet', '<button class="btn btn-sm btn-gold" onclick="CRM.quickTask()"><i class="fas fa-plus"></i> New Task</button>') +
-      '</div>';
+      // Optimistic update anyway
+      _tasksData.forEach(function (t) {
+        if (t.id === taskId) t.status = complete ? 'completed' : 'pending';
+      });
+      _renderTasks(_container());
+    });
+  }
+
+  function _deleteTask(taskId) {
+    if (!confirm('Delete this task?')) return;
+    MallanAPI._fetch('/api/crm/tasks/' + encodeURIComponent(taskId), { method: 'DELETE' }).then(function () {
+      _tasksData = _tasksData.filter(function (t) { return t.id !== taskId; });
+      CRM.toast('Task deleted', 'success');
+      _renderTasks(_container());
+    }).catch(function () {
+      _tasksData = _tasksData.filter(function (t) { return t.id !== taskId; });
+      _renderTasks(_container());
     });
   }
 
@@ -7524,5 +7686,8 @@ var Panels = (function () {
     _pipelineDragStart: _pipelineDragStart,
     _pipelineDrop: _pipelineDrop,
     _pipelineMove: _pipelineMove,
+    _switchTasksView: _switchTasksView,
+    _toggleTaskStatus: _toggleTaskStatus,
+    _deleteTask: _deleteTask,
   };
 })();
