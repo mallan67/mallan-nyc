@@ -4687,6 +4687,28 @@ var Panels = (function () {
   }
 
   // ─── Audit Log ───────────────────────────────────────────────────────
+  function _isSystemEvent(ev) {
+    var actor = ev.actorId || ev.actor_id || ev.userId || ev.user_id || '';
+    var t = (ev.type || ev.action || '').toLowerCase();
+    if (!actor || actor === 'system' || actor === 'cron') return true;
+    if (t.indexOf('sync') !== -1 || t.indexOf('cron') !== -1 || t.indexOf('scheduled') !== -1 || t.indexOf('auto') !== -1) return true;
+    return false;
+  }
+
+  function _isImpersonationEvent(ev) {
+    if (ev.impersonated) return true;
+    var t = (ev.type || ev.action || '').toLowerCase();
+    if (t.indexOf('impersonation') !== -1) return true;
+    var p = ev.payload || ev.data || ev.metadata || {};
+    if (p.impersonating || p.impersonatedAgentId || p.impersonated_agent_id) return true;
+    return false;
+  }
+
+  function _getImpersonatedName(ev) {
+    var p = ev.payload || ev.data || ev.metadata || {};
+    return p.impersonatedAgentName || p.impersonated_agent_name || p.impersonatedAgentId || p.impersonated_agent_id || '';
+  }
+
   function auditLog() {
     CRM.setPanelTitle('Audit Log');
     var c = _container(); c.innerHTML = UI.loading();
@@ -4699,7 +4721,6 @@ var Panels = (function () {
       var serverEvents = r[1].events || [];
       var localEvents = Events.getByCategory('audit', 200);
 
-      // Merge local + server events, dedupe by id
       var seenIds = {};
       var allEvents = [];
       serverEvents.forEach(function (ev) {
@@ -4711,14 +4732,13 @@ var Panels = (function () {
         if (!seenIds[id]) { seenIds[id] = true; allEvents.push(ev); }
       });
 
-      // Sort by timestamp desc
       allEvents.sort(function (a, b) {
         return new Date(b.createdAt || b.created_at || b.timestamp || 0) - new Date(a.createdAt || a.created_at || a.timestamp || 0);
       });
 
-      // Store for filtering
       window._auditEvents = allEvents;
       window._auditAgents = agents;
+      window._auditViewMode = 'all';
 
       _renderAuditLog(c, allEvents, agents);
     }).catch(function () {
@@ -4726,8 +4746,26 @@ var Panels = (function () {
     });
   }
 
+  function _auditFilteredByView(events) {
+    var mode = window._auditViewMode || 'all';
+    if (mode === 'human') return events.filter(function (ev) { return !_isSystemEvent(ev); });
+    if (mode === 'system') return events.filter(function (ev) { return _isSystemEvent(ev); });
+    return events;
+  }
+
+  function _switchAuditView(mode) {
+    window._auditViewMode = mode;
+    var tabs = document.getElementById('auditViewTabs');
+    if (tabs) {
+      var btns = tabs.querySelectorAll('button');
+      btns.forEach(function (b) { b.className = 'btn btn-sm btn-outline'; });
+      var idx = { human: 0, system: 1, all: 2 }[mode];
+      if (idx !== undefined && btns[idx]) btns[idx].className = 'btn btn-sm btn-gold';
+    }
+    _filterAuditLog();
+  }
+
   function _renderAuditLog(c, events, agents) {
-    // Compute stats
     var now = new Date();
     var weekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
     var thisWeek = events.filter(function (ev) {
@@ -4736,20 +4774,26 @@ var Panels = (function () {
     var uniqueUsers = {};
     events.forEach(function (ev) {
       var user = ev.actorId || ev.actor_id || ev.userId || ev.user_id;
-      if (user) uniqueUsers[user] = true;
+      if (user && user !== 'system' && user !== 'cron') uniqueUsers[user] = true;
     });
     var complianceEvents = events.filter(function (ev) {
       var t = (ev.type || '').toLowerCase();
       return t.indexOf('compliance') !== -1 || t.indexOf('violation') !== -1 || t.indexOf('audit') !== -1 || (ev.severity || '').toLowerCase() === 'critical';
     });
 
-    // Action types for filter dropdown
     var actionTypes = {};
     events.forEach(function (ev) { if (ev.type) actionTypes[ev.type] = true; });
     var entityTypes = {};
     events.forEach(function (ev) { if (ev.entityType || ev.entity_type) entityTypes[ev.entityType || ev.entity_type] = true; });
 
     var html = '<div class="space-y-4">';
+
+    // View toggle tabs
+    html += '<div class="flex flex-wrap gap-2" id="auditViewTabs">' +
+      '<button class="btn btn-sm btn-outline" onclick="Panels._switchAuditView(\'human\')"><i class="fas fa-user mr-1"></i> Human Actions</button>' +
+      '<button class="btn btn-sm btn-outline" onclick="Panels._switchAuditView(\'system\')"><i class="fas fa-cog mr-1"></i> System Events</button>' +
+      '<button class="btn btn-sm btn-gold" onclick="Panels._switchAuditView(\'all\')"><i class="fas fa-list mr-1"></i> All</button>' +
+    '</div>';
 
     // Stat cards
     html += UI.statGrid([
@@ -4759,8 +4803,8 @@ var Panels = (function () {
       UI.statCard(complianceEvents.length, 'Compliance Events', 'fa-shield-alt', complianceEvents.length > 0 ? '#F59E0B' : '#059669'),
     ]);
 
-    // Filter bar (6 inputs)
-    html += '<div class="card p-4"><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">' +
+    // Filter bar
+    html += '<div class="card p-4"><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">' +
       '<div><label class="text-[10px] font-bold text-gray-500 uppercase">Search</label>' +
         '<input type="text" id="auditSearch" class="form-input text-sm" placeholder="Search..." oninput="Panels._filterAuditLog()"></div>' +
       '<div><label class="text-[10px] font-bold text-gray-500 uppercase">User</label>' +
@@ -4785,13 +4829,17 @@ var Panels = (function () {
         '<input type="date" id="auditDateFrom" class="form-input text-sm" onchange="Panels._filterAuditLog()"></div>' +
       '<div><label class="text-[10px] font-bold text-gray-500 uppercase">Date To</label>' +
         '<input type="date" id="auditDateTo" class="form-input text-sm" onchange="Panels._filterAuditLog()"></div>' +
+      '<div class="flex items-end"><label class="flex items-center gap-2 text-xs cursor-pointer">' +
+        '<input type="checkbox" id="auditImpersonationOnly" onchange="Panels._filterAuditLog()" class="rounded border-gray-300">' +
+        '<span class="text-[10px] font-bold text-purple-600 uppercase">Impersonation only</span></label></div>' +
     '</div></div>';
 
     // Export CSV button
     html += '<div class="flex justify-end"><button class="btn btn-sm btn-outline" onclick="Panels._exportAuditCSV()"><i class="fas fa-download mr-1"></i> Export CSV</button></div>';
 
     // Events table
-    html += '<div id="auditTableContainer">' + _auditTable(events) + '</div>';
+    var viewEvents = _auditFilteredByView(events);
+    html += '<div id="auditTableContainer">' + _auditTable(viewEvents) + '</div>';
 
     html += '</div>';
     c.innerHTML = html;
@@ -4805,6 +4853,7 @@ var Panels = (function () {
       '<th class="text-left px-3 py-2">User</th>' +
       '<th class="text-left px-3 py-2">Action</th>' +
       '<th class="text-left px-3 py-2">Entity</th>' +
+      '<th class="text-left px-3 py-2">Impersonation</th>' +
       '<th class="text-left px-3 py-2">Summary</th>' +
     '</tr></thead><tbody>';
 
@@ -4814,6 +4863,8 @@ var Panels = (function () {
       var action = ev.type || ev.action || '-';
       var entity = (ev.entityType || ev.entity_type || '') + (ev.entityId || ev.entity_id ? ':' + (ev.entityId || ev.entity_id) : '');
       var summary = ev.summary || ev.message || ev.description || '';
+      var isImpersonation = _isImpersonationEvent(ev);
+      var impersonatedName = isImpersonation ? _getImpersonatedName(ev) : '';
 
       // Action badge color
       var actionColor = '#6b7280';
@@ -4824,16 +4875,21 @@ var Panels = (function () {
       else if (aLower.indexOf('login') !== -1 || aLower.indexOf('auth') !== -1) actionColor = '#7C3AED';
       else if (aLower.indexOf('approve') !== -1) actionColor = '#059669';
       else if (aLower.indexOf('reject') !== -1 || aLower.indexOf('deny') !== -1) actionColor = '#DC2626';
+      else if (aLower.indexOf('sync') !== -1 || aLower.indexOf('cron') !== -1) actionColor = '#0891B2';
 
-      html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Panels._toggleAuditDetail(' + idx + ')">' +
+      // System event row tint
+      var rowClass = _isSystemEvent(ev) ? 'border-b hover:bg-gray-50 cursor-pointer bg-gray-50/50' : 'border-b hover:bg-gray-50 cursor-pointer';
+
+      html += '<tr class="' + rowClass + '" onclick="Panels._toggleAuditDetail(' + idx + ')">' +
         '<td class="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">' + (ts ? D(ts) + ' ' + new Date(ts).toLocaleTimeString() : '-') + '</td>' +
-        '<td class="px-3 py-2 text-sm">' + E(user) + '</td>' +
+        '<td class="px-3 py-2 text-sm">' + E(user) + (_isSystemEvent(ev) ? ' <span class="text-[9px] font-bold text-cyan-600 uppercase ml-1">SYSTEM</span>' : '') + '</td>' +
         '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white" style="background:' + actionColor + '">' + E(action) + '</span></td>' +
         '<td class="px-3 py-2 text-xs text-gray-600">' + E(entity || '-') + '</td>' +
+        '<td class="px-3 py-2">' + (isImpersonation ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style="background:#7C3AED"><i class="fas fa-mask mr-1"></i>Impersonated' + (impersonatedName ? ' (' + E(impersonatedName) + ')' : '') + '</span>' : '<span class="text-xs text-gray-300">-</span>') + '</td>' +
         '<td class="px-3 py-2 text-xs text-gray-500 max-w-xs truncate">' + E(summary) + '</td>' +
       '</tr>';
       // Detail row (hidden by default)
-      html += '<tr id="auditDetail_' + idx + '" style="display:none"><td colspan="5" class="px-6 py-3 bg-gray-50">';
+      html += '<tr id="auditDetail_' + idx + '" style="display:none"><td colspan="6" class="px-6 py-3 bg-gray-50">';
       var detail = ev.data || ev.metadata || ev.changes || {};
       if (ev.before || ev.after) {
         html += '<div class="grid grid-cols-2 gap-4"><div><p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Before</p><pre class="text-xs bg-white p-2 rounded border overflow-x-auto">' + E(JSON.stringify(ev.before || {}, null, 2)) + '</pre></div>' +
@@ -4842,6 +4898,10 @@ var Panels = (function () {
         html += '<p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Details</p><pre class="text-xs bg-white p-2 rounded border overflow-x-auto">' + E(JSON.stringify(detail, null, 2)) + '</pre>';
       } else {
         html += '<p class="text-xs text-gray-400">No additional details available.</p>';
+      }
+      if (isImpersonation) {
+        html += '<div class="mt-2 p-2 rounded border border-purple-200 bg-purple-50"><p class="text-[10px] font-bold text-purple-600 uppercase mb-1"><i class="fas fa-mask mr-1"></i>Impersonation Details</p>' +
+          '<p class="text-xs text-purple-700">This action was performed while impersonating ' + E(impersonatedName || 'another user') + '.</p></div>';
       }
       html += '</td></tr>';
     });
@@ -4864,8 +4924,13 @@ var Panels = (function () {
     var entityF = (document.getElementById('auditEntityFilter') || {}).value || '';
     var dateFrom = (document.getElementById('auditDateFrom') || {}).value || '';
     var dateTo = (document.getElementById('auditDateTo') || {}).value || '';
+    var impersonationOnly = (document.getElementById('auditImpersonationOnly') || {}).checked || false;
 
-    var filtered = events.filter(function (ev) {
+    // Apply view mode filter first
+    var viewFiltered = _auditFilteredByView(events);
+
+    var filtered = viewFiltered.filter(function (ev) {
+      if (impersonationOnly && !_isImpersonationEvent(ev)) return false;
       if (search) {
         var hay = ((ev.type || '') + ' ' + (ev.actorName || ev.actorId || '') + ' ' + (ev.entityType || '') + ' ' + (ev.summary || ev.message || '')).toLowerCase();
         if (hay.indexOf(search) === -1) return false;
@@ -4892,11 +4957,12 @@ var Panels = (function () {
   }
 
   function _exportAuditCSV() {
-    var events = window._auditEvents || [];
+    var events = _auditFilteredByView(window._auditEvents || []);
     if (events.length === 0) { CRM.toast('No events to export', 'info'); return; }
 
-    var rows = [['Timestamp', 'User', 'Action', 'Entity Type', 'Entity ID', 'Summary']];
+    var rows = [['Timestamp', 'User', 'Action', 'Entity Type', 'Entity ID', 'Summary', 'Impersonation', 'Impersonated User']];
     events.forEach(function (ev) {
+      var isImp = _isImpersonationEvent(ev);
       rows.push([
         ev.createdAt || ev.created_at || ev.timestamp || '',
         ev.actorName || ev.actorId || ev.actor_id || '',
@@ -4904,6 +4970,8 @@ var Panels = (function () {
         ev.entityType || ev.entity_type || '',
         ev.entityId || ev.entity_id || '',
         (ev.summary || ev.message || '').replace(/"/g, '""'),
+        isImp ? 'Yes' : 'No',
+        isImp ? _getImpersonatedName(ev) : '',
       ]);
     });
 
@@ -4928,14 +4996,179 @@ var Panels = (function () {
     CRM.setPanelTitle('IDX/RLS Activity');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.idx.status().then(function (data) {
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('IDX/RLS Activity', 'Trestle API monitoring') +
-        UI.statGrid([
-          UI.statCard('Connected', 'Trestle Status', 'fa-plug', '#059669'),
-          UI.statCard(data.lastSync ? D(data.lastSync) : 'N/A', 'Last Sync', 'fa-sync', '#2563EB'),
-        ]) +
+    Promise.all([
+      MallanAPI.idx.status().catch(function () { return null; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [], total: 0 }; }),
+      MallanAPI._fetch('/api/crm/audit-log?limit=200&type=idx_sync,listing_sync,sync_error').catch(function () { return { events: [] }; }),
+    ]).then(function (r) {
+      var status = r[0];
+      var listingsData = r[1];
+      var syncEvents = (r[2].events || []);
+      var listings = listingsData.listings || [];
+      var connected = !!status;
+      var lastSync = status ? (status.lastSync || status.last_sync || status.lastSyncAt) : null;
+
+      var html = '<div class="space-y-4">';
+
+      // Sync Status Card
+      var statusColor = connected ? '#059669' : '#DC2626';
+      var statusLabel = connected ? 'Connected' : 'Disconnected';
+      var statusIcon = connected ? 'fa-check-circle' : 'fa-times-circle';
+      html += '<div class="card p-6" style="border-left:4px solid ' + statusColor + '">' +
+        '<div class="flex items-center justify-between flex-wrap gap-4">' +
+          '<div class="flex items-center gap-4">' +
+            '<div class="w-14 h-14 rounded-xl flex items-center justify-center" style="background:' + statusColor + '15">' +
+              '<i class="fas ' + statusIcon + ' text-2xl" style="color:' + statusColor + '"></i></div>' +
+            '<div>' +
+              '<p class="text-lg font-bold" style="color:' + statusColor + '">' + statusLabel + '</p>' +
+              '<p class="text-xs text-gray-500">IDX Plus via Trestle/Cotality</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">' +
+            '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Last Successful Sync</p><p class="text-sm font-semibold">' + (lastSync ? D(lastSync) + ' ' + new Date(lastSync).toLocaleTimeString() : 'N/A') + '</p></div>' +
+            '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Next Scheduled Sync</p><p class="text-sm font-semibold">' + _nextIdxSync() + '</p></div>' +
+            '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Sync Type</p><p class="text-sm font-semibold">IDX Plus - WebAPI</p></div>' +
+          '</div>' +
+        '</div>' +
       '</div>';
+
+      // Stats row
+      var syncErrors = syncEvents.filter(function (ev) { var t = (ev.type || '').toLowerCase(); return t.indexOf('error') !== -1; });
+      var last24h = new Date(Date.now() - 24 * 3600 * 1000);
+      var recentUpdates = syncEvents.filter(function (ev) {
+        var ts = ev.createdAt || ev.created_at || ev.timestamp;
+        return ts && new Date(ts) >= last24h && (ev.type || '').toLowerCase().indexOf('error') === -1;
+      });
+      var avgLatency = 0;
+      var latencyEvents = syncEvents.filter(function (ev) { var d = ev.data || ev.metadata || {}; return d.duration || d.latency; });
+      if (latencyEvents.length > 0) {
+        var total = 0;
+        latencyEvents.forEach(function (ev) { var d = ev.data || ev.metadata || {}; total += (d.duration || d.latency || 0); });
+        avgLatency = Math.round(total / latencyEvents.length);
+      }
+
+      html += UI.statGrid([
+        UI.statCard(listings.length, 'Total Synced Listings', 'fa-database', '#2563EB'),
+        UI.statCard(recentUpdates.length, 'Last 24h Updates', 'fa-clock', '#059669'),
+        UI.statCard(syncErrors.length, 'Sync Errors', 'fa-exclamation-triangle', syncErrors.length > 0 ? '#DC2626' : '#059669'),
+        UI.statCard(avgLatency ? avgLatency + 'ms' : 'N/A', 'Avg Sync Latency', 'fa-tachometer-alt', '#7C3AED'),
+      ]);
+
+      // Recent Sync History table
+      var syncHistory = syncEvents.filter(function (ev) {
+        var t = (ev.type || '').toLowerCase();
+        return t.indexOf('sync') !== -1;
+      }).slice(0, 50);
+
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-history text-blue-500 mr-2"></i>Recent Sync History</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Timestamp</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-right px-3 py-2">Listings Processed</th>' +
+        '<th class="text-right px-3 py-2">Errors</th>' +
+        '<th class="text-right px-3 py-2">Duration</th>' +
+        '<th class="text-left px-3 py-2">Status</th>' +
+      '</tr></thead><tbody>';
+
+      if (syncHistory.length === 0) {
+        html += '<tr><td colspan="6" class="text-center py-6 text-sm text-gray-400">No sync history recorded</td></tr>';
+      } else {
+        syncHistory.forEach(function (ev) {
+          var ts = ev.createdAt || ev.created_at || ev.timestamp;
+          var d = ev.data || ev.metadata || {};
+          var syncType = d.syncType || d.sync_type || 'Delta';
+          var processed = d.listingsProcessed || d.listings_processed || d.count || '-';
+          var errors = d.errors || d.errorCount || 0;
+          var duration = d.duration || d.latency ? (d.duration || d.latency) + 'ms' : '-';
+          var evType = (ev.type || '').toLowerCase();
+          var sStatus, sColor;
+          if (evType.indexOf('error') !== -1 || errors > 0) { sStatus = 'Failed'; sColor = '#DC2626'; }
+          else if (d.partial) { sStatus = 'Partial'; sColor = '#F59E0B'; }
+          else { sStatus = 'Success'; sColor = '#059669'; }
+
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">' + (ts ? D(ts) + ' ' + new Date(ts).toLocaleTimeString() : '-') + '</td>' +
+            '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:#EEF2FF;color:#4338CA">' + E(syncType) + '</span></td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + processed + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right" style="color:' + (errors > 0 ? '#DC2626' : '#059669') + '">' + errors + '</td>' +
+            '<td class="px-3 py-2 text-xs text-right">' + duration + '</td>' +
+            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + sColor + ';text-transform:uppercase">' + sStatus + '</span></td>' +
+          '</tr>';
+        });
+      }
+      html += '</tbody></table></div></div></div>';
+
+      // Listing Submission Issues
+      var issueListings = listings.filter(function (l) {
+        var ss = (l.syncStatus || l.sync_status || '').toLowerCase();
+        var syncedAt = l.syncedAt || l.synced_at;
+        var stale = syncedAt && (Date.now() - new Date(syncedAt).getTime()) > 48 * 3600 * 1000;
+        return ss === 'error' || ss === 'pending' || ss === 'failed' || stale;
+      });
+
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-exclamation-circle text-amber-500 mr-2"></i>Listing Submission Issues <span class="text-xs font-normal text-gray-400 ml-2">(' + issueListings.length + ')</span></h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Address</th>' +
+        '<th class="text-left px-3 py-2">MLS ID</th>' +
+        '<th class="text-left px-3 py-2">Issue</th>' +
+        '<th class="text-left px-3 py-2">Last Attempt</th>' +
+        '<th class="text-left px-3 py-2">Status</th>' +
+      '</tr></thead><tbody>';
+
+      if (issueListings.length === 0) {
+        html += '<tr><td colspan="5" class="text-center py-6 text-sm text-gray-400">No submission issues detected</td></tr>';
+      } else {
+        issueListings.forEach(function (l) {
+          var addr = l.address || l.full_address || l.street_address || '-';
+          var mlsId = l.listingId || l.listing_id || l.mls_id || l.id || '-';
+          var ss = (l.syncStatus || l.sync_status || 'unknown').toLowerCase();
+          var syncedAt = l.syncedAt || l.synced_at;
+          var issue = ss === 'error' ? 'Sync Error' : ss === 'pending' ? 'Pending Sync' : ss === 'failed' ? 'Sync Failed' : 'Stale Data';
+          var iColor = ss === 'error' || ss === 'failed' ? '#DC2626' : '#F59E0B';
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(addr) + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + E(mlsId) + '</td>' +
+            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + iColor + ';text-transform:uppercase">' + issue + '</span></td>' +
+            '<td class="px-3 py-2 text-xs text-gray-500">' + (syncedAt ? D(syncedAt) : '-') + '</td>' +
+            '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white" style="background:' + iColor + '">' + E(ss) + '</span></td>' +
+          '</tr>';
+        });
+      }
+      html += '</tbody></table></div></div></div>';
+
+      // Recent Failures
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-times-circle text-red-500 mr-2"></i>Recent Failures</h3></div>' +
+        '<div class="card-body">';
+      if (syncErrors.length === 0) {
+        html += '<p class="text-sm text-gray-400 text-center py-4">No recent sync failures</p>';
+      } else {
+        html += '<div class="space-y-2">';
+        syncErrors.slice(0, 20).forEach(function (ev) {
+          var ts = ev.createdAt || ev.created_at || ev.timestamp;
+          var d = ev.data || ev.metadata || {};
+          var msg = ev.summary || ev.message || d.error || d.message || 'Unknown error';
+          html += '<div class="flex items-start gap-3 p-2 rounded border border-red-100 bg-red-50">' +
+            '<i class="fas fa-exclamation-triangle text-red-400 mt-0.5"></i>' +
+            '<div class="flex-1"><p class="text-xs text-red-700">' + E(msg) + '</p>' +
+            '<p class="text-[10px] text-red-400 mt-0.5">' + (ts ? D(ts) + ' ' + new Date(ts).toLocaleTimeString() : '') + '</p></div></div>';
+        });
+        html += '</div>';
+      }
+      html += '</div></div>';
+
+      // Feed Configuration (read-only)
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-cogs text-gray-400 mr-2"></i>Feed Configuration</h3></div>' +
+        '<div class="card-body"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Feed Type</p><p class="text-sm font-medium">IDX Plus - WebAPI</p></div>' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Provider</p><p class="text-sm font-medium">Trestle (Cotality)</p></div>' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">API Endpoint</p><p class="text-sm font-mono">api.cotality.com/trestle</p></div>' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Sync Frequency</p><p class="text-sm font-medium">Every 4 hours</p></div>' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Photo Caching</p><p class="text-sm font-medium">Cloudflare R2</p></div>' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Data Source</p><p class="text-sm font-medium">REBNY RLS</p></div>' +
+        '</div></div></div>';
+
+      html += '</div>';
+      c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = '<div class="space-y-4">' +
         UI.sectionHeader('IDX/RLS Activity', 'Trestle API monitoring') +
@@ -4944,53 +5177,139 @@ var Panels = (function () {
     });
   }
 
+  function _nextIdxSync() {
+    // IDX syncs every 4 hours per vercel.json cron
+    var now = new Date();
+    var hours = [0, 4, 8, 12, 16, 20];
+    var currentHour = now.getHours();
+    var nextHour = null;
+    for (var i = 0; i < hours.length; i++) {
+      if (hours[i] > currentHour) { nextHour = hours[i]; break; }
+    }
+    if (nextHour === null) nextHour = 24; // midnight next day
+    var next = new Date(now);
+    next.setHours(nextHour, 0, 0, 0);
+    if (nextHour === 24) { next.setDate(next.getDate() + 1); next.setHours(0, 0, 0, 0); }
+    var diff = next.getTime() - now.getTime();
+    var hLeft = Math.floor(diff / 3600000);
+    var mLeft = Math.floor((diff % 3600000) / 60000);
+    return next.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' (' + hLeft + 'h ' + mLeft + 'm)';
+  }
+
   // ─── License/CE/E&O Tracking ─────────────────────────────────────────
   function licensingTracker() {
     CRM.setPanelTitle('License/CE/E&O Tracking');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.agents.list().then(function (data) {
-      var agents = data.agents || [];
-      var now = new Date();
+    Promise.all([
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI._fetch('/api/crm/ce-courses?limit=500').catch(function () { return { courses: [] }; }),
+    ]).then(function (r) {
+      var agents = r[0].agents || [];
+      var courses = r[1].courses || [];
+      window._ceAgents = agents;
+      window._ceCourses = courses;
+      window._licensingTab = 'license';
 
-      // Compute stats
-      var current = 0, expiringSoon = 0, ceIncomplete = 0, rebnyDue = 0;
+      // Compute alert data
+      var licExpiring = [];
+      var ceIncompleteAgents = [];
+      var eoIssueAgents = [];
+
       agents.forEach(function (a) {
+        var name = a.full_name || a.name || a.email || 'Agent';
         var exp = a.license_expiry || a.licenseExpiry;
         var days = exp ? Utils.daysUntil(exp) : null;
-        if (days === null || days > 90) current++;
-        if (days !== null && days <= 90 && days > 0) expiringSoon++;
-        if (days !== null && days <= 0) expiringSoon++;
+        if (days !== null && days <= 90) licExpiring.push({ name: name, days: days });
         var ceDone = a.ceHoursCompleted || a.ce_hours || 0;
-        var ceReq = a.ceHoursRequired || 22.5;
-        if (ceDone < ceReq) ceIncomplete++;
-        var rebnyExp = a.rebnyExpiry || a.rebny_expiry;
-        if (rebnyExp && Utils.daysUntil(rebnyExp) <= 90) rebnyDue++;
+        if (ceDone < 22.5) ceIncompleteAgents.push({ name: name, hours: ceDone });
+        var eoExp = a.eoExpiry || a.eo_expiry;
+        var eoDays = eoExp ? Utils.daysUntil(eoExp) : null;
+        if (eoDays === null || eoDays <= 90) eoIssueAgents.push({ name: name, days: eoDays, missing: eoDays === null });
       });
 
       var html = '<div class="space-y-4">';
 
-      // Stat cards
-      html += UI.statGrid([
-        UI.statCard(current, 'Licenses Current', 'fa-id-card', '#059669'),
-        UI.statCard(expiringSoon, 'Expiring Soon (<90d)', 'fa-exclamation-triangle', expiringSoon > 0 ? '#DC2626' : '#059669'),
-        UI.statCard(ceIncomplete, 'CE Incomplete', 'fa-graduation-cap', ceIncomplete > 0 ? '#F59E0B' : '#059669'),
-        UI.statCard(rebnyDue, 'REBNY Due', 'fa-building', rebnyDue > 0 ? '#F59E0B' : '#059669'),
-      ]);
+      // Broker Alert Summary
+      html += '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">';
 
-      // License Renewal Status table
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-id-card text-gold mr-2"></i>License Renewal Status</h3></div>' +
+      // License alert card
+      var licColor = licExpiring.some(function (l) { return l.days < 60; }) ? '#DC2626' : (licExpiring.length > 0 ? '#F59E0B' : '#059669');
+      html += '<div class="card p-4 cursor-pointer hover:shadow-md transition-shadow" onclick="Panels._filterLicensingTab(\'license\')" style="border-left:4px solid ' + licColor + '">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:' + licColor + '15"><i class="fas fa-id-card" style="color:' + licColor + '"></i></div>' +
+          '<div><p class="text-2xl font-bold" style="color:' + licColor + '">' + licExpiring.length + '</p><p class="text-[10px] font-bold text-gray-500 uppercase">Licenses Expiring (&lt;90d)</p></div>' +
+        '</div>';
+      if (licExpiring.length > 0) {
+        html += '<div class="mt-2 space-y-1">';
+        licExpiring.slice(0, 3).forEach(function (l) {
+          html += '<p class="text-xs" style="color:' + (l.days < 60 ? '#DC2626' : '#F59E0B') + '"><i class="fas fa-exclamation-circle mr-1"></i>' + E(l.name) + ' (' + l.days + 'd)</p>';
+        });
+        if (licExpiring.length > 3) html += '<p class="text-xs text-gray-400">+' + (licExpiring.length - 3) + ' more</p>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // CE alert card
+      var ceColor = ceIncompleteAgents.length > 0 ? '#F59E0B' : '#059669';
+      html += '<div class="card p-4 cursor-pointer hover:shadow-md transition-shadow" onclick="Panels._filterLicensingTab(\'ce\')" style="border-left:4px solid ' + ceColor + '">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:' + ceColor + '15"><i class="fas fa-graduation-cap" style="color:' + ceColor + '"></i></div>' +
+          '<div><p class="text-2xl font-bold" style="color:' + ceColor + '">' + ceIncompleteAgents.length + '</p><p class="text-[10px] font-bold text-gray-500 uppercase">CE Incomplete (&lt;22.5 hrs)</p></div>' +
+        '</div>';
+      if (ceIncompleteAgents.length > 0) {
+        html += '<div class="mt-2 space-y-1">';
+        ceIncompleteAgents.slice(0, 3).forEach(function (a) {
+          html += '<p class="text-xs text-amber-600"><i class="fas fa-clock mr-1"></i>' + E(a.name) + ' (' + a.hours + ' hrs)</p>';
+        });
+        if (ceIncompleteAgents.length > 3) html += '<p class="text-xs text-gray-400">+' + (ceIncompleteAgents.length - 3) + ' more</p>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // E&O alert card
+      var eoColor = eoIssueAgents.length > 0 ? '#DC2626' : '#059669';
+      html += '<div class="card p-4 cursor-pointer hover:shadow-md transition-shadow" onclick="Panels._filterLicensingTab(\'eo\')" style="border-left:4px solid ' + eoColor + '">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:' + eoColor + '15"><i class="fas fa-shield-alt" style="color:' + eoColor + '"></i></div>' +
+          '<div><p class="text-2xl font-bold" style="color:' + eoColor + '">' + eoIssueAgents.length + '</p><p class="text-[10px] font-bold text-gray-500 uppercase">E&O Expiring/Missing</p></div>' +
+        '</div>';
+      if (eoIssueAgents.length > 0) {
+        html += '<div class="mt-2 space-y-1">';
+        eoIssueAgents.slice(0, 3).forEach(function (a) {
+          html += '<p class="text-xs text-red-600"><i class="fas fa-' + (a.missing ? 'question-circle' : 'exclamation-circle') + ' mr-1"></i>' + E(a.name) + (a.missing ? ' (missing)' : ' (' + a.days + 'd)') + '</p>';
+        });
+        if (eoIssueAgents.length > 3) html += '<p class="text-xs text-gray-400">+' + (eoIssueAgents.length - 3) + ' more</p>';
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '</div>'; // end alert grid
+
+      // Tab buttons
+      html += '<div class="flex flex-wrap gap-2" id="licensingTabs">' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._filterLicensingTab(\'license\')"><i class="fas fa-id-card mr-1"></i> License</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._filterLicensingTab(\'ce\')"><i class="fas fa-graduation-cap mr-1"></i> CE</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._filterLicensingTab(\'eo\')"><i class="fas fa-shield-alt mr-1"></i> E&O</button>' +
+      '</div>';
+
+      // ── LICENSE TAB ──
+      html += '<div id="licensingTabContent_license">';
+      html += '<div class="card"><div class="card-header flex items-center justify-between flex-wrap gap-2">' +
+        '<h3><i class="fas fa-id-card text-gold mr-2"></i>License Renewal Status</h3>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._setRenewalAlerts()"><i class="fas fa-bell mr-1"></i> Set Renewal Alerts</button></div>' +
         '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
         '<th class="text-left px-3 py-2">Agent</th>' +
         '<th class="text-left px-3 py-2">License #</th>' +
-        '<th class="text-left px-3 py-2">Title</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-left px-3 py-2">Issue Date</th>' +
         '<th class="text-left px-3 py-2">Expiration</th>' +
         '<th class="text-right px-3 py-2">Days Left</th>' +
+        '<th class="text-center px-3 py-2">DOS Verified</th>' +
         '<th class="text-left px-3 py-2">Status</th>' +
         '<th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
       if (agents.length === 0) {
-        html += '<tr><td colspan="7" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
+        html += '<tr><td colspan="9" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
       } else {
         agents.forEach(function (a) {
           var exp = a.license_expiry || a.licenseExpiry;
@@ -4998,66 +5317,40 @@ var Panels = (function () {
           var statusColor, statusLabel;
           if (days === null) { statusColor = '#6b7280'; statusLabel = 'Unknown'; }
           else if (days <= 0) { statusColor = '#DC2626'; statusLabel = 'EXPIRED'; }
+          else if (days <= 60) { statusColor = '#DC2626'; statusLabel = 'Critical'; }
           else if (days <= 90) { statusColor = '#F59E0B'; statusLabel = 'Expiring Soon'; }
           else { statusColor = '#059669'; statusLabel = 'Current'; }
           var role = (a.role || 'AGENT').toUpperCase();
-          var title = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+          var licType = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+          var issueDate = a.license_issue_date || a.licenseIssueDate || '';
+          var dosVerified = a.dos_verified || a.dosVerified || false;
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
             '<td class="px-3 py-2 text-xs font-mono">' + E(a.license_no || a.licenseNumber || a.license_number || '-') + '</td>' +
-            '<td class="px-3 py-2 text-xs">' + E(title) + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(licType) + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + (issueDate ? D(issueDate) : '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (exp ? D(exp) : '-') + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold" style="color:' + statusColor + '">' + (days !== null ? days : '-') + '</td>' +
+            '<td class="px-3 py-2 text-center">' + (dosVerified ? '<i class="fas fa-check-circle text-green-500"></i>' : '<i class="fas fa-times-circle text-red-400"></i>') + '</td>' +
             '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + statusColor + ';text-transform:uppercase">' + statusLabel + '</span></td>' +
-            '<td class="px-3 py-2"><button class="btn btn-sm btn-outline" onclick="Panels._editAgent(\'' + E(a.id) + '\')"><i class="fas fa-edit"></i></button></td>' +
+            '<td class="px-3 py-2"><div class="flex gap-1">' +
+              '<a href="https://appext20.dos.ny.gov/nydos_licsearch/search_start" target="_blank" rel="noopener" class="btn btn-sm btn-outline" title="Verify on DOS"><i class="fas fa-search"></i></a>' +
+              '<button class="btn btn-sm btn-outline" onclick="Panels._editAgent(\'' + E(a.id) + '\')" title="Upload Renewal"><i class="fas fa-upload"></i></button>' +
+            '</div></td>' +
           '</tr>';
         });
       }
       html += '</tbody></table></div></div></div>';
+      html += '<div class="card"><div class="card-body"><div class="flex flex-wrap gap-3">' +
+        '<a href="https://appext20.dos.ny.gov/nydos_licsearch/search_start" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-search mr-1"></i> NY DOS License Lookup (eAccessNY)</a>' +
+        '<a href="https://www.dos.ny.gov/licensing/re_salesperson/re_salesperson.html" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-sync mr-1"></i> DOS Online Renewal</a>' +
+      '</div></div></div>';
+      html += '</div>'; // end license tab
 
-      // CE Tracker table
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-graduation-cap text-blue-500 mr-2"></i>Continuing Education Tracker</h3></div>' +
-        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
-        '<th class="text-left px-3 py-2">Agent</th>' +
-        '<th class="text-left px-3 py-2">Cycle Period</th>' +
-        '<th class="text-right px-3 py-2">Required</th>' +
-        '<th class="text-right px-3 py-2">Completed</th>' +
-        '<th class="text-right px-3 py-2">Remaining</th>' +
-        '<th class="text-left px-3 py-2" style="min-width:120px">Progress</th>' +
-        '<th class="text-left px-3 py-2">Due Date</th>' +
-        '<th class="text-left px-3 py-2">Status</th>' +
-      '</tr></thead><tbody>';
-      if (agents.length === 0) {
-        html += '<tr><td colspan="8" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
-      } else {
-        agents.forEach(function (a) {
-          var ceReq = a.ceHoursRequired || 22.5;
-          var ceDone = a.ceHoursCompleted || a.ce_hours || 0;
-          var ceRemaining = Math.max(0, ceReq - ceDone);
-          var pct = Math.min(100, Math.round((ceDone / ceReq) * 100));
-          var exp = a.license_expiry || a.licenseExpiry;
-          var ceCycle = a.ceCyclePeriod || a.ce_cycle || (exp ? (new Date(new Date(exp).getTime() - 2 * 365.25 * 24 * 3600 * 1000).getFullYear() + '-' + new Date(exp).getFullYear()) : '-');
-          var ceStatus, ceColor;
-          if (pct >= 100) { ceStatus = 'Complete'; ceColor = '#059669'; }
-          else if (pct >= 50) { ceStatus = 'In Progress'; ceColor = '#F59E0B'; }
-          else { ceStatus = 'Behind'; ceColor = '#DC2626'; }
-          var barColor = pct >= 100 ? '#059669' : pct >= 50 ? '#F59E0B' : '#DC2626';
+      // ── CE TAB ──
+      html += '<div id="licensingTabContent_ce" style="display:none">';
 
-          html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
-            '<td class="px-3 py-2 text-xs">' + E(ceCycle) + '</td>' +
-            '<td class="px-3 py-2 text-sm text-right">' + ceReq + '</td>' +
-            '<td class="px-3 py-2 text-sm text-right font-bold">' + ceDone + '</td>' +
-            '<td class="px-3 py-2 text-sm text-right" style="color:' + ceColor + '">' + ceRemaining + '</td>' +
-            '<td class="px-3 py-2"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:' + pct + '%;background:' + barColor + '"></div></div><span class="text-xs font-bold" style="color:' + barColor + '">' + pct + '%</span></div></td>' +
-            '<td class="px-3 py-2 text-xs">' + (exp ? D(exp) : '-') + '</td>' +
-            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + ceColor + ';text-transform:uppercase">' + ceStatus + '</span></td>' +
-          '</tr>';
-        });
-      }
-      html += '</tbody></table></div></div></div>';
-
-      // NY DOS Mandatory CE Requirements
+      // 6 Mandatory Course Cards
       html += '<div class="card"><div class="card-header"><h3><i class="fas fa-book-open text-indigo-500 mr-2"></i>NY DOS Mandatory CE Requirements</h3>' +
         '<p class="text-xs text-gray-500 mt-1">Required for every 2-year license renewal cycle (22.5 total hours)</p></div>' +
         '<div class="card-body"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">';
@@ -5070,16 +5363,83 @@ var Panels = (function () {
         { name: 'Cultural Competency', hours: '2 hours', icon: 'fa-users', color: '#0891B2' },
       ];
       mandatoryCourses.forEach(function (mc) {
+        // Find agents who completed this
+        var completedAgents = courses.filter(function (cr) { return (cr.category || '') === mc.name; });
+        var agentNames = completedAgents.map(function (cr) {
+          var agentMatch = agents.filter(function (a) { return a.id === (cr.agent_id || cr.agentId); })[0];
+          return agentMatch ? (agentMatch.full_name || agentMatch.name || agentMatch.email) : (cr.agent_name || 'Agent');
+        });
         html += '<div class="p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all">' +
-          '<div class="flex items-center gap-2 mb-1">' +
+          '<div class="flex items-center gap-2 mb-2">' +
             '<div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:' + mc.color + '15"><i class="fas ' + mc.icon + '" style="color:' + mc.color + ';font-size:12px"></i></div>' +
             '<div><p class="text-sm font-semibold">' + mc.name + '</p>' +
             '<p class="text-xs text-gray-500">' + mc.hours + '</p></div>' +
-          '</div></div>';
+          '</div>';
+        if (agentNames.length > 0) {
+          html += '<div class="space-y-0.5">';
+          agentNames.forEach(function (n) {
+            html += '<p class="text-xs text-green-600"><i class="fas fa-check mr-1"></i>' + E(n) + '</p>';
+          });
+          html += '</div>';
+        } else {
+          html += '<p class="text-xs text-gray-400 italic">No completions recorded</p>';
+        }
+        html += '</div>';
       });
       html += '</div>' +
         '<p class="text-xs text-gray-500 mt-3 italic"><i class="fas fa-info-circle mr-1"></i>Remaining 11 hours are elective courses</p>' +
       '</div></div>';
+
+      // CE Tracker table
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-graduation-cap text-blue-500 mr-2"></i>CE Tracker</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Agent</th>' +
+        '<th class="text-left px-3 py-2">Cycle Period</th>' +
+        '<th class="text-right px-3 py-2">Required</th>' +
+        '<th class="text-right px-3 py-2">Completed</th>' +
+        '<th class="text-right px-3 py-2">Remaining</th>' +
+        '<th class="text-left px-3 py-2" style="min-width:120px">Progress</th>' +
+        '<th class="text-center px-3 py-2">Mandatory Done</th>' +
+        '<th class="text-left px-3 py-2">Due Date</th>' +
+        '<th class="text-left px-3 py-2">Status</th>' +
+      '</tr></thead><tbody>';
+      if (agents.length === 0) {
+        html += '<tr><td colspan="9" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
+      } else {
+        agents.forEach(function (a) {
+          var ceReq = a.ceHoursRequired || 22.5;
+          var ceDone = a.ceHoursCompleted || a.ce_hours || 0;
+          var ceRemaining = Math.max(0, ceReq - ceDone);
+          var pct = Math.min(100, Math.round((ceDone / ceReq) * 100));
+          var exp = a.license_expiry || a.licenseExpiry;
+          var ceCycle = a.ceCyclePeriod || a.ce_cycle || (exp ? (new Date(new Date(exp).getTime() - 2 * 365.25 * 24 * 3600 * 1000).getFullYear() + '-' + new Date(exp).getFullYear()) : '-');
+          var ceStatus, ceStatusColor;
+          if (pct >= 100) { ceStatus = 'Complete'; ceStatusColor = '#059669'; }
+          else if (pct >= 50) { ceStatus = 'In Progress'; ceStatusColor = '#F59E0B'; }
+          else { ceStatus = 'Behind'; ceStatusColor = '#DC2626'; }
+          var barColor = pct >= 100 ? '#059669' : pct >= 50 ? '#F59E0B' : '#DC2626';
+          // Check mandatory completions for this agent
+          var agentCourses = courses.filter(function (cr) { return (cr.agent_id || cr.agentId) === a.id; });
+          var mandatoryDone = 0;
+          _ceMandatoryCategories.forEach(function (cat) {
+            if (agentCourses.some(function (cr) { return cr.category === cat; })) mandatoryDone++;
+          });
+          var mandatoryTotal = _ceMandatoryCategories.length;
+
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(ceCycle) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + ceReq + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right font-bold">' + ceDone + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right" style="color:' + ceStatusColor + '">' + ceRemaining + '</td>' +
+            '<td class="px-3 py-2"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:' + pct + '%;background:' + barColor + '"></div></div><span class="text-xs font-bold" style="color:' + barColor + '">' + pct + '%</span></div></td>' +
+            '<td class="px-3 py-2 text-center text-xs font-bold" style="color:' + (mandatoryDone === mandatoryTotal ? '#059669' : '#F59E0B') + '">' + mandatoryDone + '/' + mandatoryTotal + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + (exp ? D(exp) : '-') + '</td>' +
+            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + ceStatusColor + ';text-transform:uppercase">' + ceStatus + '</span></td>' +
+          '</tr>';
+        });
+      }
+      html += '</tbody></table></div></div></div>';
 
       // CE Course History
       html += '<div class="card"><div class="card-header flex items-center justify-between flex-wrap gap-2">' +
@@ -5093,66 +5453,225 @@ var Panels = (function () {
           '<button class="btn btn-sm btn-outline" onclick="Panels._filterCECourses(\'verified\')">Verified</button>' +
           '<button class="btn btn-sm btn-outline" onclick="Panels._filterCECourses(\'pending\')">Pending</button>' +
         '</div>' +
-        '<div id="ceCoursesTable">' + UI.loading() + '</div>' +
+        '<div id="ceCoursesTable"></div>' +
       '</div></div>';
 
-      // Store agents ref for CE modal
-      window._ceAgents = agents;
+      // DOS link
+      html += '<div class="card"><div class="card-body"><a href="https://www.dos.ny.gov/licensing/ce.html" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-external-link-alt mr-1"></i> NY DOS CE Requirements</a></div></div>';
 
-      // Load CE courses
-      MallanAPI._fetch('/api/crm/ce-courses?limit=500').then(function (data) {
-        window._ceCourses = data.courses || [];
-        _renderCECoursesTable(window._ceCourses);
-      }).catch(function () {
-        window._ceCourses = [];
-        _renderCECoursesTable([]);
-      });
+      html += '</div>'; // end ce tab
 
-      // E&O Insurance section
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-shield-alt text-purple-500 mr-2"></i>E&O Insurance</h3></div>' +
+      // ── E&O TAB ──
+      html += '<div id="licensingTabContent_eo" style="display:none">';
+
+      // Policy Overview table
+      html += '<div class="card"><div class="card-header flex items-center justify-between flex-wrap gap-2">' +
+        '<h3><i class="fas fa-shield-alt text-purple-500 mr-2"></i>E&O Insurance Policies</h3>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._addEOPolicy()"><i class="fas fa-plus mr-1"></i> Add Policy</button></div>' +
         '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
         '<th class="text-left px-3 py-2">Agent</th>' +
         '<th class="text-left px-3 py-2">Carrier</th>' +
         '<th class="text-left px-3 py-2">Policy #</th>' +
         '<th class="text-left px-3 py-2">Coverage</th>' +
+        '<th class="text-left px-3 py-2">Deductible</th>' +
+        '<th class="text-left px-3 py-2">Effective</th>' +
         '<th class="text-left px-3 py-2">Expiration</th>' +
+        '<th class="text-left px-3 py-2">Premium</th>' +
         '<th class="text-left px-3 py-2">Status</th>' +
       '</tr></thead><tbody>';
       if (agents.length === 0) {
-        html += '<tr><td colspan="6" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
+        html += '<tr><td colspan="9" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
       } else {
         agents.forEach(function (a) {
           var eoExp = a.eoExpiry || a.eo_expiry;
           var eoDays = eoExp ? Utils.daysUntil(eoExp) : null;
-          var eoStatus, eoColor;
-          if (eoDays === null) { eoStatus = 'Unknown'; eoColor = '#6b7280'; }
-          else if (eoDays <= 0) { eoStatus = 'EXPIRED'; eoColor = '#DC2626'; }
-          else if (eoDays <= 90) { eoStatus = 'Expiring Soon'; eoColor = '#F59E0B'; }
-          else { eoStatus = 'Current'; eoColor = '#059669'; }
+          var eoStatus, eoStatusColor;
+          if (eoDays === null) { eoStatus = 'Unknown'; eoStatusColor = '#6b7280'; }
+          else if (eoDays <= 0) { eoStatus = 'EXPIRED'; eoStatusColor = '#DC2626'; }
+          else if (eoDays <= 90) { eoStatus = 'Expiring Soon'; eoStatusColor = '#F59E0B'; }
+          else { eoStatus = 'Current'; eoStatusColor = '#059669'; }
+          var eoEff = a.eoEffective || a.eo_effective || '';
+          var deductible = a.eoDeductible || a.eo_deductible || '';
+          var premium = a.eoPremium || a.eo_premium || '';
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.eoCarrier || a.eo_carrier || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs font-mono">' + E(a.eoPolicyNumber || a.eo_policy_number || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.eoCoverage || a.eo_coverage || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(deductible || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + (eoEff ? D(eoEff) : '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (eoExp ? D(eoExp) : '-') + '</td>' +
-            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + eoColor + ';text-transform:uppercase">' + eoStatus + '</span></td>' +
+            '<td class="px-3 py-2 text-xs">' + E(premium || '-') + '</td>' +
+            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + eoStatusColor + ';text-transform:uppercase">' + eoStatus + '</span></td>' +
           '</tr>';
         });
       }
       html += '</tbody></table></div></div></div>';
 
-      // External links
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-external-link-alt text-gray-400 mr-2"></i>Quick Links</h3></div>' +
-        '<div class="card-body"><div class="flex flex-wrap gap-3">' +
-          '<a href="https://appext20.dos.ny.gov/nydos_licsearch/search_start" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-search mr-1"></i> NY DOS License Lookup</a>' +
-          '<a href="https://www.dos.ny.gov/licensing/re_salesperson/re_salesperson.html" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-sync mr-1"></i> DOS Online Renewal</a>' +
-          '<a href="https://www.rebny.com/member-portal" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-building mr-1"></i> REBNY Member Portal</a>' +
-        '</div></div></div>';
+      // REBNY Membership section
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-building text-gold mr-2"></i>REBNY Membership</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Agent</th>' +
+        '<th class="text-left px-3 py-2">Member ID</th>' +
+        '<th class="text-left px-3 py-2">Membership Type</th>' +
+        '<th class="text-left px-3 py-2">Dues</th>' +
+        '<th class="text-left px-3 py-2">Last Payment</th>' +
+        '<th class="text-left px-3 py-2">Renewal Due</th>' +
+        '<th class="text-left px-3 py-2">Status</th>' +
+      '</tr></thead><tbody>';
+      if (agents.length === 0) {
+        html += '<tr><td colspan="7" class="text-center py-6 text-sm text-gray-400">No agents in roster</td></tr>';
+      } else {
+        agents.forEach(function (a) {
+          var rebnyExp = a.rebnyExpiry || a.rebny_expiry;
+          var rebnyDays = rebnyExp ? Utils.daysUntil(rebnyExp) : null;
+          var rStatus, rColor;
+          if (rebnyDays === null) { rStatus = 'Unknown'; rColor = '#6b7280'; }
+          else if (rebnyDays <= 0) { rStatus = 'LAPSED'; rColor = '#DC2626'; }
+          else if (rebnyDays <= 90) { rStatus = 'Due Soon'; rColor = '#F59E0B'; }
+          else { rStatus = 'Active'; rColor = '#059669'; }
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + E(a.rebnyMemberId || a.rebny_member_id || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(a.rebnyMembershipType || a.rebny_membership_type || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(a.rebnyDues || a.rebny_dues || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + (a.rebnyLastPayment || a.rebny_last_payment ? D(a.rebnyLastPayment || a.rebny_last_payment) : '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + (rebnyExp ? D(rebnyExp) : '-') + '</td>' +
+            '<td class="px-3 py-2"><span style="font-size:10px;font-weight:700;color:' + rColor + ';text-transform:uppercase">' + rStatus + '</span></td>' +
+          '</tr>';
+        });
+      }
+      html += '</tbody></table></div></div></div>';
 
-      html += '</div>';
+      // Quick Links
+      html += '<div class="card"><div class="card-body"><div class="flex flex-wrap gap-3">' +
+        '<a href="https://www.rebny.com/member-portal" target="_blank" rel="noopener" class="btn btn-sm btn-outline"><i class="fas fa-building mr-1"></i> REBNY Member Portal</a>' +
+      '</div></div></div>';
+
+      html += '</div>'; // end eo tab
+
+      html += '</div>'; // end space-y-4
       c.innerHTML = html;
+
+      // Render CE courses table
+      _renderCECoursesTable(courses);
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-id-card', 'Unable to load agent data');
+    });
+  }
+
+  function _filterLicensingTab(tab) {
+    window._licensingTab = tab;
+    var allTabs = ['license', 'ce', 'eo'];
+    allTabs.forEach(function (t) {
+      var el = document.getElementById('licensingTabContent_' + t);
+      if (el) el.style.display = t === tab ? '' : 'none';
+    });
+    var tabBar = document.getElementById('licensingTabs');
+    if (tabBar) {
+      var btns = tabBar.querySelectorAll('button');
+      btns.forEach(function (b) { b.className = 'btn btn-sm btn-outline'; });
+      var idx = { license: 0, ce: 1, eo: 2 }[tab];
+      if (idx !== undefined && btns[idx]) btns[idx].className = 'btn btn-sm btn-gold';
+    }
+  }
+
+  function _addEOPolicy() {
+    var agents = window._ceAgents || [];
+    var agentOpts = '<option value="">Select Agent</option>';
+    agents.forEach(function (a) {
+      agentOpts += '<option value="' + E(a.id) + '">' + E(a.full_name || a.name || a.email) + '</option>';
+    });
+
+    CRM.openModal('Add E&O Policy',
+      '<form id="eoPolicyForm" class="space-y-4">' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Agent</label><select class="form-input form-select" name="agent_id" required>' + agentOpts + '</select></div>' +
+          '<div class="form-group"><label class="form-label">Carrier</label><input class="form-input" name="eo_carrier" required></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Policy #</label><input class="form-input" name="eo_policy_number" required></div>' +
+          '<div class="form-group"><label class="form-label">Coverage (per claim / aggregate)</label><input class="form-input" name="eo_coverage" placeholder="e.g. $1M / $3M"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Deductible</label><input class="form-input" name="eo_deductible" placeholder="e.g. $5,000"></div>' +
+          '<div class="form-group"><label class="form-label">Annual Premium</label><input class="form-input" name="eo_premium" placeholder="e.g. $2,500"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Effective Date</label><input class="form-input" type="date" name="eo_effective" required></div>' +
+          '<div class="form-group"><label class="form-label">Expiration Date</label><input class="form-input" type="date" name="eo_expiry" required></div>' +
+        '</div>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitEOPolicy()"><i class="fas fa-save mr-1"></i> Save</button>',
+      }
+    );
+  }
+
+  function _submitEOPolicy() {
+    var form = document.getElementById('eoPolicyForm');
+    if (!form) return;
+    var data = {};
+    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    if (!data.agent_id || !data.eo_carrier || !data.eo_policy_number) {
+      CRM.toast('Agent, Carrier, and Policy # are required', 'error');
+      return;
+    }
+    var agentId = data.agent_id;
+    delete data.agent_id;
+
+    MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(agentId), {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }).then(function () {
+      CRM.closeModal();
+      CRM.toast('E&O policy saved', 'success');
+      licensingTracker(); // reload
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to save policy'), 'error');
+    });
+  }
+
+  function _setRenewalAlerts() {
+    CRM.openModal('Set Renewal Alerts',
+      '<div class="space-y-4">' +
+        '<p class="text-sm text-gray-600">Configure when you want to be notified about upcoming license renewals.</p>' +
+        '<div class="space-y-3">' +
+          '<label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="renewalAlert90" checked class="rounded border-gray-300"><span class="text-sm">90 days before expiration</span></label>' +
+          '<label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="renewalAlert60" checked class="rounded border-gray-300"><span class="text-sm">60 days before expiration</span></label>' +
+          '<label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="renewalAlert30" checked class="rounded border-gray-300"><span class="text-sm">30 days before expiration</span></label>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Notification Method</label>' +
+          '<select class="form-input form-select" id="renewalAlertMethod">' +
+            '<option value="email">Email</option>' +
+            '<option value="in-app">In-App Notification</option>' +
+            '<option value="both" selected>Both</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._saveRenewalAlerts()"><i class="fas fa-save mr-1"></i> Save</button>',
+      }
+    );
+  }
+
+  function _saveRenewalAlerts() {
+    var intervals = [];
+    if ((document.getElementById('renewalAlert90') || {}).checked) intervals.push(90);
+    if ((document.getElementById('renewalAlert60') || {}).checked) intervals.push(60);
+    if ((document.getElementById('renewalAlert30') || {}).checked) intervals.push(30);
+    var method = (document.getElementById('renewalAlertMethod') || {}).value || 'both';
+
+    MallanAPI._fetch('/api/crm/settings/renewal-alerts', {
+      method: 'PUT',
+      body: JSON.stringify({ intervals: intervals, method: method }),
+    }).then(function () {
+      CRM.closeModal();
+      CRM.toast('Renewal alerts configured', 'success');
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to save alerts'), 'error');
     });
   }
 
@@ -5214,27 +5733,25 @@ var Panels = (function () {
   }
 
   function _filterCECourses(filter) {
-    // Update tab styles
     var tabs = document.getElementById('ceFilterTabs');
     if (tabs) {
       var btns = tabs.querySelectorAll('button');
       btns.forEach(function (b) { b.className = 'btn btn-sm btn-outline'; });
-      // Highlight selected
       var idx = { all: 0, mandatory: 1, elective: 2, verified: 3, pending: 4 }[filter] || 0;
       if (btns[idx]) btns[idx].className = 'btn btn-sm btn-gold';
     }
 
-    var courses = window._ceCourses || [];
+    var filteredCourses = window._ceCourses || [];
     if (filter === 'mandatory') {
-      courses = courses.filter(function (cr) { return _ceMandatoryCategories.indexOf(cr.category || '') !== -1; });
+      filteredCourses = filteredCourses.filter(function (cr) { return _ceMandatoryCategories.indexOf(cr.category || '') !== -1; });
     } else if (filter === 'elective') {
-      courses = courses.filter(function (cr) { return _ceMandatoryCategories.indexOf(cr.category || '') === -1; });
+      filteredCourses = filteredCourses.filter(function (cr) { return _ceMandatoryCategories.indexOf(cr.category || '') === -1; });
     } else if (filter === 'verified') {
-      courses = courses.filter(function (cr) { return cr.status === 'verified'; });
+      filteredCourses = filteredCourses.filter(function (cr) { return cr.status === 'verified'; });
     } else if (filter === 'pending') {
-      courses = courses.filter(function (cr) { return cr.status !== 'verified'; });
+      filteredCourses = filteredCourses.filter(function (cr) { return cr.status !== 'verified'; });
     }
-    _renderCECoursesTable(courses);
+    _renderCECoursesTable(filteredCourses);
   }
 
   function _addCECourse(prefill) {
@@ -5289,7 +5806,7 @@ var Panels = (function () {
     if (!form) return;
     var data = {};
     new FormData(form).forEach(function (v, k) {
-      if (k === 'certificate') return; // file handled separately
+      if (k === 'certificate') return;
       if (v) data[k] = v;
     });
     if (!data.agent_id || !data.course_name) {
@@ -5306,7 +5823,6 @@ var Panels = (function () {
     MallanAPI._fetch(url, { method: method, body: JSON.stringify(data) }).then(function () {
       CRM.closeModal();
       CRM.toast(courseId ? 'Course updated' : 'Course added', 'success');
-      // Reload courses
       MallanAPI._fetch('/api/crm/ce-courses?limit=500').then(function (d) {
         window._ceCourses = d.courses || [];
         _renderCECoursesTable(window._ceCourses);
@@ -6121,10 +6637,16 @@ var Panels = (function () {
     _toggleAuditDetail: _toggleAuditDetail,
     _filterAuditLog: _filterAuditLog,
     _exportAuditCSV: _exportAuditCSV,
+    _switchAuditView: _switchAuditView,
     _addCECourse: _addCECourse,
     _editCECourse: _editCECourse,
     _submitCECourse: _submitCECourse,
     _deleteCECourse: _deleteCECourse,
     _filterCECourses: _filterCECourses,
+    _filterLicensingTab: _filterLicensingTab,
+    _addEOPolicy: _addEOPolicy,
+    _submitEOPolicy: _submitEOPolicy,
+    _setRenewalAlerts: _setRenewalAlerts,
+    _saveRenewalAlerts: _saveRenewalAlerts,
   };
 })();
