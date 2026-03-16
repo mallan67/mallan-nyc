@@ -668,31 +668,27 @@ var Workspace = (function () {
     html += '</div>';
     el.innerHTML = html;
 
-    // ── Load Sent Listings ──
-    var sentEvents = Events.getByEntity('client', _clientId).filter(function (e) { return e.type === 'listing_sent'; });
+    // ── Load Sent Listings (API-first, fallback to Events) ──
     var sentEl = document.getElementById('wsClientSent');
     if (sentEl) {
-      if (sentEvents.length === 0) {
-        sentEl.innerHTML = '<p class="text-sm text-gray-500">No listings sent yet</p>';
-      } else {
-        var listingIds = sentEvents.map(function (e) { return e.payload && (e.payload.listingId || e.payload.listing_id); }).filter(Boolean);
-        var uniqueIds = listingIds.filter(function (v, i, a) { return a.indexOf(v) === i; });
-        if (uniqueIds.length === 0) {
-          sentEl.innerHTML = UI.timeline(sentEvents.map(function (e) {
-            return { title: 'Listing sent', description: '', time: Utils.formatTimeAgo(e.createdAt), dotClass: 'info' };
-          }));
+      sentEl.innerHTML = UI.loading();
+      _loadEngagementData(_clientId).then(function (eng) {
+        var sends = eng.records.filter(function (r) { return r.type === 'listing_sent' || r.type === 'quick_send_executed'; });
+        var reactions = eng.records.filter(function (r) { return r.type === 'listing_reaction_recorded'; });
+
+        // Build reaction map
+        var reactionMap = {};
+        reactions.forEach(function (r) { if (r.listingId) reactionMap[r.listingId] = r.reaction; });
+
+        if (sends.length === 0) {
+          sentEl.innerHTML = '<p class="text-sm text-gray-500">No listings sent yet</p>';
         } else {
+          // Get unique listing IDs
+          var uniqueIds = sends.map(function (s) { return s.listingId; }).filter(Boolean);
+          uniqueIds = uniqueIds.filter(function (v, i, a) { return a.indexOf(v) === i; });
+
           var sentDateMap = {};
-          sentEvents.forEach(function (e) {
-            var lid = e.payload && (e.payload.listingId || e.payload.listing_id);
-            if (lid) sentDateMap[lid] = e.createdAt;
-          });
-          var reactionEvents = Events.getByEntity('client', _clientId).filter(function (e) { return e.type === 'listing_reaction_recorded'; });
-          var reactionMap = {};
-          reactionEvents.forEach(function (e) {
-            var lid = e.payload && (e.payload.listingId || e.payload.listing_id);
-            if (lid) reactionMap[lid] = e.payload.reaction || e.payload.type;
-          });
+          sends.forEach(function (s) { if (s.listingId) sentDateMap[s.listingId] = s.createdAt; });
 
           Promise.all(uniqueIds.slice(0, 20).map(function (id) {
             return MallanAPI.listings.get(id).then(function (d) { return d.listing || d; }).catch(function () { return null; });
@@ -703,16 +699,18 @@ var Workspace = (function () {
               return;
             }
             var html = '<div class="space-y-2">';
+            html += '<div class="flex items-center gap-3 mb-2 text-xs text-gray-500"><span>Engagement rate: <strong>' + (eng.summary.engagementRate || 0) + '%</strong></span>' +
+              '<span>Sends: ' + eng.summary.totalSends + '</span><span>Reactions: ' + eng.summary.totalReactions + '</span></div>';
             validListings.forEach(function (l) {
               var lid = l.id || l.listing_id || l.listingId;
               var reaction = reactionMap[lid];
               var reactionBadge = reaction ? '<span class="text-xs px-2 py-0.5 rounded-full ' +
-                (reaction === 'liked' ? 'bg-green-100 text-green-700' : reaction === 'disliked' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700') +
-                '">' + E(reaction) + '</span>' : '';
+                (reaction === 'liked' || reaction === 'like' ? 'bg-green-100 text-green-700' : reaction === 'disliked' || reaction === 'dislike' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700') +
+                '">' + E(reaction) + '</span>' : '<span class="text-xs text-gray-400">No response</span>';
               html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gold-bg transition-all cursor-pointer" ' +
                 'onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' +
                 '<div class="flex-1 min-w-0">' +
-                  '<p class="text-sm font-medium truncate">' + E(l.address || l.UnparsedAddress || l.street_address || 'Listing') + '</p>' +
+                  '<p class="text-sm font-medium truncate">' + E(l.address || l.UnparsedAddress || 'Listing') + '</p>' +
                   '<p class="text-xs text-gray-500">Sent ' + (sentDateMap[lid] ? Utils.formatTimeAgo(sentDateMap[lid]) : '') + '</p>' +
                 '</div>' +
                 reactionBadge +
@@ -724,60 +722,18 @@ var Workspace = (function () {
             sentEl.innerHTML = '<p class="text-sm text-gray-500">Could not load sent listings</p>';
           });
         }
-      }
-    }
 
-    // ── Load Reactions — visual sentiment cards with discussion threads ──
-    var reactionEl = document.getElementById('wsClientReactions');
-    if (reactionEl) {
-      var reactions = Events.getByEntity('client', _clientId).filter(function (e) { return e.type === 'listing_reaction_recorded'; });
-      if (reactions.length === 0) {
-        reactionEl.innerHTML = '<p class="text-sm text-gray-500">No reactions yet</p>';
-      } else {
-        var allClientEvents = Events.getByEntity('client', _clientId);
-        var rHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">';
-        reactions.forEach(function (e) {
-          var reaction = e.payload && (e.payload.reaction || e.payload.type) || 'unknown';
-          var addr = e.payload && (e.payload.address || e.payload.listingId || e.payload.listing_id) || '';
-          var lid = e.payload && (e.payload.listingId || e.payload.listing_id) || '';
-          var sentimentConfig = {
-            liked:    { icon: 'fa-thumbs-up',   bg: 'bg-green-50 border-green-200', iconColor: 'text-green-500', label: 'Liked' },
-            disliked: { icon: 'fa-thumbs-down',  bg: 'bg-red-50 border-red-200',     iconColor: 'text-red-500',   label: 'Disliked' },
-            discuss:  { icon: 'fa-comment-dots', bg: 'bg-blue-50 border-blue-200',   iconColor: 'text-blue-500',  label: 'Discuss' },
-          };
-          var cfg = sentimentConfig[reaction] || { icon: 'fa-circle', bg: 'bg-gray-50 border-gray-200', iconColor: 'text-gray-400', label: reaction };
-
-          rHtml += '<div class="p-3 rounded-lg border ' + cfg.bg + '">' +
-            '<div class="flex items-center gap-3 mb-2">' +
-              '<i class="fas ' + cfg.icon + ' text-2xl ' + cfg.iconColor + '"></i>' +
-              '<div class="flex-1 min-w-0">' +
-                '<p class="text-sm font-bold">' + E(cfg.label) + '</p>' +
-                '<p class="text-xs text-gray-600 truncate">' + E(addr) + '</p>' +
-              '</div>' +
-            '</div>' +
-            '<p class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</p>';
-
-          // Discussion thread for "discuss" reactions
-          if (reaction === 'discuss' && lid) {
-            var followUps = allClientEvents.filter(function (fe) {
-              return fe.type === 'note_added' && fe.payload &&
-                (fe.payload.listingId === lid || fe.payload.listing_id === lid);
-            });
-            if (followUps.length > 0) {
-              rHtml += '<div class="mt-2 pt-2 border-t border-blue-200 space-y-1">';
-              followUps.slice(0, 3).forEach(function (fu) {
-                rHtml += '<div class="text-xs text-gray-600"><i class="fas fa-reply text-blue-300 mr-1"></i>' +
-                  E((fu.payload && fu.payload.content) || '') +
-                  '<span class="text-gray-400 ml-1">' + Utils.formatTimeAgo(fu.createdAt) + '</span></div>';
-              });
-              rHtml += '</div>';
-            }
+        // Also render reactions in the reactions section
+        var reactionEl = document.getElementById('wsClientReactions');
+        if (reactionEl) {
+          if (reactions.length === 0) {
+            reactionEl.innerHTML = '<p class="text-sm text-gray-500">No reactions yet</p>';
+          } else {
+            _renderReactionCards(reactionEl, reactions);
           }
-          rHtml += '</div>';
-        });
-        rHtml += '</div>';
-        reactionEl.innerHTML = rHtml;
-      }
+        }
+      });
+
     }
 
     // ── Find & Send — auto-load smart matches, search refines ──
@@ -843,6 +799,75 @@ var Workspace = (function () {
     });
   }
 
+  // ─── Engagement data loader (API-first, Events fallback) ────────────
+  function _loadEngagementData(clientId) {
+    return MallanAPI._fetch('/api/crm/listing-engagement?client_id=' + encodeURIComponent(clientId))
+      .then(function (data) {
+        return data; // { records: [...], summary: {...} }
+      })
+      .catch(function () {
+        // Fallback: build from Events
+        var sentEvents = Events.getByEntity('client', clientId).filter(function (e) { return e.type === 'listing_sent' || e.type === 'quick_send_executed'; });
+        var reactionEvents = Events.getByEntity('client', clientId).filter(function (e) { return e.type === 'listing_reaction_recorded'; });
+        var records = [];
+        sentEvents.forEach(function (e) {
+          records.push({
+            id: e.id, type: e.type,
+            listingId: e.payload && (e.payload.listingId || e.payload.listing_id) || null,
+            clientId: clientId, reaction: null,
+            sentVia: e.payload && (e.payload.sentVia || e.payload.method) || 'manual',
+            createdAt: e.createdAt, metadata: e.payload || {},
+          });
+        });
+        reactionEvents.forEach(function (e) {
+          records.push({
+            id: e.id, type: e.type,
+            listingId: e.payload && (e.payload.listingId || e.payload.listing_id) || null,
+            clientId: clientId, reaction: e.payload && (e.payload.reaction || e.payload.type) || null,
+            sentVia: null, createdAt: e.createdAt, metadata: e.payload || {},
+          });
+        });
+        return {
+          records: records,
+          summary: {
+            totalSends: sentEvents.length,
+            totalReactions: reactionEvents.length,
+            liked: reactionEvents.filter(function (e) { var r = e.payload && e.payload.reaction; return r === 'liked' || r === 'like'; }).length,
+            disliked: reactionEvents.filter(function (e) { var r = e.payload && e.payload.reaction; return r === 'disliked' || r === 'dislike'; }).length,
+            discussed: reactionEvents.filter(function (e) { var r = e.payload && e.payload.reaction; return r === 'discuss'; }).length,
+            showings: 0,
+            engagementRate: sentEvents.length > 0 ? Math.round((reactionEvents.length / sentEvents.length) * 100) : 0,
+          },
+        };
+      });
+  }
+
+  function _renderReactionCards(container, reactions) {
+    var sentimentConfig = {
+      liked:    { icon: 'fa-thumbs-up',   bg: 'bg-green-50 border-green-200', iconColor: 'text-green-500', label: 'Liked' },
+      like:     { icon: 'fa-thumbs-up',   bg: 'bg-green-50 border-green-200', iconColor: 'text-green-500', label: 'Liked' },
+      disliked: { icon: 'fa-thumbs-down',  bg: 'bg-red-50 border-red-200',     iconColor: 'text-red-500',   label: 'Disliked' },
+      dislike:  { icon: 'fa-thumbs-down',  bg: 'bg-red-50 border-red-200',     iconColor: 'text-red-500',   label: 'Disliked' },
+      discuss:  { icon: 'fa-comment-dots', bg: 'bg-blue-50 border-blue-200',   iconColor: 'text-blue-500',  label: 'Discuss' },
+    };
+    var html = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">';
+    reactions.forEach(function (r) {
+      var reaction = r.reaction || 'unknown';
+      var cfg = sentimentConfig[reaction] || { icon: 'fa-circle', bg: 'bg-gray-50 border-gray-200', iconColor: 'text-gray-400', label: reaction };
+      var lid = r.listingId || '';
+      html += '<div class="p-3 rounded-lg border ' + cfg.bg + ' cursor-pointer" onclick="' + (lid ? "Router.navigate('/workspace/listing/" + E(lid) + "/overview')" : '') + '">' +
+        '<div class="flex items-center gap-2 mb-1">' +
+          '<i class="fas ' + cfg.icon + ' text-lg ' + cfg.iconColor + '"></i>' +
+          '<span class="text-xs font-bold">' + E(cfg.label) + '</span>' +
+        '</div>' +
+        '<p class="text-xs text-gray-600 truncate">' + E(r.metadata && r.metadata.address || lid || 'Listing') + '</p>' +
+        '<p class="text-[10px] text-gray-400">' + Utils.formatTimeAgo(r.createdAt) + '</p>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
   function _searchAndSend() {
     var input = document.getElementById('wsListingSearch');
     var resultsEl = document.getElementById('wsFindAndSendResults');
@@ -879,10 +904,23 @@ var Workspace = (function () {
         clientIds: [_clientId],
         sentAt: new Date().toISOString()
       })
+    }).catch(function () { /* graceful */ });
+
+    // Create canonical engagement record (survives event pruning)
+    MallanAPI._fetch('/api/crm/listing-engagement', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'listing_sent',
+        listing_id: listingId,
+        client_id: _clientId,
+        sent_via: 'workspace',
+        metadata: { address: address }
+      })
     }).then(function () {
       CRM.toast('Send recorded — listing sent to ' + (_client.name || 'client'), 'success');
+      // Invalidate engagement cache
+      delete _scenariosCache[_clientId]; // not the right cache but harmless
     }).catch(function () {
-      // Graceful degradation — event already logged
       CRM.toast('Listing sent to ' + (_client.name || 'client'), 'success');
     });
   }
