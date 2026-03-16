@@ -8280,28 +8280,170 @@ var Panels = (function () {
   function personalRevenue() {
     CRM.setPanelTitle('Revenue');
     var c = _container(); c.innerHTML = UI.loading();
+    var isBroker = Permissions.isBroker();
 
-    MallanAPI.deals.list({ limit: 100 }).then(function (data) {
-      var deals = data.deals || [];
-      var closed = deals.filter(function (d) { return d.stage === 'closed' || d.status === 'closed'; });
-      var totalSplit = closed.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
-
-      // YTD/MTD
+    Promise.all([
+      MallanAPI.deals.list({ limit: 500 }).catch(function () { return { deals: [] }; }),
+      isBroker ? MallanAPI.agents.list().catch(function () { return { agents: [] }; }) : Promise.resolve({ agents: [] }),
+    ]).then(function (r) {
+      var deals = r[0].deals || [];
+      var agents = r[1].agents || [];
+      var agentMap = {};
+      agents.forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
       var now = new Date();
-      var ytd = closed.filter(function (d) { return new Date(d.closeDate || d.close_date || d.created_at).getFullYear() === now.getFullYear(); });
-      var ytdAmount = ytd.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
-      var mtd = ytd.filter(function (d) { return new Date(d.closeDate || d.close_date || d.created_at).getMonth() === now.getMonth(); });
-      var mtdAmount = mtd.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
+      var thisYear = now.getFullYear();
+      var thisMonth = now.getMonth();
 
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Personal Revenue', '') +
-        UI.statGrid([
-          UI.statCard($(ytdAmount), 'YTD Revenue', 'fa-chart-line', '#B8860B'),
-          UI.statCard($(mtdAmount), 'MTD Revenue', 'fa-calendar', '#059669'),
-          UI.statCard(ytd.length, 'YTD Deals', 'fa-handshake', '#2563EB'),
-          UI.statCard($(totalSplit), 'Lifetime Earnings', 'fa-dollar-sign', '#374151'),
-        ]) +
+      // Enrich
+      deals.forEach(function (d) {
+        d._gross = d.grossCommission || d.commission || 0;
+        d._split = d.splitAmount || d.split_amount || 0;
+        d._brokerage = d._gross - d._split;
+        d._isClosed = (d.stage || d.status || '').toLowerCase() === 'closed';
+        d._closeDate = new Date(d.closeDate || d.close_date || d.created_at);
+        d._type = (d.dealType || d.deal_type || 'sale').toLowerCase();
+        d._isSale = d._type === 'sale';
+        d._isRental = d._type === 'rental';
+        d._payout = (d.payoutStatus || d.payout_status || 'pending').toLowerCase();
+        d._agentName = agentMap[d.assignedAgentId || d.assigned_agent_id] || d.agent_name || '-';
+      });
+
+      var closed = deals.filter(function (d) { return d._isClosed; });
+      var ytd = closed.filter(function (d) { return d._closeDate.getFullYear() === thisYear; });
+      var mtd = ytd.filter(function (d) { return d._closeDate.getMonth() === thisMonth; });
+      var pending = deals.filter(function (d) { return d._payout === 'pending' || d._payout === 'submitted'; });
+      var paid = closed.filter(function (d) { return d._payout === 'paid'; });
+
+      // Amounts (agent perspective = split, broker = gross or net)
+      var field = isBroker ? '_brokerage' : '_split';
+      var ytdAmt = ytd.reduce(function (s, d) { return s + d[field]; }, 0);
+      var mtdAmt = mtd.reduce(function (s, d) { return s + d[field]; }, 0);
+      var pendingAmt = pending.reduce(function (s, d) { return s + d[field]; }, 0);
+      var paidAmt = paid.reduce(function (s, d) { return s + d[field]; }, 0);
+      var lifetimeAmt = closed.reduce(function (s, d) { return s + d[field]; }, 0);
+
+      // Analytics
+      var avgDealSize = closed.length > 0 ? lifetimeAmt / closed.length : 0;
+      var avgCloseTime = 0;
+      if (closed.length > 0) {
+        var totalDays = closed.reduce(function (s, d) {
+          var created = new Date(d.created_at || d.createdAt);
+          return s + Math.max(0, Math.round((d._closeDate - created) / (24 * 3600 * 1000)));
+        }, 0);
+        avgCloseTime = Math.round(totalDays / closed.length);
+      }
+
+      // Sale vs Rental split
+      var salesClosed = ytd.filter(function (d) { return d._isSale; });
+      var rentalsClosed = ytd.filter(function (d) { return d._isRental; });
+      var salesAmt = salesClosed.reduce(function (s, d) { return s + d[field]; }, 0);
+      var rentalsAmt = rentalsClosed.reduce(function (s, d) { return s + d[field]; }, 0);
+
+      var html = '<div class="space-y-4">';
+
+      // Header
+      html += UI.sectionHeader(isBroker ? 'Revenue Analytics (Company)' : 'My Revenue', '');
+
+      // Row 1: KPIs
+      html += UI.statGrid([
+        UI.statCard($(ytdAmt), 'YTD Revenue', 'fa-chart-line', '#B8860B'),
+        UI.statCard($(mtdAmt), 'MTD Revenue', 'fa-calendar', '#059669'),
+        UI.statCard($(pendingAmt), 'Pending', 'fa-clock', pendingAmt > 0 ? '#F59E0B' : '#059669'),
+        UI.statCard($(paidAmt), 'Paid Out', 'fa-check-circle', '#059669'),
+        UI.statCard($(lifetimeAmt), 'Lifetime', 'fa-dollar-sign', '#374151'),
+      ]);
+
+      // Row 2: Analytics
+      html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">';
+      html += '<div class="card p-4 text-center"><p class="text-xs font-bold text-gray-500 uppercase">Avg Deal Size</p><p class="text-xl font-bold text-gray-900">' + $(avgDealSize) + '</p></div>';
+      html += '<div class="card p-4 text-center"><p class="text-xs font-bold text-gray-500 uppercase">Avg Close Time</p><p class="text-xl font-bold text-gray-900">' + avgCloseTime + ' <span class="text-xs font-normal text-gray-500">days</span></p></div>';
+      html += '<div class="card p-4 text-center"><p class="text-xs font-bold text-gray-500 uppercase">YTD Deals</p><p class="text-xl font-bold text-gray-900">' + ytd.length + '</p></div>';
+      html += '<div class="card p-4 text-center"><p class="text-xs font-bold text-gray-500 uppercase">Close Rate</p><p class="text-xl font-bold text-gray-900">' + (deals.length > 0 ? Math.round(closed.length / deals.length * 100) : 0) + '%</p></div>';
+      html += '</div>';
+
+      // Row 3: Sale vs Rental split
+      html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">';
+      // Sales
+      var salesPct = ytdAmt > 0 ? Math.round(salesAmt / ytdAmt * 100) : 0;
+      html += '<div class="card p-4">' +
+        '<div class="flex items-center justify-between mb-3"><h3 class="text-sm font-bold text-gray-700"><i class="fas fa-home text-blue-500 mr-2"></i>Sales</h3>' +
+          '<span class="text-xs font-bold text-blue-600">' + salesPct + '% of YTD</span></div>' +
+        '<p class="text-2xl font-bold text-gray-900">' + $(salesAmt) + '</p>' +
+        '<p class="text-xs text-gray-500 mt-1">' + salesClosed.length + ' deals closed</p>' +
+        '<div class="mt-2 h-2 bg-gray-100 rounded-full"><div class="h-2 bg-blue-500 rounded-full" style="width:' + salesPct + '%"></div></div>' +
       '</div>';
+      // Rentals
+      var rentalsPct = ytdAmt > 0 ? Math.round(rentalsAmt / ytdAmt * 100) : 0;
+      html += '<div class="card p-4">' +
+        '<div class="flex items-center justify-between mb-3"><h3 class="text-sm font-bold text-gray-700"><i class="fas fa-key text-green-500 mr-2"></i>Rentals</h3>' +
+          '<span class="text-xs font-bold text-green-600">' + rentalsPct + '% of YTD</span></div>' +
+        '<p class="text-2xl font-bold text-gray-900">' + $(rentalsAmt) + '</p>' +
+        '<p class="text-xs text-gray-500 mt-1">' + rentalsClosed.length + ' deals closed</p>' +
+        '<div class="mt-2 h-2 bg-gray-100 rounded-full"><div class="h-2 bg-green-500 rounded-full" style="width:' + rentalsPct + '%"></div></div>' +
+      '</div>';
+      html += '</div>';
+
+      // Row 4: Monthly breakdown table
+      var months = {};
+      ytd.forEach(function (d) {
+        var m = d._closeDate.getMonth();
+        var key = String(m).padStart(2, '0');
+        if (!months[key]) months[key] = { deals: 0, amount: 0, sales: 0, rentals: 0 };
+        months[key].deals++;
+        months[key].amount += d[field];
+        if (d._isSale) months[key].sales += d[field];
+        else months[key].rentals += d[field];
+      });
+      var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      html += '<div class="card"><div class="card-header"><h3>Monthly Breakdown (' + thisYear + ')</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+          '<th class="text-left px-3 py-2">Month</th><th class="text-right px-3 py-2">Deals</th>' +
+          '<th class="text-right px-3 py-2">Sales</th><th class="text-right px-3 py-2">Rentals</th>' +
+          '<th class="text-right px-3 py-2">Total</th></tr></thead><tbody>';
+      for (var mi = 0; mi <= thisMonth; mi++) {
+        var key = String(mi).padStart(2, '0');
+        var md = months[key] || { deals: 0, amount: 0, sales: 0, rentals: 0 };
+        html += '<tr class="border-b"><td class="px-3 py-2 font-medium">' + monthNames[mi] + '</td>' +
+          '<td class="px-3 py-2 text-right">' + md.deals + '</td>' +
+          '<td class="px-3 py-2 text-right text-blue-600">' + $(md.sales) + '</td>' +
+          '<td class="px-3 py-2 text-right text-green-600">' + $(md.rentals) + '</td>' +
+          '<td class="px-3 py-2 text-right font-bold">' + $(md.amount) + '</td></tr>';
+      }
+      html += '</tbody><tfoot class="bg-gray-50 font-semibold"><tr>' +
+        '<td class="px-3 py-2">YTD Total</td><td class="px-3 py-2 text-right">' + ytd.length + '</td>' +
+        '<td class="px-3 py-2 text-right text-blue-600">' + $(salesAmt) + '</td>' +
+        '<td class="px-3 py-2 text-right text-green-600">' + $(rentalsAmt) + '</td>' +
+        '<td class="px-3 py-2 text-right font-bold">' + $(ytdAmt) + '</td></tr></tfoot></table></div></div></div>';
+
+      // Broker: per-agent breakdown
+      if (isBroker && agents.length > 0) {
+        html += '<div class="card"><div class="card-header"><h3>Per-Agent Revenue (YTD)</h3></div>' +
+          '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+            '<th class="text-left px-3 py-2">Agent</th><th class="text-right px-3 py-2">Deals</th>' +
+            '<th class="text-right px-3 py-2">Gross</th><th class="text-right px-3 py-2">Agent Split</th>' +
+            '<th class="text-right px-3 py-2">Brokerage</th></tr></thead><tbody>';
+        var agentRevenue = {};
+        ytd.forEach(function (d) {
+          var aid = d.assignedAgentId || d.assigned_agent_id || 'unassigned';
+          if (!agentRevenue[aid]) agentRevenue[aid] = { deals: 0, gross: 0, split: 0, brokerage: 0 };
+          agentRevenue[aid].deals++;
+          agentRevenue[aid].gross += d._gross;
+          agentRevenue[aid].split += d._split;
+          agentRevenue[aid].brokerage += d._brokerage;
+        });
+        Object.keys(agentRevenue).forEach(function (aid) {
+          var ar = agentRevenue[aid];
+          html += '<tr class="border-b"><td class="px-3 py-2 font-medium">' + E(agentMap[aid] || 'Unassigned') + '</td>' +
+            '<td class="px-3 py-2 text-right">' + ar.deals + '</td>' +
+            '<td class="px-3 py-2 text-right">' + $(ar.gross) + '</td>' +
+            '<td class="px-3 py-2 text-right text-green-600">' + $(ar.split) + '</td>' +
+            '<td class="px-3 py-2 text-right">' + $(ar.brokerage) + '</td></tr>';
+        });
+        html += '</tbody></table></div></div></div>';
+      }
+
+      html += '</div>';
+      c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-chart-pie', 'Unable to load revenue data');
     });
