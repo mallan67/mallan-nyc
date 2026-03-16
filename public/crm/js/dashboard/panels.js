@@ -1213,63 +1213,358 @@ var Panels = (function () {
     _renderReferralPanel(c, window._refAll || [], year);
   }
 
-  function _addReferral() {
-    MallanAPI.clients.list({ limit: 200 }).then(function (res) {
-      var clients = res.clients || [];
-      var clientOptions = clients.map(function (cl) {
-        return '<option value="' + E(cl.id) + '">' + E(cl.name || cl.first_name + ' ' + (cl.last_name || '')) + '</option>';
-      }).join('');
+  // ─── Referral Form Helpers ────────────────────────────────────────────
+  var _refAgentsCache = [];
 
-      CRM.openModal('New Referral',
-        '<form id="addReferralForm" class="space-y-4">' +
-          '<div class="grid grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Partner Name *</label>' +
-              '<input class="form-input" name="partner" placeholder="Referral partner name" required></div>' +
-            '<div class="form-group"><label class="form-label">Brokerage</label>' +
-              '<input class="form-input" name="brokerage" placeholder="Partner brokerage"></div>' +
-          '</div>' +
-          '<div class="grid grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Direction *</label>' +
-              '<select class="form-input" name="direction" required>' +
-                '<option value="incoming">Incoming</option>' +
-                '<option value="outgoing">Outgoing</option>' +
+  function _calcRefFee() {
+    var form = document.getElementById('addReferralForm');
+    if (!form) return;
+    var dealType = form.querySelector('[name="deal_type"]');
+    var priceEl = form.querySelector('[name="sale_price"]');
+    var rentEl = form.querySelector('[name="monthly_rent"]');
+    var feeEl = form.querySelector('[name="fee_percent"]');
+    var outEl = form.querySelector('[name="fee_amount"]');
+    if (!feeEl || !outEl) return;
+    var pct = parseFloat(feeEl.value) || 0;
+    var base = 0;
+    if (dealType && dealType.value === 'rental') {
+      base = parseFloat((rentEl && rentEl.value) || 0);
+    } else {
+      base = parseFloat((priceEl && priceEl.value) || 0);
+    }
+    var amt = (base * pct / 100);
+    outEl.value = amt ? '$' + amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  }
+
+  function _fillOurAgentDetails() {
+    var form = document.getElementById('addReferralForm');
+    if (!form) return;
+    var sel = form.querySelector('[name="our_agent_id"]');
+    var titleEl = form.querySelector('[name="our_agent_title"]');
+    var licEl = form.querySelector('[name="our_agent_license"]');
+    if (!sel) return;
+    var agentId = sel.value;
+    var agent = null;
+    for (var i = 0; i < _refAgentsCache.length; i++) {
+      if (String(_refAgentsCache[i].id) === String(agentId)) { agent = _refAgentsCache[i]; break; }
+    }
+    if (titleEl) titleEl.value = agent ? (agent.title || agent.agent_title || '') : '';
+    if (licEl) licEl.value = agent ? (agent.licenseNumber || agent.license_number || '') : '';
+  }
+
+  function _updateRefFormLabels() {
+    var form = document.getElementById('addReferralForm');
+    if (!form) return;
+    var dealType = (form.querySelector('[name="deal_type"]') || {}).value || 'sale';
+    var direction = (form.querySelector('[name="direction"]') || {}).value || 'incoming';
+
+    // Toggle price vs rent fields
+    var salePriceGroup = document.getElementById('refSalePriceGroup');
+    var rentGroup = document.getElementById('refRentGroup');
+    var closingGroup = document.getElementById('refClosingDateGroup');
+    var leaseGroup = document.getElementById('refLeaseEndGroup');
+    if (salePriceGroup) salePriceGroup.style.display = dealType === 'sale' ? '' : 'none';
+    if (rentGroup) rentGroup.style.display = dealType === 'rental' ? '' : 'none';
+    if (closingGroup) closingGroup.style.display = dealType === 'sale' ? '' : 'none';
+    if (leaseGroup) leaseGroup.style.display = dealType === 'rental' ? '' : 'none';
+
+    // Update section titles based on direction
+    var ourTitle = document.getElementById('refOurSectionTitle');
+    var otherTitle = document.getElementById('refOtherSectionTitle');
+    if (ourTitle) ourTitle.textContent = direction === 'incoming' ? 'Our Brokerage (Receiving Agent)' : 'Our Brokerage (Referring Agent)';
+    if (otherTitle) otherTitle.textContent = direction === 'incoming' ? 'Referring Company' : 'Receiving Company';
+
+    _calcRefFee();
+  }
+
+  function _addReferral() {
+    Promise.all([
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; })
+    ]).then(function (results) {
+      var agents = results[0].agents || [];
+      _refAgentsCache = agents;
+      var clients = results[1].clients || [];
+      var user = Store.session.currentUser || {};
+
+      var agentOptions = '<option value="">— Select Agent —</option>' +
+        agents.map(function (a) {
+          return '<option value="' + E(a.id) + '">' + E(a.name || a.email || 'Agent') + '</option>';
+        }).join('');
+
+      var clientOptions = '<option value="">— Select Client (optional) —</option>' +
+        clients.map(function (cl) {
+          return '<option value="' + E(cl.id) + '">' + E(cl.name || cl.first_name + ' ' + (cl.last_name || '')) + '</option>';
+        }).join('');
+
+      var html =
+        '<form id="addReferralForm" class="space-y-5" style="max-height:70vh;overflow-y:auto;padding-right:4px;">' +
+
+        // ── Section 1: Direction & Deal Type ──
+        '<div style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">' +
+          '<p class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-exchange-alt mr-1"></i> Direction & Deal Type</p>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
+            '<div class="form-group"><label class="form-label">Referral Direction *</label>' +
+              '<select class="form-input" name="direction" required onchange="Panels._updateRefFormLabels()">' +
+                '<option value="incoming">Incoming (We Received a Client)</option>' +
+                '<option value="outgoing">Outgoing (We Sent a Client)</option>' +
               '</select></div>' +
-            '<div class="form-group"><label class="form-label">Fee %</label>' +
-              '<input class="form-input" type="number" name="fee_percent" min="0" max="100" step="0.5" placeholder="25"></div>' +
+            '<div class="form-group"><label class="form-label">Deal Type *</label>' +
+              '<select class="form-input" name="deal_type" required onchange="Panels._updateRefFormLabels()">' +
+                '<option value="sale">Sale</option>' +
+                '<option value="rental">Rental</option>' +
+              '</select></div>' +
           '</div>' +
-          '<div class="form-group"><label class="form-label">Client</label>' +
+        '</div>' +
+
+        // ── Section 2: Two-Column — Our Brokerage / Other Company ──
+        '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">' +
+
+          // LEFT — Our Brokerage (blue)
+          '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:16px;">' +
+            '<p id="refOurSectionTitle" class="text-sm font-bold text-blue-800 mb-3"><i class="fas fa-building mr-1"></i> Our Brokerage (Receiving Agent)</p>' +
+            '<div class="space-y-3">' +
+              '<div class="form-group"><label class="form-label">Brokerage Name</label>' +
+                '<input class="form-input bg-gray-100" name="our_brokerage_name" value="Mallan Real Estate Inc." readonly></div>' +
+              '<div class="form-group"><label class="form-label">Brokerage License #</label>' +
+                '<input class="form-input bg-gray-100" name="our_brokerage_license" value="#10991205323" readonly></div>' +
+              '<div class="grid grid-cols-2 gap-3">' +
+                '<div class="form-group"><label class="form-label">Broker Name</label>' +
+                  '<input class="form-input bg-gray-100" name="our_broker_name" value="' + E(user.name || '') + '" readonly></div>' +
+                '<div class="form-group"><label class="form-label">Broker License #</label>' +
+                  '<input class="form-input bg-gray-100" name="our_broker_license" value="' + E(user.licenseNumber || user.license_number || '') + '" readonly></div>' +
+              '</div>' +
+              '<div class="form-group"><label class="form-label">Address</label>' +
+                '<input class="form-input bg-gray-100" name="our_address" value="400 East 90th Street, Suite 17C, New York, NY 10128" readonly></div>' +
+              '<div class="grid grid-cols-2 gap-3">' +
+                '<div class="form-group"><label class="form-label">Phone</label>' +
+                  '<input class="form-input bg-gray-100" name="our_phone" value="' + E(user.phone || '646-258-4460') + '" readonly></div>' +
+                '<div class="form-group"><label class="form-label">Email</label>' +
+                  '<input class="form-input bg-gray-100" name="our_email" value="' + E(user.email || '') + '" readonly></div>' +
+              '</div>' +
+              '<div class="form-group"><label class="form-label">Company TIN/EIN</label>' +
+                '<input class="form-input bg-gray-100" name="our_tin" placeholder="On file" readonly></div>' +
+              '<hr class="my-2 border-blue-200">' +
+              '<div class="form-group"><label class="form-label">Agent Name *</label>' +
+                '<select class="form-input" name="our_agent_id" onchange="Panels._fillOurAgentDetails()">' +
+                  agentOptions +
+                '</select></div>' +
+              '<div class="grid grid-cols-2 gap-3">' +
+                '<div class="form-group"><label class="form-label">Agent Title</label>' +
+                  '<input class="form-input bg-gray-100" name="our_agent_title" readonly placeholder="Auto-filled"></div>' +
+                '<div class="form-group"><label class="form-label">Agent License #</label>' +
+                  '<input class="form-input bg-gray-100" name="our_agent_license" readonly placeholder="Auto-filled"></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          // RIGHT — Other Company (orange)
+          '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:16px;">' +
+            '<p id="refOtherSectionTitle" class="text-sm font-bold text-orange-800 mb-3"><i class="fas fa-handshake mr-1"></i> Referring Company</p>' +
+            '<div class="space-y-3">' +
+              '<div class="form-group"><label class="form-label">Company Name *</label>' +
+                '<input class="form-input" name="other_company_name" placeholder="Partner brokerage name" required></div>' +
+              '<div class="form-group"><label class="form-label">Brokerage License #</label>' +
+                '<input class="form-input" name="other_brokerage_license" placeholder="Brokerage license number"></div>' +
+              '<div class="grid grid-cols-2 gap-3">' +
+                '<div class="form-group"><label class="form-label">Broker Name</label>' +
+                  '<input class="form-input" name="other_broker_name" placeholder="Managing broker name"></div>' +
+                '<div class="form-group"><label class="form-label">Broker License #</label>' +
+                  '<input class="form-input" name="other_broker_license" placeholder="Broker license #"></div>' +
+              '</div>' +
+              '<div class="grid grid-cols-2 gap-3">' +
+                '<div class="form-group"><label class="form-label">Agent Name *</label>' +
+                  '<input class="form-input" name="other_agent_name" placeholder="Agent full name" required></div>' +
+                '<div class="form-group"><label class="form-label">Agent Title</label>' +
+                  '<select class="form-input" name="other_agent_title">' +
+                    '<option value="">— Select —</option>' +
+                    '<option value="Licensed Real Estate Salesperson">Licensed Real Estate Salesperson</option>' +
+                    '<option value="Associate Real Estate Broker">Associate Real Estate Broker</option>' +
+                    '<option value="Real Estate Broker">Real Estate Broker</option>' +
+                  '</select></div>' +
+              '</div>' +
+              '<div class="form-group"><label class="form-label">Agent License #</label>' +
+                '<input class="form-input" name="other_agent_license" placeholder="Agent license #"></div>' +
+              '<div class="form-group"><label class="form-label">Company Address</label>' +
+                '<input class="form-input" name="other_address" placeholder="Full mailing address"></div>' +
+              '<div class="grid grid-cols-2 gap-3">' +
+                '<div class="form-group"><label class="form-label">Phone</label>' +
+                  '<input class="form-input" name="other_phone" placeholder="Phone number"></div>' +
+                '<div class="form-group"><label class="form-label">Email</label>' +
+                  '<input class="form-input" type="email" name="other_email" placeholder="Email address"></div>' +
+              '</div>' +
+              '<div class="form-group"><label class="form-label">Company TIN/EIN *</label>' +
+                '<input class="form-input" name="other_tin" placeholder="TIN/EIN for 1099 reporting" required></div>' +
+              '<div class="form-group"><label class="form-label">Upload W-9</label>' +
+                '<input class="form-input" type="file" name="other_w9" accept=".pdf,.jpg,.jpeg,.png"></div>' +
+            '</div>' +
+          '</div>' +
+
+        '</div>' + // end two-column
+
+        // ── Section 3: Client Information ──
+        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:16px;">' +
+          '<p class="text-sm font-bold text-green-800 mb-3"><i class="fas fa-user mr-1"></i> Client Information</p>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">' +
+            '<div class="form-group"><label class="form-label">Client Name *</label>' +
+              '<input class="form-input" name="client_name" placeholder="Client full name" required></div>' +
+            '<div class="form-group"><label class="form-label">Email</label>' +
+              '<input class="form-input" type="email" name="client_email" placeholder="Client email"></div>' +
+            '<div class="form-group"><label class="form-label">Phone</label>' +
+              '<input class="form-input" name="client_phone" placeholder="Client phone"></div>' +
+            '<div class="form-group"><label class="form-label">Client Type</label>' +
+              '<select class="form-input" name="client_type">' +
+                '<option value="buyer">Buyer</option>' +
+                '<option value="seller">Seller</option>' +
+                '<option value="tenant">Tenant</option>' +
+                '<option value="landlord">Landlord</option>' +
+              '</select></div>' +
+          '</div>' +
+          '<div class="form-group mt-2"><label class="form-label">Linked CRM Client</label>' +
             '<select class="form-input" name="client_id">' +
-              '<option value="">Select client (optional)...</option>' +
               clientOptions +
             '</select></div>' +
-          '<div class="form-group"><label class="form-label">Notes</label>' +
-            '<textarea class="form-input" name="notes" rows="3" placeholder="Referral details, terms, etc."></textarea></div>' +
-        '</form>',
-        {
-          footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-            '<button class="btn btn-gold" onclick="Panels._submitReferral()"><i class="fas fa-save"></i> Submit</button>',
-        }
-      );
+        '</div>' +
+
+        // ── Section 4: Property Details ──
+        '<div style="background:#FAF5FF;border:1px solid #E9D5FF;border-radius:8px;padding:16px;">' +
+          '<p class="text-sm font-bold text-purple-800 mb-3"><i class="fas fa-home mr-1"></i> Property Details</p>' +
+          '<div class="form-group mb-3"><label class="form-label">Property Address</label>' +
+            '<input class="form-input" name="property_address" placeholder="Full property address"></div>' +
+          '<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">' +
+            '<div class="form-group"><label class="form-label">Beds</label>' +
+              '<select class="form-input" name="beds">' +
+                '<option value="">—</option><option value="0">Studio</option>' +
+                '<option value="1">1</option><option value="2">2</option><option value="3">3</option>' +
+                '<option value="4">4</option><option value="5">5+</option>' +
+              '</select></div>' +
+            '<div class="form-group"><label class="form-label">Baths</label>' +
+              '<select class="form-input" name="baths">' +
+                '<option value="">—</option><option value="1">1</option><option value="1.5">1.5</option>' +
+                '<option value="2">2</option><option value="2.5">2.5</option><option value="3">3</option>' +
+                '<option value="3.5">3.5</option><option value="4">4+</option>' +
+              '</select></div>' +
+            '<div class="form-group"><label class="form-label">Sq Ft</label>' +
+              '<input class="form-input" type="number" name="sqft" placeholder="Sq ft"></div>' +
+            '<div id="refSalePriceGroup" class="form-group"><label class="form-label">Sale Price</label>' +
+              '<input class="form-input" type="number" name="sale_price" placeholder="$0" oninput="Panels._calcRefFee()"></div>' +
+            '<div id="refRentGroup" class="form-group" style="display:none;"><label class="form-label">Monthly Rent</label>' +
+              '<input class="form-input" type="number" name="monthly_rent" placeholder="$0" oninput="Panels._calcRefFee()"></div>' +
+          '</div>' +
+          '<div class="grid grid-cols-2 gap-4 mt-3">' +
+            '<div id="refClosingDateGroup" class="form-group"><label class="form-label">Closing Date</label>' +
+              '<input class="form-input" type="date" name="closing_date"></div>' +
+            '<div id="refLeaseEndGroup" class="form-group" style="display:none;"><label class="form-label">Lease End Date</label>' +
+              '<input class="form-input" type="date" name="lease_end_date"></div>' +
+          '</div>' +
+        '</div>' +
+
+        // ── Section 5: Referral Fee & Agreement ──
+        '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:16px;">' +
+          '<p class="text-sm font-bold text-yellow-800 mb-3"><i class="fas fa-percent mr-1"></i> Referral Fee & Agreement</p>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            '<div class="form-group"><label class="form-label">Fee % *</label>' +
+              '<input class="form-input" type="number" name="fee_percent" min="0" max="100" step="0.5" placeholder="25" required oninput="Panels._calcRefFee()"></div>' +
+            '<div class="form-group"><label class="form-label">Calculated Fee Amount</label>' +
+              '<input class="form-input bg-gray-100 font-bold" name="fee_amount" readonly placeholder="Enter price & fee % above"></div>' +
+            '<div class="form-group"><label class="form-label">Agreement Status</label>' +
+              '<select class="form-input" name="agreement_status">' +
+                '<option value="draft">Draft — Not Sent</option>' +
+                '<option value="sent">Sent — Awaiting Signature</option>' +
+                '<option value="signed">Signed</option>' +
+                '<option value="verbal">Verbal</option>' +
+              '</select></div>' +
+          '</div>' +
+          '<div class="form-group mt-3"><label class="form-label">Upload Referral Agreement</label>' +
+            '<input class="form-input" type="file" name="referral_agreement" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>' +
+
+          // E-Signature sub-section
+          '<div style="background:#FEFCE8;border:1px solid #FEF08A;border-radius:6px;padding:12px;margin-top:12px;">' +
+            '<p class="text-xs font-bold text-yellow-700 mb-2"><i class="fas fa-signature mr-1"></i> E-Signature</p>' +
+            '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">' +
+              '<div class="form-group"><label class="form-label text-xs">Signature Method</label>' +
+                '<select class="form-input text-sm" name="esign_method">' +
+                  '<option value="">— Select —</option>' +
+                  '<option value="DocuSign">DocuSign</option>' +
+                  '<option value="Dotloop">Dotloop</option>' +
+                  '<option value="HelloSign">HelloSign</option>' +
+                  '<option value="Authentisign">Authentisign</option>' +
+                  '<option value="Other">Other</option>' +
+                  '<option value="Wet Signature">Wet Signature</option>' +
+                '</select></div>' +
+              '<div class="form-group"><label class="form-label text-xs">Envelope ID</label>' +
+                '<input class="form-input text-sm" name="esign_envelope_id" placeholder="Envelope / transaction ID"></div>' +
+              '<div class="form-group"><label class="form-label text-xs">Signature Deadline</label>' +
+                '<input class="form-input text-sm" type="date" name="esign_deadline"></div>' +
+            '</div>' +
+            '<p class="text-xs font-semibold text-gray-600 mt-2 mb-1">Required Signers:</p>' +
+            '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">' +
+              '<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="signer_our_broker" value="1" checked> Our Broker</label>' +
+              '<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="signer_our_agent" value="1" checked> Our Agent</label>' +
+              '<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="signer_other_agent" value="1" checked> Other Co. Agent</label>' +
+              '<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="signer_other_broker" value="1"> Other Co. Broker <span class="text-gray-400">(opt.)</span></label>' +
+            '</div>' +
+            '<button type="button" class="btn btn-sm mt-2" style="background:#D97706;color:#fff;" onclick="CRM.toast(\'E-signature integration coming soon\',\'info\')">' +
+              '<i class="fas fa-paper-plane mr-1"></i> Send for Signature</button>' +
+          '</div>' +
+        '</div>' +
+
+        // ── Section 6: Notes ──
+        '<div style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">' +
+          '<p class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-sticky-note mr-1"></i> Notes</p>' +
+          '<textarea class="form-input" name="notes" rows="3" placeholder="Referral details, terms, special conditions, etc."></textarea>' +
+        '</div>' +
+
+        '</form>';
+
+      CRM.openModal('New Referral', html, {
+        size: 'xl',
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitReferral()"><i class="fas fa-save mr-1"></i> Submit Referral</button>',
+      });
     }).catch(function (err) {
-      CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
+      CRM.toast('Failed to load referral form: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
   function _submitReferral() {
     var form = document.getElementById('addReferralForm');
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+
     var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    new FormData(form).forEach(function (v, k) {
+      // Skip file inputs and empty values in the JSON payload
+      if (v && typeof v === 'string') data[k] = v;
+    });
+
+    // Collect checkbox signers
+    var signers = [];
+    if (form.querySelector('[name="signer_our_broker"]:checked')) signers.push('our_broker');
+    if (form.querySelector('[name="signer_our_agent"]:checked')) signers.push('our_agent');
+    if (form.querySelector('[name="signer_other_agent"]:checked')) signers.push('other_agent');
+    if (form.querySelector('[name="signer_other_broker"]:checked')) signers.push('other_broker');
+    data.signers = signers;
+
+    // Numeric conversions
+    if (data.fee_percent) data.fee_percent = parseFloat(data.fee_percent);
+    if (data.sale_price) data.sale_price = parseFloat(data.sale_price);
+    if (data.monthly_rent) data.monthly_rent = parseFloat(data.monthly_rent);
+    if (data.sqft) data.sqft = parseInt(data.sqft, 10);
+    if (data.beds) data.beds = data.beds;
+    if (data.baths) data.baths = data.baths;
+
+    // Clean computed display field
+    delete data.fee_amount;
 
     MallanAPI._fetch('/api/crm/referrals', {
       method: 'POST',
       body: JSON.stringify(data),
     }).then(function () {
       CRM.closeModal();
-      CRM.toast('Referral added', 'success');
+      CRM.toast('Referral submitted successfully', 'success');
       Panels.referralTracking();
     }).catch(function (err) {
-      CRM.toast('Failed to add referral: ' + (err.message || 'Unknown error'), 'error');
+      CRM.toast('Failed to submit referral: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
@@ -3129,6 +3424,9 @@ var Panels = (function () {
     _doAssignLead: _doAssignLead,
     _addReferral: _addReferral,
     _submitReferral: _submitReferral,
+    _calcRefFee: _calcRefFee,
+    _fillOurAgentDetails: _fillOurAgentDetails,
+    _updateRefFormLabels: _updateRefFormLabels,
     _approvePayout: _approvePayout,
     _toggleFeatured: _toggleFeatured,
     _uploadDoc: _uploadDoc,
