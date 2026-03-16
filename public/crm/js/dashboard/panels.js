@@ -3390,229 +3390,596 @@ var Panels = (function () {
   }
 
   // ─── Company Listings ────────────────────────────────────────────────
+  // ─── Shared listing compliance model ──────────────────────────────────
+  // Fair Housing patterns — all 19 protected classes (Federal + NY State + NYC Human Rights Law)
+  var _fairHousingPatterns = [
+    /\b(no children|no kids|adults only|no families|family[-\s]?free)\b/i,
+    /\b(no pets allowed)\b/i,
+    /\b(christian|jewish|muslim|catholic|protestant|buddhist|hindu|sikh)\s+(only|preferred|neighborhood|community)\b/i,
+    /\b(white|black|asian|hispanic|latino|african|chinese|irish|italian|polish)\s+(only|preferred|neighborhood|community)\b/i,
+    /\b(no wheelchair|no handicap|not accessible|no disabled)\b/i,
+    /\b(bachelor pad|man cave|perfect for single|female only|male only|men only|women only)\b/i,
+    /\b(walking distance to church|near synagogue|close to mosque|near temple)\b/i,
+    /\b(exclusive|prestigious)\s+(neighborhood|community|area|enclave)\b/i,
+    /\b(young professionals|millennials only|seniors only|no elderly|no seniors|no students)\b/i,
+    /\b(married couples|singles only|no unmarried|domestic partners? not)\b/i,
+    /\b(straight only|gay friendly|no gay|no lesbian|LGBT free)\b/i,
+    /\b(transgender not|no trans|cisgender only)\b/i,
+    /\b(citizens only|no immigrants|americans only|US born|legal residents only)\b/i,
+    /\b(no military|no veterans|military only)\b/i,
+    /\b(no section 8|no voucher|no subsid|no welfare|no public assistance)\b/i,
+    /\b(no foreigners|no aliens|immigration status)\b/i,
+    /\b(no caregivers?|caregiver free)\b/i,
+    /\b(criminal background|no felons|no convicts|arrest record)\b/i,
+    /\b(domestic violence|restraining order|abuse victim)\b/i,
+  ];
+
+  // Shared: compute compliance status for a single listing
+  function _computeListingCompliance(listing) {
+    var issues = [];
+    var isRLS = listing.rls_eligible !== false;
+
+    // 1. Fair Housing scan on description
+    var text = (listing.description || listing.PublicRemarks || listing.remarks || '');
+    _fairHousingPatterns.forEach(function (p, idx) {
+      var match = text.match(p);
+      if (match) {
+        issues.push({ type: 'Fair Housing Risk', severity: 'critical', description: 'Matched pattern: "' + match[0] + '"' });
+      }
+    });
+
+    // 2. Media issues
+    var photoCount = listing.photo_count || listing.PhotosCount || listing.photos_count || 0;
+    if (typeof listing.photos === 'object' && Array.isArray(listing.photos)) photoCount = listing.photos.length;
+    if (photoCount === 0) {
+      issues.push({ type: 'Media Issues', severity: 'medium', description: 'No photos uploaded' });
+    } else if (photoCount < 3) {
+      issues.push({ type: 'Media Issues', severity: 'medium', description: 'Only ' + photoCount + ' photo(s) — recommend at least 3' });
+    }
+
+    // 3. Stale listing (Active + DOM > 90 + no recent price change)
+    var dom = listing.DaysOnMarket || listing.days_on_market || listing.cumulative_dom || 0;
+    var statusLower = (listing.status || '').toLowerCase();
+    var hasPriceChange = listing.lastPriceChange || listing.last_price_change;
+    if ((statusLower === 'active') && dom > 90 && !hasPriceChange) {
+      issues.push({ type: 'Stale Listings', severity: 'medium', description: 'Active for ' + dom + ' days with no price adjustment' });
+    }
+
+    // 4. Protected periods (Coming Soon / Hold)
+    if (statusLower === 'coming soon' || statusLower === 'comingsoon') {
+      issues.push({ type: 'Protected Periods', severity: 'high', description: 'Listing in Coming Soon status — verify no showings/open houses' });
+    }
+    if (statusLower === 'hold' || statusLower === 'withdrawn') {
+      var holdDays = dom; // approximate
+      if (holdDays > 90) {
+        issues.push({ type: 'Protected Periods', severity: 'high', description: 'Hold status exceeds 90-day limit (' + holdDays + ' days)' });
+      }
+    }
+
+    // 5. Feed/Display problems (RLS-eligible only)
+    if (isRLS) {
+      var ownerOptOut = listing.OwnerOptOut || listing.owner_opt_out;
+      var idxDisplay = listing.IDXEntireListingDisplayYN !== false && listing.idx_display_yn !== false;
+      if (ownerOptOut) {
+        issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'Owner Opt-Out is enabled — listing must not display publicly' });
+      }
+      if (!idxDisplay && statusLower !== 'closed') {
+        issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'IDX Display is disabled — listing hidden from IDX search' });
+      }
+      // Missing required fields
+      var hasAddress = listing.address || listing.UnparsedAddress;
+      var hasPrice = listing.ListPrice || listing.price;
+      if (!hasAddress) {
+        issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'Missing address — required for RLS distribution' });
+      }
+      if (!hasPrice) {
+        issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'Missing price — required for RLS distribution' });
+      }
+    }
+
+    // 6. Missing documents (RLS-eligible only — flagged generically since we check docs separately)
+    // This is populated by the caller when document data is available
+
+    // Determine overall status
+    var hasCritical = issues.some(function (i) { return i.severity === 'critical'; });
+    var hasHigh = issues.some(function (i) { return i.severity === 'high'; });
+    var status = hasCritical ? 'violation' : (hasHigh || issues.length > 0) ? 'warning' : 'clean';
+
+    return { status: status, issues: issues };
+  }
+
+  // ─── Shared listing analysis model ─────────────────────────────────────
+  var _listingModel = null; // cached after first load
+
+  function _loadListingModel() {
+    if (_listingModel) return Promise.resolve(_listingModel);
+    return Promise.all([
+      MallanAPI.listings.list({ limit: 500 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      Documents.list('company').catch(function () { return { documents: [] }; }),
+    ]).then(function (r) {
+      var listings = r[0].listings || [];
+      var agents = r[1].agents || [];
+      var docs = r[2].documents || [];
+
+      // Build agent lookup map (id → name)
+      var agentMap = {};
+      agents.forEach(function (a) {
+        var id = a.id || a.agent_id;
+        var name = a.name || ((a.first_name || '') + ' ' + (a.last_name || '')).trim() || a.email || id;
+        if (id) agentMap[id] = name;
+      });
+
+      // Build doc lookup (listing_id → array of docs)
+      var docMap = {};
+      docs.forEach(function (d) {
+        var lid = d.listing_id || d.listingId;
+        if (lid) {
+          if (!docMap[lid]) docMap[lid] = [];
+          docMap[lid].push(d);
+        }
+      });
+
+      // Enrich listings with compliance + agent name + sync freshness
+      var now = new Date();
+      listings.forEach(function (l) {
+        var lid = l.id || l.listing_id;
+        // Resolve agent name
+        var agentId = l.assignedAgentId || l.assigned_agent_id || l.agent_id;
+        l._agentName = agentMap[agentId] || l.agent_name || agentId || '-';
+
+        // Compute compliance
+        var comp = _computeListingCompliance(l);
+        // Add missing documents issue if RLS-eligible and no docs
+        if (l.rls_eligible !== false && (!docMap[lid] || docMap[lid].length === 0)) {
+          comp.issues.push({ type: 'Missing Documents', severity: 'high', description: 'No disclosure documents on file' });
+          if (comp.status === 'clean') comp.status = 'warning';
+        }
+        l._compliance = comp;
+
+        // Compute sync freshness
+        var syncDate = l.syncedAt || l.synced_at || l.updatedAt || l.updated_at;
+        if (syncDate) {
+          var diffHours = (now - new Date(syncDate)) / (1000 * 60 * 60);
+          if (diffHours < 24) { l._syncFreshness = 'fresh'; l._syncLabel = 'Fresh'; }
+          else if (diffHours < 168) { l._syncFreshness = 'stale'; l._syncLabel = 'Stale'; }
+          else { l._syncFreshness = 'outdated'; l._syncLabel = 'Outdated'; }
+        } else {
+          l._syncFreshness = 'outdated'; l._syncLabel = 'Unknown';
+        }
+
+        // Listing type (sale/rental)
+        l._type = (l.property_type || l.PropertyType || l.listing_type || l.type || '').toLowerCase();
+        if (l._type.indexOf('rent') !== -1 || l._type === 'rental') l._typeBadge = 'Rental';
+        else l._typeBadge = 'Sale';
+
+        // DOM
+        l._dom = l.DaysOnMarket || l.days_on_market || l.cumulative_dom || 0;
+
+        // Featured
+        l._featured = l.featured || l.is_featured || false;
+      });
+
+      _listingModel = { listings: listings, agents: agents, agentMap: agentMap, docs: docs, docMap: docMap };
+      return _listingModel;
+    });
+  }
+
+  // Invalidate cache when navigating away
+  function _clearListingModel() { _listingModel = null; }
+
+  // ─── Company Listings ──────────────────────────────────────────────────
+  var _companyListingsState = { view: 'all', sortKey: 'address', sortAsc: true };
+
   function companyListings() {
     CRM.setPanelTitle('Company Listings');
     var c = _container(); c.innerHTML = UI.loading();
+    _clearListingModel();
 
-    MallanAPI.listings.list({ limit: 100 }).then(function (data) {
-      var listings = data.listings || [];
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('All Company Listings', listings.length + ' total') +
-        UI.dataTable([
-          { key: 'address', label: 'Address', render: function (l) {
-            var addr = l.address || l.UnparsedAddress || 'No address';
-            return '<span class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' + E(addr) + '</span>';
-          }},
-          { key: 'price', label: 'Price', render: function (l) { return '<span class="text-sm font-bold">' + $(l.ListPrice || l.price) + '</span>'; }},
-          { key: 'status', label: 'Status', render: function (l) { return UI.statusBadge(l.status || 'active'); }},
-          { key: 'agent', label: 'Agent', render: function (l) { return '<span class="text-xs">' + E(l.agent_name || l.assignedAgentId || '-') + '</span>'; }},
-          { key: 'dom', label: 'DOM', render: function (l) { return '<span class="text-sm">' + (l.cumulative_dom || l.days_on_market || '-') + '</span>'; }},
-        ], listings) +
-      '</div>';
+    _loadListingModel().then(function (model) {
+      _companyListingsState.model = model;
+      _renderCompanyListings(c, model);
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-building', 'Unable to load listings');
     });
   }
 
-  // ─── Compliance Dashboard ────────────────────────────────────────────
+  function _renderCompanyListings(c, model) {
+    var listings = model.listings;
+    var state = _companyListingsState;
+
+    // Compute view counts
+    var counts = { active: 0, contract: 0, closed: 0, compliance: 0, featured: 0, all: listings.length };
+    listings.forEach(function (l) {
+      var s = (l.status || '').toLowerCase();
+      if (s === 'active') counts.active++;
+      else if (s === 'active under contract' || s === 'pending' || s === 'contract') counts.contract++;
+      else if (s === 'closed' || s === 'sold' || s === 'leased') counts.closed++;
+      if (l._compliance && l._compliance.status !== 'clean') counts.compliance++;
+      if (l._featured) counts.featured++;
+    });
+
+    // Filter by current view
+    var filtered = _filterCompanyView(state.view, listings);
+
+    // Sort
+    filtered = _sortCompanyListingsArr(filtered, state.sortKey, state.sortAsc);
+
+    var html = '<div class="space-y-4">';
+
+    // Saved View Tabs
+    var views = [
+      { key: 'active', label: 'Active', count: counts.active },
+      { key: 'contract', label: 'In Contract', count: counts.contract },
+      { key: 'closed', label: 'Closed', count: counts.closed },
+      { key: 'compliance', label: 'Needs Compliance Review', count: counts.compliance },
+      { key: 'featured', label: 'Featured', count: counts.featured },
+      { key: 'all', label: 'All', count: counts.all },
+    ];
+    html += '<div class="flex flex-wrap gap-2 mb-2">';
+    views.forEach(function (v) {
+      var active = state.view === v.key;
+      var cls = active ? 'btn btn-sm btn-gold' : 'btn btn-sm btn-outline';
+      html += '<button class="' + cls + '" onclick="Panels._companyListingsView(\'' + v.key + '\')">' +
+        E(v.label) + ' <span class="ml-1 text-xs opacity-70">(' + v.count + ')</span></button>';
+    });
+    html += '</div>';
+
+    // Export CSV
+    html += '<div class="flex justify-between items-center">' +
+      UI.sectionHeader('Company Listings', filtered.length + ' of ' + listings.length + ' shown') +
+      '<button class="btn btn-sm btn-outline" onclick="Panels._exportCompanyCSV()"><i class="fas fa-download mr-1"></i>Export CSV</button>' +
+    '</div>';
+
+    // Sortable table
+    var sortIcon = function (key) {
+      if (state.sortKey !== key) return '<i class="fas fa-sort text-gray-300 ml-1" style="font-size:9px"></i>';
+      return state.sortAsc
+        ? '<i class="fas fa-sort-up text-gold ml-1" style="font-size:9px"></i>'
+        : '<i class="fas fa-sort-down text-gold ml-1" style="font-size:9px"></i>';
+    };
+    var th = function (label, key, align) {
+      align = align || 'left';
+      return '<th class="text-' + align + ' px-3 py-2 cursor-pointer select-none whitespace-nowrap" onclick="Panels._sortCompanyListings(\'' + key + '\')">' + E(label) + sortIcon(key) + '</th>';
+    };
+
+    html += '<div class="card"><div class="card-body p-0"><div class="overflow-x-auto">' +
+      '<table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+      th('Address', 'address') +
+      th('Type', 'type') +
+      th('Price', 'price') +
+      th('Status', 'status') +
+      th('Agent', 'agent') +
+      th('DOM', 'dom', 'center') +
+      th('Sync', 'sync', 'center') +
+      th('Compliance', 'compliance', 'center') +
+      th('Featured', 'featured', 'center') +
+      '<th class="text-center px-3 py-2 text-xs">Actions</th>' +
+    '</tr></thead><tbody>';
+
+    if (filtered.length === 0) {
+      html += '<tr><td colspan="10" class="text-center py-8 text-gray-400 text-sm">No listings in this view</td></tr>';
+    } else {
+      filtered.forEach(function (l) {
+        var lid = E(l.id || l.listing_id || '');
+        var addr = l.address || l.UnparsedAddress || 'No address';
+        var price = l.ListPrice || l.price;
+        var dom = l._dom;
+        var domClass = dom > 90 ? 'text-red-600 font-bold' : 'text-gray-700';
+
+        // Sync freshness
+        var syncColors = { fresh: '#059669', stale: '#F59E0B', outdated: '#DC2626' };
+        var syncBg = { fresh: '#05966915', stale: '#F59E0B15', outdated: '#DC262615' };
+
+        // Compliance
+        var compIcon, compColor;
+        if (l._compliance.status === 'clean') { compIcon = 'fa-check-circle'; compColor = '#059669'; }
+        else if (l._compliance.status === 'warning') { compIcon = 'fa-exclamation-triangle'; compColor = '#F59E0B'; }
+        else { compIcon = 'fa-times-circle'; compColor = '#DC2626'; }
+        var compTooltip = l._compliance.issues.length > 0
+          ? l._compliance.issues.map(function (i) { return i.type + ': ' + i.description; }).join('&#10;')
+          : 'No issues';
+
+        // Type badge
+        var typeBg = l._typeBadge === 'Rental' ? '#8b5cf6' : '#3b82f6';
+
+        html += '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2"><span class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + lid + '/overview\')">' + E(addr) + '</span></td>' +
+          '<td class="px-3 py-2"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + typeBg + '15;color:' + typeBg + '">' + E(l._typeBadge) + '</span></td>' +
+          '<td class="px-3 py-2 text-sm font-bold">' + (price ? $(price) : '-') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(l._agentName) + '</td>' +
+          '<td class="px-3 py-2 text-center"><span class="text-sm ' + domClass + '">' + dom + '</span></td>' +
+          '<td class="px-3 py-2 text-center"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + (syncBg[l._syncFreshness] || syncBg.outdated) + ';color:' + (syncColors[l._syncFreshness] || syncColors.outdated) + '">' + E(l._syncLabel) + '</span></td>' +
+          '<td class="px-3 py-2 text-center" title="' + compTooltip + '"><i class="fas ' + compIcon + '" style="color:' + compColor + '"></i>' +
+            (l._compliance.issues.length > 0 ? '<span class="text-xs ml-1" style="color:' + compColor + '">' + l._compliance.issues.length + '</span>' : '') + '</td>' +
+          '<td class="px-3 py-2 text-center">' +
+            (l._featured ? '<i class="fas fa-star text-gold"></i>' : '<i class="far fa-star text-gray-300"></i>') + '</td>' +
+          '<td class="px-3 py-2 text-center whitespace-nowrap">' +
+            '<button class="btn btn-xs btn-outline mr-1" onclick="Router.navigate(\'/workspace/listing/' + lid + '/overview\')" title="View"><i class="fas fa-eye"></i></button>' +
+            '<button class="btn btn-xs btn-outline" onclick="Router.navigate(\'/workspace/listing/' + lid + '/edit\')" title="Edit"><i class="fas fa-edit"></i></button>' +
+          '</td>' +
+        '</tr>';
+      });
+    }
+
+    html += '</tbody></table></div></div></div>';
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _companyListingsView(view) {
+    _companyListingsState.view = view;
+    var c = _container();
+    if (_companyListingsState.model) {
+      _renderCompanyListings(c, _companyListingsState.model);
+    }
+  }
+
+  function _filterCompanyView(view, listings) {
+    if (view === 'all') return listings.slice();
+    return listings.filter(function (l) {
+      var s = (l.status || '').toLowerCase();
+      switch (view) {
+        case 'active': return s === 'active';
+        case 'contract': return s === 'active under contract' || s === 'pending' || s === 'contract';
+        case 'closed': return s === 'closed' || s === 'sold' || s === 'leased';
+        case 'compliance': return l._compliance && l._compliance.status !== 'clean';
+        case 'featured': return l._featured;
+        default: return true;
+      }
+    });
+  }
+
+  function _sortCompanyListings(key) {
+    var state = _companyListingsState;
+    if (state.sortKey === key) { state.sortAsc = !state.sortAsc; }
+    else { state.sortKey = key; state.sortAsc = true; }
+    var c = _container();
+    if (state.model) _renderCompanyListings(c, state.model);
+  }
+
+  function _sortCompanyListingsArr(listings, key, asc) {
+    return listings.slice().sort(function (a, b) {
+      var va, vb;
+      switch (key) {
+        case 'address': va = (a.address || a.UnparsedAddress || '').toLowerCase(); vb = (b.address || b.UnparsedAddress || '').toLowerCase(); break;
+        case 'type': va = a._typeBadge || ''; vb = b._typeBadge || ''; break;
+        case 'price': va = a.ListPrice || a.price || 0; vb = b.ListPrice || b.price || 0; break;
+        case 'status': va = (a.status || '').toLowerCase(); vb = (b.status || '').toLowerCase(); break;
+        case 'agent': va = (a._agentName || '').toLowerCase(); vb = (b._agentName || '').toLowerCase(); break;
+        case 'dom': va = a._dom || 0; vb = b._dom || 0; break;
+        case 'sync':
+          var order = { fresh: 0, stale: 1, outdated: 2 };
+          va = order[a._syncFreshness] !== undefined ? order[a._syncFreshness] : 3;
+          vb = order[b._syncFreshness] !== undefined ? order[b._syncFreshness] : 3;
+          break;
+        case 'compliance':
+          var cOrder = { violation: 0, warning: 1, clean: 2 };
+          va = cOrder[a._compliance ? a._compliance.status : 'clean'] || 2;
+          vb = cOrder[b._compliance ? b._compliance.status : 'clean'] || 2;
+          break;
+        case 'featured': va = a._featured ? 0 : 1; vb = b._featured ? 0 : 1; break;
+        default: va = ''; vb = '';
+      }
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+  }
+
+  function _exportCompanyCSV() {
+    var state = _companyListingsState;
+    if (!state.model) return;
+    var filtered = _filterCompanyView(state.view, state.model.listings);
+    filtered = _sortCompanyListingsArr(filtered, state.sortKey, state.sortAsc);
+
+    var rows = [['Address', 'Type', 'Price', 'Status', 'Agent', 'DOM', 'Sync Freshness', 'Compliance', 'Featured', 'Issues']];
+    filtered.forEach(function (l) {
+      var addr = l.address || l.UnparsedAddress || '';
+      var price = l.ListPrice || l.price || '';
+      var issueText = l._compliance.issues.map(function (i) { return i.type + ': ' + i.description; }).join('; ');
+      rows.push([
+        addr, l._typeBadge, price, l.status || '', l._agentName, l._dom,
+        l._syncLabel, l._compliance.status, l._featured ? 'Yes' : 'No', issueText
+      ]);
+    });
+
+    var csv = rows.map(function (r) {
+      return r.map(function (cell) {
+        var s = String(cell).replace(/"/g, '""');
+        return '"' + s + '"';
+      }).join(',');
+    }).join('\n');
+
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'company-listings-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ─── Compliance Dashboard ──────────────────────────────────────────────
   function complianceDashboard() {
     CRM.setPanelTitle('Compliance Dashboard');
     var c = _container(); c.innerHTML = UI.loading();
+    _clearListingModel();
 
-    Promise.all([
-      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
-      MallanAPI._fetch('/api/crm/listing-auditor/scan').catch(function () { return { violations: [], warnings: [] }; }),
-    ]).then(function (r) {
-      var listings = r[0].listings || [];
-      var auditData = r[1];
-      var violations = auditData.violations || [];
-      var warnings = auditData.warnings || [];
+    _loadListingModel().then(function (model) {
+      var listings = model.listings;
+      var agentMap = model.agentMap;
 
-      // Compute compliance checks per category
-      var checks = {
-        rebny: { pass: 0, warn: 0, fail: 0 },
-        fairHousing: { pass: 0, warn: 0, fail: 0 },
-        nyDos: { pass: 0, warn: 0, fail: 0 },
-        distribution: { pass: 0, warn: 0, fail: 0 },
-        dataQuality: { pass: 0, warn: 0, fail: 0 },
+      // ── Bucket counts ──
+      var buckets = {
+        fairHousing: { label: 'Fair Housing Risk', icon: 'fa-home', severity: 'critical', color: '#DC2626', items: [] },
+        missingDocs: { label: 'Missing Documents', icon: 'fa-file-alt', severity: 'high', color: '#F97316', items: [] },
+        media: { label: 'Media Issues', icon: 'fa-camera', severity: 'medium', color: '#F59E0B', items: [] },
+        stale: { label: 'Stale Listings', icon: 'fa-clock', severity: 'medium', color: '#F59E0B', items: [] },
+        protectedPeriods: { label: 'Protected Periods', icon: 'fa-shield-alt', severity: 'high', color: '#F97316', items: [] },
+        feedDisplay: { label: 'Feed/Display Problems', icon: 'fa-broadcast-tower', severity: 'critical', color: '#DC2626', items: [] },
       };
 
-      // Analyze listings for gate compliance
+      // Build unified queue
+      var queue = [];
       listings.forEach(function (l) {
-        var isRLS = l.rls_eligible !== false;
-        if (!isRLS) return; // skip website-only
+        if (!l._compliance) return;
+        var lid = l.id || l.listing_id;
+        var addr = l.address || l.UnparsedAddress || 'No address';
+        var agentId = l.assignedAgentId || l.assigned_agent_id || l.agent_id;
+        var agentName = l._agentName || '-';
 
-        // Distribution gate checks
-        var ownerOptOut = l.OwnerOptOut || l.owner_opt_out;
-        var idxDisplay = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
-        var isClosed = (l.status || '').toLowerCase() === 'closed';
+        l._compliance.issues.forEach(function (issue) {
+          var bucketKey = null;
+          if (issue.type === 'Fair Housing Risk') bucketKey = 'fairHousing';
+          else if (issue.type === 'Missing Documents') bucketKey = 'missingDocs';
+          else if (issue.type === 'Media Issues') bucketKey = 'media';
+          else if (issue.type === 'Stale Listings') bucketKey = 'stale';
+          else if (issue.type === 'Protected Periods') bucketKey = 'protectedPeriods';
+          else if (issue.type === 'Feed/Display Problems') bucketKey = 'feedDisplay';
 
-        if (ownerOptOut) checks.distribution.fail++;
-        else checks.distribution.pass++;
-
-        if (!idxDisplay && !isClosed) checks.distribution.warn++;
-        else checks.distribution.pass++;
-
-        // Data quality
-        var hasAddress = l.address || l.UnparsedAddress;
-        var hasPrice = l.ListPrice || l.price;
-        if (hasAddress && hasPrice) checks.dataQuality.pass++;
-        else checks.dataQuality.fail++;
+          var entry = {
+            listingId: lid,
+            address: addr,
+            type: issue.type,
+            severity: issue.severity,
+            description: issue.description,
+            agent: agentName,
+          };
+          if (bucketKey && buckets[bucketKey]) buckets[bucketKey].items.push(entry);
+          queue.push(entry);
+        });
       });
 
-      // Count audit violations by category
-      violations.forEach(function (v) {
-        var cat = (v.category || '').toLowerCase();
-        if (cat.indexOf('fair') !== -1 || cat.indexOf('housing') !== -1) checks.fairHousing.fail++;
-        else if (cat.indexOf('rebny') !== -1 || cat.indexOf('rls') !== -1) checks.rebny.fail++;
-        else if (cat.indexOf('dos') !== -1) checks.nyDos.fail++;
-        else checks.rebny.fail++;
-      });
-      warnings.forEach(function (w) {
-        var cat = (w.category || '').toLowerCase();
-        if (cat.indexOf('fair') !== -1 || cat.indexOf('housing') !== -1) checks.fairHousing.warn++;
-        else if (cat.indexOf('rebny') !== -1 || cat.indexOf('rls') !== -1) checks.rebny.warn++;
-        else checks.rebny.warn++;
+      // Sort queue by severity: critical → high → medium
+      var sevOrder = { critical: 0, high: 1, medium: 2 };
+      queue.sort(function (a, b) {
+        return (sevOrder[a.severity] || 3) - (sevOrder[b.severity] || 3);
       });
 
-      // Default passes for categories with no issues
-      if (checks.rebny.fail === 0 && checks.rebny.warn === 0) checks.rebny.pass = Math.max(checks.rebny.pass, 1);
-      if (checks.fairHousing.fail === 0 && checks.fairHousing.warn === 0) checks.fairHousing.pass = Math.max(checks.fairHousing.pass, 1);
-      if (checks.nyDos.fail === 0 && checks.nyDos.warn === 0) checks.nyDos.pass = Math.max(checks.nyDos.pass, 1);
-
-      // Compute overall score
-      var totalChecks = 0, totalPass = 0;
-      Object.keys(checks).forEach(function (k) {
-        totalChecks += checks[k].pass + checks[k].warn + checks[k].fail;
-        totalPass += checks[k].pass;
-      });
-      var score = totalChecks > 0 ? Math.round((totalPass / totalChecks) * 100) : 100;
+      // ── Overall score ──
+      var totalListings = listings.length;
+      var cleanListings = listings.filter(function (l) { return l._compliance && l._compliance.status === 'clean'; }).length;
+      var score = totalListings > 0 ? Math.round((cleanListings / totalListings) * 100) : 100;
       var scoreColor = score >= 90 ? '#059669' : score >= 70 ? '#F59E0B' : '#DC2626';
+      var totalIssues = queue.length;
+      var criticalCount = queue.filter(function (q) { return q.severity === 'critical'; }).length;
+      var highCount = queue.filter(function (q) { return q.severity === 'high'; }).length;
 
       var html = '<div class="space-y-4">';
 
-      // Compliance score
+      // Score card
       html += '<div class="card p-6 text-center">' +
         '<p class="text-xs font-bold text-gray-500 uppercase mb-2">Overall Compliance Score</p>' +
         '<p class="text-5xl font-bold" style="color:' + scoreColor + '">' + score + '%</p>' +
-        '<p class="text-xs text-gray-500 mt-1">' + violations.length + ' violation(s), ' + warnings.length + ' warning(s)</p>' +
+        '<p class="text-xs text-gray-500 mt-1">' + cleanListings + ' of ' + totalListings + ' listings fully compliant</p>' +
+        '<div class="flex justify-center gap-4 mt-2 text-xs">' +
+          '<span class="text-red-600 font-semibold">' + criticalCount + ' Critical</span>' +
+          '<span class="text-orange-500 font-semibold">' + highCount + ' High</span>' +
+          '<span class="text-yellow-500 font-semibold">' + (totalIssues - criticalCount - highCount) + ' Medium</span>' +
+        '</div>' +
       '</div>';
 
-      // 5 Category cards
-      function _catCard(label, icon, cat) {
-        var total = cat.pass + cat.warn + cat.fail;
-        var status = cat.fail > 0 ? 'fail' : cat.warn > 0 ? 'warn' : 'pass';
-        var color = status === 'pass' ? '#059669' : status === 'warn' ? '#F59E0B' : '#DC2626';
-        var statusIcon = status === 'pass' ? 'fa-check-circle' : status === 'warn' ? 'fa-exclamation-triangle' : 'fa-times-circle';
-        return '<div class="card p-4 text-center">' +
-          '<i class="fas ' + icon + ' text-xl mb-2" style="color:' + color + '"></i>' +
-          '<p class="text-xs font-bold text-gray-700 mb-1">' + E(label) + '</p>' +
-          '<div class="flex justify-center gap-2 text-xs">' +
-            '<span class="text-green-600">' + cat.pass + ' pass</span>' +
-            (cat.warn > 0 ? '<span class="text-yellow-600">' + cat.warn + ' warn</span>' : '') +
-            (cat.fail > 0 ? '<span class="text-red-600">' + cat.fail + ' fail</span>' : '') +
-          '</div>' +
-          '<i class="fas ' + statusIcon + ' mt-2" style="color:' + color + '"></i>' +
+      // 6 Issue Bucket cards
+      html += '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">';
+      var bucketKeys = ['fairHousing', 'missingDocs', 'media', 'stale', 'protectedPeriods', 'feedDisplay'];
+      bucketKeys.forEach(function (key) {
+        var b = buckets[key];
+        var count = b.items.length;
+        var sevColors = { critical: '#DC2626', high: '#F97316', medium: '#F59E0B' };
+        var bgColor = count > 0 ? (sevColors[b.severity] || '#F59E0B') : '#059669';
+        html += '<div class="card p-4 text-center" style="border-top:3px solid ' + bgColor + '">' +
+          '<i class="fas ' + b.icon + ' text-lg mb-2" style="color:' + bgColor + '"></i>' +
+          '<p class="text-xs font-bold text-gray-700 mb-1">' + E(b.label) + '</p>' +
+          '<p class="text-2xl font-bold" style="color:' + bgColor + '">' + count + '</p>' +
+          '<p class="text-[10px] font-bold uppercase mt-1" style="color:' + bgColor + '">' + (count > 0 ? E(b.severity) : 'CLEAR') + '</p>' +
         '</div>';
-      }
-
-      html += '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">' +
-        _catCard('REBNY RLS', 'fa-shield-alt', checks.rebny) +
-        _catCard('Fair Housing', 'fa-home', checks.fairHousing) +
-        _catCard('NY DOS', 'fa-landmark', checks.nyDos) +
-        _catCard('Distribution', 'fa-share-alt', checks.distribution) +
-        _catCard('Data Quality', 'fa-chart-bar', checks.dataQuality) +
-      '</div>';
-
-      // Active violations
-      if (violations.length > 0) {
-        html += '<div class="card border-red-200"><div class="card-header bg-red-50"><h3><i class="fas fa-times-circle text-red-500 mr-2"></i>Active Violations (' + violations.length + ')</h3></div>' +
-          '<div class="card-body"><div class="space-y-2">';
-        violations.forEach(function (v) {
-          html += '<div class="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-100">' +
-            '<i class="fas fa-times-circle text-red-500 mt-0.5"></i>' +
-            '<div class="flex-1"><p class="text-sm font-medium text-red-800">' + E(v.title || v.message || v.rule || 'Violation') + '</p>' +
-              '<p class="text-xs text-red-600">' + E(v.detail || v.description || v.listing || '') + '</p></div>' +
-          '</div>';
-        });
-        html += '</div></div></div>';
-      }
-
-      // Warnings
-      if (warnings.length > 0) {
-        html += '<div class="card border-yellow-200"><div class="card-header bg-yellow-50"><h3><i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Warnings (' + warnings.length + ')</h3></div>' +
-          '<div class="card-body"><div class="space-y-2">';
-        warnings.forEach(function (w) {
-          html += '<div class="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 border border-yellow-100">' +
-            '<i class="fas fa-exclamation-triangle text-yellow-500 mt-0.5"></i>' +
-            '<div class="flex-1"><p class="text-sm font-medium text-yellow-800">' + E(w.title || w.message || w.rule || 'Warning') + '</p>' +
-              '<p class="text-xs text-yellow-600">' + E(w.detail || w.description || w.listing || '') + '</p></div>' +
-          '</div>';
-        });
-        html += '</div></div></div>';
-      }
-
-      // Full compliance checklist (11 items)
-      var checklist = [
-        { rule: 'Listing agent displays REBNY RLS attribution', cat: 'REBNY RLS', status: 'pass' },
-        { rule: 'All IDX-displayed listings show update timestamps', cat: 'REBNY RLS', status: 'pass' },
-        { rule: 'Owner Opt-Out listings not displayed publicly', cat: 'REBNY RLS', status: checks.distribution.fail > 0 ? 'fail' : 'pass' },
-        { rule: 'Closed listings removed within 24 hours', cat: 'REBNY RLS', status: 'pass' },
-        { rule: 'Coming Soon badge with "No Showings" language', cat: 'REBNY RLS', status: 'pass' },
-        { rule: 'Fair Housing language compliant (19 patterns)', cat: 'Fair Housing', status: checks.fairHousing.fail > 0 ? 'fail' : 'pass' },
-        { rule: 'No discriminatory filtering or language', cat: 'Fair Housing', status: 'pass' },
-        { rule: 'Commission negotiability disclosure present', cat: 'UCBA 2026', status: 'pass' },
-        { rule: 'DOM tracking with 30-day reset (UCBA 2026)', cat: 'UCBA 2026', status: 'pass' },
-        { rule: 'Data retention compliant (NY SHIELD Act)', cat: 'NY DOS', status: 'pass' },
-        { rule: 'Agent PII masked in public/portal views', cat: 'Privacy', status: 'pass' },
-      ];
-
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-clipboard-check text-gold mr-2"></i>Compliance Checklist</h3></div>' +
-        '<div class="card-body"><div class="space-y-2">';
-      checklist.forEach(function (item) {
-        html += _complianceItem(item.rule, item.status, item.cat);
       });
-      html += '</div></div></div>';
+      html += '</div>';
 
-      // Fair Housing scanner
+      // Compliance Queue — unified table of ALL issues
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-list-ol text-gold mr-2"></i>Compliance Queue</h3>' +
+        '<span class="text-xs text-gray-500">' + queue.length + ' issue(s)</span></div>';
+      if (queue.length > 0) {
+        html += '<div class="card-body p-0"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+          '<th class="text-left px-3 py-2">Address</th>' +
+          '<th class="text-left px-3 py-2">Issue</th>' +
+          '<th class="text-center px-3 py-2">Severity</th>' +
+          '<th class="text-left px-3 py-2">Description</th>' +
+          '<th class="text-left px-3 py-2">Agent</th>' +
+          '<th class="text-center px-3 py-2">Action</th>' +
+        '</tr></thead><tbody>';
+
+        queue.forEach(function (q) {
+          var sevColor = q.severity === 'critical' ? '#DC2626' : q.severity === 'high' ? '#F97316' : '#F59E0B';
+          var sevBg = q.severity === 'critical' ? '#DC262615' : q.severity === 'high' ? '#F9731615' : '#F59E0B15';
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-xs font-medium">' + E(q.address) + '</td>' +
+            '<td class="px-3 py-2"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:#6b728015;color:#6b7280">' + E(q.type) + '</span></td>' +
+            '<td class="px-3 py-2 text-center"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + sevBg + ';color:' + sevColor + ';text-transform:uppercase">' + E(q.severity) + '</span></td>' +
+            '<td class="px-3 py-2 text-xs text-gray-600">' + E(q.description) + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(q.agent) + '</td>' +
+            '<td class="px-3 py-2 text-center"><button class="btn btn-xs btn-gold" onclick="Router.navigate(\'/workspace/listing/' + E(q.listingId || '') + '/compliance\')">Fix Now</button></td>' +
+          '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+      } else {
+        html += '<div class="card-body"><div class="flex items-center gap-3 p-4 bg-green-50 rounded-lg">' +
+          '<i class="fas fa-check-circle text-green-500 text-xl"></i>' +
+          '<div><p class="text-sm font-bold text-green-800">All Clear</p>' +
+          '<p class="text-xs text-green-600">No compliance issues detected across ' + totalListings + ' listings.</p></div></div></div>';
+      }
+      html += '</div>';
+
+      // Fair Housing Scanner
       html += '<div class="card"><div class="card-header"><h3><i class="fas fa-home text-blue-500 mr-2"></i>Fair Housing Scanner</h3>' +
         '<button class="btn btn-sm btn-gold" onclick="Panels._runFairHousingScan()"><i class="fas fa-search mr-1"></i> Run Scan</button></div>' +
         '<div class="card-body" id="fairHousingScanResult">' +
-          '<p class="text-sm text-gray-500">Click "Run Scan" to check all active listings for Fair Housing language violations (19 patterns: Federal, NY State, NYC Human Rights Law).</p>' +
+          '<p class="text-sm text-gray-500">Click "Run Scan" to check all listing descriptions against 19 protected-class patterns (Federal Fair Housing Act, NY State Human Rights Law, NYC Human Rights Law Title 8).</p>' +
         '</div></div>';
 
-      // Distribution gate matrix
+      // Distribution Gate Matrix
       var rlsListings = listings.filter(function (l) { return l.rls_eligible !== false; }).slice(0, 50);
       if (rlsListings.length > 0) {
         html += '<div class="card"><div class="card-header"><h3><i class="fas fa-share-alt text-green-500 mr-2"></i>Distribution Gate Matrix</h3></div>' +
-          '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+          '<div class="card-body p-0"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
           '<th class="text-left px-3 py-2">Listing</th>' +
           '<th class="text-center px-2 py-2">Owner Opt-Out</th>' +
+          '<th class="text-center px-2 py-2">Participant Only</th>' +
           '<th class="text-center px-2 py-2">IDX Display</th>' +
           '<th class="text-center px-2 py-2">Syndication</th>' +
           '<th class="text-center px-2 py-2">Coming Soon</th>' +
           '<th class="text-center px-2 py-2">Closed</th>' +
           '<th class="text-center px-2 py-2">Result</th>' +
         '</tr></thead><tbody>';
-        var check = '<i class="fas fa-check-circle text-green-500 text-xs"></i>';
-        var fail = '<i class="fas fa-times-circle text-red-500 text-xs"></i>';
+
+        var gCheck = '<i class="fas fa-check-circle text-green-500 text-xs"></i>';
+        var gFail = '<i class="fas fa-times-circle text-red-500 text-xs"></i>';
+        var gWarn = '<i class="fas fa-exclamation-circle text-yellow-500 text-xs"></i>';
 
         rlsListings.forEach(function (l) {
           var addr = l.address || l.UnparsedAddress || 'No address';
           var ownerOpt = l.OwnerOptOut || l.owner_opt_out;
+          var participantOnly = l.ParticipantOnly || l.participant_only;
           var idxOk = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
           var syndOk = l.SyndicationOptInYN !== false && l.syndication_opt_in !== false;
           var comingSoon = (l.status || '').toLowerCase() === 'coming soon' || (l.status || '').toLowerCase() === 'comingsoon';
           var closed = (l.status || '').toLowerCase() === 'closed';
-          var passAll = !ownerOpt && idxOk && !closed;
+          var blocked = ownerOpt || !idxOk || closed;
+          var warn = comingSoon || participantOnly;
+          var result = blocked ? 'BLOCK' : warn ? 'WARN' : 'PASS';
+          var resultColor = blocked ? 'text-red-600' : warn ? 'text-yellow-600' : 'text-green-600';
+
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-xs font-medium">' + E(addr) + '</td>' +
-            '<td class="text-center px-2 py-2">' + (ownerOpt ? fail : check) + '</td>' +
-            '<td class="text-center px-2 py-2">' + (idxOk ? check : fail) + '</td>' +
-            '<td class="text-center px-2 py-2">' + (syndOk ? check : fail) + '</td>' +
-            '<td class="text-center px-2 py-2">' + (comingSoon ? '<i class="fas fa-clock text-yellow-500 text-xs"></i>' : check) + '</td>' +
-            '<td class="text-center px-2 py-2">' + (closed ? fail : check) + '</td>' +
-            '<td class="text-center px-2 py-2"><span class="text-[10px] font-bold ' + (passAll ? 'text-green-600' : 'text-red-600') + '">' + (passAll ? 'CLEAR' : 'BLOCKED') + '</span></td>' +
+            '<td class="text-center px-2 py-2">' + (ownerOpt ? gFail : gCheck) + '</td>' +
+            '<td class="text-center px-2 py-2">' + (participantOnly ? gWarn : gCheck) + '</td>' +
+            '<td class="text-center px-2 py-2">' + (idxOk ? gCheck : gFail) + '</td>' +
+            '<td class="text-center px-2 py-2">' + (syndOk ? gCheck : gFail) + '</td>' +
+            '<td class="text-center px-2 py-2">' + (comingSoon ? gWarn : gCheck) + '</td>' +
+            '<td class="text-center px-2 py-2">' + (closed ? gFail : gCheck) + '</td>' +
+            '<td class="text-center px-2 py-2"><span class="text-[10px] font-bold ' + resultColor + '">' + result + '</span></td>' +
           '</tr>';
         });
         html += '</tbody></table></div></div></div>';
@@ -3640,23 +4007,12 @@ var Panels = (function () {
     if (!resultEl) return;
     resultEl.innerHTML = UI.loading();
 
-    MallanAPI.listings.list({ limit: 200 }).then(function (data) {
+    MallanAPI.listings.list({ limit: 500 }).then(function (data) {
       var listings = data.listings || [];
-      // Fair Housing patterns (subset of the 19 in lib/compliance/rls-enforcement.ts)
-      var patterns = [
-        /\b(no children|no kids|adults only|no families)\b/i,
-        /\b(no pets allowed)\b/i,
-        /\b(christian|jewish|muslim|catholic|protestant)\s+(only|preferred|neighborhood)\b/i,
-        /\b(white|black|asian|hispanic|latino)\s+(only|preferred|neighborhood)\b/i,
-        /\b(no wheelchair|no handicap|not accessible)\b/i,
-        /\b(bachelor pad|man cave|perfect for single)\b/i,
-        /\b(walking distance to church|near synagogue|close to mosque)\b/i,
-        /\b(exclusive|prestigious)\s+(neighborhood|community|area)\b/i,
-      ];
       var flagged = [];
       listings.forEach(function (l) {
         var text = (l.description || l.PublicRemarks || l.remarks || '') + ' ' + (l.address || '');
-        patterns.forEach(function (p) {
+        _fairHousingPatterns.forEach(function (p) {
           var match = text.match(p);
           if (match) {
             flagged.push({
@@ -3672,10 +4028,10 @@ var Panels = (function () {
         resultEl.innerHTML = '<div class="flex items-center gap-3 p-4 bg-green-50 rounded-lg">' +
           '<i class="fas fa-check-circle text-green-500 text-xl"></i>' +
           '<div><p class="text-sm font-bold text-green-800">All Clear</p>' +
-          '<p class="text-xs text-green-600">Scanned ' + listings.length + ' listings. No Fair Housing violations detected.</p></div></div>';
+          '<p class="text-xs text-green-600">Scanned ' + listings.length + ' listings against 19 protected-class patterns. No Fair Housing violations detected.</p></div></div>';
       } else {
         var fhtml = '<div class="space-y-2">' +
-          '<p class="text-sm font-bold text-red-600">' + flagged.length + ' potential violation(s) found in ' + listings.length + ' listings:</p>';
+          '<p class="text-sm font-bold text-red-600">' + flagged.length + ' potential violation(s) found across ' + listings.length + ' listings:</p>';
         flagged.forEach(function (f) {
           fhtml += '<div class="flex items-start gap-2 p-2 bg-red-50 rounded border border-red-100">' +
             '<i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>' +
@@ -5224,6 +5580,11 @@ var Panels = (function () {
     _export1099AuditCSV: _export1099AuditCSV,
     _mark1099Status: _mark1099Status,
     _runFairHousingScan: _runFairHousingScan,
+    _companyListingsView: _companyListingsView,
+    _filterCompanyView: _filterCompanyView,
+    _sortCompanyListings: _sortCompanyListings,
+    _exportCompanyCSV: _exportCompanyCSV,
+    _computeListingCompliance: _computeListingCompliance,
     _toggleAuditDetail: _toggleAuditDetail,
     _filterAuditLog: _filterAuditLog,
     _exportAuditCSV: _exportAuditCSV,
