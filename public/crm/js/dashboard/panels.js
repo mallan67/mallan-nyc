@@ -6800,43 +6800,197 @@ var Panels = (function () {
   }
 
   // ─── Pipeline ────────────────────────────────────────────────────────
+  var PIPELINE_STAGES = [
+    { key: 'new', title: 'New', color: '#6b7280', icon: 'fa-inbox' },
+    { key: 'contacted', title: 'Contacted', color: '#3b82f6', icon: 'fa-phone' },
+    { key: 'nurturing', title: 'Nurturing', color: '#8b5cf6', icon: 'fa-seedling' },
+    { key: 'active', title: 'Active', color: '#059669', icon: 'fa-bolt' },
+    { key: 'showing', title: 'Showing', color: '#f59e0b', icon: 'fa-calendar' },
+    { key: 'offer', title: 'Offer', color: '#f97316', icon: 'fa-gavel' },
+    { key: 'deal', title: 'Deal', color: '#10b981', icon: 'fa-handshake' },
+    { key: 'closed', title: 'Closed', color: '#374151', icon: 'fa-check-circle' },
+  ];
+
   function pipeline() {
     CRM.setPanelTitle('Pipeline');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.clients.list({ limit: 200 }).then(function (data) {
-      var clients = data.clients || [];
-      var stages = [
-        { key: 'new', title: 'New', color: '#6b7280' },
-        { key: 'contacted', title: 'Contacted', color: '#3b82f6' },
-        { key: 'nurturing', title: 'Nurturing', color: '#8b5cf6' },
-        { key: 'active', title: 'Active', color: '#059669' },
-        { key: 'showing', title: 'Showing', color: '#f59e0b' },
-        { key: 'offer', title: 'Offer', color: '#f97316' },
-        { key: 'deal', title: 'Deal', color: '#10b981' },
-        { key: 'closed', title: 'Closed', color: '#374151' },
-      ];
+    Promise.all([
+      MallanAPI.clients.list({ limit: 300 }).catch(function () { return { clients: [] }; }),
+      MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
+    ]).then(function (r) {
+      var clients = r[0].clients || [];
+      var tasks = r[1].tasks || [];
+      var now = new Date();
+      var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
 
-      var grouped = Utils.groupBy(clients, function (cl) { return cl.stage || cl.status || 'new'; });
+      // Enrich clients
+      clients.forEach(function (cl) {
+        var cid = cl.id;
+        var clientTasks = tasks.filter(function (t) { return (t.client_id === cid || t.clientId === cid) && t.status !== 'completed'; });
+        clientTasks.sort(function (a, b) { return new Date(a.due_date || '9999') - new Date(b.due_date || '9999'); });
+        cl._nextTask = clientTasks[0] || null;
+        cl._lastActivity = new Date(cl.updated_at || cl.updatedAt || cl.created_at || 0);
+        cl._isStale = cl._lastActivity < sevenDaysAgo;
+        cl._isRenter = (cl.type === 'renter' || cl.client_type === 'renter');
+        cl._leaseEnd = cl.leaseEndDate || cl.lease_end_date;
+        cl._conversionProb = cl.conversionProbability || 0;
 
-      var columns = stages.map(function (s) {
-        var items = (grouped[s.key] || []).map(function (cl) {
-          return UI.kanbanCard(
-            cl.name || cl.email || 'Unknown',
-            cl.type || cl.client_type || '',
-            UI.roleBadge(cl.type || cl.client_type),
-            "Router.navigate('/workspace/client/" + E(cl.id) + "/overview')"
-          );
-        });
-        return { title: s.title, color: s.color, items: items };
+        // Next best action
+        if (cl._nextTask && cl._nextTask.due_date && new Date(cl._nextTask.due_date) < now) {
+          cl._nba = { label: 'Complete overdue task', icon: 'fa-exclamation-circle', color: '#DC2626' };
+        } else if (cl._isStale) {
+          cl._nba = { label: 'Follow up', icon: 'fa-phone', color: '#F59E0B' };
+        } else if (cl._isRenter && cl._leaseEnd && Utils.daysUntil(cl._leaseEnd) <= 90) {
+          cl._nba = { label: 'Discuss conversion', icon: 'fa-exchange-alt', color: '#7C3AED' };
+        } else if (cl._nextTask) {
+          cl._nba = { label: cl._nextTask.title, icon: 'fa-tasks', color: '#2563EB' };
+        } else {
+          cl._nba = { label: 'Send listings', icon: 'fa-paper-plane', color: '#059669' };
+        }
       });
 
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Pipeline', clients.length + ' clients') +
-        UI.kanbanBoard(columns) +
-      '</div>';
+      var grouped = Utils.groupBy(clients, function (cl) { return (cl.stage || cl.status || 'new').toLowerCase(); });
+
+      var html = '<div class="space-y-4">';
+
+      // Summary bar
+      html += '<div class="flex gap-1 p-3 bg-white rounded-xl border overflow-x-auto">';
+      PIPELINE_STAGES.forEach(function (s, i) {
+        var count = (grouped[s.key] || []).length;
+        html += '<div class="flex-1 text-center min-w-[60px]">' +
+          '<div class="w-9 h-9 rounded-full mx-auto mb-1 flex items-center justify-center text-white text-xs font-bold" style="background:' + s.color + '">' + count + '</div>' +
+          '<p class="text-[9px] font-bold text-gray-500 uppercase">' + E(s.title) + '</p>' +
+        '</div>';
+        if (i < PIPELINE_STAGES.length - 1) html += '<div class="text-gray-300 flex items-center"><i class="fas fa-chevron-right text-[8px]"></i></div>';
+      });
+      html += '</div>';
+
+      // Pipeline total
+      html += '<p class="text-xs text-gray-500">' + clients.length + ' clients in pipeline</p>';
+
+      // Kanban board with rich cards
+      html += '<div class="kanban-board">';
+      PIPELINE_STAGES.forEach(function (s) {
+        var stageClients = grouped[s.key] || [];
+        html += '<div class="kanban-col">' +
+          '<div class="kanban-col-header" style="border-color:' + s.color + '">' +
+            '<span class="kanban-col-title" style="color:' + s.color + '"><i class="fas ' + s.icon + ' mr-1"></i> ' + E(s.title) + '</span>' +
+            '<span class="kanban-col-count" style="background:' + s.color + '">' + stageClients.length + '</span>' +
+          '</div>' +
+          '<div class="kanban-col-body" data-stage="' + E(s.key) + '" ' +
+            'ondragover="event.preventDefault();this.style.background=\'#FFFBF0\'" ' +
+            'ondragleave="this.style.background=\'\'" ' +
+            'ondrop="Panels._pipelineDrop(event,\'' + E(s.key) + '\')">';
+
+        if (stageClients.length === 0) {
+          html += '<div class="text-center text-xs text-gray-400 py-6"><i class="fas fa-inbox block text-lg mb-1"></i>Empty</div>';
+        } else {
+          stageClients.forEach(function (cl) {
+            html += _pipelineCard(cl, s.key);
+          });
+        }
+
+        html += '</div></div>';
+      });
+      html += '</div>';
+
+      html += '</div>';
+      c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-stream', 'Unable to load pipeline');
+    });
+  }
+
+  function _pipelineCard(cl, stageKey) {
+    var name = cl.name || cl.full_name || cl.email || 'Unknown';
+    var type = cl.type || cl.client_type || '';
+    var nba = cl._nba || {};
+
+    var html = '<div class="kanban-card" draggable="true" ' +
+      'data-client-id="' + E(cl.id) + '" ' +
+      'ondragstart="Panels._pipelineDragStart(event,\'' + E(cl.id) + '\')" ' +
+      'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/pipeline\')">';
+
+    // Header: name + type badge
+    html += '<div class="flex items-center justify-between mb-1">' +
+      '<p class="text-sm font-semibold text-gray-900 truncate flex-1">' + E(name) + '</p>' +
+      UI.roleBadge(type) +
+    '</div>';
+
+    // Contact
+    if (cl.email) html += '<p class="text-xs text-gray-500 truncate">' + E(cl.email) + '</p>';
+
+    // Badges row
+    html += '<div class="flex flex-wrap gap-1 mt-1.5">';
+
+    // Conversion badge for renters
+    if (cl._isRenter && cl._conversionProb > 0) {
+      var convColor = cl._conversionProb >= 70 ? '#059669' : cl._conversionProb >= 40 ? '#F59E0B' : '#6b7280';
+      html += '<span class="px-1 py-0.5 rounded text-[8px] font-bold text-white" style="background:' + convColor + '">' +
+        '<i class="fas fa-exchange-alt mr-0.5"></i>' + cl._conversionProb + '%</span>';
+    }
+
+    // Lease expiry for renters
+    if (cl._isRenter && cl._leaseEnd) {
+      var daysLeft = Utils.daysUntil(cl._leaseEnd);
+      if (daysLeft !== null && daysLeft <= 180) {
+        var leaseColor = daysLeft <= 30 ? '#DC2626' : daysLeft <= 90 ? '#F59E0B' : '#6b7280';
+        html += '<span class="px-1 py-0.5 rounded text-[8px] font-bold" style="background:' + leaseColor + '15;color:' + leaseColor + '">Lease ' + daysLeft + 'd</span>';
+      }
+    }
+
+    // Inactivity warning
+    if (cl._isStale) {
+      html += '<span class="px-1 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[8px] font-bold"><i class="fas fa-clock mr-0.5"></i>Stale</span>';
+    }
+
+    html += '</div>';
+
+    // Next best action
+    html += '<div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">' +
+      '<i class="fas ' + (nba.icon || 'fa-arrow-right') + ' text-[9px]" style="color:' + (nba.color || '#6b7280') + '"></i>' +
+      '<span class="text-[10px] text-gray-600 truncate">' + E(nba.label || 'Open workspace') + '</span>' +
+    '</div>';
+
+    // Move buttons
+    html += '<div class="flex items-center justify-between mt-1.5" onclick="event.stopPropagation()">';
+    var stageIdx = -1;
+    PIPELINE_STAGES.forEach(function (s, i) { if (s.key === stageKey) stageIdx = i; });
+    if (stageIdx > 0) {
+      html += '<button class="text-[9px] text-gray-400 hover:text-gold" onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(PIPELINE_STAGES[stageIdx - 1].key) + '\')"><i class="fas fa-arrow-left"></i> ' + E(PIPELINE_STAGES[stageIdx - 1].title) + '</button>';
+    } else {
+      html += '<span></span>';
+    }
+    if (stageIdx < PIPELINE_STAGES.length - 1) {
+      html += '<button class="text-[9px] text-gray-400 hover:text-gold" onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(PIPELINE_STAGES[stageIdx + 1].key) + '\')">' + E(PIPELINE_STAGES[stageIdx + 1].title) + ' <i class="fas fa-arrow-right"></i></button>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function _pipelineDragStart(event, clientId) {
+    event.dataTransfer.setData('text/plain', clientId);
+    event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function _pipelineDrop(event, newStage) {
+    event.preventDefault();
+    event.currentTarget.style.background = '';
+    var clientId = event.dataTransfer.getData('text/plain');
+    if (!clientId) return;
+    _pipelineMove(clientId, newStage);
+  }
+
+  function _pipelineMove(clientId, newStage) {
+    MallanAPI.clients.update(clientId, { stage: newStage }).then(function () {
+      Events.log('client_stage_moved', 'client', clientId, { to: newStage });
+      CRM.toast('Moved to ' + newStage, 'success');
+      pipeline(); // refresh
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to move'), 'error');
     });
   }
 
@@ -7367,5 +7521,8 @@ var Panels = (function () {
     _quickFilterMyListings: _quickFilterMyListings,
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
+    _pipelineDragStart: _pipelineDragStart,
+    _pipelineDrop: _pipelineDrop,
+    _pipelineMove: _pipelineMove,
   };
 })();
