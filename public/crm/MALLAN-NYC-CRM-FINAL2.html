@@ -30132,7 +30132,7 @@
                     _s('cpDetailPhone', c.phone);
                     _s('cpDetailSource', c.source ? c.source.charAt(0).toUpperCase() + c.source.slice(1) : '--');
                     _s('cpDetailAdded', c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '--');
-                    _s('cpAssignedAgent', 'Maya Allan');
+                    _s('cpAssignedAgent', (window._crmCtx && window._crmCtx.user ? window._crmCtx.user.name : 'Agent'));
 
                     // ── Overview: Financial Profile ──
                     var prefs = c.preferences || {};
@@ -30609,7 +30609,8 @@
             if (!c || !c.email) { showToast('No email address', 'error'); return; }
             var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
             var subject = encodeURIComponent('Following up — ' + name);
-            var body = encodeURIComponent('Hi ' + (c.first_name || '') + ',\n\nI wanted to follow up on your property search.\n\nBest regards,\nMaya Allan\nMallan Real Estate Inc.\n646-258-4460');
+            var _agentName = (window._crmCtx && window._crmCtx.user ? window._crmCtx.user.name : 'Your Agent');
+            var body = encodeURIComponent('Hi ' + (c.first_name || '') + ',\n\nI wanted to follow up on your property search.\n\nBest regards,\n' + _agentName + '\nMallan Real Estate Inc.\n646-258-4460');
             window.open('mailto:' + c.email + '?subject=' + subject + '&body=' + body, '_self');
         };
 
@@ -30680,7 +30681,8 @@
                     body += ' — ' + (l.MLSAreaMajor || '') + '\n';
                     body += '   https://mallan.nyc/listings/' + l.ListingId + '\n\n';
                 });
-                body += 'Let me know which ones interest you and I will schedule showings.\n\nBest regards,\nMaya Allan\nMallan Real Estate Inc.\n646-258-4460';
+                var _agentSig = (window._crmCtx && window._crmCtx.user ? window._crmCtx.user.name : 'Your Agent');
+                body += 'Let me know which ones interest you and I will schedule showings.\n\nBest regards,\n' + _agentSig + '\nMallan Real Estate Inc.\n646-258-4460';
 
                 window.open('mailto:' + c.email + '?subject=' + subject + '&body=' + encodeURIComponent(body), '_self');
                 showToast(listings.length + ' listings ready to send', 'success');

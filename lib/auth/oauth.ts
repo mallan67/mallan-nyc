@@ -44,7 +44,7 @@ export async function handleOAuthLogin(profile: OAuthProfile) {
     });
 
     const res = NextResponse.redirect(
-      `${SITE_URL}/crm/MALLAN-NYC-CRM-FINAL2.html`
+      `${SITE_URL}/crm/dashboard`
     );
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
