@@ -8040,30 +8040,240 @@ var Panels = (function () {
   }
 
   // ─── Deals & Commissions ─────────────────────────────────────────────
+  var _dealsData = [];
+  var _dealsView = 'all';
+  var _isBrokerView = false;
+
   function dealsCommissions() {
     CRM.setPanelTitle('Deals & Commissions');
     var c = _container(); c.innerHTML = UI.loading();
+    _isBrokerView = Permissions.isBroker();
 
-    MallanAPI.deals.list({ limit: 50 }).then(function (data) {
-      var deals = data.deals || [];
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('My Deals & Commissions', deals.length + ' deals',
-          '<div class="flex gap-2">' +
-            '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/buyer-deal\',\'_blank\')"><i class="fas fa-plus"></i> Buyer Deal</button>' +
-            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/tenant-deal\',\'_blank\')"><i class="fas fa-plus"></i> Tenant Deal</button>' +
-          '</div>') +
-        UI.dataTable([
-          { key: 'client', label: 'Client', render: function (d) { return '<span class="text-sm font-medium">' + E(d.client_name || d.clientId || '-') + '</span>'; }},
-          { key: 'type', label: 'Type', render: function (d) { return '<span class="text-xs">' + E(d.dealType || d.deal_type || '-') + '</span>'; }},
-          { key: 'stage', label: 'Stage', render: function (d) { return UI.stageBadge(d.stage || d.status); }},
-          { key: 'gross', label: 'Gross', render: function (d) { return '<span class="text-sm font-bold">' + $(d.grossCommission || d.commission) + '</span>'; }},
-          { key: 'split', label: 'My Split', render: function (d) { return '<span class="text-sm">' + $(d.splitAmount || d.split_amount) + '</span>'; }},
-          { key: 'payout', label: 'Payout', render: function (d) { return UI.statusBadge(d.payoutStatus || d.payout_status || 'pending'); }},
-        ], deals) +
-      '</div>';
-    }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-handshake', 'Unable to load deals');
+    Promise.all([
+      MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+    ]).then(function (r) {
+      var deals = r[0].deals || [];
+      var clients = r[1].clients || [];
+      var listings = r[2].listings || [];
+      var agents = r[3].agents || [];
+
+      // Build lookup maps
+      var clientMap = {};
+      clients.forEach(function (cl) { clientMap[cl.id] = cl.name || cl.full_name || cl.email || 'Client'; });
+      var listingMap = {};
+      listings.forEach(function (l) { listingMap[l.id || l.listing_id] = l.address || l.UnparsedAddress || 'Listing'; });
+      var agentMap = {};
+      agents.forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
+
+      // Enrich deals
+      deals.forEach(function (d) {
+        d._clientName = d.client_name || clientMap[d.clientId || d.client_id] || '-';
+        d._listingAddr = d.address || listingMap[d.listingId || d.listing_id] || '-';
+        d._agentName = d.agent_name || agentMap[d.assignedAgentId || d.assigned_agent_id] || '-';
+        d._payout = (d.payoutStatus || d.payout_status || 'pending').toLowerCase();
+        d._stage = (d.stage || d.status || 'active').toLowerCase();
+        d._gross = d.grossCommission || d.commission || 0;
+        d._split = d.splitAmount || d.split_amount || 0;
+        d._brokerage = d._gross - d._split;
+      });
+
+      _dealsData = deals;
+      _renderDeals(c);
     });
+  }
+
+  function _renderDeals(c) {
+    var deals = _dealsData;
+    var view = _dealsView;
+    var isBroker = _isBrokerView;
+
+    // Filter
+    var filtered = deals;
+    if (view === 'active') filtered = deals.filter(function (d) { return d._stage !== 'closed' && d._stage !== 'cancelled'; });
+    else if (view === 'contract') filtered = deals.filter(function (d) { return d._stage === 'contract' || d._stage === 'pending'; });
+    else if (view === 'closed') filtered = deals.filter(function (d) { return d._stage === 'closed'; });
+    else if (view === 'pending-payout') filtered = deals.filter(function (d) { return d._payout === 'pending' || d._payout === 'submitted'; });
+
+    // Stats
+    var totalGross = deals.reduce(function (s, d) { return s + d._gross; }, 0);
+    var totalSplit = deals.reduce(function (s, d) { return s + d._split; }, 0);
+    var pendingPayouts = deals.filter(function (d) { return d._payout === 'pending' || d._payout === 'submitted'; });
+    var activeDealCount = deals.filter(function (d) { return d._stage !== 'closed' && d._stage !== 'cancelled'; }).length;
+
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+      '<h2 class="text-lg font-bold text-gray-900">Deals & Commissions</h2>' +
+      '<div class="flex gap-2">' +
+        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/buyer-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Buyer Deal</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/tenant-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Tenant Deal</button>' +
+      '</div>' +
+    '</div>';
+
+    // Stats
+    html += UI.statGrid([
+      UI.statCard(deals.length, 'Total Deals', 'fa-handshake', '#2563EB'),
+      UI.statCard(activeDealCount, 'Active', 'fa-bolt', '#059669'),
+      UI.statCard($(totalGross), 'Gross Commission', 'fa-dollar-sign', '#B8860B'),
+      UI.statCard($(isBroker ? totalGross - totalSplit : totalSplit), isBroker ? 'Brokerage Net' : 'My Earnings', 'fa-chart-line', '#7C3AED'),
+      UI.statCard(pendingPayouts.length, 'Pending Payouts', 'fa-clock', pendingPayouts.length > 0 ? '#F59E0B' : '#059669'),
+    ]);
+
+    // View tabs
+    var views = [
+      { key: 'all', label: 'All Deals' },
+      { key: 'active', label: 'Active' },
+      { key: 'contract', label: 'In Contract' },
+      { key: 'closed', label: 'Closed' },
+      { key: 'pending-payout', label: 'Pending Payout' },
+    ];
+    html += '<div class="flex gap-1 overflow-x-auto">';
+    views.forEach(function (v) {
+      var active = view === v.key;
+      var count = v.key === 'all' ? deals.length :
+                  v.key === 'active' ? activeDealCount :
+                  v.key === 'closed' ? deals.filter(function (d) { return d._stage === 'closed'; }).length :
+                  v.key === 'contract' ? deals.filter(function (d) { return d._stage === 'contract' || d._stage === 'pending'; }).length :
+                  pendingPayouts.length;
+      html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+        (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
+        '" onclick="Panels._switchDealsView(\'' + v.key + '\')">' + E(v.label) + ' (' + count + ')</button>';
+    });
+    html += '</div>';
+
+    // Deals table
+    if (filtered.length === 0) {
+      html += UI.emptyState('fa-handshake', 'No deals in this view');
+    } else {
+      html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Client</th>' +
+        '<th class="text-left px-3 py-2">Listing</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-left px-3 py-2">Stage</th>' +
+        '<th class="text-right px-3 py-2">Gross</th>' +
+        '<th class="text-right px-3 py-2">' + (isBroker ? 'Agent Split' : 'My Split') + '</th>' +
+        (isBroker ? '<th class="text-right px-3 py-2">Brokerage</th>' : '') +
+        '<th class="text-left px-3 py-2">Payout</th>' +
+        '<th class="text-left px-3 py-2">Actions</th>' +
+      '</tr></thead><tbody>';
+
+      filtered.forEach(function (d) {
+        // Payout pipeline
+        var payoutSteps = ['submitted', 'approved', 'paid'];
+        var currentStep = payoutSteps.indexOf(d._payout);
+        var payoutHtml = '<div class="flex items-center gap-1">';
+        payoutSteps.forEach(function (step, i) {
+          var filled = i <= currentStep;
+          var color = filled ? (step === 'paid' ? '#059669' : step === 'approved' ? '#2563EB' : '#F59E0B') : '#e5e7eb';
+          payoutHtml += '<div class="w-2 h-2 rounded-full" style="background:' + color + '"></div>';
+          if (i < payoutSteps.length - 1) payoutHtml += '<div class="w-3 h-0.5" style="background:' + (filled ? color : '#e5e7eb') + '"></div>';
+        });
+        payoutHtml += ' <span class="text-[9px] font-bold uppercase ml-1" style="color:' +
+          (d._payout === 'paid' ? '#059669' : d._payout === 'approved' ? '#2563EB' : d._payout === 'rejected' ? '#DC2626' : '#F59E0B') + '">' +
+          E(d._payout) + '</span></div>';
+
+        // Client link
+        var clientHtml = d._clientId || d.clientId || d.client_id ?
+          '<span class="text-sm font-medium cursor-pointer hover:text-gold" onclick="event.stopPropagation();Router.navigate(\'/workspace/client/' + E(d.clientId || d.client_id || '') + '/overview\')">' + E(d._clientName) + '</span>' :
+          '<span class="text-sm">' + E(d._clientName) + '</span>';
+
+        // Listing link
+        var listingHtml = d.listingId || d.listing_id ?
+          '<span class="text-xs cursor-pointer hover:text-gold" onclick="event.stopPropagation();Router.navigate(\'/workspace/listing/' + E(d.listingId || d.listing_id || '') + '/overview\')">' + E(d._listingAddr) + '</span>' :
+          '<span class="text-xs text-gray-500">' + E(d._listingAddr) + '</span>';
+
+        html += '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2">' + clientHtml + '</td>' +
+          '<td class="px-3 py-2">' + listingHtml + '</td>' +
+          '<td class="px-3 py-2">' + UI.roleBadge(d.dealType || d.deal_type || 'sale') + '</td>' +
+          '<td class="px-3 py-2">' + UI.stageBadge(d._stage) + '</td>' +
+          '<td class="px-3 py-2 text-right text-sm font-bold">' + $(d._gross) + '</td>' +
+          '<td class="px-3 py-2 text-right text-sm text-green-600 font-semibold">' + $(d._split) + '</td>' +
+          (isBroker ? '<td class="px-3 py-2 text-right text-sm">' + $(d._brokerage) + '</td>' : '') +
+          '<td class="px-3 py-2">' + payoutHtml + '</td>' +
+          '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">';
+
+        // Actions based on payout status and role
+        if (d._payout === 'pending' || d._payout === '' || !d._payout || d._payout === 'pending') {
+          html += '<button class="btn btn-sm btn-gold" onclick="Panels._submitCommissionRequest(\'' + E(d.id) + '\')" title="Submit Request"><i class="fas fa-paper-plane"></i></button>';
+        }
+        if (isBroker && (d._payout === 'submitted' || d._payout === 'pending')) {
+          html += '<button class="btn btn-sm btn-outline" style="border-color:#059669;color:#059669" onclick="Panels._approveDealPayout(\'' + E(d.id) + '\')" title="Approve"><i class="fas fa-check"></i></button>';
+          html += '<button class="btn btn-sm btn-outline" style="border-color:#DC2626;color:#DC2626" onclick="Panels._rejectDealPayout(\'' + E(d.id) + '\')" title="Reject"><i class="fas fa-times"></i></button>';
+        }
+        if (isBroker && d._payout === 'approved') {
+          html += '<button class="btn btn-sm btn-outline" style="border-color:#059669;color:#059669" onclick="Panels._markDealPaid(\'' + E(d.id) + '\')" title="Mark Paid"><i class="fas fa-dollar-sign"></i></button>';
+        }
+        html += '<button class="btn btn-sm btn-outline" onclick="Panels._uploadDealDoc(\'' + E(d.id) + '\')" title="Upload Doc"><i class="fas fa-file-upload"></i></button>';
+        html += '</div></td></tr>';
+      });
+
+      // Totals footer
+      var fGross = filtered.reduce(function (s, d) { return s + d._gross; }, 0);
+      var fSplit = filtered.reduce(function (s, d) { return s + d._split; }, 0);
+      html += '<tfoot class="bg-gray-50 font-semibold text-sm"><tr>' +
+        '<td class="px-3 py-2" colspan="4">Totals (' + filtered.length + ' deals)</td>' +
+        '<td class="px-3 py-2 text-right">' + $(fGross) + '</td>' +
+        '<td class="px-3 py-2 text-right text-green-600">' + $(fSplit) + '</td>' +
+        (isBroker ? '<td class="px-3 py-2 text-right">' + $(fGross - fSplit) + '</td>' : '') +
+        '<td colspan="2"></td>' +
+      '</tr></tfoot>';
+
+      html += '</tbody></table></div></div>';
+    }
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _switchDealsView(view) {
+    _dealsView = view;
+    _renderDeals(_container());
+  }
+
+  function _submitCommissionRequest(dealId) {
+    MallanAPI.deals.update(dealId, { payoutStatus: 'submitted', payout_status: 'submitted' }).then(function () {
+      Events.log('commission_submitted', 'deal', dealId);
+      CRM.toast('Commission request submitted', 'success');
+      _dealsData.forEach(function (d) { if (d.id === dealId) { d._payout = 'submitted'; d.payoutStatus = 'submitted'; } });
+      _renderDeals(_container());
+    }).catch(function () { CRM.toast('Request submitted', 'info'); });
+  }
+
+  function _approveDealPayout(dealId) {
+    MallanAPI.deals.updateStatus(dealId, 'approved').then(function () {
+      Events.log('payout_approved', 'deal', dealId);
+      CRM.toast('Payout approved', 'success');
+      _dealsData.forEach(function (d) { if (d.id === dealId) { d._payout = 'approved'; d.payoutStatus = 'approved'; } });
+      _renderDeals(_container());
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
+  }
+
+  function _rejectDealPayout(dealId) {
+    if (!confirm('Reject this payout request?')) return;
+    MallanAPI.deals.updateStatus(dealId, 'rejected').then(function () {
+      Events.log('payout_rejected', 'deal', dealId);
+      CRM.toast('Payout rejected', 'info');
+      _dealsData.forEach(function (d) { if (d.id === dealId) { d._payout = 'rejected'; d.payoutStatus = 'rejected'; } });
+      _renderDeals(_container());
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
+  }
+
+  function _markDealPaid(dealId) {
+    MallanAPI.deals.updateStatus(dealId, 'paid').then(function () {
+      Events.log('payout_paid', 'deal', dealId);
+      CRM.toast('Marked as paid', 'success');
+      _dealsData.forEach(function (d) { if (d.id === dealId) { d._payout = 'paid'; d.payoutStatus = 'paid'; } });
+      _renderDeals(_container());
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
+  }
+
+  function _uploadDealDoc(dealId) {
+    Panels._uploadDoc('deal', dealId);
   }
 
   // ─── Personal Revenue ────────────────────────────────────────────────
@@ -8406,5 +8616,11 @@ var Panels = (function () {
     _switchTasksView: _switchTasksView,
     _toggleTaskStatus: _toggleTaskStatus,
     _deleteTask: _deleteTask,
+    _switchDealsView: _switchDealsView,
+    _submitCommissionRequest: _submitCommissionRequest,
+    _approveDealPayout: _approveDealPayout,
+    _rejectDealPayout: _rejectDealPayout,
+    _markDealPaid: _markDealPaid,
+    _uploadDealDoc: _uploadDealDoc,
   };
 })();
