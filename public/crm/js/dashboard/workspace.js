@@ -165,12 +165,26 @@ var Workspace = (function () {
         '<div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-lg font-bold">-</div>' +
       '</div></div>';
 
+    // Client Summary — mirrors overview summary cards
+    var stage = cl.stage || cl.status || 'new';
+    var railEvents = Events.getByEntity('client', _clientId);
+    var railLastEvent = railEvents.length > 0 ? railEvents[0] : null;
+    var railLastActivity = railLastEvent ? Utils.formatTimeAgo(railLastEvent.createdAt) : 'None';
+    var railTasks = (_clientData.tasks || []).filter(function (t) { return t.status !== 'completed'; });
+    var railNextTask = railTasks.length > 0 ? railTasks[0].title : 'None';
+    html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Summary</h4>' +
+      '<div class="space-y-2">' +
+        '<div class="flex justify-between text-xs"><span>Stage</span><span class="font-bold px-2 py-0.5 rounded-full ' + _stageBadgeColor(stage) + '">' + E(stage) + '</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Last Activity</span><span class="font-bold">' + E(railLastActivity) + '</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Next Task</span><span class="font-bold truncate max-w-[120px]" title="' + E(railNextTask) + '">' + E(railNextTask) + '</span></div>' +
+      '</div></div>';
+
     // Health Metrics
     html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Health Metrics</h4>' +
       '<div class="space-y-2">' +
-        '<div class="flex justify-between text-xs"><span>Health Score</span><span class="font-bold">' + (cl.healthScore || cl.health_score || '—') + '</span></div>' +
-        '<div class="flex justify-between text-xs"><span>Readiness</span><span class="font-bold" id="wsRailReadinessScore">' + (cl.readinessScore || cl.readiness_score || '—') + '</span></div>' +
-        '<div class="flex justify-between text-xs"><span>Conversion</span><span class="font-bold">' + (cl.conversionProbability || cl.conversion_probability || '—') + (cl.conversionProbability ? '%' : '') + '</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Health Score</span><span class="font-bold">' + (cl.healthScore || cl.health_score || '\u2014') + '</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Readiness</span><span class="font-bold" id="wsRailReadinessScore">' + (cl.readinessScore || cl.readiness_score || '\u2014') + '</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Conversion</span><span class="font-bold">' + (cl.conversionProbability || cl.conversion_probability || '\u2014') + (cl.conversionProbability ? '%' : '') + '</span></div>' +
       '</div></div>';
 
     // Alerts
@@ -262,11 +276,62 @@ var Workspace = (function () {
   }
 
   // ─── Tab: Overview ───────────────────────────────────────────────────
+
+  function _stageBadgeColor(stage) {
+    var map = {
+      new: 'bg-blue-100 text-blue-700', contacted: 'bg-indigo-100 text-indigo-700',
+      nurturing: 'bg-purple-100 text-purple-700', active: 'bg-green-100 text-green-700',
+      showing: 'bg-yellow-100 text-yellow-700', offer: 'bg-orange-100 text-orange-700',
+      deal: 'bg-red-100 text-red-700', closed: 'bg-gray-100 text-gray-600',
+    };
+    return map[(stage || '').toLowerCase()] || 'bg-gray-100 text-gray-600';
+  }
+
   function _clientOverview(el) {
     var cl = _client;
     var prefs = cl.preferences || {};
+    var stage = cl.stage || cl.status || 'new';
+    var healthScore = cl.healthScore || cl.health_score || '—';
+
+    // Gather events for last activity + next task
+    var allEvents = Events.getByEntity('client', _clientId);
+    var lastEvent = allEvents.length > 0 ? allEvents[0] : null;
+    var lastActivityStr = lastEvent ? Utils.formatTimeAgo(lastEvent.createdAt) : 'None';
+    var tasks = (_clientData.tasks || []).filter(function (t) { return t.status !== 'completed'; });
+    var nextTask = tasks.length > 0 ? tasks[0] : null;
+    var assignedListings = Events.getByEntity('client', _clientId).filter(function (e) { return e.type === 'listing_sent'; });
+    var uniqueListingIds = {};
+    assignedListings.forEach(function (e) {
+      var lid = e.payload && (e.payload.listingId || e.payload.listing_id);
+      if (lid) uniqueListingIds[lid] = true;
+    });
+    var listingCount = Object.keys(uniqueListingIds).length;
 
     var html = '<div class="space-y-4">';
+
+    // ── Summary Cards (5) ──
+    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">' +
+      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Stage</p>' +
+        '<span class="inline-block px-3 py-1 rounded-full text-xs font-bold ' + _stageBadgeColor(stage) + '">' + E(stage) + '</span>' +
+      '</div>' +
+      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Health Score</p>' +
+        '<p class="text-lg font-bold">' + E(String(healthScore)) + '</p>' +
+      '</div>' +
+      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Last Activity</p>' +
+        '<p class="text-sm font-medium">' + E(lastActivityStr) + '</p>' +
+      '</div>' +
+      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Next Task</p>' +
+        '<p class="text-sm font-medium truncate" title="' + (nextTask ? E(nextTask.title) : '') + '">' + (nextTask ? E(nextTask.title) : 'None') + '</p>' +
+      '</div>' +
+      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Sent Listings</p>' +
+        '<p class="text-lg font-bold">' + listingCount + '</p>' +
+      '</div>' +
+    '</div>';
 
     // Contact info grid
     html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
@@ -294,12 +359,42 @@ var Workspace = (function () {
       '</div>' +
     '</div>';
 
-    // Notes
+    // ── Pinned Note ──
+    var pinnedNote = prefs.pinnedNote || '';
+    if (pinnedNote) {
+      html += '<div class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">' +
+        '<div class="flex items-center justify-between mb-1">' +
+          '<h4 class="text-xs font-bold text-yellow-700 uppercase"><i class="fas fa-thumbtack mr-1"></i>Pinned Note</h4>' +
+          '<button class="text-xs text-yellow-600 hover:underline" onclick="Workspace._unpinNote()">Unpin</button>' +
+        '</div>' +
+        '<p class="text-sm text-yellow-900">' + E(pinnedNote) + '</p>' +
+      '</div>';
+    }
+
+    // ── Recent Notes (from Events) ──
+    var noteEvents = allEvents.filter(function (e) { return e.type === 'note_added'; }).slice(0, 3);
     html += '<div>' +
-      '<h3 class="text-sm font-bold text-gray-700 mb-2">Notes</h3>' +
-      '<textarea id="wsClientNotes" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-gold focus:border-gold" rows="3" placeholder="Add notes about this client...">' + E(cl.notes || '') + '</textarea>' +
-      '<div class="mt-2 flex justify-end">' +
-        '<button class="btn btn-sm btn-gold" onclick="Workspace._saveClientNotes()"><i class="fas fa-save mr-1"></i> Save Notes</button>' +
+      '<div class="flex items-center justify-between mb-2">' +
+        '<h3 class="text-sm font-bold text-gray-700">Notes</h3>' +
+      '</div>';
+    if (noteEvents.length > 0) {
+      html += '<div class="space-y-2 mb-3">';
+      noteEvents.forEach(function (e) {
+        var content = (e.payload && e.payload.content) || '';
+        var isPinned = content === pinnedNote;
+        html += '<div class="p-3 rounded-lg bg-gray-50 flex items-start gap-2">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm text-gray-700">' + E(content) + '</p>' +
+            '<p class="text-xs text-gray-400 mt-1">' + Utils.formatTimeAgo(e.createdAt) + '</p>' +
+          '</div>' +
+          (!isPinned && content ? '<button class="text-xs text-gray-400 hover:text-gold flex-shrink-0" onclick="Workspace._pinNote(\'' + E(content.replace(/'/g, "\\'")) + '\')" title="Pin this note"><i class="fas fa-thumbtack"></i></button>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    }
+    html += '<textarea id="wsClientNotes" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-gold focus:border-gold" rows="3" placeholder="Add a new note about this client..."></textarea>' +
+      '<div class="mt-2 flex justify-end gap-2">' +
+        '<button class="btn btn-sm btn-gold" onclick="Workspace._saveClientNoteAsEvent()"><i class="fas fa-plus mr-1"></i> Add Note</button>' +
       '</div>' +
     '</div>';
 
@@ -339,13 +434,13 @@ var Workspace = (function () {
     });
 
     // Recent activity (last 5 events)
-    var events = Events.getByEntity('client', _clientId).slice(0, 5);
+    var recentEvents = allEvents.slice(0, 5);
     var actEl = document.getElementById('wsOverviewActivity');
     if (actEl) {
-      if (events.length === 0) {
+      if (recentEvents.length === 0) {
         actEl.innerHTML = '<p class="text-xs text-gray-400">No recent activity</p>';
       } else {
-        actEl.innerHTML = UI.timeline(events.map(function (e) {
+        actEl.innerHTML = UI.timeline(recentEvents.map(function (e) {
           return {
             title: Events.label(e.type),
             description: e.payload ? JSON.stringify(e.payload).substring(0, 80) : '',
@@ -355,6 +450,40 @@ var Workspace = (function () {
         }));
       }
     }
+  }
+
+  function _pinNote(content) {
+    if (!_clientId || !content) return;
+    var prefs = Object.assign({}, _client.preferences || {}, { pinnedNote: content });
+    MallanAPI.clients.update(_clientId, { preferences: prefs }).then(function () {
+      _client.preferences = prefs;
+      CRM.toast('Note pinned', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Could not pin note: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _unpinNote() {
+    if (!_clientId) return;
+    var prefs = Object.assign({}, _client.preferences || {});
+    delete prefs.pinnedNote;
+    MallanAPI.clients.update(_clientId, { preferences: prefs }).then(function () {
+      _client.preferences = prefs;
+      CRM.toast('Note unpinned', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Could not unpin note: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _saveClientNoteAsEvent() {
+    var ta = document.getElementById('wsClientNotes');
+    if (!ta || !ta.value.trim()) { CRM.toast('Enter a note first', 'warning'); return; }
+    var content = ta.value.trim();
+    Events.log('note_added', 'client', _clientId, { content: content });
+    CRM.toast('Note added', 'success');
+    _renderClientTab();
   }
 
   function _editPreferences() {
@@ -446,7 +575,7 @@ var Workspace = (function () {
     }));
   }
 
-  // ─── Tab: Listings (sent, search & send, reactions, auto-alerts) ────
+  // ─── Tab: Listings (sent, find & send, reactions, auto-alerts) ──────
   function _clientListings(el) {
     var cl = _client;
     var prefs = cl.preferences || {};
@@ -463,7 +592,7 @@ var Workspace = (function () {
     html += '<div class="card"><div class="card-header"><h3>Sent Listings</h3></div>' +
       '<div class="card-body" id="wsClientSent">' + UI.loading() + '</div></div>';
 
-    // Reactions
+    // Client Reactions — visual sentiment cards
     html += '<div class="card"><div class="card-header"><h3>Client Reactions</h3></div>' +
       '<div class="card-body" id="wsClientReactions">' + UI.loading() + '</div></div>';
 
@@ -494,19 +623,16 @@ var Workspace = (function () {
       '</div>' +
     '</div>';
 
-    // Search & Send
+    // ── Find & Send (merged Search + Smart Match) ──
     html += '<div class="card p-3">' +
-      '<h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Search & Send</h4>' +
+      '<h4 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fas fa-magic mr-1"></i>Find & Send</h4>' +
+      '<p class="text-xs text-gray-400 mb-2">Smart matches loaded from preferences. Search to refine.</p>' +
       '<div class="flex gap-2 mb-3">' +
         '<input id="wsListingSearch" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Search by address, neighborhood, MLS ID...">' +
         '<button class="btn btn-sm btn-outline" onclick="Workspace._searchAndSend()"><i class="fas fa-search"></i> Search</button>' +
       '</div>' +
-      '<div id="wsSearchResults"></div>' +
+      '<div id="wsFindAndSendResults">' + UI.loading() + '</div>' +
     '</div>';
-
-    // Smart Match
-    html += '<div class="card"><div class="card-header"><h3>Smart Match</h3><span class="text-xs text-gray-400">Based on client preferences</span></div>' +
-      '<div class="card-body" id="wsClientMatches">' + UI.loading() + '</div></div>';
 
     html += '</div>';
     el.innerHTML = html;
@@ -570,33 +696,62 @@ var Workspace = (function () {
       }
     }
 
-    // ── Load Reactions ──
+    // ── Load Reactions — visual sentiment cards with discussion threads ──
     var reactionEl = document.getElementById('wsClientReactions');
     if (reactionEl) {
       var reactions = Events.getByEntity('client', _clientId).filter(function (e) { return e.type === 'listing_reaction_recorded'; });
       if (reactions.length === 0) {
         reactionEl.innerHTML = '<p class="text-sm text-gray-500">No reactions yet</p>';
       } else {
-        var rHtml = '<div class="space-y-2">';
+        var allClientEvents = Events.getByEntity('client', _clientId);
+        var rHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">';
         reactions.forEach(function (e) {
           var reaction = e.payload && (e.payload.reaction || e.payload.type) || 'unknown';
           var addr = e.payload && (e.payload.address || e.payload.listingId || e.payload.listing_id) || '';
-          var iconMap = { liked: 'fa-thumbs-up text-green-500', disliked: 'fa-thumbs-down text-red-500', discuss: 'fa-comment text-yellow-500' };
-          var icon = iconMap[reaction] || 'fa-circle text-gray-400';
-          rHtml += '<div class="flex items-center gap-3 p-2 rounded-lg bg-gray-50">' +
-            '<i class="fas ' + icon + '"></i>' +
-            '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
-              '<p class="text-xs text-gray-500">' + E(reaction) + ' · ' + Utils.formatTimeAgo(e.createdAt) + '</p></div>' +
-          '</div>';
+          var lid = e.payload && (e.payload.listingId || e.payload.listing_id) || '';
+          var sentimentConfig = {
+            liked:    { icon: 'fa-thumbs-up',   bg: 'bg-green-50 border-green-200', iconColor: 'text-green-500', label: 'Liked' },
+            disliked: { icon: 'fa-thumbs-down',  bg: 'bg-red-50 border-red-200',     iconColor: 'text-red-500',   label: 'Disliked' },
+            discuss:  { icon: 'fa-comment-dots', bg: 'bg-blue-50 border-blue-200',   iconColor: 'text-blue-500',  label: 'Discuss' },
+          };
+          var cfg = sentimentConfig[reaction] || { icon: 'fa-circle', bg: 'bg-gray-50 border-gray-200', iconColor: 'text-gray-400', label: reaction };
+
+          rHtml += '<div class="p-3 rounded-lg border ' + cfg.bg + '">' +
+            '<div class="flex items-center gap-3 mb-2">' +
+              '<i class="fas ' + cfg.icon + ' text-2xl ' + cfg.iconColor + '"></i>' +
+              '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-bold">' + E(cfg.label) + '</p>' +
+                '<p class="text-xs text-gray-600 truncate">' + E(addr) + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<p class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</p>';
+
+          // Discussion thread for "discuss" reactions
+          if (reaction === 'discuss' && lid) {
+            var followUps = allClientEvents.filter(function (fe) {
+              return fe.type === 'note_added' && fe.payload &&
+                (fe.payload.listingId === lid || fe.payload.listing_id === lid);
+            });
+            if (followUps.length > 0) {
+              rHtml += '<div class="mt-2 pt-2 border-t border-blue-200 space-y-1">';
+              followUps.slice(0, 3).forEach(function (fu) {
+                rHtml += '<div class="text-xs text-gray-600"><i class="fas fa-reply text-blue-300 mr-1"></i>' +
+                  E((fu.payload && fu.payload.content) || '') +
+                  '<span class="text-gray-400 ml-1">' + Utils.formatTimeAgo(fu.createdAt) + '</span></div>';
+              });
+              rHtml += '</div>';
+            }
+          }
+          rHtml += '</div>';
         });
         rHtml += '</div>';
         reactionEl.innerHTML = rHtml;
       }
     }
 
-    // ── Smart Match (search based on preferences) ──
-    var matchEl = document.getElementById('wsClientMatches');
-    if (matchEl) {
+    // ── Find & Send — auto-load smart matches, search refines ──
+    var findEl = document.getElementById('wsFindAndSendResults');
+    if (findEl) {
       var searchParams = {};
       if (prefs.neighborhoods && prefs.neighborhoods.length > 0) searchParams.neighborhood = prefs.neighborhoods[0];
       if (prefs.minPrice) searchParams.minPrice = prefs.minPrice;
@@ -604,25 +759,37 @@ var Workspace = (function () {
       if (prefs.minBeds) searchParams.minBeds = prefs.minBeds;
 
       if (Object.keys(searchParams).length === 0) {
-        matchEl.innerHTML = '<p class="text-sm text-gray-500">Set client preferences to enable Smart Match</p>';
+        findEl.innerHTML = '<p class="text-sm text-gray-500">Set client preferences to see smart matches, or search manually above.</p>';
       } else {
         MallanAPI.idx.search(searchParams).then(function (data) {
-          var listings = (data.listings || data.results || []).slice(0, 10);
+          var listings = (data.listings || data.results || []).slice(0, 15);
           if (listings.length === 0) {
-            matchEl.innerHTML = '<p class="text-sm text-gray-500">No matching listings found for current preferences</p>';
+            findEl.innerHTML = '<p class="text-sm text-gray-500">No matching listings for current preferences</p>';
             return;
           }
-          var mHtml = '<div class="space-y-2">';
-          listings.forEach(function (l) {
-            mHtml += UI.listingCard(l, "Router.navigate('/workspace/listing/" + E(l.id || l.listing_id || l.listingId) + "/overview')");
-          });
-          mHtml += '</div>';
-          matchEl.innerHTML = mHtml;
+          _renderFindAndSendResults(findEl, listings);
         }).catch(function () {
-          matchEl.innerHTML = '<p class="text-sm text-gray-500">Could not load matching listings</p>';
+          findEl.innerHTML = '<p class="text-sm text-gray-500">Could not load matching listings</p>';
         });
       }
     }
+  }
+
+  function _renderFindAndSendResults(container, listings) {
+    var html = '<table class="w-full text-sm"><thead><tr class="text-xs text-gray-500 border-b">' +
+      '<th class="text-left py-2">Address</th><th class="text-left py-2">Price</th><th class="text-left py-2">Beds/Baths</th><th class="py-2"></th></tr></thead><tbody>';
+    listings.forEach(function (l) {
+      var lid = l.id || l.listing_id || l.listingId || '';
+      var addr = l.address || l.UnparsedAddress || l.street_address || 'Listing';
+      html += '<tr class="border-b hover:bg-gray-50">' +
+        '<td class="py-2 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' + E(addr) + '</td>' +
+        '<td class="py-2">' + $(l.ListPrice || l.price || 0) + '</td>' +
+        '<td class="py-2">' + (l.BedroomsTotal || l.bedrooms || '-') + ' / ' + (l.BathroomsTotalInteger || l.bathrooms || '-') + '</td>' +
+        '<td class="py-2"><button class="btn btn-xs btn-gold" onclick="Workspace._sendListingToClient(\'' + E(lid) + '\',\'' + E(addr) + '\')"><i class="fas fa-paper-plane"></i> Send</button></td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
   }
 
   function _saveAlertSettings() {
@@ -647,32 +814,23 @@ var Workspace = (function () {
 
   function _searchAndSend() {
     var input = document.getElementById('wsListingSearch');
-    var resultsEl = document.getElementById('wsSearchResults');
+    var resultsEl = document.getElementById('wsFindAndSendResults');
     if (!input || !resultsEl) return;
     var q = input.value.trim();
-    if (!q) { resultsEl.innerHTML = ''; return; }
+    if (!q) {
+      // Reset to smart matches
+      _renderClientTab();
+      return;
+    }
 
     resultsEl.innerHTML = UI.loading();
     MallanAPI.idx.search({ q: q }).then(function (data) {
-      var listings = data.listings || data.results || [];
+      var listings = (data.listings || data.results || []).slice(0, 15);
       if (listings.length === 0) {
         resultsEl.innerHTML = '<p class="text-sm text-gray-500">No results found</p>';
         return;
       }
-      var html = '<table class="w-full text-sm"><thead><tr class="text-xs text-gray-500 border-b">' +
-        '<th class="text-left py-2">Address</th><th class="text-left py-2">Price</th><th class="text-left py-2">Beds/Baths</th><th class="py-2"></th></tr></thead><tbody>';
-      listings.slice(0, 15).forEach(function (l) {
-        var lid = l.id || l.listing_id || l.listingId || '';
-        var addr = l.address || l.UnparsedAddress || l.street_address || 'Listing';
-        html += '<tr class="border-b hover:bg-gray-50">' +
-          '<td class="py-2">' + E(addr) + '</td>' +
-          '<td class="py-2">' + $(l.ListPrice || l.price || 0) + '</td>' +
-          '<td class="py-2">' + (l.BedroomsTotal || l.bedrooms || '-') + ' / ' + (l.BathroomsTotalInteger || l.bathrooms || '-') + '</td>' +
-          '<td class="py-2"><button class="btn btn-xs btn-gold" onclick="Workspace._sendListingToClient(\'' + E(lid) + '\',\'' + E(addr) + '\')"><i class="fas fa-paper-plane"></i> Send</button></td>' +
-        '</tr>';
-      });
-      html += '</tbody></table>';
-      resultsEl.innerHTML = html;
+      _renderFindAndSendResults(resultsEl, listings);
     }).catch(function () {
       resultsEl.innerHTML = '<p class="text-sm text-gray-500">Search failed. Please try again.</p>';
     });
@@ -684,49 +842,130 @@ var Workspace = (function () {
   }
 
   // ─── Tab: Activity ───────────────────────────────────────────────────
+
+  var _activityFilter = 'all';
+
+  function _classifyEventType(type) {
+    var noteTypes = ['note_added'];
+    var systemTypes = ['client_stage_moved', 'nurture_settings_saved', 'readiness_updated', 'task_created', 'alert_settings_saved'];
+    var clientTypes = ['listing_reaction_recorded', 'portal_login', 'portal_viewed', 'client_action'];
+    var listingTypes = ['listing_sent', 'quick_send_executed', 'showing_scheduled', 'showing_feedback_added'];
+    if (noteTypes.indexOf(type) !== -1) return 'notes';
+    if (systemTypes.indexOf(type) !== -1) return 'system';
+    if (clientTypes.indexOf(type) !== -1) return 'client';
+    if (listingTypes.indexOf(type) !== -1) return 'listings';
+    return 'system';
+  }
+
+  function _eventBgClass(type) {
+    var cat = _classifyEventType(type);
+    if (cat === 'notes') return 'bg-yellow-50';
+    if (cat === 'client') return 'bg-blue-50';
+    return 'bg-gray-50';
+  }
+
+  function _formatDateHeader(dateStr) {
+    var d = new Date(dateStr);
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var yesterday = new Date(today.getTime() - 86400000);
+    var eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (eventDay.getTime() === today.getTime()) return 'Today';
+    if (eventDay.getTime() === yesterday.getTime()) return 'Yesterday';
+    var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return months[d.getMonth()] + ' ' + d.getDate();
+  }
+
   function _clientActivity(el) {
     var events = Events.getByEntity('client', _clientId);
 
     var html = '<div class="space-y-4">';
 
-    // Add Note button
+    // Header + Add Note
     html += '<div class="flex items-center justify-between">' +
       '<h3 class="text-sm font-bold text-gray-700">Activity Timeline</h3>' +
       '<button class="btn btn-sm btn-outline" onclick="Workspace._addActivityNote()"><i class="fas fa-plus mr-1"></i> Add Note</button>' +
     '</div>';
 
-    // Full timeline
-    if (events.length === 0) {
+    // Filter chips
+    var filters = [
+      { id: 'all', label: 'All' },
+      { id: 'notes', label: 'Notes' },
+      { id: 'system', label: 'System' },
+      { id: 'client', label: 'Client Actions' },
+      { id: 'listings', label: 'Listings' },
+    ];
+    html += '<div class="flex gap-2 flex-wrap" id="wsActivityFilters">';
+    filters.forEach(function (f) {
+      var isActive = _activityFilter === f.id;
+      html += '<button class="px-3 py-1 rounded-full text-xs font-bold transition-all ' +
+        (isActive ? 'bg-gold text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') +
+        '" onclick="Workspace._filterActivity(\'' + f.id + '\')">' + E(f.label) + '</button>';
+    });
+    html += '</div>';
+
+    // Filtered events
+    var filtered = events;
+    if (_activityFilter !== 'all') {
+      filtered = events.filter(function (e) { return _classifyEventType(e.type) === _activityFilter; });
+    }
+
+    if (filtered.length === 0) {
       html += '<p class="text-sm text-gray-500">No activity recorded yet</p>';
     } else {
-      html += '<div class="space-y-3">';
-      events.forEach(function (e) {
-        var iconClass = Events.icon ? Events.icon(e.type) : 'fa-circle';
-        var label = Events.label ? Events.label(e.type) : e.type;
-        var payloadSummary = '';
-        if (e.payload) {
-          if (e.payload.content) payloadSummary = e.payload.content;
-          else if (e.payload.address) payloadSummary = e.payload.address;
-          else if (e.payload.reaction) payloadSummary = 'Reaction: ' + e.payload.reaction;
-          else if (e.payload.from && e.payload.to) payloadSummary = e.payload.from + ' → ' + e.payload.to;
-          else payloadSummary = Utils.truncate(JSON.stringify(e.payload), 100);
-        }
-        html += '<div class="flex gap-3 p-3 rounded-lg bg-gray-50">' +
-          '<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">' +
-            '<i class="fas ' + iconClass + ' text-xs text-gray-500"></i>' +
-          '</div>' +
-          '<div class="flex-1 min-w-0">' +
-            '<p class="text-sm font-medium">' + E(label) + '</p>' +
-            (payloadSummary ? '<p class="text-xs text-gray-500 mt-0.5 truncate">' + E(payloadSummary) + '</p>' : '') +
-            '<p class="text-xs text-gray-400 mt-1">' + Utils.formatTimeAgo(e.createdAt) + '</p>' +
-          '</div>' +
-        '</div>';
+      // Group by date
+      var grouped = {};
+      filtered.forEach(function (e) {
+        var key = _formatDateHeader(e.createdAt);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(e);
       });
-      html += '</div>';
+      var groupKeys = Object.keys(grouped);
+      groupKeys.forEach(function (dateLabel) {
+        html += '<div>' +
+          '<h4 class="text-xs font-bold text-gray-400 uppercase mb-2 mt-3">' + E(dateLabel) + '</h4>' +
+          '<div class="space-y-2">';
+        grouped[dateLabel].forEach(function (e) {
+          var iconClass = Events.icon ? Events.icon(e.type) : 'fa-circle';
+          var label = Events.label ? Events.label(e.type) : e.type;
+          var bg = _eventBgClass(e.type);
+          var payloadSummary = '';
+          if (e.payload) {
+            if (e.payload.content) payloadSummary = e.payload.content;
+            else if (e.payload.address) payloadSummary = e.payload.address;
+            else if (e.payload.reaction) payloadSummary = 'Reaction: ' + e.payload.reaction;
+            else if (e.payload.from && e.payload.to) payloadSummary = e.payload.from + ' \u2192 ' + e.payload.to;
+            else payloadSummary = Utils.truncate(JSON.stringify(e.payload), 100);
+          }
+          var eid = 'evt_' + (e.id || Math.random().toString(36).substr(2, 6));
+          html += '<div class="flex gap-3 p-3 rounded-lg ' + bg + ' cursor-pointer" onclick="Workspace._toggleEventPayload(\'' + eid + '\')">' +
+            '<div class="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm">' +
+              '<i class="fas ' + iconClass + ' text-xs text-gray-500"></i>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium">' + E(label) + '</p>' +
+              (payloadSummary ? '<p class="text-xs text-gray-500 mt-0.5 truncate">' + E(payloadSummary) + '</p>' : '') +
+              '<p class="text-xs text-gray-400 mt-1">' + Utils.formatTimeAgo(e.createdAt) + '</p>' +
+              (e.payload ? '<div id="' + eid + '" class="hidden mt-2 p-2 bg-white rounded text-xs text-gray-600 whitespace-pre-wrap">' + E(JSON.stringify(e.payload, null, 2)) + '</div>' : '') +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div></div>';
+      });
     }
 
     html += '</div>';
     el.innerHTML = html;
+  }
+
+  function _filterActivity(filter) {
+    _activityFilter = filter;
+    _renderClientTab();
+  }
+
+  function _toggleEventPayload(eid) {
+    var payloadEl = document.getElementById(eid);
+    if (payloadEl) payloadEl.classList.toggle('hidden');
   }
 
   function _addActivityNote() {
@@ -868,7 +1107,15 @@ var Workspace = (function () {
         '</div>' +
         leaseAlerts +
         behaviorSignals +
-        '<div class="mt-3"><label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"> Aggressive nurture (increase sales listing frequency)</label></div>' +
+        '<div class="mt-3 space-y-2">' +
+          '<label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"> Aggressive nurture (increase sales listing frequency)</label>' +
+          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Agent Override Note</label>' +
+            '<div class="flex gap-2">' +
+              '<input id="wsConversionOverride" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Explain why you agree/disagree with the computed score..." value="' + E((cl.preferences && cl.preferences.conversionOverride) || '') + '">' +
+              '<button class="btn btn-sm btn-outline" onclick="Workspace._saveConversionOverride()"><i class="fas fa-save"></i></button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     }
 
@@ -957,15 +1204,25 @@ var Workspace = (function () {
     });
   }
 
-  // ─── Nurture Settings persistence ──────────────────────────────────
-  var NURTURE_KEY_PREFIX = 'mallan_crm_nurture_';
+  function _saveConversionOverride() {
+    if (!_clientId) return;
+    var input = document.getElementById('wsConversionOverride');
+    if (!input) return;
+    var override = input.value.trim();
+    var prefs = Object.assign({}, _client.preferences || {}, { conversionOverride: override });
+    MallanAPI.clients.update(_clientId, { preferences: prefs }).then(function () {
+      _client.preferences = prefs;
+      CRM.toast('Conversion override saved', 'success');
+    }).catch(function (err) {
+      CRM.toast('Error saving override: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  // ─── Nurture Settings persistence (API-backed) ─────────────────────
 
   function _loadNurtureSettings(clientId) {
-    try {
-      var raw = localStorage.getItem(NURTURE_KEY_PREFIX + clientId);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore */ }
-    return { frequency: 'monthly', autoSend: false };
+    var prefs = (_client && _client.preferences) || {};
+    return prefs.nurture || { frequency: 'monthly', autoSend: false };
   }
 
   function _saveNurtureSettings() {
@@ -977,11 +1234,14 @@ var Workspace = (function () {
       autoSend: autoEl ? autoEl.checked : false,
       updatedAt: new Date().toISOString(),
     };
-    try {
-      localStorage.setItem(NURTURE_KEY_PREFIX + _clientId, JSON.stringify(settings));
-    } catch (e) { /* ignore */ }
-    Events.log('nurture_settings_saved', 'client', _clientId, settings);
-    CRM.toast('Nurture settings saved', 'success');
+    var prefs = Object.assign({}, _client.preferences || {}, { nurture: settings });
+    MallanAPI.clients.update(_clientId, { preferences: prefs }).then(function () {
+      _client.preferences = prefs;
+      Events.log('nurture_settings_saved', 'client', _clientId, settings);
+      CRM.toast('Nurture settings saved', 'success');
+    }).catch(function (err) {
+      CRM.toast('Error saving nurture settings: ' + (err.message || 'Unknown error'), 'error');
+    });
   }
 
   function _moveStage(newStage) {
@@ -1007,12 +1267,34 @@ var Workspace = (function () {
     var html = '<div class="space-y-4">';
     html += '<h3 class="text-sm font-bold text-gray-700">Market & Intelligence</h3>';
 
+    // ── Neighborhoods Watchlist ──
+    html += '<div class="card p-3">' +
+      '<h4 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fas fa-map-marker-alt mr-1"></i>Neighborhoods Watchlist</h4>';
+    if (neighborhoods.length > 0) {
+      html += '<div class="flex flex-wrap gap-2">';
+      neighborhoods.forEach(function (n) {
+        html += '<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gold-bg text-gold text-xs font-bold cursor-pointer hover:bg-gold hover:text-white transition-all" ' +
+          'onclick="window.open(\'/crm/search?neighborhood=' + encodeURIComponent(n) + '\',\'_blank\')">' +
+          '<i class="fas fa-map-pin text-[10px]"></i>' + E(n) + '</span>';
+      });
+      html += '</div>';
+    } else {
+      html += '<p class="text-xs text-gray-400">No neighborhoods set. <button class="text-gold underline" onclick="Workspace._editPreferences()">Edit preferences</button> to add neighborhoods.</p>';
+    }
+    html += '</div>';
+
     // Lead Score
     html += '<div id="wsMarketLeadScore">' + UI.loading() + '</div>';
 
-    // Market Report
-    html += '<div class="card p-4"><h4 class="text-sm font-bold mb-2"><i class="fas fa-chart-area mr-2"></i>Market Report</h4>' +
+    // Market Report (filtered to client neighborhoods)
+    html += '<div class="card p-4"><h4 class="text-sm font-bold mb-2"><i class="fas fa-chart-area mr-2"></i>Market Report' +
+      (neighborhoods.length > 0 ? ' <span class="text-xs font-normal text-gray-400">(' + E(neighborhoods.join(', ')) + ')</span>' : '') +
+      '</h4>' +
       '<div id="wsMarketReport">' + UI.loading() + '</div></div>';
+
+    // Recommendations
+    html += '<div class="card p-4"><h4 class="text-sm font-bold mb-2"><i class="fas fa-lightbulb mr-2 text-yellow-500"></i>Recommendations</h4>' +
+      '<div id="wsMarketRecs">' + UI.loading() + '</div></div>';
 
     // CMA
     html += '<div class="card p-4"><h4 class="text-sm font-bold mb-2"><i class="fas fa-chart-bar mr-2"></i>Comparative Market Analysis</h4>' +
@@ -1060,7 +1342,7 @@ var Workspace = (function () {
       if (scoreEl) scoreEl.innerHTML = '<p class="text-xs text-gray-400">Lead score unavailable</p>';
     });
 
-    // ── Fetch Market Report ──
+    // ── Fetch Market Report (filtered to client neighborhoods) ──
     var reportEl = document.getElementById('wsMarketReport');
     if (reportEl) {
       if (neighborhoods.length === 0) {
@@ -1074,16 +1356,76 @@ var Workspace = (function () {
           var r = data.report || data;
           reportEl.innerHTML = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
             '<div class="p-3 bg-blue-50 rounded-lg text-center"><p class="text-xs text-gray-500">Median Price</p><p class="text-lg font-bold text-blue-700">' + $(r.medianPrice || r.median_price || 0) + '</p></div>' +
-            '<div class="p-3 bg-green-50 rounded-lg text-center"><p class="text-xs text-gray-500">Avg DOM</p><p class="text-lg font-bold text-green-700">' + (r.avgDom || r.avg_dom || r.averageDaysOnMarket || '—') + '</p></div>' +
-            '<div class="p-3 bg-purple-50 rounded-lg text-center"><p class="text-xs text-gray-500">Inventory</p><p class="text-lg font-bold text-purple-700">' + (r.inventory || r.totalInventory || '—') + '</p></div>' +
-            '<div class="p-3 bg-yellow-50 rounded-lg text-center"><p class="text-xs text-gray-500">Price/SqFt</p><p class="text-lg font-bold text-yellow-700">' + (r.pricePerSqft || r.price_per_sqft ? $(r.pricePerSqft || r.price_per_sqft) : '—') + '</p></div>' +
-          '</div>' +
-          '<p class="text-xs text-gray-400 mt-2">Neighborhoods: ' + E(neighborhoods.join(', ')) + '</p>';
+            '<div class="p-3 bg-green-50 rounded-lg text-center"><p class="text-xs text-gray-500">Avg DOM</p><p class="text-lg font-bold text-green-700">' + (r.avgDom || r.avg_dom || r.averageDaysOnMarket || '\u2014') + '</p></div>' +
+            '<div class="p-3 bg-purple-50 rounded-lg text-center"><p class="text-xs text-gray-500">Inventory</p><p class="text-lg font-bold text-purple-700">' + (r.inventory || r.totalInventory || '\u2014') + '</p></div>' +
+            '<div class="p-3 bg-yellow-50 rounded-lg text-center"><p class="text-xs text-gray-500">Price/SqFt</p><p class="text-lg font-bold text-yellow-700">' + (r.pricePerSqft || r.price_per_sqft ? $(r.pricePerSqft || r.price_per_sqft) : '\u2014') + '</p></div>' +
+          '</div>';
+
+          // Generate recommendations from report data + client preferences
+          _renderMarketRecommendations(r, prefs, neighborhoods);
         }).catch(function () {
           reportEl.innerHTML = '<p class="text-sm text-gray-500">Could not load market report</p>';
+          _renderMarketRecommendations(null, prefs, neighborhoods);
         });
       }
     }
+
+    // Recommendations fallback if no neighborhoods
+    if (neighborhoods.length === 0) {
+      var recsEl = document.getElementById('wsMarketRecs');
+      if (recsEl) recsEl.innerHTML = '<p class="text-sm text-gray-500">Add neighborhoods to see recommendations</p>';
+    }
+  }
+
+  function _renderMarketRecommendations(report, prefs, neighborhoods) {
+    var recsEl = document.getElementById('wsMarketRecs');
+    if (!recsEl) return;
+    var recs = [];
+
+    if (report) {
+      var median = report.medianPrice || report.median_price || 0;
+      var maxBudget = prefs.maxPrice || 0;
+      var inventory = report.inventory || report.totalInventory || 0;
+
+      // Recommendation 1: budget vs median
+      if (maxBudget && median) {
+        if (maxBudget > median * 1.2) {
+          recs.push({ icon: 'fa-arrow-up', color: 'text-green-500', text: 'Budget is above median in ' + (neighborhoods[0] || 'target area') + '. Client has strong purchasing power.' });
+        } else if (maxBudget < median * 0.8) {
+          recs.push({ icon: 'fa-exclamation-triangle', color: 'text-orange-500', text: 'Budget is below median in ' + (neighborhoods[0] || 'target area') + '. Consider expanding search to adjacent neighborhoods.' });
+        }
+      }
+
+      // Recommendation 2: inventory levels
+      if (inventory > 50) {
+        recs.push({ icon: 'fa-boxes', color: 'text-blue-500', text: inventory + ' active listings in target area. Good selection available.' });
+      } else if (inventory > 0) {
+        recs.push({ icon: 'fa-search', color: 'text-yellow-500', text: 'Only ' + inventory + ' listings in target area. May need to expand search criteria.' });
+      }
+
+      // Recommendation 3: DOM-based
+      var dom = report.avgDom || report.avg_dom || report.averageDaysOnMarket || 0;
+      if (dom > 60) {
+        recs.push({ icon: 'fa-clock', color: 'text-purple-500', text: 'Avg ' + dom + ' days on market. Buyers have negotiating leverage.' });
+      } else if (dom > 0 && dom < 30) {
+        recs.push({ icon: 'fa-bolt', color: 'text-red-500', text: 'Fast-moving market (avg ' + dom + ' DOM). Be prepared to act quickly.' });
+      }
+    }
+
+    // Fallback if no data-driven recs
+    if (recs.length === 0) {
+      recs.push({ icon: 'fa-info-circle', color: 'text-gray-400', text: 'Check back soon for market-driven recommendations.' });
+    }
+
+    var html = '<div class="space-y-2">';
+    recs.forEach(function (r) {
+      html += '<div class="flex items-start gap-3 p-3 rounded-lg bg-gray-50">' +
+        '<i class="fas ' + r.icon + ' ' + r.color + ' mt-0.5"></i>' +
+        '<p class="text-sm text-gray-700">' + E(r.text) + '</p>' +
+      '</div>';
+    });
+    html += '</div>';
+    recsEl.innerHTML = html;
   }
 
   function _generateCMA() {
@@ -1124,6 +1466,98 @@ var Workspace = (function () {
   }
 
   // ─── Tab: Financial ──────────────────────────────────────────────────
+
+  var SCENARIO_KEY_PREFIX = 'mallan_crm_scenarios_';
+
+  function _loadSavedScenarios(clientId) {
+    try {
+      var raw = localStorage.getItem(SCENARIO_KEY_PREFIX + clientId);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+    return [];
+  }
+
+  function _saveScenariosToStorage(clientId, scenarios) {
+    try {
+      localStorage.setItem(SCENARIO_KEY_PREFIX + clientId, JSON.stringify(scenarios));
+    } catch (e) { /* ignore */ }
+  }
+
+  function _saveScenario(type, label, values) {
+    if (!_clientId) return;
+    var scenarios = _loadSavedScenarios(_clientId);
+    scenarios.push({
+      id: Date.now().toString(36),
+      type: type,
+      label: label || type,
+      values: values,
+      date: new Date().toISOString(),
+    });
+    _saveScenariosToStorage(_clientId, scenarios);
+    Events.log('scenario_saved', 'client', _clientId, { type: type, label: label });
+    CRM.toast('Scenario saved', 'success');
+    _renderSavedScenarios();
+  }
+
+  function _deleteScenario(scenarioId) {
+    if (!_clientId) return;
+    var scenarios = _loadSavedScenarios(_clientId).filter(function (s) { return s.id !== scenarioId; });
+    _saveScenariosToStorage(_clientId, scenarios);
+    CRM.toast('Scenario deleted', 'info');
+    _renderSavedScenarios();
+  }
+
+  function _renderSavedScenarios() {
+    var container = document.getElementById('wsSavedScenarios');
+    if (!container) return;
+    var scenarios = _loadSavedScenarios(_clientId);
+    if (scenarios.length === 0) {
+      container.innerHTML = '<p class="text-xs text-gray-400">No saved scenarios yet. Use the calculators above and click "Save Scenario".</p>';
+      return;
+    }
+    var html = '<div class="space-y-2">';
+    scenarios.forEach(function (s) {
+      var valSummary = '';
+      if (s.values) {
+        var keys = Object.keys(s.values).slice(0, 3);
+        valSummary = keys.map(function (k) { return k + ': ' + s.values[k]; }).join(' | ');
+      }
+      html += '<div class="flex items-center gap-3 p-2 rounded-lg bg-gray-50">' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm font-medium">' + E(s.label) + '</p>' +
+          '<p class="text-xs text-gray-500">' + E(s.type) + ' · ' + D(s.date) + '</p>' +
+          (valSummary ? '<p class="text-xs text-gray-400 truncate">' + E(valSummary) + '</p>' : '') +
+        '</div>' +
+        '<button class="text-xs text-red-400 hover:text-red-600" onclick="Workspace._deleteScenario(\'' + E(s.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function _exportScenarioSummary() {
+    if (!_clientId) return;
+    var scenarios = _loadSavedScenarios(_clientId);
+    if (scenarios.length === 0) { CRM.toast('No scenarios to export', 'warning'); return; }
+    var clientName = (_client && _client.name) || 'Client';
+    var text = 'Financial Scenarios for ' + clientName + '\n' + '='.repeat(40) + '\n\n';
+    scenarios.forEach(function (s, i) {
+      text += (i + 1) + '. ' + s.label + ' (' + s.type + ')\n';
+      text += '   Date: ' + D(s.date) + '\n';
+      if (s.values) {
+        Object.keys(s.values).forEach(function (k) {
+          text += '   ' + k + ': ' + s.values[k] + '\n';
+        });
+      }
+      text += '\n';
+    });
+    navigator.clipboard.writeText(text).then(function () {
+      CRM.toast('Summary copied to clipboard', 'success');
+    }).catch(function () {
+      CRM.toast('Could not copy to clipboard', 'error');
+    });
+  }
+
   function _clientFinancial(el) {
     var prefs = (_client && _client.preferences) || {};
     var defaultPrice = prefs.maxPrice || prefs.minPrice || 1000000;
@@ -1185,8 +1619,20 @@ var Workspace = (function () {
       '<div id="affResult" class="mt-3"></div>'
     );
 
+    // ── Saved Scenarios ──
+    html += '<div class="card p-4">' +
+      '<div class="flex items-center justify-between mb-3">' +
+        '<h4 class="text-sm font-bold text-gray-700"><i class="fas fa-bookmark mr-2"></i>Saved Scenarios</h4>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._exportScenarioSummary()"><i class="fas fa-copy mr-1"></i> Export Summary</button>' +
+      '</div>' +
+      '<div id="wsSavedScenarios">' + UI.loading() + '</div>' +
+    '</div>';
+
     html += '</div>';
     el.innerHTML = html;
+
+    // Render saved scenarios
+    _renderSavedScenarios();
   }
 
   function _collapsibleCalcSection(title, icon, openByDefault, bodyHtml) {
@@ -1239,6 +1685,10 @@ var Workspace = (function () {
       '<div class="p-3 bg-blue-50 rounded-lg text-center"><p class="text-xs text-gray-500">Loan Amount</p><p class="text-lg font-bold text-blue-700">' + $(Math.round(loan)) + '</p></div>' +
       '<div class="p-3 bg-purple-50 rounded-lg text-center"><p class="text-xs text-gray-500">Down Payment</p><p class="text-lg font-bold text-purple-700">' + $(Math.round(downAmt)) + '</p></div>' +
       '<div class="p-3 bg-yellow-50 rounded-lg text-center"><p class="text-xs text-gray-500">Total Interest</p><p class="text-lg font-bold text-yellow-700">' + $(Math.round(totalInterest)) + '</p></div>' +
+    '</div>' +
+    '<div class="mt-3 flex gap-2 items-center">' +
+      '<input id="mortScenarioLabel" class="flex-1 border border-gray-300 rounded-lg px-3 py-1 text-xs" placeholder="Scenario label (optional)">' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._saveScenario(\'mortgage\', document.getElementById(\'mortScenarioLabel\').value, { \'Monthly Payment\': \'' + $(Math.round(monthly)) + '\', \'Loan\': \'' + $(Math.round(loan)) + '\', \'Down\': \'' + $(Math.round(downAmt)) + '\', \'Interest\': \'' + $(Math.round(totalInterest)) + '\' })"><i class="fas fa-bookmark mr-1"></i>Save Scenario</button>' +
     '</div>';
   }
 
@@ -1261,6 +1711,10 @@ var Workspace = (function () {
       '<div class="flex justify-between"><span>Recording Fees</span><span class="font-bold">' + $(recording) + '</span></div>' +
       '<div class="flex justify-between border-t pt-2 mt-2"><span class="font-bold">Estimated Total</span><span class="font-bold text-gold">' + $(total) + '</span></div>' +
       '<p class="text-xs text-gray-400 mt-2">NYC estimate. Co-op vs condo differences apply.</p>' +
+    '</div>' +
+    '<div class="mt-3 flex gap-2 items-center">' +
+      '<input id="closingScenarioLabel" class="flex-1 border border-gray-300 rounded-lg px-3 py-1 text-xs" placeholder="Scenario label (optional)">' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._saveScenario(\'closing_costs\', document.getElementById(\'closingScenarioLabel\').value, { \'Total\': \'' + $(total) + '\', \'Price\': \'' + $(price) + '\' })"><i class="fas fa-bookmark mr-1"></i>Save Scenario</button>' +
     '</div>';
   }
 
@@ -1298,6 +1752,10 @@ var Workspace = (function () {
         '<p class="text-sm font-bold">' + cheaper + ' is cheaper by ' + $(savings) + '/mo</p>' +
         (breakEven > 0 ? '<p class="text-xs text-gray-500 mt-1">Rough break-even: ~' + breakEven + ' months (accounting for down payment)</p>' : '') +
       '</div>' +
+    '</div>' +
+    '<div class="mt-3 flex gap-2 items-center">' +
+      '<input id="rvbScenarioLabel" class="flex-1 border border-gray-300 rounded-lg px-3 py-1 text-xs" placeholder="Scenario label (optional)">' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._saveScenario(\'rent_vs_buy\', document.getElementById(\'rvbScenarioLabel\').value, { \'Rent\': \'' + $(rent) + '/mo\', \'Mortgage\': \'' + $(Math.round(monthly)) + '/mo\', \'Cheaper\': \'' + cheaper + '\' })"><i class="fas fa-bookmark mr-1"></i>Save Scenario</button>' +
     '</div>';
   }
 
@@ -1326,7 +1784,11 @@ var Workspace = (function () {
       '<div class="p-3 bg-green-50 rounded-lg text-center"><p class="text-xs text-gray-500">Max Purchase Price</p><p class="text-lg font-bold text-green-700">' + $(maxPrice) + '</p></div>' +
       '<div class="p-3 bg-blue-50 rounded-lg text-center"><p class="text-xs text-gray-500">Max Monthly Payment</p><p class="text-lg font-bold text-blue-700">' + $(Math.round(maxMonthly)) + '</p></div>' +
     '</div>' +
-    '<p class="text-xs text-gray-400 mt-2">Based on 28% DTI ratio, 20% down payment, ' + rate + '% rate, 30-year term.</p>';
+    '<p class="text-xs text-gray-400 mt-2">Based on 28% DTI ratio, 20% down payment, ' + rate + '% rate, 30-year term.</p>' +
+    '<div class="mt-3 flex gap-2 items-center">' +
+      '<input id="affScenarioLabel" class="flex-1 border border-gray-300 rounded-lg px-3 py-1 text-xs" placeholder="Scenario label (optional)">' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._saveScenario(\'affordability\', document.getElementById(\'affScenarioLabel\').value, { \'Max Price\': \'' + $(maxPrice) + '\', \'Max Monthly\': \'' + $(Math.round(maxMonthly)) + '\' })"><i class="fas fa-bookmark mr-1"></i>Save Scenario</button>' +
+    '</div>';
   }
 
   // ─── Tab: Showings ───────────────────────────────────────────────────
@@ -1376,11 +1838,14 @@ var Workspace = (function () {
         var sType = s.type || s.showing_type || 'Private Showing';
         var typeBadgeColors = { 'Private Showing': 'bg-blue-100 text-blue-700', 'Open House': 'bg-green-100 text-green-700', 'Virtual Tour': 'bg-purple-100 text-purple-700' };
         var typeBg = typeBadgeColors[sType] || 'bg-gray-100 text-gray-700';
+        var lid = s.listing_id || s.listingId || '';
+        var addr = s.address || s.listing_address || 'Showing';
         html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-blue-50">' +
           '<div class="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100">' +
             '<i class="fas fa-calendar text-blue-500"></i></div>' +
           '<div class="flex-1 min-w-0">' +
-            '<p class="text-sm font-medium">' + E(s.address || s.listing_address || 'Showing') + '</p>' +
+            (lid ? '<p class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' + E(addr) + ' <i class="fas fa-external-link-alt text-[10px] text-gray-400"></i></p>' :
+              '<p class="text-sm font-medium">' + E(addr) + '</p>') +
             '<p class="text-xs text-gray-500">' + D(s.date || s.showing_date) +
               (s.time ? ' at ' + E(s.time) : '') + '</p>' +
           '</div>' +
@@ -1399,17 +1864,23 @@ var Workspace = (function () {
       html += '<div class="space-y-2">';
       past.forEach(function (s) {
         var sid = s.id || s.showing_id || '';
+        var lid = s.listing_id || s.listingId || '';
+        var addr = s.address || s.listing_address || 'Showing';
         var feedback = s.feedback || s.feedbackText || '';
+        var rating = s.rating || '';
+        var ratingColors = { 'Loved it': 'text-green-600', 'Liked it': 'text-green-500', 'Neutral': 'text-gray-500', 'Not interested': 'text-orange-500', 'Hated it': 'text-red-500' };
         html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">' +
           '<div class="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-200">' +
             '<i class="fas fa-calendar text-gray-400"></i></div>' +
           '<div class="flex-1 min-w-0">' +
-            '<p class="text-sm font-medium">' + E(s.address || s.listing_address || 'Showing') + '</p>' +
+            (lid ? '<p class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' + E(addr) + ' <i class="fas fa-external-link-alt text-[10px] text-gray-400"></i></p>' :
+              '<p class="text-sm font-medium">' + E(addr) + '</p>') +
             '<p class="text-xs text-gray-500">' + D(s.date || s.showing_date) + '</p>' +
+            (rating ? '<p class="text-xs font-bold mt-1 ' + (ratingColors[rating] || 'text-gray-500') + '">' + E(rating) + '</p>' : '') +
             (feedback ? '<p class="text-xs text-gray-600 mt-1 italic">"' + E(feedback) + '"</p>' : '') +
           '</div>' +
           UI.statusBadge(s.status || 'completed') +
-          (!feedback ? '<button class="btn btn-xs btn-outline ml-2" onclick="Workspace._addShowingFeedback(\'' + E(sid) + '\')"><i class="fas fa-comment mr-1"></i>Add Feedback</button>' : '') +
+          '<button class="btn btn-xs btn-outline ml-2" onclick="Workspace._addShowingFeedback(\'' + E(sid) + '\')"><i class="fas fa-comment mr-1"></i>' + (feedback ? 'Edit' : 'Add') + ' Feedback</button>' +
         '</div>';
       });
       html += '</div>';
@@ -1421,7 +1892,7 @@ var Workspace = (function () {
   function _addShowingFeedback(showingId) {
     CRM.openModal('Add Showing Feedback',
       '<form id="showingFbForm" class="space-y-4">' +
-        '<div class="form-group"><label class="form-label">Rating</label>' +
+        '<div class="form-group"><label class="form-label">Overall Rating *</label>' +
           '<select class="form-input form-select" name="rating">' +
             '<option value="Loved it">Loved it</option>' +
             '<option value="Liked it">Liked it</option>' +
@@ -1429,8 +1900,20 @@ var Workspace = (function () {
             '<option value="Not interested">Not interested</option>' +
             '<option value="Hated it">Hated it</option>' +
           '</select></div>' +
-        '<div class="form-group"><label class="form-label">Feedback</label>' +
-          '<textarea class="form-input" name="feedback" rows="3" placeholder="How did the client feel about this property?"></textarea></div>' +
+        '<div class="form-group"><label class="form-label">What did they like?</label>' +
+          '<textarea class="form-input" name="liked" rows="2" placeholder="Layout, light, location, amenities..."></textarea></div>' +
+        '<div class="form-group"><label class="form-label">What did they dislike?</label>' +
+          '<textarea class="form-input" name="disliked" rows="2" placeholder="Size, condition, noise, price..."></textarea></div>' +
+        '<div class="form-group"><label class="form-label">Concerns</label>' +
+          '<textarea class="form-input" name="concerns" rows="2" placeholder="Building financials, board approval, construction..."></textarea></div>' +
+        '<div class="form-group"><label class="form-label">Next Step</label>' +
+          '<select class="form-input form-select" name="nextStep">' +
+            '<option value="">Select...</option>' +
+            '<option value="Schedule 2nd showing">Schedule 2nd showing</option>' +
+            '<option value="Make offer">Make offer</option>' +
+            '<option value="Pass">Pass</option>' +
+            '<option value="Need to think">Need to think</option>' +
+          '</select></div>' +
       '</form>',
       {
         footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
@@ -1443,19 +1926,35 @@ var Workspace = (function () {
     var form = document.getElementById('showingFbForm');
     if (!form) return;
     var fd = new FormData(form);
-    var body = { feedback: fd.get('feedback') || '', rating: fd.get('rating') || 'Neutral' };
+    var liked = fd.get('liked') || '';
+    var disliked = fd.get('disliked') || '';
+    var concerns = fd.get('concerns') || '';
+    var nextStep = fd.get('nextStep') || '';
+    var feedbackParts = [];
+    if (liked) feedbackParts.push('Liked: ' + liked);
+    if (disliked) feedbackParts.push('Disliked: ' + disliked);
+    if (concerns) feedbackParts.push('Concerns: ' + concerns);
+    if (nextStep) feedbackParts.push('Next: ' + nextStep);
+    var body = {
+      feedback: feedbackParts.join('. ') || '',
+      rating: fd.get('rating') || 'Neutral',
+      liked: liked,
+      disliked: disliked,
+      concerns: concerns,
+      nextStep: nextStep,
+    };
 
     MallanAPI._fetch('/api/crm/showings/' + showingId, {
       method: 'PATCH',
       body: JSON.stringify(body),
       headers: { 'Content-Type': 'application/json' },
     }).then(function () {
-      Events.log('showing_feedback_added', 'client', _clientId, { showingId: showingId, rating: body.rating });
+      Events.log('showing_feedback_added', 'client', _clientId, { showingId: showingId, rating: body.rating, nextStep: nextStep });
       CRM.closeModal();
       CRM.toast('Feedback saved', 'success');
       _renderClientTab();
     }).catch(function () {
-      Events.log('showing_feedback_added', 'client', _clientId, { showingId: showingId, rating: body.rating });
+      Events.log('showing_feedback_added', 'client', _clientId, { showingId: showingId, rating: body.rating, nextStep: nextStep });
       CRM.closeModal();
       CRM.toast('Feedback saved', 'info');
       _renderClientTab();
@@ -1505,26 +2004,163 @@ var Workspace = (function () {
   }
 
   // ─── Tab: Documents ──────────────────────────────────────────────────
+
+  var REQUIRED_DOCS_MAP = {
+    buyer: ['buyer_agency_agreement', 'commission_disclosure', 'fair_housing_notice', 'agency_disclosure'],
+    seller: ['exclusive_right_to_sell', 'property_condition_disclosure', 'lead_paint_disclosure', 'fair_housing_notice', 'agency_disclosure'],
+    renter: ['fair_housing_notice', 'agency_disclosure'],
+    landlord: ['exclusive_rental_listing', 'fair_housing_notice', 'agency_disclosure'],
+  };
+
+  var DOC_TYPE_LABELS = {
+    buyer_agency_agreement: 'Buyer Agency Agreement',
+    commission_disclosure: 'Commission Negotiability Disclosure',
+    fair_housing_notice: 'Fair Housing Notice',
+    agency_disclosure: 'Agency Disclosure (DOS-2105)',
+    exclusive_right_to_sell: 'Exclusive Right to Sell',
+    property_condition_disclosure: 'Property Condition Disclosure',
+    lead_paint_disclosure: 'Lead Paint Disclosure',
+    exclusive_rental_listing: 'Exclusive Rental Listing',
+    tenant_rep_agreement: 'Tenant Rep Agreement',
+  };
+
   function _clientDocuments(el) {
-    el.innerHTML = '<div class="space-y-4">' +
-      '<div class="flex items-center justify-between">' +
-        '<h3 class="text-sm font-bold text-gray-700">Documents</h3>' +
-        '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-upload"></i> Upload Document</button>' +
-      '</div>' +
-      '<div class="flex gap-2 mb-2" id="wsDocFilters">' +
-        '<button class="btn btn-xs btn-gold" onclick="Workspace._filterDocs(\'all\')">All</button>' +
-        '<button class="btn btn-xs btn-outline" onclick="Workspace._filterDocs(\'pending\')">Pending</button>' +
-        '<button class="btn btn-xs btn-outline" onclick="Workspace._filterDocs(\'approved\')">Approved</button>' +
-        '<button class="btn btn-xs btn-outline" onclick="Workspace._filterDocs(\'signed\')">Signed</button>' +
-      '</div>' +
-      '<div id="wsDocsTable">' + UI.loading() + '</div>' +
-    '</div>';
+    var cl = _client;
+    var clientName = cl.name || cl.email || 'Client';
+    var isBroker = Permissions.can && Permissions.can('broker_admin');
+    var type = (cl.type || cl.client_type || 'buyer').toLowerCase();
+
+    var html = '<div class="space-y-4">';
+
+    // Scope breadcrumb
+    html += '<div class="text-xs text-gray-400"><span>Company</span> <i class="fas fa-chevron-right mx-1 text-[8px]"></i> <span>Client: ' + E(clientName) + '</span> <i class="fas fa-chevron-right mx-1 text-[8px]"></i> <span class="font-bold text-gray-600">Documents</span></div>';
+
+    // Missing docs callout
+    html += '<div id="wsMissingDocs"></div>';
+
+    // Action buttons
+    html += '<div class="flex items-center justify-between">' +
+      '<h3 class="text-sm font-bold text-gray-700">Documents</h3>' +
+      '<div class="flex gap-2">';
+    if (isBroker) {
+      html += '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-upload mr-1"></i>Upload</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._approveDocuments()"><i class="fas fa-check mr-1"></i>Approve</button>';
+    } else {
+      html += '<button class="btn btn-sm btn-gold" onclick="Workspace._requestDocUpload()"><i class="fas fa-cloud-upload-alt mr-1"></i>Request Upload</button>';
+    }
+    html += '</div></div>';
+
+    // Filters
+    html += '<div class="flex gap-2 mb-2" id="wsDocFilters">' +
+      '<button class="btn btn-xs btn-gold" onclick="Workspace._filterDocs(\'all\')">All</button>' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._filterDocs(\'pending\')">Pending</button>' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._filterDocs(\'approved\')">Approved</button>' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._filterDocs(\'signed\')">Signed</button>' +
+    '</div>' +
+    '<div id="wsDocsTable">' + UI.loading() + '</div>';
+
+    html += '</div>';
+    el.innerHTML = html;
 
     Documents.list('client', _clientId).then(function (docs) {
       _clientData.documents = docs || [];
       _renderDocsTable('all');
+      _renderMissingDocs(type, docs || []);
     }).catch(function () {
       _renderDocsTable('all');
+      _renderMissingDocs(type, _clientData.documents || []);
+    });
+  }
+
+  function _renderMissingDocs(clientType, docs) {
+    var container = document.getElementById('wsMissingDocs');
+    if (!container) return;
+    var required = REQUIRED_DOCS_MAP[clientType] || REQUIRED_DOCS_MAP.buyer;
+    var existingTypes = {};
+    (docs || []).forEach(function (d) {
+      var dt = (d.type || d.doc_type || '').toLowerCase();
+      existingTypes[dt] = true;
+    });
+    var missing = required.filter(function (r) { return !existingTypes[r]; });
+    if (missing.length === 0) {
+      container.innerHTML = '<div class="p-3 bg-green-50 rounded-lg border border-green-200 flex items-center gap-2">' +
+        '<i class="fas fa-check-circle text-green-500"></i>' +
+        '<p class="text-xs font-bold text-green-700">All required documents on file</p></div>';
+      return;
+    }
+    var html = '<div class="p-3 bg-red-50 rounded-lg border border-red-200">' +
+      '<p class="text-xs font-bold text-red-700 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i>Missing Required Documents (' + missing.length + ')</p>' +
+      '<div class="flex flex-wrap gap-2">';
+    missing.forEach(function (m) {
+      var label = DOC_TYPE_LABELS[m] || m;
+      html += '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">' +
+        '<i class="fas fa-times-circle text-[10px]"></i>' + E(label) +
+        '<button class="ml-1 text-red-500 hover:text-red-700" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-upload text-[10px]"></i></button>' +
+      '</span>';
+    });
+    html += '</div></div>';
+    container.innerHTML = html;
+  }
+
+  function _requestDocUpload() {
+    CRM.openModal('Request Document Upload',
+      '<form id="requestDocForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Document Type</label>' +
+          '<input class="form-input" name="docType" placeholder="e.g. Pre-approval letter" required></div>' +
+        '<div class="form-group"><label class="form-label">Notes</label>' +
+          '<textarea class="form-input" name="notes" rows="2" placeholder="Additional instructions..."></textarea></div>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Workspace._submitDocRequest()"><i class="fas fa-paper-plane"></i> Send Request</button>',
+      }
+    );
+  }
+
+  function _submitDocRequest() {
+    var form = document.getElementById('requestDocForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var fd = new FormData(form);
+    Events.log('document_request_sent', 'client', _clientId, { docType: fd.get('docType'), notes: fd.get('notes') });
+    CRM.closeModal();
+    CRM.toast('Document request sent', 'success');
+  }
+
+  function _approveDocuments() {
+    var pending = (_clientData.documents || []).filter(function (d) { return (d.status || '').toLowerCase() === 'pending'; });
+    if (pending.length === 0) { CRM.toast('No pending documents to approve', 'info'); return; }
+    var html = '<div class="space-y-2">';
+    pending.forEach(function (d) {
+      var did = d.id || d.document_id || '';
+      html += '<label class="flex items-center gap-3 p-2 rounded-lg bg-gray-50">' +
+        '<input type="checkbox" class="w-4 h-4 rounded border-gray-300" data-doc-approve="' + E(did) + '" checked>' +
+        '<span class="text-sm">' + E(d.title || d.name || 'Document') + '</span>' +
+      '</label>';
+    });
+    html += '</div>';
+    CRM.openModal('Approve Documents (' + pending.length + ')', html, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="Workspace._submitApproveDocuments()"><i class="fas fa-check"></i> Approve Selected</button>',
+    });
+  }
+
+  function _submitApproveDocuments() {
+    var checkboxes = document.querySelectorAll('[data-doc-approve]');
+    var approvedIds = [];
+    checkboxes.forEach(function (cb) {
+      if (cb.checked) approvedIds.push(cb.getAttribute('data-doc-approve'));
+    });
+    if (approvedIds.length === 0) { CRM.closeModal(); return; }
+    Promise.all(approvedIds.map(function (did) {
+      return Documents.updateStatus(did, 'approved').catch(function () { return null; });
+    })).then(function () {
+      Events.log('documents_approved', 'client', _clientId, { count: approvedIds.length });
+      CRM.closeModal();
+      CRM.toast(approvedIds.length + ' document(s) approved', 'success');
+      _renderClientTab();
+    }).catch(function () {
+      CRM.closeModal();
+      CRM.toast('Error approving documents', 'error');
     });
   }
 
@@ -1630,57 +2266,114 @@ var Workspace = (function () {
   function _renderAgreementsList(agreements, docs) {
     var listEl = document.getElementById('wsAgreementsList');
     if (!listEl) return;
+    var isBroker = Permissions.can && Permissions.can('broker_admin');
 
-    // Build a map of doc types to their status
-    var docStatusMap = {};
+    // Build a map of doc types to their status + expiry + doc details
+    var docMap = {};
     docs.forEach(function (d) {
       var dt = (d.type || d.doc_type || '').toLowerCase();
       var st = (d.status || '').toLowerCase();
-      // Keep the "best" status: signed > approved > uploaded > pending
-      var rank = { signed: 4, approved: 3, uploaded: 2, pending: 1 };
-      if (!docStatusMap[dt] || (rank[st] || 0) > (rank[docStatusMap[dt]] || 0)) {
-        docStatusMap[dt] = st;
+      var rank = { signed: 4, approved: 3, uploaded: 2, pending: 1, awaiting_broker: 1 };
+      if (!docMap[dt] || (rank[st] || 0) > (rank[docMap[dt].status] || 0)) {
+        docMap[dt] = { status: st, expiryDate: d.expiry_date || d.expiryDate || null, id: d.id || d.document_id };
       }
     });
 
+    var now = new Date();
     var html = '<div class="space-y-2">';
     agreements.forEach(function (a) {
-      var docStatus = docStatusMap[a.docType] || 'missing';
-      var statusColors = { signed: '#059669', approved: '#2563EB', uploaded: '#F59E0B', pending: '#F59E0B', missing: '#EF4444' };
-      var statusIcons = { signed: 'fa-check-circle', approved: 'fa-check', uploaded: 'fa-cloud-upload-alt', pending: 'fa-clock', missing: 'fa-times-circle' };
+      var docInfo = docMap[a.docType] || { status: 'missing' };
+      var docStatus = docInfo.status;
+      var statusColors = { signed: '#059669', approved: '#2563EB', uploaded: '#F59E0B', pending: '#F59E0B', awaiting_broker: '#8B5CF6', missing: '#EF4444' };
+      var statusIcons = { signed: 'fa-check-circle', approved: 'fa-check', uploaded: 'fa-cloud-upload-alt', pending: 'fa-clock', awaiting_broker: 'fa-user-clock', missing: 'fa-times-circle' };
       var color = statusColors[docStatus] || '#EF4444';
       var icon = statusIcons[docStatus] || 'fa-times-circle';
+
+      // Expiry date logic
+      var expiryHtml = '';
+      if (docInfo.expiryDate) {
+        var expiryDate = new Date(docInfo.expiryDate);
+        var daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / 86400000);
+        var expiryClass = daysUntilExpiry < 0 ? 'text-red-600 font-bold' : daysUntilExpiry <= 30 ? 'text-yellow-600 font-bold' : 'text-gray-500';
+        var expiryLabel = daysUntilExpiry < 0 ? 'Expired' : daysUntilExpiry <= 30 ? 'Expires in ' + daysUntilExpiry + 'd' : D(docInfo.expiryDate);
+        expiryHtml = '<span class="text-xs ' + expiryClass + ' ml-2">' + E(expiryLabel) + '</span>';
+      }
+
+      // Awaiting broker approval badge
+      var awaitingBadge = '';
+      if (docStatus === 'pending' || docStatus === 'awaiting_broker') {
+        awaitingBadge = '<span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 ml-1">Awaiting Broker Approval</span>';
+      }
 
       html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">' +
         '<i class="fas ' + icon + '" style="color:' + color + '"></i>' +
         '<div class="flex-1 min-w-0">' +
-          '<p class="text-sm font-medium">' + E(a.name) + '</p>' +
+          '<div class="flex items-center flex-wrap gap-1">' +
+            '<p class="text-sm font-medium">' + E(a.name) + '</p>' +
+            expiryHtml +
+            awaitingBadge +
+          '</div>' +
           '<span class="text-xs px-2 py-0.5 rounded-full ' + (a.required ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600') + '">' +
             (a.required ? 'Required' : 'Optional') + '</span>' +
         '</div>' +
-        '<span style="font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase">' + E(docStatus) + '</span>' +
-        (docStatus === 'missing' ? '<button class="btn btn-xs btn-outline ml-2" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-upload mr-1"></i>Upload</button>' : '') +
-      '</div>';
+        '<span style="font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase">' + E(docStatus) + '</span>';
+
+      // Action buttons based on status
+      if (docStatus === 'missing') {
+        html += '<button class="btn btn-xs btn-outline ml-1" onclick="Workspace._generateFromTemplate(\'' + E(a.docType) + '\',\'' + E(a.name) + '\')"><i class="fas fa-file-alt mr-1"></i>Generate</button>' +
+          '<button class="btn btn-xs btn-outline ml-1" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-upload mr-1"></i>Upload</button>';
+      } else if ((docStatus === 'pending' || docStatus === 'awaiting_broker') && isBroker && docInfo.id) {
+        html += '<button class="btn btn-xs btn-gold ml-1" onclick="Workspace._approveSingleAgreement(\'' + E(docInfo.id) + '\')"><i class="fas fa-check mr-1"></i>Approve</button>';
+      }
+
+      html += '</div>';
     });
     html += '</div>';
     listEl.innerHTML = html;
   }
 
-  // ─── Tab: Readiness Checklist ────────────────────────────────────────
-  var READINESS_KEY_PREFIX = 'readiness_';
-
-  function _loadReadinessState(clientId) {
-    try {
-      var raw = localStorage.getItem(READINESS_KEY_PREFIX + clientId);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore */ }
-    return {};
+  function _generateFromTemplate(docType, docName) {
+    Events.log('agreement_template_generated', 'client', _clientId, { docType: docType, name: docName });
+    MallanAPI._fetch('/api/crm/documents', {
+      method: 'POST',
+      body: JSON.stringify({
+        client_id: _clientId,
+        type: docType,
+        title: docName + ' (Draft)',
+        status: 'pending',
+        source: 'template',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }).then(function () {
+      CRM.toast('Draft agreement generated from template', 'success');
+      _renderClientTab();
+    }).catch(function () {
+      CRM.toast('Agreement draft created locally', 'info');
+      _renderClientTab();
+    });
   }
 
-  function _saveReadinessState(clientId, state) {
-    try {
-      localStorage.setItem(READINESS_KEY_PREFIX + clientId, JSON.stringify(state));
-    } catch (e) { /* ignore */ }
+  function _approveSingleAgreement(docId) {
+    Documents.updateStatus(docId, 'approved').then(function () {
+      Events.log('agreement_approved', 'client', _clientId, { documentId: docId });
+      CRM.toast('Agreement approved', 'success');
+      _renderClientTab();
+    }).catch(function () {
+      CRM.toast('Could not approve agreement', 'error');
+    });
+  }
+
+  // ─── Tab: Readiness Checklist (API-backed, 3-state) ─────────────────
+
+  // State values: 0=not_started, 1=in_progress, 2=complete
+  var READINESS_STATES = ['not_started', 'in_progress', 'complete'];
+  var READINESS_COLORS = { not_started: '#EF4444', in_progress: '#F59E0B', complete: '#059669' };
+  var READINESS_LABELS = { not_started: 'Not Started', in_progress: 'In Progress', complete: 'Complete' };
+  var READINESS_BG = { not_started: 'bg-gray-50', in_progress: 'bg-yellow-50', complete: 'bg-green-50' };
+
+  function _loadReadinessState(clientId) {
+    var prefs = (_client && _client.preferences) || {};
+    return prefs.readiness || {};
   }
 
   function _clientReadiness(el) {
@@ -1713,7 +2406,6 @@ var Workspace = (function () {
         { label: 'Move-in date confirmed', key: 'move_in' },
       ];
     } else {
-      // landlord
       items = [
         { label: 'Property inspected', key: 'inspected' },
         { label: 'Lease agreement drafted', key: 'lease_drafted' },
@@ -1724,35 +2416,69 @@ var Workspace = (function () {
     }
 
     var saved = _loadReadinessState(_clientId);
-    var completed = items.filter(function (i) { return saved[i.key]; }).length;
     var total = items.length;
-    var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    var completedCount = 0;
+    var inProgressCount = 0;
+    items.forEach(function (i) {
+      var state = (saved[i.key] && saved[i.key].state) || 'not_started';
+      if (state === 'complete') completedCount++;
+      else if (state === 'in_progress') inProgressCount++;
+    });
+    var notStartedCount = total - completedCount - inProgressCount;
+    var completePct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+    var progressPct = total > 0 ? Math.round((inProgressCount / total) * 100) : 0;
 
     var html = '<div class="space-y-4">';
     html += '<h3 class="text-sm font-bold text-gray-700">Readiness Checklist</h3>';
 
-    // Progress bar
+    // Multi-color progress bar
     html += '<div class="card p-4">' +
       '<div class="flex items-center justify-between mb-2">' +
-        '<span class="text-sm font-medium">' + completed + ' of ' + total + ' complete</span>' +
-        '<span class="text-sm font-bold" id="wsReadinessPct">' + pct + '%</span>' +
+        '<span class="text-sm font-medium" id="wsReadinessLabel">' + completedCount + ' complete, ' + inProgressCount + ' in progress, ' + notStartedCount + ' not started</span>' +
+        '<span class="text-sm font-bold" id="wsReadinessPct">' + completePct + '%</span>' +
       '</div>' +
-      '<div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden">' +
-        '<div id="wsReadinessBar" class="h-full rounded-full transition-all" style="width:' + pct + '%;background:' + (pct === 100 ? '#059669' : '#B8860B') + '"></div>' +
+      '<div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden flex">' +
+        '<div id="wsReadinessBarGreen" class="h-full transition-all" style="width:' + completePct + '%;background:#059669"></div>' +
+        '<div id="wsReadinessBarYellow" class="h-full transition-all" style="width:' + progressPct + '%;background:#F59E0B"></div>' +
+      '</div>' +
+      '<div class="flex gap-4 mt-2 text-xs text-gray-500">' +
+        '<span><span class="inline-block w-2 h-2 rounded-full bg-green-600 mr-1"></span>Complete</span>' +
+        '<span><span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>In Progress</span>' +
+        '<span><span class="inline-block w-2 h-2 rounded-full bg-gray-300 mr-1"></span>Not Started</span>' +
       '</div>' +
     '</div>';
 
-    // Checklist items
+    // Checklist items (3-state toggle + comment)
     html += '<div class="space-y-2">';
     items.forEach(function (item) {
-      var checked = saved[item.key] ? true : false;
-      html += '<label class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gold-bg cursor-pointer transition-all">' +
-        '<input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-gold focus:ring-gold" data-readiness-key="' + E(item.key) + '"' +
-          (checked ? ' checked' : '') +
-          ' oninput="Workspace._onReadinessChange(this)">' +
-        '<span class="text-sm font-medium ' + (checked ? 'text-green-700' : '') + '">' + E(item.label) + '</span>' +
-        (checked ? '<i class="fas fa-check text-green-500 ml-auto text-xs"></i>' : '') +
-      '</label>';
+      var itemData = saved[item.key] || { state: 'not_started', comment: '' };
+      var state = itemData.state || 'not_started';
+      var comment = itemData.comment || '';
+      var bg = READINESS_BG[state] || 'bg-gray-50';
+      var stateColor = READINESS_COLORS[state] || '#EF4444';
+      var stateLabel = READINESS_LABELS[state] || 'Not Started';
+      var cid = 'readiness_comment_' + item.key;
+
+      html += '<div class="p-3 rounded-lg ' + bg + ' transition-all">' +
+        '<div class="flex items-center gap-3">' +
+          // 3-state toggle button
+          '<button class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all" ' +
+            'style="border-color:' + stateColor + ';background:' + (state === 'complete' ? stateColor : 'transparent') + '" ' +
+            'onclick="Workspace._cycleReadinessState(\'' + E(item.key) + '\')" title="Click to cycle: Not Started > In Progress > Complete">' +
+            (state === 'complete' ? '<i class="fas fa-check text-white text-xs"></i>' :
+             state === 'in_progress' ? '<i class="fas fa-minus text-xs" style="color:' + stateColor + '"></i>' :
+             '') +
+          '</button>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-medium">' + E(item.label) + '</p>' +
+            '<span class="text-xs font-bold" style="color:' + stateColor + '">' + E(stateLabel) + '</span>' +
+          '</div>' +
+          '<button class="text-xs text-gray-400 hover:text-gray-600 flex-shrink-0" onclick="Workspace._toggleReadinessComment(\'' + cid + '\')" title="Add comment"><i class="fas fa-comment"></i></button>' +
+        '</div>' +
+        '<div id="' + cid + '" class="' + (comment ? '' : 'hidden') + ' mt-2">' +
+          '<textarea class="w-full border border-gray-200 rounded-lg p-2 text-xs" rows="2" data-readiness-comment="' + E(item.key) + '" placeholder="Optional comment...">' + E(comment) + '</textarea>' +
+        '</div>' +
+      '</div>';
     });
     html += '</div>';
 
@@ -1765,61 +2491,68 @@ var Workspace = (function () {
     el.innerHTML = html;
   }
 
-  function _onReadinessChange(checkbox) {
-    var key = checkbox.getAttribute('data-readiness-key');
-    if (!key) return;
+  function _cycleReadinessState(key) {
+    if (!_clientId) return;
     var saved = _loadReadinessState(_clientId);
-    saved[key] = checkbox.checked;
-    _saveReadinessState(_clientId, saved);
+    var itemData = saved[key] || { state: 'not_started', comment: '' };
+    var currentIdx = READINESS_STATES.indexOf(itemData.state || 'not_started');
+    var nextIdx = (currentIdx + 1) % READINESS_STATES.length;
+    itemData.state = READINESS_STATES[nextIdx];
+    saved[key] = itemData;
 
-    // Update progress bar
-    var allBoxes = document.querySelectorAll('[data-readiness-key]');
-    var total = allBoxes.length;
-    var completed = 0;
-    allBoxes.forEach(function (cb) { if (cb.checked) completed++; });
-    var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-    var pctEl = document.getElementById('wsReadinessPct');
-    var barEl = document.getElementById('wsReadinessBar');
-    if (pctEl) pctEl.textContent = pct + '%';
-    if (barEl) {
-      barEl.style.width = pct + '%';
-      barEl.style.background = pct === 100 ? '#059669' : '#B8860B';
-    }
+    // Save comments from textareas before re-render
+    document.querySelectorAll('[data-readiness-comment]').forEach(function (ta) {
+      var k = ta.getAttribute('data-readiness-comment');
+      if (saved[k]) saved[k].comment = ta.value;
+      else saved[k] = { state: 'not_started', comment: ta.value };
+    });
 
-    // Update label styling
-    var label = checkbox.closest('label');
-    if (label) {
-      var span = label.querySelector('span');
-      var existingCheck = label.querySelector('.fa-check');
-      if (checkbox.checked) {
-        if (span) span.classList.add('text-green-700');
-        if (!existingCheck) {
-          var i = document.createElement('i');
-          i.className = 'fas fa-check text-green-500 ml-auto text-xs';
-          label.appendChild(i);
-        }
-      } else {
-        if (span) span.classList.remove('text-green-700');
-        if (existingCheck) existingCheck.remove();
-      }
-    }
+    _saveReadinessToAPI(saved);
+  }
 
-    // Update right rail readiness score
-    var railScore = document.getElementById('wsRailReadinessScore');
-    if (railScore) railScore.textContent = pct + '%';
+  function _toggleReadinessComment(commentId) {
+    var el = document.getElementById(commentId);
+    if (el) el.classList.toggle('hidden');
+  }
+
+  function _onReadinessChange() {
+    // Legacy compatibility — no-op, state managed by _cycleReadinessState
   }
 
   function _saveReadiness() {
     var saved = _loadReadinessState(_clientId);
-    _saveReadinessState(_clientId, saved);
 
-    var allBoxes = document.querySelectorAll('[data-readiness-key]');
-    var total = allBoxes.length;
-    var completed = 0;
-    allBoxes.forEach(function (cb) { if (cb.checked) completed++; });
+    // Collect comments from textareas
+    document.querySelectorAll('[data-readiness-comment]').forEach(function (ta) {
+      var k = ta.getAttribute('data-readiness-comment');
+      if (!saved[k]) saved[k] = { state: 'not_started', comment: '' };
+      saved[k].comment = ta.value;
+    });
 
-    Events.log('readiness_updated', 'client', _clientId, { completed: completed, total: total });
-    CRM.toast('Checklist saved (' + completed + '/' + total + ' complete)', 'success');
+    _saveReadinessToAPI(saved);
+  }
+
+  function _saveReadinessToAPI(readinessState) {
+    var prefs = Object.assign({}, _client.preferences || {}, { readiness: readinessState });
+    MallanAPI.clients.update(_clientId, { preferences: prefs }).then(function () {
+      _client.preferences = prefs;
+
+      // Count states for toast
+      var keys = Object.keys(readinessState);
+      var completed = keys.filter(function (k) { return readinessState[k].state === 'complete'; }).length;
+      var total = keys.length;
+      Events.log('readiness_updated', 'client', _clientId, { completed: completed, total: total });
+
+      // Update right rail
+      var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      var railScore = document.getElementById('wsRailReadinessScore');
+      if (railScore) railScore.textContent = pct + '%';
+
+      CRM.toast('Checklist saved (' + completed + '/' + total + ' complete)', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Error saving checklist: ' + (err.message || 'Unknown error'), 'error');
+    });
   }
 
   // ─── Client edit ─────────────────────────────────────────────────────
@@ -2304,22 +3037,47 @@ var Workspace = (function () {
     _submitPipelineTask: _submitPipelineTask,
     _generateCMA: _generateCMA,
 
-    // Financial calculators
+    // Overview — pinned notes
+    _pinNote: _pinNote,
+    _unpinNote: _unpinNote,
+    _saveClientNoteAsEvent: _saveClientNoteAsEvent,
+
+    // Activity — filters & payload toggle
+    _filterActivity: _filterActivity,
+    _toggleEventPayload: _toggleEventPayload,
+
+    // Pipeline — conversion override
+    _saveConversionOverride: _saveConversionOverride,
+
+    // Financial calculators + scenarios
     _calcMortgage: _calcMortgage,
     _calcClosing: _calcClosing,
     _calcRentVsBuy: _calcRentVsBuy,
     _calcAffordability: _calcAffordability,
     _toggleCalcSection: _toggleCalcSection,
+    _saveScenario: _saveScenario,
+    _deleteScenario: _deleteScenario,
+    _exportScenarioSummary: _exportScenarioSummary,
 
     // Showings
     _addShowingFeedback: _addShowingFeedback,
     _submitShowingFeedback: _submitShowingFeedback,
 
-    // Documents
+    // Documents — upload/request/approve
     _filterDocs: _filterDocs,
+    _requestDocUpload: _requestDocUpload,
+    _submitDocRequest: _submitDocRequest,
+    _approveDocuments: _approveDocuments,
+    _submitApproveDocuments: _submitApproveDocuments,
 
-    // Readiness
+    // Agreements — template/approve
+    _generateFromTemplate: _generateFromTemplate,
+    _approveSingleAgreement: _approveSingleAgreement,
+
+    // Readiness — 3-state
     _onReadinessChange: _onReadinessChange,
+    _cycleReadinessState: _cycleReadinessState,
+    _toggleReadinessComment: _toggleReadinessComment,
     _saveReadiness: _saveReadiness,
 
     // Listing Workspace
