@@ -508,13 +508,29 @@ var Workspace = (function () {
     });
   }
 
+  function _createNote(clientId, content, source) {
+    if (!content || !content.trim()) { CRM.toast('Note content required', 'warning'); return; }
+
+    return MallanAPI._fetch('/api/crm/notes', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId, content: content.trim(), source: source || 'workspace' })
+    }).then(function () {
+      Events.log('note_added', 'client', clientId, { content: content, source: source });
+      return true;
+    });
+    // Caller handles .catch()
+  }
+
   function _saveClientNoteAsEvent() {
     var ta = document.getElementById('wsClientNotes');
     if (!ta || !ta.value.trim()) { CRM.toast('Enter a note first', 'warning'); return; }
     var content = ta.value.trim();
-    Events.log('note_added', 'client', _clientId, { content: content });
-    CRM.toast('Note added', 'success');
-    _renderClientTab();
+    _createNote(_clientId, content, 'inline').then(function () {
+      CRM.toast('Note added', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
+    });
   }
 
   function _editPreferences() {
@@ -1068,10 +1084,17 @@ var Workspace = (function () {
     var form = document.getElementById('addNoteForm');
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
     var content = new FormData(form).get('content');
-    Events.log('note_added', 'client', _clientId, { content: content });
-    CRM.closeModal();
-    CRM.toast('Note added', 'success');
-    _renderClientTab(); // re-render to show new note
+    var saveBtn = document.querySelector('[onclick*="_submitActivityNote"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+
+    _createNote(_clientId, content, 'activity').then(function () {
+      CRM.closeModal();
+      CRM.toast('Note added', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Note'; }
+      CRM.toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
+    });
   }
 
   // ─── Tab: Pipeline & Tasks ───────────────────────────────────────────
@@ -1329,15 +1352,19 @@ var Workspace = (function () {
 
   function _moveStage(newStage) {
     if (!_client) return;
+    var oldStage = _client.stage || _client.status || 'new';
+    // Disable stage buttons while saving
+    document.querySelectorAll('[onclick*="_moveStage"]').forEach(function (b) { b.disabled = true; });
+
     MallanAPI.clients.update(_clientId, { stage: newStage }).then(function () {
-      Events.log('client_stage_moved', 'client', _clientId, { from: _client.stage, to: newStage });
+      Events.log('client_stage_moved', 'client', _clientId, { from: oldStage, to: newStage });
       _client.stage = newStage;
       CRM.toast('Stage updated to ' + newStage, 'success');
       _renderClientTab();
-    }).catch(function () {
-      _client.stage = newStage;
-      CRM.toast('Stage updated', 'info');
-      _renderClientTab();
+    }).catch(function (err) {
+      // ROLLBACK — do NOT update stage
+      CRM.toast('Failed to move stage: ' + (err.message || 'Please try again'), 'error');
+      _renderClientTab(); // rerender with old stage
     });
   }
 
@@ -1609,14 +1636,9 @@ var Workspace = (function () {
       Events.log('scenario_saved', 'client', _clientId, { type: type, label: label });
       CRM.toast('Scenario saved', 'success');
       _renderSavedScenarios();
-    }).catch(function () {
-      // Graceful fallback: save to cache locally
-      var fallback = { id: Date.now().toString(36), type: type, label: label || type, values: values, date: new Date().toISOString() };
-      if (!_scenariosCache[_clientId]) _scenariosCache[_clientId] = [];
-      _scenariosCache[_clientId].push(fallback);
-      Events.log('scenario_saved', 'client', _clientId, { type: type, label: label });
-      CRM.toast('Scenario saved', 'success');
-      _renderSavedScenarios();
+    }).catch(function (err) {
+      // Do NOT add to cache or show success on failure
+      CRM.toast('Failed to save scenario: ' + (err.message || 'Please try again'), 'error');
     });
   }
 
@@ -2074,6 +2096,9 @@ var Workspace = (function () {
       nextStep: nextStep,
     };
 
+    var saveBtn = document.querySelector('[onclick*="_submitShowingFeedback"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+
     MallanAPI._fetch('/api/crm/showings/' + showingId, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -2083,11 +2108,10 @@ var Workspace = (function () {
       CRM.closeModal();
       CRM.toast('Feedback saved', 'success');
       _renderClientTab();
-    }).catch(function () {
-      Events.log('showing_feedback_added', 'client', _clientId, { showingId: showingId, rating: body.rating, nextStep: nextStep });
-      CRM.closeModal();
-      CRM.toast('Feedback saved', 'info');
-      _renderClientTab();
+    }).catch(function (err) {
+      // Do NOT log event or close modal on failure
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save'; }
+      CRM.toast('Failed to save feedback: ' + (err.message || 'Please try again'), 'error');
     });
   }
 
@@ -2251,9 +2275,22 @@ var Workspace = (function () {
     var form = document.getElementById('requestDocForm');
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
     var fd = new FormData(form);
-    Events.log('document_request_sent', 'client', _clientId, { docType: fd.get('docType'), notes: fd.get('notes') });
-    CRM.closeModal();
-    CRM.toast('Document request sent', 'success');
+    var docType = fd.get('docType');
+    var notes = fd.get('notes');
+    var sendBtn = document.querySelector('[onclick*="_submitDocRequest"]');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
+
+    MallanAPI._fetch('/api/crm/documents/request', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: _clientId, doc_type: docType, notes: notes }),
+    }).then(function () {
+      Events.log('document_request_sent', 'client', _clientId, { docType: docType, notes: notes });
+      CRM.closeModal();
+      CRM.toast('Document request sent', 'success');
+    }).catch(function (err) {
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Request'; }
+      CRM.toast('Failed to send document request: ' + (err.message || 'Please try again'), 'error');
+    });
   }
 
   function _approveDocuments() {
@@ -2463,7 +2500,6 @@ var Workspace = (function () {
   }
 
   function _generateFromTemplate(docType, docName) {
-    Events.log('agreement_template_generated', 'client', _clientId, { docType: docType, name: docName });
     MallanAPI._fetch('/api/crm/documents', {
       method: 'POST',
       body: JSON.stringify({
@@ -2475,11 +2511,11 @@ var Workspace = (function () {
       }),
       headers: { 'Content-Type': 'application/json' },
     }).then(function () {
+      Events.log('agreement_template_generated', 'client', _clientId, { docType: docType, name: docName });
       CRM.toast('Draft agreement generated from template', 'success');
       _renderClientTab();
-    }).catch(function () {
-      CRM.toast('Agreement draft created locally', 'info');
-      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Failed to generate agreement: ' + (err.message || 'Please try again'), 'error');
     });
   }
 
@@ -4174,19 +4210,15 @@ var Workspace = (function () {
   function _submitSlideNote() {
     var text = (document.getElementById('slideNoteText') || {}).value;
     if (!text) return;
+    var saveBtn = document.querySelector('[onclick*="_submitSlideNote"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
 
-    // Step 1: Create canonical note record FIRST
-    MallanAPI._fetch('/api/crm/notes', {
-      method: 'POST',
-      body: JSON.stringify({ client_id: _clientId, content: text })
-    }).then(function () {
-      // Step 2: Log timeline event only after persistence succeeds
-      Events.log('note_added', 'client', _clientId, { content: text });
+    _createNote(_clientId, text, 'slide').then(function () {
       CRM.closeSlideOver();
       CRM.toast('Note saved', 'success');
       if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
     }).catch(function (err) {
-      // Step 3: Show real failure — do NOT mask as success
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save'; }
       CRM.toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
     });
   }
@@ -4270,6 +4302,7 @@ var Workspace = (function () {
     _pinNote: _pinNote,
     _unpinNote: _unpinNote,
     _saveClientNoteAsEvent: _saveClientNoteAsEvent,
+    _createNote: _createNote,
 
     // Activity — filters & payload toggle
     _filterActivity: _filterActivity,

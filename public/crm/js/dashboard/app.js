@@ -1182,6 +1182,9 @@ var CRM = (function () {
     var clientIds = [];
     checkboxes.forEach(function (cb) { clientIds.push(cb.value); });
 
+    var sendBtn = document.querySelector('[onclick*="_doQuickSend"]');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
+
     // Step 1: Create canonical send record FIRST
     MallanAPI._fetch('/api/crm/communications/send', {
       method: 'POST',
@@ -1202,6 +1205,7 @@ var CRM = (function () {
       _selectedSendListing = null;
     }).catch(function (err) {
       // Step 3: Show real failure — do NOT mask as success
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send'; }
       toast('Failed to save send record: ' + (err.message || 'Please try again'), 'error');
       // Do not close modal — let user retry
     });
@@ -1246,6 +1250,9 @@ var CRM = (function () {
     var data = {};
     new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
 
+    var createBtn = document.querySelector('[onclick*="submitQuickTask"]');
+    if (createBtn) { createBtn.disabled = true; createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...'; }
+
     MallanAPI._fetch('/api/crm/tasks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -1253,6 +1260,7 @@ var CRM = (function () {
       closeModal();
       toast('Task created', 'success');
     }).catch(function (err) {
+      if (createBtn) { createBtn.disabled = false; createBtn.innerHTML = '<i class="fas fa-plus"></i> Create Task'; }
       toast('Failed to create task: ' + (err.message || 'Unknown error'), 'error');
     });
   }
@@ -1293,6 +1301,9 @@ var CRM = (function () {
     var clientId = document.getElementById('qnClientId') ? document.getElementById('qnClientId').value : null;
     var content = form.querySelector('[name="content"]').value;
 
+    var saveBtn = document.querySelector('[onclick*="submitQuickNote"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+
     // Step 1: Create canonical note record FIRST
     var notePayload = { content: content, created_by: Store.getEffectiveAgentId() };
     if (clientId) notePayload.client_id = clientId;
@@ -1311,6 +1322,7 @@ var CRM = (function () {
       toast('Note saved', 'success');
     }).catch(function (err) {
       // Step 3: Show real failure — do NOT mask as success
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Note'; }
       toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
       // Do not close modal — let user retry
     });

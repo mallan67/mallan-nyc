@@ -130,6 +130,22 @@ var Utils = (function () {
     return qs.length ? '?' + qs.join('&') : '';
   }
 
+  function withRequestState(opts) {
+    var btn = opts.button;
+    var origHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (opts.loadingText || 'Saving...'); }
+
+    var idempotencyKey = 'idem_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+    opts.request(idempotencyKey).then(function (result) {
+      if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+      if (opts.onSuccess) opts.onSuccess(result);
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+      if (opts.onError) opts.onError(err);
+    });
+  }
+
   return {
     esc: esc,
     formatMoney: formatMoney,
@@ -148,5 +164,6 @@ var Utils = (function () {
     daysAgo: daysAgo,
     truncate: truncate,
     queryString: queryString,
+    withRequestState: withRequestState,
   };
 })();
