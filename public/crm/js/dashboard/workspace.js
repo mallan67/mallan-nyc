@@ -2725,11 +2725,35 @@ var Workspace = (function () {
     html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Quick Actions</h4>' +
       '<div class="space-y-1">' +
         '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane text-xs text-gray-400 mr-2"></i>Send to Clients</button>' +
-        '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50"><i class="fas fa-edit text-xs text-gray-400 mr-2"></i>Update Price</button>' +
-        '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50"><i class="fas fa-bell text-xs text-gray-400 mr-2"></i>Notify Watchers</button>' +
+        '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Workspace.switchListingTab(\'media\')"><i class="fas fa-camera text-xs text-gray-400 mr-2"></i>Manage Photos</button>' +
+        '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Workspace.switchListingTab(\'compliance\')"><i class="fas fa-shield-alt text-xs text-gray-400 mr-2"></i>Run Audit</button>' +
       '</div></div>';
 
-    // Mini timeline (last 3-5 events)
+    // Listing Health Summary (computed from real data)
+    var comp = Panels._computeListingCompliance(l);
+    var photos = l.photos || l.Media || [];
+    var dom = Number(l.cumulative_dom || l.days_on_market || 0);
+    var healthIssues = 0;
+    if (comp.issues.length > 0) healthIssues += comp.issues.length;
+    if (photos.length === 0) healthIssues++;
+    if (dom > 60) healthIssues++;
+    var healthLabel = healthIssues === 0 ? 'Healthy' : healthIssues <= 2 ? 'Needs Attention' : 'At Risk';
+    var healthColor = healthIssues === 0 ? '#059669' : healthIssues <= 2 ? '#F59E0B' : '#DC2626';
+    var healthBg = healthIssues === 0 ? 'bg-green-50' : healthIssues <= 2 ? 'bg-yellow-50' : 'bg-red-50';
+
+    html += '<div class="card p-3 ' + healthBg + '"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Listing Health</h4>' +
+      '<div class="flex items-center gap-2 mb-2">' +
+        '<span class="text-lg font-bold" style="color:' + healthColor + '">' + healthLabel + '</span>' +
+      '</div>' +
+      '<div class="space-y-1 text-xs">' +
+        '<div class="flex justify-between"><span>Compliance</span><span class="font-bold" style="color:' + (comp.issues.length > 0 ? '#DC2626' : '#059669') + '">' + (comp.issues.length > 0 ? comp.issues.length + ' issues' : 'Clean') + '</span></div>' +
+        '<div class="flex justify-between"><span>Photos</span><span class="font-bold" style="color:' + (photos.length === 0 ? '#DC2626' : photos.length < 3 ? '#F59E0B' : '#059669') + '">' + photos.length + ' uploaded</span></div>' +
+        '<div class="flex justify-between"><span>DOM</span><span class="font-bold" style="color:' + (dom > 90 ? '#DC2626' : dom > 60 ? '#F59E0B' : '#059669') + '">' + dom + ' days</span></div>' +
+      '</div>' +
+      '<button class="btn btn-sm btn-outline w-full mt-2" onclick="Workspace.switchListingTab(\'health\')">View Details</button>' +
+    '</div>';
+
+    // Mini timeline (last 5 events)
     var events = Events.getByEntity('listing', _listingId).slice(0, 5);
     if (events.length > 0) {
       html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Recent Activity</h4>' +
@@ -2740,12 +2764,6 @@ var Workspace = (function () {
       });
       html += '</div></div>';
     }
-
-    // Next Best Action
-    html += '<div class="card p-3 border-l-4 border-gold"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Next Best Action</h4>' +
-      '<p class="text-sm font-medium text-gray-900">Send to watching clients</p>' +
-      '<p class="text-xs text-gray-500 mt-1">3 clients match this listing criteria</p>' +
-      '<button class="btn btn-sm btn-gold mt-2" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Now</button></div>';
 
     // Alerts
     if (alerts.length > 0) {
@@ -2765,78 +2783,452 @@ var Workspace = (function () {
     Promise.all([
       Events.loadForEntity('listing', _listingId),
       Documents.list('listing', _listingId),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
     ]).then(function (r) {
       _listingData.events = r[0] || [];
       _listingData.documents = r[1] || [];
+      // Build agent lookup
+      var agents = (r[2] && r[2].agents) ? r[2].agents : [];
+      _listingData.agentMap = {};
+      agents.forEach(function (a) {
+        var id = a.id || a.agent_id;
+        var name = a.name || ((a.first_name || '') + ' ' + (a.last_name || '')).trim() || a.email || id;
+        if (id) _listingData.agentMap[id] = name;
+      });
+    }).catch(function () {});
+  }
+
+  // ─── Listing helpers ─────────────────────────────────────────────────
+
+  function _severityBadge(severity) {
+    var colors = { critical: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-yellow-100 text-yellow-700', low: 'bg-gray-100 text-gray-600' };
+    return '<span class="text-xs font-bold px-2 py-0.5 rounded-full ' + (colors[severity] || colors.medium) + '">' + E((severity || 'medium').toUpperCase()) + '</span>';
+  }
+
+  function _syncFreshnessBadge(syncedAt) {
+    if (!syncedAt) return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Unknown</span>';
+    var diffMs = Date.now() - new Date(syncedAt).getTime();
+    var diffHours = diffMs / (1000 * 60 * 60);
+    if (diffHours < 24) return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Fresh</span>';
+    var diffDays = diffHours / 24;
+    if (diffDays < 7) return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Stale (' + Math.floor(diffDays) + 'd ago)</span>';
+    return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Outdated (' + Math.floor(diffDays) + 'd ago)</span>';
+  }
+
+  function _sourceBadge(listing) {
+    var isRLS = listing.rls_eligible !== false;
+    var isManual = listing.source === 'manual' || listing.source === 'crm';
+    var isWebOnly = listing.rls_eligible === false;
+    if (isWebOnly) return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Website-only</span>';
+    if (isManual) return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Manual</span>';
+    if (listing.source === 'idx' || listing.source === 'IDX') return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">IDX</span>';
+    if (isRLS) return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">RLS</span>';
+    return '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">' + E(listing.source || 'Unknown') + '</span>';
+  }
+
+  function _resolveAgentName(agentId) {
+    if (!agentId) return '-';
+    if (_listingData.agentMap && _listingData.agentMap[agentId]) return _listingData.agentMap[agentId];
+    return agentId;
+  }
+
+  function _computeHealthScore(l) {
+    var photos = l.photos || l.Media || [];
+    var dom = Number(l.cumulative_dom || l.days_on_market || 0);
+    var comp = Panels._computeListingCompliance(l);
+    var sentEvents = Events.getByEntity('listing', _listingId).filter(function (e) { return e.type === 'listing_sent' || e.type === 'quick_send_executed'; });
+    var score = 100;
+    var indicators = [];
+
+    // 1. Stale DOM
+    var domSeverity = dom > 90 ? 'critical' : dom > 60 ? 'warning' : 'good';
+    if (dom > 90) score -= 25;
+    else if (dom > 60) score -= 10;
+    indicators.push({
+      label: 'Days on Market',
+      severity: domSeverity,
+      value: dom + ' days',
+      detail: dom > 90 ? 'Active for ' + dom + ' days — strongly consider a price adjustment or new marketing strategy' :
+              dom > 60 ? 'Approaching stale territory — monitor closely and prepare contingency plan' :
+              'Within normal range',
+      action: dom > 60 ? '<button class="btn btn-xs btn-outline mt-1" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Adjust Price</button>' : '',
     });
+
+    // 2. No Inquiries
+    var inquiryEvents = Events.getByEntity('listing', _listingId).filter(function (e) { return e.type === 'inquiry_received'; });
+    var recentInquiries = inquiryEvents.filter(function (e) { return (Date.now() - new Date(e.createdAt).getTime()) < 30 * 86400000; });
+    var inqSeverity = recentInquiries.length === 0 && dom > 14 ? 'warning' : recentInquiries.length === 0 && dom > 30 ? 'critical' : 'good';
+    if (recentInquiries.length === 0 && dom > 30) score -= 20;
+    else if (recentInquiries.length === 0 && dom > 14) score -= 10;
+    indicators.push({
+      label: 'Inquiry Activity',
+      severity: inqSeverity,
+      value: recentInquiries.length + ' in last 30 days',
+      detail: recentInquiries.length === 0 && dom > 14 ? 'No inquiries received — listing may need better marketing, new photos, or price adjustment' :
+              recentInquiries.length > 0 ? recentInquiries.length + ' recent inquiries show active interest' :
+              'New listing — allow time for market exposure',
+      action: recentInquiries.length === 0 && dom > 14 ? '<button class="btn btn-xs btn-outline mt-1" onclick="CRM.quickSendListing()">Push to Clients</button>' : '',
+    });
+
+    // 3. Low Engagement
+    var sendCount = sentEvents.length;
+    var reactionEvents = Events.getByEntity('listing', _listingId).filter(function (e) {
+      return e.type === 'client_liked' || e.type === 'client_disliked' || e.type === 'client_discuss';
+    });
+    var reactionRate = sendCount > 0 ? Math.round((reactionEvents.length / sendCount) * 100) : 0;
+    var engSeverity = sendCount > 3 && reactionRate < 20 ? 'warning' : sendCount > 5 && reactionRate < 10 ? 'critical' : 'good';
+    if (sendCount > 5 && reactionRate < 10) score -= 15;
+    else if (sendCount > 3 && reactionRate < 20) score -= 8;
+    indicators.push({
+      label: 'Client Engagement',
+      severity: engSeverity,
+      value: sendCount + ' sends, ' + reactionEvents.length + ' reactions (' + reactionRate + '%)',
+      detail: sendCount === 0 ? 'Not yet sent to any clients' :
+              reactionRate < 20 && sendCount > 3 ? 'Low reaction rate — listing may not match client criteria well' :
+              'Engagement is within normal range',
+      action: sendCount === 0 ? '<button class="btn btn-xs btn-gold mt-1" onclick="CRM.quickSendListing()">Send Now</button>' : '',
+    });
+
+    // 4. Pricing Risk (placeholder — needs market data, will be filled async)
+    indicators.push({
+      label: 'Pricing Risk',
+      severity: 'good',
+      value: 'Checking...',
+      detail: 'Comparing to neighborhood median',
+      action: '',
+      id: 'healthPricingRisk',
+    });
+
+    // 5. Compliance Risk
+    var compIssues = comp.issues.length;
+    var compSeverity = comp.status === 'violation' ? 'critical' : compIssues > 0 ? 'warning' : 'good';
+    if (comp.status === 'violation') score -= 30;
+    else if (compIssues > 0) score -= 10;
+    indicators.push({
+      label: 'Compliance Risk',
+      severity: compSeverity,
+      value: compIssues === 0 ? 'No issues' : compIssues + ' issue(s) found',
+      detail: compIssues > 0 ? comp.issues.map(function (i) { return i.description; }).join('; ') : 'All compliance checks pass',
+      action: compIssues > 0 ? '<button class="btn btn-xs btn-outline mt-1" onclick="Workspace.switchListingTab(\'compliance\')">View Issues</button>' : '',
+    });
+
+    // 6. Media Quality
+    var photoCount = photos.length;
+    var mediaSeverity = photoCount === 0 ? 'critical' : photoCount < 3 ? 'warning' : 'good';
+    if (photoCount === 0) score -= 25;
+    else if (photoCount < 3) score -= 10;
+    // Check primary photo staleness
+    var primaryStale = false;
+    if (photos.length > 0) {
+      var firstPhoto = photos[0];
+      var photoDate = firstPhoto.modificationTimestamp || firstPhoto.modification_timestamp || firstPhoto.created_at;
+      if (photoDate && (Date.now() - new Date(photoDate).getTime()) > 90 * 86400000) {
+        primaryStale = true;
+        if (mediaSeverity === 'good') mediaSeverity = 'warning';
+        score -= 5;
+      }
+    }
+    indicators.push({
+      label: 'Media Quality',
+      severity: mediaSeverity,
+      value: photoCount + ' photo(s)' + (primaryStale ? ' (primary may be stale)' : ''),
+      detail: photoCount === 0 ? 'No photos uploaded — this critically impacts listing performance' :
+              photoCount < 3 ? 'Only ' + photoCount + ' photo(s) — recommend at least 3 for best results' :
+              primaryStale ? 'Primary photo is over 90 days old — consider refreshing' :
+              photoCount + ' photos uploaded',
+      action: photoCount < 3 ? '<button class="btn btn-xs btn-outline mt-1" onclick="Workspace.switchListingTab(\'media\')">Add Photos</button>' : '',
+    });
+
+    score = Math.max(0, Math.min(100, score));
+    return { score: score, indicators: indicators };
   }
 
   // ─── Listing Tab: Overview ───────────────────────────────────────────
   function _listingOverview(el) {
     var l = _listing;
-    el.innerHTML = '<div class="space-y-4">' +
-      '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
-        '<div><p class="text-xs font-bold text-gray-500 uppercase">Beds</p><p class="text-lg font-bold">' + (l.BedroomsTotal || l.beds || '-') + '</p></div>' +
-        '<div><p class="text-xs font-bold text-gray-500 uppercase">Baths</p><p class="text-lg font-bold">' + (l.BathroomsTotalInteger || l.baths || '-') + '</p></div>' +
-        '<div><p class="text-xs font-bold text-gray-500 uppercase">SqFt</p><p class="text-lg font-bold">' + (l.LivingArea || l.sqft ? Number(l.LivingArea || l.sqft).toLocaleString() : '-') + '</p></div>' +
-        '<div><p class="text-xs font-bold text-gray-500 uppercase">Type</p><p class="text-lg font-bold">' + E(l.PropertySubType || l.property_type || '-') + '</p></div>' +
-      '</div>' +
-      '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
-        '<div class="space-y-2">' +
-          '<h3 class="text-sm font-bold text-gray-700">Details</h3>' +
-          _infoRow('MLS ID', l.mlsId || l.ListingId || l.listing_id) +
-          _infoRow('Status', l.status || l.StandardStatus) +
-          _infoRow('List Date', D(l.ListDate || l.list_date || l.created_at)) +
-          _infoRow('DOM', l.cumulative_dom || l.days_on_market || '0') +
-          _infoRow('Agent', l.agent_name || l.assignedAgentId || '-') +
-          _infoRow('Source', l.source || '-') +
-        '</div>' +
-        '<div class="space-y-2">' +
-          '<h3 class="text-sm font-bold text-gray-700">Financials</h3>' +
-          _infoRow('List Price', $(l.ListPrice || l.price)) +
-          _infoRow('Common Charges', l.CommonCharges ? $(l.CommonCharges) + '/mo' : '-') +
-          _infoRow('RE Taxes', l.TaxAnnualAmount ? $(l.TaxAnnualAmount) + '/yr' : '-') +
-          _infoRow('Maintenance', l.MaintenanceFee ? $(l.MaintenanceFee) + '/mo' : '-') +
-        '</div>' +
-      '</div>' +
-      (l.PublicRemarks || l.description ? '<div><h3 class="text-sm font-bold text-gray-700 mb-2">Description</h3>' +
-        '<p class="text-sm text-gray-600">' + E(l.PublicRemarks || l.description) + '</p></div>' : '') +
+    var agentId = l.assignedAgentId || l.assigned_agent_id || l.agent_id;
+    var agentName = _resolveAgentName(agentId) || l.agent_name || '-';
+    var syncedAt = l.syncedAt || l.synced_at || l.updated_at || l.updatedAt;
+
+    var html = '<div class="space-y-4">';
+
+    // Key stats row
+    html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
+      '<div><p class="text-xs font-bold text-gray-500 uppercase">Beds</p><p class="text-lg font-bold">' + (l.BedroomsTotal || l.beds || '-') + '</p></div>' +
+      '<div><p class="text-xs font-bold text-gray-500 uppercase">Baths</p><p class="text-lg font-bold">' + (l.BathroomsTotalInteger || l.baths || '-') + '</p></div>' +
+      '<div><p class="text-xs font-bold text-gray-500 uppercase">SqFt</p><p class="text-lg font-bold">' + (l.LivingArea || l.sqft ? Number(l.LivingArea || l.sqft).toLocaleString() : '-') + '</p></div>' +
+      '<div><p class="text-xs font-bold text-gray-500 uppercase">Type</p><p class="text-lg font-bold">' + E(l.PropertySubType || l.property_type || '-') + '</p></div>' +
     '</div>';
+
+    // Details + Financials
+    html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+      '<div class="space-y-2">' +
+        '<h3 class="text-sm font-bold text-gray-700">Details</h3>' +
+        _infoRow('MLS ID', l.mlsId || l.ListingId || l.listing_id) +
+        _infoRow('Status', l.status || l.StandardStatus) +
+        _infoRow('List Date', D(l.ListDate || l.list_date || l.created_at)) +
+        _infoRow('DOM', l.cumulative_dom || l.days_on_market || '0') +
+        '<div class="flex justify-between"><span class="text-xs text-gray-500">Owner Agent</span><span class="text-sm font-medium">' + E(agentName) + '</span></div>' +
+        '<div class="flex justify-between items-center"><span class="text-xs text-gray-500">Source</span>' + _sourceBadge(l) + '</div>' +
+        '<div class="flex justify-between items-center"><span class="text-xs text-gray-500">Synced</span><span>' + _syncFreshnessBadge(syncedAt) + (syncedAt ? ' <span class="text-xs text-gray-400 ml-1">' + D(syncedAt) + '</span>' : '') + '</span></div>' +
+      '</div>' +
+      '<div class="space-y-2">' +
+        '<h3 class="text-sm font-bold text-gray-700">Financials</h3>' +
+        _infoRow('List Price', $(l.ListPrice || l.price)) +
+        _infoRow('Common Charges', l.CommonCharges ? $(l.CommonCharges) + '/mo' : '-') +
+        _infoRow('RE Taxes', l.TaxAnnualAmount ? $(l.TaxAnnualAmount) + '/yr' : '-') +
+        _infoRow('Maintenance', l.MaintenanceFee ? $(l.MaintenanceFee) + '/mo' : '-') +
+      '</div>' +
+    '</div>';
+
+    // Quick Market Comparison card
+    html += '<div id="overviewMarketComp" class="card p-4 border-l-4 border-gray-200">' +
+      '<h3 class="text-sm font-bold text-gray-700 mb-2">Quick Market Comparison</h3>' +
+      '<p class="text-xs text-gray-400">Loading neighborhood data...</p>' +
+    '</div>';
+
+    // Description
+    if (l.PublicRemarks || l.description) {
+      html += '<div><h3 class="text-sm font-bold text-gray-700 mb-2">Description</h3>' +
+        '<p class="text-sm text-gray-600">' + E(l.PublicRemarks || l.description) + '</p></div>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+
+    // Fetch market comparison async
+    var neighborhood = l.neighborhood || l.City || l.area || '';
+    var listPrice = Number(l.ListPrice || l.price || 0);
+    if (neighborhood && listPrice > 0) {
+      MallanAPI._fetch('/api/crm/market-report', {
+        method: 'POST',
+        body: JSON.stringify({ neighborhood: neighborhood, property_type: l.PropertySubType || l.property_type || '' }),
+      }).then(function (data) {
+        var median = data.median_price || data.medianPrice || 0;
+        var compEl = document.getElementById('overviewMarketComp');
+        if (!compEl || !median) return;
+        var diff = listPrice - median;
+        var pct = Math.round((diff / median) * 100);
+        var isAbove = diff > 0;
+        var color = isAbove ? (pct > 15 ? '#DC2626' : '#F59E0B') : (pct < -15 ? '#059669' : '#059669');
+        var label = isAbove ? 'Above market' : 'Below market';
+        compEl.style.borderLeftColor = color;
+        compEl.innerHTML = '<h3 class="text-sm font-bold text-gray-700 mb-2">Quick Market Comparison</h3>' +
+          '<div class="flex items-center justify-between">' +
+            '<div>' +
+              '<p class="text-xs text-gray-500">Neighborhood median: ' + $(median) + '</p>' +
+              '<p class="text-sm font-bold mt-1" style="color:' + color + '">' + label + ' by ' + Math.abs(pct) + '%</p>' +
+            '</div>' +
+            '<div class="text-right">' +
+              '<p class="text-xs text-gray-500">This listing</p>' +
+              '<p class="text-lg font-bold text-gold">' + $(listPrice) + '</p>' +
+            '</div>' +
+          '</div>';
+      }).catch(function () {
+        var compEl = document.getElementById('overviewMarketComp');
+        if (compEl) compEl.innerHTML = '<h3 class="text-sm font-bold text-gray-700 mb-2">Quick Market Comparison</h3>' +
+          '<p class="text-xs text-gray-400">Market data not available for this area</p>';
+      });
+    } else {
+      var compEl = document.getElementById('overviewMarketComp');
+      if (compEl) compEl.innerHTML = '<h3 class="text-sm font-bold text-gray-700 mb-2">Quick Market Comparison</h3>' +
+        '<p class="text-xs text-gray-400">Insufficient data for market comparison</p>';
+    }
   }
 
   // ─── Listing Tab: Media ──────────────────────────────────────────────
   function _listingMedia(el) {
     var l = _listing;
     var photos = l.photos || l.Media || [];
-    el.innerHTML = '<div class="space-y-4">' +
-      '<h3 class="text-sm font-bold text-gray-700">Photos & Media</h3>' +
-      (photos.length > 0 ?
-        '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">' +
-        photos.map(function (p) {
-          var url = Utils.photoUrl(p.url || p.MediaURL || p);
-          return '<div class="aspect-[4/3] rounded-lg overflow-hidden bg-gray-100">' +
-            '<img src="' + E(url) + '" class="w-full h-full object-cover" alt="Property photo" onerror="this.style.display=\'none\'">' +
-          '</div>';
-        }).join('') +
-        '</div>'
-        : UI.emptyState('fa-camera', 'No photos uploaded')) +
+    var html = '<div class="space-y-4">';
+
+    // Header with count + upload button
+    html += '<div class="flex items-center justify-between">' +
+      '<h3 class="text-sm font-bold text-gray-700">Photos & Media (' + photos.length + ')</h3>' +
+      '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'listing\',\'' + E(_listingId) + '\')"><i class="fas fa-upload"></i> Upload Photos</button>' +
     '</div>';
+
+    // Warnings
+    if (photos.length === 0) {
+      html += '<div class="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-3">' +
+        '<i class="fas fa-exclamation-triangle text-red-600"></i>' +
+        '<div><p class="text-sm font-bold text-red-700">No photos uploaded</p>' +
+          '<p class="text-xs text-red-600">This listing needs media to perform well on IDX and syndication platforms</p></div>' +
+      '</div>';
+    } else {
+      // Check primary photo staleness
+      var firstPhoto = photos[0];
+      var photoDate = firstPhoto.modificationTimestamp || firstPhoto.modification_timestamp || firstPhoto.created_at;
+      if (photoDate && (Date.now() - new Date(photoDate).getTime()) > 90 * 86400000) {
+        html += '<div class="p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex items-center gap-3">' +
+          '<i class="fas fa-exclamation-triangle text-yellow-600"></i>' +
+          '<div><p class="text-sm font-bold text-yellow-700">Primary photo may be stale</p>' +
+            '<p class="text-xs text-yellow-600">The lead photo is over 90 days old — consider replacing it with a fresh image</p></div>' +
+        '</div>';
+      }
+    }
+
+    // Photo grid with drag handles
+    if (photos.length > 0) {
+      html += '<div id="lMediaGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
+      photos.forEach(function (p, idx) {
+        var url = Utils.photoUrl(p.url || p.MediaURL || p);
+        html += '<div class="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 group" draggable="true" data-photo-idx="' + idx + '" ' +
+          'ondragstart="Workspace._onPhotoDragStart(event,' + idx + ')" ondragover="event.preventDefault()" ondrop="Workspace._onPhotoDrop(event,' + idx + ')">' +
+          '<img src="' + E(url) + '" class="w-full h-full object-cover" alt="Photo ' + (idx + 1) + '" onerror="this.style.display=\'none\'">' +
+          '<div class="absolute top-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">' +
+            '<i class="fas fa-grip-vertical"></i> ' + (idx + 1) +
+          '</div>' +
+          (idx === 0 ? '<div class="absolute bottom-1 left-1 bg-gold text-white text-xs px-1.5 py-0.5 rounded font-bold">Primary</div>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  var _dragPhotoIdx = null;
+  function _onPhotoDragStart(event, idx) {
+    _dragPhotoIdx = idx;
+    event.dataTransfer.effectAllowed = 'move';
+  }
+  function _onPhotoDrop(event, targetIdx) {
+    event.preventDefault();
+    if (_dragPhotoIdx === null || _dragPhotoIdx === targetIdx) return;
+    var photos = _listing.photos || _listing.Media || [];
+    if (_dragPhotoIdx >= photos.length || targetIdx >= photos.length) return;
+    // Reorder in local data
+    var moved = photos.splice(_dragPhotoIdx, 1)[0];
+    photos.splice(targetIdx, 0, moved);
+    _dragPhotoIdx = null;
+    // Re-render
+    var el = document.getElementById('wsListingContent');
+    if (el) _listingMedia(el);
+    // Log reorder event
+    Events.log({ type: 'photo_reorder', entityType: 'listing', entityId: _listingId, payload: { from: _dragPhotoIdx, to: targetIdx } });
+    CRM.toast('Photo order updated', 'success');
   }
 
   // ─── Listing Tab: Compliance ─────────────────────────────────────────
   function _listingCompliance(el) {
-    el.innerHTML = '<div class="space-y-4">' +
+    var l = _listing;
+    var comp = Panels._computeListingCompliance(l);
+    var issues = comp.issues;
+
+    // Group issues by type
+    var groups = {};
+    var groupOrder = ['Fair Housing', 'Feed/Display Problems', 'Media Issues', 'Protected Periods', 'Stale Listings'];
+    issues.forEach(function (issue) {
+      var group = issue.type || 'Other';
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(issue);
+    });
+
+    // Compute score
+    var criticalCount = issues.filter(function (i) { return i.severity === 'critical'; }).length;
+    var highCount = issues.filter(function (i) { return i.severity === 'high'; }).length;
+    var mediumCount = issues.filter(function (i) { return i.severity === 'medium'; }).length;
+    var totalScore = Math.max(0, 100 - (criticalCount * 30) - (highCount * 15) - (mediumCount * 5));
+    var scoreColor = totalScore >= 80 ? '#059669' : totalScore >= 50 ? '#F59E0B' : '#DC2626';
+    var scoreLabel = totalScore >= 80 ? 'Compliant' : totalScore >= 50 ? 'Needs Attention' : 'Non-Compliant';
+
+    var html = '<div class="space-y-4">';
+
+    // Score header
+    html += '<div class="flex items-center justify-between">' +
       '<h3 class="text-sm font-bold text-gray-700">Compliance Audit</h3>' +
-      '<div class="space-y-2">' +
-        _complianceCheck('Fair Housing language scan', 'pass') +
-        _complianceCheck('Required fields complete', 'pass') +
-        _complianceCheck('Distribution gates met', 'pass') +
-        _complianceCheck('IDX display authorization', 'pass') +
-        _complianceCheck('Protected period compliance', 'pass') +
-        _complianceCheck('Photo requirements', (_listing.photos || _listing.Media || []).length > 0 ? 'pass' : 'warn') +
-      '</div>' +
       '<button class="btn btn-sm btn-outline" onclick="Workspace._runComplianceCheck()"><i class="fas fa-sync"></i> Run Full Audit</button>' +
+    '</div>' +
+    '<div class="card p-4 flex items-center gap-4">' +
+      '<div class="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white" style="background:' + scoreColor + '">' + totalScore + '</div>' +
+      '<div>' +
+        '<p class="text-lg font-bold" style="color:' + scoreColor + '">' + scoreLabel + '</p>' +
+        '<p class="text-xs text-gray-500">' + issues.length + ' issue(s) found — ' + criticalCount + ' critical, ' + highCount + ' high, ' + mediumCount + ' medium</p>' +
+      '</div>' +
     '</div>';
+
+    if (issues.length === 0) {
+      html += '<div class="p-4 rounded-lg bg-green-50 text-center">' +
+        '<i class="fas fa-check-circle text-green-600 text-2xl mb-2"></i>' +
+        '<p class="text-sm font-bold text-green-700">All compliance checks pass</p>' +
+        '<p class="text-xs text-green-600 mt-1">No Fair Housing, distribution, or data quality issues detected</p>' +
+      '</div>';
+    } else {
+      // Render grouped issues
+      groupOrder.forEach(function (groupName) {
+        var groupIssues = groups[groupName];
+        if (!groupIssues || groupIssues.length === 0) return;
+        html += '<div class="space-y-2">' +
+          '<h4 class="text-xs font-bold text-gray-500 uppercase">' + E(groupName) + ' (' + groupIssues.length + ')</h4>';
+        groupIssues.forEach(function (issue) {
+          var fixAction = _complianceFixAction(issue, l);
+          html += '<div class="p-3 rounded-lg bg-gray-50 border-l-4" style="border-left-color:' + (issue.severity === 'critical' ? '#DC2626' : issue.severity === 'high' ? '#F59E0B' : '#6B7280') + '">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div class="flex-1">' +
+                '<div class="flex items-center gap-2 mb-1">' + _severityBadge(issue.severity) + '</div>' +
+                '<p class="text-sm font-medium">' + E(issue.description) + '</p>' +
+                '<p class="text-xs text-gray-500 mt-1">' + E(fixAction.hint) + '</p>' +
+              '</div>' +
+              (fixAction.button || '') +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+      });
+      // Render any ungrouped
+      Object.keys(groups).forEach(function (g) {
+        if (groupOrder.indexOf(g) >= 0) return;
+        var groupIssues = groups[g];
+        html += '<div class="space-y-2"><h4 class="text-xs font-bold text-gray-500 uppercase">' + E(g) + '</h4>';
+        groupIssues.forEach(function (issue) {
+          html += '<div class="p-3 rounded-lg bg-gray-50">' + _severityBadge(issue.severity) +
+            '<p class="text-sm font-medium mt-1">' + E(issue.description) + '</p></div>';
+        });
+        html += '</div>';
+      });
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function _complianceFixAction(issue, listing) {
+    var type = issue.type || '';
+    var desc = (issue.description || '').toLowerCase();
+    if (type === 'Fair Housing Risk') {
+      return { hint: 'Review and edit the listing description to remove flagged language',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+    }
+    if (desc.indexOf('no photos') >= 0 || desc.indexOf('photo') >= 0) {
+      return { hint: 'Upload property photos to meet media requirements',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="Workspace.switchListingTab(\'media\')">Add Photos</button>' };
+    }
+    if (desc.indexOf('idx display') >= 0) {
+      return { hint: 'Enable IDX display in the listing form Distribution tab',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+    }
+    if (desc.indexOf('price') >= 0 && desc.indexOf('missing') >= 0) {
+      return { hint: 'Add a list price to the listing',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+    }
+    if (desc.indexOf('address') >= 0 && desc.indexOf('missing') >= 0) {
+      return { hint: 'Add a valid address to the listing',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+    }
+    if (desc.indexOf('owner opt-out') >= 0) {
+      return { hint: 'This listing has Owner Opt-Out enabled — it must not be displayed publicly per REBNY rules', button: '' };
+    }
+    if (desc.indexOf('hold') >= 0 || desc.indexOf('coming soon') >= 0) {
+      return { hint: 'Review protected period status and update status if applicable',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Review</button>' };
+    }
+    if (desc.indexOf('stale') >= 0 || desc.indexOf('active for') >= 0) {
+      return { hint: 'Consider a price adjustment or new marketing strategy',
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Adjust</button>' };
+    }
+    return { hint: 'Review and address this issue in the listing form', button: '' };
   }
 
   function _complianceCheck(label, status) {
@@ -2850,26 +3242,95 @@ var Workspace = (function () {
   function _runComplianceCheck() {
     MallanAPI.listings.validate(_listingId).then(function (data) {
       CRM.toast('Compliance audit complete: ' + (data.valid ? 'PASS' : 'Issues found'), data.valid ? 'success' : 'warning');
+      // Re-render compliance tab with fresh data
+      var el = document.getElementById('wsListingContent');
+      if (el && _listingTab === 'compliance') _listingCompliance(el);
     }).catch(function () { CRM.toast('Audit complete', 'info'); });
   }
 
   // ─── Listing Tab: Sent To Clients ────────────────────────────────────
   function _listingSent(el) {
-    var sentEvents = Events.getByEntity('listing', _listingId).filter(function (e) { return e.type === 'listing_sent' || e.type === 'quick_send_executed'; });
-    el.innerHTML = '<div class="space-y-4">' +
-      '<h3 class="text-sm font-bold text-gray-700">Sent To Clients</h3>' +
-      (sentEvents.length > 0 ?
-        UI.timeline(sentEvents.map(function (e) {
-          return {
-            title: 'Sent to client',
-            description: e.payload ? (e.payload.clientIds || []).join(', ') : '',
-            time: Utils.formatTimeAgo(e.createdAt),
-            dotClass: 'info',
-          };
-        }))
-        : UI.emptyState('fa-paper-plane', 'Not sent to any clients yet',
-          '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Now</button>')) +
+    var sentEvents = Events.getByEntity('listing', _listingId).filter(function (e) {
+      return e.type === 'listing_sent' || e.type === 'quick_send_executed';
+    });
+
+    var html = '<div class="space-y-4">';
+    html += '<div class="flex items-center justify-between">' +
+      '<h3 class="text-sm font-bold text-gray-700">Sent To Clients (' + sentEvents.length + ')</h3>' +
+      '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Now</button>' +
     '</div>';
+
+    if (sentEvents.length === 0) {
+      html += UI.emptyState('fa-paper-plane', 'Not sent to any clients yet',
+        '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Now</button>');
+      html += '</div>';
+      el.innerHTML = html;
+      return;
+    }
+
+    // Resolve client names + reactions
+    var allReactions = Events.getByEntity('listing', _listingId).filter(function (e) {
+      return e.type === 'client_liked' || e.type === 'client_disliked' || e.type === 'client_discuss';
+    });
+    var reactionByClient = {};
+    allReactions.forEach(function (r) {
+      var cid = r.payload ? (r.payload.clientId || r.payload.client_id) : null;
+      if (cid) reactionByClient[cid] = r.type;
+    });
+
+    html += '<div class="space-y-2">';
+    sentEvents.forEach(function (e) {
+      var payload = e.payload || {};
+      var clientIds = payload.clientIds || payload.client_ids || [];
+      var sendType = payload.sendType || payload.send_type || 'Manual';
+      var sendTypeLabels = { manual: 'Manual', quick_send: 'Quick Send', auto_alert: 'Auto-Alert', eblast: 'eBlast' };
+      var sendLabel = sendTypeLabels[sendType.toLowerCase()] || sendType;
+      var sentDate = e.createdAt || e.created_at;
+      var daysSinceSent = sentDate ? Math.floor((Date.now() - new Date(sentDate).getTime()) / 86400000) : 0;
+
+      if (clientIds.length === 0 && payload.clientName) {
+        // Single client send
+        var reaction = reactionByClient[payload.clientId || payload.client_id];
+        var reactionIcon = reaction === 'client_liked' ? '<i class="fas fa-heart text-red-500 ml-1" title="Liked"></i>' :
+                           reaction === 'client_disliked' ? '<i class="fas fa-thumbs-down text-gray-400 ml-1" title="Disliked"></i>' :
+                           reaction === 'client_discuss' ? '<i class="fas fa-comment text-blue-500 ml-1" title="Let\'s Discuss"></i>' :
+                           (daysSinceSent > 7 ? '<span class="text-xs text-gray-400 ml-1">No response</span>' :
+                            '<span class="text-xs text-gray-400 ml-1">Pending</span>');
+        html += '<div class="card p-3 flex items-center justify-between">' +
+          '<div class="flex items-center gap-3">' +
+            UI.avatar(payload.clientName, 28) +
+            '<div>' +
+              '<p class="text-sm font-medium">' + E(payload.clientName) + ' ' + (reactionIcon || '') + '</p>' +
+              '<p class="text-xs text-gray-500">' + Utils.formatTimeAgo(sentDate) + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">' + E(sendLabel) + '</span>' +
+        '</div>';
+      } else {
+        // Batch send
+        html += '<div class="card p-3">' +
+          '<div class="flex items-center justify-between mb-2">' +
+            '<p class="text-sm font-medium">Sent to ' + (clientIds.length || 'multiple') + ' client(s)</p>' +
+            '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">' + E(sendLabel) + '</span>' +
+          '</div>' +
+          '<p class="text-xs text-gray-500">' + Utils.formatTimeAgo(sentDate) + '</p>';
+        if (clientIds.length > 0) {
+          html += '<div class="flex flex-wrap gap-1 mt-2">';
+          clientIds.forEach(function (cid) {
+            var clientName = (Store.getClient && Store.getClient(cid)) ? (Store.getClient(cid).name || cid) : cid;
+            var reaction = reactionByClient[cid];
+            var icon = reaction === 'client_liked' ? ' <i class="fas fa-heart text-red-500"></i>' :
+                       reaction === 'client_disliked' ? ' <i class="fas fa-thumbs-down text-gray-400"></i>' :
+                       reaction === 'client_discuss' ? ' <i class="fas fa-comment text-blue-500"></i>' : '';
+            html += '<span class="text-xs px-2 py-1 rounded bg-gray-50 cursor-pointer hover:bg-gray-100" onclick="Workspace.openClient(\'' + E(cid) + '\')">' + E(clientName) + icon + '</span>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+    });
+    html += '</div></div>';
+    el.innerHTML = html;
   }
 
   // ─── Listing Tab: Inquiries ──────────────────────────────────────────
@@ -2877,19 +3338,57 @@ var Workspace = (function () {
     MallanAPI._fetch('/api/crm/inquiries?listing_id=' + _listingId + '&limit=50')
       .then(function (data) {
         var inquiries = data.inquiries || [];
+        var html = '<div class="space-y-4">';
+        html += '<div class="flex items-center justify-between">' +
+          '<h3 class="text-sm font-bold text-gray-700">Inquiries (' + inquiries.length + ')</h3>' +
+        '</div>';
+
         if (inquiries.length === 0) {
-          el.innerHTML = '<div class="space-y-4"><h3 class="text-sm font-bold text-gray-700">Inquiries</h3>' +
-            UI.emptyState('fa-inbox', 'No inquiries for this listing') + '</div>';
+          html += UI.emptyState('fa-inbox', 'No inquiries for this listing',
+            '<p class="text-xs text-gray-400 mt-2">Inquiries from mallan.nyc, StreetEasy, and other platforms will appear here</p>');
+          html += '</div>';
+          el.innerHTML = html;
           return;
         }
-        var html = '<div class="space-y-4"><h3 class="text-sm font-bold text-gray-700">Inquiries (' + inquiries.length + ')</h3><div class="space-y-2">';
-        inquiries.forEach(function (inq) {
-          html += '<div class="card p-3"><div class="flex items-center gap-3">' +
-            UI.avatar(inq.name || inq.email, 28) +
-            '<div class="flex-1"><p class="text-sm font-medium">' + E(inq.name || inq.email || 'Unknown') + '</p>' +
-              '<p class="text-xs text-gray-500">' + E(inq.source || 'Website') + ' · ' + Utils.formatTimeAgo(inq.created_at) + '</p></div>' +
+
+        html += '<div class="space-y-3">';
+        inquiries.forEach(function (inq, idx) {
+          var inqId = inq.id || inq.inquiry_id || idx;
+          var name = inq.name || ((inq.first_name || '') + ' ' + (inq.last_name || '')).trim() || 'Unknown';
+          var email = inq.email || '';
+          var phone = inq.phone || '';
+          var source = inq.source || 'Website';
+          var sourceColors = { Website: 'bg-blue-100 text-blue-700', StreetEasy: 'bg-purple-100 text-purple-700', Zillow: 'bg-teal-100 text-teal-700', 'Realtor.com': 'bg-red-100 text-red-700' };
+          var sourceBadge = '<span class="text-xs font-bold px-2 py-0.5 rounded-full ' + (sourceColors[source] || 'bg-gray-100 text-gray-600') + '">' + E(source) + '</span>';
+
+          html += '<div class="card p-4">' +
+            '<div class="flex items-start justify-between">' +
+              '<div class="flex items-center gap-3">' +
+                UI.avatar(name, 32) +
+                '<div>' +
+                  '<p class="text-sm font-bold">' + E(name) + '</p>' +
+                  '<div class="flex items-center gap-2 mt-0.5">' +
+                    (email ? '<span class="text-xs text-gray-500"><i class="fas fa-envelope text-gray-400 mr-1"></i>' + E(email) + '</span>' : '') +
+                    (phone ? '<span class="text-xs text-gray-500"><i class="fas fa-phone text-gray-400 mr-1"></i>' + E(phone) + '</span>' : '') +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flex items-center gap-2">' +
+                sourceBadge +
+                '<span class="text-xs text-gray-400">' + Utils.formatTimeAgo(inq.created_at || inq.createdAt) + '</span>' +
+              '</div>' +
+            '</div>';
+
+          if (inq.message) {
+            html += '<p class="text-sm text-gray-600 mt-2 pl-11">' + E(inq.message) + '</p>';
+          }
+
+          // Action buttons
+          html += '<div class="flex gap-2 mt-3 pl-11">' +
+            '<button class="btn btn-xs btn-gold" onclick="Workspace._convertInquiryToLead(\'' + E(inqId) + '\',\'' + E(name) + '\',\'' + E(email) + '\',\'' + E(phone) + '\',\'' + E(source) + '\')"><i class="fas fa-user-plus"></i> Convert to Lead</button>' +
+            '<button class="btn btn-xs btn-outline" onclick="Workspace._createClientFromInquiry(\'' + E(name) + '\',\'' + E(email) + '\',\'' + E(phone) + '\')"><i class="fas fa-address-card"></i> Create Client</button>' +
+            (email ? '<a class="btn btn-xs btn-outline" href="mailto:' + E(email) + '?subject=' + encodeURIComponent('RE: ' + (_listing.address || _listing.UnparsedAddress || 'Your Inquiry')) + '"><i class="fas fa-reply"></i> Respond</a>' : '') +
           '</div>' +
-          (inq.message ? '<p class="text-xs text-gray-600 mt-2">' + E(inq.message) + '</p>' : '') +
           '</div>';
         });
         html += '</div></div>';
@@ -2897,83 +3396,494 @@ var Workspace = (function () {
       })
       .catch(function () {
         el.innerHTML = '<div class="space-y-4"><h3 class="text-sm font-bold text-gray-700">Inquiries</h3>' +
-          UI.emptyState('fa-inbox', 'No inquiries') + '</div>';
+          UI.emptyState('fa-inbox', 'Could not load inquiries') + '</div>';
       });
+  }
+
+  function _convertInquiryToLead(inqId, name, email, phone, source) {
+    MallanAPI._fetch('/api/crm/leads', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: name, email: email, phone: phone, source: source || 'inquiry',
+        listing_id: _listingId, notes: 'Converted from inquiry #' + inqId,
+      }),
+    }).then(function () {
+      Events.log({ type: 'inquiry_converted', entityType: 'listing', entityId: _listingId, payload: { inquiryId: inqId, name: name } });
+      CRM.toast('Lead created for ' + name, 'success');
+    }).catch(function (err) {
+      CRM.toast('Could not create lead: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _createClientFromInquiry(name, email, phone) {
+    CRM.quickNewClient();
+    // Pre-fill form fields after modal opens
+    setTimeout(function () {
+      var form = document.getElementById('quickClientForm');
+      if (!form) return;
+      var parts = (name || '').split(' ');
+      var firstName = parts[0] || '';
+      var lastName = parts.slice(1).join(' ') || '';
+      var fnInput = form.querySelector('[name="first_name"]');
+      var lnInput = form.querySelector('[name="last_name"]');
+      var emInput = form.querySelector('[name="email"]');
+      var phInput = form.querySelector('[name="phone"]');
+      if (fnInput) fnInput.value = firstName;
+      if (lnInput) lnInput.value = lastName;
+      if (emInput) emInput.value = email || '';
+      if (phInput) phInput.value = phone || '';
+    }, 150);
   }
 
   // ─── Listing Tab: Showings ───────────────────────────────────────────
   function _listingShowings(el) {
-    el.innerHTML = '<div class="space-y-4">' +
-      '<div class="flex items-center justify-between">' +
-        '<h3 class="text-sm font-bold text-gray-700">Showings & Feedback</h3>' +
+    el.innerHTML = UI.loading();
+
+    MallanAPI.showings.list({ limit: 100 }).then(function (data) {
+      var allShowings = data.showings || [];
+      // Filter to this listing
+      var showings = allShowings.filter(function (s) {
+        return s.listing_id === _listingId || s.listingId === _listingId ||
+               (s.address && _listing.address && s.address === _listing.address);
+      });
+
+      var now = new Date();
+      var html = '<div class="space-y-4">';
+      html += '<div class="flex items-center justify-between">' +
+        '<h3 class="text-sm font-bold text-gray-700">Showings (' + showings.length + ')</h3>' +
         '<button class="btn btn-sm btn-gold" onclick="Workspace._scheduleShowing()"><i class="fas fa-plus"></i> Schedule</button>' +
-      '</div>' +
-      UI.emptyState('fa-calendar', 'No showings for this listing') +
-    '</div>';
+      '</div>';
+
+      if (showings.length === 0) {
+        html += UI.emptyState('fa-calendar', 'No showings for this listing',
+          '<button class="btn btn-sm btn-gold mt-2" onclick="Workspace._scheduleShowing()"><i class="fas fa-plus"></i> Schedule First Showing</button>');
+        html += '</div>';
+        el.innerHTML = html;
+        return;
+      }
+
+      // Buyer Interest Trend — count showings per week for last 4 weeks
+      html += '<div class="card p-4">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase mb-3">Buyer Interest Trend (Last 4 Weeks)</h4>' +
+        '<div class="flex items-end gap-2 h-20">';
+      var weekCounts = [0, 0, 0, 0];
+      showings.forEach(function (s) {
+        var showDate = new Date(s.date || s.showing_date || s.created_at);
+        var weeksAgo = Math.floor((now - showDate) / (7 * 86400000));
+        if (weeksAgo >= 0 && weeksAgo < 4) weekCounts[3 - weeksAgo]++;
+      });
+      var maxCount = Math.max.apply(null, weekCounts) || 1;
+      var weekLabels = ['4w ago', '3w ago', '2w ago', 'This wk'];
+      weekCounts.forEach(function (count, i) {
+        var height = Math.max(4, Math.round((count / maxCount) * 64));
+        var color = count > 0 ? '#B8860B' : '#E5E7EB';
+        html += '<div class="flex-1 flex flex-col items-center">' +
+          '<span class="text-xs font-bold mb-1">' + count + '</span>' +
+          '<div style="height:' + height + 'px;background:' + color + '" class="w-full rounded-t"></div>' +
+          '<span class="text-xs text-gray-400 mt-1">' + weekLabels[i] + '</span>' +
+        '</div>';
+      });
+      html += '</div></div>';
+
+      // Feedback summary
+      var feedbackCounts = { loved: 0, liked: 0, neutral: 0, not_interested: 0 };
+      showings.forEach(function (s) {
+        var fb = (s.feedback_rating || s.feedbackRating || '').toLowerCase();
+        if (fb === 'loved' || fb === 'love') feedbackCounts.loved++;
+        else if (fb === 'liked' || fb === 'like') feedbackCounts.liked++;
+        else if (fb === 'neutral') feedbackCounts.neutral++;
+        else if (fb === 'not_interested' || fb === 'not interested' || fb === 'dislike') feedbackCounts.not_interested++;
+      });
+      var hasFeedback = feedbackCounts.loved + feedbackCounts.liked + feedbackCounts.neutral + feedbackCounts.not_interested > 0;
+      if (hasFeedback) {
+        html += '<div class="grid grid-cols-4 gap-2">' +
+          '<div class="card p-2 text-center"><p class="text-lg font-bold text-green-600">' + feedbackCounts.loved + '</p><p class="text-xs text-gray-500">Loved</p></div>' +
+          '<div class="card p-2 text-center"><p class="text-lg font-bold text-blue-600">' + feedbackCounts.liked + '</p><p class="text-xs text-gray-500">Liked</p></div>' +
+          '<div class="card p-2 text-center"><p class="text-lg font-bold text-gray-600">' + feedbackCounts.neutral + '</p><p class="text-xs text-gray-500">Neutral</p></div>' +
+          '<div class="card p-2 text-center"><p class="text-lg font-bold text-red-600">' + feedbackCounts.not_interested + '</p><p class="text-xs text-gray-500">Not Interested</p></div>' +
+        '</div>';
+      }
+
+      // Upcoming + past showings
+      var upcoming = showings.filter(function (s) { return new Date(s.date || s.showing_date) >= now; });
+      var past = showings.filter(function (s) { return new Date(s.date || s.showing_date) < now; });
+
+      if (upcoming.length > 0) {
+        html += '<h4 class="text-xs font-bold text-gray-500 uppercase">Upcoming (' + upcoming.length + ')</h4><div class="space-y-2">';
+        upcoming.forEach(function (s) {
+          html += '<div class="card p-3 border-l-4 border-gold">' +
+            '<div class="flex items-center justify-between">' +
+              '<div><p class="text-sm font-medium">' + D(s.date || s.showing_date) + '</p>' +
+                '<p class="text-xs text-gray-500">' + E(s.client_name || s.clientName || 'Client') + ' &middot; ' + E(s.type || 'Private') + '</p></div>' +
+              UI.statusBadge(s.status || 'scheduled') +
+            '</div></div>';
+        });
+        html += '</div>';
+      }
+
+      if (past.length > 0) {
+        html += '<h4 class="text-xs font-bold text-gray-500 uppercase">Past (' + past.length + ')</h4><div class="space-y-2">';
+        past.slice(0, 10).forEach(function (s) {
+          var fb = s.feedback_rating || s.feedbackRating || '';
+          html += '<div class="card p-3">' +
+            '<div class="flex items-center justify-between">' +
+              '<div><p class="text-sm font-medium">' + D(s.date || s.showing_date) + '</p>' +
+                '<p class="text-xs text-gray-500">' + E(s.client_name || s.clientName || 'Client') + '</p></div>' +
+              (fb ? '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100">' + E(fb) + '</span>' : '<span class="text-xs text-gray-400">No feedback</span>') +
+            '</div></div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      el.innerHTML = html;
+    }).catch(function () {
+      el.innerHTML = '<div class="space-y-4">' +
+        '<h3 class="text-sm font-bold text-gray-700">Showings</h3>' +
+        UI.emptyState('fa-calendar', 'Could not load showings') +
+      '</div>';
+    });
   }
 
-  // ─── Listing Tab: Price & Market History ─────────────────────────────
+  // ─── Listing Tab: History ─────────────────────────────────────────
   function _listingHistory(el) {
-    el.innerHTML = '<div class="space-y-4">' +
-      '<h3 class="text-sm font-bold text-gray-700">Price & Market History</h3>' +
-      '<div class="card p-4">' +
-        '<div class="flex items-center justify-between mb-3">' +
-          '<span class="text-sm font-medium">Current Price</span>' +
-          '<span class="text-lg font-bold text-gold">' + $(_listing.ListPrice || _listing.price) + '</span>' +
-        '</div>' +
-      '</div>' +
-      // Events timeline
-      '<h4 class="text-xs font-bold text-gray-500 uppercase">Change History</h4>' +
-      _miniListingTimeline() +
-    '</div>';
-  }
-
-  function _miniListingTimeline() {
     var events = Events.getByEntity('listing', _listingId);
-    if (events.length === 0) return '<p class="text-xs text-gray-400 mt-2">No history events</p>';
-    return UI.timeline(events.map(function (e) {
-      return { title: Events.label(e.type), time: Utils.formatTimeAgo(e.createdAt), dotClass: 'info' };
-    }));
+
+    var html = '<div class="space-y-4">';
+    html += '<h3 class="text-sm font-bold text-gray-700">Price & Market History</h3>';
+
+    // Current price card
+    html += '<div class="card p-4">' +
+      '<div class="flex items-center justify-between">' +
+        '<span class="text-sm font-medium">Current Price</span>' +
+        '<span class="text-lg font-bold text-gold">' + $(_listing.ListPrice || _listing.price) + '</span>' +
+      '</div>' +
+    '</div>';
+
+    if (events.length === 0) {
+      html += '<p class="text-xs text-gray-400 mt-2">No history events recorded</p></div>';
+      el.innerHTML = html;
+      return;
+    }
+
+    // Categorize events
+    var priceChanges = [];
+    var statusChanges = [];
+    var syndicationEvents = [];
+    var sendEvents = [];
+    var otherEvents = [];
+
+    events.forEach(function (e) {
+      var type = e.type || '';
+      var payload = e.payload || {};
+      if (type === 'price_change' || type === 'listing_price_changed') {
+        priceChanges.push(e);
+      } else if (type === 'status_change' || type === 'listing_status_changed') {
+        statusChanges.push(e);
+      } else if (type === 'idx_sync' || type === 'syndication_update' || type === 'streeteasy_upload' || type.indexOf('syndic') >= 0) {
+        syndicationEvents.push(e);
+      } else if (type === 'listing_sent' || type === 'quick_send_executed') {
+        sendEvents.push(e);
+      } else {
+        otherEvents.push(e);
+      }
+    });
+
+    // Price Changes
+    if (priceChanges.length > 0) {
+      html += '<div class="space-y-2"><h4 class="text-xs font-bold text-gray-500 uppercase">Price Changes</h4>';
+      priceChanges.forEach(function (e) {
+        var p = e.payload || {};
+        var oldPrice = p.oldPrice || p.old_price || p.previousPrice;
+        var newPrice = p.newPrice || p.new_price || p.currentPrice;
+        var isIncrease = Number(newPrice) > Number(oldPrice);
+        html += '<div class="card p-3 flex items-center justify-between">' +
+          '<div class="flex items-center gap-3">' +
+            '<i class="fas ' + (isIncrease ? 'fa-arrow-up text-red-500' : 'fa-arrow-down text-green-500') + '"></i>' +
+            '<div>' +
+              (oldPrice ? '<span class="text-sm text-gray-400 line-through">' + $(oldPrice) + '</span> ' : '') +
+              '<span class="text-sm font-bold">' + (newPrice ? $(newPrice) : 'Updated') + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<span class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Status Changes
+    if (statusChanges.length > 0) {
+      html += '<div class="space-y-2"><h4 class="text-xs font-bold text-gray-500 uppercase">Status Changes</h4>';
+      statusChanges.forEach(function (e) {
+        var p = e.payload || {};
+        var oldStatus = p.oldStatus || p.old_status || p.previousStatus || '';
+        var newStatus = p.newStatus || p.new_status || p.currentStatus || '';
+        html += '<div class="card p-3 flex items-center justify-between">' +
+          '<div class="flex items-center gap-2">' +
+            (oldStatus ? '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100">' + E(oldStatus) + '</span>' : '') +
+            (oldStatus ? '<i class="fas fa-arrow-right text-gray-400 text-xs"></i>' : '') +
+            '<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">' + E(newStatus || 'Updated') + '</span>' +
+          '</div>' +
+          '<span class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Syndication Events
+    if (syndicationEvents.length > 0) {
+      html += '<div class="space-y-2"><h4 class="text-xs font-bold text-gray-500 uppercase">Syndication Activity</h4>';
+      syndicationEvents.forEach(function (e) {
+        html += '<div class="card p-3 flex items-center justify-between">' +
+          '<div class="flex items-center gap-2">' +
+            '<i class="fas fa-globe text-gray-400"></i>' +
+            '<span class="text-sm">' + E(Events.label(e.type)) + '</span>' +
+          '</div>' +
+          '<span class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Send History
+    if (sendEvents.length > 0) {
+      html += '<div class="space-y-2"><h4 class="text-xs font-bold text-gray-500 uppercase">Send History</h4>';
+      sendEvents.forEach(function (e) {
+        var p = e.payload || {};
+        var clientIds = p.clientIds || p.client_ids || [];
+        var clientName = p.clientName || (clientIds.length > 0 ? clientIds.length + ' client(s)' : 'Client');
+        html += '<div class="card p-3 flex items-center justify-between">' +
+          '<div class="flex items-center gap-2">' +
+            '<i class="fas fa-paper-plane text-gray-400"></i>' +
+            '<span class="text-sm">Sent to ' + E(clientName) + '</span>' +
+          '</div>' +
+          '<span class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Other events
+    if (otherEvents.length > 0) {
+      html += '<div class="space-y-2"><h4 class="text-xs font-bold text-gray-500 uppercase">Other Activity</h4>';
+      otherEvents.slice(0, 10).forEach(function (e) {
+        html += '<div class="card p-3 flex items-center justify-between">' +
+          '<div class="flex items-center gap-2">' +
+            '<i class="fas ' + Events.icon(e.type) + ' text-gray-400"></i>' +
+            '<span class="text-sm">' + E(Events.label(e.type)) + '</span>' +
+          '</div>' +
+          '<span class="text-xs text-gray-400">' + Utils.formatTimeAgo(e.createdAt) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
   }
 
   // ─── Listing Tab: Documents ──────────────────────────────────────────
   function _listingDocuments(el) {
+    // Reload docs fresh
+    Documents.list('listing', _listingId).then(function (result) {
+      _listingData.documents = result || [];
+      _renderListingDocuments(el);
+    }).catch(function () {
+      _renderListingDocuments(el);
+    });
+  }
+
+  function _renderListingDocuments(el) {
     var docs = _listingData.documents || [];
-    el.innerHTML = '<div class="space-y-4">' +
-      '<div class="flex items-center justify-between">' +
-        '<h3 class="text-sm font-bold text-gray-700">Listing Documents</h3>' +
-        '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'listing\',\'' + E(_listingId) + '\')"><i class="fas fa-upload"></i> Upload</button>' +
-      '</div>' +
-      (docs.length > 0 ?
-        '<div class="space-y-2">' + docs.map(function (d) {
-          return '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">' +
-            '<i class="fas ' + Documents.typeIcon(d.type) + ' text-gold"></i>' +
-            '<div class="flex-1"><p class="text-sm font-medium">' + E(d.title || 'Document') + '</p>' +
-              '<p class="text-xs text-gray-500">' + D(d.created_at || d.createdAt) + '</p></div>' +
-            Documents.statusBadge(d.status) +
-          '</div>';
-        }).join('') + '</div>'
-        : UI.emptyState('fa-folder-open', 'No documents for this listing')) +
+
+    // Categorize documents
+    var complianceDocs = [];
+    var marketingDocs = [];
+    var transactionDocs = [];
+
+    var complianceTypes = ['disclosure', 'fair_housing', 'lead_paint', 'agency_disclosure', 'property_condition', 'compliance'];
+    var marketingTypes = ['listing_sheet', 'flyer', 'open_house_flyer', 'social_media', 'brochure', 'marketing', 'photo'];
+    var transactionTypes = ['contract', 'rider', 'amendment', 'closing', 'deed', 'title', 'mortgage', 'transaction'];
+
+    docs.forEach(function (d) {
+      var docType = (d.type || d.category || '').toLowerCase();
+      var docTitle = (d.title || '').toLowerCase();
+      if (complianceTypes.some(function (t) { return docType.indexOf(t) >= 0 || docTitle.indexOf(t) >= 0; })) {
+        complianceDocs.push(d);
+      } else if (marketingTypes.some(function (t) { return docType.indexOf(t) >= 0 || docTitle.indexOf(t) >= 0; })) {
+        marketingDocs.push(d);
+      } else if (transactionTypes.some(function (t) { return docType.indexOf(t) >= 0 || docTitle.indexOf(t) >= 0; })) {
+        transactionDocs.push(d);
+      } else {
+        // Default to transaction
+        transactionDocs.push(d);
+      }
+    });
+
+    var html = '<div class="space-y-4">';
+    html += '<div class="flex items-center justify-between">' +
+      '<h3 class="text-sm font-bold text-gray-700">Listing Documents (' + docs.length + ')</h3>' +
+      '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'listing\',\'' + E(_listingId) + '\')"><i class="fas fa-upload"></i> Upload</button>' +
+    '</div>';
+
+    // Compliance Docs section
+    html += '<div class="space-y-2">' +
+      '<h4 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><i class="fas fa-shield-alt text-gray-400"></i> Compliance Documents (' + complianceDocs.length + ')</h4>';
+    if (complianceDocs.length > 0) {
+      complianceDocs.forEach(function (d) { html += _docRow(d); });
+    } else {
+      html += '<p class="text-xs text-gray-400 pl-2">No compliance documents uploaded</p>';
+    }
+    // Suggest missing compliance docs
+    var hasDisclosure = complianceDocs.some(function (d) { return (d.title || '').toLowerCase().indexOf('disclosure') >= 0; });
+    var hasFairHousing = complianceDocs.some(function (d) { return (d.title || '').toLowerCase().indexOf('fair housing') >= 0; });
+    var hasLeadPaint = complianceDocs.some(function (d) { return (d.title || '').toLowerCase().indexOf('lead paint') >= 0; });
+    var hasAgencyDisclosure = complianceDocs.some(function (d) { return (d.title || '').toLowerCase().indexOf('agency') >= 0; });
+    var missingCompliance = [];
+    if (!hasDisclosure) missingCompliance.push('Property Condition Disclosure');
+    if (!hasFairHousing) missingCompliance.push('Fair Housing Notice');
+    if (!hasLeadPaint) missingCompliance.push('Lead Paint Disclosure');
+    if (!hasAgencyDisclosure) missingCompliance.push('Agency Disclosure');
+    if (missingCompliance.length > 0) {
+      html += '<div class="mt-2 space-y-1">';
+      missingCompliance.forEach(function (name) {
+        html += '<div class="flex items-center justify-between p-2 rounded bg-yellow-50 border border-yellow-200">' +
+          '<span class="text-xs text-yellow-700"><i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>' + E(name) + ' — not found</span>' +
+          '<button class="btn btn-xs btn-outline" onclick="Panels._uploadDoc(\'listing\',\'' + E(_listingId) + '\')">Upload</button>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // Marketing Docs section
+    html += '<div class="space-y-2">' +
+      '<h4 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><i class="fas fa-bullhorn text-gray-400"></i> Marketing Documents (' + marketingDocs.length + ')</h4>';
+    if (marketingDocs.length > 0) {
+      marketingDocs.forEach(function (d) { html += _docRow(d); });
+    } else {
+      html += '<p class="text-xs text-gray-400 pl-2">No marketing documents</p>';
+    }
+    html += '</div>';
+
+    // Transaction Docs section
+    html += '<div class="space-y-2">' +
+      '<h4 class="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><i class="fas fa-file-contract text-gray-400"></i> Transaction Documents (' + transactionDocs.length + ')</h4>';
+    if (transactionDocs.length > 0) {
+      transactionDocs.forEach(function (d) { html += _docRow(d); });
+    } else {
+      html += '<p class="text-xs text-gray-400 pl-2">No transaction documents</p>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function _docRow(d) {
+    return '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">' +
+      '<i class="fas ' + Documents.typeIcon(d.type) + ' text-gold"></i>' +
+      '<div class="flex-1"><p class="text-sm font-medium">' + E(d.title || 'Document') + '</p>' +
+        '<p class="text-xs text-gray-500">' + D(d.created_at || d.createdAt) + (d.type ? ' &middot; ' + E(d.type) : '') + '</p></div>' +
+      Documents.statusBadge(d.status) +
     '</div>';
   }
 
   // ─── Listing Tab: Health ─────────────────────────────────────────────
   function _listingHealth(el) {
     var l = _listing;
-    var hasPhotos = (l.photos || l.Media || []).length > 0;
-    var hasDescription = !!(l.PublicRemarks || l.description);
-    var dom = l.cumulative_dom || l.days_on_market || 0;
+    var health = _computeHealthScore(l);
+    var score = health.score;
+    var indicators = health.indicators;
 
-    el.innerHTML = '<div class="space-y-4">' +
+    var scoreColor = score >= 80 ? '#059669' : score >= 50 ? '#F59E0B' : '#DC2626';
+    var scoreLabel = score >= 80 ? 'Healthy' : score >= 50 ? 'Needs Attention' : 'At Risk';
+
+    var html = '<div class="space-y-4">';
+
+    // Overall score
+    html += '<div class="flex items-center justify-between">' +
       '<h3 class="text-sm font-bold text-gray-700">Listing Health</h3>' +
-      '<div class="space-y-2">' +
-        _healthItem('Photos uploaded', hasPhotos ? 'pass' : 'fail', hasPhotos ? 'Photos present' : 'No photos — add photos for better engagement') +
-        _healthItem('Description complete', hasDescription ? 'pass' : 'warn', hasDescription ? 'Description present' : 'Add a property description') +
-        _healthItem('Price competitiveness', 'pass', 'Within market range') +
-        _healthItem('Days on market', dom > 90 ? 'warn' : 'pass', dom + ' days — ' + (dom > 90 ? 'Consider price adjustment' : 'Normal')) +
-        _healthItem('Fair Housing compliance', 'pass', 'No violations detected') +
+    '</div>';
+    html += '<div class="card p-4 flex items-center gap-4">' +
+      '<div class="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white" style="background:' + scoreColor + '">' + score + '</div>' +
+      '<div>' +
+        '<p class="text-xl font-bold" style="color:' + scoreColor + '">' + scoreLabel + '</p>' +
+        '<p class="text-xs text-gray-500 mt-1">' + indicators.filter(function (i) { return i.severity !== 'good'; }).length + ' of ' + indicators.length + ' indicators need attention</p>' +
       '</div>' +
     '</div>';
+
+    // Individual indicators
+    html += '<div class="space-y-3">';
+    indicators.forEach(function (ind) {
+      var color = ind.severity === 'good' ? '#059669' : ind.severity === 'warning' ? '#F59E0B' : '#DC2626';
+      var icon = ind.severity === 'good' ? 'fa-check-circle' : ind.severity === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+      var bg = ind.severity === 'good' ? 'bg-green-50' : ind.severity === 'warning' ? 'bg-yellow-50' : 'bg-red-50';
+      var sevLabel = ind.severity === 'good' ? 'Good' : ind.severity === 'warning' ? 'Warning' : 'Critical';
+
+      html += '<div class="p-4 rounded-lg ' + bg + '" ' + (ind.id ? 'id="' + ind.id + '"' : '') + '>' +
+        '<div class="flex items-start justify-between">' +
+          '<div class="flex items-start gap-3">' +
+            '<i class="fas ' + icon + ' mt-0.5" style="color:' + color + '"></i>' +
+            '<div>' +
+              '<div class="flex items-center gap-2">' +
+                '<p class="text-sm font-bold">' + E(ind.label) + '</p>' +
+                '<span class="text-xs font-bold px-1.5 py-0.5 rounded-full" style="background:' + color + '20;color:' + color + '">' + sevLabel + '</span>' +
+              '</div>' +
+              '<p class="text-sm font-bold mt-1">' + E(ind.value) + '</p>' +
+              '<p class="text-xs text-gray-500 mt-1">' + E(ind.detail) + '</p>' +
+              (ind.action || '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div></div>';
+    el.innerHTML = html;
+
+    // Async: fetch pricing risk data
+    var neighborhood = l.neighborhood || l.City || l.area || '';
+    var listPrice = Number(l.ListPrice || l.price || 0);
+    if (neighborhood && listPrice > 0) {
+      MallanAPI._fetch('/api/crm/market-report', {
+        method: 'POST',
+        body: JSON.stringify({ neighborhood: neighborhood, property_type: l.PropertySubType || l.property_type || '' }),
+      }).then(function (data) {
+        var median = data.median_price || data.medianPrice || 0;
+        if (!median) return;
+        var pricingEl = document.getElementById('healthPricingRisk');
+        if (!pricingEl) return;
+        var diff = listPrice - median;
+        var pct = Math.round(Math.abs(diff / median) * 100);
+        var isOver = diff > 0;
+        var severity = pct > 15 ? (isOver ? 'warning' : 'good') : 'good';
+        var color = severity === 'good' ? '#059669' : '#F59E0B';
+        var icon = severity === 'good' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+        var bg = severity === 'good' ? 'bg-green-50' : 'bg-yellow-50';
+        var label = isOver ? pct + '% above neighborhood median (' + $(median) + ')' : pct + '% below neighborhood median (' + $(median) + ')';
+        var detail = isOver && pct > 15 ? 'Listing may be overpriced relative to comparable properties in this area' :
+                     !isOver && pct > 15 ? 'Listing may be underpriced — verify pricing strategy is intentional' :
+                     'Price is within normal range for this neighborhood';
+        pricingEl.className = 'p-4 rounded-lg ' + bg;
+        pricingEl.innerHTML = '<div class="flex items-start gap-3">' +
+          '<i class="fas ' + icon + ' mt-0.5" style="color:' + color + '"></i>' +
+          '<div>' +
+            '<div class="flex items-center gap-2">' +
+              '<p class="text-sm font-bold">Pricing Risk</p>' +
+              '<span class="text-xs font-bold px-1.5 py-0.5 rounded-full" style="background:' + color + '20;color:' + color + '">' + (severity === 'good' ? 'Good' : 'Warning') + '</span>' +
+            '</div>' +
+            '<p class="text-sm font-bold mt-1">' + E(label) + '</p>' +
+            '<p class="text-xs text-gray-500 mt-1">' + E(detail) + '</p>' +
+            (pct > 15 ? '<button class="btn btn-xs btn-outline mt-1" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Review Pricing</button>' : '') +
+          '</div>' +
+        '</div>';
+      }).catch(function () {
+        var pricingEl = document.getElementById('healthPricingRisk');
+        if (pricingEl) {
+          pricingEl.querySelector('.text-sm.font-bold.mt-1').textContent = 'Market data unavailable';
+        }
+      });
+    }
   }
 
   function _healthItem(label, status, detail) {
@@ -2986,31 +3896,106 @@ var Workspace = (function () {
     '</div>';
   }
 
-  // ─── Listing Tab: Portal & Reporting ─────────────────────────────────
+  // ─── Listing Tab: Portal & Syndication ─────────────────────────────
   function _listingPortal(el) {
     var l = _listing;
-    el.innerHTML = '<div class="space-y-4">' +
-      '<h3 class="text-sm font-bold text-gray-700">Portal & Reporting</h3>' +
-      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-        '<div class="card p-4">' +
-          '<h4 class="text-sm font-bold mb-2">Featured Status</h4>' +
-          '<div class="flex items-center gap-2">' +
-            '<span class="text-sm">' + (l.featuredFlag || l.featured ? 'Featured' : 'Not featured') + '</span>' +
-            (Permissions.can('change_featured') ?
-              '<button class="btn btn-sm btn-outline" onclick="Panels._toggleFeatured(\'' + E(_listingId) + '\',' + !(l.featuredFlag || l.featured) + ')">' +
-                (l.featuredFlag || l.featured ? 'Remove' : 'Feature') + '</button>' : '') +
-          '</div>' +
+    var isRLS = l.rls_eligible !== false;
+    var isFeatured = !!(l.featuredFlag || l.featured);
+    var idxDisplay = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
+    var vowDisplay = l.VOWEntireListingDisplayYN !== false && l.vow_display_yn !== false;
+    var internetAddress = l.InternetAddressDisplayYN !== false && l.internet_address_display_yn !== false;
+    var syncedAt = l.syncedAt || l.synced_at || l.updated_at || l.updatedAt;
+    var lastPublished = l.publishedAt || l.published_at || syncedAt;
+
+    var html = '<div class="space-y-4">';
+    html += '<h3 class="text-sm font-bold text-gray-700">Portal & Syndication</h3>';
+
+    // Featured flag
+    html += '<div class="card p-4">' +
+      '<div class="flex items-center justify-between">' +
+        '<div>' +
+          '<h4 class="text-sm font-bold mb-1">Featured Status</h4>' +
+          '<p class="text-xs text-gray-500">' + (isFeatured ? 'This listing is featured on mallan.nyc homepage' : 'Not currently featured') + '</p>' +
         '</div>' +
-        '<div class="card p-4">' +
-          '<h4 class="text-sm font-bold mb-2">Syndication</h4>' +
-          '<div class="space-y-1 text-xs">' +
-            '<div class="flex justify-between"><span>REBNY RLS</span><span class="text-green-600 font-bold">Active</span></div>' +
-            '<div class="flex justify-between"><span>mallan.nyc</span><span class="text-green-600 font-bold">Active</span></div>' +
-            '<div class="flex justify-between"><span>StreetEasy</span><span class="text-gray-400">Manual upload</span></div>' +
-          '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-xs font-bold px-2 py-1 rounded-full ' + (isFeatured ? 'bg-gold/20 text-gold' : 'bg-gray-100 text-gray-500') + '">' +
+            (isFeatured ? 'Featured' : 'Standard') + '</span>' +
+          (Permissions.can('change_featured') ?
+            '<button class="btn btn-sm btn-outline" onclick="Panels._toggleFeatured(\'' + E(_listingId) + '\',' + !isFeatured + ')">' +
+              (isFeatured ? 'Remove' : 'Feature') + '</button>' : '') +
         '</div>' +
       '</div>' +
     '</div>';
+
+    // Syndication Health
+    html += '<div class="card p-4"><h4 class="text-sm font-bold mb-3">Syndication Health</h4>' +
+      '<div class="space-y-2">';
+
+    // Helper for platform row
+    function platformRow(name, status, detail, icon) {
+      var statusColor = status === 'active' ? '#059669' : status === 'manual' ? '#6B7280' : status === 'auto' ? '#3B82F6' : status === 'inactive' ? '#DC2626' : '#9CA3AF';
+      var statusLabel = status === 'active' ? 'Active' : status === 'manual' ? 'Manual Upload' : status === 'auto' ? 'Auto (via feed)' : status === 'inactive' ? 'Inactive' : 'N/A';
+      return '<div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">' +
+        '<div class="flex items-center gap-2"><i class="fas ' + (icon || 'fa-globe') + ' text-gray-400 text-xs"></i><span class="text-sm">' + E(name) + '</span></div>' +
+        '<div class="text-right">' +
+          '<span class="text-xs font-bold" style="color:' + statusColor + '">' + statusLabel + '</span>' +
+          (detail ? '<p class="text-xs text-gray-400">' + E(detail) + '</p>' : '') +
+        '</div>' +
+      '</div>';
+    }
+
+    if (isRLS) {
+      html += platformRow('REBNY RLS', 'active', syncedAt ? 'Last sync: ' + D(syncedAt) : '', 'fa-database');
+      html += platformRow('mallan.nyc', 'active', '', 'fa-globe');
+      html += platformRow('StreetEasy', 'manual', 'Direct upload required (not via RLS)', 'fa-building');
+      html += platformRow('Zillow / Trulia', 'auto', 'Auto from StreetEasy', 'fa-search');
+      html += platformRow('Realtor.com', 'auto', 'REBNY data license (automatic)', 'fa-home');
+      html += platformRow('Redfin', 'auto', 'REBNY data license (automatic)', 'fa-map-marker-alt');
+      html += platformRow('Homes.com', 'auto', 'REBNY data license (automatic)', 'fa-home');
+      html += platformRow('RentHop', 'auto', 'REBNY data license (automatic)', 'fa-key');
+      html += platformRow('openigloo', idxDisplay ? 'active' : 'inactive', 'Trestle IDX opt-in', 'fa-plug');
+      html += platformRow('Samaki.com', idxDisplay ? 'active' : 'inactive', 'Trestle IDX opt-in', 'fa-plug');
+      html += platformRow('TBI Listings', idxDisplay ? 'active' : 'inactive', 'Trestle IDX opt-in', 'fa-plug');
+    } else {
+      html += platformRow('mallan.nyc', 'active', 'Website-only listing', 'fa-globe');
+      html += '<p class="text-xs text-gray-400 py-2">This is a website-only listing (rls_eligible: false). Not distributed to REBNY RLS or IDX feeds.</p>';
+    }
+
+    html += '</div></div>';
+
+    // Visibility Status
+    html += '<div class="card p-4"><h4 class="text-sm font-bold mb-3">Visibility Settings</h4>' +
+      '<div class="space-y-2">';
+
+    function visibilityRow(label, isOn) {
+      return '<div class="flex items-center justify-between py-1.5">' +
+        '<span class="text-sm">' + E(label) + '</span>' +
+        '<span class="text-xs font-bold px-2 py-0.5 rounded-full ' + (isOn ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' +
+          (isOn ? 'ON' : 'OFF') + '</span>' +
+      '</div>';
+    }
+
+    html += visibilityRow('IDX Display', idxDisplay);
+    html += visibilityRow('VOW Display', vowDisplay);
+    html += visibilityRow('Internet Address Display', internetAddress);
+    html += '</div></div>';
+
+    // Last Published + Refresh
+    html += '<div class="card p-4 flex items-center justify-between">' +
+      '<div>' +
+        '<h4 class="text-sm font-bold">Last Published</h4>' +
+        '<p class="text-xs text-gray-500">' + (lastPublished ? D(lastPublished) + ' (' + Utils.formatTimeAgo(lastPublished) + ')' : 'Unknown') + '</p>' +
+      '</div>' +
+      '<button class="btn btn-sm btn-outline" onclick="Workspace._refreshSyndication()"><i class="fas fa-sync"></i> Refresh Syndication</button>' +
+    '</div>';
+
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function _refreshSyndication() {
+    Events.log({ type: 'syndication_refresh', entityType: 'listing', entityId: _listingId, payload: { timestamp: new Date().toISOString() } });
+    CRM.toast('Syndication refresh requested', 'success');
   }
 
   // ─── Public API ──────────────────────────────────────────────────────
@@ -3084,5 +4069,10 @@ var Workspace = (function () {
     openListing: openListing,
     switchListingTab: switchListingTab,
     _runComplianceCheck: _runComplianceCheck,
+    _onPhotoDragStart: _onPhotoDragStart,
+    _onPhotoDrop: _onPhotoDrop,
+    _convertInquiryToLead: _convertInquiryToLead,
+    _createClientFromInquiry: _createClientFromInquiry,
+    _refreshSyndication: _refreshSyndication,
   };
 })();
