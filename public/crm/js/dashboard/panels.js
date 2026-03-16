@@ -4085,58 +4085,555 @@ var Panels = (function () {
 
   // ─── Broker Documents ────────────────────────────────────────────────
   function brokerDocuments() {
-    CRM.setPanelTitle('Company Document Vault');
+    CRM.setPanelTitle('Document Vault');
     var c = _container(); c.innerHTML = UI.loading();
 
-    Documents.list('company').then(function (docs) {
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Company Document Vault', docs.length + ' documents',
-          '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'company\')"><i class="fas fa-upload"></i> Upload</button>') +
-        _documentsTable(docs) +
-      '</div>';
+    Promise.all([
+      Documents.listAll(),
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
+    ]).then(function (r) {
+      var docs = r[0] || [];
+      var clients = r[1].clients || [];
+      var listings = r[2].listings || [];
+      var agents = r[3].agents || [];
+      var deals = r[4].deals || [];
+
+      // Store for filters / template modal
+      window._docVault = { docs: docs, clients: clients, listings: listings, agents: agents, deals: deals };
+      window._docVaultFilter = { status: 'all', scope: 'all', sort: 'updated_desc' };
+
+      var pendingCount = docs.filter(function (d) { return d.status === 'requested' || d.status === 'pending_approval'; }).length;
+
+      var html = '<div class="space-y-4">';
+
+      // Header
+      html += UI.sectionHeader('Document Vault', docs.length + ' documents',
+        '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc()"><i class="fas fa-upload"></i> Upload</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._generateFromTemplate()"><i class="fas fa-file-alt"></i> Generate from Template</button>');
+
+      // Request Queue Card (highlighted if pending)
+      if (pendingCount > 0) {
+        html += '<div style="background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">' +
+          '<div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-exclamation-triangle" style="color:#F59E0B;"></i>' +
+          '<span class="text-sm font-semibold">' + pendingCount + ' document' + (pendingCount !== 1 ? 's' : '') + ' awaiting review</span></div>' +
+          '<button class="btn btn-sm btn-outline" onclick="document.getElementById(\'docRequestQueue\').scrollIntoView({behavior:\'smooth\'})">Review Requests</button>' +
+        '</div>';
+      }
+
+      // Status Filter Tabs
+      var statusCounts = { all: docs.length };
+      Documents.STATUSES.forEach(function (s) {
+        statusCounts[s] = docs.filter(function (d) { return d.status === s; }).length;
+      });
+      html += '<div class="flex flex-wrap items-center gap-2">';
+      ['all'].concat(Documents.STATUSES).forEach(function (s) {
+        var label = s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+        html += '<button class="btn btn-sm ' + (s === 'all' ? 'btn-gold' : 'btn-outline') + '" id="docStatusTab_' + s + '" onclick="Panels._filterDocVault(\'' + s + '\')">' +
+          label + ' <span class="text-xs opacity-70">(' + (statusCounts[s] || 0) + ')</span></button>';
+      });
+      // Scope dropdown
+      html += '<select class="form-input" style="width:auto;height:30px;font-size:12px;margin-left:auto;" onchange="Panels._filterDocVaultScope(this.value)" id="docScopeFilter">' +
+        '<option value="all">All Scopes</option>';
+      Documents.SCOPES.forEach(function (s) {
+        html += '<option value="' + s + '">' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+      });
+      html += '</select></div>';
+
+      // Main Document Table
+      html += '<div id="docVaultTable">' + _documentsTable(docs, { showScope: true, showOwner: true, showActions: true }) + '</div>';
+
+      // Request Queue Section
+      var pendingDocs = docs.filter(function (d) { return d.status === 'requested' || d.status === 'pending_approval'; });
+      html += '<div id="docRequestQueue">';
+      html += UI.card('Request Queue', _renderRequestQueue(pendingDocs),
+        pendingDocs.length > 0 ? '<span class="text-xs font-semibold" style="color:#F59E0B;">' + pendingDocs.length + ' pending</span>' : '');
+      html += '</div>';
+
+      // Missing Documents Report (expandable)
+      html += '<details class="card" style="cursor:pointer;">' +
+        '<summary class="card-header" style="list-style:none;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;">' +
+          '<h3 style="margin:0;">Missing Documents Report</h3>' +
+          '<i class="fas fa-chevron-down text-xs text-gray-400"></i>' +
+        '</summary>' +
+        '<div class="card-body">' + _renderMissingDocs(docs, clients, listings, deals) + '</div>' +
+      '</details>';
+
+      html += '</div>';
+      c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-folder', 'Unable to load documents');
     });
   }
 
-  function _documentsTable(docs) {
-    if (!docs || docs.length === 0) return UI.emptyState('fa-folder-open', 'No documents yet');
-    return UI.dataTable([
-      { key: 'title', label: 'Document', render: function (d) {
-        return '<div class="flex items-center gap-2"><i class="fas ' + Documents.typeIcon(d.type) + ' text-gold"></i>' +
-          '<span class="text-sm font-medium">' + E(d.title || d.name || 'Untitled') + '</span></div>';
-      }},
-      { key: 'type', label: 'Type', render: function (d) { return '<span class="text-xs">' + Documents.typeLabel(d.type) + '</span>'; }},
-      { key: 'status', label: 'Status', render: function (d) { return Documents.statusBadge(d.status); }},
-      { key: 'date', label: 'Date', render: function (d) { return '<span class="text-xs text-gray-500">' + D(d.created_at || d.createdAt) + '</span>'; }},
-    ], docs);
+  function _renderRequestQueue(pendingDocs) {
+    if (!pendingDocs || pendingDocs.length === 0) {
+      return '<p class="text-sm text-gray-400 py-4 text-center">No pending requests</p>';
+    }
+    var html = '<div class="space-y-2">';
+    pendingDocs.forEach(function (d) {
+      var docId = d.id || d.document_id || '';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f9fafb;border-radius:6px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<i class="fas ' + Documents.typeIcon(d.type) + ' text-gold"></i>' +
+          '<div>' +
+            '<div class="text-sm font-medium">' + E(d.title || 'Untitled') + '</div>' +
+            '<div class="text-xs text-gray-500">' + Documents.typeLabel(d.type) + ' &middot; ' + E(d.scope || '') + ' &middot; ' + D(d.created_at || d.createdAt) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex gap-2">' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._approveDoc(\'' + E(docId) + '\')"><i class="fas fa-check"></i> Approve</button>' +
+          '<button class="btn btn-sm btn-outline" style="color:#DC2626;border-color:#DC2626;" onclick="Panels._rejectDoc(\'' + E(docId) + '\')"><i class="fas fa-times"></i> Reject</button>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    return html;
   }
 
-  function _uploadDoc(scope, scopeId) {
-    CRM.openModal('Upload Document',
+  function _renderMissingDocs(docs, clients, listings, deals) {
+    var REQUIRED_CLIENT = ['buyer_agreement', 'disclosure'];
+    var REQUIRED_DEAL = ['contract', 'disclosure'];
+    var REQUIRED_LISTING = ['exclusive_agreement', 'disclosure'];
+    var html = '';
+    var missing = [];
+
+    // Check clients
+    clients.forEach(function (cl) {
+      var clientDocs = docs.filter(function (d) {
+        return d.scope === 'client' && (d.scope_id === cl.id || d.scopeId === cl.id);
+      });
+      var clientTypes = clientDocs.map(function (d) { return d.type; });
+      REQUIRED_CLIENT.forEach(function (rt) {
+        if (clientTypes.indexOf(rt) === -1) {
+          missing.push({ entity: 'Client', name: E(cl.name || cl.first_name + ' ' + cl.last_name || 'Unknown'), type: rt, scope: 'client', scopeId: cl.id });
+        }
+      });
+    });
+
+    // Check deals
+    deals.forEach(function (dl) {
+      var dealDocs = docs.filter(function (d) {
+        return d.scope === 'deal' && (d.scope_id === dl.id || d.scopeId === dl.id);
+      });
+      var dealTypes = dealDocs.map(function (d) { return d.type; });
+      REQUIRED_DEAL.forEach(function (rt) {
+        if (dealTypes.indexOf(rt) === -1) {
+          missing.push({ entity: 'Deal', name: E(dl.title || dl.address || 'Deal #' + dl.id), type: rt, scope: 'deal', scopeId: dl.id });
+        }
+      });
+    });
+
+    // Check listings
+    listings.forEach(function (ls) {
+      var listDocs = docs.filter(function (d) {
+        return d.scope === 'listing' && (d.scope_id === ls.id || d.scopeId === ls.id);
+      });
+      var listTypes = listDocs.map(function (d) { return d.type; });
+      REQUIRED_LISTING.forEach(function (rt) {
+        if (listTypes.indexOf(rt) === -1) {
+          missing.push({ entity: 'Listing', name: E(ls.address || ls.title || 'Listing #' + ls.id), type: rt, scope: 'listing', scopeId: ls.id });
+        }
+      });
+    });
+
+    if (missing.length === 0) {
+      return '<p class="text-sm text-green-600 py-2"><i class="fas fa-check-circle mr-1"></i> All required documents are present.</p>';
+    }
+
+    html += '<div style="overflow-x:auto;"><table><thead><tr>' +
+      '<th>Entity</th><th>Name</th><th>Missing Document</th><th>Action</th>' +
+    '</tr></thead><tbody>';
+    missing.forEach(function (m) {
+      html += '<tr><td><span class="text-xs font-semibold">' + m.entity + '</span></td>' +
+        '<td class="text-sm">' + m.name + '</td>' +
+        '<td class="text-sm">' + Documents.typeLabel(m.type) + '</td>' +
+        '<td><button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc(\'' + E(m.scope) + '\',\'' + E(m.scopeId) + '\')">Upload Now</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function _filterDocVault(status) {
+    window._docVaultFilter.status = status;
+    _applyDocVaultFilters();
+    // Update tab active states
+    var tabs = document.querySelectorAll('[id^="docStatusTab_"]');
+    tabs.forEach(function (t) {
+      t.className = t.id === 'docStatusTab_' + status ? 'btn btn-sm btn-gold' : 'btn btn-sm btn-outline';
+    });
+  }
+
+  function _filterDocVaultScope(scope) {
+    window._docVaultFilter.scope = scope;
+    _applyDocVaultFilters();
+  }
+
+  function _applyDocVaultFilters() {
+    var f = window._docVaultFilter;
+    var docs = (window._docVault && window._docVault.docs) || [];
+    var filtered = docs.filter(function (d) {
+      if (f.status !== 'all' && d.status !== f.status) return false;
+      if (f.scope !== 'all' && d.scope !== f.scope) return false;
+      return true;
+    });
+    var el = document.getElementById('docVaultTable');
+    if (el) el.innerHTML = _documentsTable(filtered, { showScope: true, showOwner: true, showActions: true });
+  }
+
+  function _approveDoc(docId) {
+    Documents.approve(docId).then(function () {
+      CRM.toast('Document approved', 'success');
+      brokerDocuments(); // refresh
+    }).catch(function (err) {
+      CRM.toast(err.message || 'Failed to approve document', 'error');
+    });
+  }
+
+  function _rejectDoc(docId) {
+    MallanAPI._fetch('/api/crm/documents/' + docId, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'draft' }),
+    }).then(function () {
+      CRM.toast('Document rejected and returned to draft', 'success');
+      brokerDocuments();
+    }).catch(function () {
+      CRM.toast('Failed to reject document', 'error');
+    });
+  }
+
+  function _generateFromTemplate() {
+    var vault = window._docVault || {};
+    var clients = vault.clients || [];
+    var listings = vault.listings || [];
+    var agents = vault.agents || [];
+    var deals = vault.deals || [];
+
+    var TEMPLATES = [
+      'Buyer Agency Agreement', 'Exclusive Right to Sell', 'Commission Negotiability Disclosure',
+      'Property Condition Disclosure', 'Fair Housing Notice', 'Agency Disclosure (DOS-2105)',
+      'Rental Listing Agreement', 'Tenant Representation Agreement',
+    ];
+
+    var templateOpts = TEMPLATES.map(function (t) { return '<option value="' + E(t) + '">' + E(t) + '</option>'; }).join('');
+    var clientOpts = clients.map(function (c) { return '<option value="' + E(c.id) + '">' + E(c.name || (c.first_name + ' ' + c.last_name) || 'Client') + '</option>'; }).join('');
+    var listingOpts = listings.map(function (l) { return '<option value="' + E(l.id) + '">' + E(l.address || l.title || 'Listing') + '</option>'; }).join('');
+    var agentOpts = agents.map(function (a) { return '<option value="' + E(a.id) + '">' + E(a.name || (a.first_name + ' ' + a.last_name) || 'Agent') + '</option>'; }).join('');
+    var dealOpts = deals.map(function (d) { return '<option value="' + E(d.id) + '">' + E(d.title || d.address || 'Deal #' + d.id) + '</option>'; }).join('');
+
+    CRM.openModal('Generate from Template',
+      '<form id="templateDocForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Template *</label>' +
+          '<select class="form-input" name="template" required onchange="var t=this.value;var ti=document.querySelector(\'[name=templateTitle]\');if(ti)ti.value=t;">' +
+            '<option value="">Select template...</option>' + templateOpts +
+          '</select></div>' +
+        '<div class="form-group"><label class="form-label">Scope *</label>' +
+          '<select class="form-input" name="scope" required onchange="Panels._updateTemplateScopePicker(this.value)">' +
+            '<option value="">Select scope...</option>' +
+            '<option value="company">Company</option><option value="agent">Agent</option>' +
+            '<option value="client">Client</option><option value="listing">Listing</option>' +
+            '<option value="deal">Deal</option>' +
+          '</select></div>' +
+        '<div class="form-group" id="templateScopeEntity" style="display:none;"><label class="form-label">Select Entity *</label>' +
+          '<select class="form-input" name="scopeId" id="templateScopeEntityPicker">' +
+            '<option value="">Select...</option>' +
+          '</select></div>' +
+        '<div class="form-group"><label class="form-label">Title</label>' +
+          '<input class="form-input" name="templateTitle" placeholder="Auto-filled from template"></div>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitGenerateTemplate()"><i class="fas fa-file-alt"></i> Generate</button>',
+        data: { clientOpts: clientOpts, listingOpts: listingOpts, agentOpts: agentOpts, dealOpts: dealOpts },
+      }
+    );
+    // Store picker options on window for scope change handler
+    window._templatePickerOpts = { client: clientOpts, listing: listingOpts, agent: agentOpts, deal: dealOpts };
+  }
+
+  function _updateTemplateScopePicker(scope) {
+    var container = document.getElementById('templateScopeEntity');
+    var picker = document.getElementById('templateScopeEntityPicker');
+    if (scope === 'company' || !scope) {
+      if (container) container.style.display = 'none';
+      return;
+    }
+    if (container) container.style.display = '';
+    var opts = (window._templatePickerOpts && window._templatePickerOpts[scope]) || '';
+    if (picker) picker.innerHTML = '<option value="">Select...</option>' + opts;
+  }
+
+  function _submitGenerateTemplate() {
+    var form = document.getElementById('templateDocForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var data = {};
+    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+
+    var title = data.templateTitle || data.template || 'Untitled Document';
+    var scope = data.scope || 'company';
+    var scopeId = data.scopeId || null;
+
+    Documents.upload({
+      title: title,
+      type: 'general',
+      scope: scope,
+      scopeId: scopeId,
+      status: 'draft',
+      template: data.template,
+    }).then(function () {
+      CRM.closeModal();
+      CRM.toast('Draft document "' + title + '" created from template', 'success');
+      brokerDocuments();
+    }).catch(function (err) {
+      CRM.toast(err.message || 'Failed to generate document', 'error');
+    });
+  }
+
+  function _sortDocVault(col) {
+    var vault = window._docVault;
+    if (!vault) return;
+    var current = window._docVaultFilter.sort || '';
+    var dir = current === col + '_asc' ? 'desc' : 'asc';
+    window._docVaultFilter.sort = col + '_' + dir;
+    _applyDocVaultFilters();
+  }
+
+  function _documentsTable(docs, opts) {
+    opts = opts || {};
+    var showScope = opts.showScope !== false;
+    var showOwner = opts.showOwner !== false;
+    var showActions = opts.showActions !== false;
+
+    if (!docs || docs.length === 0) return UI.emptyState('fa-folder-open', 'No documents yet');
+
+    // Sort
+    var sortKey = (window._docVaultFilter && window._docVaultFilter.sort) || 'updated_desc';
+    var sortParts = sortKey.split('_');
+    var sortDir = sortParts.pop();
+    var sortCol = sortParts.join('_');
+    var sorted = docs.slice().sort(function (a, b) {
+      var va, vb;
+      switch (sortCol) {
+        case 'title': va = (a.title || '').toLowerCase(); vb = (b.title || '').toLowerCase(); break;
+        case 'scope': va = a.scope || ''; vb = b.scope || ''; break;
+        case 'type': va = a.type || ''; vb = b.type || ''; break;
+        case 'status': va = a.status || ''; vb = b.status || ''; break;
+        case 'expires':
+          va = a.expires_at || a.expiresAt || '9999'; vb = b.expires_at || b.expiresAt || '9999'; break;
+        default: // updated
+          va = a.updated_at || a.updatedAt || a.created_at || a.createdAt || '';
+          vb = b.updated_at || b.updatedAt || b.created_at || b.createdAt || '';
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    var sortArrow = function (col) {
+      if (sortCol === col) return sortDir === 'asc' ? ' <i class="fas fa-sort-up text-gold"></i>' : ' <i class="fas fa-sort-down text-gold"></i>';
+      return ' <i class="fas fa-sort text-gray-300" style="font-size:9px;"></i>';
+    };
+
+    var scopeBadge = function (scope) {
+      var colors = { company: '#6366F1', agent: '#3B82F6', client: '#059669', listing: '#F59E0B', deal: '#8B5CF6' };
+      var c = colors[scope] || '#6B7280';
+      return '<span style="display:inline-flex;padding:1px 6px;font-size:9px;font-weight:700;border-radius:4px;background:' + c + '15;color:' + c + ';text-transform:uppercase;">' + E(scope || 'general') + '</span>';
+    };
+
+    var now = new Date();
+    var thirtyDays = 30 * 24 * 60 * 60 * 1000;
+
+    var html = '<div style="overflow-x:auto;"><table><thead><tr>' +
+      '<th style="cursor:pointer;" onclick="Panels._sortDocVault(\'title\')">Title' + sortArrow('title') + '</th>';
+    if (showScope) html += '<th style="cursor:pointer;" onclick="Panels._sortDocVault(\'scope\')">Scope' + sortArrow('scope') + '</th>';
+    html += '<th style="cursor:pointer;" onclick="Panels._sortDocVault(\'type\')">Type' + sortArrow('type') + '</th>' +
+      '<th style="cursor:pointer;" onclick="Panels._sortDocVault(\'status\')">Status' + sortArrow('status') + '</th>';
+    if (showOwner) html += '<th>Owner</th>';
+    html += '<th>Uploaded By</th>' +
+      '<th style="cursor:pointer;" onclick="Panels._sortDocVault(\'updated\')">Last Updated' + sortArrow('updated') + '</th>' +
+      '<th style="cursor:pointer;" onclick="Panels._sortDocVault(\'expires\')">Expires' + sortArrow('expires') + '</th>';
+    if (showActions) html += '<th>Actions</th>';
+    html += '</tr></thead><tbody>';
+
+    sorted.forEach(function (d) {
+      var docId = d.id || d.document_id || '';
+      var expDate = d.expires_at || d.expiresAt || '';
+      var isExpired = expDate && new Date(expDate) < now;
+      var isExpiringSoon = expDate && !isExpired && (new Date(expDate) - now) < thirtyDays;
+
+      html += '<tr>';
+      // Title with icon
+      html += '<td><div class="flex items-center gap-2"><i class="fas ' + Documents.typeIcon(d.type) + ' text-gold"></i>' +
+        '<span class="text-sm font-medium">' + E(d.title || d.name || 'Untitled') + '</span></div></td>';
+      // Scope badge
+      if (showScope) html += '<td>' + scopeBadge(d.scope) + '</td>';
+      // Type
+      html += '<td><span class="text-xs">' + Documents.typeLabel(d.type) + '</span></td>';
+      // Status
+      html += '<td>' + Documents.statusBadge(d.status) + '</td>';
+      // Owner
+      if (showOwner) {
+        var ownerName = d.owner_name || d.ownerName || d.scope_label || '';
+        html += '<td><span class="text-xs text-gray-600">' + E(ownerName) + '</span></td>';
+      }
+      // Uploaded By
+      html += '<td><span class="text-xs text-gray-500">' + E(d.uploaded_by_name || d.uploadedByName || d.agent_name || '') + '</span></td>';
+      // Last Updated
+      html += '<td><span class="text-xs text-gray-500">' + D(d.updated_at || d.updatedAt || d.created_at || d.createdAt) + '</span></td>';
+      // Expires
+      var expStyle = isExpired ? 'color:#DC2626;font-weight:700;' : isExpiringSoon ? 'color:#F59E0B;font-weight:600;' : '';
+      html += '<td><span class="text-xs" style="' + expStyle + '">' + (expDate ? D(expDate) + (isExpired ? ' (Expired)' : '') : '--') + '</span></td>';
+      // Actions
+      if (showActions) {
+        html += '<td><div class="flex gap-1">' +
+          '<button class="btn btn-sm btn-outline" title="View" onclick="Panels._viewDoc(\'' + E(docId) + '\')"><i class="fas fa-eye"></i></button>';
+        if (d.status === 'pending_approval') {
+          html += '<button class="btn btn-sm btn-gold" title="Approve" onclick="Panels._approveDoc(\'' + E(docId) + '\')"><i class="fas fa-check"></i></button>';
+        }
+        html += '<button class="btn btn-sm btn-outline" title="Replace" onclick="Panels._replaceDoc(\'' + E(docId) + '\')"><i class="fas fa-sync-alt"></i></button>' +
+          '<button class="btn btn-sm btn-outline" title="Delete" style="color:#DC2626;border-color:#DC2626;" onclick="Panels._deleteDoc(\'' + E(docId) + '\')"><i class="fas fa-trash"></i></button>' +
+        '</div></td>';
+      }
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function _viewDoc(docId) {
+    Documents.get(docId).then(function (doc) {
+      if (!doc) { CRM.toast('Document not found', 'error'); return; }
+      var html = '<div class="space-y-3">' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="form-label">Title</label><p class="text-sm font-medium">' + E(doc.title || 'Untitled') + '</p></div>' +
+          '<div><label class="form-label">Type</label><p class="text-sm">' + Documents.typeLabel(doc.type) + '</p></div>' +
+          '<div><label class="form-label">Scope</label><p class="text-sm">' + E(doc.scope || '') + '</p></div>' +
+          '<div><label class="form-label">Status</label><p>' + Documents.statusBadge(doc.status) + '</p></div>' +
+          '<div><label class="form-label">Created</label><p class="text-xs text-gray-500">' + D(doc.created_at || doc.createdAt) + '</p></div>' +
+          '<div><label class="form-label">Updated</label><p class="text-xs text-gray-500">' + D(doc.updated_at || doc.updatedAt) + '</p></div>' +
+        '</div>' +
+        (doc.notes ? '<div><label class="form-label">Notes</label><p class="text-sm text-gray-600">' + E(doc.notes) + '</p></div>' : '') +
+        (doc.file_url || doc.fileUrl ? '<div><a href="' + E(doc.file_url || doc.fileUrl) + '" target="_blank" class="btn btn-sm btn-gold"><i class="fas fa-download"></i> Download File</a></div>' : '') +
+      '</div>';
+      CRM.openModal('Document Details', html, {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Close</button>',
+      });
+    }).catch(function () {
+      CRM.toast('Failed to load document', 'error');
+    });
+  }
+
+  function _replaceDoc(docId) {
+    Documents.get(docId).then(function (doc) {
+      if (!doc) { CRM.toast('Document not found', 'error'); return; }
+      // Open upload modal pre-filled
+      _uploadDoc(doc.scope, doc.scope_id || doc.scopeId, {
+        replaceId: docId,
+        prefillType: doc.type,
+        prefillTitle: doc.title,
+      });
+    }).catch(function () {
+      CRM.toast('Failed to load document', 'error');
+    });
+  }
+
+  function _deleteDoc(docId) {
+    if (!confirm('Delete this document? This cannot be undone.')) return;
+    Documents.remove(docId).then(function () {
+      CRM.toast('Document deleted', 'success');
+      brokerDocuments();
+    }).catch(function (err) {
+      CRM.toast(err.message || 'Failed to delete document', 'error');
+    });
+  }
+
+  function _uploadDoc(scope, scopeId, replaceOpts) {
+    replaceOpts = replaceOpts || {};
+    var vault = window._docVault || {};
+    var clients = vault.clients || [];
+    var listings = vault.listings || [];
+    var agents = vault.agents || [];
+    var deals = vault.deals || [];
+
+    var typeOpts = Documents.DOC_TYPES.map(function (t) {
+      var sel = replaceOpts.prefillType === t ? ' selected' : '';
+      return '<option value="' + E(t) + '"' + sel + '>' + Documents.typeLabel(t) + '</option>';
+    }).join('');
+
+    var scopeOptions = Documents.SCOPES.map(function (s) {
+      var sel = scope === s ? ' selected' : '';
+      return '<option value="' + s + '"' + sel + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+    }).join('');
+
+    // Build entity picker options per scope
+    var entityHtml = function (s) {
+      var items = [];
+      if (s === 'client') items = clients;
+      else if (s === 'listing') items = listings;
+      else if (s === 'agent') items = agents;
+      else if (s === 'deal') items = deals;
+      return items.map(function (item) {
+        var id = item.id;
+        var label = item.name || item.address || item.title || (item.first_name + ' ' + item.last_name) || 'Item #' + id;
+        var sel = scopeId === id ? ' selected' : '';
+        return '<option value="' + E(id) + '"' + sel + '>' + E(label) + '</option>';
+      }).join('');
+    };
+
+    // Store entity options for dynamic switching
+    window._uploadDocEntityOpts = {};
+    Documents.SCOPES.forEach(function (s) {
+      window._uploadDocEntityOpts[s] = entityHtml(s);
+    });
+
+    var initialScope = scope || '';
+    var showEntity = initialScope && initialScope !== 'company';
+
+    CRM.openModal(replaceOpts.replaceId ? 'Replace Document' : 'Upload Document',
       '<form id="uploadDocForm" class="space-y-4">' +
-        '<input type="hidden" name="scope" value="' + E(scope || 'company') + '">' +
-        '<input type="hidden" name="scopeId" value="' + E(scopeId || '') + '">' +
+        (replaceOpts.replaceId ? '<input type="hidden" name="replaceId" value="' + E(replaceOpts.replaceId) + '">' : '') +
+        '<div class="form-group"><label class="form-label">Scope *</label>' +
+          '<select class="form-input" name="scope" required onchange="Panels._updateUploadScopePicker(this.value)"' + (scope ? ' ' : '') + '>' +
+            '<option value="">Select scope...</option>' + scopeOptions +
+          '</select></div>' +
+        '<div class="form-group" id="uploadScopeEntity" style="' + (showEntity ? '' : 'display:none;') + '">' +
+          '<label class="form-label">Entity *</label>' +
+          '<select class="form-input" name="scopeId" id="uploadScopeEntityPicker">' +
+            '<option value="">Select...</option>' + (showEntity ? entityHtml(initialScope) : '') +
+          '</select></div>' +
         '<div class="form-group"><label class="form-label">Document Type *</label>' +
           '<select class="form-input" name="type" required>' +
-            '<option value="">Select type...</option>' +
-            '<option value="contract">Contract</option>' +
-            '<option value="disclosure">Disclosure</option>' +
-            '<option value="agreement">Agreement</option>' +
-            '<option value="other">Other</option>' +
+            '<option value="">Select type...</option>' + typeOpts +
           '</select></div>' +
         '<div class="form-group"><label class="form-label">Title *</label>' +
-          '<input class="form-input" name="title" placeholder="Document title" required></div>' +
+          '<input class="form-input" name="title" placeholder="Document title" required value="' + E(replaceOpts.prefillTitle || '') + '"></div>' +
         '<div class="form-group"><label class="form-label">File</label>' +
           '<input class="form-input" type="file" name="file" id="uploadDocFile"></div>' +
+        '<div class="form-group"><label class="form-label">Expiration Date</label>' +
+          '<input class="form-input" type="date" name="expiresAt"></div>' +
         '<div class="form-group"><label class="form-label">Notes</label>' +
           '<textarea class="form-input" name="notes" rows="3" placeholder="Optional notes about this document..."></textarea></div>' +
       '</form>',
       {
         footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitUploadDoc()"><i class="fas fa-upload"></i> Upload</button>',
+          '<button class="btn btn-gold" onclick="Panels._submitUploadDoc()"><i class="fas fa-upload"></i> ' + (replaceOpts.replaceId ? 'Replace' : 'Upload') + '</button>',
       }
     );
+  }
+
+  function _updateUploadScopePicker(scope) {
+    var container = document.getElementById('uploadScopeEntity');
+    var picker = document.getElementById('uploadScopeEntityPicker');
+    if (scope === 'company' || !scope) {
+      if (container) container.style.display = 'none';
+      return;
+    }
+    if (container) container.style.display = '';
+    var opts = (window._uploadDocEntityOpts && window._uploadDocEntityOpts[scope]) || '';
+    if (picker) picker.innerHTML = '<option value="">Select...</option>' + opts;
   }
 
   function _submitUploadDoc() {
@@ -4148,22 +4645,45 @@ var Panels = (function () {
     });
 
     var fileInput = document.getElementById('uploadDocFile');
-    var fileName = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0].name : null;
-    if (fileName) data.fileName = fileName;
+    var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
 
-    // Log the document event (actual file upload requires backend multipart support)
-    Events.log('document_uploaded', data.scope || 'company', data.scopeId || null, {
-      title: data.title,
-      type: data.type,
-      fileName: fileName || 'none',
+    var replaceId = data.replaceId;
+    delete data.replaceId;
+
+    // If replacing, mark old as superseded first
+    var replacePromise = replaceId
+      ? MallanAPI._fetch('/api/crm/documents/' + replaceId, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'expired', superseded: true }),
+        }).catch(function () { /* continue even if marking old fails */ })
+      : Promise.resolve();
+
+    replacePromise.then(function () {
+      if (file) {
+        // File upload path
+        var meta = { title: data.title, type: data.type };
+        if (data.expiresAt) meta.expiresAt = data.expiresAt;
+        if (data.notes) meta.notes = data.notes;
+        return Documents.uploadFile(data.scope || 'company', data.scopeId || null, file, meta);
+      } else {
+        // Metadata-only document record
+        return Documents.upload({
+          title: data.title,
+          type: data.type,
+          scope: data.scope || 'company',
+          scopeId: data.scopeId || null,
+          expiresAt: data.expiresAt || null,
+          notes: data.notes || '',
+          status: 'draft',
+        });
+      }
+    }).then(function () {
+      CRM.closeModal();
+      CRM.toast('Document "' + (data.title || 'Untitled') + '" ' + (replaceId ? 'replaced' : 'uploaded') + ' successfully', 'success');
+      try { brokerDocuments(); } catch (e) { /* ignore if not on documents page */ }
+    }).catch(function (err) {
+      CRM.toast(err.message || 'Failed to upload document', 'error');
     });
-
-    CRM.closeModal();
-    CRM.toast('Document "' + (data.title || 'Untitled') + '" logged successfully', 'success');
-    // Refresh the documents panel if we're on it
-    if (typeof Panels.brokerDocuments === 'function') {
-      try { Panels.brokerDocuments(); } catch (e) { /* ignore if not on that page */ }
-    }
   }
 
   // ─── Audit Log ───────────────────────────────────────────────────────
@@ -5553,6 +6073,19 @@ var Panels = (function () {
     _toggleFeatured: _toggleFeatured,
     _uploadDoc: _uploadDoc,
     _submitUploadDoc: _submitUploadDoc,
+    _documentsTable: _documentsTable,
+    _filterDocVault: _filterDocVault,
+    _filterDocVaultScope: _filterDocVaultScope,
+    _sortDocVault: _sortDocVault,
+    _approveDoc: _approveDoc,
+    _rejectDoc: _rejectDoc,
+    _viewDoc: _viewDoc,
+    _replaceDoc: _replaceDoc,
+    _deleteDoc: _deleteDoc,
+    _generateFromTemplate: _generateFromTemplate,
+    _updateTemplateScopePicker: _updateTemplateScopePicker,
+    _submitGenerateTemplate: _submitGenerateTemplate,
+    _updateUploadScopePicker: _updateUploadScopePicker,
     _filterClients: _filterClients,
     _composeEmail: _composeEmail,
     _submitEmail: _submitEmail,

@@ -123,6 +123,12 @@ var Documents = (function () {
     return (type || 'general').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
   }
 
+  function listAll() {
+    return MallanAPI._fetch('/api/crm/documents?limit=500')
+      .then(function (data) { return data.documents || []; })
+      .catch(function () { return []; });
+  }
+
   return {
     SCOPES: SCOPES,
     STATUSES: STATUSES,
@@ -137,5 +143,6 @@ var Documents = (function () {
     statusBadge: statusBadge,
     typeIcon: typeIcon,
     typeLabel: typeLabel,
+    listAll: listAll,
   };
 })();
