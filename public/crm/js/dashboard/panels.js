@@ -6415,37 +6415,169 @@ var Panels = (function () {
   }
 
   // ─── My Listings ─────────────────────────────────────────────────────
+  var _myListingsData = [];
+  var _myListingsView = 'all';
+  var _myListingsQuickFilter = '';
+
   function myListings() {
     CRM.setPanelTitle('My Listings');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.listings.list({ limit: 50 }).then(function (data) {
-      var listings = data.listings || [];
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('My Listings', listings.length + ' total',
-          '<div class="flex gap-2">' +
-            '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus"></i> Sale</button>' +
-            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus"></i> Rental</button>' +
-          '</div>') +
-        '<div class="space-y-3">';
+    MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }).then(function (data) {
+      _myListingsData = data.listings || [];
 
-      if (listings.length === 0) {
-        c.innerHTML += UI.emptyState('fa-building', 'No listings yet', '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewListing()"><i class="fas fa-plus"></i> Create Listing</button>');
-      } else {
-        listings.forEach(function (l) {
-          c.innerHTML = c.innerHTML; // force reflow prevention
-        });
-        var listHtml = '';
-        listings.forEach(function (l) {
-          listHtml += UI.listingCard(l, "Router.navigate('/workspace/listing/" + E(l.id || l.listing_id) + "/overview')");
-        });
-        c.querySelector('.space-y-3').innerHTML = listHtml;
-      }
+      // Compute per-listing flags
+      _myListingsData.forEach(function (l) {
+        var dom = l.cumulative_dom || l.days_on_market || 0;
+        var hasPhotos = (l.photos && l.photos.length > 0) || (l.Media && l.Media.length > 0);
+        var comp = _computeListingCompliance ? _computeListingCompliance(l) : { status: 'clean', issues: [] };
+        l._isStale = dom > 60 && (l.status === 'Active' || l.status === 'active');
+        l._noPhotos = !hasPhotos;
+        l._hasComplianceIssue = comp.status !== 'clean';
+        l._isFeatured = l.featuredFlag || l.featured;
+        l._compliance = comp;
+      });
 
-      c.innerHTML += '</div></div>';
-    }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-building', 'Unable to load listings');
+      _renderMyListings(c);
     });
+  }
+
+  function _renderMyListings(c) {
+    var listings = _myListingsData;
+    var view = _myListingsView;
+    var qf = _myListingsQuickFilter;
+
+    // Apply saved view filter
+    var filtered = listings;
+    if (view === 'active') filtered = listings.filter(function (l) { return l.status === 'Active' || l.status === 'active' || l.status === 'ComingSoon'; });
+    else if (view === 'contract') filtered = listings.filter(function (l) { return l.status === 'Pending' || l.status === 'ActiveUnderContract' || l.status === 'pending' || l.status === 'contract'; });
+    else if (view === 'closed') filtered = listings.filter(function (l) { return l.status === 'Closed' || l.status === 'closed'; });
+    else if (view === 'action') filtered = listings.filter(function (l) { return l._isStale || l._noPhotos || l._hasComplianceIssue; });
+
+    // Apply quick filter
+    if (qf === 'stale') filtered = filtered.filter(function (l) { return l._isStale; });
+    else if (qf === 'no-inquiries') filtered = filtered.filter(function (l) { return !l.inquiryCount && !l.inquiry_count; });
+    else if (qf === 'compliance') filtered = filtered.filter(function (l) { return l._hasComplianceIssue; });
+    else if (qf === 'featured') filtered = filtered.filter(function (l) { return l._isFeatured; });
+
+    // Counts for views
+    var counts = {
+      all: listings.length,
+      active: listings.filter(function (l) { return l.status === 'Active' || l.status === 'active' || l.status === 'ComingSoon'; }).length,
+      contract: listings.filter(function (l) { return l.status === 'Pending' || l.status === 'ActiveUnderContract' || l.status === 'pending'; }).length,
+      closed: listings.filter(function (l) { return l.status === 'Closed' || l.status === 'closed'; }).length,
+      action: listings.filter(function (l) { return l._isStale || l._noPhotos || l._hasComplianceIssue; }).length,
+    };
+
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+      '<h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
+      '<div class="flex gap-2">' +
+        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> New Sale</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> New Rental</button>' +
+      '</div>' +
+    '</div>';
+
+    // Saved view tabs
+    var views = [
+      { key: 'all', label: 'All', count: counts.all },
+      { key: 'active', label: 'Active', count: counts.active },
+      { key: 'contract', label: 'In Contract', count: counts.contract },
+      { key: 'closed', label: 'Sold & Rented', count: counts.closed },
+      { key: 'action', label: 'Needs Action', count: counts.action },
+    ];
+    html += '<div class="flex gap-1 overflow-x-auto">';
+    views.forEach(function (v) {
+      var isActive = view === v.key;
+      var actionColor = v.key === 'action' && v.count > 0 ? 'bg-red-100 text-red-700 border-red-300' : '';
+      html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+        (isActive ? 'bg-gray-900 text-white border-gray-900' : actionColor || 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
+        '" onclick="Panels._switchMyListingsView(\'' + v.key + '\')">' + E(v.label) + ' (' + v.count + ')</button>';
+    });
+    html += '</div>';
+
+    // Quick filters
+    html += '<div class="flex gap-2 flex-wrap">' +
+      '<span class="text-xs font-bold text-gray-400 self-center">Quick filters:</span>';
+    var quickFilters = [
+      { key: '', label: 'None' },
+      { key: 'stale', label: 'Stale (60+ DOM)', icon: 'fa-clock' },
+      { key: 'no-inquiries', label: 'No Inquiries', icon: 'fa-inbox' },
+      { key: 'compliance', label: 'Compliance Issue', icon: 'fa-shield-alt' },
+      { key: 'featured', label: 'Featured', icon: 'fa-star' },
+    ];
+    quickFilters.forEach(function (f) {
+      if (f.key === '') return;
+      var active = qf === f.key;
+      html += '<button class="px-2 py-1 rounded text-[10px] font-semibold border transition-all ' +
+        (active ? 'bg-gold text-white border-gold' : 'bg-white text-gray-500 border-gray-200 hover:border-gold') +
+        '" onclick="Panels._quickFilterMyListings(\'' + f.key + '\')">' +
+        (f.icon ? '<i class="fas ' + f.icon + ' mr-1"></i>' : '') + E(f.label) + '</button>';
+    });
+    if (qf) html += '<button class="px-2 py-1 rounded text-[10px] font-semibold text-gray-400 hover:text-gray-600" onclick="Panels._quickFilterMyListings(\'\')"><i class="fas fa-times"></i> Clear</button>';
+    html += '</div>';
+
+    // Results count
+    html += '<p class="text-xs text-gray-500">' + filtered.length + ' listing' + (filtered.length !== 1 ? 's' : '') + '</p>';
+
+    // Listing table
+    if (filtered.length === 0) {
+      html += UI.emptyState('fa-building', 'No listings match current view', '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewListing()"><i class="fas fa-plus"></i> Create Listing</button>');
+    } else {
+      html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Address</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-left px-3 py-2">Price</th>' +
+        '<th class="text-left px-3 py-2">Status</th>' +
+        '<th class="text-left px-3 py-2">DOM</th>' +
+        '<th class="text-left px-3 py-2">Flags</th>' +
+        '<th class="text-left px-3 py-2">Actions</th>' +
+      '</tr></thead><tbody>';
+      filtered.forEach(function (l) {
+        var addr = l.address || l.UnparsedAddress || 'No address';
+        var dom = l.cumulative_dom || l.days_on_market || 0;
+        var type = (l.property_type || l.listing_type || l.PropertySubType || '');
+        var isRental = type.toLowerCase().indexOf('rent') !== -1;
+
+        // Flags
+        var flags = '';
+        if (l._isStale) flags += '<span class="px-1 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold mr-1">Stale</span>';
+        if (l._noPhotos) flags += '<span class="px-1 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold mr-1">No Photos</span>';
+        if (l._hasComplianceIssue) flags += '<span class="px-1 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold mr-1">Compliance</span>';
+        if (l._isFeatured) flags += '<span class="px-1 py-0.5 bg-gold-bg text-gold rounded text-[9px] font-bold mr-1"><i class="fas fa-star text-[8px]"></i></span>';
+        if (!flags) flags = '<span class="text-xs text-gray-300">—</span>';
+
+        html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' +
+          '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
+          '<td class="px-3 py-2">' + UI.roleBadge(isRental ? 'renter' : 'buyer') + '</td>' +
+          '<td class="px-3 py-2 text-sm font-bold">' + $(l.ListPrice || l.price) + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
+          '<td class="px-3 py-2 text-sm ' + (dom > 60 ? 'text-red-600 font-bold' : 'text-gray-600') + '">' + dom + '</td>' +
+          '<td class="px-3 py-2">' + flags + '</td>' +
+          '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
+            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(l.id || l.listing_id) + '\',\'_blank\')" title="Edit"><i class="fas fa-edit"></i></button>' +
+            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-view?id=' + E(l.id || l.listing_id) + '\',\'_blank\')" title="View"><i class="fas fa-eye"></i></button>' +
+          '</div></td>' +
+        '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+    }
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _switchMyListingsView(view) {
+    _myListingsView = view;
+    _myListingsQuickFilter = '';
+    _renderMyListings(_container());
+  }
+
+  function _quickFilterMyListings(filter) {
+    _myListingsQuickFilter = _myListingsQuickFilter === filter ? '' : filter;
+    _renderMyListings(_container());
   }
 
   // ─── My Clients ──────────────────────────────────────────────────────
@@ -7078,5 +7210,7 @@ var Panels = (function () {
     _toggleTask: _opsDashToggleTask,
     _launchSearch: _launchSearch,
     _clearSearchHistory: _clearSearchHistory,
+    _switchMyListingsView: _switchMyListingsView,
+    _quickFilterMyListings: _quickFilterMyListings,
   };
 })();
