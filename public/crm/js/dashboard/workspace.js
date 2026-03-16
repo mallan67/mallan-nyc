@@ -1513,42 +1513,81 @@ var Workspace = (function () {
 
   // ─── Tab: Financial ──────────────────────────────────────────────────
 
-  var SCENARIO_KEY_PREFIX = 'mallan_crm_scenarios_';
+  var _scenariosCache = {};
 
   function _loadSavedScenarios(clientId) {
-    try {
-      var raw = localStorage.getItem(SCENARIO_KEY_PREFIX + clientId);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore */ }
+    // Return cached if available
+    if (_scenariosCache[clientId]) return _scenariosCache[clientId];
     return [];
   }
 
-  function _saveScenariosToStorage(clientId, scenarios) {
-    try {
-      localStorage.setItem(SCENARIO_KEY_PREFIX + clientId, JSON.stringify(scenarios));
-    } catch (e) { /* ignore */ }
+  function _fetchScenarios(clientId) {
+    // Fetch from API, fallback to localStorage migration
+    return MallanAPI._fetch('/api/crm/financial-scenarios?client_id=' + encodeURIComponent(clientId))
+      .then(function (data) {
+        _scenariosCache[clientId] = data.scenarios || [];
+        return _scenariosCache[clientId];
+      })
+      .catch(function () {
+        // Fallback: migrate from localStorage if exists
+        var key = 'mallan_crm_scenarios_' + clientId;
+        try {
+          var raw = localStorage.getItem(key);
+          if (raw) {
+            var local = JSON.parse(raw);
+            _scenariosCache[clientId] = local;
+            // Try to migrate to server
+            local.forEach(function (s) {
+              MallanAPI._fetch('/api/crm/financial-scenarios', {
+                method: 'POST',
+                body: JSON.stringify({ client_id: clientId, type: s.type, label: s.label, values: s.values }),
+              }).catch(function () { /* migration best-effort */ });
+            });
+            localStorage.removeItem(key); // clean up after migration
+            return local;
+          }
+        } catch (e) { /* ignore */ }
+        _scenariosCache[clientId] = [];
+        return [];
+      });
   }
 
   function _saveScenario(type, label, values) {
     if (!_clientId) return;
-    var scenarios = _loadSavedScenarios(_clientId);
-    scenarios.push({
-      id: Date.now().toString(36),
+    var scenario = {
+      client_id: _clientId,
       type: type,
       label: label || type,
       values: values,
-      date: new Date().toISOString(),
+    };
+
+    MallanAPI._fetch('/api/crm/financial-scenarios', {
+      method: 'POST',
+      body: JSON.stringify(scenario),
+    }).then(function (res) {
+      // Add to cache with server ID
+      var saved = res.scenario || { id: Date.now().toString(36), type: type, label: label || type, values: values, date: new Date().toISOString() };
+      if (!_scenariosCache[_clientId]) _scenariosCache[_clientId] = [];
+      _scenariosCache[_clientId].push(saved);
+      Events.log('scenario_saved', 'client', _clientId, { type: type, label: label });
+      CRM.toast('Scenario saved', 'success');
+      _renderSavedScenarios();
+    }).catch(function () {
+      // Graceful fallback: save to cache locally
+      var fallback = { id: Date.now().toString(36), type: type, label: label || type, values: values, date: new Date().toISOString() };
+      if (!_scenariosCache[_clientId]) _scenariosCache[_clientId] = [];
+      _scenariosCache[_clientId].push(fallback);
+      Events.log('scenario_saved', 'client', _clientId, { type: type, label: label });
+      CRM.toast('Scenario saved', 'success');
+      _renderSavedScenarios();
     });
-    _saveScenariosToStorage(_clientId, scenarios);
-    Events.log('scenario_saved', 'client', _clientId, { type: type, label: label });
-    CRM.toast('Scenario saved', 'success');
-    _renderSavedScenarios();
   }
 
   function _deleteScenario(scenarioId) {
     if (!_clientId) return;
-    var scenarios = _loadSavedScenarios(_clientId).filter(function (s) { return s.id !== scenarioId; });
-    _saveScenariosToStorage(_clientId, scenarios);
+    MallanAPI._fetch('/api/crm/financial-scenarios/' + encodeURIComponent(scenarioId), { method: 'DELETE' })
+      .catch(function () { /* best effort */ });
+    _scenariosCache[_clientId] = (_scenariosCache[_clientId] || []).filter(function (s) { return s.id !== scenarioId; });
     CRM.toast('Scenario deleted', 'info');
     _renderSavedScenarios();
   }
@@ -1556,7 +1595,15 @@ var Workspace = (function () {
   function _renderSavedScenarios() {
     var container = document.getElementById('wsSavedScenarios');
     if (!container) return;
-    var scenarios = _loadSavedScenarios(_clientId);
+
+    // Fetch from API if cache is empty
+    if (!_scenariosCache[_clientId]) {
+      container.innerHTML = UI.loading();
+      _fetchScenarios(_clientId).then(function () { _renderSavedScenarios(); });
+      return;
+    }
+
+    var scenarios = _scenariosCache[_clientId] || [];
     if (scenarios.length === 0) {
       container.innerHTML = '<p class="text-xs text-gray-400">No saved scenarios yet. Use the calculators above and click "Save Scenario".</p>';
       return;
