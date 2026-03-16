@@ -2,15 +2,12 @@
 // Returns comparable listings in the same building + neighborhood
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isAuthError } from "@/lib/auth";
+import { requirePortalRole, isAuthError } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "buyer", "seller");
   if (isAuthError(auth)) return auth;
-  if (auth.userType !== "lead") {
-    return NextResponse.json({ error: "Portal access required" }, { status: 403 });
-  }
 
   const listingId = req.nextUrl.searchParams.get("listingId");
   if (!listingId) {

@@ -3,21 +3,14 @@
 // This creates a "listing_request" action that the agent sees in CRM.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "buyer", "renter");
   if (isAuthError(auth)) return auth;
-
-  if (auth.userType !== "lead") {
-    return NextResponse.json(
-      { error: "Portal access requires a client account" },
-      { status: 403 }
-    );
-  }
 
   let body: Record<string, unknown>;
   try {

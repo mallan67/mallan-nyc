@@ -2,15 +2,12 @@
 // GET: Read attorney info. PUT: Update attorney info.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "buyer", "seller");
   if (isAuthError(auth)) return auth;
-  if (auth.userType !== "lead") {
-    return NextResponse.json({ error: "Portal access required" }, { status: 403 });
-  }
 
   const lead = await prisma.lead.findUnique({
     where: { id: auth.userId },
@@ -35,11 +32,8 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "buyer", "seller");
   if (isAuthError(auth)) return auth;
-  if (auth.userType !== "lead") {
-    return NextResponse.json({ error: "Portal access required" }, { status: 403 });
-  }
 
   const body = await req.json();
   const { name, email, phone, firm } = body;

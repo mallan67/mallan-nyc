@@ -2,7 +2,7 @@
 // Threaded comments on listings. Portal clients + family members.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 
@@ -13,15 +13,8 @@ type RouteParams = { params: Promise<{ id: string }> };
  * (client + family members who share access).
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "buyer", "renter", "seller", "landlord");
   if (isAuthError(auth)) return auth;
-
-  if (auth.userType !== "lead") {
-    return NextResponse.json(
-      { error: "Portal access requires a client account" },
-      { status: 403 }
-    );
-  }
 
   const { id } = await params;
   const listingId = safeBigInt(id);
@@ -82,15 +75,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 export async function POST(req: NextRequest, { params }: RouteParams) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "buyer", "renter", "seller", "landlord");
   if (isAuthError(auth)) return auth;
-
-  if (auth.userType !== "lead") {
-    return NextResponse.json(
-      { error: "Portal access requires a client account" },
-      { status: 403 }
-    );
-  }
 
   const { id } = await params;
   const listingId = safeBigInt(id);

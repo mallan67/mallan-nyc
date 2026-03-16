@@ -1,25 +1,23 @@
 /**
- * GET /api/portal/offer-status?email=...
+ * GET /api/portal/offer-status
  *
- * Returns inquiry/offer statuses for a client email.
+ * Returns inquiry/offer statuses for the authenticated client.
  * Shows what listings they've inquired about and the current status.
  * Used by the client-facing offer tracker page.
  *
- * No auth required — uses email lookup (same as favorites sync).
  * Only returns non-PII status data (no agent names, no internal notes).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requirePortalRole, isAuthError } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const email = req.nextUrl.searchParams.get('email');
-  if (!email || !email.includes('@')) {
-    return NextResponse.json({ error: 'Valid email required' }, { status: 400 });
-  }
+  const auth = await requirePortalRole(req, "buyer", "seller");
+  if (isAuthError(auth)) return auth;
 
-  // Find lead by email
+  // Find lead by authenticated user ID
   const lead = await prisma.lead.findUnique({
-    where: { email: email.toLowerCase() },
+    where: { id: auth.userId },
     select: {
       id: true,
       first_name: true,

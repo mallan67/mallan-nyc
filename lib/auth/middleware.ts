@@ -82,6 +82,42 @@ export async function requireAgentOrBroker(
 }
 
 /**
+ * Require a lead (client portal user) with a specific portal role.
+ * Enforces: buyer cannot access seller data, landlord cannot access renter data, etc.
+ * Also allows agents/brokers (they have full access).
+ */
+export async function requirePortalRole(
+  req: NextRequest,
+  ...allowedPortalRoles: string[]
+): Promise<SessionUser | NextResponse> {
+  const result = await requireAuth(req);
+  if (result instanceof NextResponse) return result;
+
+  // Agents and brokers bypass portal role checks (full CRM access)
+  if (result.userType === "agent") return result;
+
+  // For leads, enforce portal role
+  const lead = await prisma.lead.findUnique({
+    where: { id: result.userId },
+    select: { portal_role: true },
+  });
+
+  const portalRole = lead?.portal_role || result.role;
+  // Normalize tenant → renter
+  const normalized = portalRole === "tenant" ? "renter" : portalRole;
+  const allowed = allowedPortalRoles.map(r => r === "tenant" ? "renter" : r);
+
+  if (!allowed.includes(normalized)) {
+    return NextResponse.json(
+      { error: "Access denied for this portal role" },
+      { status: 403 }
+    );
+  }
+
+  return result;
+}
+
+/**
  * Helper: check if result is a NextResponse (error) vs SessionUser (success).
  */
 export function isAuthError(

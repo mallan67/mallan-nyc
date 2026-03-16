@@ -1,14 +1,11 @@
 // /api/portal/price-history — Price change history for seller's listing
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isAuthError } from "@/lib/auth";
+import { requirePortalRole, isAuthError } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req);
+  const auth = await requirePortalRole(req, "seller", "landlord");
   if (isAuthError(auth)) return auth;
-  if (auth.userType !== "lead") {
-    return NextResponse.json({ error: "Portal access required" }, { status: 403 });
-  }
 
   const listingId = req.nextUrl.searchParams.get("listingId");
   if (!listingId) {
