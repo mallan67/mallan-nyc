@@ -216,7 +216,8 @@ var Store = (function () {
   }
 
   function isBroker() {
-    if (session.currentRole === 'broker' || session.currentRole === 'admin') return true;
+    var r = (session.currentRole || '').toUpperCase();
+    if (r === 'BROKER' || r === 'ADMIN') return true;
     return false;
   }
 
