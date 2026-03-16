@@ -14,7 +14,8 @@ var CRM = (function () {
   // ─── Init ────────────────────────────────────────────────────────────
   function init() {
     var origin = window.location.origin;
-    if (origin.indexOf('mallan.nyc') === -1) {
+    var isLocal = origin.indexOf('localhost') !== -1 || origin.indexOf('127.0.0.1') !== -1;
+    if (isLocal) {
       MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
     }
 

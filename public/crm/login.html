@@ -303,7 +303,8 @@
 
         // ── Configure API base URL ──
         var currentOrigin = window.location.origin;
-        if (currentOrigin.indexOf('mallan.nyc') === -1) {
+        var isLocal = currentOrigin.indexOf('localhost') !== -1 || currentOrigin.indexOf('127.0.0.1') !== -1;
+        if (isLocal) {
             MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
         }
 
