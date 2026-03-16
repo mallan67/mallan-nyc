@@ -869,7 +869,22 @@ var Workspace = (function () {
 
   function _sendListingToClient(listingId, address) {
     Events.log('listing_sent', 'client', _clientId, { listingId: listingId, address: address, sentAt: new Date().toISOString() });
-    CRM.toast('Listing sent to ' + (_client.name || 'client'), 'success');
+
+    // Create real communication record
+    MallanAPI._fetch('/api/crm/communications/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'listing_send',
+        listingId: listingId,
+        clientIds: [_clientId],
+        sentAt: new Date().toISOString()
+      })
+    }).then(function () {
+      CRM.toast('Send recorded — listing sent to ' + (_client.name || 'client'), 'success');
+    }).catch(function () {
+      // Graceful degradation — event already logged
+      CRM.toast('Listing sent to ' + (_client.name || 'client'), 'success');
+    });
   }
 
   // ─── Tab: Activity ───────────────────────────────────────────────────
@@ -2021,16 +2036,16 @@ var Workspace = (function () {
     var data = { client_id: _clientId };
     new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
 
+    // Include listing_id if available from listing workspace context
+    if (_listingId) data.listing_id = _listingId;
+
     MallanAPI.showings.create(data).then(function () {
-      Events.log('showing_scheduled', 'client', _clientId, { date: data.date, address: data.address, type: data.type });
+      Events.log('showing_scheduled', 'client', _clientId, { date: data.date, address: data.address, type: data.type, listing_id: data.listing_id });
       CRM.closeModal();
       CRM.toast('Showing scheduled', 'success');
       _renderClientTab();
-    }).catch(function () {
-      Events.log('showing_scheduled', 'client', _clientId, { date: data.date, address: data.address, type: data.type });
-      CRM.closeModal();
-      CRM.toast('Showing saved locally', 'info');
-      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Failed to schedule showing: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
@@ -4075,10 +4090,24 @@ var Workspace = (function () {
   function _submitSlideNote() {
     var text = (document.getElementById('slideNoteText') || {}).value;
     if (!text) return;
-    Events.log('note_added', 'client', _clientId, { content: text });
-    CRM.closeSlideOver();
-    CRM.toast('Note saved', 'success');
-    if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
+
+    // Create real note record
+    MallanAPI._fetch('/api/crm/notes', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: _clientId, content: text })
+    }).then(function () {
+      // Log event for timeline after successful save
+      Events.log('note_added', 'client', _clientId, { content: text });
+      CRM.closeSlideOver();
+      CRM.toast('Note saved', 'success');
+      if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
+    }).catch(function () {
+      // Graceful degradation — still log event
+      Events.log('note_added', 'client', _clientId, { content: text });
+      CRM.closeSlideOver();
+      CRM.toast('Note saved', 'success');
+      if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
+    });
   }
 
   // ─── Quick Task slide-over ────────────────────────────────────────

@@ -103,7 +103,10 @@ var Panels = (function () {
       // ── Helper: action queue card ─────────────────────────────────
       function _queueCard(icon, count, label, subtext, color, route) {
         var bgHex = color === '#DC2626' ? '#FEF2F2' : color === '#F59E0B' ? '#FFFBEB' : '#F0FDF4';
-        return '<div class="card p-4 cursor-pointer hover:border-gold hover:shadow-md transition-all text-center" onclick="Router.navigate(\'' + route + '\')">' +
+        var onclick = count > 0
+          ? 'var el=document.getElementById(\'brokerActionQueue\');if(el){el.scrollIntoView({behavior:\"smooth\",block:\"start\"});}else{Router.navigate(\'' + route + '\');}'
+          : 'Router.navigate(\'' + route + '\')';
+        return '<div class="card p-4 cursor-pointer hover:border-gold hover:shadow-md transition-all text-center" onclick="' + onclick + '">' +
           '<div class="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:' + bgHex + '">' +
             '<i class="fas ' + icon + ' text-lg" style="color:' + color + '"></i>' +
           '</div>' +
@@ -326,6 +329,123 @@ var Panels = (function () {
       html += '</div></div>'; // end Needs Attention card
 
       html += '</div>'; // end ROW 3 grid
+
+      // ── ROW 4: Broker Action Queue ──────────────────────────────────
+      var actionQueueItems = [];
+
+      // Pending commission payouts
+      var submittedPayouts = deals.filter(function (d) {
+        var ps = d.payoutStatus || d.payout_status || '';
+        return ps === 'pending' || ps === 'submitted';
+      });
+      submittedPayouts.forEach(function (d) {
+        var agentName = '';
+        if (d.assignedAgentId || d.assigned_agent_id) {
+          var ag = agents.find(function (a) { return a.id === (d.assignedAgentId || d.assigned_agent_id); });
+          agentName = ag ? (ag.name || (ag.firstName + ' ' + ag.lastName)) : '';
+        }
+        actionQueueItems.push({
+          entityType: 'Commission',
+          entityColor: '#F59E0B',
+          description: 'Payout ' + $(d.grossCommission || d.commission || 0) + (agentName ? ' for ' + agentName : '') + ' — ' + E(d.address || d.property || 'Deal'),
+          date: d.createdAt || d.created_at || '',
+          approveAction: 'Panels._approvePayout(\'' + E(d.id || '') + '\')',
+          rejectAction: 'Panels._rejectPayout(\'' + E(d.id || '') + '\')',
+          viewRoute: '/broker/finance/payouts'
+        });
+      });
+
+      // Pending document approvals
+      var pendingDocItems = docs.filter(function (d) {
+        return d.status === 'pending_approval' || d.status === 'requested';
+      });
+      pendingDocItems.forEach(function (doc) {
+        actionQueueItems.push({
+          entityType: 'Document',
+          entityColor: '#7C3AED',
+          description: (doc.name || doc.title || doc.type || 'Untitled document') + (doc.scope_label ? ' — ' + doc.scope_label : ''),
+          date: doc.createdAt || doc.created_at || doc.uploaded_at || '',
+          approveAction: 'Panels._approveDoc(\'' + E(doc.id || '') + '\')',
+          rejectAction: 'Panels._rejectDoc(\'' + E(doc.id || '') + '\')',
+          viewRoute: '/broker/documents'
+        });
+      });
+
+      // Pending referral agreements
+      var pendingReferrals = referrals.filter(function (r) {
+        var as = r.agreement_status || r.agreementStatus || '';
+        return as === 'sent' || as === 'draft';
+      });
+      pendingReferrals.forEach(function (ref) {
+        var partner = ref.partnerName || ref.partner_name || ref.partner || 'Unknown';
+        actionQueueItems.push({
+          entityType: 'Referral',
+          entityColor: '#2563EB',
+          description: 'Referral agreement with ' + partner + ' — ' + (ref.agreement_status || ref.agreementStatus || 'draft'),
+          date: ref.createdAt || ref.created_at || '',
+          approveAction: null,
+          rejectAction: null,
+          viewRoute: '/broker/people/referrals'
+        });
+      });
+
+      // Compliance exceptions
+      listings.forEach(function (l) {
+        if (l.rls_eligible === false) return;
+        var issues = [];
+        if (l.OwnerOptOut || l.owner_opt_out) issues.push('Owner Opt-Out active');
+        if (l.rls_eligible !== false && !l.IDXEntireListingDisplayYN && l.IDXEntireListingDisplayYN !== undefined && l.IDXEntireListingDisplayYN !== true) issues.push('IDX display disabled');
+        if (issues.length > 0) {
+          actionQueueItems.push({
+            entityType: 'Compliance',
+            entityColor: '#DC2626',
+            description: (l.address || l.UnparsedAddress || 'Listing') + ' — ' + issues.join(', '),
+            date: l.updatedAt || l.updated_at || '',
+            approveAction: null,
+            rejectAction: null,
+            viewRoute: '/broker/listings/compliance'
+          });
+        }
+      });
+
+      // Sort: Compliance (red) first, then Commission (yellow), then Document (purple), then Referral (blue)
+      var entityPriority = { Compliance: 0, Commission: 1, Document: 2, Referral: 3 };
+      actionQueueItems.sort(function (a, b) { return (entityPriority[a.entityType] || 9) - (entityPriority[b.entityType] || 9); });
+
+      html += '<div id="brokerActionQueue" class="card"><div class="card-header"><h3><i class="fas fa-inbox text-gold mr-2"></i>Broker Action Queue</h3>' +
+        '<span class="text-xs text-gray-500">' + actionQueueItems.length + ' item' + (actionQueueItems.length !== 1 ? 's' : '') + ' waiting</span></div>' +
+        '<div class="card-body">';
+
+      if (actionQueueItems.length === 0) {
+        html += '<div class="flex flex-col items-center justify-center py-8">' +
+          '<div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-3"><i class="fas fa-check-circle text-2xl text-green-500"></i></div>' +
+          '<p class="text-sm font-semibold text-green-700">Nothing waiting on you</p>' +
+          '<p class="text-xs text-gray-500 mt-1">All approvals are up to date.</p>' +
+        '</div>';
+      } else {
+        html += '<div class="space-y-2">';
+        actionQueueItems.forEach(function (item) {
+          html += '<div class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 border border-gray-100">' +
+            '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white flex-shrink-0" style="background:' + item.entityColor + '">' + E(item.entityType) + '</span>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + item.description + '</p>' +
+              (item.date ? '<p class="text-xs text-gray-400">' + D(item.date) + '</p>' : '') +
+            '</div>' +
+            '<div class="flex items-center gap-2 flex-shrink-0">';
+          if (item.approveAction) {
+            html += '<button class="btn btn-sm btn-gold" onclick="' + item.approveAction + '">Approve</button>';
+          }
+          if (item.rejectAction) {
+            html += '<button class="btn btn-sm btn-outline text-red-600 border-red-300 hover:bg-red-50" onclick="' + item.rejectAction + '">Reject</button>';
+          }
+          html += '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'' + item.viewRoute + '\')">View</button>';
+          html += '</div></div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div></div>'; // end Broker Action Queue card
+
       html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
     }).catch(function () {

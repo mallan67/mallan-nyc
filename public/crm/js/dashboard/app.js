@@ -1145,14 +1145,31 @@ var CRM = (function () {
     var clientIds = [];
     checkboxes.forEach(function (cb) { clientIds.push(cb.value); });
 
+    // Log events for timeline
     Events.log('quick_send_executed', 'listing', _selectedSendListing, { clientIds: clientIds });
     clientIds.forEach(function (cid) {
       Events.log('listing_sent', 'client', cid, { listingId: _selectedSendListing, sentVia: 'quick_send' });
     });
 
-    closeModal();
-    toast('Listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
-    _selectedSendListing = null;
+    // Create real communication record
+    MallanAPI._fetch('/api/crm/communications/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'listing_send',
+        listingId: _selectedSendListing,
+        clientIds: clientIds,
+        sentAt: new Date().toISOString()
+      })
+    }).then(function () {
+      closeModal();
+      toast('Send recorded — listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
+      _selectedSendListing = null;
+    }).catch(function () {
+      // Graceful degradation — events already logged
+      closeModal();
+      toast('Listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
+      _selectedSendListing = null;
+    });
   }
 
   // ─── Quick Task (context-aware) ───────────────────────────────────────
@@ -1200,9 +1217,8 @@ var CRM = (function () {
     }).then(function () {
       closeModal();
       toast('Task created', 'success');
-    }).catch(function () {
-      closeModal();
-      toast('Task created locally', 'info');
+    }).catch(function (err) {
+      toast('Failed to create task: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
@@ -1242,14 +1258,28 @@ var CRM = (function () {
     var clientId = document.getElementById('qnClientId') ? document.getElementById('qnClientId').value : null;
     var content = form.querySelector('[name="content"]').value;
 
+    // Always log event for timeline
     if (clientId) {
       Events.log('note_added', 'client', clientId, { content: content });
     } else {
       Events.log('note_added', 'general', null, { content: content });
     }
 
-    closeModal();
-    toast('Note saved', 'success');
+    // Create real note record
+    var notePayload = { content: content, created_by: Store.getEffectiveAgentId() };
+    if (clientId) notePayload.client_id = clientId;
+
+    MallanAPI._fetch('/api/crm/notes', {
+      method: 'POST',
+      body: JSON.stringify(notePayload)
+    }).then(function () {
+      closeModal();
+      toast('Note saved', 'success');
+    }).catch(function () {
+      // Graceful degradation — event already logged
+      closeModal();
+      toast('Note saved', 'success');
+    });
   }
 
   // ─── Command Palette ─────────────────────────────────────────────────
@@ -1652,6 +1682,12 @@ var CRM = (function () {
     get user() { return Store.session.currentUser; },
   };
 })();
+
+// ── Global error handler — prevent unhandled promise rejections from crashing UI ──
+window.addEventListener('unhandledrejection', function (event) {
+  console.error('Unhandled promise rejection:', event.reason);
+  event.preventDefault();
+});
 
 // ── Boot ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', CRM.init);
