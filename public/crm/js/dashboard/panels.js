@@ -6267,16 +6267,151 @@ var Panels = (function () {
   function propertySearch() {
     CRM.setPanelTitle('Property Search');
     var c = _container();
-    c.innerHTML = '<div class="space-y-4">' +
-      UI.sectionHeader('Property Search', 'Opens IDX search in controlled window') +
-      '<div class="card p-8 text-center">' +
-        '<i class="fas fa-search text-4xl text-gold mb-4"></i>' +
-        '<p class="text-lg font-bold text-gray-900 mb-2">REBNY RLS Search</p>' +
-        '<p class="text-sm text-gray-500 mb-4">Search all RLS listings via your private IDX search</p>' +
-        '<button class="btn btn-gold" onclick="window.open(\'/crm/search\',\'_blank\')">' +
-          '<i class="fas fa-external-link-alt"></i> Open Search</button>' +
+
+    // Detect context
+    var ctx = CRM._getCurrentContext ? CRM._getCurrentContext() : { type: null, id: null };
+    var contextLabel = '';
+    var contextParams = '';
+    if (ctx.type === 'client' && ctx.id) {
+      contextLabel = 'Searching for client workspace context';
+      contextParams = '?clientContext=' + encodeURIComponent(ctx.id);
+    } else if (ctx.type === 'listing' && ctx.id) {
+      contextLabel = 'Compare mode from listing workspace';
+      contextParams = '?compareContext=' + encodeURIComponent(ctx.id);
+    }
+
+    // Load last searches from localStorage
+    var lastSearches = [];
+    try { lastSearches = JSON.parse(localStorage.getItem('mallan_crm_search_history') || '[]'); } catch (e) { /* */ }
+
+    // Load client-specific last searches
+    var clientSearches = [];
+    if (ctx.type === 'client' && ctx.id) {
+      try { clientSearches = JSON.parse(localStorage.getItem('mallan_crm_client_search_' + ctx.id) || '[]'); } catch (e) { /* */ }
+    }
+
+    var html = '<div class="space-y-4">';
+
+    // Context banner
+    if (ctx.type) {
+      var bannerColor = ctx.type === 'client' ? '#2563EB' : '#B8860B';
+      html += '<div class="card p-3 flex items-center gap-3" style="border-left:4px solid ' + bannerColor + '">' +
+        '<i class="fas ' + (ctx.type === 'client' ? 'fa-user' : 'fa-building') + '" style="color:' + bannerColor + '"></i>' +
+        '<div class="flex-1"><p class="text-sm font-medium">' + E(contextLabel) + '</p>' +
+          '<p class="text-xs text-gray-500">Results can be sent directly to this ' + E(ctx.type) + '</p></div>' +
+        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/workspace/' + E(ctx.type) + '/' + E(ctx.id) + '/overview\')"><i class="fas fa-arrow-left mr-1"></i> Back to Workspace</button>' +
+      '</div>';
+    }
+
+    // Launch card
+    html += '<div class="card p-6">' +
+      '<div class="flex items-center justify-between mb-4">' +
+        '<div>' +
+          '<h3 class="text-lg font-bold text-gray-900"><i class="fas fa-search text-gold mr-2"></i>REBNY RLS Property Search</h3>' +
+          '<p class="text-sm text-gray-500">Search all RLS listings via your private IDX search powered by Trestle/Cotality</p>' +
+        '</div>' +
+        '<div class="flex gap-2">' +
+          '<button class="btn btn-gold" onclick="Panels._launchSearch(\'' + E(contextParams) + '\')">' +
+            '<i class="fas fa-external-link-alt mr-1"></i> Open Search</button>' +
+        '</div>' +
+      '</div>' +
+      // Search features
+      '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
+        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-building text-blue-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">Full RLS Access</p></div>' +
+        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-map-marked-alt text-green-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">Map + List View</p></div>' +
+        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-calculator text-purple-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">6 Calculators</p></div>' +
+        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-subway text-orange-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">Transit Tool</p></div>' +
       '</div>' +
     '</div>';
+
+    // Recent searches
+    if (lastSearches.length > 0) {
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-history text-gray-400 mr-2"></i>Recent Searches</h3>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._clearSearchHistory()">Clear</button></div>' +
+        '<div class="card-body"><div class="space-y-2">';
+      lastSearches.slice(0, 8).forEach(function (s) {
+        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Panels._launchSearch(\'' + E(s.params || '') + '\')">' +
+          '<div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center"><i class="fas fa-search text-xs text-gray-400"></i></div>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-medium truncate">' + E(s.query || s.label || 'Search') + '</p>' +
+            '<p class="text-xs text-gray-500">' + E(s.filters || '') + ' · ' + Utils.formatTimeAgo(s.timestamp) + '</p>' +
+          '</div>' +
+          (s.clientName ? '<span class="text-xs text-blue-500"><i class="fas fa-user mr-1"></i>' + E(s.clientName) + '</span>' : '') +
+        '</div>';
+      });
+      html += '</div></div></div>';
+    }
+
+    // Client-specific searches
+    if (clientSearches.length > 0) {
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-user text-blue-500 mr-2"></i>Searches for This Client</h3></div>' +
+        '<div class="card-body"><div class="space-y-2">';
+      clientSearches.slice(0, 5).forEach(function (s) {
+        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Panels._launchSearch(\'' + E(s.params || '') + '\')">' +
+          '<div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><i class="fas fa-redo text-xs text-blue-400"></i></div>' +
+          '<div class="flex-1"><p class="text-sm">' + E(s.query || 'Search') + '</p>' +
+            '<p class="text-xs text-gray-500">' + Utils.formatTimeAgo(s.timestamp) + '</p></div>' +
+        '</div>';
+      });
+      html += '</div></div></div>';
+    }
+
+    // Return to CRM note
+    html += '<div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">' +
+      '<p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-1"></i> ' +
+        'The search window opens separately. Use the browser back button or close the tab to return to CRM. ' +
+        'All search launches are logged for activity tracking.</p></div>';
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _launchSearch(params) {
+    var url = '/crm/search' + (params || '');
+    var ctx = CRM._getCurrentContext ? CRM._getCurrentContext() : { type: null, id: null };
+
+    // Log the search launch as an event
+    Events.log('search_launched', ctx.type || 'general', ctx.id || null, {
+      url: url,
+      context: ctx.type || 'standalone',
+    });
+
+    // Save to search history
+    var history = [];
+    try { history = JSON.parse(localStorage.getItem('mallan_crm_search_history') || '[]'); } catch (e) { /* */ }
+    history.unshift({
+      params: params || '',
+      query: params ? decodeURIComponent(params).replace(/[?&]/g, ' ').trim() : 'General search',
+      label: ctx.type === 'client' ? 'Client context search' : ctx.type === 'listing' ? 'Listing compare search' : 'Property search',
+      filters: '',
+      clientName: ctx.type === 'client' ? (Store.getCached('currentClientName') || '') : '',
+      timestamp: new Date().toISOString(),
+    });
+    if (history.length > 20) history = history.slice(0, 20);
+    try { localStorage.setItem('mallan_crm_search_history', JSON.stringify(history)); } catch (e) { /* */ }
+
+    // Save client-specific search
+    if (ctx.type === 'client' && ctx.id) {
+      var clientHistory = [];
+      try { clientHistory = JSON.parse(localStorage.getItem('mallan_crm_client_search_' + ctx.id) || '[]'); } catch (e) { /* */ }
+      clientHistory.unshift({
+        params: params || '',
+        query: 'Search from workspace',
+        timestamp: new Date().toISOString(),
+      });
+      if (clientHistory.length > 10) clientHistory = clientHistory.slice(0, 10);
+      try { localStorage.setItem('mallan_crm_client_search_' + ctx.id, JSON.stringify(clientHistory)); } catch (e) { /* */ }
+    }
+
+    // Open in controlled window
+    window.open(url, 'mallan_search');
+    CRM.toast('Search opened — return here when done', 'info');
+  }
+
+  function _clearSearchHistory() {
+    try { localStorage.removeItem('mallan_crm_search_history'); } catch (e) { /* */ }
+    propertySearch(); // re-render
+    CRM.toast('Search history cleared', 'info');
   }
 
   // ─── My Listings ─────────────────────────────────────────────────────
@@ -6941,5 +7076,7 @@ var Panels = (function () {
     _setRenewalAlerts: _setRenewalAlerts,
     _saveRenewalAlerts: _saveRenewalAlerts,
     _toggleTask: _opsDashToggleTask,
+    _launchSearch: _launchSearch,
+    _clearSearchHistory: _clearSearchHistory,
   };
 })();
