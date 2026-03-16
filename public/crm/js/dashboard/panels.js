@@ -342,10 +342,12 @@ var Panels = (function () {
       MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
       MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
       MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
+      MallanAPI._fetch('/api/crm/referrals?limit=500').catch(function () { return { referrals: [] }; }),
     ]).then(function (r) {
       var agents = r[0].agents || [];
       var allListings = r[1].listings || [];
       var allDeals = r[2].deals || [];
+      var allReferrals = r[3].referrals || [];
 
       // Build per-agent stats
       agents.forEach(function (a) {
@@ -361,6 +363,9 @@ var Panels = (function () {
         a._ytdGCI = closedDeals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
         a._allListings = myListings;
         a._allDeals = myDeals;
+        a._referrals = allReferrals.filter(function (ref) {
+          return ref.our_agent_id === aid || ref.assigned_agent_id === aid;
+        });
       });
 
       var html = '<div class="space-y-4">';
@@ -417,10 +422,34 @@ var Panels = (function () {
         '</div>' +
         '<div class="flex items-center gap-3">' +
           '<span class="px-2 py-1 bg-' + roleColor + '-100 text-' + roleColor + '-700 rounded text-xs font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
-          '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">Closed Sales</p><p class="text-sm font-bold text-gray-900">' + a._closedSales.length + '</p></div>' +
-          '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">Closed Rentals</p><p class="text-sm font-bold text-gray-900">' + a._closedRentals.length + '</p></div>' +
-          '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">YTD GCI</p><p class="text-sm font-bold text-green-600">' + $(a._ytdGCI) + '</p></div>' +
-          '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Active</p><p class="text-sm font-bold text-blue-600">' + a._activeListings.length + '</p></div>' +
+          (function () {
+            var badges = '';
+            var licExp = a.license_expiry || a.licenseExpiry;
+            var licDays = licExp ? Utils.daysUntil(licExp) : null;
+            if (licDays !== null && licDays <= 90) badges += '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">License expiring</span>';
+            var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
+            if (ceHrs < 22.5) badges += '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">CE incomplete</span>';
+            var eoExp = a.eo_expiry || a.eoExpiry;
+            if (!eoExp || (new Date(eoExp) < new Date())) badges += '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">Missing E&amp;O</span>';
+            return badges;
+          })() +
+          (function () {
+            var licExp = a.license_expiry || a.licenseExpiry;
+            var licDays = licExp ? Utils.daysUntil(licExp) : null;
+            var licText = licExp ? D(licExp) : 'N/A';
+            var licColor = (licDays !== null && licDays <= 90) ? 'text-red-600' : 'text-gray-900';
+            var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
+            var ceColor = ceHrs < 22.5 ? 'text-red-600' : 'text-green-600';
+            var splitPct = a.sale_split || a.saleSplit || 0;
+            var splitDisplay = splitPct > 1 ? splitPct + '%' : (splitPct > 0 ? Math.round(splitPct * 100) + '%' : '-');
+            var activeDeals = (a._allDeals || []).filter(function (d) { return d.stage !== 'closed' && d.status !== 'closed'; }).length;
+            var refCount = (a._referrals || []).length;
+            return '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">License</p><p class="text-sm font-bold ' + licColor + '">' + licText + '</p></div>' +
+              '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">CE</p><p class="text-sm font-bold ' + ceColor + '">' + ceHrs + '/22.5 hrs</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Split</p><p class="text-sm font-bold text-gray-700">' + splitDisplay + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Active Deals</p><p class="text-sm font-bold text-blue-600">' + activeDeals + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Referrals</p><p class="text-sm font-bold text-purple-600">' + refCount + '</p></div>';
+          })() +
           '<i class="fas fa-chevron-down text-gray-400 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
         '</div>' +
       '</div>' +
@@ -441,6 +470,7 @@ var Panels = (function () {
             '<button onclick="Panels._agentTab(this,' + idx + ',\'listings\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold border-b-2 border-gold text-gold"><i class="fas fa-list mr-1"></i> Listings</button>' +
             '<button onclick="Panels._agentTab(this,' + idx + ',\'commissions\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700"><i class="fas fa-dollar-sign mr-1"></i> Commissions</button>' +
             '<button onclick="Panels._agentTab(this,' + idx + ',\'disclosures\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700"><i class="fas fa-file-signature mr-1"></i> Disclosures</button>' +
+            '<button onclick="Panels._agentTab(this,' + idx + ',\'referrals\')" class="agent-view-tab px-3 py-1.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-700"><i class="fas fa-exchange-alt mr-1"></i> Referrals</button>' +
           '</div>' +
           // Tab content
           '<div id="agentTabContent_' + idx + '">' + _agentListingsView(a, idx) + '</div>' +
@@ -614,6 +644,56 @@ var Panels = (function () {
     return html;
   }
 
+  function _agentReferralsView(a) {
+    var refs = a._referrals || [];
+    var aid = a.id;
+    var incoming = refs.filter(function (r) { return r.assigned_agent_id === aid; });
+    var outgoing = refs.filter(function (r) { return r.our_agent_id === aid && r.assigned_agent_id !== aid; });
+    var totalFee = refs.reduce(function (s, r) { return s + (r.fee_amount || r.feeAmount || 0); }, 0);
+
+    var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">' +
+      '<div class="bg-gray-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Total</p><p class="text-lg font-bold text-gray-800">' + refs.length + '</p></div>' +
+      '<div class="bg-green-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Incoming</p><p class="text-lg font-bold text-green-600">' + incoming.length + '</p></div>' +
+      '<div class="bg-blue-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Outgoing</p><p class="text-lg font-bold text-blue-600">' + outgoing.length + '</p></div>' +
+      '<div class="bg-purple-50 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Net Fee</p><p class="text-lg font-bold text-purple-600">' + $(totalFee) + '</p></div>' +
+    '</div>';
+
+    if (refs.length === 0) {
+      html += '<p class="text-sm text-gray-400 text-center py-4">No referrals for this agent.</p>';
+    } else {
+      html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Date</th>' +
+        '<th class="text-left px-3 py-2">Partner</th>' +
+        '<th class="text-left px-3 py-2">Direction</th>' +
+        '<th class="text-left px-3 py-2">Client</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-right px-3 py-2">Fee %</th>' +
+        '<th class="text-right px-3 py-2">Fee Amount</th>' +
+        '<th class="text-left px-3 py-2">Status</th>' +
+      '</tr></thead><tbody>';
+      refs.forEach(function (r) {
+        var isIncoming = r.assigned_agent_id === aid;
+        var dirBadge = isIncoming
+          ? '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">Incoming</span>'
+          : '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Outgoing</span>';
+        html += '<tr class="border-b hover:bg-gray-50">' +
+          '<td class="px-3 py-2 text-xs">' + D(r.created_at || r.createdAt || r.date) + '</td>' +
+          '<td class="px-3 py-2 text-sm">' + E(r.partner_name || r.partnerName || r.partner_brokerage || '-') + '</td>' +
+          '<td class="px-3 py-2">' + dirBadge + '</td>' +
+          '<td class="px-3 py-2 text-sm">' + E(r.client_name || r.clientName || '-') + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(r.referral_type || r.type || '-') + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + (r.fee_percent || r.feePercent || '-') + (r.fee_percent || r.feePercent ? '%' : '') + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right font-bold">' + $(r.fee_amount || r.feeAmount || 0) + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(r.status || 'pending') + '</td>' +
+        '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += '<div class="mt-3"><button class="btn btn-sm btn-gold" onclick="Router.navigate(\'/broker/leads/referrals\')"><i class="fas fa-plus mr-1"></i> Add Referral</button></div>';
+    return html;
+  }
+
   function _toggleAgentCard(idx) {
     var panel = document.getElementById('agentPanel_' + idx);
     var chevron = document.getElementById('agentChevron_' + idx);
@@ -641,6 +721,7 @@ var Panels = (function () {
       case 'listings': container.innerHTML = _agentListingsView(a, idx); break;
       case 'commissions': container.innerHTML = _agentCommissionsView(a); break;
       case 'disclosures': container.innerHTML = _agentDisclosuresView(a); break;
+      case 'referrals': container.innerHTML = _agentReferralsView(a); break;
     }
   }
 
@@ -1129,19 +1210,54 @@ var Panels = (function () {
     Promise.all([
       MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }),
       MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI.deals.list({ limit: 500 }).catch(function () { return { deals: [] }; }),
+      MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
     ]).then(function (r) {
       _cabClients = r[0].clients || [];
       var agents = r[1].agents || [];
+      var allDeals = r[2].deals || [];
+      var allTasks = r[3].tasks || [];
 
       // Build agent lookup map (id → name)
       _cabAgentMap = {};
       agents.forEach(function (a) { _cabAgentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
 
-      // Resolve agent names on clients
+      var now = new Date();
+
+      // Resolve agent names + operational data on clients
       _cabClients.forEach(function (cl) {
         var aid = cl.assignedAgentId || cl.assigned_agent_id;
         cl._agentName = cl.agent_name || (aid ? (_cabAgentMap[aid] || aid) : 'Unassigned');
         cl._agentId = aid || null;
+
+        // Deal count
+        var cid = cl.id;
+        var clientDeals = allDeals.filter(function (d) { return d.client_id === cid || d.clientId === cid; });
+        cl._dealCount = clientDeals.length;
+
+        // Last activity: most recent of client updated_at, deal updated_at, task updated_at
+        var dates = [];
+        var clUpdated = cl.updated_at || cl.updatedAt;
+        if (clUpdated) dates.push(new Date(clUpdated));
+        clientDeals.forEach(function (d) {
+          var du = d.updated_at || d.updatedAt;
+          if (du) dates.push(new Date(du));
+        });
+        var clientTasks = allTasks.filter(function (t) { return t.client_id === cid || t.clientId === cid; });
+        clientTasks.forEach(function (t) {
+          var tu = t.updated_at || t.updatedAt;
+          if (tu) dates.push(new Date(tu));
+        });
+        if (dates.length > 0) {
+          dates.sort(function (a, b) { return b - a; });
+          cl._lastActivity = dates[0];
+        } else {
+          cl._lastActivity = null;
+        }
+
+        var daysSince = cl._lastActivity ? (now - cl._lastActivity) / (1000 * 60 * 60 * 24) : Infinity;
+        cl._isHot = daysSince <= 7;
+        cl._isInactive = daysSince >= 30;
       });
 
       // Get unique values for filter dropdowns
@@ -1195,6 +1311,11 @@ var Panels = (function () {
         '<option value="Walk-in">Walk-in</option>' +
         '<option value="Social Media">Social Media</option>' +
         '<option value="Other">Other</option>' +
+      '</select>' +
+      '<select id="cabTagFilter" class="form-input form-select text-sm" style="width:auto;min-width:110px" onchange="Panels._filterCAB()">' +
+        '<option value="">All Tags</option>' +
+        '<option value="hot">Hot</option>' +
+        '<option value="inactive">Inactive</option>' +
       '</select></div>';
 
     // Table
@@ -1223,13 +1344,20 @@ var Panels = (function () {
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'source\')">Source <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'stage\')">Stage <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'agent\')">Assigned Agent <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-center px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'deals\')">Deals <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
+      '<th class="text-left px-3 py-2 text-xs cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'tags\')">Tags <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs hidden sm:table-cell">Phone</th>' +
       '<th class="text-left px-3 py-2 text-xs hidden md:table-cell cursor-pointer hover:bg-gray-100" onclick="Panels._sortCAB(\'updated\')">Updated <i class="fas fa-sort text-gray-300 ml-1"></i></th>' +
       '<th class="text-left px-3 py-2 text-xs">Actions</th>' +
     '</tr></thead><tbody>' +
-    (clients.length === 0 ? '<tr><td colspan="8" class="text-center py-8 text-gray-400 text-sm">No clients match filters</td></tr>' :
+    (clients.length === 0 ? '<tr><td colspan="10" class="text-center py-8 text-gray-400 text-sm">No clients match filters</td></tr>' :
       clients.map(function (cl) {
         var src = cl.source || cl.lead_source || '';
+        var dealCountHtml = '<span class="cursor-pointer text-sm font-semibold ' + (cl._dealCount > 0 ? 'text-blue-600 hover:underline' : 'text-gray-400') + '"' +
+          (cl._dealCount > 0 ? ' onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/deals\')"' : '') + '>' + (cl._dealCount || 0) + '</span>';
+        var tagHtml = '';
+        if (cl._isHot) tagHtml += '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">Hot</span>';
+        if (cl._isInactive) tagHtml += '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px] font-bold">Inactive</span>';
         return '<tr class="border-b hover:bg-gray-50">' +
           '<td class="px-3 py-2"><div class="flex items-center gap-2 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
             UI.avatar(cl.name || cl.email, 28) +
@@ -1239,6 +1367,8 @@ var Panels = (function () {
           '<td class="px-3 py-2">' + _sourceWithRefBadge(src) + '</td>' +
           '<td class="px-3 py-2">' + UI.stageBadge(cl.stage || cl.status) + '</td>' +
           '<td class="px-3 py-2"><span class="text-sm ' + (cl._agentName === 'Unassigned' ? 'text-red-500 font-semibold' : 'text-gray-700') + '">' + E(cl._agentName) + '</span></td>' +
+          '<td class="px-3 py-2 text-center">' + dealCountHtml + '</td>' +
+          '<td class="px-3 py-2"><div class="flex gap-1">' + tagHtml + '</div></td>' +
           '<td class="px-3 py-2 text-sm text-gray-600 hidden sm:table-cell">' + E(cl.phone || '-') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</td>' +
           '<td class="px-3 py-2"><div class="flex gap-1">' +
@@ -1259,6 +1389,7 @@ var Panels = (function () {
     var stageF = (document.getElementById('cabStageFilter') || {}).value || '';
     var agentF = (document.getElementById('cabAgentFilter') || {}).value || '';
     var sourceF = (document.getElementById('cabSourceFilter') || {}).value || '';
+    var tagF = (document.getElementById('cabTagFilter') || {}).value || '';
 
     var filtered = _cabClients.filter(function (cl) {
       if (search) {
@@ -1270,6 +1401,8 @@ var Panels = (function () {
       if (agentF === 'unassigned' && cl._agentId) return false;
       if (agentF && agentF !== 'unassigned' && cl._agentId !== agentF) return false;
       if (sourceF && (cl.source || cl.lead_source || '') !== sourceF) return false;
+      if (tagF === 'hot' && !cl._isHot) return false;
+      if (tagF === 'inactive' && !cl._isInactive) return false;
       return true;
     });
 
@@ -1290,6 +1423,8 @@ var Panels = (function () {
         case 'source': va = (a.source || a.lead_source || ''); vb = (b.source || b.lead_source || ''); break;
         case 'stage': va = (a.stage || a.status || ''); vb = (b.stage || b.status || ''); break;
         case 'agent': va = (a._agentName || '').toLowerCase(); vb = (b._agentName || '').toLowerCase(); break;
+        case 'deals': va = a._dealCount || 0; vb = b._dealCount || 0; break;
+        case 'tags': va = a._isHot ? 2 : (a._isInactive ? 0 : 1); vb = b._isHot ? 2 : (b._isInactive ? 0 : 1); break;
         case 'updated': va = a.updated_at || a.updatedAt || ''; vb = b.updated_at || b.updatedAt || ''; break;
         default: va = ''; vb = '';
       }
@@ -4135,6 +4270,7 @@ var Panels = (function () {
     _sortCAB: _sortCAB,
     _reassignClient: _reassignClient,
     _doReassign: _doReassign,
+    _agentReferralsView: _agentReferralsView,
     _filterRosterListings: _filterRosterListings,
     _filterReferralYear: _filterReferralYear,
     _open1099Preview: _open1099Preview,
