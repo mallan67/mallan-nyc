@@ -1182,13 +1182,7 @@ var CRM = (function () {
     var clientIds = [];
     checkboxes.forEach(function (cb) { clientIds.push(cb.value); });
 
-    // Log events for timeline
-    Events.log('quick_send_executed', 'listing', _selectedSendListing, { clientIds: clientIds });
-    clientIds.forEach(function (cid) {
-      Events.log('listing_sent', 'client', cid, { listingId: _selectedSendListing, sentVia: 'quick_send' });
-    });
-
-    // Create real communication record
+    // Step 1: Create canonical send record FIRST
     MallanAPI._fetch('/api/crm/communications/send', {
       method: 'POST',
       body: JSON.stringify({
@@ -1198,14 +1192,18 @@ var CRM = (function () {
         sentAt: new Date().toISOString()
       })
     }).then(function () {
+      // Step 2: Only log timeline events AFTER persistence succeeds
+      Events.log('quick_send_executed', 'listing', _selectedSendListing, { clientIds: clientIds });
+      clientIds.forEach(function (cid) {
+        Events.log('listing_sent', 'client', cid, { listingId: _selectedSendListing, sentVia: 'quick_send' });
+      });
       closeModal();
       toast('Send recorded — listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
       _selectedSendListing = null;
-    }).catch(function () {
-      // Graceful degradation — events already logged
-      closeModal();
-      toast('Listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
-      _selectedSendListing = null;
+    }).catch(function (err) {
+      // Step 3: Show real failure — do NOT mask as success
+      toast('Failed to save send record: ' + (err.message || 'Please try again'), 'error');
+      // Do not close modal — let user retry
     });
   }
 
@@ -1295,14 +1293,7 @@ var CRM = (function () {
     var clientId = document.getElementById('qnClientId') ? document.getElementById('qnClientId').value : null;
     var content = form.querySelector('[name="content"]').value;
 
-    // Always log event for timeline
-    if (clientId) {
-      Events.log('note_added', 'client', clientId, { content: content });
-    } else {
-      Events.log('note_added', 'general', null, { content: content });
-    }
-
-    // Create real note record
+    // Step 1: Create canonical note record FIRST
     var notePayload = { content: content, created_by: Store.getEffectiveAgentId() };
     if (clientId) notePayload.client_id = clientId;
 
@@ -1310,12 +1301,18 @@ var CRM = (function () {
       method: 'POST',
       body: JSON.stringify(notePayload)
     }).then(function () {
+      // Step 2: Only log timeline event AFTER persistence succeeds
+      if (clientId) {
+        Events.log('note_added', 'client', clientId, { content: content });
+      } else {
+        Events.log('note_added', 'general', null, { content: content });
+      }
       closeModal();
       toast('Note saved', 'success');
-    }).catch(function () {
-      // Graceful degradation — event already logged
-      closeModal();
-      toast('Note saved', 'success');
+    }).catch(function (err) {
+      // Step 3: Show real failure — do NOT mask as success
+      toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
+      // Do not close modal — let user retry
     });
   }
 

@@ -893,35 +893,34 @@ var Workspace = (function () {
   }
 
   function _sendListingToClient(listingId, address) {
-    Events.log('listing_sent', 'client', _clientId, { listingId: listingId, address: address, sentAt: new Date().toISOString() });
-
-    // Create real communication record
-    MallanAPI._fetch('/api/crm/communications/send', {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'listing_send',
-        listingId: listingId,
-        clientIds: [_clientId],
-        sentAt: new Date().toISOString()
-      })
-    }).catch(function () { /* graceful */ });
-
-    // Create canonical engagement record (survives event pruning)
-    MallanAPI._fetch('/api/crm/listing-engagement', {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'listing_sent',
-        listing_id: listingId,
-        client_id: _clientId,
-        sent_via: 'workspace',
-        metadata: { address: address }
-      })
-    }).then(function () {
+    // Step 1: Create canonical records FIRST (engagement + communication)
+    Promise.all([
+      MallanAPI._fetch('/api/crm/listing-engagement', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'listing_sent',
+          listing_id: listingId,
+          client_id: _clientId,
+          sent_via: 'workspace',
+          metadata: { address: address }
+        })
+      }),
+      MallanAPI._fetch('/api/crm/communications/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'listing_send',
+          listingId: listingId,
+          clientIds: [_clientId],
+          sentAt: new Date().toISOString()
+        })
+      }),
+    ]).then(function () {
+      // Step 2: Log timeline event only AFTER persistence succeeds
+      Events.log('listing_sent', 'client', _clientId, { listingId: listingId, address: address, sentAt: new Date().toISOString() });
       CRM.toast('Send recorded — listing sent to ' + (_client.name || 'client'), 'success');
-      // Invalidate engagement cache
-      delete _scenariosCache[_clientId]; // not the right cache but harmless
-    }).catch(function () {
-      CRM.toast('Listing sent to ' + (_client.name || 'client'), 'success');
+    }).catch(function (err) {
+      // Step 3: Show real failure
+      CRM.toast('Failed to save send: ' + (err.message || 'Please try again'), 'error');
     });
   }
 
@@ -4176,22 +4175,19 @@ var Workspace = (function () {
     var text = (document.getElementById('slideNoteText') || {}).value;
     if (!text) return;
 
-    // Create real note record
+    // Step 1: Create canonical note record FIRST
     MallanAPI._fetch('/api/crm/notes', {
       method: 'POST',
       body: JSON.stringify({ client_id: _clientId, content: text })
     }).then(function () {
-      // Log event for timeline after successful save
+      // Step 2: Log timeline event only after persistence succeeds
       Events.log('note_added', 'client', _clientId, { content: text });
       CRM.closeSlideOver();
       CRM.toast('Note saved', 'success');
       if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
-    }).catch(function () {
-      // Graceful degradation — still log event
-      Events.log('note_added', 'client', _clientId, { content: text });
-      CRM.closeSlideOver();
-      CRM.toast('Note saved', 'success');
-      if (_clientTab === 'activity' || _clientTab === 'overview') _renderClientTab();
+    }).catch(function (err) {
+      // Step 3: Show real failure — do NOT mask as success
+      CRM.toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
     });
   }
 
