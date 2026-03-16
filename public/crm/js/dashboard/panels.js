@@ -8450,50 +8450,186 @@ var Panels = (function () {
   }
 
   // ─── Market Activity ─────────────────────────────────────────────────
-  function marketActivity(filter) {
-    var activeFilter = filter || 'sale';
+  var _marketTab = 'new';
+  var _marketType = 'all';
+
+  function marketActivity() {
     CRM.setPanelTitle('Market Activity');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.listings.list({ limit: 100 }).then(function (data) {
+    // Load watch areas from localStorage
+    var watchAreas = [];
+    try { watchAreas = JSON.parse(localStorage.getItem('mallan_crm_watch_areas') || '[]'); } catch (e) { /* */ }
+
+    MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }).then(function (data) {
       var listings = data.listings || [];
+      var now = new Date();
+      var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      var thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
 
-      var sales = listings.filter(function (l) { return (l.propertyType || l.property_type || l.listingType || l.listing_type || '').toLowerCase().indexOf('rent') === -1; });
-      var rentals = listings.filter(function (l) { return (l.propertyType || l.property_type || l.listingType || l.listing_type || '').toLowerCase().indexOf('rent') !== -1; });
-      var active = activeFilter === 'rental' ? rentals : sales;
+      // Categorize
+      listings.forEach(function (l) {
+        var listDate = new Date(l.ListDate || l.list_date || l.OnMarketDate || l.created_at || 0);
+        var modDate = new Date(l.ModificationTimestamp || l.updated_at || l.updatedAt || 0);
+        l._isNew = listDate >= sevenDaysAgo;
+        l._isPriceChange = l.PriceChangeTimestamp ? new Date(l.PriceChangeTimestamp) >= thirtyDaysAgo : false;
+        l._isStatusChange = modDate >= sevenDaysAgo && (l.StatusChangeTimestamp || l.status_changed_at);
+        l._isClosed = (l.status || '').toLowerCase() === 'closed';
+        l._isComp = l._isClosed && new Date(l.CloseDate || l.close_date || modDate) >= thirtyDaysAgo;
+        l._type = (l.property_type || l.listing_type || l.PropertySubType || '').toLowerCase();
+        l._isRental = l._type.indexOf('rent') !== -1;
+        l._neighborhood = l.MLSAreaMajor || l.neighborhood || l.area || '';
+      });
 
-      var saleBtnClass = activeFilter === 'sale' ? 'style="background:#111827;color:white"' : 'class="btn btn-sm btn-outline"';
-      var rentalBtnClass = activeFilter === 'rental' ? 'style="background:#111827;color:white"' : 'class="btn btn-sm btn-outline"';
+      // Filter by watch areas if set
+      var watchFiltered = listings;
+      if (watchAreas.length > 0) {
+        watchFiltered = listings.filter(function (l) {
+          return watchAreas.some(function (area) { return l._neighborhood.toLowerCase().indexOf(area.toLowerCase()) !== -1; });
+        });
+      }
 
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Market Activity', active.length + ' listings') +
-        '<div class="flex gap-2 mb-4">' +
-          '<button class="btn btn-sm" ' + saleBtnClass + ' onclick="Panels.marketActivity(\'sale\')">Sales (' + sales.length + ')</button>' +
-          '<button class="btn btn-sm" ' + rentalBtnClass + ' onclick="Panels.marketActivity(\'rental\')">Rentals (' + rentals.length + ')</button>' +
-        '</div>' +
-        (active.length > 0 ?
-          UI.dataTable([
-            { key: 'address', label: 'Address', render: function (l) {
-              var addr = l.address || l.UnparsedAddress || l.street_address || '-';
-              return '<span class="text-sm font-medium">' + E(addr) + '</span>';
-            }},
-            { key: 'price', label: 'Price', render: function (l) { return '<span class="text-sm font-bold">' + $(l.listPrice || l.list_price || l.price || 0) + '</span>'; }},
-            { key: 'status', label: 'Status', render: function (l) { return UI.statusBadge(l.standardStatus || l.status || 'active'); }},
-            { key: 'dom', label: 'DOM', render: function (l) {
-              var dom = l.daysOnMarket || l.days_on_market || l.DaysOnMarket || '-';
-              return '<span class="text-xs">' + dom + '</span>';
-            }},
-            { key: 'date', label: 'Listed', render: function (l) { return '<span class="text-xs text-gray-500">' + D(l.listDate || l.list_date || l.OnMarketDate || l.created_at) + '</span>'; }},
-          ], active) :
-          UI.emptyState('fa-chart-area', 'No ' + activeFilter + ' listings found')
-        ) +
+      // Type filter
+      var typeFiltered = watchFiltered;
+      if (_marketType === 'sale') typeFiltered = watchFiltered.filter(function (l) { return !l._isRental; });
+      else if (_marketType === 'rental') typeFiltered = watchFiltered.filter(function (l) { return l._isRental; });
+
+      // Tab filter
+      var newListings = typeFiltered.filter(function (l) { return l._isNew; });
+      var priceChanges = typeFiltered.filter(function (l) { return l._isPriceChange; });
+      var statusChanges = typeFiltered.filter(function (l) { return l._isStatusChange; });
+      var comps = typeFiltered.filter(function (l) { return l._isComp; });
+      var tabData = _marketTab === 'new' ? newListings : _marketTab === 'price' ? priceChanges : _marketTab === 'status' ? statusChanges : comps;
+
+      var html = '<div class="space-y-4">';
+
+      // Header + Watch Areas
+      html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+        '<h2 class="text-lg font-bold text-gray-900">Market Activity</h2>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._editWatchAreas()"><i class="fas fa-map-marker-alt mr-1"></i> Watch Areas' +
+          (watchAreas.length > 0 ? ' (' + watchAreas.length + ')' : '') + '</button>' +
       '</div>';
-    }).catch(function () {
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Market Activity', '') +
-        UI.emptyState('fa-chart-area', 'Unable to load market data') +
-      '</div>';
+
+      // Watch areas display
+      if (watchAreas.length > 0) {
+        html += '<div class="flex flex-wrap gap-2">';
+        watchAreas.forEach(function (area) {
+          html += '<span class="px-2 py-1 bg-gold-bg text-gold rounded-lg text-xs font-semibold"><i class="fas fa-map-pin mr-1"></i>' + E(area) + '</span>';
+        });
+        html += '</div>';
+      }
+
+      // Type toggle
+      html += '<div class="flex gap-2">';
+      ['all', 'sale', 'rental'].forEach(function (t) {
+        var label = t === 'all' ? 'All' : t === 'sale' ? 'Sales' : 'Rentals';
+        var active = _marketType === t;
+        html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ' +
+          (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
+          '" onclick="Panels._switchMarketType(\'' + t + '\')">' + label + '</button>';
+      });
+      html += '</div>';
+
+      // Activity tabs
+      var tabs = [
+        { key: 'new', label: 'New Listings', count: newListings.length, icon: 'fa-plus-circle', color: '#059669' },
+        { key: 'price', label: 'Price Changes', count: priceChanges.length, icon: 'fa-tag', color: '#F59E0B' },
+        { key: 'status', label: 'Status Changes', count: statusChanges.length, icon: 'fa-exchange-alt', color: '#2563EB' },
+        { key: 'comps', label: 'Comps Closed', count: comps.length, icon: 'fa-check-circle', color: '#374151' },
+      ];
+      html += '<div class="flex gap-1 overflow-x-auto">';
+      tabs.forEach(function (t) {
+        var active = _marketTab === t.key;
+        html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+          (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
+          '" onclick="Panels._switchMarketTab(\'' + t.key + '\')"><i class="fas ' + t.icon + ' mr-1"></i>' + E(t.label) + ' (' + t.count + ')</button>';
+      });
+      html += '</div>';
+
+      // Results
+      if (tabData.length === 0) {
+        html += UI.emptyState('fa-chart-area', 'No ' + (_marketTab === 'new' ? 'new listings' : _marketTab === 'price' ? 'price changes' : _marketTab === 'status' ? 'status changes' : 'recent comps') + ' in the last ' + (_marketTab === 'comps' || _marketTab === 'price' ? '30' : '7') + ' days');
+      } else {
+        html += '<div class="space-y-2">';
+        tabData.forEach(function (l) {
+          var addr = l.address || l.UnparsedAddress || 'No address';
+          var price = l.ListPrice || l.price;
+          var dom = l.cumulative_dom || l.days_on_market || 0;
+
+          html += '<div class="card p-3 flex items-center gap-3 hover:border-gold transition-all">' +
+            '<div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ' +
+              (_marketTab === 'new' ? 'bg-green-50' : _marketTab === 'price' ? 'bg-yellow-50' : _marketTab === 'status' ? 'bg-blue-50' : 'bg-gray-100') + '">' +
+              '<i class="fas ' + (_marketTab === 'new' ? 'fa-plus text-green-500' : _marketTab === 'price' ? 'fa-tag text-yellow-500' : _marketTab === 'status' ? 'fa-exchange-alt text-blue-500' : 'fa-check text-gray-500') + '"></i>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' +
+              '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
+              '<div class="flex items-center gap-3 text-xs text-gray-500">' +
+                '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
+                UI.statusBadge(l.status || 'Active') +
+                '<span>' + dom + ' DOM</span>' +
+                (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
+              '</div>' +
+            '</div>' +
+            '<button class="btn btn-sm btn-gold flex-shrink-0" onclick="event.stopPropagation();Panels._sendMarketItem(\'' + E(l.id || l.listing_id) + '\',\'' + E(addr) + '\')" title="Send to client">' +
+              '<i class="fas fa-paper-plane"></i></button>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      c.innerHTML = html;
     });
+  }
+
+  function _switchMarketTab(tab) {
+    _marketTab = tab;
+    marketActivity();
+  }
+
+  function _switchMarketType(type) {
+    _marketType = type;
+    marketActivity();
+  }
+
+  function _editWatchAreas() {
+    var current = [];
+    try { current = JSON.parse(localStorage.getItem('mallan_crm_watch_areas') || '[]'); } catch (e) { /* */ }
+
+    CRM.openModal('Watch Areas',
+      '<form id="watchAreasForm" class="space-y-4">' +
+        '<p class="text-sm text-gray-500">Enter neighborhoods to watch (one per line). Market activity will be filtered to these areas.</p>' +
+        '<div class="form-group"><label class="form-label">Neighborhoods</label>' +
+          '<textarea class="form-input" name="areas" rows="6" placeholder="Upper East Side\nMidtown East\nUpper West Side\nTribeca">' + E(current.join('\n')) + '</textarea></div>' +
+        '<p class="text-xs text-gray-400">Leave empty to see all areas.</p>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._saveWatchAreas()"><i class="fas fa-save"></i> Save</button>',
+      }
+    );
+  }
+
+  function _saveWatchAreas() {
+    var form = document.getElementById('watchAreasForm');
+    if (!form) return;
+    var text = form.querySelector('[name="areas"]').value || '';
+    var areas = text.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    try { localStorage.setItem('mallan_crm_watch_areas', JSON.stringify(areas)); } catch (e) { /* */ }
+    CRM.closeModal();
+    CRM.toast(areas.length > 0 ? 'Watching ' + areas.length + ' areas' : 'Watch areas cleared', 'success');
+    marketActivity();
+  }
+
+  function _sendMarketItem(listingId, address) {
+    // Open Quick Send with this listing pre-selected
+    CRM.quickSendListing();
+    // After modal opens, try to pre-select
+    setTimeout(function () {
+      if (typeof CRM._selectSendListing === 'function') {
+        CRM._selectSendListing(listingId, address);
+      }
+    }, 300);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -8764,5 +8900,10 @@ var Panels = (function () {
     _rejectDealPayout: _rejectDealPayout,
     _markDealPaid: _markDealPaid,
     _uploadDealDoc: _uploadDealDoc,
+    _switchMarketTab: _switchMarketTab,
+    _switchMarketType: _switchMarketType,
+    _editWatchAreas: _editWatchAreas,
+    _saveWatchAreas: _saveWatchAreas,
+    _sendMarketItem: _sendMarketItem,
   };
 })();
