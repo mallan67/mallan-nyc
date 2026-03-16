@@ -29,15 +29,17 @@ export function checkRouteGuards(req: NextRequest, pathname: string): NextRespon
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  // CRM page protection — require auth, redirect to sign-in
+  // CRM page protection — require auth, redirect to CRM login
+  // Whitelist: /crm/login* (login page itself), /crm/js/*, /crm/css/*
   if (
     pathname.startsWith("/crm") &&
+    !pathname.startsWith("/crm/login") &&
     !pathname.startsWith("/crm/js/") &&
     !pathname.startsWith("/crm/css/")
   ) {
     if (!req.cookies.has(SESSION_COOKIE)) {
       const loginUrl = req.nextUrl.clone();
-      loginUrl.pathname = "/sign-in";
+      loginUrl.pathname = "/crm/login.html";
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }

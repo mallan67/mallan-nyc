@@ -79,7 +79,7 @@ function SignInContent() {
       const safeRedirect = redirectParam && /^\/(?:crm|admin|portal)(?:\/|$|\?|#)/.test(redirectParam)
         ? redirectParam
         : null;
-      const destination = safeRedirect || (isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
+      const destination = safeRedirect || (isAgent ? '/crm/dashboard' : '/portal');
       setTimeout(() => {
         router.push(destination);
       }, 1500);

@@ -188,7 +188,7 @@ export default function Header() {
     ? (isAgent ? 'CRM' : 'My Portal')
     : 'Sign In';
   const authHref = isLoggedIn
-    ? (isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal')
+    ? (isAgent ? '/crm/dashboard' : '/portal')
     : '/sign-in';
 
   return (

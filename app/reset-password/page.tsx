@@ -68,7 +68,7 @@ function ResetPasswordForm() {
       setSuccess(true);
       const isAgent = data.user?.userType === 'agent';
       setTimeout(() => {
-        router.push(isAgent ? '/crm/MALLAN-NYC-CRM-FINAL2.html' : '/portal');
+        router.push(isAgent ? '/crm/dashboard' : '/portal');
       }, 2000);
     } catch {
       setError('Network error. Please try again.');
