@@ -5876,11 +5876,11 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
 
     Promise.all([
-      MallanAPI.clients.list({ limit: 100 }).catch(function () { return { clients: [] }; }),
-      MallanAPI.listings.list({ limit: 50 }).catch(function () { return { listings: [] }; }),
-      MallanAPI.deals.list({ limit: 50 }).catch(function () { return { deals: [] }; }),
+      MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
+      MallanAPI.listings.list({ limit: 100 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.deals.list({ limit: 100 }).catch(function () { return { deals: [] }; }),
       MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
-      MallanAPI.showings.list({ limit: 20 }).catch(function () { return { showings: [] }; }),
+      MallanAPI.showings.list({ limit: 50 }).catch(function () { return { showings: [] }; }),
     ]).then(function (r) {
       var clients = r[0].clients || [];
       var listings = r[1].listings || [];
@@ -5888,86 +5888,378 @@ var Panels = (function () {
       var tasks = r[3].tasks || [];
       var showings = r[4].showings || [];
 
-      var activeClients = clients.filter(function (c) { return c.status !== 'closed' && c.status !== 'inactive'; });
-      var activeListings = listings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
-      var pendingTasks = tasks.filter(function (t) { return t.status !== 'completed'; });
-      var upcomingShowings = showings.filter(function (s) { return new Date(s.date || s.showing_date) >= new Date(); });
+      var now = new Date();
+      var todayStr = now.toISOString().slice(0, 10);
+      var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      var todayLabel = dayNames[now.getDay()] + ', ' + monthNames[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+
+      // Derived data
+      var tasksDueToday = tasks.filter(function (t) {
+        return t.due_date && t.due_date.slice(0, 10) === todayStr && t.status !== 'completed';
+      });
+      var overdueTasks = tasks.filter(function (t) {
+        return t.due_date && new Date(t.due_date) < todayStart && t.status !== 'completed';
+      });
+      var sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      var staleClients = clients.filter(function (cl) {
+        if (cl.status === 'closed' || cl.status === 'inactive') return false;
+        var last = cl.updated_at || cl.updatedAt;
+        if (!last) return true;
+        return (now - new Date(last)) >= sevenDaysMs;
+      }).sort(function (a, b) {
+        var aT = new Date(a.updated_at || a.updatedAt || 0);
+        var bT = new Date(b.updated_at || b.updatedAt || 0);
+        return aT - bT; // stalest first
+      });
+      var activeDeals = deals.filter(function (d) {
+        var s = (d.status || d.deal_status || '').toLowerCase();
+        return s !== 'closed' && s !== 'cancelled' && s !== 'canceled';
+      });
+      var attentionListings = listings.filter(function (l) {
+        if (l.status !== 'Active' && l.status !== 'active') return false;
+        var dom = l.days_on_market || l.daysOnMarket || 0;
+        var noPhotos = !l.photos || (Array.isArray(l.photos) && l.photos.length === 0);
+        var hasIssue = dom > 60 || noPhotos || l.compliance_issues;
+        return hasIssue;
+      });
 
       var html = '<div class="space-y-6">';
 
-      // My alerts
-      var myAlerts = Alerts.getActive(Store.getEffectiveAgentId());
-      if (myAlerts.length > 0) {
-        html += '<div class="card"><div class="card-header"><h3><i class="fas fa-bell text-gold mr-2"></i>My Alerts</h3></div>' +
-          '<div class="card-body space-y-2">';
-        myAlerts.slice(0, 5).forEach(function (a) { html += UI.alertItem(a); });
+      // ═══ SECTION 1: TODAY'S FOCUS ═══
+      html += '<div class="card">' +
+        '<div class="card-header" style="border-bottom:2px solid #B8860B">' +
+          '<div><h3 class="text-lg font-bold text-gray-900"><i class="fas fa-sun text-gold mr-2"></i>Today\'s Focus</h3>' +
+          '<p class="text-sm text-gray-500 mt-0.5">' + E(todayLabel) + '</p></div>' +
+        '</div>' +
+        '<div class="card-body space-y-5">';
+
+      // Tasks Due Today
+      html += '<div>' +
+        '<div class="flex items-center justify-between mb-2">' +
+          '<p class="text-xs font-bold text-gray-700 uppercase tracking-wide"><i class="fas fa-check-square text-blue-500 mr-1.5"></i>Tasks Due Today</p>' +
+          '<button class="btn btn-sm btn-outline" onclick="CRM.quickTask()" style="font-size:11px"><i class="fas fa-plus mr-1"></i>Add Task</button>' +
+        '</div>';
+      if (tasksDueToday.length > 0) {
+        html += '<div class="space-y-1.5">';
+        tasksDueToday.forEach(function (t) {
+          var isComplete = t.status === 'completed';
+          var prioColor = t.priority === 'urgent' ? '#DC2626' : t.priority === 'high' ? '#F97316' : '#9CA3AF';
+          var prioLabel = t.priority === 'urgent' ? 'Urgent' : t.priority === 'high' ? 'High' : '';
+          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50" data-task-id="' + E(t.id) + '">' +
+            '<input type="checkbox" class="w-4 h-4 rounded border-gray-300 cursor-pointer" ' + (isComplete ? 'checked' : '') +
+              ' onchange="Panels._toggleTask(\'' + E(t.id) + '\', this.checked)" />' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate' + (isComplete ? ' line-through text-gray-400' : '') + '">' + E(t.title) + '</p>' +
+              (t.client_name ? '<p class="text-xs text-gray-500">' + E(t.client_name) + '</p>' : '') +
+            '</div>' +
+            (prioLabel ? '<span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:' + prioColor + '20;color:' + prioColor + '">' + E(prioLabel) + '</span>' : '') +
+          '</div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<p class="text-sm text-green-600 py-2"><i class="fas fa-check-circle mr-1"></i>No tasks due today</p>';
+      }
+      html += '</div>';
+
+      // Overdue Tasks
+      if (overdueTasks.length > 0) {
+        html += '<div class="rounded-lg p-3" style="background:#FEF2F2;border:1px solid #FECACA">' +
+          '<div class="flex items-center justify-between mb-2">' +
+            '<p class="text-xs font-bold text-red-700 uppercase tracking-wide"><i class="fas fa-exclamation-triangle mr-1.5"></i>Overdue (' + overdueTasks.length + ')</p>' +
+            '<button class="text-xs font-medium text-red-600 hover:underline" onclick="Router.navigate(\'/ops/tasks\')">View All</button>' +
+          '</div>' +
+          '<div class="space-y-1.5">';
+        overdueTasks.slice(0, 5).forEach(function (t) {
+          var daysOver = Math.ceil((todayStart - new Date(t.due_date)) / (1000 * 60 * 60 * 24));
+          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-red-50">' +
+            '<i class="fas fa-clock text-red-500 text-xs"></i>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + E(t.title) + '</p>' +
+              (t.client_name ? '<p class="text-xs text-gray-500">' + E(t.client_name) + '</p>' : '') +
+            '</div>' +
+            '<span class="text-xs font-bold text-red-600">' + daysOver + 'd overdue</span>' +
+          '</div>';
+        });
+        if (overdueTasks.length > 5) {
+          html += '<p class="text-xs text-red-600 text-center mt-1">+ ' + (overdueTasks.length - 5) + ' more</p>';
+        }
         html += '</div></div>';
       }
 
-      // KPIs
-      html += UI.statGrid([
-        UI.statCard(activeClients.length, 'Active Clients', 'fa-users', '#2563EB'),
-        UI.statCard(activeListings.length, 'Active Listings', 'fa-building', '#059669'),
-        UI.statCard(pendingTasks.length, 'Pending Tasks', 'fa-tasks', '#F59E0B'),
-        UI.statCard(upcomingShowings.length, 'Upcoming Showings', 'fa-calendar', '#B8860B'),
-      ]);
+      html += '</div></div>'; // card-body, card
 
-      // Quick Launch
-      html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">';
-      var quickItems = [
-        { icon: 'fa-search', label: 'Search', route: '/ops/search' },
-        { icon: 'fa-user-plus', label: 'New Client', action: 'CRM.quickNewClient()' },
-        { icon: 'fa-home', label: 'New Listing', action: 'CRM.quickNewListing()' },
-        { icon: 'fa-paper-plane', label: 'Send Listing', action: 'CRM.quickSendListing()' },
-      ];
-      quickItems.forEach(function (q) {
-        html += '<button class="card p-4 text-center hover:border-gold transition-all" onclick="' + (q.route ? "Router.navigate('" + q.route + "')" : q.action) + '">' +
-          '<i class="fas ' + q.icon + ' text-xl text-gold mb-2"></i>' +
-          '<p class="text-xs font-bold text-gray-700">' + E(q.label) + '</p></button>';
-      });
-      html += '</div>';
+      // ═══ SECTION 2: 3-COLUMN GRID ═══
+      html += '<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">';
 
-      // Two columns: upcoming tasks + recent clients
-      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
-
-      // Tasks
-      html += '<div class="card"><div class="card-header"><h3>Upcoming Tasks</h3>' +
-        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/tasks\')">View All</button></div>' +
+      // Column 1: Clients Needing Follow-up
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-user-clock text-amber-500 mr-2"></i>Needs Follow-up</h3>' +
+        '<button class="text-xs text-gray-500 hover:underline" onclick="Router.navigate(\'/ops/clients\')">View All</button></div>' +
         '<div class="card-body"><div class="space-y-2">';
-      if (pendingTasks.length > 0) {
-        pendingTasks.slice(0, 5).forEach(function (t) {
-          var overdue = t.due_date && new Date(t.due_date) < new Date();
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-            '<div class="w-8 h-8 rounded-lg flex items-center justify-center ' + (overdue ? 'bg-red-50' : 'bg-blue-50') + '">' +
-              '<i class="fas fa-tasks text-xs ' + (overdue ? 'text-red-500' : 'text-blue-500') + '"></i></div>' +
-            '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(t.title) + '</p>' +
-              '<p class="text-xs text-gray-500">' + (t.due_date ? 'Due ' + D(t.due_date) : 'No due date') + '</p></div>' +
+      if (staleClients.length > 0) {
+        staleClients.slice(0, 8).forEach(function (cl) {
+          var last = cl.updated_at || cl.updatedAt;
+          var daysSince = last ? Math.floor((now - new Date(last)) / (1000 * 60 * 60 * 24)) : 99;
+          html += '<div class="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50">' +
+            UI.avatar(cl.name || cl.email, 28) +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + E(cl.name || cl.email) + '</p>' +
+              '<p class="text-xs text-gray-400">' + daysSince + 'd since activity</p>' +
+            '</div>' +
+            UI.roleBadge(cl.type || cl.client_type) +
+            '<button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 8px" ' +
+              'onclick="event.stopPropagation();CRM.quickNote(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email) + '\')">Follow Up</button>' +
           '</div>';
         });
       } else {
-        html += '<p class="text-sm text-gray-500 text-center py-4">No pending tasks</p>';
+        html += '<p class="text-sm text-green-600 text-center py-4"><i class="fas fa-check-circle mr-1"></i>All clients recently active</p>';
       }
       html += '</div></div></div>';
 
-      // Recent clients
-      html += '<div class="card"><div class="card-header"><h3>Recent Clients</h3>' +
-        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/clients\')">View All</button></div>' +
+      // Column 2: Active Deals
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-handshake text-blue-500 mr-2"></i>Active Deals</h3></div>' +
         '<div class="card-body"><div class="space-y-2">';
-      clients.slice(0, 5).forEach(function (cl) {
-        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
-          UI.avatar(cl.name || cl.email, 32) +
-          '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(cl.name || cl.email) + '</p>' +
-            '<p class="text-xs text-gray-500">' + E(cl.type || '') + '</p></div>' +
-          UI.stageBadge(cl.stage || cl.status) +
-        '</div>';
+      if (activeDeals.length > 0) {
+        activeDeals.slice(0, 6).forEach(function (d) {
+          var addr = d.address || d.listing_address || d.title || 'Untitled deal';
+          var client = d.client_name || d.clientName || '';
+          var stage = d.status || d.deal_status || d.stage || 'active';
+          var commission = d.gross_commission || d.grossCommission || d.commission;
+          var dealId = d.id || d.deal_id;
+          html += '<div class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" ' +
+            'onclick="Router.navigate(\'/workspace/listing/' + E(d.listing_id || dealId) + '/overview\')">' +
+            '<div class="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-50 mt-0.5">' +
+              '<i class="fas fa-file-contract text-xs text-blue-500"></i></div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
+              (client ? '<p class="text-xs text-gray-500">' + E(client) + '</p>' : '') +
+            '</div>' +
+            '<div class="text-right flex-shrink-0">' +
+              UI.stageBadge(stage) +
+              (commission ? '<p class="text-xs font-medium text-green-600 mt-1">' + $(commission) + '</p>' : '') +
+            '</div>' +
+          '</div>';
+        });
+      } else {
+        html += '<p class="text-sm text-gray-500 text-center py-4">No active deals</p>';
+      }
+      html += '</div></div></div>';
+
+      // Column 3: Listings Needing Attention
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-exclamation-circle text-orange-500 mr-2"></i>Listings Attention</h3></div>' +
+        '<div class="card-body"><div class="space-y-2">';
+      if (attentionListings.length > 0) {
+        attentionListings.slice(0, 6).forEach(function (l) {
+          var addr = l.address || l.street_address || l.UnparsedAddress || 'Untitled';
+          var dom = l.days_on_market || l.daysOnMarket || 0;
+          var noPhotos = !l.photos || (Array.isArray(l.photos) && l.photos.length === 0);
+          var issues = [];
+          if (dom > 60) issues.push('<span class="text-xs font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Stale DOM ' + dom + 'd</span>');
+          if (noPhotos) issues.push('<span class="text-xs font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">No Photos</span>');
+          if (l.compliance_issues) issues.push('<span class="text-xs font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Compliance</span>');
+          var listingId = l.id || l.listing_id;
+          html += '<div class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" ' +
+            'onclick="Router.navigate(\'/workspace/listing/' + E(listingId) + '/overview\')">' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
+              '<div class="flex flex-wrap gap-1 mt-1">' + issues.join('') + '</div>' +
+            '</div>' +
+          '</div>';
+        });
+      } else {
+        html += '<p class="text-sm text-green-600 text-center py-4"><i class="fas fa-check-circle mr-1"></i>All listings healthy</p>';
+      }
+      html += '</div></div></div>';
+
+      html += '</div>'; // 3-col grid
+
+      // ═══ SECTION 3: 2-COLUMN GRID ═══
+      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
+
+      // Left: Recent Client Activity
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-stream text-purple-500 mr-2"></i>Recent Activity</h3></div>' +
+        '<div class="card-body"><div class="space-y-2">';
+      var recentEvents = Events.getRecent(10);
+      if (recentEvents.length > 0) {
+        var eventIcons = {
+          client_created: 'fa-user-plus', client_stage_moved: 'fa-exchange-alt',
+          listing_sent: 'fa-paper-plane', showing_scheduled: 'fa-calendar-check',
+          task_completed: 'fa-check-circle', portal_invite_sent: 'fa-envelope',
+          note_added: 'fa-sticky-note', listing_reaction_recorded: 'fa-heart',
+          quick_send_executed: 'fa-bolt', lead_assigned: 'fa-user-tag',
+        };
+        recentEvents.forEach(function (ev) {
+          var icon = eventIcons[ev.type] || 'fa-circle';
+          var desc = (ev.type || '').replace(/_/g, ' ');
+          var entityName = (ev.payload && ev.payload.clientName) || (ev.payload && ev.payload.name) || '';
+          var label = entityName ? entityName + ' — ' + desc : desc;
+          var route = ev.entityType === 'client' && ev.entityId
+            ? '/workspace/client/' + ev.entityId + '/overview' : '';
+          html += '<div class="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-gray-50' + (route ? ' cursor-pointer" onclick="Router.navigate(\'' + E(route) + '\')"' : '"') + '>' +
+            '<div class="w-6 h-6 rounded-full flex items-center justify-center bg-purple-50">' +
+              '<i class="fas ' + icon + ' text-purple-500" style="font-size:10px"></i></div>' +
+            '<p class="text-sm flex-1 min-w-0 truncate">' + E(label) + '</p>' +
+            '<span class="text-xs text-gray-400 flex-shrink-0">' + Utils.formatTimeAgo(ev.createdAt) + '</span>' +
+          '</div>';
+        });
+      } else {
+        html += '<p class="text-sm text-gray-500 text-center py-4">No recent activity</p>';
+      }
+      html += '</div></div></div>';
+
+      // Right: New Matching Listings
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-magic text-gold mr-2"></i>New Matches for Clients</h3></div>' +
+        '<div class="card-body"><div id="ops-dash-matches" class="space-y-2">';
+      // Kick off async match search
+      html += '<p class="text-sm text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i>Searching...</p>';
+      html += '</div></div></div>';
+
+      html += '</div>'; // 2-col grid
+
+      // ═══ SECTION 4: QUICK ACTIONS + RESUME RECENT ═══
+      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
+
+      // Left: Quick Actions (2x3 grid)
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-bolt text-gold mr-2"></i>Quick Actions</h3></div>' +
+        '<div class="card-body"><div class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
+      var quickActions = [
+        { icon: 'fa-search', label: 'Property Search', route: '/ops/search' },
+        { icon: 'fa-user-plus', label: 'New Client', action: 'CRM.quickNewClient()' },
+        { icon: 'fa-home', label: 'New Listing', action: 'CRM.quickNewListing()' },
+        { icon: 'fa-paper-plane', label: 'Quick Send', action: 'CRM.quickSendListing()' },
+        { icon: 'fa-tasks', label: 'Quick Task', action: 'CRM.quickTask()' },
+        { icon: 'fa-sticky-note', label: 'Quick Note', action: 'CRM.quickNote()' },
+      ];
+      quickActions.forEach(function (q) {
+        html += '<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 hover:border-gold hover:shadow-sm transition-all" ' +
+          'onclick="' + (q.route ? "Router.navigate('" + q.route + "')" : q.action) + '">' +
+          '<i class="fas ' + q.icon + ' text-lg text-gold mb-1.5"></i>' +
+          '<span class="text-xs font-bold text-gray-700">' + E(q.label) + '</span></button>';
       });
       html += '</div></div></div>';
 
-      html += '</div>'; // grid
-      html += '</div>'; // space-y
+      // Right: Resume Recent Workspaces
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-history text-gray-500 mr-2"></i>Resume Recent</h3></div>' +
+        '<div class="card-body">';
+      var recentWorkspaces = [];
+      try { var raw = localStorage.getItem('mallan_crm_recent_workspaces'); recentWorkspaces = raw ? JSON.parse(raw) : []; } catch (e) { /* ignore */ }
+      var recentClients = recentWorkspaces.filter(function (w) { return w.type === 'client'; }).slice(0, 5);
+      var recentListings = recentWorkspaces.filter(function (w) { return w.type === 'listing'; }).slice(0, 5);
+
+      if (recentClients.length > 0) {
+        html += '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Recent Clients</p>' +
+          '<div class="space-y-1.5 mb-4">';
+        recentClients.forEach(function (w) {
+          html += '<div class="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'' + E(w.route) + '\')">' +
+            '<i class="fas fa-user text-gray-400 text-xs"></i>' +
+            '<p class="text-sm flex-1 truncate">' + E(w.name || 'Unknown') + '</p>' +
+            '<span class="text-xs text-gray-400">' + (w.timestamp ? Utils.formatTimeAgo(new Date(w.timestamp).toISOString()) : '') + '</span>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+      if (recentListings.length > 0) {
+        html += '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Recent Listings</p>' +
+          '<div class="space-y-1.5">';
+        recentListings.forEach(function (w) {
+          html += '<div class="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'' + E(w.route) + '\')">' +
+            '<i class="fas fa-building text-gray-400 text-xs"></i>' +
+            '<p class="text-sm flex-1 truncate">' + E(w.name || 'Unknown') + '</p>' +
+            '<span class="text-xs text-gray-400">' + (w.timestamp ? Utils.formatTimeAgo(new Date(w.timestamp).toISOString()) : '') + '</span>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+      if (recentClients.length === 0 && recentListings.length === 0) {
+        html += '<p class="text-sm text-gray-500 text-center py-4">No recent workspaces</p>';
+      }
+      html += '</div></div>';
+
+      html += '</div>'; // 2-col grid
+      html += '</div>'; // space-y-6
+
       c.innerHTML = html;
+
+      // Async: load matching listings for clients with preferences
+      _opsDashLoadMatches(clients);
+
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-tachometer-alt', 'Unable to load dashboard');
+    });
+  }
+
+  // Toggle task completion from dashboard checkbox
+  function _opsDashToggleTask(taskId, completed) {
+    MallanAPI._fetch('/api/crm/tasks/' + taskId, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: completed ? 'completed' : 'pending' }),
+    }).then(function () {
+      var row = document.querySelector('[data-task-id="' + taskId + '"]');
+      if (row) {
+        var label = row.querySelector('p.text-sm');
+        if (label) {
+          if (completed) { label.classList.add('line-through', 'text-gray-400'); }
+          else { label.classList.remove('line-through', 'text-gray-400'); }
+        }
+      }
+    }).catch(function () { /* silent — checkbox already toggled visually */ });
+  }
+
+  // Load IDX matches for clients with preferences
+  function _opsDashLoadMatches(clients) {
+    var container = document.getElementById('ops-dash-matches');
+    if (!container) return;
+
+    // Find clients with search preferences
+    var clientsWithPrefs = clients.filter(function (cl) {
+      return cl.preferences || cl.search_criteria || cl.neighborhoods || cl.budget_max || cl.max_price;
+    }).slice(0, 3);
+
+    if (clientsWithPrefs.length === 0) {
+      container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No clients have search preferences set</p>';
+      return;
+    }
+
+    var searches = clientsWithPrefs.map(function (cl) {
+      var prefs = cl.preferences || cl.search_criteria || {};
+      var params = {};
+      if (prefs.neighborhoods || cl.neighborhoods) params.neighborhoods = prefs.neighborhoods || cl.neighborhoods;
+      if (prefs.max_price || cl.budget_max || cl.max_price) params.maxPrice = prefs.max_price || cl.budget_max || cl.max_price;
+      if (prefs.min_beds || cl.min_beds) params.minBeds = prefs.min_beds || cl.min_beds;
+      if (prefs.type || cl.type === 'renter') params.type = prefs.type || (cl.type === 'renter' ? 'rental' : 'sale');
+      params.limit = 3;
+      params.sort = '-ListDate';
+      return MallanAPI.idx.search(params).then(function (data) {
+        return { client: cl, listings: (data.listings || data.results || []).slice(0, 3) };
+      }).catch(function () { return { client: cl, listings: [] }; });
+    });
+
+    Promise.all(searches).then(function (results) {
+      var matchHtml = '';
+      var count = 0;
+      results.forEach(function (r) {
+        r.listings.forEach(function (l) {
+          if (count >= 8) return;
+          count++;
+          var addr = l.address || l.UnparsedAddress || l.street_address || 'Unknown';
+          var price = l.ListPrice || l.price || l.list_price;
+          matchHtml += '<div class="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50">' +
+            '<div class="w-7 h-7 rounded-lg flex items-center justify-center bg-gold/10">' +
+              '<i class="fas fa-home text-gold" style="font-size:10px"></i></div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
+              '<p class="text-xs text-gray-500">' + (price ? $(price) + ' — ' : '') + 'for ' + E(r.client.name || r.client.email) + '</p>' +
+            '</div>' +
+            '<button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 8px" ' +
+              'onclick="event.stopPropagation();CRM.quickSendListing(\'' + E(l.ListingId || l.id || l.listing_id) + '\',\'' + E(r.client.id) + '\')">Send</button>' +
+          '</div>';
+        });
+      });
+      if (count === 0) {
+        matchHtml = '<p class="text-sm text-gray-500 text-center py-4">No new matches found</p>';
+      }
+      container.innerHTML = matchHtml;
     });
   }
 
@@ -6648,5 +6940,6 @@ var Panels = (function () {
     _submitEOPolicy: _submitEOPolicy,
     _setRenewalAlerts: _setRenewalAlerts,
     _saveRenewalAlerts: _saveRenewalAlerts,
+    _toggleTask: _opsDashToggleTask,
   };
 })();
