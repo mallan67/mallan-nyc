@@ -2465,44 +2465,262 @@ var Panels = (function () {
     CRM.setPanelTitle('Commission Payouts');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.deals.list({ limit: 100 }).then(function (data) {
-      var deals = data.deals || [];
-      var pending = deals.filter(function (d) { return d.payoutStatus === 'pending' || d.payout_status === 'pending'; });
-      var approved = deals.filter(function (d) { return d.payoutStatus === 'approved' || d.payout_status === 'approved'; });
+    window._payoutFilter = window._payoutFilter || 'all';
+    window._payoutSort = window._payoutSort || { col: 'closeDate', dir: 'desc' };
 
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Commission Payouts & Approvals', '') +
-        UI.statGrid([
-          UI.statCard(pending.length, 'Pending Approval', 'fa-clock', '#F59E0B'),
-          UI.statCard(approved.length, 'Approved', 'fa-check-circle', '#059669'),
-          UI.statCard(deals.length, 'Total Deals', 'fa-handshake', '#2563EB'),
-        ]) +
-        UI.dataTable([
-          { key: 'agent', label: 'Agent', render: function (d) { return '<span class="text-sm font-medium">' + E(d.agent_name || d.assignedAgentId || '-') + '</span>'; }},
-          { key: 'type', label: 'Type', render: function (d) { return '<span class="text-xs">' + E(d.dealType || d.deal_type || '-') + '</span>'; }},
-          { key: 'gross', label: 'Gross', render: function (d) { return '<span class="text-sm font-bold">' + $(d.grossCommission || d.commission) + '</span>'; }},
-          { key: 'split', label: 'Agent Split', render: function (d) {
-            var gross = d.grossCommission || d.commission || 0;
-            var split = d.splitAmount || d.split_amount || 0;
-            var pct = gross > 0 ? Math.round((split / gross) * 100) : 0;
-            return '<div class="flex items-center gap-2">' +
-              '<input type="number" class="form-input text-sm w-24 py-1 px-2" value="' + split + '" min="0" step="0.01" id="splitInput_' + E(d.id) + '">' +
-              '<span class="text-xs text-gray-400">(' + pct + '%)</span>' +
-              '<button class="btn btn-sm btn-outline text-xs px-2 py-0.5" onclick="Panels._saveSplit(\'' + E(d.id) + '\')"><i class="fas fa-save"></i></button>' +
-            '</div>';
-          }},
-          { key: 'status', label: 'Payout', render: function (d) { return UI.statusBadge(d.payoutStatus || d.payout_status || 'pending'); }},
-          { key: 'actions', label: '', render: function (d) {
-            if (d.payoutStatus === 'pending' || d.payout_status === 'pending') {
-              return '<button class="btn btn-sm btn-success" onclick="Panels._approvePayout(\'' + E(d.id) + '\')"><i class="fas fa-check"></i> Approve</button>';
-            }
-            return '';
-          }},
-        ], deals, { title: 'All Commission Requests' }) +
+    MallanAPI.deals.list({ limit: 500 }).then(function (data) {
+      var deals = data.deals || [];
+      var now = Date.now();
+
+      // Normalize payout status
+      deals.forEach(function (d) {
+        d._status = d.payoutStatus || d.payout_status || 'submitted';
+        d._gross = d.grossCommission || d.commission || 0;
+        d._split = d.splitAmount || d.split_amount || 0;
+        d._brokerage = d._gross - d._split;
+        d._closeDate = d.closeDate || d.close_date || d.created_at || '';
+        d._agentName = d.agent_name || d.assignedAgentId || '-';
+        d._clientName = d.client_name || d.clientId || '-';
+        d._property = d.property_address || d.address || d.listingId || '-';
+        d._type = d.dealType || d.deal_type || '-';
+        d._createdAt = d.created_at || d._closeDate;
+        d._ageDays = d._createdAt ? Math.floor((now - new Date(d._createdAt).getTime()) / 86400000) : 0;
+      });
+
+      // Approval queue count
+      var awaitingApproval = deals.filter(function (d) { return d._status === 'submitted'; });
+
+      // Pending aging buckets (deals with pending-like status: submitted)
+      var pendingDeals = deals.filter(function (d) { return d._status === 'submitted' || d._status === 'pending'; });
+      var bucket0_7 = pendingDeals.filter(function (d) { return d._ageDays <= 7; });
+      var bucket8_14 = pendingDeals.filter(function (d) { return d._ageDays >= 8 && d._ageDays <= 14; });
+      var bucket15_30 = pendingDeals.filter(function (d) { return d._ageDays >= 15 && d._ageDays <= 30; });
+      var bucket30plus = pendingDeals.filter(function (d) { return d._ageDays > 30; });
+
+      function bucketTotal(arr) { return arr.reduce(function (s, d) { return s + d._gross; }, 0); }
+
+      // Filter deals
+      var activeFilter = window._payoutFilter;
+      var filtered = activeFilter === 'all' ? deals : deals.filter(function (d) { return d._status === activeFilter; });
+
+      // Sort deals
+      var sortCol = window._payoutSort.col;
+      var sortDir = window._payoutSort.dir === 'asc' ? 1 : -1;
+      filtered.sort(function (a, b) {
+        var va, vb;
+        if (sortCol === 'agent') { va = a._agentName; vb = b._agentName; }
+        else if (sortCol === 'client') { va = a._clientName; vb = b._clientName; }
+        else if (sortCol === 'property') { va = a._property; vb = b._property; }
+        else if (sortCol === 'type') { va = a._type; vb = b._type; }
+        else if (sortCol === 'closeDate') { va = a._closeDate; vb = b._closeDate; }
+        else if (sortCol === 'gross') { va = a._gross; vb = b._gross; }
+        else if (sortCol === 'split') { va = a._split; vb = b._split; }
+        else if (sortCol === 'brokerage') { va = a._brokerage; vb = b._brokerage; }
+        else if (sortCol === 'status') { va = a._status; vb = b._status; }
+        else { va = a._closeDate; vb = b._closeDate; }
+        if (va < vb) return -1 * sortDir;
+        if (va > vb) return 1 * sortDir;
+        return 0;
+      });
+
+      var html = '<div class="space-y-4">';
+
+      // Header row with title + export
+      html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+        '<h3 class="text-lg font-bold text-gray-900">Commission Payouts & Approvals</h3>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._exportPayoutsCSV()"><i class="fas fa-download mr-1"></i> Bulk Export CSV</button>' +
       '</div>';
+
+      // Approval queue card
+      var aqBg = awaitingApproval.length > 0 ? 'background:#FFFBEB;border:1px solid #F59E0B' : 'background:#F9FAFB;border:1px solid #E5E7EB';
+      html += '<div style="' + aqBg + ';border-radius:8px;padding:16px;display:flex;align-items:center;justify-content:space-between">' +
+        '<div><span style="font-size:14px;font-weight:700;color:#92400E"><i class="fas fa-bell mr-2"></i>Approval Queue</span>' +
+        '<span style="margin-left:12px;font-size:24px;font-weight:800;color:#B45309">' + awaitingApproval.length + '</span>' +
+        '<span style="margin-left:8px;font-size:13px;color:#92400E">deal' + (awaitingApproval.length !== 1 ? 's' : '') + ' awaiting broker approval</span></div>' +
+        (awaitingApproval.length > 0 ? '<button class="btn btn-sm btn-gold" onclick="window._payoutFilter=\'submitted\';Panels.commissionPayouts()">Review All</button>' : '') +
+      '</div>';
+
+      // Pending aging buckets
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">' +
+        '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#1E40AF;text-transform:uppercase;margin-bottom:4px">Submitted (0-7d)</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#1D4ED8">' + bucket0_7.length + '</div>' +
+          '<div style="font-size:12px;color:#3B82F6">' + $(bucketTotal(bucket0_7)) + '</div>' +
+        '</div>' +
+        '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#92400E;text-transform:uppercase;margin-bottom:4px">Pending (8-14d)</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#B45309">' + bucket8_14.length + '</div>' +
+          '<div style="font-size:12px;color:#D97706">' + $(bucketTotal(bucket8_14)) + '</div>' +
+        '</div>' +
+        '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#9A3412;text-transform:uppercase;margin-bottom:4px">Aging (15-30d)</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#C2410C">' + bucket15_30.length + '</div>' +
+          '<div style="font-size:12px;color:#EA580C">' + $(bucketTotal(bucket15_30)) + '</div>' +
+        '</div>' +
+        '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#991B1B;text-transform:uppercase;margin-bottom:4px">Overdue (30+d)</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#DC2626">' + bucket30plus.length + '</div>' +
+          '<div style="font-size:12px;color:#EF4444">' + $(bucketTotal(bucket30plus)) + '</div>' +
+        '</div>' +
+      '</div>';
+
+      // Status filter tabs
+      var tabs = [
+        { key: 'all', label: 'All (' + deals.length + ')' },
+        { key: 'submitted', label: 'Submitted (' + deals.filter(function (d) { return d._status === 'submitted'; }).length + ')' },
+        { key: 'approved', label: 'Approved (' + deals.filter(function (d) { return d._status === 'approved'; }).length + ')' },
+        { key: 'paid', label: 'Paid (' + deals.filter(function (d) { return d._status === 'paid'; }).length + ')' },
+        { key: 'rejected', label: 'Rejected (' + deals.filter(function (d) { return d._status === 'rejected'; }).length + ')' },
+      ];
+      html += '<div style="display:flex;gap:4px;flex-wrap:wrap">';
+      tabs.forEach(function (t) {
+        var isActive = activeFilter === t.key;
+        html += '<button class="btn btn-sm ' + (isActive ? 'btn-gold' : 'btn-outline') + '" onclick="window._payoutFilter=\'' + t.key + '\';Panels.commissionPayouts()">' + t.label + '</button>';
+      });
+      html += '</div>';
+
+      // Deal table
+      function sortHeader(label, col) {
+        var arrow = sortCol === col ? (window._payoutSort.dir === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>') : ' <i class="fas fa-sort" style="opacity:0.3"></i>';
+        return '<th class="text-left px-3 py-2 cursor-pointer select-none" onclick="Panels._sortPayouts(\'' + col + '\')">' + label + arrow + '</th>';
+      }
+      function sortHeaderRight(label, col) {
+        var arrow = sortCol === col ? (window._payoutSort.dir === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>') : ' <i class="fas fa-sort" style="opacity:0.3"></i>';
+        return '<th class="text-right px-3 py-2 cursor-pointer select-none" onclick="Panels._sortPayouts(\'' + col + '\')">' + label + arrow + '</th>';
+      }
+
+      html += '<div class="card"><div class="card-header"><h3>Deal Commission Pipeline</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        sortHeader('Agent', 'agent') +
+        sortHeader('Client', 'client') +
+        sortHeader('Property', 'property') +
+        sortHeader('Type', 'type') +
+        sortHeader('Close Date', 'closeDate') +
+        sortHeaderRight('Gross Commission', 'gross') +
+        '<th class="text-right px-3 py-2">Agent Split</th>' +
+        sortHeaderRight('Brokerage Share', 'brokerage') +
+        sortHeader('Status', 'status') +
+        '<th class="text-left px-3 py-2">Actions</th>' +
+      '</tr></thead><tbody>';
+
+      if (filtered.length === 0) {
+        html += '<tr><td colspan="10" class="text-center py-6 text-sm text-gray-400">No deals match this filter</td></tr>';
+      } else {
+        filtered.forEach(function (d) {
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(d._agentName) + '</td>' +
+            '<td class="px-3 py-2 text-sm">' + E(d._clientName) + '</td>' +
+            '<td class="px-3 py-2 text-sm" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + E(d._property) + '">' + E(d._property) + '</td>' +
+            '<td class="px-3 py-2 text-xs">' + E(d._type) + '</td>' +
+            '<td class="px-3 py-2 text-sm">' + D(d._closeDate) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right font-bold">' + $(d._gross) + '</td>' +
+            '<td class="px-3 py-2 text-right">' +
+              '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">' +
+                '<input type="number" class="form-input text-sm py-1 px-2" style="width:100px" value="' + d._split + '" min="0" step="0.01" id="splitInput_' + E(d.id) + '">' +
+                '<span class="text-xs text-gray-400">(' + (d._gross > 0 ? Math.round((d._split / d._gross) * 100) : 0) + '%)</span>' +
+                '<button class="btn btn-sm btn-outline text-xs px-2 py-0.5" onclick="Panels._saveSplit(\'' + E(d.id) + '\')" title="Save split"><i class="fas fa-save"></i></button>' +
+              '</div>' +
+            '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(d._brokerage) + '</td>' +
+            '<td class="px-3 py-2">' + _payoutStatusPipeline(d._status) + '</td>' +
+            '<td class="px-3 py-2"><div style="display:flex;gap:4px">' +
+              (d._status === 'submitted' ? '<button class="btn btn-sm btn-success" onclick="Panels._approvePayout(\'' + E(d.id) + '\')" title="Approve"><i class="fas fa-check"></i></button>' : '') +
+              (d._status === 'approved' ? '<button class="btn btn-sm btn-gold" onclick="Panels._markPaid(\'' + E(d.id) + '\')" title="Mark Paid"><i class="fas fa-dollar-sign"></i></button>' : '') +
+              (d._status === 'submitted' || d._status === 'approved' ? '<button class="btn btn-sm btn-outline" style="color:#DC2626;border-color:#DC2626" onclick="Panels._rejectPayout(\'' + E(d.id) + '\')" title="Reject"><i class="fas fa-times"></i></button>' : '') +
+            '</div></td>' +
+          '</tr>';
+        });
+      }
+
+      html += '</tbody></table></div></div></div>';
+      html += '</div>';
+
+      c.innerHTML = html;
+      // Store deals for CSV export
+      window._payoutDealsCache = filtered;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-dollar-sign', 'Unable to load commission data');
     });
+  }
+
+  function _payoutStatusPipeline(status) {
+    var steps = ['submitted', 'approved', 'paid'];
+    var idx = steps.indexOf(status);
+    if (status === 'rejected') {
+      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#DC2626">' +
+        '<i class="fas fa-times-circle"></i> Rejected</span>';
+    }
+    var html = '<span style="display:inline-flex;align-items:center;gap:2px;font-size:11px">';
+    steps.forEach(function (step, i) {
+      var filled = i <= idx;
+      var color = filled ? (step === 'submitted' ? '#3B82F6' : step === 'approved' ? '#F59E0B' : '#059669') : '#D1D5DB';
+      html += '<span style="display:inline-flex;align-items:center;gap:1px">';
+      html += '<span style="width:10px;height:10px;border-radius:50%;background:' + color + ';display:inline-block"></span>';
+      html += '<span style="color:' + color + ';font-weight:' + (filled ? '700' : '400') + ';margin:0 2px">' + step.charAt(0).toUpperCase() + step.slice(1) + '</span>';
+      if (i < steps.length - 1) {
+        html += '<span style="width:16px;height:2px;background:' + (i < idx ? '#9CA3AF' : '#E5E7EB') + ';display:inline-block;vertical-align:middle"></span>';
+      }
+      html += '</span>';
+    });
+    html += '</span>';
+    return html;
+  }
+
+  function _filterPayouts(status) {
+    window._payoutFilter = status;
+    commissionPayouts();
+  }
+
+  function _sortPayouts(col) {
+    if (window._payoutSort.col === col) {
+      window._payoutSort.dir = window._payoutSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      window._payoutSort = { col: col, dir: 'asc' };
+    }
+    commissionPayouts();
+  }
+
+  function _exportPayoutsCSV() {
+    var deals = window._payoutDealsCache || [];
+    if (deals.length === 0) { CRM.toast('No deals to export', 'warning'); return; }
+    var rows = [['Agent', 'Client', 'Property', 'Type', 'Close Date', 'Gross Commission', 'Agent Split', 'Brokerage Share', 'Status'].join(',')];
+    deals.forEach(function (d) {
+      rows.push([
+        '"' + (d._agentName || '').replace(/"/g, '""') + '"',
+        '"' + (d._clientName || '').replace(/"/g, '""') + '"',
+        '"' + (d._property || '').replace(/"/g, '""') + '"',
+        '"' + (d._type || '').replace(/"/g, '""') + '"',
+        '"' + (d._closeDate || '') + '"',
+        d._gross || 0,
+        d._split || 0,
+        d._brokerage || 0,
+        '"' + (d._status || '') + '"',
+      ].join(','));
+    });
+    var blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'commission-payouts-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click(); URL.revokeObjectURL(url);
+    CRM.toast('CSV exported (' + deals.length + ' deals)', 'success');
+  }
+
+  function _markPaid(dealId) {
+    if (!confirm('Mark this deal as paid?')) return;
+    MallanAPI.deals.updateStatus(dealId, 'paid').then(function () {
+      Events.log('payout_paid', 'deal', dealId);
+      CRM.toast('Payout marked as paid', 'success');
+      commissionPayouts();
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Could not mark paid'), 'error'); });
+  }
+
+  function _rejectPayout(dealId) {
+    if (!confirm('Reject this payout? This action can be undone later.')) return;
+    MallanAPI.deals.updateStatus(dealId, 'rejected').then(function () {
+      Events.log('payout_rejected', 'deal', dealId);
+      CRM.toast('Payout rejected', 'success');
+      commissionPayouts();
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Could not reject'), 'error'); });
   }
 
   function _saveSplit(dealId) {
@@ -2551,22 +2769,184 @@ var Panels = (function () {
     CRM.setPanelTitle('Revenue Overview');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.deals.list({ limit: 200 }).then(function (data) {
-      var deals = data.deals || [];
+    Promise.all([
+      MallanAPI.deals.list({ limit: 500 }).catch(function () { return { deals: [] }; }),
+      MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
+      MallanAPI._fetch('/api/crm/referrals?limit=200').catch(function () { return { referrals: [] }; }),
+    ]).then(function (r) {
+      var deals = r[0].deals || [];
+      var agents = r[1].agents || [];
+      var referrals = r[2].referrals || [];
+
       var closed = deals.filter(function (d) { return d.stage === 'closed' || d.status === 'closed'; });
       var totalGross = closed.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
       var totalSplits = closed.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
-      var companyNet = totalGross - totalSplits;
+      var brokerageNet = totalGross - totalSplits;
+      var avgDealSize = closed.length > 0 ? totalGross / closed.length : 0;
+      var totalSalePrice = closed.reduce(function (s, d) { return s + (d.salePrice || d.sale_price || d.price || 0); }, 0);
+      var avgCommRate = totalSalePrice > 0 ? ((totalGross / totalSalePrice) * 100).toFixed(2) : '0.00';
 
-      c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Company Revenue', '') +
-        UI.statGrid([
-          UI.statCard($(totalGross), 'Gross Commission', 'fa-dollar-sign', '#B8860B'),
-          UI.statCard($(totalSplits), 'Agent Payouts', 'fa-users', '#2563EB'),
-          UI.statCard($(companyNet), 'Company Net', 'fa-chart-line', '#059669'),
-          UI.statCard(closed.length, 'Closed Deals', 'fa-handshake', '#374151'),
-        ]) +
+      // Referral fees
+      var refReceived = referrals.reduce(function (s, r) { return s + (r.feeReceived || r.fee_received || 0); }, 0);
+      var refPaid = referrals.reduce(function (s, r) { return s + (r.feePaid || r.fee_paid || 0); }, 0);
+
+      // Revenue by type
+      var salesDeals = closed.filter(function (d) { return (d.dealType || d.deal_type || '').toLowerCase() === 'sale'; });
+      var rentalDeals = closed.filter(function (d) { return (d.dealType || d.deal_type || '').toLowerCase() !== 'sale'; });
+      var salesGross = salesDeals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
+      var salesSplits = salesDeals.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
+      var rentalGross = rentalDeals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
+      var rentalSplits = rentalDeals.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
+
+      // Per-agent breakdown
+      var agentMap = {};
+      agents.forEach(function (a) { agentMap[a.id] = { name: a.full_name || a.name || a.email, deals: 0, gross: 0, splits: 0 }; });
+      closed.forEach(function (d) {
+        var aid = d.assignedAgentId || d.assigned_agent_id;
+        if (aid && agentMap[aid]) {
+          agentMap[aid].deals++;
+          agentMap[aid].gross += (d.grossCommission || d.commission || 0);
+          agentMap[aid].splits += (d.splitAmount || d.split_amount || 0);
+        }
+      });
+      var agentRows = Object.keys(agentMap).map(function (id) { return agentMap[id]; }).filter(function (a) { return a.deals > 0; });
+      agentRows.sort(function (a, b) { return b.gross - a.gross; });
+
+      // Monthly breakdown
+      var monthMap = {};
+      closed.forEach(function (d) {
+        var dt = d.closeDate || d.close_date || d.created_at;
+        if (!dt) return;
+        var key = dt.slice(0, 7); // YYYY-MM
+        if (!monthMap[key]) monthMap[key] = { deals: 0, gross: 0, splits: 0 };
+        monthMap[key].deals++;
+        monthMap[key].gross += (d.grossCommission || d.commission || 0);
+        monthMap[key].splits += (d.splitAmount || d.split_amount || 0);
+      });
+      var months = Object.keys(monthMap).sort().reverse();
+
+      var html = '<div class="space-y-4">';
+
+      // Top row — 6 stat cards
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">' +
+        UI.statCard($(totalGross), 'Gross Commission', 'fa-dollar-sign', '#B8860B') +
+        UI.statCard($(totalSplits), 'Agent Payouts', 'fa-users', '#2563EB') +
+        UI.statCard($(brokerageNet), 'Brokerage Net', 'fa-chart-line', '#059669') +
+        UI.statCard(closed.length, 'Closed Deals', 'fa-handshake', '#374151') +
+        UI.statCard($(avgDealSize), 'Avg Deal Size', 'fa-calculator', '#7C3AED') +
+        UI.statCard(avgCommRate + '%', 'Avg Commission Rate', 'fa-percent', '#0891B2') +
       '</div>';
+
+      // Revenue split visualization — 2 side-by-side cards
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+
+      // LEFT: Brokerage Revenue
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-building mr-2"></i>Brokerage Revenue</h3></div><div class="card-body">' +
+        '<table class="w-full text-sm"><tbody>' +
+        '<tr class="border-b"><td class="py-2 text-gray-600">Sales brokerage share</td><td class="py-2 text-right font-medium">' + $(salesGross - salesSplits) + '</td></tr>' +
+        '<tr class="border-b"><td class="py-2 text-gray-600">Rentals brokerage share</td><td class="py-2 text-right font-medium">' + $(rentalGross - rentalSplits) + '</td></tr>' +
+        '<tr class="border-b"><td class="py-2 text-green-600">Referral fees received</td><td class="py-2 text-right font-medium text-green-600">+ ' + $(refReceived) + '</td></tr>' +
+        '<tr class="border-b"><td class="py-2 text-red-500">Referral fees paid</td><td class="py-2 text-right font-medium text-red-500">- ' + $(refPaid) + '</td></tr>' +
+        '<tr class="bg-gray-50"><td class="py-2 font-bold">Net Brokerage Revenue</td><td class="py-2 text-right font-bold text-lg">' + $(brokerageNet + refReceived - refPaid) + '</td></tr>' +
+        '</tbody></table></div></div>';
+
+      // RIGHT: Agent Revenue
+      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-users mr-2"></i>Agent Revenue</h3></div><div class="card-body">' +
+        '<table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-2 py-1">Agent</th><th class="text-right px-2 py-1">Amount</th><th class="text-right px-2 py-1">Deals</th>' +
+        '</tr></thead><tbody>';
+      if (agentRows.length === 0) {
+        html += '<tr><td colspan="3" class="text-center py-4 text-gray-400 text-sm">No agent data</td></tr>';
+      } else {
+        agentRows.forEach(function (a) {
+          html += '<tr class="border-b"><td class="px-2 py-2 text-sm font-medium">' + E(a.name) + '</td>' +
+            '<td class="px-2 py-2 text-sm text-right">' + $(a.splits) + '</td>' +
+            '<td class="px-2 py-2 text-sm text-right">' + a.deals + '</td></tr>';
+        });
+        html += '<tr class="bg-gray-50 font-bold"><td class="px-2 py-2 text-sm">Total</td>' +
+          '<td class="px-2 py-2 text-sm text-right">' + $(totalSplits) + '</td>' +
+          '<td class="px-2 py-2 text-sm text-right">' + closed.length + '</td></tr>';
+      }
+      html += '</tbody></table></div></div>';
+      html += '</div>'; // end 2-col grid
+
+      // Monthly revenue table
+      html += '<div class="card"><div class="card-header"><h3>Monthly Revenue</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Month</th>' +
+        '<th class="text-right px-3 py-2">Deals Closed</th>' +
+        '<th class="text-right px-3 py-2">Gross</th>' +
+        '<th class="text-right px-3 py-2">Agent Payouts</th>' +
+        '<th class="text-right px-3 py-2">Brokerage Net</th>' +
+        '</tr></thead><tbody>';
+      if (months.length === 0) {
+        html += '<tr><td colspan="5" class="text-center py-6 text-sm text-gray-400">No monthly data</td></tr>';
+      } else {
+        months.forEach(function (m) {
+          var md = monthMap[m];
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(m) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + md.deals + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(md.gross) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(md.splits) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right font-medium">' + $(md.gross - md.splits) + '</td>' +
+          '</tr>';
+        });
+        // YTD footer
+        var ytdDeals = months.reduce(function (s, m) { return s + monthMap[m].deals; }, 0);
+        var ytdGross = months.reduce(function (s, m) { return s + monthMap[m].gross; }, 0);
+        var ytdSplits = months.reduce(function (s, m) { return s + monthMap[m].splits; }, 0);
+        html += '<tr class="bg-gray-100 font-bold">' +
+          '<td class="px-3 py-2 text-sm">YTD TOTALS</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + ytdDeals + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(ytdGross) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(ytdSplits) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(ytdGross - ytdSplits) + '</td>' +
+        '</tr>';
+      }
+      html += '</tbody></table></div></div></div>';
+
+      // Per-agent breakdown table
+      html += '<div class="card"><div class="card-header"><h3>Per-Agent Breakdown</h3></div>' +
+        '<div class="card-body"><div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
+        '<th class="text-left px-3 py-2">Agent</th>' +
+        '<th class="text-right px-3 py-2">Deals</th>' +
+        '<th class="text-right px-3 py-2">Gross Commission</th>' +
+        '<th class="text-right px-3 py-2">Split %</th>' +
+        '<th class="text-right px-3 py-2">Agent Share</th>' +
+        '<th class="text-right px-3 py-2">Brokerage Share</th>' +
+        '</tr></thead><tbody>';
+      if (agentRows.length === 0) {
+        html += '<tr><td colspan="6" class="text-center py-6 text-sm text-gray-400">No agent data</td></tr>';
+      } else {
+        agentRows.forEach(function (a) {
+          var splitPct = a.gross > 0 ? ((a.splits / a.gross) * 100).toFixed(1) : '0.0';
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(a.name) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + a.deals + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(a.gross) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + splitPct + '%</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(a.splits) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(a.gross - a.splits) + '</td>' +
+          '</tr>';
+        });
+        // Totals footer
+        var tGross = agentRows.reduce(function (s, a) { return s + a.gross; }, 0);
+        var tSplits = agentRows.reduce(function (s, a) { return s + a.splits; }, 0);
+        var tDeals = agentRows.reduce(function (s, a) { return s + a.deals; }, 0);
+        html += '<tr class="bg-gray-100 font-bold">' +
+          '<td class="px-3 py-2 text-sm">TOTALS</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + tDeals + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(tGross) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + (tGross > 0 ? ((tSplits / tGross) * 100).toFixed(1) : '0.0') + '%</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(tSplits) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(tGross - tSplits) + '</td>' +
+        '</tr>';
+      }
+      html += '</tbody></table></div></div></div>';
+
+      html += '</div>';
+      c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-chart-bar', 'Unable to load revenue data');
     });
@@ -2578,13 +2958,16 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
 
     var taxYear = window._1099TaxYear || new Date().getFullYear();
+    window._1099Filter = window._1099Filter || 'all';
 
     Promise.all([
       MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
       MallanAPI.deals.list({ limit: 500 }).catch(function () { return { deals: [] }; }),
+      MallanAPI._fetch('/api/crm/referrals?limit=500').catch(function () { return { referrals: [] }; }),
     ]).then(function (r) {
       var agents = r[0].agents || [];
       var allDeals = r[1].deals || [];
+      var referrals = r[2].referrals || [];
 
       // Filter deals by tax year
       var deals = allDeals.filter(function (d) {
@@ -2613,22 +2996,40 @@ var Panels = (function () {
           return (d.assignedAgentId === aid || d.assigned_agent_id === aid) &&
             (d.stage === 'closed' || d.status === 'closed');
         });
+        var grossComm = myDeals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
         var agentShare = myDeals.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
-        var refPaid = myDeals.reduce(function (s, d) { return s + (d.referralPaid || d.referral_paid || 0); }, 0);
-        var refReceived = myDeals.reduce(function (s, d) { return s + (d.referralReceived || d.referral_received || 0); }, 0);
+
+        // Referral fees for this agent
+        var agentRefPaid = referrals.filter(function (ref) {
+          return (ref.agentId === aid || ref.agent_id === aid) && (ref.type === 'paid' || ref.direction === 'outbound');
+        }).reduce(function (s, ref) { return s + (ref.amount || ref.feePaid || ref.fee_paid || 0); }, 0);
+        var agentRefReceived = referrals.filter(function (ref) {
+          return (ref.agentId === aid || ref.agent_id === aid) && (ref.type === 'received' || ref.direction === 'inbound');
+        }).reduce(function (s, ref) { return s + (ref.amount || ref.feeReceived || ref.fee_received || 0); }, 0);
+
+        // Also check deal-level referral data
+        var dealRefPaid = myDeals.reduce(function (s, d) { return s + (d.referralPaid || d.referral_paid || 0); }, 0);
+        var dealRefReceived = myDeals.reduce(function (s, d) { return s + (d.referralReceived || d.referral_received || 0); }, 0);
+        var refPaid = agentRefPaid || dealRefPaid;
+        var refReceived = agentRefReceived || dealRefReceived;
+
         var amount1099 = agentShare + refReceived - refPaid;
-        var taxId = a.taxId || a.tax_id || a.ssn_last4 || '';
-        var last4 = taxId.length > 4 ? taxId.slice(-4) : taxId;
-        var genStatus = a._1099Status || 'pending';
+        var tinRaw = a.taxId || a.tax_id || a.ssn_last4 || a.tin || a.tinLast4 || a.tin_last4 || '';
+        var tinLast4 = tinRaw.length > 4 ? tinRaw.slice(-4) : tinRaw;
+        var hasTin = !!tinLast4;
+        var genStatus = a._1099Status || a.filing_status_1099 || 'pending';
 
         grandTotalDeals += myDeals.length;
         grandTotal1099 += amount1099;
 
         agentRows.push({
           agent: a,
+          agentId: aid,
           name: a.full_name || a.name || a.email,
-          last4: last4,
+          tinLast4: tinLast4,
+          hasTin: hasTin,
           dealCount: myDeals.length,
+          grossComm: grossComm,
           agentShare: agentShare,
           refPaid: refPaid,
           refReceived: refReceived,
@@ -2637,29 +3038,73 @@ var Panels = (function () {
         });
       });
 
+      // Store for export
+      window._1099AgentRows = agentRows;
+      window._1099TaxYearCurrent = taxYear;
+
+      // Apply filter
+      var activeFilter = window._1099Filter;
+      var filteredRows = agentRows;
+      if (activeFilter === 'missing_tin') {
+        filteredRows = agentRows.filter(function (r) { return !r.hasTin; });
+      } else if (activeFilter === 'ready') {
+        filteredRows = agentRows.filter(function (r) { return r.hasTin && r.dealCount > 0; });
+      }
+
+      var missingTinCount = agentRows.filter(function (r) { return !r.hasTin; }).length;
+      var readyCount = agentRows.filter(function (r) { return r.hasTin && r.dealCount > 0; }).length;
+
       var html = '<div class="space-y-4">';
 
-      // Header with year selector
+      // Header row: year selector + action buttons
       html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
         '<div class="flex items-center gap-3">' +
           '<h3 class="text-lg font-bold text-gray-900">1099-NEC Year-End</h3>' +
           '<select class="form-input form-select text-sm" style="width:auto" onchange="window._1099TaxYear=parseInt(this.value);Panels.yearEnd1099()">' + yearOpts + '</select>' +
         '</div>' +
-        '<button class="btn btn-sm btn-gold" onclick="Panels._generateAll1099s(' + taxYear + ')"><i class="fas fa-file-invoice-dollar mr-1"></i> Generate All 1099s</button>' +
+        '<div class="flex gap-2">' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._generateAll1099s(' + taxYear + ')"><i class="fas fa-file-invoice-dollar mr-1"></i> Generate All 1099s</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._export1099AuditReport()"><i class="fas fa-clipboard-check mr-1"></i> Export Audit Report</button>' +
+        '</div>' +
       '</div>';
 
-      // Filing status indicators
+      // Readiness filter chips
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+      var chips = [
+        { key: 'all', label: 'All Agents (' + agentRows.length + ')', color: '' },
+        { key: 'missing_tin', label: 'Missing TIN Info (' + missingTinCount + ')', color: missingTinCount > 0 ? 'background:#FEF2F2;color:#991B1B;border:1px solid #FECACA' : '' },
+        { key: 'ready', label: 'Ready to Generate (' + readyCount + ')', color: readyCount > 0 ? 'background:#F0FDF4;color:#166534;border:1px solid #BBF7D0' : '' },
+      ];
+      chips.forEach(function (ch) {
+        var isActive = activeFilter === ch.key;
+        var style = isActive ? 'background:#B8860B;color:#fff;border:1px solid #B8860B' : (ch.color || 'background:#F9FAFB;color:#374151;border:1px solid #E5E7EB');
+        html += '<button style="' + style + ';padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer" ' +
+          'onclick="Panels._filter1099(\'' + ch.key + '\')">' + ch.label + '</button>';
+      });
+      html += '</div>';
+
+      // Filing status cards
       var generated = agentRows.filter(function (r) { return r.status === 'generated'; }).length;
       var pendingReview = agentRows.filter(function (r) { return r.status === 'review'; }).length;
-      var sent = agentRows.filter(function (r) { return r.status === 'sent'; }).length;
-      var pendingGen = agentRows.filter(function (r) { return r.status === 'pending'; }).length;
+      var sent = agentRows.filter(function (r) { return r.status === 'sent' || r.status === 'filed'; }).length;
 
-      html += '<div class="flex flex-wrap gap-3">' +
-        '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700"><i class="fas fa-check-circle mr-1"></i>Generated: ' + generated + '</span>' +
-        '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700"><i class="fas fa-clock mr-1"></i>Pending Review: ' + pendingReview + '</span>' +
-        '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700"><i class="fas fa-paper-plane mr-1"></i>Sent to IRS: ' + sent + '</span>' +
-        '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700"><i class="fas fa-calendar mr-1"></i>Filing Deadline: Jan 31, ' + (taxYear + 1) + '</span>' +
-        '<span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700"><i class="fas fa-hourglass-half mr-1"></i>Pending: ' + pendingGen + '</span>' +
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">' +
+        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#166534;text-transform:uppercase;margin-bottom:4px">Generated</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#059669">' + generated + '</div>' +
+        '</div>' +
+        '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#92400E;text-transform:uppercase;margin-bottom:4px">Pending Review</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#D97706">' + pendingReview + '</div>' +
+        '</div>' +
+        '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#1E40AF;text-transform:uppercase;margin-bottom:4px">Sent to IRS</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#1D4ED8">' + sent + '</div>' +
+        '</div>' +
+        '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:14px;text-align:center">' +
+          '<div style="font-size:11px;font-weight:600;color:#991B1B;text-transform:uppercase;margin-bottom:4px">Filing Deadline</div>' +
+          '<div style="font-size:16px;font-weight:800;color:#DC2626">April 1, ' + (taxYear + 1) + '</div>' +
+        '</div>' +
       '</div>';
 
       // 1099 Summary table
@@ -2668,43 +3113,52 @@ var Panels = (function () {
         '<th class="text-left px-3 py-2">Agent</th>' +
         '<th class="text-left px-3 py-2">Tax ID (Last 4)</th>' +
         '<th class="text-right px-3 py-2">Total Deals</th>' +
-        '<th class="text-right px-3 py-2">Agent Share</th>' +
-        '<th class="text-right px-3 py-2">Referrals Paid</th>' +
-        '<th class="text-right px-3 py-2">Referrals Received</th>' +
-        '<th class="text-right px-3 py-2">1099 Amount</th>' +
+        '<th class="text-right px-3 py-2">Gross Commissions</th>' +
+        '<th class="text-right px-3 py-2">Less Referral Fees Paid</th>' +
+        '<th class="text-right px-3 py-2">Plus Referral Fees Received</th>' +
+        '<th class="text-right px-3 py-2">Net 1099 Amount</th>' +
         '<th class="text-left px-3 py-2">Status</th>' +
         '<th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
-      if (agentRows.length === 0) {
-        html += '<tr><td colspan="9" class="text-center py-6 text-sm text-gray-400">No agents for ' + taxYear + '</td></tr>';
+
+      if (filteredRows.length === 0) {
+        html += '<tr><td colspan="9" class="text-center py-6 text-sm text-gray-400">No agents match this filter for ' + taxYear + '</td></tr>';
       } else {
-        agentRows.forEach(function (row) {
+        filteredRows.forEach(function (row) {
           var statusBadge = row.status === 'generated' ? '<span class="badge badge-active">Generated</span>' :
-            row.status === 'review' ? '<span class="badge badge-pending">Review</span>' :
-            row.status === 'sent' ? '<span class="badge badge-active">Sent</span>' :
-            '<span class="badge badge-inactive">Pending</span>';
-          html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-3 py-2 text-sm font-medium">' + E(row.name) + '</td>' +
-            '<td class="px-3 py-2 text-xs font-mono">' + (row.last4 ? '***-**-' + E(row.last4) : '-') + '</td>' +
+            row.status === 'review' ? '<span class="badge badge-pending">Reviewed</span>' :
+            row.status === 'sent' || row.status === 'filed' ? '<span class="badge badge-active">Filed</span>' :
+            '<span class="badge badge-inactive">Not Generated</span>';
+          var rowBg = !row.hasTin ? 'background:#FFFBEB' : '';
+          var flagIcon = !row.hasTin ? '<i class="fas fa-flag" style="color:#DC2626;margin-left:6px" title="Missing TIN"></i>' : '';
+
+          html += '<tr class="border-b hover:bg-gray-50" style="' + rowBg + '">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(row.name) + flagIcon + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + (row.tinLast4 ? '***-**-' + E(row.tinLast4) : '<span style="color:#DC2626;font-weight:600">Missing</span>') + '</td>' +
             '<td class="px-3 py-2 text-sm text-right">' + row.dealCount + '</td>' +
-            '<td class="px-3 py-2 text-sm text-right">' + $(row.agentShare) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(row.grossComm) + '</td>' +
             '<td class="px-3 py-2 text-sm text-right text-red-500">' + $(row.refPaid) + '</td>' +
             '<td class="px-3 py-2 text-sm text-right text-green-600">' + $(row.refReceived) + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold">' + $(row.amount1099) + '</td>' +
             '<td class="px-3 py-2">' + statusBadge + '</td>' +
             '<td class="px-3 py-2"><div class="flex gap-1">' +
-              '<button class="btn btn-sm btn-outline" title="Preview" onclick="Panels._open1099Preview(\'' + E(row.agent.id) + '\',' + taxYear + ')"><i class="fas fa-eye"></i></button>' +
-              '<button class="btn btn-sm btn-gold" title="Generate" onclick="Panels._generate1099(\'' + E(row.agent.id) + '\',' + taxYear + ')"><i class="fas fa-file-invoice"></i></button>' +
+              '<button class="btn btn-sm btn-outline" title="Preview" onclick="Panels._open1099Preview(\'' + E(row.agentId) + '\',' + taxYear + ')"><i class="fas fa-eye"></i></button>' +
+              '<button class="btn btn-sm btn-gold" title="Generate" onclick="Panels._generate1099(\'' + E(row.agentId) + '\',' + taxYear + ')"><i class="fas fa-file-invoice"></i></button>' +
             '</div></td>' +
           '</tr>';
         });
         // Footer totals
+        var fTotalDeals = filteredRows.reduce(function (s, r) { return s + r.dealCount; }, 0);
+        var fTotalGross = filteredRows.reduce(function (s, r) { return s + r.grossComm; }, 0);
+        var fTotalRefPaid = filteredRows.reduce(function (s, r) { return s + r.refPaid; }, 0);
+        var fTotalRefRcv = filteredRows.reduce(function (s, r) { return s + r.refReceived; }, 0);
+        var fTotal1099 = filteredRows.reduce(function (s, r) { return s + r.amount1099; }, 0);
         html += '<tr class="bg-gray-100 font-bold"><td class="px-3 py-2 text-sm">TOTALS</td><td></td>' +
-          '<td class="px-3 py-2 text-sm text-right">' + grandTotalDeals + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right">' + $(agentRows.reduce(function (s, r) { return s + r.agentShare; }, 0)) + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right text-red-500">' + $(agentRows.reduce(function (s, r) { return s + r.refPaid; }, 0)) + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right text-green-600">' + $(agentRows.reduce(function (s, r) { return s + r.refReceived; }, 0)) + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right">' + $(grandTotal1099) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + fTotalDeals + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(fTotalGross) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right text-red-500">' + $(fTotalRefPaid) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right text-green-600">' + $(fTotalRefRcv) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(fTotal1099) + '</td>' +
           '<td colspan="2"></td></tr>';
       }
       html += '</tbody></table></div></div></div>';
@@ -2716,50 +3170,96 @@ var Panels = (function () {
     });
   }
 
+  function _filter1099(filter) {
+    window._1099Filter = filter;
+    yearEnd1099();
+  }
+
   function _open1099Preview(agentId, taxYear) {
     Promise.all([
       MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(agentId)).catch(function () { return {}; }),
       MallanAPI.deals.list({ limit: 500 }).catch(function () { return { deals: [] }; }),
+      MallanAPI._fetch('/api/crm/referrals?limit=500').catch(function () { return { referrals: [] }; }),
     ]).then(function (r) {
       var agent = r[0].agent || r[0] || {};
       var allDeals = r[1].deals || [];
+      var referrals = r[2].referrals || [];
+
       var deals = allDeals.filter(function (d) {
         var aid = d.assignedAgentId || d.assigned_agent_id;
         var closeDate = d.closeDate || d.close_date || d.created_at;
         return aid === agentId && closeDate && new Date(closeDate).getFullYear() === taxYear &&
           (d.stage === 'closed' || d.status === 'closed');
       });
-      var compensation = deals.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
-      var taxId = agent.taxId || agent.tax_id || '';
+
+      var grossComm = deals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
+      var agentShare = deals.reduce(function (s, d) { return s + (d.splitAmount || d.split_amount || 0); }, 0);
+
+      var agentRefPaid = referrals.filter(function (ref) {
+        return (ref.agentId === agentId || ref.agent_id === agentId) && (ref.type === 'paid' || ref.direction === 'outbound');
+      }).reduce(function (s, ref) { return s + (ref.amount || ref.feePaid || ref.fee_paid || 0); }, 0);
+      var agentRefReceived = referrals.filter(function (ref) {
+        return (ref.agentId === agentId || ref.agent_id === agentId) && (ref.type === 'received' || ref.direction === 'inbound');
+      }).reduce(function (s, ref) { return s + (ref.amount || ref.feeReceived || ref.fee_received || 0); }, 0);
+
+      var dealRefPaid = deals.reduce(function (s, d) { return s + (d.referralPaid || d.referral_paid || 0); }, 0);
+      var dealRefReceived = deals.reduce(function (s, d) { return s + (d.referralReceived || d.referral_received || 0); }, 0);
+      var refPaid = agentRefPaid || dealRefPaid;
+      var refReceived = agentRefReceived || dealRefReceived;
+      var net1099 = agentShare + refReceived - refPaid;
+
+      var taxId = agent.taxId || agent.tax_id || agent.tin || agent.tinLast4 || agent.tin_last4 || agent.ssn_last4 || '';
       var last4 = taxId.length > 4 ? taxId.slice(-4) : taxId;
 
       CRM.openModal('1099-NEC Preview — ' + (agent.name || agent.email || 'Agent'),
         '<div class="space-y-4">' +
-          '<div class="border-2 border-gray-300 rounded-lg p-6 bg-white">' +
-            '<div class="text-center mb-4"><p class="text-lg font-bold">1099-NEC</p><p class="text-xs text-gray-500">Nonemployee Compensation — ' + taxYear + '</p></div>' +
-            '<div class="grid grid-cols-2 gap-4 mb-4">' +
-              '<div class="border p-3 rounded"><p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Payer</p>' +
-                '<p class="text-sm font-bold">Mallan Real Estate Inc.</p>' +
-                '<p class="text-xs text-gray-600">400 E 90th St, Suite 17C</p>' +
-                '<p class="text-xs text-gray-600">New York, NY 10128</p>' +
-                '<p class="text-xs text-gray-600">EIN: [On file]</p></div>' +
-              '<div class="border p-3 rounded"><p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Recipient</p>' +
-                '<p class="text-sm font-bold">' + E(agent.name || agent.email || 'Agent') + '</p>' +
-                '<p class="text-xs text-gray-600">' + E(agent.address || '') + '</p>' +
-                '<p class="text-xs text-gray-600">SSN: ' + (last4 ? '***-**-' + E(last4) : 'On file') + '</p></div>' +
+          '<div style="border:2px solid #D1D5DB;border-radius:8px;padding:24px;background:#fff">' +
+            '<div style="text-align:center;margin-bottom:16px"><p style="font-size:18px;font-weight:700">1099-NEC</p><p style="font-size:11px;color:#6B7280">Nonemployee Compensation — Tax Year ' + taxYear + '</p></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">' +
+              '<div style="border:1px solid #E5E7EB;padding:12px;border-radius:6px"><p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">Payer</p>' +
+                '<p style="font-size:13px;font-weight:700">Mallan Real Estate Inc.</p>' +
+                '<p style="font-size:11px;color:#4B5563">400 East 90th Street, Suite 17C</p>' +
+                '<p style="font-size:11px;color:#4B5563">New York, NY 10128</p>' +
+                '<p style="font-size:11px;color:#4B5563">TIN: [On file]</p>' +
+                '<p style="font-size:11px;color:#4B5563">Account: #10991205323</p></div>' +
+              '<div style="border:1px solid #E5E7EB;padding:12px;border-radius:6px"><p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">Recipient</p>' +
+                '<p style="font-size:13px;font-weight:700">' + E(agent.name || agent.full_name || agent.email || 'Agent') + '</p>' +
+                '<p style="font-size:11px;color:#4B5563">' + E(agent.address || '') + '</p>' +
+                '<p style="font-size:11px;color:#4B5563">TIN (Last 4): ' + (last4 ? '***-**-' + E(last4) : '<span style="color:#DC2626">Missing</span>') + '</p></div>' +
             '</div>' +
-            '<div class="border p-4 rounded bg-gray-50 mb-4">' +
-              '<p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Box 1. Nonemployee Compensation</p>' +
-              '<p class="text-2xl font-bold text-gray-900">' + $(compensation) + '</p>' +
+            '<div style="border:1px solid #E5E7EB;padding:16px;border-radius:6px;background:#F9FAFB;margin-bottom:16px">' +
+              '<p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">Box 1. Nonemployee Compensation</p>' +
+              '<p style="font-size:28px;font-weight:800;color:#111827">' + $(net1099) + '</p>' +
             '</div>' +
-            '<div class="grid grid-cols-2 gap-4">' +
-              '<div class="border p-3 rounded"><p class="text-[10px] font-bold text-gray-500 uppercase mb-1">State</p>' +
-                '<p class="text-sm">New York</p></div>' +
-              '<div class="border p-3 rounded"><p class="text-[10px] font-bold text-gray-500 uppercase mb-1">State Tax ID</p>' +
-                '<p class="text-sm">[On file]</p></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">' +
+              '<div style="border:1px solid #E5E7EB;padding:12px;border-radius:6px"><p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">Box 4. Federal Tax Withheld</p>' +
+                '<p style="font-size:14px;font-weight:600">$0.00</p></div>' +
+              '<div style="border:1px solid #E5E7EB;padding:12px;border-radius:6px"><p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">Box 5. State Tax Withheld</p>' +
+                '<p style="font-size:14px;font-weight:600">$0.00</p></div>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">' +
+              '<div style="border:1px solid #E5E7EB;padding:12px;border-radius:6px"><p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">State</p>' +
+                '<p style="font-size:13px">New York</p></div>' +
+              '<div style="border:1px solid #E5E7EB;padding:12px;border-radius:6px"><p style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;margin-bottom:4px">Account Number</p>' +
+                '<p style="font-size:13px">#10991205323</p></div>' +
+            '</div>' +
+            '<div style="border:1px solid #E5E7EB;padding:16px;border-radius:6px;background:#F9FAFB">' +
+              '<p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">Compensation Breakdown</p>' +
+              '<table style="width:100%;font-size:12px"><tbody>' +
+                '<tr><td style="padding:4px 0;color:#4B5563">Gross Commissions</td><td style="padding:4px 0;text-align:right;font-weight:600">' + $(grossComm) + '</td></tr>' +
+                '<tr><td style="padding:4px 0;color:#EF4444">Less Referral Fees Paid</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#EF4444">- ' + $(refPaid) + '</td></tr>' +
+                '<tr><td style="padding:4px 0;color:#059669">Plus Referral Fees Received</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#059669">+ ' + $(refReceived) + '</td></tr>' +
+                '<tr style="border-top:2px solid #D1D5DB"><td style="padding:8px 0 4px;font-weight:700">Net 1099 Compensation</td><td style="padding:8px 0 4px;text-align:right;font-weight:800;font-size:14px">' + $(net1099) + '</td></tr>' +
+              '</tbody></table>' +
             '</div>' +
           '</div>' +
-          '<p class="text-xs text-gray-500 text-center">This is a preview. Official 1099-NEC forms are generated via IRS e-filing.</p>' +
+          '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+            '<button class="btn btn-sm btn-gold" onclick="Panels._generate1099(\'' + E(agentId) + '\',' + taxYear + ')"><i class="fas fa-file-invoice mr-1"></i> Generate</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="window.print()"><i class="fas fa-print mr-1"></i> Print</button>' +
+            '<button class="btn btn-sm btn-outline" disabled title="Coming soon"><i class="fas fa-download mr-1"></i> Download</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="CRM.closeModal()">Close</button>' +
+          '</div>' +
+          '<p style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:8px">This is a preview. Official 1099-NEC forms are generated via IRS e-filing.</p>' +
         '</div>',
         { size: 'lg' }
       );
@@ -2795,6 +3295,97 @@ var Panels = (function () {
     }).catch(function () {
       Events.log('1099_batch_generated', 'system', null, { taxYear: taxYear });
       CRM.toast('1099 batch generation queued', 'info');
+    });
+  }
+
+  function _export1099AuditReport() {
+    var rows = window._1099AgentRows || [];
+    var taxYear = window._1099TaxYearCurrent || new Date().getFullYear();
+    if (rows.length === 0) { CRM.toast('No 1099 data to export', 'warning'); return; }
+
+    var missingTin = rows.filter(function (r) { return !r.hasTin; });
+    var completeData = rows.filter(function (r) { return r.hasTin; });
+    var total1099 = rows.reduce(function (s, r) { return s + r.amount1099; }, 0);
+    var allVerified = missingTin.length === 0;
+
+    var modalHtml = '<div class="space-y-4">';
+    modalHtml += '<div style="padding:12px;border-radius:8px;background:' + (allVerified ? '#F0FDF4' : '#FEF2F2') + ';border:1px solid ' + (allVerified ? '#BBF7D0' : '#FECACA') + '">' +
+      '<p style="font-size:14px;font-weight:700;color:' + (allVerified ? '#166534' : '#991B1B') + '">' +
+      '<i class="fas fa-' + (allVerified ? 'check-circle' : 'exclamation-triangle') + ' mr-2"></i>' +
+      (allVerified ? 'All data verified' : missingTin.length + ' agent' + (missingTin.length !== 1 ? 's' : '') + ' need attention') +
+      '</p></div>';
+
+    modalHtml += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">' +
+      '<div style="text-align:center;padding:12px;background:#F9FAFB;border-radius:6px"><div style="font-size:11px;color:#6B7280;text-transform:uppercase">Total Agents</div><div style="font-size:20px;font-weight:800">' + rows.length + '</div></div>' +
+      '<div style="text-align:center;padding:12px;background:#F0FDF4;border-radius:6px"><div style="font-size:11px;color:#166534;text-transform:uppercase">Complete Data</div><div style="font-size:20px;font-weight:800;color:#059669">' + completeData.length + '</div></div>' +
+      '<div style="text-align:center;padding:12px;background:' + (missingTin.length > 0 ? '#FEF2F2' : '#F9FAFB') + ';border-radius:6px"><div style="font-size:11px;color:' + (missingTin.length > 0 ? '#991B1B' : '#6B7280') + ';text-transform:uppercase">Missing TIN</div><div style="font-size:20px;font-weight:800;color:' + (missingTin.length > 0 ? '#DC2626' : '#374151') + '">' + missingTin.length + '</div></div>' +
+    '</div>';
+
+    modalHtml += '<div style="padding:12px;background:#F9FAFB;border-radius:6px;text-align:center">' +
+      '<div style="font-size:11px;color:#6B7280;text-transform:uppercase">Total 1099 Amount (' + taxYear + ')</div>' +
+      '<div style="font-size:24px;font-weight:800;color:#111827">' + $(total1099) + '</div></div>';
+
+    modalHtml += '<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#F3F4F6">' +
+      '<th style="text-align:left;padding:6px 8px">Agent</th>' +
+      '<th style="text-align:left;padding:6px 8px">TIN</th>' +
+      '<th style="text-align:right;padding:6px 8px">1099 Amount</th>' +
+      '<th style="text-align:left;padding:6px 8px">Status</th>' +
+    '</tr></thead><tbody>';
+    rows.forEach(function (r) {
+      var tinDisplay = r.hasTin ? '***-**-' + E(r.tinLast4) : '<span style="color:#DC2626">Missing</span>';
+      modalHtml += '<tr style="border-bottom:1px solid #E5E7EB;' + (!r.hasTin ? 'background:#FFFBEB' : '') + '">' +
+        '<td style="padding:6px 8px;font-weight:500">' + E(r.name) + '</td>' +
+        '<td style="padding:6px 8px;font-family:monospace;font-size:11px">' + tinDisplay + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;font-weight:600">' + $(r.amount1099) + '</td>' +
+        '<td style="padding:6px 8px">' + E(r.status) + '</td>' +
+      '</tr>';
+    });
+    modalHtml += '</tbody></table>';
+
+    modalHtml += '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="btn btn-sm btn-outline" onclick="Panels._export1099AuditCSV()"><i class="fas fa-download mr-1"></i> Export as CSV</button>' +
+      '<button class="btn btn-sm btn-outline" onclick="CRM.closeModal()">Close</button>' +
+    '</div>';
+    modalHtml += '</div>';
+
+    CRM.openModal('1099 Audit Report — Tax Year ' + taxYear, modalHtml, { size: 'lg' });
+  }
+
+  function _export1099AuditCSV() {
+    var rows = window._1099AgentRows || [];
+    var taxYear = window._1099TaxYearCurrent || new Date().getFullYear();
+    if (rows.length === 0) { CRM.toast('No data to export', 'warning'); return; }
+    var csv = [['Agent', 'TIN Last 4', 'Total Deals', 'Gross Commissions', 'Referral Fees Paid', 'Referral Fees Received', 'Net 1099 Amount', 'Status'].join(',')];
+    rows.forEach(function (r) {
+      csv.push([
+        '"' + (r.name || '').replace(/"/g, '""') + '"',
+        '"' + (r.tinLast4 || 'MISSING') + '"',
+        r.dealCount,
+        r.grossComm || 0,
+        r.refPaid || 0,
+        r.refReceived || 0,
+        r.amount1099 || 0,
+        '"' + (r.status || '') + '"',
+      ].join(','));
+    });
+    var blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = '1099-audit-report-' + taxYear + '.csv';
+    a.click(); URL.revokeObjectURL(url);
+    CRM.toast('Audit report exported', 'success');
+  }
+
+  function _mark1099Status(agentId, status) {
+    MallanAPI._fetch('/api/crm/1099/status', {
+      method: 'POST',
+      body: JSON.stringify({ agentId: agentId, status: status }),
+    }).then(function () {
+      Events.log('1099_status_updated', 'agent', agentId, { status: status });
+      CRM.toast('1099 status updated to ' + status, 'success');
+      yearEnd1099();
+    }).catch(function () {
+      CRM.toast('Could not update 1099 status', 'error');
     });
   }
 
@@ -4597,6 +5188,12 @@ var Panels = (function () {
     _approvePayout: _approvePayout,
     _saveSplit: _saveSplit,
     _saveAgentSplit: _saveAgentSplit,
+    _payoutStatusPipeline: _payoutStatusPipeline,
+    _filterPayouts: _filterPayouts,
+    _sortPayouts: _sortPayouts,
+    _exportPayoutsCSV: _exportPayoutsCSV,
+    _markPaid: _markPaid,
+    _rejectPayout: _rejectPayout,
     _toggleFeatured: _toggleFeatured,
     _uploadDoc: _uploadDoc,
     _submitUploadDoc: _submitUploadDoc,
@@ -4622,6 +5219,10 @@ var Panels = (function () {
     _open1099Preview: _open1099Preview,
     _generate1099: _generate1099,
     _generateAll1099s: _generateAll1099s,
+    _filter1099: _filter1099,
+    _export1099AuditReport: _export1099AuditReport,
+    _export1099AuditCSV: _export1099AuditCSV,
+    _mark1099Status: _mark1099Status,
     _runFairHousingScan: _runFairHousingScan,
     _toggleAuditDetail: _toggleAuditDetail,
     _filterAuditLog: _filterAuditLog,
