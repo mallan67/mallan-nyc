@@ -49,7 +49,15 @@ body { margin: 0; }
 
 .sidebar-section {
     padding: 0 10px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
+}
+
+.sidebar-section > .sidebar-label {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #111827;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .sidebar-label {
@@ -66,11 +74,11 @@ body { margin: 0; }
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 9px 14px;
+    padding: 7px 12px;
     border: none;
     background: none;
     color: #9ca3af;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     font-family: inherit;
     border-radius: 8px;
@@ -78,6 +86,7 @@ body { margin: 0; }
     transition: all 0.15s;
     text-align: left;
     white-space: nowrap;
+    position: relative;
 }
 
 .sidebar-item:hover {
@@ -789,3 +798,89 @@ input[type="checkbox"] {
 /* ── Utility ───────────────────────────────────────────────────────────── */
 .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ── Sidebar Pin Icon ─────────────────────────────────────────────────── */
+.sidebar-item .pin-icon {
+    display: none;
+    margin-left: auto;
+    font-size: 10px;
+    color: #6b7280;
+    padding: 2px 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.sidebar-item:hover .pin-icon { display: inline-flex; }
+.sidebar-item .pin-icon:hover { color: #B8860B; background: rgba(184,134,11,0.1); }
+.sidebar-item .pin-icon.pinned { display: inline-flex; color: #B8860B; }
+
+/* ── Recent & Favorites Sections ──────────────────────────────────────── */
+.sidebar-recent-section,
+.sidebar-favorites-section {
+    padding: 0 10px;
+    margin-bottom: 2px;
+}
+
+.sidebar-recent-section .sidebar-label,
+.sidebar-favorites-section .sidebar-label {
+    cursor: default;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.sidebar-recent-item,
+.sidebar-favorites-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 12px;
+    border: none;
+    background: none;
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.sidebar-recent-item:hover,
+.sidebar-favorites-item:hover {
+    background: #1f2937;
+    color: #e5e7eb;
+}
+
+.sidebar-recent-item .recent-avatar,
+.sidebar-favorites-item .fav-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.sidebar-recent-item .recent-avatar {
+    background: #374151;
+    color: #B8860B;
+}
+
+.sidebar-favorites-item .fav-icon {
+    color: #6b7280;
+    font-size: 10px;
+}
+
+.sidebar-recent-sub {
+    padding: 4px 12px 2px;
+    font-size: 9px;
+    font-weight: 600;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}

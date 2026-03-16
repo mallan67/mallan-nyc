@@ -126,6 +126,212 @@ var CRM = (function () {
     Router.register('/workspace/listing/:id/portal',     function (p) { Workspace.openListing(p.id, 'portal'); });
   }
 
+  // ─── Recent Workspaces ──────────────────────────────────────────────
+  var RECENT_KEY = 'mallan_crm_recent_workspaces';
+  var FAVORITES_KEY = 'mallan_crm_favorites';
+  var DEFAULT_FAVORITES = [
+    { route: '/broker/dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
+    { route: '/broker/people/agents', label: 'Agent Roster', icon: 'fa-user-tie' },
+    { route: '/ops/clients', label: 'My Clients', icon: 'fa-users' },
+    { route: '/ops/listings', label: 'My Listings', icon: 'fa-building' },
+  ];
+
+  function _getRecentWorkspaces() {
+    try {
+      var raw = localStorage.getItem(RECENT_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function _saveRecentWorkspaces(list) {
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* quota */ }
+  }
+
+  function _trackRecentWorkspace(type, id, name) {
+    var list = _getRecentWorkspaces();
+    // Remove duplicate
+    list = list.filter(function (item) { return !(item.type === type && item.id === id); });
+    var route = type === 'client'
+      ? '/workspace/client/' + id + '/overview'
+      : '/workspace/listing/' + id + '/overview';
+    list.unshift({ type: type, id: id, name: name, route: route, timestamp: Date.now() });
+    // Keep last 5 of each type
+    var clients = list.filter(function (i) { return i.type === 'client'; }).slice(0, 5);
+    var listings = list.filter(function (i) { return i.type === 'listing'; }).slice(0, 5);
+    list = clients.concat(listings);
+    list.sort(function (a, b) { return b.timestamp - a.timestamp; });
+    _saveRecentWorkspaces(list);
+    _renderRecentSection();
+  }
+
+  // Track workspace route changes
+  Store.on('route:changed', function (route) {
+    if (!route) return;
+    var clientMatch = route.match(/^\/workspace\/client\/([^/]+)\//);
+    var listingMatch = route.match(/^\/workspace\/listing\/([^/]+)\//);
+    if (clientMatch) {
+      var cId = clientMatch[1];
+      // Try to get name from current workspace or DOM
+      var wsHeader = document.querySelector('.workspace-header h2');
+      var cName = wsHeader ? wsHeader.textContent : ('Client ' + cId.slice(0, 6));
+      _trackRecentWorkspace('client', cId, cName);
+    } else if (listingMatch) {
+      var lId = listingMatch[1];
+      var wsH = document.querySelector('.workspace-header h2');
+      var lName = wsH ? wsH.textContent : ('Listing ' + lId.slice(0, 6));
+      _trackRecentWorkspace('listing', lId, lName);
+    }
+  });
+
+  function _renderRecentSection() {
+    var container = document.getElementById('sidebarRecent');
+    if (!container) return;
+    var all = _getRecentWorkspaces();
+    if (all.length === 0) { container.innerHTML = ''; return; }
+
+    var clients = all.filter(function (i) { return i.type === 'client'; }).slice(0, 5);
+    var listings = all.filter(function (i) { return i.type === 'listing'; }).slice(0, 5);
+
+    var html = '<div class="sidebar-recent-section">' +
+      '<div class="sidebar-label"><span>RECENT</span></div>';
+
+    if (clients.length > 0) {
+      html += '<div class="sidebar-recent-sub">Clients</div>';
+      clients.forEach(function (c) {
+        var initials = (c.name || '??').split(' ').map(function (w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase();
+        var truncName = c.name && c.name.length > 18 ? c.name.slice(0, 18) + '\u2026' : (c.name || 'Unknown');
+        html += '<button class="sidebar-recent-item" onclick="Router.navigate(\'' + E(c.route) + '\')">' +
+          '<span class="recent-avatar">' + E(initials) + '</span>' +
+          '<span class="truncate">' + E(truncName) + '</span>' +
+        '</button>';
+      });
+    }
+
+    if (listings.length > 0) {
+      html += '<div class="sidebar-recent-sub">Listings</div>';
+      listings.forEach(function (l) {
+        var truncName = l.name && l.name.length > 18 ? l.name.slice(0, 18) + '\u2026' : (l.name || 'Unknown');
+        html += '<button class="sidebar-recent-item" onclick="Router.navigate(\'' + E(l.route) + '\')">' +
+          '<span class="recent-avatar"><i class="fas fa-building" style="font-size:8px"></i></span>' +
+          '<span class="truncate">' + E(truncName) + '</span>' +
+        '</button>';
+      });
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ─── Favorites / Pins ─────────────────────────────────────────────
+  function _getFavorites() {
+    try {
+      var raw = localStorage.getItem(FAVORITES_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+    // First load defaults
+    _saveFavorites(DEFAULT_FAVORITES);
+    return DEFAULT_FAVORITES.slice();
+  }
+
+  function _saveFavorites(list) {
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(list)); } catch (e) { /* quota */ }
+  }
+
+  function _isFavorite(route) {
+    var favs = _getFavorites();
+    return favs.some(function (f) { return f.route === route; });
+  }
+
+  function _toggleFavorite(route, label, icon) {
+    var favs = _getFavorites();
+    var idx = -1;
+    favs.forEach(function (f, i) { if (f.route === route) idx = i; });
+    if (idx !== -1) {
+      favs.splice(idx, 1);
+    } else {
+      favs.push({ route: route, label: label, icon: icon });
+    }
+    _saveFavorites(favs);
+    _renderFavoritesSection();
+    // Update pin icons in sidebar
+    document.querySelectorAll('.sidebar-item .pin-icon').forEach(function (pin) {
+      var itemRoute = pin.closest('.sidebar-item').getAttribute('data-route');
+      if (itemRoute) pin.classList.toggle('pinned', _isFavorite(itemRoute));
+    });
+  }
+
+  function _renderFavoritesSection() {
+    var container = document.getElementById('sidebarFavorites');
+    if (!container) return;
+    var favs = _getFavorites();
+    if (favs.length === 0) { container.innerHTML = ''; return; }
+
+    var html = '<div class="sidebar-favorites-section">' +
+      '<div class="sidebar-label"><span>FAVORITES</span></div>';
+    favs.forEach(function (f) {
+      var isActive = Router.isActive(f.route);
+      html += '<button class="sidebar-favorites-item' + (isActive ? ' active' : '') + '" onclick="Router.navigate(\'' + E(f.route) + '\')">' +
+        '<span class="fav-icon"><i class="fas ' + (f.icon || 'fa-star') + '"></i></span>' +
+        '<span class="truncate">' + E(f.label) + '</span>' +
+      '</button>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ─── Sidebar Badge Counts ─────────────────────────────────────────
+  function _loadSidebarBadges() {
+    // Lead Distribution — unassigned leads
+    MallanAPI._fetch('/api/crm/leads?limit=200').then(function (data) {
+      var leads = data.leads || data || [];
+      if (!Array.isArray(leads)) return;
+      var count = leads.filter(function (l) { return !l.assignedAgentId && !l.assigned_agent_id; }).length;
+      _appendBadge('/broker/leads/distribution', count);
+    }).catch(function () { /* silent */ });
+
+    // Commission Payouts — pending
+    MallanAPI.deals.list({ limit: 200 }).then(function (data) {
+      var deals = data.deals || data || [];
+      if (!Array.isArray(deals)) return;
+      var count = deals.filter(function (d) {
+        var status = d.payoutStatus || d.payout_status || '';
+        return status === 'pending';
+      }).length;
+      _appendBadge('/broker/finance/payouts', count);
+    }).catch(function () { /* silent */ });
+
+    // Compliance — urgent alerts
+    try {
+      var urgent = (Alerts.getActive() || []).filter(function (a) { return a.severity === 'urgent'; }).length;
+      _appendBadge('/broker/listings/compliance', urgent);
+    } catch (e) { /* silent */ }
+
+    // Tasks — overdue
+    MallanAPI._fetch('/api/crm/tasks').then(function (data) {
+      var tasks = data.tasks || data || [];
+      if (!Array.isArray(tasks)) return;
+      var now = new Date();
+      var count = tasks.filter(function (t) {
+        if (t.status === 'completed') return false;
+        var due = t.due_date || t.dueDate;
+        return due && new Date(due) < now;
+      }).length;
+      _appendBadge('/ops/tasks', count);
+    }).catch(function () { /* silent */ });
+  }
+
+  function _appendBadge(route, count) {
+    if (!count || count <= 0) return;
+    var item = document.querySelector('.sidebar-item[data-route="' + route + '"]');
+    if (!item) return;
+    // Don't double-add
+    if (item.querySelector('.badge')) return;
+    var badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = count > 99 ? '99+' : String(count);
+    item.appendChild(badge);
+  }
+
   // ─── Sidebar ─────────────────────────────────────────────────────────
   function renderSidebar() {
     var nav = document.getElementById('sidebarNav');
@@ -143,6 +349,12 @@ var CRM = (function () {
     } catch (e) { /* ignore */ }
 
     var html = '';
+
+    // RECENT workspaces (always visible, not collapsible)
+    html += '<div id="sidebarRecent"></div>';
+
+    // FAVORITES (always visible, not collapsible)
+    html += '<div id="sidebarFavorites"></div>';
 
     // BROKER CONSOLE (Maya-only, hidden when impersonating)
     if (Permissions.canSeeBrokerConsole()) {
@@ -200,6 +412,37 @@ var CRM = (function () {
       var body = document.getElementById('sidebarGroup_' + group);
       if (body) body.style.display = Store.ui.sidebarExpandedGroups[group] ? 'block' : 'none';
     });
+
+    // Render recent & favorites sections
+    _renderRecentSection();
+    _renderFavoritesSection();
+
+    // Load badge counts asynchronously (non-blocking)
+    setTimeout(function () { _loadSidebarBadges(); }, 0);
+
+    // Add pin icons to all sidebar items with data-route
+    setTimeout(function () {
+      document.querySelectorAll('.sidebar-item[data-route]').forEach(function (item) {
+        var route = item.getAttribute('data-route');
+        if (!route) return;
+        // Don't add pin if one already exists
+        if (item.querySelector('.pin-icon')) return;
+        var label = item.querySelector('span') ? item.querySelector('span').textContent : '';
+        var iconEl = item.querySelector('i.fas');
+        var icon = '';
+        if (iconEl) {
+          iconEl.classList.forEach(function (cls) { if (cls.indexOf('fa-') === 0 && cls !== 'fas') icon = cls; });
+        }
+        var pin = document.createElement('i');
+        pin.className = 'fas fa-thumbtack pin-icon' + (_isFavorite(route) ? ' pinned' : '');
+        pin.title = 'Pin to favorites';
+        pin.onclick = function (e) {
+          e.stopPropagation();
+          _toggleFavorite(route, label, icon);
+        };
+        item.appendChild(pin);
+      });
+    }, 0);
   }
 
   function _sidebarGroup(title, group, items) {
@@ -1118,6 +1361,12 @@ var CRM = (function () {
     // Impersonation
     showImpersonationPicker: showImpersonationPicker,
     doImpersonate: doImpersonate,
+
+    // Recent & Favorites
+    _trackRecentWorkspace: _trackRecentWorkspace,
+    _toggleFavorite: _toggleFavorite,
+    _isFavorite: _isFavorite,
+    _loadSidebarBadges: _loadSidebarBadges,
 
     // Legacy compat
     esc: Utils.esc,
