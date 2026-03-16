@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { computeConvictionScore } from '@/lib/conviction/scorer';
 
 export const dynamic = 'force-dynamic';
@@ -9,29 +9,28 @@ export const dynamic = 'force-dynamic';
  * GET /api/crm/conviction/[leadId]
  *
  * Returns conviction score and behavioral insights for a lead.
- * Agent/Broker auth required.
+ * Agent/Broker auth required. Agents can only access their assigned leads.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ leadId: string }> }
 ) {
-  // Auth check
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const session = await prisma.session.findUnique({
-    where: { token },
-    select: { user_id: true, role: true, expires_at: true },
-  });
-  if (!session || session.expires_at < new Date()) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireAgentOrBroker(request);
+  if (isAuthError(auth)) return auth;
 
   const { leadId } = await params;
   const leadIdBigInt = BigInt(leadId);
+
+  // Scope check: agents can only view their own assigned leads
+  if (auth.role !== 'BROKER') {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadIdBigInt },
+      select: { agent_id: true },
+    });
+    if (lead && lead.agent_id !== auth.userId) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+  }
 
   // Get cached score
   const cached = await prisma.convictionScore.findUnique({
