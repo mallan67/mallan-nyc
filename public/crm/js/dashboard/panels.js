@@ -7317,12 +7317,20 @@ var Panels = (function () {
     });
   }
 
-  // ─── Communications ──────────────────────────────────────────────────
-  var _commsTab = 'email';
+  // ─── Communications (Unified Model) ─────────────────────────────────
+  // Communication Record: { id, type (email|sms|listing_send|campaign|note|reply),
+  //   direction (outbound|inbound), channel (email|sms|portal|system),
+  //   clientId, listingId?, from, to, subject, body, templateId?,
+  //   threadId?, status (draft|sent|delivered|opened|failed),
+  //   sentAt, readAt, metadata }
+  var _commsTab = 'inbox';
   var _commsClients = [];
   var _commsTemplates = [];
   var _commsSelectedRecipients = [];
   var _commsAttachedListing = null;
+  var _commsCache = [];          // full communications list from API
+  var _commsUnreadCount = 0;
+  var _commsActiveThread = null; // threadId or commId for thread view
 
   var _defaultTemplates = [
     { id: 'tpl_1', name: 'New Listing Alert', subject: 'New Listing: {{listing_address}}', body: 'Hi {{client_name}},\n\nI wanted to share an exciting new listing with you:\n\n{{listing_address}} — {{listing_price}}\n\nThis property just hit the market and I think it could be a great fit for you. Let me know if you\'d like to schedule a showing.\n\nBest regards' },
@@ -7336,6 +7344,22 @@ var Panels = (function () {
   ];
 
   function _loadTemplates() {
+    // Try API first, fall back to localStorage
+    MallanAPI._fetch('/api/crm/communications/templates').then(function (res) {
+      if (res && res.templates && res.templates.length > 0) {
+        _commsTemplates = res.templates;
+        return;
+      }
+      _loadTemplatesLocal();
+    }).catch(function () {
+      _loadTemplatesLocal();
+    });
+    // Synchronous fallback for immediate use
+    if (_commsTemplates.length === 0) _loadTemplatesLocal();
+    return _commsTemplates;
+  }
+
+  function _loadTemplatesLocal() {
     try {
       var stored = localStorage.getItem('mallan_crm_email_templates');
       if (stored) {
@@ -7347,36 +7371,67 @@ var Panels = (function () {
     } catch (e) {
       _commsTemplates = _defaultTemplates.slice();
     }
-    return _commsTemplates;
   }
 
   function _saveTemplates() {
     try { localStorage.setItem('mallan_crm_email_templates', JSON.stringify(_commsTemplates)); } catch (e) { /* noop */ }
   }
 
+  // ── Load all communications from API ──────────────────────────────────
+  function _commsLoadAll() {
+    return MallanAPI._fetch('/api/crm/communications?limit=200').then(function (res) {
+      _commsCache = (res && res.communications) || [];
+      // Compute unread count (inbound without readAt)
+      _commsUnreadCount = _commsCache.filter(function (c) {
+        return c.direction === 'inbound' && !c.readAt;
+      }).length;
+      // Update sidebar badge if badge system exists
+      if (typeof CRM.updateBadge === 'function') {
+        CRM.updateBadge('communications', _commsUnreadCount);
+      }
+      return _commsCache;
+    }).catch(function () {
+      _commsCache = [];
+      _commsUnreadCount = 0;
+      return [];
+    });
+  }
+
   function communications() {
     CRM.setPanelTitle('Communications');
     var c = _container();
+    c.innerHTML = UI.loading();
 
+    _commsLoadAll().then(function () {
+      _renderCommunicationsShell(c);
+    });
+  }
+
+  function _renderCommunicationsShell(c) {
     var tabs = [
+      { key: 'inbox', label: 'Inbox', icon: 'fa-inbox', badge: _commsUnreadCount },
       { key: 'email', label: 'Email Center', icon: 'fa-envelope' },
+      { key: 'listing-sends', label: 'Listing Sends', icon: 'fa-share-square' },
       { key: 'templates', label: 'Templates', icon: 'fa-file-alt' },
-      { key: 'sent-listings', label: 'Sent Listings', icon: 'fa-share-square' },
-      { key: 'campaigns', label: 'Campaign History', icon: 'fa-bullhorn' },
+      { key: 'campaigns', label: 'Campaigns', icon: 'fa-bullhorn' },
+      { key: 'threads', label: 'Threads', icon: 'fa-comments' },
     ];
 
-    var tabBar = '<div class="flex gap-1 border-b border-gray-200 mb-4">' +
+    var tabBar = '<div class="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">' +
       tabs.map(function (t) {
         var active = _commsTab === t.key;
-        return '<button class="px-4 py-2 text-sm font-medium border-b-2 transition-all ' +
+        var badgeHtml = (t.badge && t.badge > 0)
+          ? ' <span class="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">' + t.badge + '</span>'
+          : '';
+        return '<button class="px-4 py-2 text-sm font-medium border-b-2 transition-all whitespace-nowrap ' +
           (active ? 'border-gold text-gold' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300') +
           '" onclick="Panels._commsTabSwitch(\'' + t.key + '\')">' +
-          '<i class="fas ' + t.icon + ' mr-1.5"></i>' + E(t.label) + '</button>';
+          '<i class="fas ' + t.icon + ' mr-1.5"></i>' + E(t.label) + badgeHtml + '</button>';
       }).join('') +
     '</div>';
 
     c.innerHTML = '<div class="space-y-4">' +
-      UI.sectionHeader('Communications Center', 'Email, templates, sent listings, campaigns') +
+      UI.sectionHeader('Communications Center', 'Inbox, email, listing sends, templates, campaigns, threads') +
       tabBar +
       '<div id="commsTabContent"></div>' +
     '</div>';
@@ -7386,12 +7441,12 @@ var Panels = (function () {
 
   function _commsTabSwitch(tab) {
     _commsTab = tab;
-    // Update tab bar active state
+    _commsActiveThread = null;
     var c = _container();
+    var tabKeys = ['inbox', 'email', 'listing-sends', 'templates', 'campaigns', 'threads'];
     var buttons = c.querySelectorAll('.border-b-2');
-    var tabs = ['email', 'templates', 'sent-listings', 'campaigns'];
     buttons.forEach(function (btn, i) {
-      if (tabs[i] === tab) {
+      if (tabKeys[i] === tab) {
         btn.className = btn.className.replace('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'border-gold text-gold');
       } else {
         btn.className = btn.className.replace('border-gold text-gold', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300');
@@ -7404,72 +7459,118 @@ var Panels = (function () {
     var el = document.getElementById('commsTabContent');
     if (!el) return;
 
-    if (_commsTab === 'email') { _commsRenderEmailCenter(el); }
+    if (_commsTab === 'inbox') { _commsRenderInbox(el); }
+    else if (_commsTab === 'email') { _commsRenderEmailCenter(el); }
+    else if (_commsTab === 'listing-sends') { _commsRenderListingSends(el); }
     else if (_commsTab === 'templates') { _commsRenderTemplates(el); }
-    else if (_commsTab === 'sent-listings') { _commsRenderSentListings(el); }
     else if (_commsTab === 'campaigns') { _commsRenderCampaigns(el); }
+    else if (_commsTab === 'threads') { _commsRenderThreads(el); }
   }
 
-  // ── Tab 1: Email Center ──────────────────────────────────────────────
-  function _commsRenderEmailCenter(el) {
-    el.innerHTML = UI.loading();
+  // ── Tab 1: Inbox ──────────────────────────────────────────────────────
+  function _commsRenderInbox(el) {
+    var inbound = _commsCache.filter(function (c) { return c.direction === 'inbound'; });
+    inbound.sort(function (a, b) {
+      return new Date(b.sentAt || b.created_at || 0) - new Date(a.sentAt || a.created_at || 0);
+    });
 
-    var emailEvents = Events.getByCategory('communications', 200).filter(function (ev) {
-      return ev.type === 'email_sent';
+    if (inbound.length === 0) {
+      el.innerHTML = UI.emptyState('fa-inbox', 'No inbound messages yet');
+      return;
+    }
+
+    var rows = inbound.map(function (msg) {
+      var isUnread = !msg.readAt;
+      var from = msg.from || msg.clientName || '-';
+      var subject = msg.subject || '(no subject)';
+      var preview = (msg.body || '').substring(0, 60).replace(/\n/g, ' ');
+      if ((msg.body || '').length > 60) preview += '...';
+      var date = D(msg.sentAt || msg.created_at);
+      var channelIcon = msg.channel === 'sms' ? 'fa-sms' : msg.channel === 'portal' ? 'fa-globe' : 'fa-envelope';
+      var clientBadge = msg.clientId
+        ? '<span class="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs ml-2"><i class="fas fa-user mr-0.5"></i>' + E(msg.clientName || 'Client') + '</span>'
+        : '';
+
+      return '<div class="flex items-start gap-3 p-3 border-b hover:bg-gray-50 cursor-pointer' + (isUnread ? ' bg-blue-50/50' : '') + '" onclick="Panels._viewThread(\'' + E(msg.id || '') + '\')">' +
+        '<div class="flex-shrink-0 mt-1">' +
+          (isUnread ? '<span class="block w-2.5 h-2.5 bg-blue-500 rounded-full"></span>' : '<span class="block w-2.5 h-2.5 border border-gray-300 rounded-full"></span>') +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="flex items-center justify-between">' +
+            '<span class="text-sm ' + (isUnread ? 'font-bold text-gray-900' : 'font-medium text-gray-700') + '">' + E(from) + '</span>' +
+            '<span class="text-xs text-gray-400 flex-shrink-0">' + date + '</span>' +
+          '</div>' +
+          '<div class="flex items-center">' +
+            '<i class="fas ' + channelIcon + ' text-xs text-gray-400 mr-1.5"></i>' +
+            '<span class="text-sm ' + (isUnread ? 'font-semibold text-gray-800' : 'text-gray-600') + ' truncate">' + E(subject) + '</span>' +
+            clientBadge +
+          '</div>' +
+          '<p class="text-xs text-gray-400 truncate mt-0.5">' + E(preview) + '</p>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="flex justify-between items-center mb-3">' +
+        '<span class="text-sm text-gray-500">' + inbound.length + ' messages' +
+          (_commsUnreadCount > 0 ? ' <span class="text-blue-600 font-medium">(' + _commsUnreadCount + ' unread)</span>' : '') +
+        '</span>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._commsRefreshInbox()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>' +
+      '</div>' +
+      '<div class="border rounded-lg overflow-hidden">' + rows + '</div>';
+  }
+
+  function _commsRefreshInbox() {
+    var el = document.getElementById('commsTabContent');
+    if (el) el.innerHTML = UI.loading();
+    _commsLoadAll().then(function () {
+      _commsRenderTab();
+    });
+  }
+
+  // ── Tab 2: Email Center ─────────────────────────────────────────────
+  function _commsRenderEmailCenter(el) {
+    var emails = _commsCache.filter(function (c) {
+      return c.type === 'email' && c.direction === 'outbound';
+    });
+    emails.sort(function (a, b) {
+      return new Date(b.sentAt || b.created_at || 0) - new Date(a.sentAt || a.created_at || 0);
     });
 
     el.innerHTML =
       '<div class="flex gap-3 mb-4">' +
         '<button class="btn btn-gold" onclick="Panels._composeEmail()"><i class="fas fa-pen mr-1.5"></i>Compose Email</button>' +
+        '<button class="btn btn-outline" onclick="Panels._composeSMS()"><i class="fas fa-sms mr-1.5"></i>Compose SMS</button>' +
         '<button class="btn btn-outline" onclick="Panels._composeBulk()"><i class="fas fa-paper-plane mr-1.5"></i>Compose eBlast</button>' +
       '</div>' +
-      UI.card('Recent Emails',
-        emailEvents.length > 0 ?
+      UI.card('Recent Sent Emails',
+        emails.length > 0 ?
           UI.dataTable([
-            { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
-            { key: 'to', label: 'To', render: function (ev) {
-              var to = ev.data && ev.data.to || ev.data && ev.data.recipientNames || '-';
+            { key: 'date', label: 'Date', render: function (c) { return '<span class="text-xs text-gray-500">' + D(c.sentAt || c.created_at) + '</span>'; }},
+            { key: 'to', label: 'To', render: function (c) {
+              var to = c.to || (c.metadata && c.metadata.recipientNames) || '-';
               return '<span class="text-sm">' + E(Array.isArray(to) ? to.join(', ') : to) + '</span>';
             }},
-            { key: 'subject', label: 'Subject', render: function (ev) { return '<span class="text-sm font-medium">' + E(ev.data && ev.data.subject || '-') + '</span>'; }},
-            { key: 'status', label: 'Status', render: function () { return '<span class="badge badge-active">Sent</span>'; }},
-            { key: 'action', label: '', render: function (ev) {
-              return '<button class="btn btn-sm btn-outline" onclick="Panels._viewEmailDetail(\'' + (ev.id || '') + '\')"><i class="fas fa-eye"></i></button>';
+            { key: 'subject', label: 'Subject', render: function (c) { return '<span class="text-sm font-medium">' + E(c.subject || '-') + '</span>'; }},
+            { key: 'status', label: 'Status', render: function (c) {
+              var st = c.status || 'sent';
+              var badge = st === 'opened' ? 'active' : st === 'failed' ? 'withdrawn' : st === 'delivered' ? 'active' : 'pending';
+              return '<span class="badge badge-' + badge + '">' + E(st.charAt(0).toUpperCase() + st.slice(1)) + '</span>';
             }},
-          ], emailEvents) :
+            { key: 'action', label: '', render: function (c) {
+              return '<button class="btn btn-sm btn-outline" onclick="Panels._viewThread(\'' + E(c.id || '') + '\')"><i class="fas fa-eye"></i></button>' +
+                '<button class="btn btn-sm btn-outline ml-1" onclick="Panels._replyToThread(\'' + E(c.threadId || c.id || '') + '\')"><i class="fas fa-reply"></i></button>';
+            }},
+          ], emails) :
           '<p class="text-sm text-gray-500 p-4">No emails sent yet. Compose your first email above.</p>'
       );
   }
 
-  function _viewEmailDetail(eventId) {
-    var events = Events.getByCategory('communications', 500);
-    var ev = null;
-    for (var i = 0; i < events.length; i++) {
-      if (events[i].id === eventId) { ev = events[i]; break; }
-    }
-    if (!ev || !ev.data) { CRM.toast('Email details not found', 'error'); return; }
-
-    var d = ev.data;
-    var to = d.to || d.recipientNames || '-';
-    if (Array.isArray(to)) to = to.join(', ');
-
-    CRM.openModal('Email Detail',
-      '<div class="space-y-3">' +
-        '<div class="flex justify-between items-center border-b pb-2">' +
-          '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>' +
-          '<span class="badge badge-active">Sent</span>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">To</label><p class="text-sm">' + E(to) + '</p></div>' +
-        (d.cc ? '<div class="form-group"><label class="form-label">CC</label><p class="text-sm">' + E(d.cc) + '</p></div>' : '') +
-        '<div class="form-group"><label class="form-label">Subject</label><p class="text-sm font-medium">' + E(d.subject || '-') + '</p></div>' +
-        '<div class="form-group"><label class="form-label">Body</label><div class="text-sm bg-gray-50 p-3 rounded border whitespace-pre-wrap" style="max-height:300px;overflow-y:auto">' + E(d.body || '-') + '</div></div>' +
-        (d.listingAddress ? '<div class="form-group"><label class="form-label">Attached Listing</label><p class="text-sm">' + E(d.listingAddress) + (d.listingPrice ? ' — ' + E(d.listingPrice) : '') + '</p></div>' : '') +
-      '</div>',
-      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Close</button>' }
-    );
+  function _viewEmailDetail(commId) {
+    _viewThread(commId);
   }
 
-  // ── Tab 2: Templates ─────────────────────────────────────────────────
+  // ── Tab 4: Templates ────────────────────────────────────────────────
   function _commsRenderTemplates(el) {
     _loadTemplates();
 
@@ -7583,31 +7684,17 @@ var Panels = (function () {
     _commsRenderTab();
   }
 
-  // ── Tab 3: Sent Listings ─────────────────────────────────────────────
-  function _commsRenderSentListings(el) {
-    el.innerHTML = UI.loading();
-
-    var allEvents = Events.getByCategory('communications', 500).concat(
-      Events.getByCategory('listings', 500),
-      Events.getByCategory('clients', 500)
-    );
-
-    var sentEvents = allEvents.filter(function (ev) {
-      return ev.type === 'listing_sent' || ev.type === 'quick_send_executed';
+  // ── Tab 3: Listing Sends ────────────────────────────────────────────
+  function _commsRenderListingSends(el) {
+    var sends = _commsCache.filter(function (c) { return c.type === 'listing_send'; });
+    sends.sort(function (a, b) {
+      return new Date(b.sentAt || b.created_at || 0) - new Date(a.sentAt || a.created_at || 0);
     });
 
-    // Deduplicate by id
-    var seen = {};
-    sentEvents = sentEvents.filter(function (ev) {
-      if (!ev.id || seen[ev.id]) return false;
-      seen[ev.id] = true;
-      return true;
-    });
-
-    // Sort by date descending
-    sentEvents.sort(function (a, b) {
-      return new Date(b.timestamp || b.created_at) - new Date(a.timestamp || a.created_at);
-    });
+    if (sends.length === 0) {
+      el.innerHTML = UI.emptyState('fa-share-square', 'No listings sent yet');
+      return;
+    }
 
     // Group by date
     var now = new Date();
@@ -7615,113 +7702,288 @@ var Panels = (function () {
     var weekStart = todayStart - (now.getDay() * 86400000);
     var groups = { today: [], thisWeek: [], earlier: [] };
 
-    sentEvents.forEach(function (ev) {
-      var ts = new Date(ev.timestamp || ev.created_at).getTime();
-      if (ts >= todayStart) groups.today.push(ev);
-      else if (ts >= weekStart) groups.thisWeek.push(ev);
-      else groups.earlier.push(ev);
+    sends.forEach(function (c) {
+      var ts = new Date(c.sentAt || c.created_at || 0).getTime();
+      if (ts >= todayStart) groups.today.push(c);
+      else if (ts >= weekStart) groups.thisWeek.push(c);
+      else groups.earlier.push(c);
     });
 
-    function renderGroup(label, events) {
-      if (events.length === 0) return '';
+    function renderGroup(label, items) {
+      if (items.length === 0) return '';
       return '<div class="mb-4">' +
         '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">' + E(label) + '</h4>' +
         UI.dataTable([
-          { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
-          { key: 'listing', label: 'Listing', render: function (ev) {
-            var d = ev.data || {};
-            var addr = d.listingAddress || d.address || '-';
-            var price = d.listingPrice || d.price || '';
+          { key: 'date', label: 'Date', render: function (c) { return '<span class="text-xs text-gray-500">' + D(c.sentAt || c.created_at) + '</span>'; }},
+          { key: 'listing', label: 'Listing', render: function (c) {
+            var addr = (c.metadata && c.metadata.listingAddress) || c.subject || '-';
+            var price = (c.metadata && c.metadata.listingPrice) || '';
             return '<span class="text-sm font-medium">' + E(addr) + '</span>' +
               (price ? '<span class="text-xs text-gray-500 ml-2">' + E(price) + '</span>' : '');
           }},
-          { key: 'clients', label: 'Client(s)', render: function (ev) {
-            var d = ev.data || {};
-            var names = d.clientName || d.recipientNames || d.to || '-';
+          { key: 'clients', label: 'Client(s)', render: function (c) {
+            var names = c.to || (c.metadata && c.metadata.recipientNames) || '-';
             if (Array.isArray(names)) names = names.join(', ');
             return '<span class="text-sm">' + E(names) + '</span>';
           }},
-          { key: 'via', label: 'Sent Via', render: function (ev) {
-            var viaType = ev.type === 'quick_send_executed' ? 'Quick Send' : (ev.data && ev.data.via || 'Workspace');
-            var color = ev.type === 'quick_send_executed' ? 'pending' : 'active';
-            return '<span class="badge badge-' + color + '">' + E(viaType) + '</span>';
+          { key: 'via', label: 'Method', render: function (c) {
+            var method = (c.metadata && c.metadata.sendMethod) || 'manual';
+            var colors = { quick: 'pending', auto: 'contract', eblast: 'offer', manual: 'active' };
+            return '<span class="badge badge-' + (colors[method] || 'active') + '">' + E(method.charAt(0).toUpperCase() + method.slice(1)) + '</span>';
           }},
-          { key: 'status', label: 'Status', render: function () { return '<span class="badge badge-active">Sent</span>'; }},
-        ], events) +
+          { key: 'reactions', label: 'Reactions', render: function (c) {
+            var meta = c.metadata || {};
+            var parts = [];
+            if (meta.liked) parts.push('<i class="fas fa-heart text-red-400"></i>');
+            if (meta.discussed) parts.push('<i class="fas fa-comment text-blue-400"></i>');
+            if (meta.scheduled) parts.push('<i class="fas fa-calendar text-green-400"></i>');
+            return parts.length > 0 ? '<span class="flex gap-1.5">' + parts.join('') + '</span>' : '<span class="text-xs text-gray-300">-</span>';
+          }},
+          { key: 'status', label: 'Status', render: function (c) {
+            var st = c.status || 'sent';
+            var badge = st === 'opened' ? 'active' : st === 'failed' ? 'withdrawn' : 'pending';
+            return '<span class="badge badge-' + badge + '">' + E(st.charAt(0).toUpperCase() + st.slice(1)) + '</span>';
+          }},
+        ], items) +
       '</div>';
     }
 
-    el.innerHTML = sentEvents.length > 0 ?
+    el.innerHTML =
       renderGroup('Today', groups.today) +
       renderGroup('This Week', groups.thisWeek) +
-      renderGroup('Earlier', groups.earlier) :
-      UI.emptyState('fa-share-square', 'No listings sent yet');
+      renderGroup('Earlier', groups.earlier);
   }
 
-  // ── Tab 4: Campaign History ──────────────────────────────────────────
+  // ── Tab 5: Campaigns ────────────────────────────────────────────────
   function _commsRenderCampaigns(el) {
-    el.innerHTML = UI.loading();
-
-    var eblastEvents = Events.getByCategory('communications', 500).filter(function (ev) {
-      return ev.type === 'eblast_sent';
+    var campaigns = _commsCache.filter(function (c) { return c.type === 'campaign'; });
+    campaigns.sort(function (a, b) {
+      return new Date(b.sentAt || b.created_at || 0) - new Date(a.sentAt || a.created_at || 0);
     });
 
-    eblastEvents.sort(function (a, b) {
-      return new Date(b.timestamp || b.created_at) - new Date(a.timestamp || a.created_at);
-    });
-
-    el.innerHTML = eblastEvents.length > 0 ?
+    el.innerHTML = campaigns.length > 0 ?
       UI.card('Campaign History',
         UI.dataTable([
-          { key: 'date', label: 'Date', render: function (ev) { return '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>'; }},
-          { key: 'subject', label: 'Subject', render: function (ev) { return '<span class="text-sm font-medium">' + E(ev.data && ev.data.subject || '-') + '</span>'; }},
-          { key: 'audience', label: 'Audience', render: function (ev) {
-            var d = ev.data || {};
-            var audienceType = d.clientType || d.audienceType || 'all';
-            var count = d.recipientCount || d.recipients || '-';
-            if (typeof count === 'string' && count.indexOf('client') > -1) return '<span class="text-sm">' + E(count) + '</span>';
+          { key: 'date', label: 'Date', render: function (c) { return '<span class="text-xs text-gray-500">' + D(c.sentAt || c.created_at) + '</span>'; }},
+          { key: 'subject', label: 'Subject', render: function (c) { return '<span class="text-sm font-medium">' + E(c.subject || '-') + '</span>'; }},
+          { key: 'audience', label: 'Audience', render: function (c) {
+            var meta = c.metadata || {};
+            var audienceType = meta.clientType || meta.audienceType || 'all';
+            var count = meta.recipientCount || '-';
             return '<span class="text-sm">' + E(audienceType.charAt(0).toUpperCase() + audienceType.slice(1)) + ' — ' + count + ' recipients</span>';
           }},
-          { key: 'openRate', label: 'Open Rate', render: function () { return '<span class="text-xs text-gray-400">-</span>'; }},
-          { key: 'clickRate', label: 'Click Rate', render: function () { return '<span class="text-xs text-gray-400">-</span>'; }},
-          { key: 'status', label: 'Status', render: function () { return '<span class="badge badge-active">Sent</span>'; }},
-          { key: 'action', label: '', render: function (ev) {
-            return '<button class="btn btn-sm btn-outline" onclick="Panels._viewCampaignDetail(\'' + (ev.id || '') + '\')"><i class="fas fa-eye"></i></button>';
+          { key: 'openRate', label: 'Open Rate', render: function (c) {
+            var rate = c.metadata && c.metadata.openRate;
+            return rate ? '<span class="text-sm font-medium">' + rate + '%</span>' : '<span class="text-xs text-gray-400">-</span>';
           }},
-        ], eblastEvents)
+          { key: 'clickRate', label: 'Click Rate', render: function (c) {
+            var rate = c.metadata && c.metadata.clickRate;
+            return rate ? '<span class="text-sm font-medium">' + rate + '%</span>' : '<span class="text-xs text-gray-400">-</span>';
+          }},
+          { key: 'status', label: 'Status', render: function (c) {
+            var st = c.status || 'sent';
+            var badge = st === 'failed' ? 'withdrawn' : st === 'draft' ? 'pending' : 'active';
+            return '<span class="badge badge-' + badge + '">' + E(st.charAt(0).toUpperCase() + st.slice(1)) + '</span>';
+          }},
+          { key: 'action', label: '', render: function (c) {
+            return '<button class="btn btn-sm btn-outline" onclick="Panels._viewCampaignDetail(\'' + E(c.id || '') + '\')"><i class="fas fa-eye"></i></button>';
+          }},
+        ], campaigns)
       ) :
       UI.emptyState('fa-bullhorn', 'No campaigns sent yet');
   }
 
-  function _viewCampaignDetail(eventId) {
-    var events = Events.getByCategory('communications', 500);
-    var ev = null;
-    for (var i = 0; i < events.length; i++) {
-      if (events[i].id === eventId) { ev = events[i]; break; }
+  function _viewCampaignDetail(commId) {
+    var c = null;
+    for (var i = 0; i < _commsCache.length; i++) {
+      if (_commsCache[i].id === commId) { c = _commsCache[i]; break; }
     }
-    if (!ev || !ev.data) { CRM.toast('Campaign details not found', 'error'); return; }
+    if (!c) { CRM.toast('Campaign details not found', 'error'); return; }
 
-    var d = ev.data;
-    var audienceType = d.clientType || d.audienceType || 'all';
-    var count = d.recipientCount || d.recipients || '-';
+    var meta = c.metadata || {};
+    var audienceType = meta.clientType || meta.audienceType || 'all';
+    var count = meta.recipientCount || '-';
 
     CRM.openModal('Campaign Detail',
       '<div class="space-y-3">' +
         '<div class="flex justify-between items-center border-b pb-2">' +
-          '<span class="text-xs text-gray-500">' + D(ev.timestamp || ev.created_at) + '</span>' +
-          '<span class="badge badge-active">Sent</span>' +
+          '<span class="text-xs text-gray-500">' + D(c.sentAt || c.created_at) + '</span>' +
+          '<span class="badge badge-' + (c.status === 'failed' ? 'withdrawn' : 'active') + '">' + E((c.status || 'Sent').charAt(0).toUpperCase() + (c.status || 'sent').slice(1)) + '</span>' +
         '</div>' +
-        '<div class="form-group"><label class="form-label">Subject</label><p class="text-sm font-medium">' + E(d.subject || '-') + '</p></div>' +
+        '<div class="form-group"><label class="form-label">Subject</label><p class="text-sm font-medium">' + E(c.subject || '-') + '</p></div>' +
         '<div class="form-group"><label class="form-label">Audience</label><p class="text-sm">' + E(audienceType.charAt(0).toUpperCase() + audienceType.slice(1)) + ' — ' + E(String(count)) + ' recipients</p></div>' +
         '<div class="grid grid-cols-2 gap-3">' +
-          '<div class="bg-gray-50 rounded p-3 text-center"><p class="text-xs text-gray-500">Open Rate</p><p class="text-lg font-bold text-gray-400">-</p></div>' +
-          '<div class="bg-gray-50 rounded p-3 text-center"><p class="text-xs text-gray-500">Click Rate</p><p class="text-lg font-bold text-gray-400">-</p></div>' +
+          '<div class="bg-gray-50 rounded p-3 text-center"><p class="text-xs text-gray-500">Open Rate</p><p class="text-lg font-bold ' + (meta.openRate ? 'text-gray-900' : 'text-gray-400') + '">' + (meta.openRate ? meta.openRate + '%' : '-') + '</p></div>' +
+          '<div class="bg-gray-50 rounded p-3 text-center"><p class="text-xs text-gray-500">Click Rate</p><p class="text-lg font-bold ' + (meta.clickRate ? 'text-gray-900' : 'text-gray-400') + '">' + (meta.clickRate ? meta.clickRate + '%' : '-') + '</p></div>' +
         '</div>' +
-        (d.body ? '<div class="form-group"><label class="form-label">Content</label><div class="text-sm bg-gray-50 p-3 rounded border whitespace-pre-wrap" style="max-height:300px;overflow-y:auto">' + E(d.body) + '</div></div>' : '') +
-        (d.includeListings ? '<div class="form-group"><label class="form-label">Listings</label><p class="text-xs text-gray-500">Auto-included matching active listings for each recipient</p></div>' : '') +
+        (c.body ? '<div class="form-group"><label class="form-label">Content</label><div class="text-sm bg-gray-50 p-3 rounded border whitespace-pre-wrap" style="max-height:300px;overflow-y:auto">' + E(c.body) + '</div></div>' : '') +
+        (meta.includeListings ? '<div class="form-group"><label class="form-label">Listings</label><p class="text-xs text-gray-500">Auto-included matching active listings for each recipient</p></div>' : '') +
       '</div>',
       { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Close</button>' }
     );
+  }
+
+  // ── Tab 6: Threads ────────────────────────────────────────────────────
+  function _commsRenderThreads(el) {
+    // If a specific thread is active, render it
+    if (_commsActiveThread) {
+      _renderThreadView(el, _commsActiveThread);
+      return;
+    }
+
+    // Build thread groups: group by threadId, or by clientId+agent pair
+    var threadMap = {};
+    _commsCache.forEach(function (c) {
+      var key = c.threadId || c.id;
+      if (!threadMap[key]) {
+        threadMap[key] = { id: key, messages: [], lastDate: c.sentAt || c.created_at, subject: c.subject, clientName: c.clientName || c.from || c.to };
+      }
+      threadMap[key].messages.push(c);
+      var d = new Date(c.sentAt || c.created_at || 0);
+      if (d > new Date(threadMap[key].lastDate || 0)) {
+        threadMap[key].lastDate = c.sentAt || c.created_at;
+      }
+    });
+
+    var threads = Object.keys(threadMap).map(function (k) { return threadMap[k]; });
+    // Only show threads with 2+ messages, or all if few
+    var multiMsg = threads.filter(function (t) { return t.messages.length > 1; });
+    var display = multiMsg.length > 0 ? multiMsg : threads;
+    display.sort(function (a, b) {
+      return new Date(b.lastDate || 0) - new Date(a.lastDate || 0);
+    });
+
+    if (display.length === 0) {
+      el.innerHTML = UI.emptyState('fa-comments', 'No conversation threads yet');
+      return;
+    }
+
+    var rows = display.map(function (t) {
+      var msgCount = t.messages.length;
+      var hasUnread = t.messages.some(function (m) { return m.direction === 'inbound' && !m.readAt; });
+      return '<div class="flex items-center gap-3 p-3 border-b hover:bg-gray-50 cursor-pointer' + (hasUnread ? ' bg-blue-50/50' : '') + '" onclick="Panels._viewThread(\'' + E(t.id) + '\')">' +
+        '<div class="flex-shrink-0"><i class="fas fa-comments text-gray-400"></i></div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="flex items-center justify-between">' +
+            '<span class="text-sm font-medium truncate">' + E(t.subject || t.clientName || 'Conversation') + '</span>' +
+            '<span class="text-xs text-gray-400">' + D(t.lastDate) + '</span>' +
+          '</div>' +
+          '<span class="text-xs text-gray-500">' + msgCount + ' message' + (msgCount !== 1 ? 's' : '') + ' with ' + E(t.clientName || '-') + '</span>' +
+        '</div>' +
+        (hasUnread ? '<span class="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0"></span>' : '') +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="border rounded-lg overflow-hidden">' + rows + '</div>';
+  }
+
+  // ── Thread View ─────────────────────────────────────────────────────
+  function _viewThread(commId) {
+    _commsActiveThread = commId;
+    _commsTab = 'threads';
+
+    // Mark as read if inbound
+    var msg = null;
+    for (var i = 0; i < _commsCache.length; i++) {
+      if (_commsCache[i].id === commId) { msg = _commsCache[i]; break; }
+    }
+    if (msg && msg.direction === 'inbound' && !msg.readAt) {
+      MallanAPI._fetch('/api/crm/communications/' + encodeURIComponent(commId) + '/read', { method: 'POST' }).catch(function () { /* noop */ });
+      msg.readAt = new Date().toISOString();
+      _commsUnreadCount = Math.max(0, _commsUnreadCount - 1);
+      if (typeof CRM.updateBadge === 'function') CRM.updateBadge('communications', _commsUnreadCount);
+    }
+
+    var el = document.getElementById('commsTabContent');
+    if (el) _renderThreadView(el, commId);
+  }
+
+  function _renderThreadView(el, commId) {
+    // Find thread: all messages with same threadId, or the single message
+    var root = null;
+    for (var i = 0; i < _commsCache.length; i++) {
+      if (_commsCache[i].id === commId) { root = _commsCache[i]; break; }
+    }
+    if (!root) { el.innerHTML = UI.emptyState('fa-comments', 'Message not found'); return; }
+
+    var threadId = root.threadId || root.id;
+    var threadMsgs = _commsCache.filter(function (c) {
+      return c.threadId === threadId || c.id === threadId;
+    });
+    threadMsgs.sort(function (a, b) {
+      return new Date(a.sentAt || a.created_at || 0) - new Date(b.sentAt || b.created_at || 0);
+    });
+
+    var messagesHtml = threadMsgs.map(function (m) {
+      var isOutbound = m.direction === 'outbound';
+      var align = isOutbound ? 'ml-auto' : 'mr-auto';
+      var bg = isOutbound ? 'bg-gold/10 border-gold/20' : 'bg-gray-50 border-gray-200';
+      var icon = m.channel === 'sms' ? 'fa-sms' : m.channel === 'portal' ? 'fa-globe' : 'fa-envelope';
+      var channelLabel = (m.channel || 'email').toUpperCase();
+
+      return '<div class="max-w-lg ' + align + ' border rounded-lg p-3 ' + bg + '">' +
+        '<div class="flex items-center justify-between mb-1">' +
+          '<span class="text-xs font-semibold ' + (isOutbound ? 'text-gold' : 'text-gray-700') + '">' +
+            '<i class="fas ' + (isOutbound ? 'fa-arrow-up' : 'fa-arrow-down') + ' mr-1"></i>' +
+            E(isOutbound ? 'You' : (m.from || m.clientName || 'Client')) +
+          '</span>' +
+          '<span class="text-xs text-gray-400"><i class="fas ' + icon + ' mr-0.5"></i>' + channelLabel + ' &middot; ' + D(m.sentAt || m.created_at) + '</span>' +
+        '</div>' +
+        (m.subject ? '<p class="text-sm font-medium mb-1">' + E(m.subject) + '</p>' : '') +
+        '<div class="text-sm text-gray-700 whitespace-pre-wrap">' + E(m.body || '') + '</div>' +
+        (m.metadata && m.metadata.listingAddress ? '<div class="mt-2 p-2 bg-white border rounded text-xs"><i class="fas fa-home mr-1 text-gold"></i>' + E(m.metadata.listingAddress) + (m.metadata.listingPrice ? ' — ' + E(m.metadata.listingPrice) : '') + '</div>' : '') +
+        (m.status ? '<div class="mt-1 text-right"><span class="text-xs text-gray-400">' + E(m.status) + '</span></div>' : '') +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="mb-3">' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._commsBackFromThread()"><i class="fas fa-arrow-left mr-1"></i>Back</button>' +
+        '<span class="text-sm font-medium ml-3">' + E(root.subject || 'Conversation') + '</span>' +
+        '<span class="text-xs text-gray-400 ml-2">with ' + E(root.direction === 'outbound' ? (root.to || '-') : (root.from || root.clientName || '-')) + '</span>' +
+      '</div>' +
+      '<div class="space-y-3 max-h-96 overflow-y-auto p-2">' + messagesHtml + '</div>' +
+      '<div class="mt-4 border-t pt-3">' +
+        '<button class="btn btn-gold" onclick="Panels._replyToThread(\'' + E(threadId) + '\')"><i class="fas fa-reply mr-1"></i>Reply</button>' +
+      '</div>';
+  }
+
+  function _commsBackFromThread() {
+    _commsActiveThread = null;
+    _commsTab = 'inbox';
+    var c = _container();
+    _renderCommunicationsShell(c);
+  }
+
+  function _replyToThread(threadId) {
+    // Find the original message to pre-fill context
+    var original = null;
+    for (var i = 0; i < _commsCache.length; i++) {
+      if (_commsCache[i].id === threadId || _commsCache[i].threadId === threadId) {
+        original = _commsCache[i]; break;
+      }
+    }
+
+    _commsSelectedRecipients = [];
+    _commsAttachedListing = null;
+
+    // Pre-populate recipient from original
+    if (original && original.clientId) {
+      MallanAPI.clients.list({ limit: 500 }).then(function (res) {
+        _commsClients = res.clients || [];
+        var cl = null;
+        for (var j = 0; j < _commsClients.length; j++) {
+          if (_commsClients[j].id === original.clientId) { cl = _commsClients[j]; break; }
+        }
+        if (cl) _commsSelectedRecipients = [cl];
+        _openComposeModal(null, threadId, original ? 'Re: ' + (original.subject || '') : '');
+      }).catch(function () {
+        _openComposeModal(null, threadId, original ? 'Re: ' + (original.subject || '') : '');
+      });
+    } else {
+      _openComposeModal(null, threadId, original ? 'Re: ' + (original.subject || '') : '');
+    }
   }
 
   // ── Compose Email (enhanced) ─────────────────────────────────────────
@@ -7731,44 +7993,53 @@ var Panels = (function () {
 
     MallanAPI.clients.list({ limit: 500 }).then(function (res) {
       _commsClients = res.clients || [];
-      _loadTemplates();
-
-      var templateOptions = '<option value="">— No template —</option>' +
-        _commsTemplates.map(function (t, i) { return '<option value="' + i + '"' + (template && template.id === t.id ? ' selected' : '') + '>' + E(t.name) + '</option>'; }).join('');
-
-      var prefillSubject = template ? template.subject : '';
-      var prefillBody = template ? template.body : '';
-
-      CRM.openModal('Compose Email',
-        '<form id="composeEmailForm" class="space-y-4">' +
-          '<div class="form-group"><label class="form-label">To *</label>' +
-            '<div class="relative">' +
-              '<input class="form-input" id="composeEmailTo" type="text" placeholder="Search clients by name or email..." autocomplete="off" oninput="Panels._commsSearchRecipients(this.value, \'to\')" onfocus="Panels._commsSearchRecipients(this.value, \'to\')">' +
-              '<div id="composeEmailToDropdown" class="absolute z-50 w-full bg-white border rounded shadow-lg mt-1 max-h-40 overflow-y-auto hidden"></div>' +
-            '</div>' +
-            '<div id="composeEmailToChips" class="flex flex-wrap gap-1 mt-1"></div>' +
-          '</div>' +
-          '<div class="form-group"><label class="form-label">CC</label>' +
-            '<input class="form-input" name="cc" type="text" placeholder="CC email addresses (comma-separated)"></div>' +
-          '<div class="form-group"><label class="form-label">Template</label>' +
-            '<select class="form-input" id="composeEmailTemplate" onchange="Panels._commsApplyTemplate()">' + templateOptions + '</select></div>' +
-          '<div class="form-group"><label class="form-label">Subject *</label>' +
-            '<input class="form-input" name="subject" id="composeEmailSubject" value="' + E(prefillSubject) + '" placeholder="Email subject" required></div>' +
-          '<div class="form-group"><label class="form-label">Body *</label>' +
-            '<textarea class="form-input" name="body" id="composeEmailBody" rows="10" placeholder="Write your email..." required>' + E(prefillBody) + '</textarea></div>' +
-          '<div class="flex gap-2">' +
-            '<button type="button" class="btn btn-sm btn-outline" onclick="Panels._commsAttachListing()"><i class="fas fa-home mr-1"></i>Attach Listing</button>' +
-            '<span id="composeEmailListingBadge" class="text-xs text-gray-400"></span>' +
-          '</div>' +
-        '</form>',
-        {
-          footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-            '<button class="btn btn-gold" onclick="Panels._submitEmail()"><i class="fas fa-paper-plane mr-1"></i>Send</button>',
-        }
-      );
+      _openComposeModal(template, null, '');
     }).catch(function (err) {
       CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
     });
+  }
+
+  function _openComposeModal(template, threadId, prefillSubject) {
+    _loadTemplates();
+
+    var templateOptions = '<option value="">— No template —</option>' +
+      _commsTemplates.map(function (t, i) { return '<option value="' + i + '"' + (template && template.id === t.id ? ' selected' : '') + '>' + E(t.name) + '</option>'; }).join('');
+
+    var subject = prefillSubject || (template ? template.subject : '');
+    var body = template ? template.body : '';
+    var threadInput = threadId ? '<input type="hidden" name="threadId" value="' + E(threadId) + '">' : '';
+
+    CRM.openModal(threadId ? 'Reply' : 'Compose Email',
+      '<form id="composeEmailForm" class="space-y-4">' +
+        threadInput +
+        '<div class="form-group"><label class="form-label">To *</label>' +
+          '<div class="relative">' +
+            '<input class="form-input" id="composeEmailTo" type="text" placeholder="Search clients by name or email..." autocomplete="off" oninput="Panels._commsSearchRecipients(this.value, \'to\')" onfocus="Panels._commsSearchRecipients(this.value, \'to\')">' +
+            '<div id="composeEmailToDropdown" class="absolute z-50 w-full bg-white border rounded shadow-lg mt-1 max-h-40 overflow-y-auto hidden"></div>' +
+          '</div>' +
+          '<div id="composeEmailToChips" class="flex flex-wrap gap-1 mt-1"></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">CC</label>' +
+          '<input class="form-input" name="cc" type="text" placeholder="CC email addresses (comma-separated)"></div>' +
+        (!threadId ? '<div class="form-group"><label class="form-label">Template</label>' +
+          '<select class="form-input" id="composeEmailTemplate" onchange="Panels._commsApplyTemplate()">' + templateOptions + '</select></div>' : '') +
+        '<div class="form-group"><label class="form-label">Subject *</label>' +
+          '<input class="form-input" name="subject" id="composeEmailSubject" value="' + E(subject) + '" placeholder="Email subject" required></div>' +
+        '<div class="form-group"><label class="form-label">Body *</label>' +
+          '<textarea class="form-input" name="body" id="composeEmailBody" rows="10" placeholder="Write your email..." required>' + E(body) + '</textarea></div>' +
+        '<div class="flex gap-2">' +
+          '<button type="button" class="btn btn-sm btn-outline" onclick="Panels._commsAttachListing()"><i class="fas fa-home mr-1"></i>Attach Listing</button>' +
+          '<span id="composeEmailListingBadge" class="text-xs text-gray-400"></span>' +
+        '</div>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitEmail()"><i class="fas fa-paper-plane mr-1"></i>Send</button>',
+      }
+    );
+
+    // Render pre-selected recipients
+    if (_commsSelectedRecipients.length > 0) _commsRenderRecipientChips();
   }
 
   function _commsSearchRecipients(query, field) {
@@ -7813,6 +8084,10 @@ var Panels = (function () {
     var dropdown = document.getElementById('composeEmailToDropdown');
     if (input) input.value = '';
     if (dropdown) dropdown.classList.add('hidden');
+
+    // Auto-fill phone for SMS compose
+    var phoneEl = document.getElementById('smsPhone');
+    if (phoneEl) phoneEl.value = cl.phone || cl.phone_number || '';
 
     _commsRenderRecipientChips();
     _commsReplacePlaceholders();
@@ -7932,10 +8207,12 @@ var Panels = (function () {
     var subjectEl = document.getElementById('composeEmailSubject');
     var bodyEl = document.getElementById('composeEmailBody');
     var ccEl = form.querySelector('[name="cc"]');
+    var threadIdEl = form.querySelector('[name="threadId"]');
 
     var subject = subjectEl ? subjectEl.value.trim() : '';
     var body = bodyEl ? bodyEl.value.trim() : '';
     var cc = ccEl ? ccEl.value.trim() : '';
+    var threadId = threadIdEl ? threadIdEl.value : null;
 
     if (!subject || !body) {
       CRM.toast('Subject and body are required', 'error');
@@ -7946,23 +8223,32 @@ var Panels = (function () {
     var recipientNames = _commsSelectedRecipients.map(function (r) { return r.name || r.first_name || ''; }).filter(Boolean);
     var recipientIds = _commsSelectedRecipients.map(function (r) { return r.id; }).filter(Boolean);
 
+    // Unified communication record
     var payload = {
-      type: 'email',
+      type: threadId ? 'reply' : 'email',
+      direction: 'outbound',
+      channel: 'email',
+      clientId: recipientIds.length === 1 ? recipientIds[0] : null,
+      listingId: _commsAttachedListing ? _commsAttachedListing.id : null,
       to: recipientEmails.join(', '),
-      cc: cc,
       subject: subject,
       body: body,
-      recipientIds: recipientIds,
-      listingId: _commsAttachedListing ? _commsAttachedListing.id : null,
-      listingAddress: _commsAttachedListing ? _commsAttachedListing.address : null,
-      listingPrice: _commsAttachedListing ? _commsAttachedListing.price : null,
+      threadId: threadId || null,
+      status: 'sent',
+      metadata: {
+        cc: cc || null,
+        recipientIds: recipientIds,
+        recipientNames: recipientNames,
+        listingAddress: _commsAttachedListing ? _commsAttachedListing.address : null,
+        listingPrice: _commsAttachedListing ? _commsAttachedListing.price : null,
+      },
     };
 
-    MallanAPI._fetch('/api/crm/communications/send', {
+    MallanAPI._fetch('/api/crm/communications', {
       method: 'POST',
       body: JSON.stringify(payload),
-    }).then(function () {
-      // Log to client entities
+    }).then(function (res) {
+      // Also log to Events for activity timeline
       recipientIds.forEach(function (cid) {
         Events.log('email_sent', 'client', cid, {
           to: recipientEmails.join(', '),
@@ -7970,12 +8256,11 @@ var Panels = (function () {
           cc: cc,
           subject: subject,
           body: body,
-          listingAddress: payload.listingAddress,
-          listingPrice: payload.listingPrice,
+          listingAddress: payload.metadata.listingAddress,
+          listingPrice: payload.metadata.listingPrice,
         });
       });
 
-      // Log to listing entity if attached
       if (_commsAttachedListing && _commsAttachedListing.id) {
         Events.log('listing_sent', 'listing', _commsAttachedListing.id, {
           clientName: recipientNames.join(', '),
@@ -7985,28 +8270,110 @@ var Panels = (function () {
         });
       }
 
-      // Log to communications category
-      Events.log('email_sent', 'communication', null, {
-        to: recipientEmails.join(', '),
-        recipientNames: recipientNames.join(', '),
-        cc: cc,
-        subject: subject,
-        body: body,
-        listingAddress: payload.listingAddress,
-        listingPrice: payload.listingPrice,
-      });
-
       CRM.closeModal();
       CRM.toast('Email sent to ' + recipientNames.join(', '), 'success');
       _commsSelectedRecipients = [];
       _commsAttachedListing = null;
-      communications();
+      // Refresh cache and re-render
+      _commsLoadAll().then(function () { communications(); });
     }).catch(function (err) {
       CRM.toast('Failed to send email: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
-  // ── Compose eBlast (enhanced) ────────────────────────────────────────
+  // ── Compose SMS ────────────────────────────────────────────────────────
+  function _composeSMS() {
+    _commsSelectedRecipients = [];
+
+    MallanAPI.clients.list({ limit: 500 }).then(function (res) {
+      _commsClients = res.clients || [];
+
+      CRM.openModal('Compose SMS',
+        '<form id="composeSMSForm" class="space-y-4">' +
+          '<div class="form-group"><label class="form-label">To *</label>' +
+            '<div class="relative">' +
+              '<input class="form-input" id="composeEmailTo" type="text" placeholder="Search clients by name or phone..." autocomplete="off" oninput="Panels._commsSearchRecipients(this.value, \'to\')" onfocus="Panels._commsSearchRecipients(this.value, \'to\')">' +
+              '<div id="composeEmailToDropdown" class="absolute z-50 w-full bg-white border rounded shadow-lg mt-1 max-h-40 overflow-y-auto hidden"></div>' +
+            '</div>' +
+            '<div id="composeEmailToChips" class="flex flex-wrap gap-1 mt-1"></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Phone Number</label>' +
+            '<input class="form-input" name="phone" id="smsPhone" type="tel" placeholder="(646) 555-1234" readonly></div>' +
+          '<div class="form-group"><label class="form-label">Message * <span class="text-xs text-gray-400 ml-2" id="smsCharCount">0/160</span></label>' +
+            '<textarea class="form-input" name="body" id="smsBody" rows="4" maxlength="160" placeholder="Type your SMS message..." required oninput="Panels._updateSMSCharCount()"></textarea></div>' +
+          '<p class="text-xs text-gray-400"><i class="fas fa-info-circle mr-1"></i>SMS messages are limited to 160 characters. TCPA consent required.</p>' +
+        '</form>',
+        {
+          footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+            '<button class="btn btn-gold" onclick="Panels._submitSMS()"><i class="fas fa-paper-plane mr-1"></i>Send SMS</button>',
+        }
+      );
+    }).catch(function (err) {
+      CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _updateSMSCharCount() {
+    var bodyEl = document.getElementById('smsBody');
+    var countEl = document.getElementById('smsCharCount');
+    if (bodyEl && countEl) {
+      var len = (bodyEl.value || '').length;
+      countEl.textContent = len + '/160';
+      countEl.className = len > 140 ? 'text-xs text-red-500 ml-2' : 'text-xs text-gray-400 ml-2';
+    }
+  }
+
+  function _submitSMS() {
+    var form = document.getElementById('composeSMSForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+
+    if (_commsSelectedRecipients.length === 0) {
+      CRM.toast('Please select a recipient', 'error');
+      return;
+    }
+
+    var bodyEl = document.getElementById('smsBody');
+    var body = bodyEl ? bodyEl.value.trim() : '';
+    if (!body) { CRM.toast('Message is required', 'error'); return; }
+
+    var recipient = _commsSelectedRecipients[0];
+    var phone = recipient.phone || recipient.phone_number || '';
+
+    var payload = {
+      type: 'sms',
+      direction: 'outbound',
+      channel: 'sms',
+      clientId: recipient.id,
+      to: phone,
+      subject: null,
+      body: body,
+      status: 'sent',
+      metadata: {
+        recipientName: recipient.name || recipient.first_name || '',
+        phone: phone,
+      },
+    };
+
+    MallanAPI._fetch('/api/crm/communications', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(function () {
+      Events.log('sms_sent', 'client', recipient.id, {
+        to: phone,
+        body: body,
+        recipientName: payload.metadata.recipientName,
+      });
+
+      CRM.closeModal();
+      CRM.toast('SMS sent to ' + (payload.metadata.recipientName || phone), 'success');
+      _commsSelectedRecipients = [];
+      _commsLoadAll().then(function () { communications(); });
+    }).catch(function (err) {
+      CRM.toast('Failed to send SMS: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  // ── Compose eBlast (campaign) ──────────────────────────────────────────
   function _composeBulk() {
     MallanAPI.clients.list({ limit: 500 }).then(function (res) {
       var clients = res.clients || [];
@@ -8120,40 +8487,32 @@ var Panels = (function () {
       return;
     }
 
+    // Unified communication record for campaign
     var payload = {
-      type: 'eblast',
-      clientType: type,
-      stage: stage,
+      type: 'campaign',
+      direction: 'outbound',
+      channel: 'email',
+      to: null,
       subject: subject,
       body: body,
-      recipientCount: filtered.length,
-      includeListings: withListings,
-    };
-
-    MallanAPI._fetch('/api/crm/communications/send', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }).then(function () {
-      var audienceLabel = (type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)) +
-        (stage !== 'all_stages' ? ' (' + stage.replace(/_/g, ' ') + ')' : '') +
-        ' — ' + filtered.length + ' recipients';
-
-      Events.log('eblast_sent', 'communication', null, {
-        recipients: filtered.length,
-        recipientCount: filtered.length,
+      status: 'sent',
+      metadata: {
         clientType: type,
         audienceType: type,
         stage: stage,
-        subject: subject,
-        body: body,
+        recipientCount: filtered.length,
         includeListings: withListings,
-        audienceLabel: audienceLabel,
-      });
+      },
+    };
 
+    MallanAPI._fetch('/api/crm/communications', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(function () {
       CRM.closeModal();
       CRM.toast('eBlast sent to ' + filtered.length + ' recipients', 'success');
       delete window._eblastClients;
-      communications();
+      _commsLoadAll().then(function () { communications(); });
     }).catch(function (err) {
       CRM.toast('Failed to send eBlast: ' + (err.message || 'Unknown error'), 'error');
     });
@@ -8941,11 +9300,16 @@ var Panels = (function () {
     _filterClients: _filterClients,
     _composeEmail: _composeEmail,
     _submitEmail: _submitEmail,
+    _composeSMS: _composeSMS,
+    _submitSMS: _submitSMS,
+    _updateSMSCharCount: _updateSMSCharCount,
     _composeBulk: _composeBulk,
     _updateEblastCount: _updateEblastCount,
     _submitEblast: _submitEblast,
     _commsTabSwitch: _commsTabSwitch,
     _commsRenderTab: _commsRenderTab,
+    _commsLoadAll: _commsLoadAll,
+    _commsRefreshInbox: _commsRefreshInbox,
     _commsSearchRecipients: _commsSearchRecipients,
     _commsSelectRecipient: _commsSelectRecipient,
     _commsRemoveRecipient: _commsRemoveRecipient,
@@ -8954,6 +9318,9 @@ var Panels = (function () {
     _commsAttachListing: _commsAttachListing,
     _commsPickListing: _commsPickListing,
     _viewEmailDetail: _viewEmailDetail,
+    _viewThread: _viewThread,
+    _replyToThread: _replyToThread,
+    _commsBackFromThread: _commsBackFromThread,
     _viewCampaignDetail: _viewCampaignDetail,
     _useTemplate: _useTemplate,
     _editTemplate: _editTemplate,
