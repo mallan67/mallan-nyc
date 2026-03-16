@@ -909,33 +909,18 @@ var Workspace = (function () {
   }
 
   function _sendListingToClient(listingId, address) {
-    // Step 1: Create canonical records FIRST (engagement + communication)
-    Promise.all([
-      MallanAPI._fetch('/api/crm/listing-engagement', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'listing_sent',
-          listing_id: listingId,
-          client_id: _clientId,
-          sent_via: 'workspace',
-          metadata: { address: address }
-        })
-      }),
-      MallanAPI._fetch('/api/crm/communications/send', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'listing_send',
-          listingId: listingId,
-          clientIds: [_clientId],
-          sentAt: new Date().toISOString()
-        })
-      }),
-    ]).then(function () {
-      // Step 2: Log timeline event only AFTER persistence succeeds
+    MallanAPI._fetch('/api/crm/listing-sends', {
+      method: 'POST',
+      body: JSON.stringify({
+        listing_id: listingId,
+        client_ids: [_clientId],
+        sent_via: 'workspace',
+        context: { source: 'client_workspace', address: address }
+      })
+    }).then(function () {
       Events.log('listing_sent', 'client', _clientId, { listingId: listingId, address: address, sentAt: new Date().toISOString() });
       CRM.toast('Send recorded — listing sent to ' + (_client.name || 'client'), 'success');
     }).catch(function (err) {
-      // Step 3: Show real failure
       CRM.toast('Failed to save send: ' + (err.message || 'Please try again'), 'error');
     });
   }
@@ -2280,16 +2265,22 @@ var Workspace = (function () {
     var sendBtn = document.querySelector('[onclick*="_submitDocRequest"]');
     if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
 
-    MallanAPI._fetch('/api/crm/documents/request', {
+    MallanAPI._fetch('/api/crm/document-requests', {
       method: 'POST',
-      body: JSON.stringify({ client_id: _clientId, doc_type: docType, notes: notes }),
+      body: JSON.stringify({
+        scope: 'client',
+        scope_id: _clientId,
+        doc_type: docType,
+        title: docType,
+        notes: notes
+      })
     }).then(function () {
-      Events.log('document_request_sent', 'client', _clientId, { docType: docType, notes: notes });
-      CRM.closeModal();
-      CRM.toast('Document request sent', 'success');
+      Events.log('document_request_sent', 'client', _clientId, { doc_type: docType });
+      CRM.closeSlideOver();
+      CRM.toast('Document request submitted', 'success');
     }).catch(function (err) {
       if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Request'; }
-      CRM.toast('Failed to send document request: ' + (err.message || 'Please try again'), 'error');
+      CRM.toast('Request failed: ' + (err.message || 'Try again'), 'error');
     });
   }
 
@@ -3296,16 +3287,28 @@ var Workspace = (function () {
     if (_dragPhotoIdx === null || _dragPhotoIdx === targetIdx) return;
     var photos = _listing.photos || _listing.Media || [];
     if (_dragPhotoIdx >= photos.length || targetIdx >= photos.length) return;
-    // Reorder in local data
+    var fromIdx = _dragPhotoIdx;
+    // Reorder in local data (optimistic)
     var moved = photos.splice(_dragPhotoIdx, 1)[0];
     photos.splice(targetIdx, 0, moved);
     _dragPhotoIdx = null;
     // Re-render
     var el = document.getElementById('wsListingContent');
     if (el) _listingMedia(el);
-    // Log reorder event
-    Events.log({ type: 'photo_reorder', entityType: 'listing', entityId: _listingId, payload: { from: _dragPhotoIdx, to: targetIdx } });
-    CRM.toast('Photo order updated', 'success');
+    // Build ordered IDs for API
+    var newOrder = photos.map(function (p) { return p.id || p.MediaKey || p.media_id || p.url || ''; });
+    // Persist to API
+    MallanAPI._fetch('/api/crm/listings/' + encodeURIComponent(_listingId) + '/media-order', {
+      method: 'PATCH',
+      body: JSON.stringify({ ordered_media_ids: newOrder })
+    }).then(function () {
+      Events.log('photo_reorder', 'listing', _listingId, { from: fromIdx, to: targetIdx });
+      CRM.toast('Photo order updated', 'success');
+    }).catch(function (err) {
+      CRM.toast('Photo order not saved: ' + (err.message || 'retry'), 'error');
+      // Rollback: rerender media tab
+      _renderListingTab();
+    });
   }
 
   // ─── Listing Tab: Compliance ─────────────────────────────────────────
@@ -4191,8 +4194,15 @@ var Workspace = (function () {
   }
 
   function _refreshSyndication() {
-    Events.log({ type: 'syndication_refresh', entityType: 'listing', entityId: _listingId, payload: { timestamp: new Date().toISOString() } });
-    CRM.toast('Syndication refresh requested', 'success');
+    MallanAPI._fetch('/api/crm/syndication/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ listing_id: _listingId })
+    }).then(function () {
+      Events.log('syndication_refresh_requested', 'listing', _listingId);
+      CRM.toast('Syndication refresh queued', 'info');
+    }).catch(function (err) {
+      CRM.toast('Refresh failed: ' + (err.message || 'Try again'), 'error');
+    });
   }
 
   // ─── Quick Note slide-over ──────────────────────────────────────────

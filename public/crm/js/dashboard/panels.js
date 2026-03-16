@@ -160,9 +160,13 @@ var Panels = (function () {
       ]);
 
       // Filter tabs
+      var urgentCount = items.filter(function (i) { return i.type === 'compliance'; }).length;
+      var overdueCount = items.filter(function (i) { return (i.age || 0) > 7; }).length;
       html += '<div class="flex gap-1 overflow-x-auto">';
       var filters = [
         { key: 'all', label: 'All (' + items.length + ')' },
+        { key: 'urgent', label: 'Urgent (' + urgentCount + ')' },
+        { key: 'overdue', label: 'Overdue (' + overdueCount + ')' },
         { key: 'payout', label: 'Payouts (' + payoutCount + ')' },
         { key: 'document', label: 'Documents (' + docCount + ')' },
         { key: 'compliance', label: 'Compliance (' + compCount + ')' },
@@ -190,7 +194,16 @@ var Panels = (function () {
   }
 
   function _renderApprovalItems(items, filter) {
-    var filtered = filter === 'all' ? items : items.filter(function (i) { return i.type === filter; });
+    var filtered;
+    if (filter === 'all') {
+      filtered = items;
+    } else if (filter === 'urgent') {
+      filtered = items.filter(function (i) { return i.type === 'compliance'; });
+    } else if (filter === 'overdue') {
+      filtered = items.filter(function (i) { return (i.age || 0) > 7; });
+    } else {
+      filtered = items.filter(function (i) { return i.type === filter; });
+    }
 
     if (filtered.length === 0) {
       return '<div class="card p-8 text-center">' +
@@ -4738,6 +4751,25 @@ var Panels = (function () {
       brokerDocuments(); // refresh
     }).catch(function (err) {
       CRM.toast(err.message || 'Failed to approve document', 'error');
+    });
+  }
+
+  function _batchApproveDocuments(ids) {
+    if (!ids || ids.length === 0) { CRM.toast('No documents selected', 'warning'); return; }
+    MallanAPI._fetch('/api/crm/documents/batch-approve', {
+      method: 'POST',
+      body: JSON.stringify({ document_ids: ids })
+    }).then(function (res) {
+      var approved = (res.approved || []).length;
+      var failed = (res.failed || []).length;
+      if (failed > 0) {
+        CRM.toast(approved + ' approved, ' + failed + ' failed', 'warning');
+      } else {
+        CRM.toast(approved + ' documents approved', 'success');
+      }
+      brokerDocuments();
+    }).catch(function (err) {
+      CRM.toast('Approval failed: ' + (err.message || 'Try again'), 'error');
     });
   }
 
@@ -9620,6 +9652,7 @@ var Panels = (function () {
     _filterDocVaultScope: _filterDocVaultScope,
     _sortDocVault: _sortDocVault,
     _approveDoc: _approveDoc,
+    _batchApproveDocuments: _batchApproveDocuments,
     _rejectDoc: _rejectDoc,
     _viewDoc: _viewDoc,
     _replaceDoc: _replaceDoc,

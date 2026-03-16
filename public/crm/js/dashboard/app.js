@@ -1205,26 +1205,31 @@ var CRM = (function () {
     var sendBtn = document.querySelector('[onclick*="_doQuickSend"]');
     if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
 
-    // Step 1: Create canonical send record FIRST
-    MallanAPI._fetch('/api/crm/communications/send', {
+    MallanAPI._fetch('/api/crm/listing-sends', {
       method: 'POST',
+      headers: { 'Idempotency-Key': 'idem_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) },
       body: JSON.stringify({
-        type: 'listing_send',
-        listingId: _selectedSendListing,
-        clientIds: clientIds,
-        sentAt: new Date().toISOString()
+        listing_id: _selectedSendListing,
+        client_ids: clientIds,
+        sent_via: 'quick_send',
+        context: { source: 'top_bar' }
       })
-    }).then(function () {
-      // Step 2: Only log timeline events AFTER persistence succeeds
+    }).then(function (res) {
+      // Log derived timeline events after persistence succeeds
       Events.log('quick_send_executed', 'listing', _selectedSendListing, { clientIds: clientIds });
       clientIds.forEach(function (cid) {
         Events.log('listing_sent', 'client', cid, { listingId: _selectedSendListing, sentVia: 'quick_send' });
       });
       closeModal();
-      toast('Send recorded — listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
+      // Handle partial failures
+      var failed = (res && res.failed) ? res.failed.length : 0;
+      if (failed > 0) {
+        toast('Sent to ' + (clientIds.length - failed) + ' of ' + clientIds.length + ' clients', 'warning');
+      } else {
+        toast('Send recorded — listing sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : ''), 'success');
+      }
       _selectedSendListing = null;
     }).catch(function (err) {
-      // Step 3: Show real failure — do NOT mask as success
       if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send'; }
       toast('Failed to save send record: ' + (err.message || 'Please try again'), 'error');
       // Do not close modal — let user retry
