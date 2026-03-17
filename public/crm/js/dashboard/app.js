@@ -474,7 +474,7 @@ var CRM = (function () {
 
     items.forEach(function (item) {
       if (item.heading) {
-        html += '<div class="px-3 pt-3 pb-1 text-[9px] font-bold text-gray-600 uppercase tracking-wider">' + E(item.heading) + '</div>';
+        html += '<div class="px-3 pt-4 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wide">' + E(item.heading) + '</div>';
       } else {
         var isActive = Router.isActive(item.route);
         html += '<button class="sidebar-item' + (isActive ? ' active' : '') + '" data-route="' + item.route + '" onclick="Router.navigate(\'' + item.route + '\')">' +
