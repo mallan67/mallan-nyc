@@ -7127,7 +7127,6 @@ var Panels = (function () {
       '" onclick="Panels._switchMyListingsStatus(\'all\')">All (' + typeListings.length + ')</button>';
     statuses.forEach(function (s) {
       var count = statusCounts[s] || 0;
-      if (count === 0 && s !== 'Active' && s !== 'Closed') return; // hide empty statuses except Active & Closed
       var label = s;
       if (s === 'ActiveUnderContract') label = 'In Contract';
       else if (s === 'ComingSoon') label = 'Coming Soon';
