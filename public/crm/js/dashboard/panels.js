@@ -7101,13 +7101,10 @@ var Panels = (function () {
 
     var html = '<div class="space-y-4">';
 
-    // Header — title + add buttons
-    html += '<div class="flex items-center justify-between">' +
-      '<h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
-      '<div class="flex gap-2">' +
-        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Sale</button>' +
-        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Rental</button>' +
-      '</div>' +
+    // Add buttons (title comes from CRM.setPanelTitle, no duplicate)
+    html += '<div class="flex items-center justify-end gap-2">' +
+      '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Sale</button>' +
+      '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Rental</button>' +
     '</div>';
 
     // Sale / Rental tabs — primary level
