@@ -1934,29 +1934,101 @@ var Panels = (function () {
     var review = document.getElementById('emailImportReview');
     if (!review) return;
 
-    // Extract emails
+    var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+
+    // Extract all emails
     var emailRx = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    var emails = (text.match(emailRx) || []).filter(function (e, i, arr) { return arr.indexOf(e) === i; });
+    var emails = (text.match(emailRx) || []).filter(function (e, i, a) { return a.indexOf(e) === i; });
 
-    // Extract phones
-    var phoneRx = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
-    var phones = (text.match(phoneRx) || []).filter(function (p, i, arr) { return arr.indexOf(p) === i; });
+    // Extract all phones (US + international)
+    var phoneRx = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g;
+    var phones = (text.match(phoneRx) || []).filter(function (p) { return p.replace(/\D/g, '').length >= 7; })
+      .filter(function (p, i, a) { return a.indexOf(p) === i; });
 
-    // Extract names — "Dear X" / "Hi X" / "Hello X" patterns, or lines before emails
-    var names = [];
-    var greetRx = /(?:Dear|Hi|Hello|Hey|Introducing|Meet)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/g;
-    var m;
-    while ((m = greetRx.exec(text)) !== null) {
-      if (names.indexOf(m[1]) === -1) names.push(m[1]);
-    }
-    // Also look for "Name <email>" or "Name (email)" patterns
-    var nameEmailRx = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[<(]/g;
-    while ((m = nameEmailRx.exec(text)) !== null) {
-      if (names.indexOf(m[1]) === -1) names.push(m[1]);
-    }
+    // Extract address (look for "Address:" label or street pattern)
+    var address = '';
+    var unit = '';
+    lines.forEach(function (line) {
+      var addrMatch = line.match(/^(?:address|property|location)\s*[:]\s*(.+)/i);
+      if (addrMatch) {
+        var full = addrMatch[1].trim();
+        // Try to split unit: "211 East 51st Street, 4C, New York"
+        var unitMatch = full.match(/,\s*(?:apt\.?|unit|#|suite)?\s*(\w{1,5})\s*,/i);
+        if (unitMatch) { unit = unitMatch[1]; }
+        else {
+          var parts = full.split(',').map(function (p) { return p.trim(); });
+          if (parts.length >= 3 && /^\w{1,5}$/.test(parts[1])) { unit = parts[1]; }
+        }
+        address = full;
+      }
+      // Also detect street addresses without label
+      if (!address && /^\d+\s+(?:east|west|e\.?|w\.?)\s+\d/i.test(line)) { address = line; }
+    });
 
-    var personA = { name: names[0] || '', email: emails[0] || '', phone: phones[0] || '' };
-    var personB = { name: names[1] || '', email: emails[1] || '', phone: phones[1] || '' };
+    // Extract legal ownership (look for LLC, Trust, Corp, Inc patterns)
+    var legalName = '';
+    lines.forEach(function (line) {
+      if (/\b(?:LLC|L\.L\.C|Trust|Corp|Corporation|Inc|LP|LLP|Partnership)\b/i.test(line)) {
+        // Use the line itself as legal name, clean it up
+        var clean = line.replace(/^(?:owner|landlord|property\s*owner)\s*[:]\s*/i, '').trim();
+        if (clean && !legalName) legalName = clean;
+      }
+    });
+
+    // Detect Owner/Landlord vs Tenant/Buyer sections
+    var personA = { name: '', email: '', phone: '', role: 'landlord' };
+    var personB = { name: '', email: '', phone: '', role: 'renter' };
+
+    var currentPerson = null;
+    lines.forEach(function (line) {
+      var lower = line.toLowerCase();
+
+      // Detect section headers
+      if (/^(?:owner|landlord|property\s*owner|seller)\s*[:.]?\s*$/i.test(line) || lower === 'owner' || lower === 'landlord' || lower === 'seller') {
+        currentPerson = 'A';
+        if (lower.indexOf('seller') !== -1) personA.role = 'seller';
+        return;
+      }
+      if (/^(?:tenant|renter|buyer|lessee)\s*[:.]?\s*$/i.test(line) || lower === 'tenant' || lower === 'renter' || lower === 'buyer') {
+        currentPerson = 'B';
+        if (lower.indexOf('buyer') !== -1) personB.role = 'buyer';
+        return;
+      }
+
+      // Extract labeled values
+      var emailMatch = line.match(/(?:email|e-?mail)\s*[:]\s*(\S+@\S+)/i);
+      var phoneMatch = line.match(/(?:phone|mobile|cell|tel)\s*[:]\s*(.+)/i);
+      var nameMatch = line.match(/(?:name)\s*[:]\s*(.+)/i);
+
+      if (currentPerson === 'A') {
+        if (emailMatch) personA.email = emailMatch[1].trim();
+        else if (phoneMatch) personA.phone = phoneMatch[1].trim();
+        else if (nameMatch) personA.name = nameMatch[1].trim();
+        else if (!personA.name && /^[A-Z][a-z]+ [A-Z][a-z]/.test(line) && !emailMatch && line.indexOf('@') === -1 && !/^(?:address|email|phone|mobile)/i.test(line)) {
+          // Line looks like a name (First Last)
+          if (legalName && line === legalName) return; // skip legal name as person name
+          personA.name = line;
+        }
+      } else if (currentPerson === 'B') {
+        if (emailMatch) personB.email = emailMatch[1].trim();
+        else if (phoneMatch) personB.phone = phoneMatch[1].trim();
+        else if (nameMatch) personB.name = nameMatch[1].trim();
+        else if (!personB.name && /^[A-Z][a-z]+ [A-Z][a-z]/.test(line) && !emailMatch && line.indexOf('@') === -1) {
+          personB.name = line;
+        }
+      }
+    });
+
+    // Fallback: assign extracted data if section detection didn't work
+    if (!personA.email && emails.length > 0) personA.email = emails[0];
+    if (!personB.email && emails.length > 1) personB.email = emails[1];
+    if (!personA.phone && phones.length > 0) personA.phone = phones[0];
+    if (!personB.phone && phones.length > 1) personB.phone = phones[1];
+
+    // Store extracted address + legal name for the form
+    window._importAddress = address;
+    window._importUnit = unit;
+    window._importLegalName = legalName;
 
     _renderEmailImportReview(review, personA, personB);
   }
@@ -1975,10 +2047,11 @@ var Panels = (function () {
       _importField('importA_phone', 'Phone', personA.phone, 'tel') +
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
         '<select id="importA_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
-        '<option value="landlord">Landlord</option><option value="seller">Seller</option></select></div>' +
-      _importField('importA_address', 'Property Address', '', 'text') +
-      _importField('importA_unit', 'Unit Number', '', 'text') +
-      _importField('importA_legalName', 'Legal Ownership Name', '', 'text', 'LLC, Trust, Corp, or individual name') +
+        '<option value="landlord"' + (personA.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
+        '<option value="seller"' + (personA.role === 'seller' ? ' selected' : '') + '>Seller</option></select></div>' +
+      _importField('importA_address', 'Property Address', window._importAddress || '', 'text') +
+      _importField('importA_unit', 'Unit Number', window._importUnit || '', 'text') +
+      _importField('importA_legalName', 'Legal Ownership Name', window._importLegalName || '', 'text', 'LLC, Trust, Corp, or individual name') +
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease Start Date</label>' +
         '<input type="date" id="importA_leaseStart" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End Date</label>' +
@@ -1994,7 +2067,10 @@ var Panels = (function () {
       _importField('importB_phone', 'Phone', personB.phone, 'tel') +
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
         '<select id="importB_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
-        '<option value="renter">Renter</option><option value="buyer">Buyer</option></select></div>' +
+        '<option value="renter"' + (personB.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
+        '<option value="buyer"' + (personB.role === 'buyer' ? ' selected' : '') + '>Buyer</option></select></div>' +
+      _importField('importB_address', 'Rental Address', window._importAddress || '', 'text', 'Property they are renting') +
+      _importField('importB_unit', 'Unit Number', window._importUnit || '', 'text') +
       '</div></div>';
 
     html += '</div>';
