@@ -765,30 +765,36 @@ var Panels = (function () {
     var initials = Utils.initials(name);
     var role = (a.role || 'AGENT').toUpperCase();
     var roleLabel = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
-    var roleColor = role === 'BROKER' ? 'purple' : 'blue';
     var license = a.license_no || a.licenseNumber || a.license_number || '';
+    var photo = a.photo || '';
+
+    // Avatar: use photo if available, otherwise initials
+    var avatarHtml = photo ?
+      '<img src="' + E(photo) + '" class="w-9 h-9 rounded-full object-cover flex-shrink-0" alt="' + E(name) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+      '<div class="w-9 h-9 rounded-full bg-gray-200 items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0" style="display:none">' + E(initials) + '</div>' :
+      '<div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0">' + E(initials) + '</div>';
 
     return '<div class="border rounded-lg overflow-hidden agent-roster-card" data-name="' + E(name.toLowerCase()) + '" data-role="' + E(role) + '">' +
       // Header row (always visible)
-      '<div class="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition" onclick="Panels._toggleAgentCard(' + idx + ')">' +
+      '<div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition" onclick="Panels._toggleAgentCard(' + idx + ')">' +
         '<div class="flex items-center gap-3">' +
-          '<div class="w-9 h-9 bg-' + roleColor + '-100 rounded-full flex items-center justify-center text-' + roleColor + '-700 font-bold text-sm">' + E(initials) + '</div>' +
+          avatarHtml +
           '<div>' +
             '<p class="font-semibold text-sm text-gray-900">' + E(name) + '</p>' +
             '<p class="text-xs text-gray-500">' + E(license ? roleLabel + ' · #' + license : roleLabel) + '</p>' +
           '</div>' +
         '</div>' +
         '<div class="flex items-center gap-3">' +
-          '<span class="px-2 py-1 bg-' + roleColor + '-100 text-' + roleColor + '-700 rounded text-xs font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
+          '<span class="px-2 py-0.5 border border-gray-300 text-gray-600 rounded text-[10px] font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
           (function () {
             var badges = '';
             var licExp = a.license_expiry || a.licenseExpiry;
             var licDays = licExp ? Utils.daysUntil(licExp) : null;
-            if (licDays !== null && licDays <= 90) badges += '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">License expiring</span>';
+            if (licDays !== null && licDays <= 90) badges += '<span class="px-1.5 py-0.5 border border-red-300 text-red-600 rounded text-[9px] font-semibold">License expiring</span>';
             var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
-            if (ceHrs < 22.5) badges += '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">CE incomplete</span>';
+            if (ceHrs < 22.5) badges += '<span class="px-1.5 py-0.5 border border-yellow-300 text-yellow-600 rounded text-[9px] font-semibold">CE incomplete</span>';
             var eoExp = a.eo_expiry || a.eoExpiry;
-            if (!eoExp || (new Date(eoExp) < new Date())) badges += '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">Missing E&amp;O</span>';
+            if (!eoExp || (new Date(eoExp) < new Date())) badges += '<span class="px-1.5 py-0.5 border border-red-300 text-red-600 rounded text-[9px] font-semibold">Missing E&amp;O</span>';
             return badges;
           })() +
           (function () {
@@ -802,11 +808,11 @@ var Panels = (function () {
             var splitDisplay = splitPct > 1 ? splitPct + '%' : (splitPct > 0 ? Math.round(splitPct * 100) + '%' : '-');
             var activeDeals = (a._allDeals || []).filter(function (d) { return d.stage !== 'closed' && d.status !== 'closed'; }).length;
             var refCount = (a._referrals || []).length;
-            return '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">License</p><p class="text-sm font-bold ' + licColor + '">' + licText + '</p></div>' +
-              '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-500">CE</p><p class="text-sm font-bold ' + ceColor + '">' + ceHrs + '/22.5 hrs</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Split</p><p class="text-sm font-bold text-gray-700">' + splitDisplay + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Active Deals</p><p class="text-sm font-bold text-blue-600">' + activeDeals + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-500">Referrals</p><p class="text-sm font-bold text-purple-600">' + refCount + '</p></div>';
+            return '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400 font-medium">License</p><p class="text-xs font-semibold ' + licColor + '">' + licText + '</p></div>' +
+              '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400 font-medium">CE</p><p class="text-xs font-semibold ' + ceColor + '">' + ceHrs + '/22.5 hrs</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400 font-medium">Split</p><p class="text-xs font-semibold text-gray-700">' + splitDisplay + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400 font-medium">Active Deals</p><p class="text-xs font-semibold text-gray-700">' + activeDeals + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400 font-medium">Referrals</p><p class="text-xs font-semibold text-gray-700">' + refCount + '</p></div>';
           })() +
           '<i class="fas fa-chevron-down text-gray-400 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
         '</div>' +
@@ -816,7 +822,7 @@ var Panels = (function () {
         '<div class="px-4 py-3 border-t bg-white">' +
           // Quick actions
           '<div class="flex items-center justify-between mb-3">' +
-            '<div class="sm:hidden"><span class="px-2 py-1 bg-' + roleColor + '-100 text-' + roleColor + '-700 rounded text-xs font-semibold">' + E(roleLabel) + '</span></div>' +
+            '<div class="sm:hidden"><span class="px-2 py-0.5 border border-gray-300 text-gray-600 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span></div>' +
             '<div class="flex items-center gap-2">' +
               '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
               '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
@@ -1127,7 +1133,18 @@ var Panels = (function () {
           '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" value="NY" placeholder="State"></div>' +
           '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
         '</div>' +
-        '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-camera mr-1"></i> Agent headshot will be collected during onboarding.</p>' +
+        '<div class="mt-3">' +
+          '<label class="form-label">Agent Headshot</label>' +
+          '<div class="flex items-center gap-4">' +
+            '<div id="addAgentPhotoPreview" class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 overflow-hidden">' +
+              '<i class="fas fa-camera text-lg"></i>' +
+            '</div>' +
+            '<div class="flex-1">' +
+              '<input type="file" name="agent_photo" id="addAgentPhotoInput" accept="image/jpeg,image/png,image/webp" class="form-input text-sm" onchange="Panels._previewAgentPhoto(this)">' +
+              '<p class="text-[10px] text-gray-400 mt-1">JPG, PNG, or WebP. This photo will appear on the agent\'s public profile at mallan.nyc/agents/</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
 
       // ── Section 2: NY DOS License Information ──
@@ -1266,6 +1283,16 @@ var Panels = (function () {
     });
   }
 
+  function _previewAgentPhoto(input) {
+    var preview = document.getElementById('addAgentPhotoPreview');
+    if (!preview || !input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      preview.innerHTML = '<img src="' + e.target.result + '" class="w-full h-full object-cover">';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
   function _submitAddAgent(mode) {
     var form = document.getElementById('addAgentForm');
     if (!form) return;
@@ -1295,8 +1322,28 @@ var Panels = (function () {
     }
 
     MallanAPI.agents.create(data).then(function (res) {
-      CRM.closeModal();
+      var agentId = res.id;
       var tempPw = res.tempPassword || '';
+
+      // Upload photo if provided
+      var photoInput = document.getElementById('addAgentPhotoInput');
+      var photoFile = photoInput && photoInput.files && photoInput.files[0];
+      if (photoFile && agentId) {
+        var formData = new FormData();
+        formData.append('file', photoFile);
+        fetch('/api/crm/agents/' + agentId + '/photo', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        }).then(function (r) { return r.json(); }).then(function (photoRes) {
+          if (photoRes.url) {
+            // Update agent with photo URL
+            MallanAPI.agents.update(agentId, { photo: photoRes.url }).catch(function () { /* best effort */ });
+          }
+        }).catch(function () { /* photo upload is best-effort */ });
+      }
+
+      CRM.closeModal();
       if (mode === 'invite' && tempPw) {
         CRM.toast('Agent created. Temp password: ' + tempPw, 'success');
       } else {
@@ -9620,6 +9667,7 @@ var Panels = (function () {
     // Internal (called from onclick handlers)
     _addAgent: _addAgent,
     _submitAddAgent: _submitAddAgent,
+    _previewAgentPhoto: _previewAgentPhoto,
     _editAgent: _editAgent,
     _createLead: _createLead,
     _submitLead: _submitLead,
