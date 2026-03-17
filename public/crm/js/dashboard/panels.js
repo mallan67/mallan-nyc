@@ -774,46 +774,36 @@ var Panels = (function () {
       '<div class="w-9 h-9 rounded-full bg-gray-200 items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0" style="display:none">' + E(initials) + '</div>' :
       '<div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0">' + E(initials) + '</div>';
 
+    // Compute stats
+    var licExp = a.license_expiry || a.licenseExpiry;
+    var licText = licExp ? D(licExp) : '—';
+    var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
+    var ceComplete = ceHrs >= 22.5;
+    var splitPct = a.sale_split || a.saleSplit || 0;
+    var splitDisplay = splitPct > 1 ? splitPct + '%' : (splitPct > 0 ? Math.round(splitPct * 100) + '%' : '—');
+    var activeDeals = (a._allDeals || []).filter(function (d) { return d.stage !== 'closed' && d.status !== 'closed'; }).length;
+    var refCount = (a._referrals || []).length;
+
     return '<div class="border rounded-lg overflow-hidden agent-roster-card" data-name="' + E(name.toLowerCase()) + '" data-role="' + E(role) + '">' +
-      // Header row (always visible)
-      '<div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition" onclick="Panels._toggleAgentCard(' + idx + ')">' +
-        '<div class="flex items-center gap-3">' +
-          avatarHtml +
-          '<div>' +
-            '<p class="font-semibold text-sm text-gray-900">' + E(name) + '</p>' +
-            '<p class="text-xs text-gray-500">' + E(license ? roleLabel + ' · #' + license : roleLabel) + '</p>' +
+      '<div class="cursor-pointer hover:bg-gray-50 transition px-5 py-4" onclick="Panels._toggleAgentCard(' + idx + ')">' +
+        // Row 1: Name + chevron
+        '<div class="flex items-center justify-between">' +
+          '<div class="flex items-center gap-3">' +
+            avatarHtml +
+            '<div>' +
+              '<p class="text-sm font-semibold text-gray-900">' + E(name) + '</p>' +
+              '<p class="text-xs text-gray-500">' + E(roleLabel) + (license ? ' · #' + E(license) : '') + '</p>' +
+            '</div>' +
           '</div>' +
+          '<i class="fas fa-chevron-down text-gray-300 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
         '</div>' +
-        '<div class="flex items-center gap-3">' +
-          '<span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
-          (function () {
-            var badges = '';
-            var licExp = a.license_expiry || a.licenseExpiry;
-            var licDays = licExp ? Utils.daysUntil(licExp) : null;
-            if (licDays !== null && licDays <= 90) badges += '<span class="text-[9px] text-gray-400 hidden sm:inline">&middot; License exp. soon</span>';
-            var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
-            if (ceHrs < 22.5) badges += '<span class="text-[9px] text-gray-400 hidden sm:inline">&middot; CE incomplete</span>';
-            var eoExp = a.eo_expiry || a.eoExpiry;
-            if (!eoExp || (new Date(eoExp) < new Date())) badges += '<span class="text-[9px] text-gray-400 hidden sm:inline">&middot; No E&amp;O</span>';
-            return badges;
-          })() +
-          (function () {
-            var licExp = a.license_expiry || a.licenseExpiry;
-            var licText = licExp ? D(licExp) : 'N/A';
-            var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
-            var ceText = ceHrs >= 22.5 ? 'Complete' : 'Incomplete';
-            var ceColor = ceHrs >= 22.5 ? 'text-green-600' : 'text-gray-500';
-            var splitPct = a.sale_split || a.saleSplit || 0;
-            var splitDisplay = splitPct > 1 ? splitPct + '%' : (splitPct > 0 ? Math.round(splitPct * 100) + '%' : '-');
-            var activeDeals = (a._allDeals || []).filter(function (d) { return d.stage !== 'closed' && d.status !== 'closed'; }).length;
-            var refCount = (a._referrals || []).length;
-            return '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400">License</p><p class="text-xs text-gray-600">' + licText + '</p></div>' +
-              '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400">CE</p><p class="text-xs ' + ceColor + '">' + ceText + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400">Split</p><p class="text-xs text-gray-600">' + splitDisplay + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400">Active Deals</p><p class="text-xs text-gray-600">' + activeDeals + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400">Referrals</p><p class="text-xs text-gray-600">' + refCount + '</p></div>';
-          })() +
-          '<i class="fas fa-chevron-down text-gray-400 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
+        // Row 2: Stats as a clean horizontal row
+        '<div class="flex items-center gap-6 mt-3 ml-12 text-xs text-gray-500">' +
+          '<div>License <span class="text-gray-700">' + licText + '</span></div>' +
+          '<div>CE <span class="' + (ceComplete ? 'text-gray-700' : 'text-gray-400') + '">' + (ceComplete ? 'Complete' : 'Incomplete') + '</span></div>' +
+          '<div>Split <span class="text-gray-700">' + splitDisplay + '</span></div>' +
+          '<div>Deals <span class="text-gray-700">' + activeDeals + '</span></div>' +
+          '<div>Referrals <span class="text-gray-700">' + refCount + '</span></div>' +
         '</div>' +
       '</div>' +
       // Expanded panel
