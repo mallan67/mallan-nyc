@@ -1657,6 +1657,17 @@ var Panels = (function () {
 
       var now = new Date();
 
+      // Normalize type + name for all clients
+      _cabClients.forEach(function (cl) {
+        if (!cl.type && !cl.client_type) {
+          cl.type = cl.portal_role || (cl.roles && cl.roles[0]) || 'buyer';
+          cl.client_type = cl.type;
+        }
+        if (!cl.name && (cl.first_name || cl.last_name)) {
+          cl.name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim();
+        }
+      });
+
       // Resolve agent names + operational data on clients
       _cabClients.forEach(function (cl) {
         var aid = cl.assignedAgentId || cl.assigned_agent_id;
@@ -7806,6 +7817,18 @@ var Panels = (function () {
       var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
       var thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
 
+      // Normalize type: API returns portal_role, frontend uses type/client_type
+      clients.forEach(function (cl) {
+        if (!cl.type && !cl.client_type) {
+          cl.type = cl.portal_role || (cl.roles && cl.roles[0]) || 'buyer';
+          cl.client_type = cl.type;
+        }
+        // Use full name, not just email
+        if (!cl.name && (cl.first_name || cl.last_name)) {
+          cl.name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim();
+        }
+      });
+
       // Enrich each client with operational data
       clients.forEach(function (cl) {
         var cid = cl.id;
@@ -7890,13 +7913,10 @@ var Panels = (function () {
     var html = '<div class="space-y-4">';
 
     // Header
-    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
-      '<h2 class="text-lg font-bold text-gray-900">My Clients</h2>' +
-      '<div class="flex gap-2">' +
-        '<div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
-          '<input type="text" placeholder="Search clients..." class="form-input pl-9 text-sm w-48" value="' + E(_myClientsSearch) + '" oninput="Panels._searchMyClients(this.value)"></div>' +
-        '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i> New Client</button>' +
-      '</div>' +
+    html += '<div class="flex items-center justify-end gap-2">' +
+      '<div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
+        '<input type="text" placeholder="Search clients..." class="form-input pl-9 text-sm w-48" value="' + E(_myClientsSearch) + '" oninput="Panels._searchMyClients(this.value)"></div>' +
+      '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i> New Client</button>' +
     '</div>';
 
     // Saved view tabs

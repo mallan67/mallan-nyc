@@ -55,10 +55,23 @@ var Workspace = (function () {
 
   function _renderClientWorkspace(c) {
     var cl = _client;
+    // Normalize name and type from API fields
+    if (!cl.name && (cl.first_name || cl.last_name)) {
+      cl.name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim();
+    }
+    if (!cl.type && !cl.client_type) {
+      cl.type = cl.portal_role || (cl.roles && cl.roles[0]) || 'buyer';
+      cl.client_type = cl.type;
+    }
     var name = cl.name || cl.email || 'Client';
     var type = cl.type || cl.client_type || 'buyer';
 
     var html = '<div class="space-y-0">';
+
+    // Back navigation
+    html += '<div class="flex items-center gap-2 mb-2">' +
+      '<button class="text-sm text-gray-500 hover:text-gray-700" onclick="Router.navigate(\'/ops/clients\')"><i class="fas fa-arrow-left mr-1"></i> All Clients</button>' +
+    '</div>';
 
     // Header
     html += '<div class="workspace-header">' +
