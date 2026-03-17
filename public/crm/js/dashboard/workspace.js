@@ -413,8 +413,9 @@ var Workspace = (function () {
     var propertyAddr = _extractNoteText('Property') || _extractNoteText('Rental Address') || '';
     var propertyUnit = _extractNoteText('Unit') || '';
     var legalOwner = _extractNoteText('Legal Owner') || '';
-    var leaseStart = cl.lease_start_date ? new Date(cl.lease_start_date).toLocaleDateString() : '';
-    var leaseEnd = cl.lease_end_date ? new Date(cl.lease_end_date).toLocaleDateString() : '';
+    var _fmtDate = function (v) { if (!v) return ''; var d = new Date(v); return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }); };
+    var leaseStart = _fmtDate(cl.lease_start_date);
+    var leaseEnd = _fmtDate(cl.lease_end_date);
 
     // ── Card helper ──
     function _card(icon, title, editFn, bodyHtml) {
@@ -841,10 +842,15 @@ var Workspace = (function () {
           '<select class="form-input form-select" name="propertyType">' +
             '<option value="">Any</option>' +
             '<option' + (prefs.propertyType === 'Condo' ? ' selected' : '') + '>Condo</option>' +
+            '<option' + (prefs.propertyType === 'Condop' ? ' selected' : '') + '>Condop</option>' +
             '<option' + (prefs.propertyType === 'Co-op' ? ' selected' : '') + '>Co-op</option>' +
             '<option' + (prefs.propertyType === 'Townhouse' ? ' selected' : '') + '>Townhouse</option>' +
             '<option' + (prefs.propertyType === 'Single Family' ? ' selected' : '') + '>Single Family</option>' +
             '<option' + (prefs.propertyType === 'Multi Family' ? ' selected' : '') + '>Multi Family</option>' +
+            '<option' + (prefs.propertyType === 'New Development' ? ' selected' : '') + '>New Development</option>' +
+            '<option' + (prefs.propertyType === 'Loft' ? ' selected' : '') + '>Loft</option>' +
+            '<option' + (prefs.propertyType === 'Mixed Use' ? ' selected' : '') + '>Mixed Use</option>' +
+            '<option' + (prefs.propertyType === 'Commercial' ? ' selected' : '') + '>Commercial</option>' +
             '<option' + (prefs.propertyType === 'Rental' ? ' selected' : '') + '>Rental</option>' +
           '</select></div>' +
         '<div class="form-group"><label class="form-label">Must-Haves</label>' +
