@@ -7443,12 +7443,14 @@ var Panels = (function () {
     if (filtered.length === 0) {
       html += UI.emptyState('fa-users', 'No clients match current view');
     } else {
+      var showLeaseCol = (view === 'renter' || view === 'landlord' || view === 'lease');
       html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
         '<th class="text-left px-3 py-2">Client</th>' +
         '<th class="text-left px-3 py-2">Type</th>' +
         '<th class="text-left px-3 py-2">Stage</th>' +
         '<th class="text-left px-3 py-2">Health</th>' +
         '<th class="text-left px-3 py-2">Last Activity</th>' +
+        (showLeaseCol ? '<th class="text-left px-3 py-2">Lease End</th>' : '') +
         '<th class="text-left px-3 py-2">Next Task</th>' +
         '<th class="text-left px-3 py-2 hidden sm:table-cell">Listings</th>' +
       '</tr></thead><tbody>';
@@ -7487,6 +7489,7 @@ var Panels = (function () {
           '<td class="px-3 py-2">' + UI.stageBadge(cl.stage || cl.status) + '</td>' +
           '<td class="px-3 py-2">' + healthHtml + '</td>' +
           '<td class="px-3 py-2"><span class="text-xs text-gray-500">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</span></td>' +
+          (showLeaseCol ? '<td class="px-3 py-2">' + _myClientsLeaseCell(cl) + '</td>' : '') +
           '<td class="px-3 py-2">' + taskHtml + '</td>' +
           '<td class="px-3 py-2 hidden sm:table-cell"><span class="text-xs text-gray-500">' + (cl._listingsCount || 0) + '</span></td>' +
         '</tr>';
@@ -7513,6 +7516,20 @@ var Panels = (function () {
   function _filterClients(type) {
     _myClientsView = type;
     _renderMyClients(_container());
+  }
+
+  function _myClientsLeaseCell(cl) {
+    var leaseEnd = cl.leaseEndDate || cl.lease_end_date ||
+      (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
+    if (!leaseEnd) return '<span class="text-xs text-gray-400">\u2014</span>';
+    var daysLeft = Math.floor((new Date(leaseEnd).getTime() - Date.now()) / 86400000);
+    var colorClass = 'text-green-600';
+    if (daysLeft < 0) colorClass = 'text-gray-500';
+    else if (daysLeft <= 30) colorClass = 'text-red-600 font-bold';
+    else if (daysLeft <= 90) colorClass = 'text-yellow-600 font-bold';
+    return '<span class="text-xs ' + colorClass + '">' + D(leaseEnd) +
+      (daysLeft >= 0 ? ' <span class="text-[10px]">(' + daysLeft + 'd)</span>' : ' <span class="text-[10px]">(expired)</span>') +
+    '</span>';
   }
 
   // ─── Pipeline ────────────────────────────────────────────────────────
@@ -9707,6 +9724,219 @@ var Panels = (function () {
     }, 300);
   }
 
+  // ─── Lease Tracking Dashboard ────────────────────────────────────────
+
+  function leaseTracking() {
+    CRM.setPanelTitle('Lease Tracking');
+    var c = _container(); c.innerHTML = UI.loading();
+
+    MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }).then(function (res) {
+      var clients = res.clients || [];
+      var now = new Date();
+
+      var renters = clients.filter(function (cl) {
+        return (cl.type || cl.client_type) === 'renter';
+      });
+      var landlords = clients.filter(function (cl) {
+        return (cl.type || cl.client_type) === 'landlord';
+      });
+
+      // Compute lease days left for renters
+      renters.forEach(function (cl) {
+        var leaseEnd = cl.leaseEndDate || cl.lease_end_date ||
+          (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
+        var leaseStart = cl.leaseStartDate || cl.lease_start_date ||
+          (cl.preferences && (cl.preferences.leaseStartDate || cl.preferences.lease_start_date)) || null;
+        cl._leaseEnd = leaseEnd;
+        cl._leaseStart = leaseStart;
+        if (leaseEnd) {
+          var diff = Math.floor((new Date(leaseEnd).getTime() - now.getTime()) / 86400000);
+          cl._daysLeft = diff;
+        } else {
+          cl._daysLeft = null;
+        }
+      });
+
+      // Sort renters by lease end date (soonest first), nulls last
+      renters.sort(function (a, b) {
+        if (a._daysLeft === null && b._daysLeft === null) return 0;
+        if (a._daysLeft === null) return 1;
+        if (b._daysLeft === null) return -1;
+        return a._daysLeft - b._daysLeft;
+      });
+
+      // Compute landlord metadata
+      landlords.forEach(function (cl) {
+        var updated = cl.updated_at || cl.updatedAt || cl.created_at || null;
+        cl._lastContact = updated;
+        cl._daysSinceContact = updated ? Math.floor((now.getTime() - new Date(updated).getTime()) / 86400000) : null;
+        var nextRenewal = cl.leaseEndDate || cl.lease_end_date ||
+          (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
+        cl._nextRenewal = nextRenewal;
+        cl._leaseCycle = cl.leaseCycle || cl.lease_cycle ||
+          (cl.preferences && (cl.preferences.leaseCycle || cl.preferences.lease_cycle)) || null;
+      });
+
+      // Alert counts
+      var expiring30 = renters.filter(function (cl) { return cl._daysLeft !== null && cl._daysLeft >= 0 && cl._daysLeft <= 30; });
+      var expiring90 = renters.filter(function (cl) { return cl._daysLeft !== null && cl._daysLeft > 30 && cl._daysLeft <= 90; });
+      var landlordStale = landlords.filter(function (cl) { return cl._daysSinceContact !== null && cl._daysSinceContact >= 180; });
+
+      var html = '<div class="space-y-4">';
+
+      // Header
+      html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+        '<h2 class="text-lg font-bold text-gray-900"><i class="fas fa-file-contract mr-2 text-gold"></i>Lease Tracking</h2>' +
+        '<div class="flex gap-2 text-xs">' +
+          '<span class="px-2 py-1 bg-blue-50 text-blue-700 rounded font-bold">' + renters.length + ' Tenants</span>' +
+          '<span class="px-2 py-1 bg-purple-50 text-purple-700 rounded font-bold">' + landlords.length + ' Landlords</span>' +
+        '</div>' +
+      '</div>';
+
+      // Top alerts
+      if (expiring30.length > 0 || expiring90.length > 0 || landlordStale.length > 0) {
+        html += '<div class="space-y-2">';
+        if (expiring30.length > 0) {
+          html += '<div class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">' +
+            '<i class="fas fa-exclamation-triangle text-red-500"></i>' +
+            '<span class="text-sm font-bold text-red-700">' + expiring30.length + ' lease' + (expiring30.length !== 1 ? 's' : '') + ' expiring within 30 days</span>' +
+          '</div>';
+        }
+        if (expiring90.length > 0) {
+          html += '<div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">' +
+            '<i class="fas fa-clock text-yellow-500"></i>' +
+            '<span class="text-sm font-bold text-yellow-700">' + expiring90.length + ' lease' + (expiring90.length !== 1 ? 's' : '') + ' expiring within 90 days</span>' +
+          '</div>';
+        }
+        if (landlordStale.length > 0) {
+          html += '<div class="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">' +
+            '<i class="fas fa-user-clock text-orange-500"></i>' +
+            '<span class="text-sm font-bold text-orange-700">' + landlordStale.length + ' landlord' + (landlordStale.length !== 1 ? 's' : '') + ' not contacted in 6+ months</span>' +
+          '</div>';
+        }
+        html += '</div>';
+      }
+
+      // Two-column layout (stacked on mobile)
+      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">';
+
+      // ── LEFT: Tenant Leases ──
+      html += '<div class="card p-4">' +
+        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-user-friends mr-2 text-blue-500"></i>Tenant Leases</h3>';
+      if (renters.length === 0) {
+        html += UI.emptyState('fa-users', 'No renter clients');
+      } else {
+        html += '<div style="overflow-x:auto"><table class="w-full text-xs"><thead class="bg-gray-50"><tr>' +
+          '<th class="text-left px-2 py-2">Tenant</th>' +
+          '<th class="text-left px-2 py-2 hidden sm:table-cell">Address</th>' +
+          '<th class="text-left px-2 py-2 hidden md:table-cell">Lease Start</th>' +
+          '<th class="text-left px-2 py-2">Lease End</th>' +
+          '<th class="text-left px-2 py-2">Days Left</th>' +
+          '<th class="text-left px-2 py-2">Status</th>' +
+          '<th class="text-left px-2 py-2">Actions</th>' +
+        '</tr></thead><tbody>';
+        renters.forEach(function (cl) {
+          var leaseStatus = _leaseStatus(cl._daysLeft);
+          var addr = cl.address || cl.property_address ||
+            (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-2 py-2 font-medium">' + E(cl.name || cl.full_name || cl.email || 'Unknown') + '</td>' +
+            '<td class="px-2 py-2 hidden sm:table-cell text-gray-500 truncate max-w-[140px]" title="' + E(addr) + '">' + E(addr || '\u2014') + '</td>' +
+            '<td class="px-2 py-2 hidden md:table-cell text-gray-500">' + (cl._leaseStart ? D(cl._leaseStart) : '\u2014') + '</td>' +
+            '<td class="px-2 py-2">' + (cl._leaseEnd ? D(cl._leaseEnd) : '\u2014') + '</td>' +
+            '<td class="px-2 py-2 font-bold ' + leaseStatus.textClass + '">' + (cl._daysLeft !== null ? cl._daysLeft + 'd' : '\u2014') + '</td>' +
+            '<td class="px-2 py-2">' + leaseStatus.badge + '</td>' +
+            '<td class="px-2 py-2">' +
+              '<div class="flex gap-1 flex-wrap">' +
+                '<button class="btn-xs text-blue-600 hover:underline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">Contact</button>' +
+                '<button class="btn-xs text-green-600 hover:underline" onclick="Panels._leaseRenew(\'' + E(cl.id) + '\')">Renew</button>' +
+                '<button class="btn-xs text-purple-600 hover:underline" onclick="Panels._leaseConvertToBuyer(\'' + E(cl.id) + '\', \'' + E(cl.name || '') + '\')">Convert</button>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // ── RIGHT: Landlord Properties ──
+      html += '<div class="card p-4">' +
+        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-building mr-2 text-purple-500"></i>Landlord Properties</h3>';
+      if (landlords.length === 0) {
+        html += UI.emptyState('fa-building', 'No landlord clients');
+      } else {
+        html += '<div style="overflow-x:auto"><table class="w-full text-xs"><thead class="bg-gray-50"><tr>' +
+          '<th class="text-left px-2 py-2">Landlord</th>' +
+          '<th class="text-left px-2 py-2 hidden sm:table-cell">Property</th>' +
+          '<th class="text-left px-2 py-2 hidden md:table-cell">Lease Cycle</th>' +
+          '<th class="text-left px-2 py-2">Last Contact</th>' +
+          '<th class="text-left px-2 py-2 hidden sm:table-cell">Next Renewal</th>' +
+          '<th class="text-left px-2 py-2">Actions</th>' +
+        '</tr></thead><tbody>';
+        landlords.forEach(function (cl) {
+          var addr = cl.address || cl.property_address ||
+            (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
+          var contactClass = '';
+          if (cl._daysSinceContact !== null && cl._daysSinceContact >= 180) contactClass = 'text-orange-600 font-bold';
+          else if (cl._daysSinceContact !== null && cl._daysSinceContact >= 90) contactClass = 'text-yellow-600';
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-2 py-2 font-medium">' + E(cl.name || cl.full_name || cl.email || 'Unknown') + '</td>' +
+            '<td class="px-2 py-2 hidden sm:table-cell text-gray-500 truncate max-w-[140px]" title="' + E(addr) + '">' + E(addr || '\u2014') + '</td>' +
+            '<td class="px-2 py-2 hidden md:table-cell text-gray-500">' + E(cl._leaseCycle || '\u2014') + '</td>' +
+            '<td class="px-2 py-2 ' + contactClass + '">' + (cl._lastContact ? Utils.formatTimeAgo(cl._lastContact) : '\u2014') + '</td>' +
+            '<td class="px-2 py-2 hidden sm:table-cell text-gray-500">' + (cl._nextRenewal ? D(cl._nextRenewal) : '\u2014') + '</td>' +
+            '<td class="px-2 py-2">' +
+              '<div class="flex gap-1 flex-wrap">' +
+                '<button class="btn-xs text-blue-600 hover:underline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">Contact</button>' +
+                '<button class="btn-xs text-green-600 hover:underline" onclick="Panels._leaseListForRent(\'' + E(cl.id) + '\')">List Rent</button>' +
+                '<button class="btn-xs text-gold hover:underline" onclick="Panels._leaseListForSale()">List Sale</button>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      html += '</div>'; // grid
+      html += '</div>'; // space-y
+      c.innerHTML = html;
+    });
+  }
+
+  function _leaseStatus(daysLeft) {
+    if (daysLeft === null) return { badge: '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[9px] font-bold">Unknown</span>', textClass: 'text-gray-400' };
+    if (daysLeft < 0) return { badge: '<span class="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded text-[9px] font-bold">Expired</span>', textClass: 'text-gray-500' };
+    if (daysLeft <= 30) return { badge: '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">Expiring</span>', textClass: 'text-red-600' };
+    if (daysLeft <= 90) return { badge: '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">Soon</span>', textClass: 'text-yellow-600' };
+    return { badge: '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-bold">Active</span>', textClass: 'text-green-600' };
+  }
+
+  function _leaseConvertToBuyer(clientId, clientName) {
+    if (!confirm('Convert ' + (clientName || 'this renter') + ' to a buyer client?')) return;
+    MallanAPI.clients.update(clientId, { type: 'buyer', client_type: 'buyer' }).then(function () {
+      Events.log('lease_convert_to_buyer', 'client', clientId, { from: 'renter', to: 'buyer' });
+      CRM.toast('Client converted to buyer', 'success');
+      leaseTracking(); // refresh
+    }).catch(function (err) {
+      CRM.toast('Error converting client: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _leaseRenew(clientId) {
+    // Navigate to client workspace pipeline tab for renewal actions
+    Router.navigate('/workspace/client/' + clientId + '/pipeline');
+  }
+
+  function _leaseListForRent(clientId) {
+    // Navigate to client workspace then open rental form
+    window.open('RENTAL-FORM-REDESIGN.html', '_blank');
+  }
+
+  function _leaseListForSale() {
+    window.open('SALE-FORM-REDESIGN.html', '_blank');
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // SETTINGS
   // ═══════════════════════════════════════════════════════════════════════
@@ -10132,6 +10362,7 @@ var Panels = (function () {
     dealsCommissions: dealsCommissions,
     personalRevenue: personalRevenue,
     marketActivity: marketActivity,
+    leaseTracking: leaseTracking,
 
     // Settings
     profile: profile,
@@ -10283,5 +10514,9 @@ var Panels = (function () {
     _editWatchAreas: _editWatchAreas,
     _saveWatchAreas: _saveWatchAreas,
     _sendMarketItem: _sendMarketItem,
+    _leaseConvertToBuyer: _leaseConvertToBuyer,
+    _leaseRenew: _leaseRenew,
+    _leaseListForRent: _leaseListForRent,
+    _leaseListForSale: _leaseListForSale,
   };
 })();

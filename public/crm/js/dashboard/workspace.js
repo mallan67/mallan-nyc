@@ -201,6 +201,30 @@ var Workspace = (function () {
         '<div class="flex justify-between text-xs"><span>Conversion</span><span class="font-bold">' + (cl.conversionProbability || cl.conversion_probability || '\u2014') + (cl.conversionProbability ? '%' : '') + '</span></div>' +
       '</div></div>';
 
+    // Nurture Status
+    var nurture = (cl.preferences && cl.preferences.nurture) || {};
+    var nurtureOn = nurture.autoSend === true;
+    var nurtureFreq = nurture.frequency || 'manual';
+    var nurtureUpdated = nurture.updatedAt || null;
+    var nurtureNextSend = '';
+    if (nurtureOn && nurtureUpdated) {
+      var freqDays = { weekly: 7, monthly: 30, quarterly: 90 };
+      var interval = freqDays[nurtureFreq] || 30;
+      var nextDate = new Date(new Date(nurtureUpdated).getTime() + interval * 86400000);
+      if (nextDate.getTime() < Date.now()) nextDate = new Date(Date.now() + interval * 86400000);
+      nurtureNextSend = '~' + (nextDate.getMonth() + 1) + '/' + nextDate.getDate();
+    }
+    var nurtureLabel = nurtureOn ? 'ON' : 'OFF';
+    var nurtureColor = nurtureOn ? 'text-green-600' : 'text-gray-500';
+    html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2"><i class="fas fa-paper-plane mr-1"></i>Auto-Nurture</h4>' +
+      '<div class="space-y-2">' +
+        '<div class="flex justify-between text-xs"><span>Nurture</span><span class="font-bold ' + nurtureColor + '">' + nurtureLabel + (nurtureOn ? ' (' + nurtureFreq.charAt(0).toUpperCase() + nurtureFreq.slice(1) + ')' : '') + '</span></div>' +
+        (nurtureOn && nurtureNextSend ? '<div class="flex justify-between text-xs"><span>Next send</span><span class="font-bold">' + nurtureNextSend + '</span></div>' : '') +
+        (nurtureUpdated ? '<div class="flex justify-between text-xs"><span>Last saved</span><span class="text-gray-500">' + Utils.formatDate(nurtureUpdated) + '</span></div>' : '') +
+      '</div>' +
+      '<button class="w-full text-center text-[10px] text-blue-600 hover:underline mt-2" onclick="Workspace.switchClientTab(\'readiness\')">Edit nurture settings</button>' +
+    '</div>';
+
     // Alerts
     if (alerts.length > 0) {
       html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Alerts</h4>' +
