@@ -10243,6 +10243,47 @@ var Panels = (function () {
       var clients = res.clients || [];
       var now = new Date();
 
+      // ── Parse notes helper ──
+      function _parseNotes(notes) {
+        var data = {};
+        if (!notes) return data;
+        var patterns = {
+          address: /(?:property|rental[\s_]?address|address)\s*[:=]\s*(.+)/i,
+          unit: /(?:unit|apt|apartment)\s*[:=#]\s*(.+)/i,
+          leaseStart: /(?:lease[\s_]?start)\s*[:=]\s*(.+)/i,
+          leaseEnd: /(?:lease[\s_]?end)\s*[:=]\s*(.+)/i,
+          annualIncome: /(?:annual[\s_]?income)\s*[:=]\s*\$?([\d,]+)/i,
+          monthlyRent: /(?:monthly[\s_]?rent|rent)\s*[:=]\s*\$?([\d,]+)/i,
+          creditScore: /(?:credit[\s_]?score|credit)\s*[:=]\s*(.+)/i,
+          legalOwner: /(?:legal[\s_]?owner|owner|llc)\s*[:=]\s*(.+)/i
+        };
+        Object.keys(patterns).forEach(function (key) {
+          var m = notes.match(patterns[key]);
+          if (m) data[key] = m[1].trim();
+        });
+        return data;
+      }
+
+      // ── Budget calculator: 28% DTI, 30yr fixed @ 6.5% ──
+      function _maxBudget(annualIncome) {
+        if (!annualIncome) return null;
+        var income = parseInt(String(annualIncome).replace(/[,$]/g, ''), 10);
+        if (!income || income <= 0) return null;
+        var monthlyPayment = (income * 0.28) / 12;
+        var r = 0.065 / 12;
+        var n = 360;
+        var principal = monthlyPayment * ((Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n)));
+        return Math.round(principal / 1000) * 1000;
+      }
+
+      function _formatMoney(val) {
+        if (!val) return '\u2014';
+        var num = typeof val === 'string' ? parseInt(val.replace(/[,$]/g, ''), 10) : val;
+        if (!num) return '\u2014';
+        return '$' + num.toLocaleString();
+      }
+
+      // ── Filter renters & landlords ──
       var renters = clients.filter(function (cl) {
         var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
         return t === 'renter' || t === 'tenant';
@@ -10252,20 +10293,34 @@ var Panels = (function () {
         return t === 'landlord';
       });
 
-      // Compute lease days left for renters
+      // ── Enrich renters with parsed notes + computed fields ──
       renters.forEach(function (cl) {
-        var leaseEnd = cl.leaseEndDate || cl.lease_end_date ||
+        var notes = _parseNotes(cl.notes);
+        cl._notes = notes;
+
+        var leaseEnd = notes.leaseEnd || cl.leaseEndDate || cl.lease_end_date ||
           (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
-        var leaseStart = cl.leaseStartDate || cl.lease_start_date ||
+        var leaseStart = notes.leaseStart || cl.leaseStartDate || cl.lease_start_date ||
           (cl.preferences && (cl.preferences.leaseStartDate || cl.preferences.lease_start_date)) || null;
         cl._leaseEnd = leaseEnd;
         cl._leaseStart = leaseStart;
+
         if (leaseEnd) {
           var diff = Math.floor((new Date(leaseEnd).getTime() - now.getTime()) / 86400000);
           cl._daysLeft = diff;
         } else {
           cl._daysLeft = null;
         }
+
+        var addr = notes.address || cl.address || cl.property_address ||
+          (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
+        var unit = notes.unit || '';
+        cl._fullAddress = addr + (unit ? ', ' + unit : '');
+
+        cl._annualIncome = notes.annualIncome ? parseInt(notes.annualIncome.replace(/[,$]/g, ''), 10) : null;
+        cl._monthlyRent = notes.monthlyRent || null;
+        cl._creditScore = notes.creditScore || null;
+        cl._maxBudget = _maxBudget(notes.annualIncome);
       });
 
       // Sort renters by lease end date (soonest first), nulls last
@@ -10276,140 +10331,292 @@ var Panels = (function () {
         return a._daysLeft - b._daysLeft;
       });
 
-      // Compute landlord metadata
+      // ── Enrich landlords ──
       landlords.forEach(function (cl) {
+        var notes = _parseNotes(cl.notes);
+        cl._notes = notes;
         var updated = cl.updated_at || cl.updatedAt || cl.created_at || null;
         cl._lastContact = updated;
         cl._daysSinceContact = updated ? Math.floor((now.getTime() - new Date(updated).getTime()) / 86400000) : null;
         var nextRenewal = cl.leaseEndDate || cl.lease_end_date ||
           (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
         cl._nextRenewal = nextRenewal;
-        cl._leaseCycle = cl.leaseCycle || cl.lease_cycle ||
-          (cl.preferences && (cl.preferences.leaseCycle || cl.preferences.lease_cycle)) || null;
+        var addr = notes.address || cl.address || cl.property_address ||
+          (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
+        var unit = notes.unit || '';
+        cl._fullAddress = addr + (unit ? ', ' + unit : '');
+        cl._legalOwner = notes.legalOwner || null;
       });
 
-      // Alert counts
-      var expiring30 = renters.filter(function (cl) { return cl._daysLeft !== null && cl._daysLeft >= 0 && cl._daysLeft <= 30; });
-      var expiring90 = renters.filter(function (cl) { return cl._daysLeft !== null && cl._daysLeft > 30 && cl._daysLeft <= 90; });
-      var landlordStale = landlords.filter(function (cl) { return cl._daysSinceContact !== null && cl._daysSinceContact >= 180; });
-
-      var html = '<div class="space-y-4">';
-
-      // Header
-      html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
-        '<h2 class="text-lg font-bold text-gray-900"><i class="fas fa-file-contract mr-2 text-gold"></i>Lease Tracking</h2>' +
-        '<div class="flex gap-2 text-xs">' +
-          '<span class="px-2 py-1 bg-blue-50 text-blue-700 rounded font-bold">' + renters.length + ' Tenants</span>' +
-          '<span class="px-2 py-1 bg-purple-50 text-purple-700 rounded font-bold">' + landlords.length + ' Landlords</span>' +
-        '</div>' +
-      '</div>';
-
-      // Top alerts
-      if (expiring30.length > 0 || expiring90.length > 0 || landlordStale.length > 0) {
-        html += '<div class="space-y-2">';
-        if (expiring30.length > 0) {
-          html += '<div class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">' +
-            '<i class="fas fa-exclamation-triangle text-red-500"></i>' +
-            '<span class="text-sm font-bold text-red-700">' + expiring30.length + ' lease' + (expiring30.length !== 1 ? 's' : '') + ' expiring within 30 days</span>' +
-          '</div>';
+      // ── Build conversion alerts ──
+      var alerts = [];
+      renters.forEach(function (cl) {
+        if (cl._daysLeft === null) return;
+        var name = E(cl.name || cl.full_name || cl.email || 'Unknown');
+        var addr = E(cl._fullAddress || '\u2014');
+        if (cl._annualIncome && cl._annualIncome > 100000 && cl._daysLeft > 0 && cl._daysLeft <= 183) {
+          alerts.push({ priority: 1, color: 'purple', icon: 'fa-chart-line',
+            label: 'Conversion candidate \u2014 send Buy vs Rent report',
+            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
+            action: 'buyvsrent' });
         }
-        if (expiring90.length > 0) {
-          html += '<div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">' +
-            '<i class="fas fa-clock text-yellow-500"></i>' +
-            '<span class="text-sm font-bold text-yellow-700">' + expiring90.length + ' lease' + (expiring90.length !== 1 ? 's' : '') + ' expiring within 90 days</span>' +
-          '</div>';
+        if (cl._daysLeft > 0 && cl._daysLeft <= 90 && cl._daysLeft > 60) {
+          alerts.push({ priority: 2, color: 'yellow', icon: 'fa-sync-alt',
+            label: 'Send renewal + sales options',
+            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
+            action: 'renewal' });
         }
-        if (landlordStale.length > 0) {
-          html += '<div class="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">' +
-            '<i class="fas fa-user-clock text-orange-500"></i>' +
-            '<span class="text-sm font-bold text-orange-700">' + landlordStale.length + ' landlord' + (landlordStale.length !== 1 ? 's' : '') + ' not contacted in 6+ months</span>' +
-          '</div>';
+        if (cl._daysLeft > 0 && cl._daysLeft <= 60 && cl._daysLeft > 30) {
+          alerts.push({ priority: 3, color: 'orange', icon: 'fa-envelope',
+            label: 'Follow-up \u2014 rental + sales',
+            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
+            action: 'followup' });
         }
-        html += '</div>';
+        if (cl._daysLeft >= 0 && cl._daysLeft <= 30) {
+          alerts.push({ priority: 4, color: 'red', icon: 'fa-exclamation-circle',
+            label: 'URGENT \u2014 lease expiring, schedule meeting',
+            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
+            action: 'urgent' });
+        }
+      });
+      alerts.sort(function (a, b) { return b.priority - a.priority; }); // urgent first
+
+      // ── Conversion timeline helper ──
+      function _timeline(daysLeft) {
+        if (daysLeft === null) return '';
+        var milestones = [
+          { label: '6 mo', days: 183 },
+          { label: '90d', days: 90 },
+          { label: '60d', days: 60 },
+          { label: '30d', days: 30 },
+          { label: 'Exp', days: 0 }
+        ];
+        var dots = '';
+        for (var i = 0; i < milestones.length; i++) {
+          var m = milestones[i];
+          var passed = daysLeft <= m.days;
+          var isCurrent = false;
+          if (passed) {
+            if (i === 0) isCurrent = daysLeft <= m.days && (i + 1 >= milestones.length || daysLeft > milestones[i + 1].days);
+            else isCurrent = daysLeft <= m.days && (i + 1 >= milestones.length || daysLeft > milestones[i + 1].days);
+          }
+          var dotColor = passed ? (isCurrent ? 'color:#B8860B;font-weight:bold' : 'color:#22c55e') : 'color:#d1d5db';
+          var symbol = passed ? (isCurrent ? '\u25cf' : '\u2713') : '\u25cb';
+          dots += '<span style="' + dotColor + ';font-size:13px" title="' + m.label + '">' + symbol + '</span>';
+          dots += '<span class="text-[9px] text-gray-400 mx-0.5">' + m.label + '</span>';
+          if (i < milestones.length - 1) dots += '<span class="text-gray-300 mx-0.5">\u2500\u2500</span>';
+        }
+        return '<div class="flex items-center gap-0 flex-wrap mt-1">' + dots + '</div>';
       }
 
-      // Two-column layout (stacked on mobile)
-      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">';
+      // ══════════════════════════════════════════════════════════════════
+      // RENDER
+      // ══════════════════════════════════════════════════════════════════
+      var html = '<div class="space-y-6">';
 
-      // ── LEFT: Tenant Leases ──
-      html += '<div class="card p-4">' +
-        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-user-friends mr-2 text-blue-500"></i>Tenant Leases</h3>';
+      // ── Summary bar ──
+      html += '<div class="flex flex-wrap items-center gap-2 text-xs">' +
+        '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-bold">' + renters.length + ' Tenant' + (renters.length !== 1 ? 's' : '') + '</span>' +
+        '<span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full font-bold">' + landlords.length + ' Landlord' + (landlords.length !== 1 ? 's' : '') + '</span>' +
+        (alerts.length > 0 ? '<span class="px-2.5 py-1 bg-red-50 text-red-700 rounded-full font-bold">' + alerts.length + ' Alert' + (alerts.length !== 1 ? 's' : '') + '</span>' : '') +
+      '</div>';
+
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 1: Conversion Alerts
+      // ═══════════════════════════════════════════════════════════════
+      if (alerts.length > 0) {
+        html += '<div>' +
+          '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-bell mr-2 text-red-500"></i>Conversion Alerts</h3>' +
+          '<div class="space-y-2">';
+        alerts.forEach(function (a) {
+          var bgMap = { red: 'bg-red-50 border-red-200', orange: 'bg-orange-50 border-orange-200', yellow: 'bg-yellow-50 border-yellow-200', purple: 'bg-purple-50 border-purple-200' };
+          var textMap = { red: 'text-red-700', orange: 'text-orange-700', yellow: 'text-yellow-700', purple: 'text-purple-700' };
+          var iconMap = { red: 'text-red-500', orange: 'text-orange-500', yellow: 'text-yellow-600', purple: 'text-purple-500' };
+          html += '<div class="flex flex-col sm:flex-row sm:items-center gap-2 p-3 border rounded-lg ' + (bgMap[a.color] || '') + '">' +
+            '<div class="flex items-center gap-2 flex-1 min-w-0">' +
+              '<i class="fas ' + a.icon + ' ' + (iconMap[a.color] || '') + ' flex-shrink-0"></i>' +
+              '<div class="min-w-0">' +
+                '<span class="text-sm font-bold ' + (textMap[a.color] || '') + '">' + a.name + '</span>' +
+                '<span class="text-xs text-gray-500 ml-2">' + a.addr + '</span>' +
+                '<span class="text-xs font-bold ml-2 ' + (textMap[a.color] || '') + '">' + a.days + 'd left</span>' +
+                '<p class="text-xs ' + (textMap[a.color] || '') + ' mt-0.5">' + a.label + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flex gap-2 flex-shrink-0">';
+          if (a.action === 'buyvsrent') {
+            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg" ' +
+              'onclick="window.location.href=\'mailto:' + E(a.name) + '?subject=Buy%20vs%20Rent%20Report\'">Send Buy vs Rent</button>';
+          } else if (a.action === 'renewal') {
+            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg" ' +
+              'onclick="Panels._leaseRenew(\'' + E(a.id) + '\')">Send Renewal</button>';
+          } else if (a.action === 'followup') {
+            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg" ' +
+              'onclick="Router.navigate(\'/workspace/client/' + E(a.id) + '/overview\')">Follow Up</button>';
+          } else if (a.action === 'urgent') {
+            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg" ' +
+              'onclick="Router.navigate(\'/workspace/client/' + E(a.id) + '/overview\')">Schedule Meeting</button>';
+          }
+          html += '</div></div>';
+        });
+        html += '</div></div>';
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 2: Tenant Cards
+      // ═══════════════════════════════════════════════════════════════
+      html += '<div>' +
+        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-user-friends mr-2 text-blue-500"></i>Tenants</h3>';
       if (renters.length === 0) {
         html += UI.emptyState('fa-users', 'No renter clients');
       } else {
-        html += '<div style="overflow-x:auto"><table class="w-full text-xs"><thead class="bg-gray-50"><tr>' +
-          '<th class="text-left px-2 py-2">Tenant</th>' +
-          '<th class="text-left px-2 py-2 hidden sm:table-cell">Address</th>' +
-          '<th class="text-left px-2 py-2 hidden md:table-cell">Lease Start</th>' +
-          '<th class="text-left px-2 py-2">Lease End</th>' +
-          '<th class="text-left px-2 py-2">Days Left</th>' +
-          '<th class="text-left px-2 py-2">Status</th>' +
-          '<th class="text-left px-2 py-2">Actions</th>' +
-        '</tr></thead><tbody>';
+        html += '<div class="space-y-3">';
         renters.forEach(function (cl) {
+          var name = cl.name || cl.full_name || cl.email || 'Unknown';
+          var email = cl.email || '';
+          var phone = cl.phone || cl.phone_number || '';
           var leaseStatus = _leaseStatus(cl._daysLeft);
-          var addr = cl.address || cl.property_address ||
-            (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
-          html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-2 py-2 font-medium">' + E(cl.name || cl.full_name || cl.email || 'Unknown') + '</td>' +
-            '<td class="px-2 py-2 hidden sm:table-cell text-gray-500 truncate max-w-[140px]" title="' + E(addr) + '">' + E(addr || '\u2014') + '</td>' +
-            '<td class="px-2 py-2 hidden md:table-cell text-gray-500">' + (cl._leaseStart ? D(cl._leaseStart) : '\u2014') + '</td>' +
-            '<td class="px-2 py-2">' + (cl._leaseEnd ? D(cl._leaseEnd) : '\u2014') + '</td>' +
-            '<td class="px-2 py-2 font-bold ' + leaseStatus.textClass + '">' + (cl._daysLeft !== null ? cl._daysLeft + 'd' : '\u2014') + '</td>' +
-            '<td class="px-2 py-2">' + leaseStatus.badge + '</td>' +
-            '<td class="px-2 py-2">' +
-              '<div class="flex gap-1 flex-wrap">' +
-                '<button class="btn-xs text-blue-600 hover:underline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">Contact</button>' +
-                '<button class="btn-xs text-green-600 hover:underline" onclick="Panels._leaseRenew(\'' + E(cl.id) + '\')">Renew</button>' +
-                '<button class="btn-xs text-purple-600 hover:underline" onclick="Panels._leaseConvertToBuyer(\'' + E(cl.id) + '\', \'' + E(cl.name || '') + '\')">Convert</button>' +
+
+          html += '<div class="card p-4">';
+
+          // Row 1: Avatar + name + actions
+          html += '<div class="flex items-start justify-between gap-3">' +
+            '<div class="flex items-center gap-3 min-w-0">' +
+              UI.avatar(name, 36) +
+              '<div class="min-w-0">' +
+                '<div class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</div>' +
+                '<div class="text-xs text-gray-500 truncate">renter' +
+                  (email ? ' \u00b7 ' + E(email) : '') +
+                  (phone ? ' \u00b7 ' + E(phone) : '') +
+                '</div>' +
               '</div>' +
-            '</td>' +
-          '</tr>';
+            '</div>' +
+            '<div class="flex gap-2 flex-shrink-0">' +
+              (email ? '<a href="mailto:' + E(email) + '" class="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition" title="Contact"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
+              '<button class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt mr-1"></i>Open Workspace</button>' +
+            '</div>' +
+          '</div>';
+
+          // Row 2: Property + Lease + Status
+          html += '<div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">' +
+            '<div class="text-xs text-gray-600">' +
+              '<span class="font-semibold text-gray-700">Property:</span> ' + E(cl._fullAddress || '\u2014') +
+            '</div>' +
+            '<div>' + leaseStatus.badge + '</div>' +
+          '</div>';
+
+          html += '<div class="mt-1 text-xs text-gray-600">' +
+            '<span class="font-semibold text-gray-700">Lease:</span> ' +
+            (cl._leaseStart ? D(cl._leaseStart) : '\u2014') + ' \u2013 ' + (cl._leaseEnd ? D(cl._leaseEnd) : '\u2014') +
+            (cl._daysLeft !== null ? ' <span class="font-bold ' + leaseStatus.textClass + '">(' + cl._daysLeft + ' days left)</span>' : '') +
+          '</div>';
+
+          // Row 3: Conversion Timeline
+          if (cl._daysLeft !== null) {
+            html += '<div class="mt-3">' +
+              '<div class="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Conversion Timeline</div>' +
+              _timeline(cl._daysLeft) +
+            '</div>';
+          }
+
+          // Row 4: Financials
+          var hasFinancials = cl._annualIncome || cl._maxBudget || cl._creditScore;
+          if (hasFinancials) {
+            html += '<div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">';
+            if (cl._annualIncome) html += '<span><span class="font-semibold text-gray-700">Income:</span> ' + _formatMoney(cl._annualIncome) + '</span>';
+            if (cl._maxBudget) html += '<span><span class="font-semibold text-gray-700">Budget:</span> ' + _formatMoney(cl._maxBudget) + ' max</span>';
+            if (cl._creditScore) html += '<span><span class="font-semibold text-gray-700">Credit:</span> ' + E(cl._creditScore) + '</span>';
+            html += '</div>';
+          }
+
+          // Row 5: Action buttons
+          html += '<div class="mt-3 flex flex-wrap gap-2">';
+          if (cl._annualIncome && cl._annualIncome > 100000) {
+            html += '<button class="px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition" ' +
+              'onclick="window.location.href=\'mailto:' + E(email) + '?subject=Buy%20vs%20Rent%20Analysis&body=Hi%20' + encodeURIComponent(name) + '%2C%0A%0AI%20put%20together%20a%20Buy%20vs%20Rent%20analysis%20for%20you.\'"><i class="fas fa-chart-bar mr-1"></i>Send Buy vs Rent</button>';
+          }
+          html += '<button class="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition" ' +
+            'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/listings\')"><i class="fas fa-paper-plane mr-1"></i>Send Listings</button>' +
+            '<button class="px-3 py-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition" ' +
+            'onclick="Panels._leaseConvertToBuyer(\'' + E(cl.id) + '\', \'' + E(name) + '\')"><i class="fas fa-exchange-alt mr-1"></i>Convert to Buyer</button>' +
+            '<button class="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition" ' +
+            'onclick="Panels._leaseRenew(\'' + E(cl.id) + '\')"><i class="fas fa-sync-alt mr-1"></i>Renew Lease</button>';
+          html += '</div>';
+
+          html += '</div>'; // card
         });
-        html += '</tbody></table></div>';
+        html += '</div>';
       }
       html += '</div>';
 
-      // ── RIGHT: Landlord Properties ──
-      html += '<div class="card p-4">' +
-        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-building mr-2 text-purple-500"></i>Landlord Properties</h3>';
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 3: Landlord Cards
+      // ═══════════════════════════════════════════════════════════════
+      html += '<div>' +
+        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-building mr-2 text-purple-500"></i>Landlords</h3>';
       if (landlords.length === 0) {
         html += UI.emptyState('fa-building', 'No landlord clients');
       } else {
-        html += '<div style="overflow-x:auto"><table class="w-full text-xs"><thead class="bg-gray-50"><tr>' +
-          '<th class="text-left px-2 py-2">Landlord</th>' +
-          '<th class="text-left px-2 py-2 hidden sm:table-cell">Property</th>' +
-          '<th class="text-left px-2 py-2 hidden md:table-cell">Lease Cycle</th>' +
-          '<th class="text-left px-2 py-2">Last Contact</th>' +
-          '<th class="text-left px-2 py-2 hidden sm:table-cell">Next Renewal</th>' +
-          '<th class="text-left px-2 py-2">Actions</th>' +
-        '</tr></thead><tbody>';
+        html += '<div class="space-y-3">';
         landlords.forEach(function (cl) {
-          var addr = cl.address || cl.property_address ||
-            (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
-          var contactClass = '';
-          if (cl._daysSinceContact !== null && cl._daysSinceContact >= 180) contactClass = 'text-orange-600 font-bold';
-          else if (cl._daysSinceContact !== null && cl._daysSinceContact >= 90) contactClass = 'text-yellow-600';
-          html += '<tr class="border-b hover:bg-gray-50">' +
-            '<td class="px-2 py-2 font-medium">' + E(cl.name || cl.full_name || cl.email || 'Unknown') + '</td>' +
-            '<td class="px-2 py-2 hidden sm:table-cell text-gray-500 truncate max-w-[140px]" title="' + E(addr) + '">' + E(addr || '\u2014') + '</td>' +
-            '<td class="px-2 py-2 hidden md:table-cell text-gray-500">' + E(cl._leaseCycle || '\u2014') + '</td>' +
-            '<td class="px-2 py-2 ' + contactClass + '">' + (cl._lastContact ? Utils.formatTimeAgo(cl._lastContact) : '\u2014') + '</td>' +
-            '<td class="px-2 py-2 hidden sm:table-cell text-gray-500">' + (cl._nextRenewal ? D(cl._nextRenewal) : '\u2014') + '</td>' +
-            '<td class="px-2 py-2">' +
-              '<div class="flex gap-1 flex-wrap">' +
-                '<button class="btn-xs text-blue-600 hover:underline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">Contact</button>' +
-                '<button class="btn-xs text-green-600 hover:underline" onclick="Panels._leaseListForRent(\'' + E(cl.id) + '\')">List Rent</button>' +
-                '<button class="btn-xs text-gold hover:underline" onclick="Panels._leaseListForSale()">List Sale</button>' +
+          var name = cl.name || cl.full_name || cl.email || 'Unknown';
+          var email = cl.email || '';
+          var phone = cl.phone || cl.phone_number || '';
+
+          html += '<div class="card p-4">';
+
+          // Row 1: Avatar + name + actions
+          html += '<div class="flex items-start justify-between gap-3">' +
+            '<div class="flex items-center gap-3 min-w-0">' +
+              UI.avatar(name, 36) +
+              '<div class="min-w-0">' +
+                '<div class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</div>' +
+                '<div class="text-xs text-gray-500 truncate">landlord' +
+                  (email ? ' \u00b7 ' + E(email) : '') +
+                  (phone ? ' \u00b7 ' + E(phone) : '') +
+                '</div>' +
               '</div>' +
-            '</td>' +
-          '</tr>';
+            '</div>' +
+            '<div class="flex gap-2 flex-shrink-0">' +
+              (email ? '<a href="mailto:' + E(email) + '" class="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition" title="Contact"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
+              '<button class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt mr-1"></i>Open Workspace</button>' +
+            '</div>' +
+          '</div>';
+
+          // Row 2: Property + Legal Owner
+          html += '<div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">' +
+            '<div class="text-xs text-gray-600">' +
+              '<span class="font-semibold text-gray-700">Property:</span> ' + E(cl._fullAddress || '\u2014') +
+            '</div>';
+          if (cl._legalOwner) {
+            html += '<div class="text-xs text-gray-600">' +
+              '<span class="font-semibold text-gray-700">Legal Owner:</span> ' + E(cl._legalOwner) +
+            '</div>';
+          }
+          html += '</div>';
+
+          // Row 3: Last Contact + Next Renewal
+          html += '<div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">' +
+            '<span><span class="font-semibold text-gray-700">Last Contact:</span> ' +
+              (cl._lastContact ? Utils.formatTimeAgo(cl._lastContact) : '\u2014') + '</span>' +
+            '<span><span class="font-semibold text-gray-700">Next Renewal:</span> ' +
+              (cl._nextRenewal ? D(cl._nextRenewal) : '\u2014') + '</span>' +
+          '</div>';
+
+          // Row 4: Action buttons
+          html += '<div class="mt-3 flex flex-wrap gap-2">' +
+            (email ? '<a href="mailto:' + E(email) + '" class="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
+            '<button class="px-3 py-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition" ' +
+            'onclick="Panels._leaseListForRent(\'' + E(cl.id) + '\')"><i class="fas fa-home mr-1"></i>List for Rent</button>' +
+            '<button class="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition" ' +
+            'onclick="Panels._leaseListForSale()"><i class="fas fa-dollar-sign mr-1"></i>List for Sale</button>';
+          html += '</div>';
+
+          html += '</div>'; // card
         });
-        html += '</tbody></table></div>';
+        html += '</div>';
       }
       html += '</div>';
 
-      html += '</div>'; // grid
       html += '</div>'; // space-y
       c.innerHTML = html;
     });
