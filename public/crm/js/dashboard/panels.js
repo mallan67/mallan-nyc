@@ -2071,6 +2071,18 @@ var Panels = (function () {
         '<option value="buyer"' + (personB.role === 'buyer' ? ' selected' : '') + '>Buyer</option></select></div>' +
       _importField('importB_address', 'Rental Address', window._importAddress || '', 'text', 'Property they are renting') +
       _importField('importB_unit', 'Unit Number', window._importUnit || '', 'text') +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Rent</label>' +
+        '<input type="number" id="importB_rent" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End Date</label>' +
+        '<input type="date" id="importB_leaseEnd" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Annual Income</label>' +
+        '<input type="number" id="importB_income" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Debt Payments</label>' +
+        '<input type="number" id="importB_debt" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Credit Score Range</label>' +
+        '<select id="importB_credit" class="w-full border rounded-lg px-3 py-2 text-sm">' +
+          '<option value="">Unknown</option><option value="excellent">Excellent (740+)</option><option value="good">Good (670-739)</option>' +
+          '<option value="fair">Fair (580-669)</option><option value="poor">Poor (below 580)</option></select></div>' +
       '</div></div>';
 
     html += '</div>';
@@ -2136,6 +2148,27 @@ var Panels = (function () {
       notes: [
         _getImportVal('importB_address') ? 'Rental Address: ' + _getImportVal('importB_address') : '',
         _getImportVal('importB_unit') ? 'Unit: ' + _getImportVal('importB_unit') : '',
+        _getImportVal('importB_rent') ? 'Monthly Rent: $' + _getImportVal('importB_rent') : '',
+        _getImportVal('importB_leaseEnd') ? 'Lease End: ' + _getImportVal('importB_leaseEnd') : '',
+        _getImportVal('importB_income') ? 'Annual Income: $' + _getImportVal('importB_income') : '',
+        _getImportVal('importB_debt') ? 'Monthly Debt: $' + _getImportVal('importB_debt') : '',
+        _getImportVal('importB_credit') ? 'Credit Score: ' + _getImportVal('importB_credit') : '',
+        _getImportVal('importB_income') && _getImportVal('importB_rent') ? (function () {
+          var income = Number(_getImportVal('importB_income'));
+          var rent = Number(_getImportVal('importB_rent'));
+          var debt = Number(_getImportVal('importB_debt') || 0);
+          if (income <= 0) return '';
+          // Affordability: 28% front-end ratio, 30yr at 6.5%
+          var maxMonthly = (income / 12) * 0.28 - debt;
+          var r = 0.065 / 12;
+          var n = 360;
+          var maxPrice = maxMonthly > 0 ? Math.round(maxMonthly * ((Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n)))) : 0;
+          return 'BUYER CONVERSION ANALYSIS:\n' +
+            '  Max monthly payment: $' + Math.round(maxMonthly) + '\n' +
+            '  Estimated max purchase price: $' + maxPrice.toLocaleString() + '\n' +
+            '  Current rent: $' + rent + '/mo\n' +
+            '  Rent-to-income ratio: ' + Math.round((rent / (income / 12)) * 100) + '%';
+        })() : '',
       ].filter(Boolean).join('\n'),
     };
   }
