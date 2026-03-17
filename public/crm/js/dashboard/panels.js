@@ -6859,26 +6859,42 @@ var Panels = (function () {
       '</div>';
     }
 
-    // Launch card
-    html += '<div class="card p-6">' +
-      '<div class="flex items-center justify-between mb-4">' +
-        '<div>' +
-          '<h3 class="text-lg font-bold text-gray-900"><i class="fas fa-search text-gold mr-2"></i>REBNY RLS Property Search</h3>' +
-          '<p class="text-sm text-gray-500">Search all RLS listings via your private IDX search powered by Trestle/Cotality</p>' +
-        '</div>' +
-        '<div class="flex gap-2">' +
-          '<button class="btn btn-gold" onclick="Panels._launchSearch(\'' + E(contextParams) + '\')">' +
-            '<i class="fas fa-external-link-alt mr-1"></i> Open Search</button>' +
-        '</div>' +
-      '</div>' +
-      // Search features
-      '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
-        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-building text-blue-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">Full RLS Access</p></div>' +
-        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-map-marked-alt text-green-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">Map + List View</p></div>' +
-        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-calculator text-purple-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">6 Calculators</p></div>' +
-        '<div class="p-3 bg-gray-50 rounded-lg text-center"><i class="fas fa-subway text-orange-500 mb-1"></i><p class="text-[10px] font-bold text-gray-600">Transit Tool</p></div>' +
-      '</div>' +
-    '</div>';
+    // Quick search tabs
+    var searchTabs = [
+      { section: 'Sale Search', items: [
+        { label: 'Sale Basic Search', hash: '#sale-basic', icon: 'fa-home' },
+        { label: 'Sale Advanced Search', hash: '#sale-advanced', icon: 'fa-sliders-h' },
+      ]},
+      { section: 'Rental Search', items: [
+        { label: 'Rental Basic Search', hash: '#rental-basic', icon: 'fa-key' },
+        { label: 'Rental Advanced Search', hash: '#rental-advanced', icon: 'fa-sliders-h' },
+      ]},
+      { section: 'Building Search', items: [
+        { label: 'Building Basic Search', hash: '#building-basic', icon: 'fa-building' },
+        { label: 'Building Advanced Search', hash: '#building-advanced', icon: 'fa-sliders-h' },
+      ]},
+      { section: 'Comparables', items: [
+        { label: 'By Address / Building Name', hash: '#comps-address', icon: 'fa-map-marker-alt' },
+        { label: 'By Building', hash: '#comps-building', icon: 'fa-building' },
+        { label: 'General Comparables', hash: '#comps-general', icon: 'fa-chart-bar' },
+      ]},
+    ];
+
+    html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">';
+    searchTabs.forEach(function (group) {
+      html += '<div class="card p-4">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">' + E(group.section) + '</h4>' +
+        '<div class="space-y-1">';
+      group.items.forEach(function (item) {
+        html += '<button class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all flex items-center gap-2" ' +
+          'onclick="Panels._launchSearch(\'' + E(contextParams + (contextParams ? '&' : '?') + 'tab=' + item.hash.replace('#','')) + '\')">' +
+          '<i class="fas ' + item.icon + ' text-xs text-gray-400 w-4 text-center"></i>' +
+          E(item.label) +
+        '</button>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
 
     // Recent searches
     if (lastSearches.length > 0) {
