@@ -401,105 +401,116 @@ var Workspace = (function () {
       html += '</div>';
     }
 
-    // Parse financial data from notes (stored there by import or manual entry)
+    // Parse notes for property data (address/unit/legal owner still in notes)
     var notes = cl.notes || '';
-    var _extractNote = function (label) {
-      var rx = new RegExp(label + '\\s*[:.]\\s*\\$?([\\d,]+(?:\\.\\d+)?)', 'i');
-      var m = notes.match(rx);
-      return m ? m[1].replace(/,/g, '') : '';
-    };
     var _extractNoteText = function (label) {
       var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
       var m = notes.match(rx);
       return m ? m[1].trim() : '';
     };
 
-    // Property address section for landlords/renters
     var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
     var propertyAddr = _extractNoteText('Property') || _extractNoteText('Rental Address') || '';
     var propertyUnit = _extractNoteText('Unit') || '';
     var legalOwner = _extractNoteText('Legal Owner') || '';
-    var leaseStart = cl.lease_start_date ? new Date(cl.lease_start_date).toLocaleDateString() : (_extractNoteText('Lease Start') || '');
-    var leaseEnd = cl.lease_end_date ? new Date(cl.lease_end_date).toLocaleDateString() : (_extractNoteText('Lease End') || '');
-    var monthlyRent = cl.rent_per_month || _extractNote('Monthly Rent') || '';
+    var leaseStart = cl.lease_start_date ? new Date(cl.lease_start_date).toLocaleDateString() : '';
+    var leaseEnd = cl.lease_end_date ? new Date(cl.lease_end_date).toLocaleDateString() : '';
 
-    var showProperty = clientType === 'landlord' || clientType === 'renter' || clientType === 'seller' || propertyAddr;
-    if (showProperty) {
-      html += '<div class="p-4 border rounded-lg bg-gray-50">' +
-        '<div class="flex items-center justify-between mb-2">' +
-          '<h3 class="text-sm font-bold text-gray-700"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i> Property</h3>' +
-          '<button class="btn btn-xs btn-outline" onclick="Workspace._editProperty()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
+    // ── Card helper ──
+    function _card(icon, title, editFn, bodyHtml) {
+      return '<div class="border rounded-xl bg-white shadow-sm overflow-hidden">' +
+        '<div class="flex items-center justify-between px-4 py-3 border-b bg-gray-50">' +
+          '<h3 class="text-sm font-bold text-gray-700"><i class="fas fa-' + icon + ' mr-2 text-gray-400"></i>' + title + '</h3>' +
+          (editFn ? '<button class="text-xs text-gray-500 hover:text-gray-800 font-medium" onclick="' + editFn + '"><i class="fas fa-pen mr-1"></i>Edit</button>' : '') +
         '</div>' +
-        '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">' +
-          '<div><span class="text-xs text-gray-500 block">Address</span><span class="font-medium">' + E(propertyAddr || '-') + '</span></div>' +
-          '<div><span class="text-xs text-gray-500 block">Unit</span><span class="font-medium">' + E(propertyUnit || '-') + '</span></div>' +
-          (clientType === 'landlord' || clientType === 'seller' ?
-            '<div><span class="text-xs text-gray-500 block">Legal Owner</span><span class="font-medium">' + E(legalOwner || '-') + '</span></div>' : '') +
-          (monthlyRent ?
-            '<div><span class="text-xs text-gray-500 block">Monthly Rent</span><span class="font-medium">$' + Number(monthlyRent).toLocaleString() + '</span></div>' : '') +
-          (leaseStart ?
-            '<div><span class="text-xs text-gray-500 block">Lease Start</span><span class="font-medium">' + E(leaseStart) + '</span></div>' : '') +
-          (leaseEnd ?
-            '<div><span class="text-xs text-gray-500 block">Lease End</span><span class="font-medium">' + E(leaseEnd) + '</span></div>' : '') +
-        '</div>' +
+        '<div class="px-4 py-3">' + bodyHtml + '</div>' +
       '</div>';
     }
 
-    // Contact info + Financial + Preferences (3 columns on desktop)
-    html += '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">' +
+    // ── Property Card (address + unit + legal owner) ──
+    var showProperty = clientType === 'landlord' || clientType === 'renter' || clientType === 'seller' || propertyAddr;
+    if (showProperty) {
+      var propBody = '<div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">' +
+        '<div class="col-span-2"><span class="text-xs text-gray-400 block">Address</span><span class="font-medium text-gray-900">' + E(propertyAddr || '-') + '</span></div>' +
+        '<div><span class="text-xs text-gray-400 block">Unit</span><span class="font-medium text-gray-900">' + E(propertyUnit || '-') + '</span></div>' +
+        (clientType === 'landlord' || clientType === 'seller' ?
+          '<div><span class="text-xs text-gray-400 block">Legal Owner</span><span class="font-medium text-gray-900">' + E(legalOwner || '-') + '</span></div>' : '') +
+      '</div>';
+      html += _card('map-marker-alt', 'Property', 'Workspace._editProperty()', propBody);
+    }
 
-      // Column 1: Contact
-      '<div class="space-y-3">' +
-        '<h3 class="text-sm font-bold text-gray-700">Contact Information</h3>' +
-        _infoRow('Email', cl.email) +
-        _infoRow('Phone', cl.phone) +
-        _infoRow('Source', cl.source) +
-        _infoRow('Created', D(cl.created_at || cl.createdAt)) +
-        _infoRow('Last Updated', D(cl.updated_at || cl.updatedAt)) +
-      '</div>' +
+    // ── Lease Card (start + end dates + monthly rent) ──
+    var showLease = clientType === 'renter' || clientType === 'landlord' || leaseStart || leaseEnd;
+    if (showLease) {
+      var daysLeft = '';
+      if (leaseEnd) {
+        var diff = Math.floor((new Date(cl.lease_end_date).getTime() - Date.now()) / 86400000);
+        var urgencyClass = diff <= 30 ? 'text-red-600' : diff <= 90 ? 'text-amber-600' : 'text-green-600';
+        daysLeft = '<div class="text-center"><span class="text-xs text-gray-400 block">Days Left</span><span class="text-lg font-bold ' + urgencyClass + '">' + diff + '</span></div>';
+      }
+      var leaseBody = '<div class="grid grid-cols-3 gap-x-6 gap-y-2 text-sm">' +
+        '<div><span class="text-xs text-gray-400 block">Lease Start</span><span class="font-medium text-gray-900">' + E(leaseStart || '-') + '</span></div>' +
+        '<div><span class="text-xs text-gray-400 block">Lease End</span><span class="font-medium text-gray-900">' + E(leaseEnd || '-') + '</span></div>' +
+        daysLeft +
+      '</div>';
+      if (cl.rent_per_month) {
+        leaseBody += '<div class="mt-2 pt-2 border-t text-sm"><span class="text-xs text-gray-400">Monthly Rent</span><span class="font-medium text-gray-900 ml-2">$' + Number(cl.rent_per_month).toLocaleString() + '</span></div>';
+      }
+      html += _card('calendar-alt', 'Lease', 'Workspace._editProperty()', leaseBody);
+    }
 
-      // Column 2: Financial Profile (uses real DB fields)
-      '<div class="space-y-3">' +
-        '<div class="flex items-center justify-between">' +
-          '<h3 class="text-sm font-bold text-gray-700">Financial Profile</h3>' +
-          '<button class="btn btn-xs btn-outline" onclick="Workspace._editFinancials()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
-        '</div>' +
-        _infoRow('Annual Income', cl.annual_income ? '$' + Number(cl.annual_income).toLocaleString() : '-') +
-        _infoRow('Bonuses', cl.bonuses ? '$' + Number(cl.bonuses).toLocaleString() : '-') +
-        (clientType === 'renter' ?
-          _infoRow('Rent / Month', cl.rent_per_month ? '$' + Number(cl.rent_per_month).toLocaleString() : '-') +
-          _infoRow('Rental Deposit', cl.rental_deposit ? '$' + Number(cl.rental_deposit).toLocaleString() : '-')
-        : '') +
-        (clientType === 'buyer' ?
-          _infoRow('Down Payment', cl.down_payment ? '$' + Number(cl.down_payment).toLocaleString() : '-') +
-          _infoRow('Total Monthly Expense', cl.total_monthly_expense ? '$' + Number(cl.total_monthly_expense).toLocaleString() : '-')
-        : '') +
-        (clientType !== 'buyer' && clientType !== 'renter' ?
-          _infoRow('Down Payment', cl.down_payment ? '$' + Number(cl.down_payment).toLocaleString() : '-')
-        : '') +
-        _infoRow('Deposit / Liquid', cl.available_funds ? '$' + Number(cl.available_funds).toLocaleString() : '-') +
-        _infoRow('Monthly Debt', cl.monthly_debt ? '$' + Number(cl.monthly_debt).toLocaleString() : '-') +
-        _infoRow('Employer', cl.employer || '-') +
-        _infoRow('Work Title', cl.work_title || '-') +
-        _infoRow('Credit Score', cl.credit_score_range || '-') +
-        (cl.pre_approved ? _infoRow('Pre-Approved', '$' + Number(cl.pre_approved_amount || 0).toLocaleString()) : '') +
-        '<button class="btn btn-xs btn-outline mt-2 w-full" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-file-upload mr-1"></i> Upload Financial Statement</button>' +
-      '</div>' +
+    // ── 3-column card row: Contact, Financial, Preferences ──
+    html += '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">';
 
-      // Column 3: Preferences
-      '<div class="space-y-3">' +
-        '<div class="flex items-center justify-between">' +
-          '<h3 class="text-sm font-bold text-gray-700">Preferences</h3>' +
-          '<button class="btn btn-xs btn-outline" onclick="Workspace._editPreferences()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
-        '</div>' +
-        _infoRow('Neighborhoods', (prefs.neighborhoods || []).join(', ') || '-') +
-        _infoRow('Budget', prefs.minPrice || prefs.maxPrice ? (prefs.minPrice ? $(prefs.minPrice) : '$0') + ' - ' + (prefs.maxPrice ? $(prefs.maxPrice) : 'No max') : '-') +
-        _infoRow('Beds / Baths', (prefs.minBeds || '-') + ' bd / ' + (prefs.minBaths || '-') + ' ba') +
-        _infoRow('Property Type', prefs.propertyType || '-') +
-        _infoRow('Must-Haves', prefs.mustHaves || '-') +
-        _infoRow('Deal-Breakers', prefs.dealBreakers || '-') +
-      '</div>' +
+    // Contact Card
+    var contactBody = '<div class="space-y-2 text-sm">' +
+      '<div class="flex justify-between"><span class="text-gray-500">Email</span><span class="font-medium text-gray-900 text-right truncate ml-2">' + E(cl.email || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Phone</span><span class="font-medium text-gray-900">' + E(cl.phone || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Source</span><span class="font-medium text-gray-900">' + E(cl.source || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Created</span><span class="font-medium text-gray-900">' + E(D(cl.created_at || cl.createdAt) || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Updated</span><span class="font-medium text-gray-900">' + E(D(cl.updated_at || cl.updatedAt) || '-') + '</span></div>' +
     '</div>';
+    html += _card('address-card', 'Contact Information', '', contactBody);
+
+    // Financial Card
+    var finBody = '<div class="space-y-2 text-sm">' +
+      '<div class="flex justify-between"><span class="text-gray-500">Annual Income</span><span class="font-medium text-gray-900">' + (cl.annual_income ? '$' + Number(cl.annual_income).toLocaleString() : '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Bonuses</span><span class="font-medium text-gray-900">' + (cl.bonuses ? '$' + Number(cl.bonuses).toLocaleString() : '-') + '</span></div>';
+    if (clientType === 'renter') {
+      finBody += '<div class="flex justify-between"><span class="text-gray-500">Rent / Month</span><span class="font-medium text-gray-900">' + (cl.rent_per_month ? '$' + Number(cl.rent_per_month).toLocaleString() : '-') + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-500">Rental Deposit</span><span class="font-medium text-gray-900">' + (cl.rental_deposit ? '$' + Number(cl.rental_deposit).toLocaleString() : '-') + '</span></div>';
+    }
+    if (clientType === 'buyer') {
+      finBody += '<div class="flex justify-between"><span class="text-gray-500">Down Payment</span><span class="font-medium text-gray-900">' + (cl.down_payment ? '$' + Number(cl.down_payment).toLocaleString() : '-') + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-500">Total Expense</span><span class="font-medium text-gray-900">' + (cl.total_monthly_expense ? '$' + Number(cl.total_monthly_expense).toLocaleString() : '-') + '</span></div>';
+    }
+    if (clientType !== 'buyer' && clientType !== 'renter') {
+      finBody += '<div class="flex justify-between"><span class="text-gray-500">Down Payment</span><span class="font-medium text-gray-900">' + (cl.down_payment ? '$' + Number(cl.down_payment).toLocaleString() : '-') + '</span></div>';
+    }
+    finBody += '<div class="flex justify-between"><span class="text-gray-500">Deposit / Liquid</span><span class="font-medium text-gray-900">' + (cl.available_funds ? '$' + Number(cl.available_funds).toLocaleString() : '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Monthly Debt</span><span class="font-medium text-gray-900">' + (cl.monthly_debt ? '$' + Number(cl.monthly_debt).toLocaleString() : '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Employer</span><span class="font-medium text-gray-900">' + E(cl.employer || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Work Title</span><span class="font-medium text-gray-900">' + E(cl.work_title || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Credit Score</span><span class="font-medium text-gray-900">' + E(cl.credit_score_range || '-') + '</span></div>';
+    if (cl.pre_approved) {
+      finBody += '<div class="flex justify-between"><span class="text-gray-500">Pre-Approved</span><span class="font-medium text-green-700">$' + Number(cl.pre_approved_amount || 0).toLocaleString() + '</span></div>';
+    }
+    finBody += '</div>' +
+      '<button class="btn btn-xs btn-outline mt-3 w-full" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-file-upload mr-1"></i> Upload Statement</button>';
+    html += _card('dollar-sign', 'Financial Profile', 'Workspace._editFinancials()', finBody);
+
+    // Preferences Card
+    var prefBody = '<div class="space-y-2 text-sm">' +
+      '<div class="flex justify-between"><span class="text-gray-500">Neighborhoods</span><span class="font-medium text-gray-900 text-right truncate ml-2">' + E((prefs.neighborhoods || []).join(', ') || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Budget</span><span class="font-medium text-gray-900">' + (prefs.minPrice || prefs.maxPrice ? (prefs.minPrice ? $(prefs.minPrice) : '$0') + ' - ' + (prefs.maxPrice ? $(prefs.maxPrice) : 'No max') : '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Beds / Baths</span><span class="font-medium text-gray-900">' + (prefs.minBeds || '-') + ' bd / ' + (prefs.minBaths || '-') + ' ba</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Property Type</span><span class="font-medium text-gray-900">' + E(prefs.propertyType || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Must-Haves</span><span class="font-medium text-gray-900 text-right truncate ml-2">' + E(prefs.mustHaves || '-') + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Deal-Breakers</span><span class="font-medium text-gray-900 text-right truncate ml-2">' + E(prefs.dealBreakers || '-') + '</span></div>' +
+    '</div>';
+    html += _card('sliders-h', 'Preferences', 'Workspace._editPreferences()', prefBody);
+
+    html += '</div>'; // close 3-col grid
 
     // ── Pinned Note ──
     var pinnedNote = prefs.pinnedNote || '';

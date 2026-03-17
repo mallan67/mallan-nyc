@@ -2082,18 +2082,32 @@ var Panels = (function () {
         '<option value="buyer"' + (personB.role === 'buyer' ? ' selected' : '') + '>Buyer</option></select></div>' +
       _importField('importB_address', 'Rental Address', window._importAddress || '', 'text', 'Property they are renting') +
       _importField('importB_unit', 'Unit Number', window._importUnit || '', 'text') +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Rent</label>' +
-        '<input type="number" id="importB_rent" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End Date</label>' +
-        '<input type="date" id="importB_leaseEnd" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Annual Income</label>' +
-        '<input type="number" id="importB_income" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Debt Payments</label>' +
-        '<input type="number" id="importB_debt" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Credit Score Range</label>' +
-        '<select id="importB_credit" class="w-full border rounded-lg px-3 py-2 text-sm">' +
-          '<option value="">Unknown</option><option value="excellent">Excellent (740+)</option><option value="good">Good (670-739)</option>' +
-          '<option value="fair">Fair (580-669)</option><option value="poor">Poor (below 580)</option></select></div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Rent</label>' +
+          '<input type="number" id="importB_rent" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Rental Deposit</label>' +
+          '<input type="number" id="importB_rentalDeposit" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease Start</label>' +
+          '<input type="date" id="importB_leaseStart" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End</label>' +
+          '<input type="date" id="importB_leaseEnd" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Annual Income</label>' +
+          '<input type="number" id="importB_income" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Bonuses (Annual)</label>' +
+          '<input type="number" id="importB_bonuses" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Debt</label>' +
+          '<input type="number" id="importB_debt" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="$0"></div>' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Credit Score</label>' +
+          '<select id="importB_credit" class="w-full border rounded-lg px-3 py-2 text-sm">' +
+            '<option value="">Unknown</option><option value="Excellent (740+)">Excellent (740+)</option><option value="Good (670-739)">Good (670-739)</option>' +
+            '<option value="Fair (580-669)">Fair (580-669)</option><option value="Poor (below 580)">Poor (below 580)</option></select></div>' +
+      '</div>' +
       '</div></div>';
 
     html += '</div>';
@@ -2124,22 +2138,29 @@ var Panels = (function () {
     var name = _getImportVal('importA_name');
     var parts = name.split(/\s+/);
     var role = _getImportVal('importA_type') || 'landlord';
+    // Property data goes in notes (no dedicated DB columns for address/unit/legal owner)
+    var noteLines = [
+      _getImportVal('importA_address') ? 'Property: ' + _getImportVal('importA_address') : '',
+      _getImportVal('importA_unit') ? 'Unit: ' + _getImportVal('importA_unit') : '',
+      _getImportVal('importA_legalName') ? 'Legal Owner: ' + _getImportVal('importA_legalName') : '',
+    ].filter(Boolean);
     return {
-      first_name: parts[0] || '',
-      last_name: parts.slice(1).join(' ') || '',
+      create: {
+        first_name: parts[0] || '',
+        last_name: parts.slice(1).join(' ') || '',
+        email: _getImportVal('importA_email'),
+        phone: _getImportVal('importA_phone') || '-',
+        roles: [role],
+        portal_role: role,
+        source: 'email_import',
+      },
+      // Financial/lease fields saved via PATCH after create
+      patch: {
+        notes: noteLines.length ? noteLines.join('\n') : undefined,
+        lease_start_date: _getImportVal('importA_leaseStart') || undefined,
+        lease_end_date: _getImportVal('importA_leaseEnd') || undefined,
+      },
       name: name,
-      email: _getImportVal('importA_email'),
-      phone: _getImportVal('importA_phone') || '-',
-      roles: [role],
-      portal_role: role,
-      source: 'email_import',
-      notes: [
-        _getImportVal('importA_address') ? 'Property: ' + _getImportVal('importA_address') : '',
-        _getImportVal('importA_unit') ? 'Unit: ' + _getImportVal('importA_unit') : '',
-        _getImportVal('importA_legalName') ? 'Legal Owner: ' + _getImportVal('importA_legalName') : '',
-        _getImportVal('importA_leaseStart') ? 'Lease Start: ' + _getImportVal('importA_leaseStart') : '',
-        _getImportVal('importA_leaseEnd') ? 'Lease End: ' + _getImportVal('importA_leaseEnd') : '',
-      ].filter(Boolean).join('\n'),
     };
   }
 
@@ -2147,41 +2168,51 @@ var Panels = (function () {
     var name = _getImportVal('importB_name');
     var parts = name.split(/\s+/);
     var role = _getImportVal('importB_type') || 'renter';
-    return {
-      first_name: parts[0] || '',
-      last_name: parts.slice(1).join(' ') || '',
-      name: name,
-      email: _getImportVal('importB_email'),
-      phone: _getImportVal('importB_phone') || '-',
-      roles: [role],
-      portal_role: role,
-      source: 'email_import',
-      notes: [
-        _getImportVal('importB_address') ? 'Rental Address: ' + _getImportVal('importB_address') : '',
-        _getImportVal('importB_unit') ? 'Unit: ' + _getImportVal('importB_unit') : '',
-        _getImportVal('importB_rent') ? 'Monthly Rent: $' + _getImportVal('importB_rent') : '',
-        _getImportVal('importB_leaseEnd') ? 'Lease End: ' + _getImportVal('importB_leaseEnd') : '',
-        _getImportVal('importB_income') ? 'Annual Income: $' + _getImportVal('importB_income') : '',
-        _getImportVal('importB_debt') ? 'Monthly Debt: $' + _getImportVal('importB_debt') : '',
-        _getImportVal('importB_credit') ? 'Credit Score: ' + _getImportVal('importB_credit') : '',
-        _getImportVal('importB_income') && _getImportVal('importB_rent') ? (function () {
-          var income = Number(_getImportVal('importB_income'));
-          var rent = Number(_getImportVal('importB_rent'));
-          var debt = Number(_getImportVal('importB_debt') || 0);
-          if (income <= 0) return '';
-          // Affordability: 28% front-end ratio, 30yr at 6.5%
-          var maxMonthly = (income / 12) * 0.28 - debt;
-          var r = 0.065 / 12;
-          var n = 360;
-          var maxPrice = maxMonthly > 0 ? Math.round(maxMonthly * ((Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n)))) : 0;
-          return 'BUYER CONVERSION ANALYSIS:\n' +
-            '  Max monthly payment: $' + Math.round(maxMonthly) + '\n' +
-            '  Estimated max purchase price: $' + maxPrice.toLocaleString() + '\n' +
-            '  Current rent: $' + rent + '/mo\n' +
-            '  Rent-to-income ratio: ' + Math.round((rent / (income / 12)) * 100) + '%';
-        })() : '',
-      ].filter(Boolean).join('\n'),
+    var noteLines = [
+      _getImportVal('importB_address') ? 'Rental Address: ' + _getImportVal('importB_address') : '',
+      _getImportVal('importB_unit') ? 'Unit: ' + _getImportVal('importB_unit') : '',
+    ].filter(Boolean);
+    var patch = {
+      notes: noteLines.length ? noteLines.join('\n') : undefined,
+      lease_start_date: _getImportVal('importB_leaseStart') || undefined,
+      lease_end_date: _getImportVal('importB_leaseEnd') || undefined,
+      rent_per_month: _getImportVal('importB_rent') ? Number(_getImportVal('importB_rent')) : undefined,
+      rental_deposit: _getImportVal('importB_rentalDeposit') ? Number(_getImportVal('importB_rentalDeposit')) : undefined,
+      annual_income: _getImportVal('importB_income') ? Number(_getImportVal('importB_income')) : undefined,
+      bonuses: _getImportVal('importB_bonuses') ? Number(_getImportVal('importB_bonuses')) : undefined,
+      monthly_debt: _getImportVal('importB_debt') ? Number(_getImportVal('importB_debt')) : undefined,
+      credit_score_range: _getImportVal('importB_credit') || undefined,
     };
+    return {
+      create: {
+        first_name: parts[0] || '',
+        last_name: parts.slice(1).join(' ') || '',
+        email: _getImportVal('importB_email'),
+        phone: _getImportVal('importB_phone') || '-',
+        roles: [role],
+        portal_role: role,
+        source: 'email_import',
+      },
+      patch: patch,
+      name: name,
+    };
+  }
+
+  // Create client then immediately PATCH with financial/lease fields
+  function _importAndPatch(person) {
+    return MallanAPI.clients.create(person.create).then(function (res) {
+      var clientId = res.id || (res.client && res.client.id);
+      Events.log('client_created', 'client', clientId, { name: person.name, source: 'email_import' });
+      // PATCH with financial/lease/property data
+      var patchData = {};
+      Object.keys(person.patch).forEach(function (k) {
+        if (person.patch[k] !== undefined) patchData[k] = person.patch[k];
+      });
+      if (Object.keys(patchData).length > 0 && clientId) {
+        return MallanAPI.clients.update(clientId, patchData).then(function () { return res; });
+      }
+      return res;
+    });
   }
 
   function _submitEmailImport(which) {
@@ -2190,21 +2221,15 @@ var Panels = (function () {
 
     if (which === 'both' || which === 'a') {
       var a = _buildImportPersonA();
-      if (!a.email && !a.name) { CRM.toast('Person A needs at least a name or email', 'warning'); return; }
-      promises.push(MallanAPI.clients.create(a).then(function (res) {
-        Events.log('client_created', 'client', res.client ? res.client.id : null, { name: a.name, type: a.type, source: 'email_import' });
-        return res;
-      }));
+      if (!a.create.email && !a.name) { CRM.toast('Person A needs at least a name or email', 'warning'); return; }
+      promises.push(_importAndPatch(a));
       labels.push('A');
     }
 
     if (which === 'both' || which === 'b') {
       var b = _buildImportPersonB();
-      if (!b.email && !b.name) { CRM.toast('Person B needs at least a name or email', 'warning'); return; }
-      promises.push(MallanAPI.clients.create(b).then(function (res) {
-        Events.log('client_created', 'client', res.client ? res.client.id : null, { name: b.name, type: b.type, source: 'email_import' });
-        return res;
-      }));
+      if (!b.create.email && !b.name) { CRM.toast('Person B needs at least a name or email', 'warning'); return; }
+      promises.push(_importAndPatch(b));
       labels.push('B');
     }
 
