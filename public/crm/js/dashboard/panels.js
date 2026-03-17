@@ -7061,6 +7061,10 @@ var Panels = (function () {
       });
 
       _renderMyListings(c);
+    }).catch(function (err) {
+      console.error('My Listings error:', err);
+      c.innerHTML = '<div class="space-y-4"><h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
+        UI.emptyState('fa-building', 'Unable to load listings') + '</div>';
     });
   }
 
@@ -10236,7 +10240,6 @@ var Panels = (function () {
     _switchMyListingsView: _switchMyListingsView,
     _addOpenHouse: _addOpenHouse,
     _submitOpenHouse: _submitOpenHouse,
-    _quickFilterMyListings: _quickFilterMyListings,
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
     _pipelineDragStart: _pipelineDragStart,
