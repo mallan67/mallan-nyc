@@ -610,23 +610,38 @@ var Workspace = (function () {
     var form = document.getElementById('editPrefsForm');
     if (!form) return;
     var fd = new FormData(form);
-    var prefs = {
+
+    // Use the dedicated preferences endpoint with correct field names
+    var apiPrefs = {
       neighborhoods: (fd.get('neighborhoods') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
-      minPrice: fd.get('minPrice') ? Number(fd.get('minPrice')) : null,
-      maxPrice: fd.get('maxPrice') ? Number(fd.get('maxPrice')) : null,
-      minBeds: fd.get('minBeds') ? Number(fd.get('minBeds')) : null,
-      minBaths: fd.get('minBaths') ? Number(fd.get('minBaths')) : null,
-      propertyType: fd.get('propertyType') || null,
-      mustHaves: fd.get('mustHaves') || null,
-      dealBreakers: fd.get('dealBreakers') || null,
+      min_price: fd.get('minPrice') ? Number(fd.get('minPrice')) : null,
+      max_price: fd.get('maxPrice') ? Number(fd.get('maxPrice')) : null,
+      min_beds: fd.get('minBeds') ? Number(fd.get('minBeds')) : null,
+      min_baths: fd.get('minBaths') ? Number(fd.get('minBaths')) : null,
+      property_types: fd.get('propertyType') ? [fd.get('propertyType')] : [],
+      must_haves: (fd.get('mustHaves') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+      deal_breakers: (fd.get('dealBreakers') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
     };
-    MallanAPI.clients.update(_clientId, { preferences: prefs }).then(function () {
-      _client.preferences = prefs;
+
+    MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(_clientId) + '/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(apiPrefs),
+    }).then(function () {
+      _client.preferences = {
+        neighborhoods: apiPrefs.neighborhoods,
+        minPrice: apiPrefs.min_price,
+        maxPrice: apiPrefs.max_price,
+        minBeds: apiPrefs.min_beds,
+        minBaths: apiPrefs.min_baths,
+        propertyType: (apiPrefs.property_types || [])[0] || null,
+        mustHaves: (apiPrefs.must_haves || []).join(', '),
+        dealBreakers: (apiPrefs.deal_breakers || []).join(', '),
+      };
       CRM.closeModal();
       CRM.toast('Preferences saved', 'success');
       _renderClientTab();
     }).catch(function (err) {
-      CRM.toast('Error saving preferences: ' + (err.message || 'Unknown error'), 'error');
+      CRM.toast('Error: ' + (err.message || 'Could not save preferences'), 'error');
     });
   }
 
@@ -2820,14 +2835,30 @@ var Workspace = (function () {
   function _submitEditClient() {
     var form = document.getElementById('editClientForm');
     if (!form) return;
+    var raw = {};
+    new FormData(form).forEach(function (v, k) { if (v) raw[k] = v; });
+
+    // Map frontend field names to API field names
     var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    if (raw.name) {
+      var parts = raw.name.split(/\s+/);
+      data.first_name = parts[0] || '';
+      data.last_name = parts.slice(1).join(' ') || '';
+    }
+    if (raw.email) data.email = raw.email;
+    if (raw.phone) data.phone = raw.phone;
+    if (raw.notes) data.notes = raw.notes;
+    if (raw.source) data.source = raw.source;
+    if (raw.type) {
+      data.portal_role = raw.type;
+      data.roles = [raw.type];
+    }
 
     MallanAPI.clients.update(_clientId, data).then(function () {
       CRM.closeModal();
       CRM.toast('Client updated', 'success');
       openClient(_clientId, _clientTab);
-    }).catch(function (err) { CRM.toast('Error: ' + err.message, 'error'); });
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Could not save'), 'error'); });
   }
 
   // ═══════════════════════════════════════════════════════════════════════

@@ -10244,10 +10244,12 @@ var Panels = (function () {
       var now = new Date();
 
       var renters = clients.filter(function (cl) {
-        return (cl.type || cl.client_type) === 'renter';
+        var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
+        return t === 'renter' || t === 'tenant';
       });
       var landlords = clients.filter(function (cl) {
-        return (cl.type || cl.client_type) === 'landlord';
+        var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
+        return t === 'landlord';
       });
 
       // Compute lease days left for renters
