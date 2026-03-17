@@ -6995,19 +6995,69 @@ var Panels = (function () {
     CRM.setPanelTitle('My Listings');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }).then(function (data) {
-      _myListingsData = data.listings || [];
+    // Load from BOTH DB (all statuses including closed/expired) AND past deals
+    Promise.all([
+      MallanAPI.listings.list({ limit: 500 }).catch(function () { return { listings: [] }; }),
+      MallanAPI._fetch('/api/crm/past-deals?limit=200').catch(function () { return { deals: [] }; }),
+    ]).then(function (r) {
+      var dbListings = r[0].listings || [];
+      var pastDeals = r[1].deals || [];
+
+      // Merge: DB listings are primary, past deals fill in closed/sold/rented history
+      var seenIds = {};
+      _myListingsData = [];
+
+      dbListings.forEach(function (l) {
+        var lid = l.id || l.listing_id;
+        if (lid) seenIds[lid] = true;
+        _myListingsData.push(l);
+      });
+
+      // Add past deals that aren't already in DB listings
+      pastDeals.forEach(function (d) {
+        var lid = d.listing_id || d.listingId;
+        if (lid && !seenIds[lid]) {
+          seenIds[lid] = true;
+          _myListingsData.push({
+            id: lid,
+            listing_id: lid,
+            address: d.address || d.property_address || 'Past Deal',
+            UnparsedAddress: d.address || d.property_address,
+            ListPrice: d.sale_price || d.price || d.amount,
+            price: d.sale_price || d.price || d.amount,
+            status: d.deal_type === 'sale' ? 'Closed' : 'Closed',
+            property_type: d.deal_type || 'sale',
+            listing_type: d.deal_type,
+            cumulative_dom: d.days_on_market || 0,
+            updated_at: d.close_date || d.created_at,
+            _fromPastDeals: true,
+          });
+        }
+      });
 
       // Compute per-listing flags
+      var now = new Date();
       _myListingsData.forEach(function (l) {
         var dom = l.cumulative_dom || l.days_on_market || 0;
         var hasPhotos = (l.photos && l.photos.length > 0) || (l.Media && l.Media.length > 0);
-        var comp = _computeListingCompliance ? _computeListingCompliance(l) : { status: 'clean', issues: [] };
         l._isStale = dom > 60 && (l.status === 'Active' || l.status === 'active');
         l._noPhotos = !hasPhotos;
-        l._hasComplianceIssue = comp.status !== 'clean';
         l._isFeatured = l.featuredFlag || l.featured;
-        l._compliance = comp;
+
+        // Refresh tracking — REBNY requires weekly refresh
+        var lastRefresh = l.ModificationTimestamp || l.updated_at || l.updatedAt || l.syncedAt;
+        if (lastRefresh) {
+          var daysSinceRefresh = Math.floor((now - new Date(lastRefresh)) / 86400000);
+          l._daysSinceRefresh = daysSinceRefresh;
+          l._needsRefresh = daysSinceRefresh >= 7 && (l.status === 'Active' || l.status === 'active' || l.status === 'ComingSoon');
+        } else {
+          l._daysSinceRefresh = null;
+          l._needsRefresh = false;
+        }
+
+        // Listing type
+        var type = (l.property_type || l.listing_type || l.PropertySubType || '').toLowerCase();
+        l._isRental = type.indexOf('rent') !== -1;
       });
 
       _renderMyListings(c);
@@ -7088,6 +7138,25 @@ var Panels = (function () {
       html += '</div></div>';
     }
 
+    // REBNY weekly refresh alert
+    var needsRefresh = listings.filter(function (l) { return l._needsRefresh; });
+    if (needsRefresh.length > 0) {
+      html += '<div class="p-3 border border-red-300 rounded-lg bg-red-50">' +
+        '<p class="text-sm font-semibold text-red-800"><i class="fas fa-sync-alt mr-1"></i> ' + needsRefresh.length + ' listing' + (needsRefresh.length > 1 ? 's' : '') + ' need REBNY weekly refresh</p>' +
+        '<p class="text-xs text-red-600 mt-1">REBNY RLS requires all active listings to be refreshed weekly. Click Edit to update.</p>' +
+        '<div class="mt-2 space-y-1">';
+      needsRefresh.forEach(function (l) {
+        var addr = l.address || l.UnparsedAddress || 'Listing';
+        var isRental = l._isRental;
+        var lid = l.id || l.listing_id;
+        html += '<div class="flex items-center justify-between text-xs">' +
+          '<span>' + E(addr) + ' — <span class="text-red-700">' + l._daysSinceRefresh + ' days since last update</span></span>' +
+          '<button class="text-red-700 font-semibold hover:underline" onclick="event.stopPropagation();window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')">Edit & Refresh</button>' +
+        '</div>';
+      });
+      html += '</div></div>';
+    }
+
     // Listing table
     if (filtered.length === 0) {
       html += '<div class="text-center py-12 text-gray-400">' +
@@ -7102,6 +7171,7 @@ var Panels = (function () {
         '<th class="text-left px-3 py-2">Status</th>' +
         '<th class="text-left px-3 py-2">DOM</th>' +
         '<th class="text-left px-3 py-2">Expiry</th>' +
+        '<th class="text-left px-3 py-2">Last Refreshed</th>' +
         '<th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
       filtered.forEach(function (l) {
@@ -7129,6 +7199,11 @@ var Panels = (function () {
           '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
           '<td class="px-3 py-2">' + expiryHtml + '</td>' +
+          '<td class="px-3 py-2">' + (function () {
+            if (l._daysSinceRefresh === null) return '<span class="text-xs text-gray-400">—</span>';
+            if (l._needsRefresh) return '<span class="text-xs text-red-600 font-semibold">' + l._daysSinceRefresh + 'd ago <i class="fas fa-exclamation-circle"></i></span>';
+            return '<span class="text-xs text-gray-500">' + l._daysSinceRefresh + 'd ago</span>';
+          })() + '</td>' +
           '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
             '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
             '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
