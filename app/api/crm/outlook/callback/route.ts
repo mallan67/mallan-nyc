@@ -12,13 +12,13 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/crm/dashboard#outlook-error&message=${encodeURIComponent(error)}`, req.url)
+      new URL(`/crm/dashboard#/ops/outlook&message=${encodeURIComponent(error)}`, req.url)
     );
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL("/crm/dashboard#outlook-error&message=missing_code", req.url)
+      new URL("/crm/dashboard#/ops/outlook&message=missing_code", req.url)
     );
   }
 
@@ -39,13 +39,13 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.redirect(
-      new URL("/crm/dashboard#outlook-connected", req.url)
+      new URL("/crm/dashboard#/ops/outlook", req.url)
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Token exchange failed";
     console.error("Outlook callback error:", message);
     return NextResponse.redirect(
-      new URL(`/crm/dashboard#outlook-error&message=${encodeURIComponent(message)}`, req.url)
+      new URL(`/crm/dashboard#/ops/outlook&message=${encodeURIComponent(message)}`, req.url)
     );
   }
 }
