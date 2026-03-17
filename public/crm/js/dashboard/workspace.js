@@ -414,6 +414,37 @@ var Workspace = (function () {
       return m ? m[1].trim() : '';
     };
 
+    // Property address section for landlords/renters
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
+    var propertyAddr = _extractNoteText('Property') || _extractNoteText('Rental Address') || '';
+    var propertyUnit = _extractNoteText('Unit') || '';
+    var legalOwner = _extractNoteText('Legal Owner') || '';
+    var leaseStart = _extractNoteText('Lease Start') || '';
+    var leaseEnd = _extractNoteText('Lease End') || '';
+    var monthlyRent = _extractNote('Monthly Rent') || '';
+
+    var showProperty = clientType === 'landlord' || clientType === 'renter' || clientType === 'seller' || propertyAddr;
+    if (showProperty) {
+      html += '<div class="p-4 border rounded-lg bg-gray-50">' +
+        '<div class="flex items-center justify-between mb-2">' +
+          '<h3 class="text-sm font-bold text-gray-700"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i> Property</h3>' +
+          '<button class="btn btn-xs btn-outline" onclick="Workspace._editFinancials()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">' +
+          '<div><span class="text-xs text-gray-500 block">Address</span><span class="font-medium">' + E(propertyAddr || '-') + '</span></div>' +
+          '<div><span class="text-xs text-gray-500 block">Unit</span><span class="font-medium">' + E(propertyUnit || '-') + '</span></div>' +
+          (clientType === 'landlord' || clientType === 'seller' ?
+            '<div><span class="text-xs text-gray-500 block">Legal Owner</span><span class="font-medium">' + E(legalOwner || '-') + '</span></div>' : '') +
+          (monthlyRent ?
+            '<div><span class="text-xs text-gray-500 block">Monthly Rent</span><span class="font-medium">$' + Number(monthlyRent).toLocaleString() + '</span></div>' : '') +
+          (leaseStart ?
+            '<div><span class="text-xs text-gray-500 block">Lease Start</span><span class="font-medium">' + E(leaseStart) + '</span></div>' : '') +
+          (leaseEnd ?
+            '<div><span class="text-xs text-gray-500 block">Lease End</span><span class="font-medium">' + E(leaseEnd) + '</span></div>' : '') +
+        '</div>' +
+      '</div>';
+    }
+
     // Contact info + Financial + Preferences (3 columns on desktop)
     html += '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">' +
 
