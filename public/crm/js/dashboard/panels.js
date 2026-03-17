@@ -9526,50 +9526,336 @@ var Panels = (function () {
   function profile() {
     CRM.setPanelTitle('My Profile');
     var c = _container();
-    var user = Store.session.currentUser || {};
+    c.innerHTML = '<div class="flex items-center justify-center py-12"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i></div>';
+
+    var isBroker = Permissions.isBroker();
+
+    MallanAPI._fetch('/api/crm/agents/me').then(function (res) {
+      var agent = (res && res.agent) || Store.session.currentUser || {};
+      // Update local session cache
+      if (res && res.agent) {
+        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, res.agent);
+      }
+      _renderProfileForm(c, agent, isBroker);
+    }).catch(function () {
+      // Fallback to cached session data
+      var agent = Store.session.currentUser || {};
+      _renderProfileForm(c, agent, isBroker);
+    });
+  }
+
+  function _renderProfileForm(c, agent, isBroker) {
+    var photoUrl = agent.photoUrl || agent.photo_url || '';
+    var name = agent.name || '';
+    var title = agent.title || '';
+    var bio = agent.bio || '';
+    var specialties = agent.specialties || '';
+    var languages = agent.languages || '';
+    var slug = agent.slug || '';
+    var email = agent.email || '';
+    var phone = agent.phone || '';
+    var licenseType = agent.licenseType || agent.license_type || '';
+    var licenseNumber = agent.licenseNumber || agent.license_number || '';
+    var licenseExpiry = agent.licenseExpiry || agent.license_expiry || '';
+
+    // Determine if profile is incomplete
+    var isIncomplete = !photoUrl || !bio || !specialties;
+
+    var incompleteCallout = isIncomplete
+      ? '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 flex items-start gap-3">' +
+          '<i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-yellow-800">Your public profile is incomplete</p>' +
+            '<p class="text-sm text-yellow-700">Add a photo, bio, and specialties to appear on mallan.nyc.</p>' +
+          '</div>' +
+        '</div>'
+      : '';
+
     c.innerHTML = '<div class="space-y-4">' +
-      UI.sectionHeader('My Profile & Preferences', '') +
-      UI.card('Profile',
-        '<form id="profileForm" class="space-y-4">' +
-          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Name</label>' +
-              '<input class="form-input" name="name" value="' + E(user.name || '') + '"></div>' +
-            '<div class="form-group"><label class="form-label">Email</label>' +
-              '<input class="form-input" name="email" value="' + E(user.email || '') + '" readonly></div>' +
+      UI.sectionHeader('My Profile', '') +
+
+      // Sync note
+      '<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">' +
+        '<i class="fas fa-info-circle text-blue-500 mt-0.5"></i>' +
+        '<p class="text-sm text-blue-700">Your profile information appears on your public agent page at <strong>mallan.nyc/agents/' + E(slug || 'your-name') + '</strong>. Changes sync automatically.</p>' +
+      '</div>' +
+
+      // Incomplete callout
+      incompleteCallout +
+
+      '<form id="profileForm" class="space-y-4">' +
+
+        // ── Public Profile Section ──
+        UI.card('<i class="fas fa-user-circle text-gold mr-2"></i>Public Profile',
+          '<p class="text-xs text-gray-500 mb-4">This information appears on your public agent page on mallan.nyc.</p>' +
+
+          // Photo
+          '<div class="mb-4">' +
+            '<label class="form-label">Profile Photo</label>' +
+            '<div class="flex items-center gap-4">' +
+              '<div id="profilePhotoPreview" class="w-20 h-20 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">' +
+                (photoUrl
+                  ? '<img src="' + E(photoUrl) + '" class="w-full h-full object-cover" alt="Profile photo">'
+                  : '<i class="fas fa-user text-3xl text-gray-300"></i>') +
+              '</div>' +
+              '<div class="flex-1">' +
+                '<input type="file" id="profilePhotoFile" accept="image/jpeg,image/png,image/webp" class="form-input text-sm" onchange="Panels._previewProfilePhoto(this)">' +
+                '<p class="text-xs text-gray-400 mt-1">JPG, PNG, or WebP. Recommended: 400x400px or larger, square crop.</p>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
-          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Phone</label>' +
-              '<input class="form-input" name="phone" value="' + E(user.phone || '') + '"></div>' +
-            '<div class="form-group"><label class="form-label">License #</label>' +
-              '<input class="form-input" name="license_number" value="' + E(user.licenseNumber || user.license_number || '') + '" readonly></div>' +
+
+          // Name (readonly)
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">' +
+            '<div class="form-group">' +
+              '<label class="form-label">Name</label>' +
+              '<input class="form-input bg-gray-50" name="name" value="' + E(name) + '" readonly>' +
+              '<p class="text-xs text-gray-400 mt-1">Only the broker can change your name.</p>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label class="form-label">Public URL</label>' +
+              '<input class="form-input bg-gray-50" value="mallan.nyc/agents/' + E(slug || 'your-name') + '" readonly>' +
+            '</div>' +
           '</div>' +
-          '<div class="form-group"><label class="form-label">Bio</label>' +
-            '<textarea class="form-input" name="bio" rows="4" placeholder="Write a short professional bio...">' + E(user.bio || '') + '</textarea></div>' +
-          '<div class="form-group"><label class="form-label">Profile Photo URL</label>' +
-            '<input class="form-input" name="photo_url" value="' + E(user.photoUrl || user.photo_url || '') + '" placeholder="https://..."></div>' +
-          '<p class="text-xs text-gray-500"><i class="fas fa-info-circle"></i> This profile syncs with your public agent page on mallan.nyc</p>' +
-          '<button type="button" class="btn btn-gold" onclick="Panels._saveProfile()"><i class="fas fa-save"></i> Save Changes</button>' +
-        '</form>'
-      ) +
+
+          // Title / Tagline
+          '<div class="form-group mb-4">' +
+            '<label class="form-label">Title / Tagline</label>' +
+            '<input class="form-input" name="title" value="' + E(title) + '" placeholder="e.g. Licensed Real Estate Broker" maxlength="100">' +
+            '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page.</p>' +
+          '</div>' +
+
+          // Bio
+          '<div class="form-group mb-4">' +
+            '<label class="form-label">Bio</label>' +
+            '<textarea class="form-input" name="bio" rows="5" placeholder="Write a professional bio that tells clients about your experience, approach, and areas of expertise...">' + E(bio) + '</textarea>' +
+            '<p class="text-xs text-gray-400 mt-1">Displayed on your public profile. Keep it professional and engaging.</p>' +
+          '</div>' +
+
+          // Specialties
+          '<div class="form-group mb-4">' +
+            '<label class="form-label">Specialties</label>' +
+            '<input class="form-input" name="specialties" value="' + E(specialties) + '" placeholder="e.g. Upper East Side, Luxury Condos, First-Time Buyers">' +
+            '<p class="text-xs text-gray-400 mt-1">Comma-separated. Shown as badges on your profile.</p>' +
+          '</div>' +
+
+          // Languages
+          '<div class="form-group">' +
+            '<label class="form-label">Languages</label>' +
+            '<input class="form-input" name="languages" value="' + E(languages) + '" placeholder="e.g. English, Spanish, Mandarin">' +
+            '<p class="text-xs text-gray-400 mt-1">Comma-separated. Helps clients find agents who speak their language.</p>' +
+          '</div>'
+        ) +
+
+        // ── Contact Information ──
+        UI.card('<i class="fas fa-address-book text-gold mr-2"></i>Contact Information',
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
+            '<div class="form-group">' +
+              '<label class="form-label">Email</label>' +
+              '<input class="form-input bg-gray-50" name="email" value="' + E(email) + '" readonly>' +
+              '<p class="text-xs text-gray-400 mt-1">Contact your broker to change your email.</p>' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label class="form-label">Phone</label>' +
+              '<input class="form-input" name="phone" value="' + E(phone) + '" placeholder="e.g. 212-555-1234">' +
+            '</div>' +
+          '</div>'
+        ) +
+
+        // ── License Information ──
+        UI.card('<i class="fas fa-id-badge text-gold mr-2"></i>License Information',
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            '<div class="form-group">' +
+              '<label class="form-label">License Type</label>' +
+              (isBroker
+                ? '<input class="form-input" name="license_type" value="' + E(licenseType) + '" placeholder="e.g. Real Estate Broker">'
+                : '<input class="form-input bg-gray-50" value="' + E(licenseType) + '" readonly>') +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label class="form-label">License #</label>' +
+              (isBroker
+                ? '<input class="form-input" name="license_number" value="' + E(licenseNumber) + '">'
+                : '<input class="form-input bg-gray-50" value="' + E(licenseNumber) + '" readonly>') +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label class="form-label">License Expiry</label>' +
+              (isBroker
+                ? '<input class="form-input" name="license_expiry" type="date" value="' + E(licenseExpiry ? licenseExpiry.substring(0, 10) : '') + '">'
+                : '<input class="form-input bg-gray-50" value="' + E(licenseExpiry ? D(licenseExpiry) : 'N/A') + '" readonly>') +
+            '</div>' +
+          '</div>' +
+          (isBroker ? '' : '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-lock text-gray-300 mr-1"></i>License fields are managed by the broker.</p>')
+        ) +
+
+        // ── Preview Card ──
+        UI.card('<i class="fas fa-eye text-gold mr-2"></i>Profile Preview',
+          '<p class="text-xs text-gray-500 mb-3">This is how your profile will appear on mallan.nyc.</p>' +
+          '<div id="profilePreviewCard" class="border rounded-xl p-5 bg-white max-w-md">' +
+            _buildProfilePreview(agent) +
+          '</div>'
+        ) +
+
+        // ── Save Button ──
+        '<div class="flex items-center gap-3">' +
+          '<button type="button" class="btn btn-gold" onclick="Panels._saveProfile()" id="profileSaveBtn">' +
+            '<i class="fas fa-save mr-1"></i> Save Changes' +
+          '</button>' +
+          '<span id="profileSaveStatus" class="text-sm text-gray-500"></span>' +
+        '</div>' +
+
+      '</form>' +
     '</div>';
+
+    // Wire up live preview updates
+    var formEl = document.getElementById('profileForm');
+    if (formEl) {
+      formEl.addEventListener('input', function () {
+        _updateProfilePreview();
+      });
+    }
+  }
+
+  function _buildProfilePreview(agent) {
+    var photoUrl = agent.photoUrl || agent.photo_url || '';
+    var name = agent.name || 'Your Name';
+    var title = agent.title || '';
+    var bio = agent.bio || '';
+    var specialties = agent.specialties || '';
+    var languages = agent.languages || '';
+
+    var specBadges = '';
+    if (specialties) {
+      var specs = specialties.split(',');
+      for (var i = 0; i < specs.length; i++) {
+        var s = specs[i].trim();
+        if (s) specBadges += '<span class="inline-block bg-gold/10 text-yellow-800 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">' + E(s) + '</span>';
+      }
+    }
+
+    var langLine = '';
+    if (languages) {
+      langLine = '<p class="text-xs text-gray-500 mt-2"><i class="fas fa-globe mr-1"></i>' + E(languages) + '</p>';
+    }
+
+    var bioSnippet = bio.length > 150 ? bio.substring(0, 150) + '...' : bio;
+
+    return '<div class="flex items-center gap-4 mb-3">' +
+      '<div class="w-16 h-16 rounded-full bg-gray-100 border overflow-hidden flex-shrink-0 flex items-center justify-center">' +
+        (photoUrl
+          ? '<img src="' + E(photoUrl) + '" class="w-full h-full object-cover" alt="">'
+          : '<i class="fas fa-user text-2xl text-gray-300"></i>') +
+      '</div>' +
+      '<div>' +
+        '<p class="font-semibold text-gray-900">' + E(name) + '</p>' +
+        (title ? '<p class="text-sm text-gray-600">' + E(title) + '</p>' : '') +
+      '</div>' +
+    '</div>' +
+    (bioSnippet ? '<p class="text-sm text-gray-700 mb-2">' + E(bioSnippet) + '</p>' : '<p class="text-sm text-gray-400 italic mb-2">No bio yet.</p>') +
+    (specBadges ? '<div class="mb-2">' + specBadges + '</div>' : '') +
+    langLine;
+  }
+
+  function _updateProfilePreview() {
+    var previewEl = document.getElementById('profilePreviewCard');
+    if (!previewEl) return;
+    var form = document.getElementById('profileForm');
+    if (!form) return;
+
+    var agent = {
+      name: (form.querySelector('[name="name"]') || {}).value || '',
+      title: (form.querySelector('[name="title"]') || {}).value || '',
+      bio: (form.querySelector('[name="bio"]') || {}).value || '',
+      specialties: (form.querySelector('[name="specialties"]') || {}).value || '',
+      languages: (form.querySelector('[name="languages"]') || {}).value || '',
+      photoUrl: ''
+    };
+
+    // Use current preview photo src if available
+    var previewImg = document.querySelector('#profilePhotoPreview img');
+    if (previewImg) agent.photoUrl = previewImg.src;
+
+    previewEl.innerHTML = _buildProfilePreview(agent);
+  }
+
+  function _previewProfilePhoto(input) {
+    var preview = document.getElementById('profilePhotoPreview');
+    if (!preview || !input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      preview.innerHTML = '<img src="' + e.target.result + '" class="w-full h-full object-cover" alt="Profile photo">';
+      _updateProfilePreview();
+    };
+    reader.readAsDataURL(input.files[0]);
   }
 
   function _saveProfile() {
     var form = document.getElementById('profileForm');
     if (!form) return;
-    var data = {};
-    new FormData(form).forEach(function (v, k) { if (v && k !== 'email' && k !== 'license_number') data[k] = v; });
+    var saveBtn = document.getElementById('profileSaveBtn');
+    var statusEl = document.getElementById('profileSaveStatus');
 
-    MallanAPI._fetch('/api/crm/agents/me', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    // Disable button during save
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...'; }
+    if (statusEl) statusEl.textContent = '';
+
+    // Collect editable fields (skip readonly: name, email)
+    var data = {};
+    var editableFields = ['title', 'bio', 'specialties', 'languages', 'phone'];
+    // Broker can also edit license fields
+    var isBroker = Permissions.isBroker();
+    if (isBroker) {
+      editableFields.push('license_type', 'license_number', 'license_expiry');
+    }
+
+    for (var i = 0; i < editableFields.length; i++) {
+      var field = editableFields[i];
+      var input = form.querySelector('[name="' + field + '"]');
+      if (input) data[field] = input.value;
+    }
+
+    // Check if there is a new photo to upload
+    var photoInput = document.getElementById('profilePhotoFile');
+    var hasNewPhoto = photoInput && photoInput.files && photoInput.files[0];
+
+    var uploadPhotoPromise;
+    if (hasNewPhoto) {
+      var formData = new FormData();
+      formData.append('photo', photoInput.files[0]);
+      uploadPhotoPromise = MallanAPI._fetch('/api/crm/agents/me/photo', {
+        method: 'POST',
+        body: formData,
+        rawBody: true
+      }).then(function (res) {
+        if (res && res.url) {
+          data.photo_url = res.url;
+        }
+        return res;
+      }).catch(function (err) {
+        CRM.toast('Photo upload failed: ' + (err.message || 'Unknown error'), 'error');
+        // Continue with other fields even if photo fails
+        return null;
+      });
+    } else {
+      uploadPhotoPromise = Promise.resolve(null);
+    }
+
+    uploadPhotoPromise.then(function () {
+      return MallanAPI._fetch('/api/crm/agents/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      });
     }).then(function (res) {
       if (res && res.agent) {
         Store.session.currentUser = Object.assign(Store.session.currentUser || {}, res.agent);
       }
-      CRM.toast('Profile updated', 'success');
+      CRM.toast('Profile updated \u2014 changes will appear on mallan.nyc shortly', 'success');
+      if (statusEl) statusEl.textContent = 'Saved';
     }).catch(function (err) {
       CRM.toast('Failed to save profile: ' + (err.message || 'Unknown error'), 'error');
+      if (statusEl) { statusEl.textContent = 'Save failed'; statusEl.className = 'text-sm text-red-500'; }
+    }).then(function () {
+      // Always re-enable button (finally equivalent)
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Changes'; }
     });
   }
 
@@ -9741,6 +10027,8 @@ var Panels = (function () {
     _createTemplate: _createTemplate,
     _submitCreateTemplate: _submitCreateTemplate,
     _saveProfile: _saveProfile,
+    _previewProfilePhoto: _previewProfilePhoto,
+    _updateProfilePreview: _updateProfilePreview,
     _submitEditAgent: _submitEditAgent,
     _toggleAgentCard: _toggleAgentCard,
     _agentTab: _agentTab,
