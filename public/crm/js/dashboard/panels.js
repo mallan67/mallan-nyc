@@ -846,24 +846,25 @@ var Panels = (function () {
 
     // RLS-aligned status counts
     var statusDefs = [
-      { key: '',                   label: 'All',                      bg: 'bg-gray-800', text: 'text-white',       count: listings.length },
-      { key: 'Active',             label: 'Active',                   bg: 'bg-blue-50',  text: 'text-blue-700',    count: listings.filter(function (l) { return l.status === 'Active'; }).length },
-      { key: 'Pending',            label: 'Pending',                  bg: 'bg-orange-50', text: 'text-orange-700',  count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
-      { key: 'ActiveUnderContract', label: 'In Contract',             bg: 'bg-purple-50', text: 'text-purple-700',  count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
-      { key: 'Closed',             label: 'Closed',                   bg: 'bg-green-50',  text: 'text-green-700',   count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
-      { key: 'ComingSoon',         label: 'Coming Soon',              bg: 'bg-teal-50',   text: 'text-teal-700',    count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
-      { key: 'Hold',               label: 'Hold (Temp Off Market)',   bg: 'bg-yellow-50', text: 'text-yellow-700',  count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
-      { key: 'Withdrawn',          label: 'Withdrawn (Perm Off Market)', bg: 'bg-red-50', text: 'text-red-700',     count: listings.filter(function (l) { return l.status === 'Withdrawn'; }).length },
-      { key: 'Expired',            label: 'Expired',                  bg: 'bg-gray-100',  text: 'text-gray-600',    count: listings.filter(function (l) { return l.status === 'Expired'; }).length },
-      { key: 'Canceled',           label: 'Canceled',                 bg: 'bg-gray-50',   text: 'text-gray-500',    count: listings.filter(function (l) { return l.status === 'Canceled'; }).length },
+      { key: '',                    label: 'All',                         count: listings.length },
+      { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
+      { key: 'Pending',             label: 'Pending',                     count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
+      { key: 'ActiveUnderContract', label: 'In Contract',                 count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
+      { key: 'Closed',              label: 'Closed',                      count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
+      { key: 'ComingSoon',          label: 'Coming Soon',                 count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
+      { key: 'Hold',                label: 'Hold (Temp Off Market)',      count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
+      { key: 'Withdrawn',           label: 'Withdrawn (Perm Off Market)', count: listings.filter(function (l) { return l.status === 'Withdrawn'; }).length },
+      { key: 'Expired',             label: 'Expired',                     count: listings.filter(function (l) { return l.status === 'Expired'; }).length },
+      { key: 'Canceled',            label: 'Canceled',                    count: listings.filter(function (l) { return l.status === 'Canceled'; }).length },
     ];
 
-    var html = '<div class="flex flex-wrap gap-2 mb-3">';
+    var html = '<div class="flex flex-wrap gap-1 mb-3">';
     statusDefs.forEach(function (s) {
       var isActive = filterStatus === s.key;
-      var ringClass = isActive ? ' ring-2 ring-offset-1 ring-gray-400' : '';
       var onclick = agentIdx !== undefined ? ' onclick="Panels._filterRosterListings(' + agentIdx + ',\'' + s.key + '\')"' : '';
-      html += '<span class="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer select-none ' + s.bg + ' ' + s.text + ringClass + '"' + onclick + '>' + s.label + ' (' + s.count + ')</span>';
+      html += '<button class="px-2.5 py-1 rounded text-xs font-medium cursor-pointer border transition-all ' +
+        (isActive ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
+        '"' + onclick + '>' + s.label + ' (' + s.count + ')</button>';
     });
     html += '</div>';
 
@@ -7029,10 +7030,7 @@ var Panels = (function () {
     // Header
     html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
       '<h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
-      '<div class="flex gap-2">' +
-        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> New Sale</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> New Rental</button>' +
-      '</div>' +
+      '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewListing()"><i class="fas fa-plus mr-1"></i> New Listing</button>' +
     '</div>';
 
     // Saved view tabs
