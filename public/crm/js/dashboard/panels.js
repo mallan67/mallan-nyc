@@ -1904,6 +1904,347 @@ var Panels = (function () {
     });
   }
 
+  // ─── Email Import Tool ──────────────────────────────────────────────
+
+  function importFromEmail() {
+    CRM.setPanelTitle('Import from Email');
+    var c = _container();
+
+    var html = '<div class="space-y-6 max-w-5xl">';
+
+    // Paste area
+    html += '<div class="bg-white rounded-xl border p-6 shadow-sm">' +
+      '<h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-envelope-open-text mr-2 text-gold"></i>Import from Email</h3>' +
+      '<p class="text-xs text-gray-500 mb-3">Paste an introduction email below to extract contact information automatically.</p>' +
+      '<textarea id="emailImportText" rows="8" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-gold focus:border-gold" ' +
+        'placeholder="Paste your introduction email here..."></textarea>' +
+      '<button onclick="Panels._extractEmailContacts()" class="mt-3 px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition">' +
+        '<i class="fas fa-magic mr-1"></i> Extract Contacts</button>' +
+      '</div>';
+
+    // Review area (initially hidden)
+    html += '<div id="emailImportReview" class="hidden"></div>';
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _extractEmailContacts() {
+    var text = (document.getElementById('emailImportText') || {}).value || '';
+    var review = document.getElementById('emailImportReview');
+    if (!review) return;
+
+    // Extract emails
+    var emailRx = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    var emails = (text.match(emailRx) || []).filter(function (e, i, arr) { return arr.indexOf(e) === i; });
+
+    // Extract phones
+    var phoneRx = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+    var phones = (text.match(phoneRx) || []).filter(function (p, i, arr) { return arr.indexOf(p) === i; });
+
+    // Extract names — "Dear X" / "Hi X" / "Hello X" patterns, or lines before emails
+    var names = [];
+    var greetRx = /(?:Dear|Hi|Hello|Hey|Introducing|Meet)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/g;
+    var m;
+    while ((m = greetRx.exec(text)) !== null) {
+      if (names.indexOf(m[1]) === -1) names.push(m[1]);
+    }
+    // Also look for "Name <email>" or "Name (email)" patterns
+    var nameEmailRx = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[<(]/g;
+    while ((m = nameEmailRx.exec(text)) !== null) {
+      if (names.indexOf(m[1]) === -1) names.push(m[1]);
+    }
+
+    var personA = { name: names[0] || '', email: emails[0] || '', phone: phones[0] || '' };
+    var personB = { name: names[1] || '', email: emails[1] || '', phone: phones[1] || '' };
+
+    _renderEmailImportReview(review, personA, personB);
+  }
+
+  function _renderEmailImportReview(el, personA, personB) {
+    el.classList.remove('hidden');
+
+    var html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+
+    // Card A — Landlord/Seller
+    html += '<div class="bg-white rounded-xl border p-5 shadow-sm">' +
+      '<h4 class="text-sm font-bold text-gray-700 mb-4"><i class="fas fa-user-tie mr-2 text-amber-600"></i>Person A (Landlord / Seller)</h4>' +
+      '<div class="space-y-3">' +
+      _importField('importA_name', 'Name', personA.name, 'text') +
+      _importField('importA_email', 'Email', personA.email, 'email') +
+      _importField('importA_phone', 'Phone', personA.phone, 'tel') +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
+        '<select id="importA_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
+        '<option value="landlord">Landlord</option><option value="seller">Seller</option></select></div>' +
+      _importField('importA_address', 'Property Address', '', 'text') +
+      _importField('importA_unit', 'Unit Number', '', 'text') +
+      _importField('importA_legalName', 'Legal Ownership Name', '', 'text', 'LLC, Trust, Corp, or individual name') +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease Start Date</label>' +
+        '<input type="date" id="importA_leaseStart" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End Date</label>' +
+        '<input type="date" id="importA_leaseEnd" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+      '</div></div>';
+
+    // Card B — Tenant/Buyer
+    html += '<div class="bg-white rounded-xl border p-5 shadow-sm">' +
+      '<h4 class="text-sm font-bold text-gray-700 mb-4"><i class="fas fa-user mr-2 text-blue-600"></i>Person B (Tenant / Buyer)</h4>' +
+      '<div class="space-y-3">' +
+      _importField('importB_name', 'Name', personB.name, 'text') +
+      _importField('importB_email', 'Email', personB.email, 'email') +
+      _importField('importB_phone', 'Phone', personB.phone, 'tel') +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
+        '<select id="importB_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
+        '<option value="renter">Renter</option><option value="buyer">Buyer</option></select></div>' +
+      '</div></div>';
+
+    html += '</div>';
+
+    // Buttons
+    html += '<div class="flex flex-wrap gap-3 mt-5">' +
+      '<button onclick="Panels._submitEmailImport(\'both\')" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition">' +
+        '<i class="fas fa-user-friends mr-1"></i> Import Both</button>' +
+      '<button onclick="Panels._submitEmailImport(\'a\')" class="px-5 py-2.5 bg-white border text-sm font-semibold rounded-lg hover:bg-gray-50 transition">' +
+        'Import A Only</button>' +
+      '<button onclick="Panels._submitEmailImport(\'b\')" class="px-5 py-2.5 bg-white border text-sm font-semibold rounded-lg hover:bg-gray-50 transition">' +
+        'Import B Only</button>' +
+      '</div>';
+
+    el.innerHTML = html;
+  }
+
+  function _importField(id, label, value, type, placeholder) {
+    return '<div><label class="block text-xs font-semibold text-gray-700 mb-1">' + E(label) + '</label>' +
+      '<input type="' + type + '" id="' + id + '" value="' + E(value) + '" ' +
+      'placeholder="' + E(placeholder || '') + '" ' +
+      'class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold"></div>';
+  }
+
+  function _getImportVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+  function _buildImportPersonA() {
+    var name = _getImportVal('importA_name');
+    var parts = name.split(/\s+/);
+    return {
+      first_name: parts[0] || '',
+      last_name: parts.slice(1).join(' ') || '',
+      name: name,
+      email: _getImportVal('importA_email'),
+      phone: _getImportVal('importA_phone'),
+      type: _getImportVal('importA_type') || 'landlord',
+      client_type: _getImportVal('importA_type') || 'landlord',
+      property_address: _getImportVal('importA_address'),
+      unit_number: _getImportVal('importA_unit'),
+      legal_ownership_name: _getImportVal('importA_legalName'),
+      lease_start_date: _getImportVal('importA_leaseStart') || undefined,
+      lease_end_date: _getImportVal('importA_leaseEnd') || undefined,
+      source: 'email_import',
+    };
+  }
+
+  function _buildImportPersonB() {
+    var name = _getImportVal('importB_name');
+    var parts = name.split(/\s+/);
+    return {
+      first_name: parts[0] || '',
+      last_name: parts.slice(1).join(' ') || '',
+      name: name,
+      email: _getImportVal('importB_email'),
+      phone: _getImportVal('importB_phone'),
+      type: _getImportVal('importB_type') || 'renter',
+      client_type: _getImportVal('importB_type') || 'renter',
+      source: 'email_import',
+    };
+  }
+
+  function _submitEmailImport(which) {
+    var promises = [];
+    var labels = [];
+
+    if (which === 'both' || which === 'a') {
+      var a = _buildImportPersonA();
+      if (!a.email && !a.name) { CRM.toast('Person A needs at least a name or email', 'warning'); return; }
+      promises.push(MallanAPI.clients.create(a).then(function (res) {
+        Events.log('client_created', 'client', res.client ? res.client.id : null, { name: a.name, type: a.type, source: 'email_import' });
+        return res;
+      }));
+      labels.push('A');
+    }
+
+    if (which === 'both' || which === 'b') {
+      var b = _buildImportPersonB();
+      if (!b.email && !b.name) { CRM.toast('Person B needs at least a name or email', 'warning'); return; }
+      promises.push(MallanAPI.clients.create(b).then(function (res) {
+        Events.log('client_created', 'client', res.client ? res.client.id : null, { name: b.name, type: b.type, source: 'email_import' });
+        return res;
+      }));
+      labels.push('B');
+    }
+
+    if (promises.length === 0) return;
+
+    Promise.all(promises).then(function () {
+      CRM.toast('Imported ' + labels.join(' & '), 'success');
+    }).catch(function (err) {
+      CRM.toast('Import error: ' + (err.message || 'Failed'), 'error');
+    });
+  }
+
+  // ─── Quick Add Client ─────────────────────────────────────────────
+
+  var _quickAddClientType = 'buyer';
+
+  function quickAddClient() {
+    CRM.setPanelTitle('Quick Add Client');
+    var c = _container();
+    _quickAddClientType = 'buyer';
+    _renderQuickAddClient(c);
+  }
+
+  function _renderQuickAddClient(c) {
+    var type = _quickAddClientType;
+    var tabs = ['buyer', 'seller', 'renter', 'landlord'];
+
+    var html = '<div class="max-w-2xl mx-auto space-y-6">';
+
+    // Tabs
+    html += '<div class="bg-white rounded-xl border shadow-sm">' +
+      '<div class="flex border-b">';
+    tabs.forEach(function (t) {
+      var active = t === type;
+      html += '<button onclick="Panels._switchQuickAddType(\'' + t + '\')" ' +
+        'class="flex-1 py-3 text-sm font-semibold text-center border-b-2 transition ' +
+        (active ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600') + '">' +
+        t.charAt(0).toUpperCase() + t.slice(1) + '</button>';
+    });
+    html += '</div>';
+
+    // Form
+    html += '<form id="quickAddClientForm" class="p-6 space-y-4">';
+
+    // Common fields
+    html += '<div class="grid grid-cols-2 gap-4">' +
+      _qaField('first_name', 'First Name', 'text', true) +
+      _qaField('last_name', 'Last Name', 'text', true) +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-4">' +
+      _qaField('email', 'Email', 'email', true) +
+      _qaField('phone', 'Phone', 'tel', false) +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-4">' +
+      _qaSelect('source', 'Source', ['Referral', 'Website', 'StreetEasy', 'Zillow', 'Walk-in', 'Cold Call', 'Social Media', 'Email Import', 'Other']) +
+      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Notes</label>' +
+        '<textarea name="notes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold" placeholder="Optional notes..."></textarea></div>' +
+      '</div>';
+
+    // Type-specific fields
+    if (type === 'seller' || type === 'landlord') {
+      html += '<div class="border-t pt-4 mt-2">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Property Details</h4>' +
+        _qaField('property_address', 'Property Address', 'text', false) +
+        '<div class="grid grid-cols-2 gap-4 mt-3">' +
+        _qaField('unit_number', 'Unit / Apt Number', 'text', false) +
+        _qaField('legal_ownership_name', 'Legal Ownership Name', 'text', false, 'LLC, Trust, Corp, or individual name') +
+        '</div>' +
+        '<div class="mt-3">' +
+        _qaSelect('ownership_type', 'Ownership Type', ['Individual', 'LLC', 'Trust', 'Corporation', 'Partnership']) +
+        '</div></div>';
+    }
+
+    if (type === 'renter') {
+      html += '<div class="border-t pt-4 mt-2">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Current Lease</h4>' +
+        _qaField('current_address', 'Current Address', 'text', false) +
+        '<div class="grid grid-cols-3 gap-4 mt-3">' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease Start</label>' +
+          '<input type="date" name="lease_start_date" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold"></div>' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End</label>' +
+          '<input type="date" name="lease_end_date" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold"></div>' +
+        _qaField('monthly_rent', 'Monthly Rent', 'number', false, '$ amount') +
+        '</div></div>';
+    }
+
+    if (type === 'buyer') {
+      html += '<div class="border-t pt-4 mt-2">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Buyer Preferences</h4>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+        _qaField('budget_min', 'Budget Min ($)', 'number', false) +
+        _qaField('budget_max', 'Budget Max ($)', 'number', false) +
+        '</div>' +
+        '<div class="mt-3">' +
+        _qaField('preferred_neighborhoods', 'Preferred Neighborhoods', 'text', false, 'e.g. Upper East Side, Tribeca') +
+        '</div>' +
+        '<div class="mt-3">' +
+        _qaSelect('pre_approved', 'Pre-approved?', ['', 'Yes', 'No']) +
+        '</div></div>';
+    }
+
+    // Submit
+    html += '<div class="pt-4 border-t">' +
+      '<button type="button" onclick="Panels._submitQuickAddClient()" ' +
+        'class="w-full py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition">' +
+        '<i class="fas fa-plus mr-1"></i> Create Client</button>' +
+      '</div>';
+
+    html += '</form></div></div>';
+    c.innerHTML = html;
+  }
+
+  function _qaField(name, label, type, required, placeholder) {
+    return '<div><label class="block text-xs font-semibold text-gray-700 mb-1">' + E(label) +
+      (required ? ' <span class="text-red-400">*</span>' : '') + '</label>' +
+      '<input type="' + type + '" name="' + name + '"' +
+      (required ? ' required' : '') +
+      ' placeholder="' + E(placeholder || '') + '"' +
+      ' class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold"></div>';
+  }
+
+  function _qaSelect(name, label, options) {
+    var html = '<div><label class="block text-xs font-semibold text-gray-700 mb-1">' + E(label) + '</label>' +
+      '<select name="' + name + '" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold">';
+    options.forEach(function (opt) {
+      html += '<option value="' + E(opt) + '">' + E(opt || '-- Select --') + '</option>';
+    });
+    html += '</select></div>';
+    return html;
+  }
+
+  function _switchQuickAddType(type) {
+    _quickAddClientType = type;
+    var c = _container();
+    _renderQuickAddClient(c);
+  }
+
+  function _submitQuickAddClient() {
+    var form = document.getElementById('quickAddClientForm');
+    if (!form) return;
+
+    var data = {};
+    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+
+    // Validate required fields
+    if (!data.first_name || !data.last_name || !data.email) {
+      CRM.toast('First name, last name, and email are required', 'warning');
+      return;
+    }
+
+    data.name = (data.first_name || '') + ' ' + (data.last_name || '');
+    data.type = _quickAddClientType;
+    data.client_type = _quickAddClientType;
+
+    MallanAPI.clients.create(data).then(function (res) {
+      Events.log('client_created', 'client', res.client ? res.client.id : null, {
+        name: data.name, type: data.type, source: data.source || 'manual',
+      });
+      CRM.toast('Client created', 'success');
+      // Navigate to client address book to see the new client
+      if (typeof Router !== 'undefined' && Router.navigate) {
+        Router.navigate('/broker/clients');
+      }
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed to create client'), 'error');
+    });
+  }
+
   // ─── Lead Distribution Hub (Kanban Inbox) ───────────────────────────
   var _leadSourceFilter = 'All';
   var _leadDataCache = { leads: [], agents: [] };
@@ -10368,6 +10709,8 @@ var Panels = (function () {
     _filterApprovalQueue: _filterApprovalQueue,
     agentRoster: agentRoster,
     clientAddressBook: clientAddressBook,
+    importFromEmail: importFromEmail,
+    quickAddClient: quickAddClient,
     leadDistribution: leadDistribution,
     referralTracking: referralTracking,
     commissionPayouts: commissionPayouts,
@@ -10485,6 +10828,10 @@ var Panels = (function () {
     _agentTab: _agentTab,
     _filterRoster: _filterRoster,
     _deactivateAgent: _deactivateAgent,
+    _extractEmailContacts: _extractEmailContacts,
+    _submitEmailImport: _submitEmailImport,
+    _switchQuickAddType: _switchQuickAddType,
+    _submitQuickAddClient: _submitQuickAddClient,
     _filterCAB: _filterCAB,
     _sortCAB: _sortCAB,
     _reassignClient: _reassignClient,

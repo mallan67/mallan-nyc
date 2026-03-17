@@ -113,6 +113,7 @@ var CRM = (function () {
     Router.register('/ops/revenue',          function () { Panels.personalRevenue(); });
     Router.register('/ops/market',           function () { Panels.marketActivity(); });
     Router.register('/ops/leases',          function () { Panels.leaseTracking(); });
+    Router.register('/ops/import',          function () { Panels.importFromEmail(); });
 
     // A3. Settings
     Router.register('/settings/profile',       function () { Panels.profile(); });
@@ -403,6 +404,7 @@ var CRM = (function () {
       { route: '/ops/revenue', icon: 'fa-chart-pie', label: 'Revenue' },
       { route: '/ops/market', icon: 'fa-chart-area', label: 'Market Activity' },
       { route: '/ops/leases', icon: 'fa-calendar-alt', label: 'Lease Tracking' },
+      { route: '/ops/import', icon: 'fa-file-import', label: 'Import Contacts' },
     ]);
 
     // SETTINGS
