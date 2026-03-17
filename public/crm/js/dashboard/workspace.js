@@ -401,8 +401,23 @@ var Workspace = (function () {
       html += '</div>';
     }
 
-    // Contact info grid
-    html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+    // Parse financial data from notes (stored there by import or manual entry)
+    var notes = cl.notes || '';
+    var _extractNote = function (label) {
+      var rx = new RegExp(label + '\\s*[:.]\\s*\\$?([\\d,]+(?:\\.\\d+)?)', 'i');
+      var m = notes.match(rx);
+      return m ? m[1].replace(/,/g, '') : '';
+    };
+    var _extractNoteText = function (label) {
+      var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
+      var m = notes.match(rx);
+      return m ? m[1].trim() : '';
+    };
+
+    // Contact info + Financial + Preferences (3 columns on desktop)
+    html += '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">' +
+
+      // Column 1: Contact
       '<div class="space-y-3">' +
         '<h3 class="text-sm font-bold text-gray-700">Contact Information</h3>' +
         _infoRow('Email', cl.email) +
@@ -412,11 +427,26 @@ var Workspace = (function () {
         _infoRow('Last Updated', D(cl.updated_at || cl.updatedAt)) +
       '</div>' +
 
-      // Preferences
+      // Column 2: Financial Profile
+      '<div class="space-y-3">' +
+        '<div class="flex items-center justify-between">' +
+          '<h3 class="text-sm font-bold text-gray-700">Financial Profile</h3>' +
+          '<button class="btn btn-xs btn-outline" onclick="Workspace._editFinancials()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
+        '</div>' +
+        _infoRow('Annual Income', _extractNote('Annual Income') ? '$' + Number(_extractNote('Annual Income')).toLocaleString() : '-') +
+        _infoRow('Down Payment', _extractNote('Down Payment') ? '$' + Number(_extractNote('Down Payment')).toLocaleString() : '-') +
+        _infoRow('Deposit / Liquid', _extractNote('Deposit') || _extractNote('Available Funds') ? '$' + Number(_extractNote('Deposit') || _extractNote('Available Funds')).toLocaleString() : '-') +
+        _infoRow('Employer', _extractNoteText('Employer') || '-') +
+        _infoRow('Work Title', _extractNoteText('Work Title') || _extractNoteText('Job Title') || '-') +
+        _infoRow('Credit Score', _extractNoteText('Credit Score') || '-') +
+        '<button class="btn btn-xs btn-outline mt-2 w-full" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-file-upload mr-1"></i> Upload Financial Statement</button>' +
+      '</div>' +
+
+      // Column 3: Preferences
       '<div class="space-y-3">' +
         '<div class="flex items-center justify-between">' +
           '<h3 class="text-sm font-bold text-gray-700">Preferences</h3>' +
-          '<button class="btn btn-xs btn-outline" onclick="Workspace._editPreferences()"><i class="fas fa-edit text-xs"></i> Edit Preferences</button>' +
+          '<button class="btn btn-xs btn-outline" onclick="Workspace._editPreferences()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
         '</div>' +
         _infoRow('Neighborhoods', (prefs.neighborhoods || []).join(', ') || '-') +
         _infoRow('Budget', prefs.minPrice || prefs.maxPrice ? (prefs.minPrice ? $(prefs.minPrice) : '$0') + ' - ' + (prefs.maxPrice ? $(prefs.maxPrice) : 'No max') : '-') +
@@ -567,6 +597,83 @@ var Workspace = (function () {
       _renderClientTab();
     }).catch(function (err) {
       CRM.toast('Failed to save note: ' + (err.message || 'Please try again'), 'error');
+    });
+  }
+
+  function _editFinancials() {
+    var notes = (_client && _client.notes) || '';
+    var _ext = function (label) {
+      var rx = new RegExp(label + '\\s*[:.]\\s*\\$?([\\d,]+(?:\\.\\d+)?)', 'i');
+      var m = notes.match(rx);
+      return m ? m[1].replace(/,/g, '') : '';
+    };
+    var _extT = function (label) {
+      var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
+      var m = notes.match(rx);
+      return m ? m[1].trim() : '';
+    };
+
+    CRM.openModal('Edit Financial Profile',
+      '<form id="editFinancialsForm" class="space-y-4">' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Annual Income</label><input class="form-input" name="income" type="number" value="' + E(_ext('Annual Income')) + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Down Payment</label><input class="form-input" name="downpayment" type="number" value="' + E(_ext('Down Payment')) + '" placeholder="$0"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Deposit / Available Funds</label><input class="form-input" name="deposit" type="number" value="' + E(_ext('Deposit') || _ext('Available Funds')) + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Monthly Debt Payments</label><input class="form-input" name="debt" type="number" value="' + E(_ext('Monthly Debt')) + '" placeholder="$0"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Employer</label><input class="form-input" name="employer" value="' + E(_extT('Employer')) + '" placeholder="Company name"></div>' +
+          '<div class="form-group"><label class="form-label">Work Title</label><input class="form-input" name="work_title" value="' + E(_extT('Work Title') || _extT('Job Title')) + '" placeholder="Job title"></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Credit Score</label>' +
+          '<select class="form-input form-select" name="credit">' +
+            '<option value="">Unknown</option>' +
+            '<option' + (_extT('Credit Score').indexOf('xcellent') !== -1 ? ' selected' : '') + ' value="Excellent (740+)">Excellent (740+)</option>' +
+            '<option' + (_extT('Credit Score').indexOf('ood') !== -1 ? ' selected' : '') + ' value="Good (670-739)">Good (670-739)</option>' +
+            '<option' + (_extT('Credit Score').indexOf('air') !== -1 ? ' selected' : '') + ' value="Fair (580-669)">Fair (580-669)</option>' +
+            '<option' + (_extT('Credit Score').indexOf('oor') !== -1 ? ' selected' : '') + ' value="Poor (below 580)">Poor (below 580)</option>' +
+          '</select></div>' +
+        '<p class="text-xs text-gray-400"><i class="fas fa-lock mr-1"></i> Financial data is private — never shared with the client.</p>' +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Workspace._saveFinancials()"><i class="fas fa-save mr-1"></i> Save</button>',
+      }
+    );
+  }
+
+  function _saveFinancials() {
+    var form = document.getElementById('editFinancialsForm');
+    if (!form) return;
+    var fd = new FormData(form);
+
+    // Build financial lines
+    var lines = [];
+    if (fd.get('income')) lines.push('Annual Income: $' + fd.get('income'));
+    if (fd.get('downpayment')) lines.push('Down Payment: $' + fd.get('downpayment'));
+    if (fd.get('deposit')) lines.push('Deposit: $' + fd.get('deposit'));
+    if (fd.get('debt')) lines.push('Monthly Debt: $' + fd.get('debt'));
+    if (fd.get('employer')) lines.push('Employer: ' + fd.get('employer'));
+    if (fd.get('work_title')) lines.push('Work Title: ' + fd.get('work_title'));
+    if (fd.get('credit')) lines.push('Credit Score: ' + fd.get('credit'));
+
+    // Merge with existing notes — replace financial lines, keep everything else
+    var existingNotes = (_client.notes || '').split('\n');
+    var financialLabels = ['Annual Income', 'Down Payment', 'Deposit', 'Available Funds', 'Monthly Debt', 'Employer', 'Work Title', 'Job Title', 'Credit Score', 'BUYER CONVERSION'];
+    var nonFinancialLines = existingNotes.filter(function (line) {
+      return !financialLabels.some(function (label) { return line.indexOf(label) !== -1; });
+    });
+    var newNotes = nonFinancialLines.concat(lines).filter(Boolean).join('\n');
+
+    MallanAPI.clients.update(_clientId, { notes: newNotes }).then(function () {
+      _client.notes = newNotes;
+      CRM.closeModal();
+      CRM.toast('Financial profile saved', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Could not save'), 'error');
     });
   }
 
@@ -4397,6 +4504,8 @@ var Workspace = (function () {
     _scheduleShowing: _scheduleShowing,
     _submitShowing: _submitShowing,
     _editPreferences: _editPreferences,
+    _editFinancials: _editFinancials,
+    _saveFinancials: _saveFinancials,
     _submitPreferences: _submitPreferences,
     _saveClientNotes: _saveClientNotes,
     _saveAlertSettings: _saveAlertSettings,
