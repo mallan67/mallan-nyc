@@ -278,22 +278,9 @@ var CRM = (function () {
   }
 
   function _renderFavoritesSection() {
+    // Favorites/pins removed — added clutter without clear value
     var container = document.getElementById('sidebarFavorites');
-    if (!container) return;
-    var favs = _getFavorites();
-    if (favs.length === 0) { container.innerHTML = ''; return; }
-
-    var html = '<div class="sidebar-favorites-section">' +
-      '<div class="sidebar-label"><span>FAVORITES</span></div>';
-    favs.forEach(function (f) {
-      var isActive = Router.isActive(f.route);
-      html += '<button class="sidebar-favorites-item' + (isActive ? ' active' : '') + '" onclick="Router.navigate(\'' + E(f.route) + '\')">' +
-        '<span class="fav-icon"><i class="fas ' + (f.icon || 'fa-star') + '"></i></span>' +
-        '<span class="truncate">' + E(f.label) + '</span>' +
-      '</button>';
-    });
-    html += '</div>';
-    container.innerHTML = html;
+    if (container) container.innerHTML = '';
   }
 
   // ─── Sidebar Badge Counts ─────────────────────────────────────────
@@ -438,29 +425,7 @@ var CRM = (function () {
     // Load badge counts asynchronously (non-blocking)
     setTimeout(function () { _loadSidebarBadges(); }, 0);
 
-    // Add pin icons to all sidebar items with data-route
-    setTimeout(function () {
-      document.querySelectorAll('.sidebar-item[data-route]').forEach(function (item) {
-        var route = item.getAttribute('data-route');
-        if (!route) return;
-        // Don't add pin if one already exists
-        if (item.querySelector('.pin-icon')) return;
-        var label = item.querySelector('span') ? item.querySelector('span').textContent : '';
-        var iconEl = item.querySelector('i.fas');
-        var icon = '';
-        if (iconEl) {
-          iconEl.classList.forEach(function (cls) { if (cls.indexOf('fa-') === 0 && cls !== 'fas') icon = cls; });
-        }
-        var pin = document.createElement('i');
-        pin.className = 'fas fa-thumbtack pin-icon' + (_isFavorite(route) ? ' pinned' : '');
-        pin.title = 'Pin to favorites';
-        pin.onclick = function (e) {
-          e.stopPropagation();
-          _toggleFavorite(route, label, icon);
-        };
-        item.appendChild(pin);
-      });
-    }, 0);
+    // Pin icons removed — added clutter
   }
 
   function _sidebarGroup(title, group, items) {
@@ -474,7 +439,7 @@ var CRM = (function () {
 
     items.forEach(function (item) {
       if (item.heading) {
-        html += '<div class="px-3 pt-4 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wide">' + E(item.heading) + '</div>';
+        html += '<div class="px-3 pt-4 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide">' + E(item.heading) + '</div>';
       } else {
         var isActive = Router.isActive(item.route);
         html += '<button class="sidebar-item' + (isActive ? ' active' : '') + '" data-route="' + item.route + '" onclick="Router.navigate(\'' + item.route + '\')">' +
