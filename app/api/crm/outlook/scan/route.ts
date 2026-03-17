@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
 
   const token = await getOutlookToken(BigInt(auth.userId));
   if (!token) {
-    return NextResponse.json({ connected: false, error: "Outlook not connected" }, { status: 401 });
+    return NextResponse.json({ connected: false, error: "Outlook not connected" }, { status: 200 });
   }
 
   const folderId = req.nextUrl.searchParams.get("folder");
