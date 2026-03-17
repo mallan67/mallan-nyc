@@ -297,55 +297,21 @@ function searchChecks(content) {
     missingGuards.length === 0 ? 'All 10 integrity test IDs present' : 'Missing: ' + missingGuards.join(', ')
   ));
 
-  // 26. Cross-file parity: listings consistency
-  const crmPath = path.join(CRM_DIR, 'MALLAN-NYC-CRM-FINAL2.html');
-  if (fs.existsSync(crmPath)) {
-    const crmContent = fs.readFileSync(crmPath, 'utf-8');
-    const searchMockMatch = content.match(/var\s+listings\s*=\s*\[/);
-    const crmMockMatch = crmContent.match(/var\s+listings\s*=\s*\[/);
-    if (searchMockMatch && crmMockMatch) {
-      // Count listings in each: count occurrences of { id: or {id:
-      const searchCount = (content.match(/\{\s*id\s*:\s*\d+/g) || []).length;
-      const crmCount = (crmContent.match(/\{\s*id\s*:\s*\d+/g) || []).length;
-      results.push(check(
-        'P1: listings parity (Search vs CRM)', 'WARN',
-        Math.abs(searchCount - crmCount) < 10,
-        `Search: ~${searchCount} listings, CRM: ~${crmCount} listings`
-      ));
-    } else {
-      results.push(check(
-        'P1: listings parity (Search vs CRM)', 'WARN',
-        true, // Pass if CRM has no listings (search was removed)
-        searchMockMatch ? 'Search has listings' : 'No listings found' +
-        (crmMockMatch ? ', CRM has listings' : ', CRM listings removed')
-      ));
-    }
+  // 26. Search standalone checks (CRM parity removed — dashboard.html is modular)
+  const coreFunctions = ['formatCurrency','getStatusBadgeClasses','checkListingCompliance','logAuditEntry'];
+  const searchHas = coreFunctions.filter(f => content.includes('function ' + f));
+  results.push(check(
+    'P2: Core functions present in Search', 'WARN',
+    searchHas.length > 0,
+    `Found: ${searchHas.length}/${coreFunctions.length} (${searchHas.join(', ') || 'none'})`
+  ));
 
-    // P2: Core function signature parity
-    const coreFunctions = ['formatCurrency','getStatusBadgeClasses','checkListingCompliance','logAuditEntry'];
-    const searchHas = coreFunctions.filter(f => content.includes('function ' + f));
-    const crmHas = coreFunctions.filter(f => crmContent.includes('function ' + f));
-    const onlyInSearch = searchHas.filter(f => !crmHas.includes(f));
-    const onlyInCrm = crmHas.filter(f => !searchHas.includes(f));
-    results.push(check(
-      'P2: Core function parity (Search vs CRM)', 'WARN',
-      onlyInSearch.length === 0 || onlyInCrm.length === 0,
-      `Shared: ${searchHas.filter(f => crmHas.includes(f)).length}/${coreFunctions.length}` +
-      (onlyInSearch.length ? `, search-only: ${onlyInSearch.join(',')}` : '') +
-      (onlyInCrm.length ? `, crm-only: ${onlyInCrm.join(',')}` : '')
-    ));
-
-    // P3: REBNY attribution in both files
-    const searchAttrib = /REBNY.*RLS|REBNY.*Listing.*Service/i.test(content);
-    const crmAttrib = /REBNY.*RLS|REBNY.*Listing.*Service/i.test(crmContent);
-    results.push(check(
-      'P3: REBNY attribution parity', 'WARN',
-      searchAttrib && crmAttrib,
-      `Search: ${searchAttrib ? 'YES' : 'NO'}, CRM: ${crmAttrib ? 'YES' : 'NO'}`
-    ));
-  } else {
-    results.push(check('P1-P3: Cross-file parity', 'WARN', true, 'CRM file not found — skipped'));
-  }
+  const searchAttrib = /REBNY.*RLS|REBNY.*Listing.*Service/i.test(content);
+  results.push(check(
+    'P3: REBNY attribution in Search', 'WARN',
+    searchAttrib,
+    searchAttrib ? 'REBNY attribution found' : 'Missing REBNY attribution'
+  ));
 
   return results;
 }

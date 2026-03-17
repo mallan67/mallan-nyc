@@ -21,7 +21,6 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const FILE_PATHS = {
   'SALE-FORM-REDESIGN.html':     path.join(SEARCH_MODULAR, 'SALE-FORM-REDESIGN.html'),
   'RENTAL-FORM-REDESIGN.html':   path.join(SEARCH_MODULAR, 'RENTAL-FORM-REDESIGN.html'),
-  'MALLAN-NYC-CRM-FINAL2.html':  path.join(SEARCH_MODULAR, 'MALLAN-NYC-CRM-FINAL2.html'),
   'SALE-FORM-WITH-TOOLS.html':   path.join(SEARCH_MODULAR, 'SALE-FORM-WITH-TOOLS.html'),
   'RENTAL-FORM-WITH-TOOLS.html': path.join(SEARCH_MODULAR, 'RENTAL-FORM-WITH-TOOLS.html'),
   'index-built.html':            path.join(SEARCH_MODULAR, 'index-built.html'),

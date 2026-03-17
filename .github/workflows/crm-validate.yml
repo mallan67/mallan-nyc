@@ -29,7 +29,7 @@ jobs:
           FAIL=0
           PII_PATTERNS=("Maya Allan" "maya@" "10311201806" "ui-avatars.com" "broker2024")
           HTML_FILES=(
-            MALLAN-NYC-CRM-FINAL2.html
+            dashboard.html
             SALE-FORM-REDESIGN.html
             RENTAL-FORM-REDESIGN.html
             SALE-FORM-WITH-TOOLS.html
@@ -106,7 +106,7 @@ jobs:
           echo "Checking for PII in URL parameters..."
           FAIL=0
           HTML_FILES=(
-            MALLAN-NYC-CRM-FINAL2.html
+            dashboard.html
             SALE-FORM-REDESIGN.html
             RENTAL-FORM-REDESIGN.html
             SALE-FORM-WITH-TOOLS.html
@@ -147,7 +147,7 @@ jobs:
         run: |
           echo "=== Alert Count Report ==="
           HTML_FILES=(
-            MALLAN-NYC-CRM-FINAL2.html
+            dashboard.html
             SALE-FORM-REDESIGN.html
             RENTAL-FORM-REDESIGN.html
             SALE-FORM-WITH-TOOLS.html

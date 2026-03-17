@@ -56,6 +56,11 @@ model Agent {
   marketing_activities MarketingActivity[]
   follow_up_tasks      FollowUpTask[]      @relation("AgentTasks")
 
+  // --- Outlook integration (Microsoft Graph OAuth tokens) ---
+  outlook_access_token    String?  @db.Text @map("outlook_access_token")
+  outlook_refresh_token   String?  @db.Text @map("outlook_refresh_token")
+  outlook_token_expires_at DateTime? @map("outlook_token_expires_at")
+
   created_at     DateTime  @default(now()) @map("created_at")
   updated_at     DateTime  @updatedAt @map("updated_at")
 

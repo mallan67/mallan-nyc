@@ -385,8 +385,8 @@ test('rls-form-bindings.json has 0 unknown', () => {
   assert.strictEqual(BINDINGS.summary.unknown, 0, `${BINDINGS.summary.unknown} unknowns found`);
 });
 
-test('rls-form-bindings.json has 6 files', () => {
-  assert.strictEqual(Object.keys(BINDINGS.files).length, 6, `${Object.keys(BINDINGS.files).length} files`);
+test('rls-form-bindings.json has 5 files', () => {
+  assert.strictEqual(Object.keys(BINDINGS.files).length, 5, `${Object.keys(BINDINGS.files).length} files`);
 });
 
 // ── 7. Binding Map Completeness ──────────────────────────────────────────
@@ -403,10 +403,7 @@ test('Rental form has 200+ RLS-bound elements', () => {
   assert(stats.rlsBound >= 200, `Only ${stats.rlsBound} RLS-bound`);
 });
 
-test('CRM has 300+ RLS-bound elements', () => {
-  const stats = BINDINGS.files['MALLAN-NYC-CRM-FINAL2.html'].stats;
-  assert(stats.rlsBound >= 300, `Only ${stats.rlsBound} RLS-bound`);
-});
+// CRM entry removed — dashboard.html is modular (no static form fields to validate)
 
 test('No file has unknown elements', () => {
   for (const [fname, fileData] of Object.entries(BINDINGS.files)) {

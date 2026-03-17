@@ -106,7 +106,7 @@ Upon termination of license, all MLS/IDX data must be purged within the timefram
 
 **Project Name:** MALLAN NYC CRM
 **Type:** Full-Stack Platform (Next.js + Tailwind CSS, PostgreSQL, Trestle IDX)
-**Primary File:** `C:\Users\MayaAllan\Desktop\1\MALLAN-NYC-CRM-FINAL2.html`
+**Primary File:** `public/crm/dashboard.html`
 **Target Users:** Brokers, Agents, and their Clients
 **Market:** NYC Ultra-Luxury Real Estate (Sales & Rentals)
 **License Holder:** Mallan Real Estate Inc.
@@ -656,8 +656,8 @@ mallan-nyc/
 │   └── trestle-dictionary/             # Original Trestle exports
 └── scripts/                     # Any helper scripts
 
-Desktop/1/
-└── MALLAN-NYC-CRM-FINAL2.html   # CRM hub (Broker Admin + Agent Admin + 4 Client Portals)
+public/crm/
+└── dashboard.html   # CRM hub (Broker Admin + Agent Admin + 4 Client Portals)
 ```
 
 ---

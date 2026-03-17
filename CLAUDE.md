@@ -35,7 +35,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 
 | File | Role |
 |------|------|
-| `MALLAN-NYC-CRM-FINAL2.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals |
+| `dashboard.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals |
 | `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search of REBNY RLS. Not shared. |
 | `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing → RLS |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + buyers view exclusive sale listings (buyers see masked listing agent info) |

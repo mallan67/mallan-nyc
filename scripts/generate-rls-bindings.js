@@ -22,7 +22,6 @@ const FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv')
 const FILE_CATEGORIES = {
   saleForm:     { path: path.join(SEARCH_MODULAR, 'SALE-FORM-REDESIGN.html'),     category: 'submission' },
   rentalForm:   { path: path.join(SEARCH_MODULAR, 'RENTAL-FORM-REDESIGN.html'),   category: 'submission' },
-  crm:          { path: path.join(SEARCH_MODULAR, 'MALLAN-NYC-CRM-FINAL2.html'),  category: 'crm' },
   saleViewer:   { path: path.join(SEARCH_MODULAR, 'SALE-FORM-WITH-TOOLS.html'),   category: 'viewer' },
   rentalViewer: { path: path.join(SEARCH_MODULAR, 'RENTAL-FORM-WITH-TOOLS.html'), category: 'viewer' },
   search:       { path: path.join(SEARCH_MODULAR, 'index-built.html'),            category: 'search' },

@@ -83,7 +83,7 @@ const HTML_FILES = [
     'RENTAL-FORM-REDESIGN.html',
     'SALE-FORM-WITH-TOOLS.html',
     'RENTAL-FORM-WITH-TOOLS.html',
-    'MALLAN-NYC-CRM-FINAL2.html',
+    // CRM entry removed — dashboard.html is modular (no inline picklists)
     'index-built.html'
 ];
 

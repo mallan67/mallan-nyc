@@ -15,8 +15,8 @@ All CRM pages use clean URLs via Vercel rewrites. The underlying HTML filenames 
 |-----------|------|------|
 | `mallan.nyc/login` | Login (all portals) | `login.html` |
 | `mallan.nyc/crm/login` | Login (alias, kept for compat) | `login.html` |
-| `mallan.nyc/crm` | CRM dashboard | `MALLAN-NYC-CRM-FINAL2.html` |
-| `mallan.nyc/crm/dashboard` | CRM dashboard (alias) | `MALLAN-NYC-CRM-FINAL2.html` |
+| `mallan.nyc/crm` | CRM dashboard | `dashboard.html` |
+| `mallan.nyc/crm/dashboard` | CRM dashboard (alias) | `dashboard.html` |
 | `mallan.nyc/crm/search` | Agent search (IDX) | `index-built.html` |
 | `mallan.nyc/crm/sale-listing` | Sale listing submission | `SALE-FORM-REDESIGN.html` |
 | `mallan.nyc/crm/rental-listing` | Rental listing submission | `RENTAL-FORM-REDESIGN.html` |
@@ -30,7 +30,7 @@ All CRM pages use clean URLs via Vercel rewrites. The underlying HTML filenames 
 ```
 public/crm/
   login.html                      # Login page (/login — also /crm/login)
-  MALLAN-NYC-CRM-FINAL2.html      # CRM hub (/crm or /crm/dashboard)
+  dashboard.html      # CRM hub (/crm or /crm/dashboard)
   index-built.html                # IDX search (/crm/search) — BUILD ARTIFACT, not in git
   SALE-FORM-REDESIGN.html         # Sale submission (/crm/sale-listing)
   SALE-FORM-WITH-TOOLS.html       # Sale viewer (/crm/sale-view)

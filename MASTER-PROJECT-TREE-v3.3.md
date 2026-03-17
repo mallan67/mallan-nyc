@@ -20,7 +20,7 @@
 
 | File | Role | Who Views / Uses | Key Detail |
 |------|------|-----------------|------------|
-| `MALLAN-NYC-CRM-FINAL2.html` | **CRM HUB** | Broker (admin), Agents (own section), Clients (own portal) | 6 portals, opens external files via `window.open()` |
+| `dashboard.html` | **CRM HUB** | Broker (admin), Agents (own section), Clients (own portal) | 6 portals, opens external files via `window.open()` |
 | `index-built.html` | **IDX SEARCH** | Each agent from their OWN Broker/Agent Admin | Each agent's OWN PRIVATE search of REBNY RLS listings. Not shared. |
 | `SALE-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive sale listing → submits to RLS |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** | Agents + Buyers (buyers see masked listing agent info) | Read-only listing display + Transit, Print, Email tools |
@@ -134,7 +134,7 @@
 - Has same tools as sale viewer (Transit, Print, Email) — CORRECT for viewer
 - Needs: listing agent info masking logic for renter viewers
 
-### CRM Hub (`MALLAN-NYC-CRM-FINAL2.html`) — 60% COMPLETE
+### CRM Hub (`dashboard.html`) — 60% COMPLETE
 - Session 1: Broker Dashboard default, goHome() routing, portal-aware navigation
 - Session 2: Agent Roster two-step onboarding
 - Session 3: Sidebar cleanup, Client Address Book brokerage property badge
@@ -167,7 +167,7 @@
 > REDESIGN = SUBMISSION. WITH-TOOLS = VIEW ONLY. DEAL FORMS = INTERNAL COMMISSION (agent → broker).
 > Search = PER AGENT (private). Buyer/Tenant CANNOT see listing agent name.
 
-### CRM Hub (`MALLAN-NYC-CRM-FINAL2.html`) — 15 issues
+### CRM Hub (`dashboard.html`) — 15 issues
 
 - [ ] **BLK:** Agent login points to wrong tab ID (`dashboard` → should be `agent-dashboard`, ~line 25277)
 - [ ] **HI:** Missing `client-book` section (sidebar references nonexistent div)
@@ -565,7 +565,7 @@ See full details in `compliance/MASTER-AUDIT-REPORT-v3.md`.
 ### CRM Files (all in `public/crm/`)
 | File | Lines | Role |
 |------|-------|------|
-| `MALLAN-NYC-CRM-FINAL2.html` | 31,489 | CRM Hub — 6 portals |
+| `dashboard.html` | 31,489 | CRM Hub — 6 portals |
 | `index-built.html` | 30,845 | IDX Search — agent's own private search |
 | `SALE-FORM-REDESIGN.html` | 7,903 | Sale Submission — listing agent → RLS |
 | `SALE-FORM-WITH-TOOLS.html` | 8,696 | Sale Viewer — agents + buyers (masked listing agent for buyers) |

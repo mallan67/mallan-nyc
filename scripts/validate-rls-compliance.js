@@ -39,7 +39,6 @@ const SEARCH_MODULAR = path.resolve(REPO_ROOT, 'public', 'crm');
 const FILE_CONFIG = {
   saleForm:     { path: path.join(SEARCH_MODULAR, 'SALE-FORM-REDESIGN.html'),     category: 'submission', type: 'sale' },
   rentalForm:   { path: path.join(SEARCH_MODULAR, 'RENTAL-FORM-REDESIGN.html'),   category: 'submission', type: 'rental' },
-  crm:          { path: path.join(SEARCH_MODULAR, 'MALLAN-NYC-CRM-FINAL2.html'),  category: 'crm' },
   saleViewer:   { path: path.join(SEARCH_MODULAR, 'SALE-FORM-WITH-TOOLS.html'),   category: 'viewer' },
   rentalViewer: { path: path.join(SEARCH_MODULAR, 'RENTAL-FORM-WITH-TOOLS.html'), category: 'viewer' },
   search:       { path: path.join(SEARCH_MODULAR, 'index-built.html'),            category: 'search' },

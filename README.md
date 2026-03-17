@@ -620,7 +620,7 @@ The listing detail page (`app/listing/[id]/page.tsx`) displays property data in 
 ## CRM Mock Data Cleanup (2026-03-06)
 
 > **Commit:** `5638ef05` | **Net change:** -1,068 lines (1,054 insertions, 2,122 deletions)
-> **File:** `public/crm/MALLAN-NYC-CRM-FINAL2.html`
+> **File:** `public/crm/dashboard.html` (formerly `MALLAN-NYC-CRM-FINAL2.html`)
 > **Principle:** Remove fake DATA values only. Preserve ALL UI structure (divs, tables, buttons, headers, icons, CSS). Add IDs for future API population.
 
 ### What Was Cleaned (4 sessions, ~60 sections)

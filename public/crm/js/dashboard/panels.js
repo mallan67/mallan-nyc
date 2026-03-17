@@ -1926,9 +1926,9 @@ var Panels = (function () {
     // Paste area
     html += '<div class="bg-white rounded-xl border p-6 shadow-sm">' +
       '<h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-envelope-open-text mr-2 text-gold"></i>Import from Email</h3>' +
-      '<p class="text-xs text-gray-500 mb-3">Paste an introduction email below to extract contact information automatically.</p>' +
-      '<textarea id="emailImportText" rows="8" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-gold focus:border-gold" ' +
-        'placeholder="Paste your introduction email here..."></textarea>' +
+      '<p class="text-xs text-gray-500 mb-3">Paste an introduction email, forwarded thread, or contact info below. Supports couples, labeled sections, and free-form text.</p>' +
+      '<textarea id="emailImportText" rows="10" class="w-full border rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-gold focus:border-gold" ' +
+        'placeholder="Examples:\n\nOwner: John & Jane Smith\nEmail: john@email.com\nPhone: 646-555-1234\nAddress: 400 East 90th St, 17C, New York\n\nTenant:\nMichael Johnson\nmichael@email.com\n212-555-9876"></textarea>' +
       '<button onclick="Panels._extractEmailContacts()" class="mt-3 px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition">' +
         '<i class="fas fa-magic mr-1"></i> Extract Contacts</button>' +
       '</div>';
@@ -1940,6 +1940,24 @@ var Panels = (function () {
     c.innerHTML = html;
   }
 
+  // ── Couple detection: "John & Jane Smith" → { name1: "John Smith", name2: "Jane Smith" }
+  function _splitCoupleName(raw) {
+    if (!raw) return null;
+    // "John & Jane Smith", "John and Jane Smith", "John + Jane Smith"
+    var m = raw.match(/^(.+?)\s+(?:&|and|\+)\s+(.+)$/i);
+    if (!m) return null;
+    var left = m[1].trim();
+    var right = m[2].trim();
+    // If right has a last name ("Jane Smith"), share it with left if left is first-name only
+    var rightParts = right.split(/\s+/);
+    var leftParts = left.split(/\s+/);
+    if (leftParts.length === 1 && rightParts.length >= 2) {
+      // left is "John", right is "Jane Smith" → "John Smith" & "Jane Smith"
+      return { name1: left + ' ' + rightParts[rightParts.length - 1], name2: right };
+    }
+    return { name1: left, name2: right };
+  }
+
   function _extractEmailContacts() {
     var text = (document.getElementById('emailImportText') || {}).value || '';
     var review = document.getElementById('emailImportReview');
@@ -1947,94 +1965,165 @@ var Panels = (function () {
 
     var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
 
-    // Extract all emails
+    // Extract all emails (deduplicated)
     var emailRx = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     var emails = (text.match(emailRx) || []).filter(function (e, i, a) { return a.indexOf(e) === i; });
 
-    // Extract all phones (US + international)
+    // Extract all phones (US + international, min 7 digits)
     var phoneRx = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g;
     var phones = (text.match(phoneRx) || []).filter(function (p) { return p.replace(/\D/g, '').length >= 7; })
       .filter(function (p, i, a) { return a.indexOf(p) === i; });
 
-    // Extract address (look for "Address:" label or street pattern)
+    // Extract address
     var address = '';
     var unit = '';
     lines.forEach(function (line) {
-      var addrMatch = line.match(/^(?:address|property|location)\s*[:]\s*(.+)/i);
+      var addrMatch = line.match(/^(?:address|property|property\s*address|location|building)\s*[:]\s*(.+)/i);
       if (addrMatch) {
         var full = addrMatch[1].trim();
-        // Try to split unit: "211 East 51st Street, 4C, New York"
-        var unitMatch = full.match(/,\s*(?:apt\.?|unit|#|suite)?\s*(\w{1,5})\s*,/i);
+        var unitMatch = full.match(/,\s*(?:apt\.?|unit|#|suite|fl(?:oor)?\.?)?\s*(\w{1,6})\s*,/i);
         if (unitMatch) { unit = unitMatch[1]; }
         else {
-          var parts = full.split(',').map(function (p) { return p.trim(); });
-          if (parts.length >= 3 && /^\w{1,5}$/.test(parts[1])) { unit = parts[1]; }
+          var pts = full.split(',').map(function (p) { return p.trim(); });
+          if (pts.length >= 3 && /^\w{1,6}$/.test(pts[1])) { unit = pts[1]; }
         }
         address = full;
       }
-      // Also detect street addresses without label
-      if (!address && /^\d+\s+(?:east|west|e\.?|w\.?)\s+\d/i.test(line)) { address = line; }
+      // Unit on its own line: "Unit: 4C" or "Apt: 17C"
+      if (!unit) {
+        var uMatch = line.match(/^(?:unit|apt\.?|suite|floor|fl)\s*[:.]?\s*(\w{1,6})$/i);
+        if (uMatch) unit = uMatch[1];
+      }
+      // Street addresses without label
+      if (!address && /^\d+\s+(?:east|west|north|south|e\.?|w\.?|n\.?|s\.?)\s+\d/i.test(line)) { address = line; }
+      if (!address && /^\d+\s+\w+\s+(?:street|st|avenue|ave|boulevard|blvd|road|rd|place|pl|drive|dr|way|lane|ln)\b/i.test(line)) { address = line; }
     });
 
-    // Extract legal ownership (look for LLC, Trust, Corp, Inc patterns)
+    // Extract legal ownership
     var legalName = '';
     lines.forEach(function (line) {
-      if (/\b(?:LLC|L\.L\.C|Trust|Corp|Corporation|Inc|LP|LLP|Partnership)\b/i.test(line)) {
-        // Use the line itself as legal name, clean it up
-        var clean = line.replace(/^(?:owner|landlord|property\s*owner)\s*[:]\s*/i, '').trim();
+      if (/\b(?:LLC|L\.L\.C\.?|Trust|Corp(?:oration)?|Inc\.?|LP|LLP|Partnership|Holdings|Realty|Properties|Associates)\b/i.test(line)) {
+        var clean = line.replace(/^(?:owner|landlord|property\s*owner|legal\s*(?:name|owner|entity))\s*[:]\s*/i, '').trim();
         if (clean && !legalName) legalName = clean;
       }
     });
 
-    // Detect Owner/Landlord vs Tenant/Buyer sections
-    var personA = { name: '', email: '', phone: '', role: 'landlord' };
-    var personB = { name: '', email: '', phone: '', role: 'renter' };
+    // ── Section-based parsing ──
+    var personA = { name: '', name2: '', email: '', email2: '', phone: '', phone2: '', role: 'landlord' };
+    var personB = { name: '', name2: '', email: '', email2: '', phone: '', phone2: '', role: 'renter' };
 
     var currentPerson = null;
+    var nameIsLabel = /(?:name)\s*[:]\s*/i;
+    var emailIsLabel = /(?:email|e-?mail)\s*[:]\s*/i;
+    var phoneIsLabel = /(?:phone|mobile|cell|tel(?:ephone)?|contact)\s*[:]\s*/i;
+    // Broader name detection: "First Last" or "First Middle Last" — at least 2 words starting with uppercase
+    var looksLikeName = /^[A-Z][a-z'-]+\s+(?:[A-Z]\.?\s+)?[A-Z][a-z'-]+/;
+
+    // Section header patterns (accept inline values: "Owner: John Smith")
+    var ownerHeaderRx = /^(?:owner|landlord|property\s*owner|seller|lessor|listing\s*(?:principal|client))\s*[:.]?\s*(.*)/i;
+    var tenantHeaderRx = /^(?:tenant|renter|buyer|lessee|purchaser|applicant|prospect|client)\s*[:.]?\s*(.*)/i;
+
     lines.forEach(function (line) {
-      var lower = line.toLowerCase();
-
-      // Detect section headers
-      if (/^(?:owner|landlord|property\s*owner|seller)\s*[:.]?\s*$/i.test(line) || lower === 'owner' || lower === 'landlord' || lower === 'seller') {
+      // Check section headers
+      var ownerMatch = ownerHeaderRx.exec(line);
+      if (ownerMatch) {
         currentPerson = 'A';
-        if (lower.indexOf('seller') !== -1) personA.role = 'seller';
+        if (/seller/i.test(line)) personA.role = 'seller';
+        // Inline value after header: "Owner: John Smith"
+        var inlineVal = (ownerMatch[1] || '').trim();
+        if (inlineVal && !/@/.test(inlineVal) && !/^\d/.test(inlineVal)) {
+          _assignName(personA, inlineVal);
+        }
         return;
       }
-      if (/^(?:tenant|renter|buyer|lessee)\s*[:.]?\s*$/i.test(line) || lower === 'tenant' || lower === 'renter' || lower === 'buyer') {
+      var tenantMatch = tenantHeaderRx.exec(line);
+      if (tenantMatch) {
         currentPerson = 'B';
-        if (lower.indexOf('buyer') !== -1) personB.role = 'buyer';
+        if (/buyer|purchaser/i.test(line)) personB.role = 'buyer';
+        var inlineVal2 = (tenantMatch[1] || '').trim();
+        if (inlineVal2 && !/@/.test(inlineVal2) && !/^\d/.test(inlineVal2)) {
+          _assignName(personB, inlineVal2);
+        }
         return;
       }
 
-      // Extract labeled values
-      var emailMatch = line.match(/(?:email|e-?mail)\s*[:]\s*(\S+@\S+)/i);
-      var phoneMatch = line.match(/(?:phone|mobile|cell|tel)\s*[:]\s*(.+)/i);
-      var nameMatch = line.match(/(?:name)\s*[:]\s*(.+)/i);
+      var target = currentPerson === 'A' ? personA : currentPerson === 'B' ? personB : null;
+      if (!target) return;
 
-      if (currentPerson === 'A') {
-        if (emailMatch) personA.email = emailMatch[1].trim();
-        else if (phoneMatch) personA.phone = phoneMatch[1].trim();
-        else if (nameMatch) personA.name = nameMatch[1].trim();
-        else if (!personA.name && /^[A-Z][a-z]+ [A-Z][a-z]/.test(line) && !emailMatch && line.indexOf('@') === -1 && !/^(?:address|email|phone|mobile)/i.test(line)) {
-          // Line looks like a name (First Last)
-          if (legalName && line === legalName) return; // skip legal name as person name
-          personA.name = line;
-        }
-      } else if (currentPerson === 'B') {
-        if (emailMatch) personB.email = emailMatch[1].trim();
-        else if (phoneMatch) personB.phone = phoneMatch[1].trim();
-        else if (nameMatch) personB.name = nameMatch[1].trim();
-        else if (!personB.name && /^[A-Z][a-z]+ [A-Z][a-z]/.test(line) && !emailMatch && line.indexOf('@') === -1) {
-          personB.name = line;
-        }
+      // Labeled email: "Email: john@example.com, jane@example.com"
+      var eLabelMatch = line.match(emailIsLabel);
+      if (eLabelMatch) {
+        var rest = line.replace(emailIsLabel, '').trim();
+        var foundEmails = rest.match(emailRx) || [];
+        if (foundEmails.length > 0 && !target.email) target.email = foundEmails[0];
+        if (foundEmails.length > 1 && !target.email2) target.email2 = foundEmails[1];
+        return;
+      }
+      // Labeled phone: "Phone: 646-555-1234 / 212-555-9876"
+      var pLabelMatch = line.match(phoneIsLabel);
+      if (pLabelMatch) {
+        var pRest = line.replace(phoneIsLabel, '').trim();
+        var foundPhones = (pRest.match(phoneRx) || []).filter(function (p) { return p.replace(/\D/g, '').length >= 7; });
+        if (foundPhones.length > 0 && !target.phone) target.phone = foundPhones[0];
+        if (foundPhones.length > 1 && !target.phone2) target.phone2 = foundPhones[1];
+        return;
+      }
+      // Labeled name: "Name: John & Jane Smith"
+      var nLabelMatch = line.match(nameIsLabel);
+      if (nLabelMatch) {
+        var nVal = line.replace(nameIsLabel, '').trim();
+        _assignName(target, nVal);
+        return;
+      }
+      // Unlabeled email on its own line
+      if (/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(line)) {
+        if (!target.email) target.email = line;
+        else if (!target.email2) target.email2 = line;
+        return;
+      }
+      // Unlabeled phone on its own line
+      if (/^[\d(+][\d\s().+-]{6,}$/.test(line) && line.replace(/\D/g, '').length >= 7) {
+        if (!target.phone) target.phone = line;
+        else if (!target.phone2) target.phone2 = line;
+        return;
+      }
+      // Unlabeled name (looks like "First Last", not a label or address)
+      if (!target.name && looksLikeName.test(line) && line.indexOf('@') === -1 &&
+          !/^(?:address|email|phone|mobile|property|location|unit|apt|suite|lease|rent|income|credit)/i.test(line)) {
+        if (legalName && line === legalName) return;
+        _assignName(target, line);
       }
     });
 
-    // Fallback: assign extracted data if section detection didn't work
-    if (!personA.email && emails.length > 0) personA.email = emails[0];
-    if (!personB.email && emails.length > 1) personB.email = emails[1];
-    if (!personA.phone && phones.length > 0) personA.phone = phones[0];
-    if (!personB.phone && phones.length > 1) personB.phone = phones[1];
+    // Fallback: if no sections detected, use free-form extraction
+    if (!currentPerson) {
+      // Try to find names from entire text
+      var allNames = [];
+      lines.forEach(function (line) {
+        if (looksLikeName.test(line) && line.indexOf('@') === -1 &&
+            !/^(?:address|email|phone|mobile|property|location|hi |hello |dear |from |to |cc |subject |sent |date )/i.test(line) &&
+            line !== legalName) {
+          allNames.push(line);
+        }
+      });
+      if (allNames.length > 0) _assignName(personA, allNames[0]);
+      if (allNames.length > 1) _assignName(personB, allNames[1]);
+    }
+
+    // Assign remaining unmatched emails/phones
+    var usedEmails = [personA.email, personA.email2, personB.email, personB.email2].filter(Boolean);
+    var freeEmails = emails.filter(function (e) { return usedEmails.indexOf(e) === -1; });
+    if (!personA.email && freeEmails.length > 0) { personA.email = freeEmails.shift(); }
+    if (!personA.email2 && personA.name2 && freeEmails.length > 0) { personA.email2 = freeEmails.shift(); }
+    if (!personB.email && freeEmails.length > 0) { personB.email = freeEmails.shift(); }
+    if (!personB.email2 && personB.name2 && freeEmails.length > 0) { personB.email2 = freeEmails.shift(); }
+
+    var usedPhones = [personA.phone, personA.phone2, personB.phone, personB.phone2].filter(Boolean);
+    var freePhones = phones.filter(function (p) { return usedPhones.indexOf(p) === -1; });
+    if (!personA.phone && freePhones.length > 0) { personA.phone = freePhones.shift(); }
+    if (!personA.phone2 && personA.name2 && freePhones.length > 0) { personA.phone2 = freePhones.shift(); }
+    if (!personB.phone && freePhones.length > 0) { personB.phone = freePhones.shift(); }
+    if (!personB.phone2 && personB.name2 && freePhones.length > 0) { personB.phone2 = freePhones.shift(); }
 
     // Store extracted address + legal name for the form
     window._importAddress = address;
@@ -2044,43 +2133,85 @@ var Panels = (function () {
     _renderEmailImportReview(review, personA, personB);
   }
 
+  function _assignName(person, raw) {
+    var couple = _splitCoupleName(raw);
+    if (couple) {
+      person.name = couple.name1;
+      person.name2 = couple.name2;
+    } else if (!person.name) {
+      person.name = raw;
+    }
+  }
+
   function _renderEmailImportReview(el, personA, personB) {
     el.classList.remove('hidden');
 
     var html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
 
-    // Card A — Landlord/Seller
+    // Card A — Landlord/Seller (with couple support)
     html += '<div class="bg-white rounded-xl border p-5 shadow-sm">' +
       '<h4 class="text-sm font-bold text-gray-700 mb-4"><i class="fas fa-user-tie mr-2 text-amber-600"></i>Person A (Landlord / Seller)</h4>' +
       '<div class="space-y-3">' +
-      _importField('importA_name', 'Name', personA.name, 'text') +
+      _importField('importA_name', 'Name', personA.name, 'text', 'First Last') +
       _importField('importA_email', 'Email', personA.email, 'email') +
       _importField('importA_phone', 'Phone', personA.phone, 'tel') +
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
         '<select id="importA_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
         '<option value="landlord"' + (personA.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
         '<option value="seller"' + (personA.role === 'seller' ? ' selected' : '') + '>Seller</option></select></div>' +
+      // Spouse/Partner toggle
+      '<div class="border-t pt-3 mt-1">' +
+        '<label class="flex items-center gap-2 cursor-pointer">' +
+          '<input type="checkbox" id="importA_hasPartner" ' + (personA.name2 ? 'checked ' : '') +
+          'onchange="Panels._togglePartner(\'A\')" class="rounded text-gold focus:ring-gold">' +
+          '<span class="text-xs font-semibold text-gray-600">Couple / Partner</span></label>' +
+        '<div id="importA_partnerFields" class="space-y-3 mt-3' + (personA.name2 ? '' : ' hidden') + '">' +
+          _importField('importA_name2', 'Partner Name', personA.name2 || '', 'text', 'First Last') +
+          _importField('importA_email2', 'Partner Email', personA.email2 || '', 'email') +
+          _importField('importA_phone2', 'Partner Phone', personA.phone2 || '', 'tel') +
+          '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Relationship</label>' +
+            '<select id="importA_relationship" class="w-full border rounded-lg px-3 py-2 text-sm">' +
+            '<option value="spouse">Spouse</option><option value="partner">Partner</option>' +
+            '<option value="co-owner">Co-Owner</option><option value="other">Other</option></select></div>' +
+        '</div></div>' +
       _importField('importA_address', 'Property Address', window._importAddress || '', 'text') +
       _importField('importA_unit', 'Unit Number', window._importUnit || '', 'text') +
       _importField('importA_legalName', 'Legal Ownership Name', window._importLegalName || '', 'text', 'LLC, Trust, Corp, or individual name') +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease Start Date</label>' +
-        '<input type="date" id="importA_leaseStart" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
-      '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End Date</label>' +
-        '<input type="date" id="importA_leaseEnd" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease Start</label>' +
+          '<input type="date" id="importA_leaseStart" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+        '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Lease End</label>' +
+          '<input type="date" id="importA_leaseEnd" class="w-full border rounded-lg px-3 py-2 text-sm"></div>' +
+      '</div>' +
       '</div></div>';
 
-    // Card B — Tenant/Buyer
+    // Card B — Tenant/Buyer (with couple support)
     html += '<div class="bg-white rounded-xl border p-5 shadow-sm">' +
       '<h4 class="text-sm font-bold text-gray-700 mb-4"><i class="fas fa-user mr-2 text-blue-600"></i>Person B (Tenant / Buyer)</h4>' +
       '<div class="space-y-3">' +
-      _importField('importB_name', 'Name', personB.name, 'text') +
+      _importField('importB_name', 'Name', personB.name, 'text', 'First Last') +
       _importField('importB_email', 'Email', personB.email, 'email') +
       _importField('importB_phone', 'Phone', personB.phone, 'tel') +
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
         '<select id="importB_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
         '<option value="renter"' + (personB.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
         '<option value="buyer"' + (personB.role === 'buyer' ? ' selected' : '') + '>Buyer</option></select></div>' +
-      _importField('importB_address', 'Rental Address', window._importAddress || '', 'text', 'Property they are renting') +
+      // Spouse/Partner toggle
+      '<div class="border-t pt-3 mt-1">' +
+        '<label class="flex items-center gap-2 cursor-pointer">' +
+          '<input type="checkbox" id="importB_hasPartner" ' + (personB.name2 ? 'checked ' : '') +
+          'onchange="Panels._togglePartner(\'B\')" class="rounded text-gold focus:ring-gold">' +
+          '<span class="text-xs font-semibold text-gray-600">Couple / Partner</span></label>' +
+        '<div id="importB_partnerFields" class="space-y-3 mt-3' + (personB.name2 ? '' : ' hidden') + '">' +
+          _importField('importB_name2', 'Partner Name', personB.name2 || '', 'text', 'First Last') +
+          _importField('importB_email2', 'Partner Email', personB.email2 || '', 'email') +
+          _importField('importB_phone2', 'Partner Phone', personB.phone2 || '', 'tel') +
+          '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Relationship</label>' +
+            '<select id="importB_relationship" class="w-full border rounded-lg px-3 py-2 text-sm">' +
+            '<option value="spouse">Spouse</option><option value="partner">Partner</option>' +
+            '<option value="co-applicant">Co-Applicant</option><option value="other">Other</option></select></div>' +
+        '</div></div>' +
+      _importField('importB_address', 'Address', window._importAddress || '', 'text', 'Current or target address') +
       _importField('importB_unit', 'Unit Number', window._importUnit || '', 'text') +
       '<div class="grid grid-cols-2 gap-3">' +
         '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Monthly Rent</label>' +
@@ -2125,6 +2256,12 @@ var Panels = (function () {
     el.innerHTML = html;
   }
 
+  function _togglePartner(side) {
+    var cb = document.getElementById('import' + side + '_hasPartner');
+    var fields = document.getElementById('import' + side + '_partnerFields');
+    if (cb && fields) { fields.classList.toggle('hidden', !cb.checked); }
+  }
+
   function _importField(id, label, value, type, placeholder) {
     return '<div><label class="block text-xs font-semibold text-gray-700 mb-1">' + E(label) + '</label>' +
       '<input type="' + type + '" id="' + id + '" value="' + E(value) + '" ' +
@@ -2134,71 +2271,74 @@ var Panels = (function () {
 
   function _getImportVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
 
-  function _buildImportPersonA() {
-    var name = _getImportVal('importA_name');
+  function _buildImportPerson(side) {
+    var name = _getImportVal('import' + side + '_name');
     var parts = name.split(/\s+/);
-    var role = _getImportVal('importA_type') || 'landlord';
-    // Property data goes in notes (no dedicated DB columns for address/unit/legal owner)
-    var noteLines = [
-      _getImportVal('importA_address') ? 'Property: ' + _getImportVal('importA_address') : '',
-      _getImportVal('importA_unit') ? 'Unit: ' + _getImportVal('importA_unit') : '',
-      _getImportVal('importA_legalName') ? 'Legal Owner: ' + _getImportVal('importA_legalName') : '',
-    ].filter(Boolean);
-    return {
-      create: {
-        first_name: parts[0] || '',
-        last_name: parts.slice(1).join(' ') || '',
-        email: _getImportVal('importA_email'),
-        phone: _getImportVal('importA_phone') || '-',
-        roles: [role],
-        portal_role: role,
-        source: 'email_import',
-      },
-      // Financial/lease fields saved via PATCH after create
-      patch: {
-        notes: noteLines.length ? noteLines.join('\n') : undefined,
-        lease_start_date: _getImportVal('importA_leaseStart') || undefined,
-        lease_end_date: _getImportVal('importA_leaseEnd') || undefined,
-      },
-      name: name,
-    };
-  }
+    var role = _getImportVal('import' + side + '_type') || (side === 'A' ? 'landlord' : 'renter');
+    var noteLines = [];
+    var addr = _getImportVal('import' + side + '_address');
+    var unitVal = _getImportVal('import' + side + '_unit');
+    var legal = side === 'A' ? _getImportVal('importA_legalName') : '';
+    if (addr) noteLines.push('Property: ' + addr);
+    if (unitVal) noteLines.push('Unit: ' + unitVal);
+    if (legal) noteLines.push('Legal Owner: ' + legal);
 
-  function _buildImportPersonB() {
-    var name = _getImportVal('importB_name');
-    var parts = name.split(/\s+/);
-    var role = _getImportVal('importB_type') || 'renter';
-    var noteLines = [
-      _getImportVal('importB_address') ? 'Rental Address: ' + _getImportVal('importB_address') : '',
-      _getImportVal('importB_unit') ? 'Unit: ' + _getImportVal('importB_unit') : '',
-    ].filter(Boolean);
     var patch = {
       notes: noteLines.length ? noteLines.join('\n') : undefined,
-      lease_start_date: _getImportVal('importB_leaseStart') || undefined,
-      lease_end_date: _getImportVal('importB_leaseEnd') || undefined,
-      rent_per_month: _getImportVal('importB_rent') ? Number(_getImportVal('importB_rent')) : undefined,
-      rental_deposit: _getImportVal('importB_rentalDeposit') ? Number(_getImportVal('importB_rentalDeposit')) : undefined,
-      annual_income: _getImportVal('importB_income') ? Number(_getImportVal('importB_income')) : undefined,
-      bonuses: _getImportVal('importB_bonuses') ? Number(_getImportVal('importB_bonuses')) : undefined,
-      monthly_debt: _getImportVal('importB_debt') ? Number(_getImportVal('importB_debt')) : undefined,
-      credit_score_range: _getImportVal('importB_credit') || undefined,
+      lease_start_date: _getImportVal('import' + side + '_leaseStart') || undefined,
+      lease_end_date: _getImportVal('import' + side + '_leaseEnd') || undefined,
     };
+    // Financial fields for side B
+    if (side === 'B') {
+      if (_getImportVal('importB_rent')) patch.rent_per_month = Number(_getImportVal('importB_rent'));
+      if (_getImportVal('importB_rentalDeposit')) patch.rental_deposit = Number(_getImportVal('importB_rentalDeposit'));
+      if (_getImportVal('importB_income')) patch.annual_income = Number(_getImportVal('importB_income'));
+      if (_getImportVal('importB_bonuses')) patch.bonuses = Number(_getImportVal('importB_bonuses'));
+      if (_getImportVal('importB_debt')) patch.monthly_debt = Number(_getImportVal('importB_debt'));
+      if (_getImportVal('importB_credit')) patch.credit_score_range = _getImportVal('importB_credit');
+    }
+
+    // Partner info
+    var hasPartner = document.getElementById('import' + side + '_hasPartner');
+    var partner = null;
+    if (hasPartner && hasPartner.checked) {
+      var pName = _getImportVal('import' + side + '_name2');
+      var pParts = pName.split(/\s+/);
+      if (pName) {
+        partner = {
+          create: {
+            first_name: pParts[0] || '',
+            last_name: pParts.slice(1).join(' ') || parts.slice(1).join(' ') || '', // share last name if partner has none
+            email: _getImportVal('import' + side + '_email2'),
+            phone: _getImportVal('import' + side + '_phone2') || '-',
+            roles: [role],
+            portal_role: role,
+            source: 'email_import',
+          },
+          patch: { notes: noteLines.length ? noteLines.join('\n') : undefined },
+          name: pName,
+          relationship: _getImportVal('import' + side + '_relationship') || 'spouse',
+        };
+      }
+    }
+
     return {
       create: {
         first_name: parts[0] || '',
         last_name: parts.slice(1).join(' ') || '',
-        email: _getImportVal('importB_email'),
-        phone: _getImportVal('importB_phone') || '-',
+        email: _getImportVal('import' + side + '_email'),
+        phone: _getImportVal('import' + side + '_phone') || '-',
         roles: [role],
         portal_role: role,
         source: 'email_import',
       },
       patch: patch,
       name: name,
+      partner: partner,
     };
   }
 
-  // Create client then immediately PATCH with financial/lease fields
+  // Create client, PATCH with extra fields, then create + link partner if present
   function _importAndPatch(person) {
     return MallanAPI.clients.create(person.create).then(function (res) {
       var clientId = res.id || (res.client && res.client.id);
@@ -2208,10 +2348,33 @@ var Panels = (function () {
       Object.keys(person.patch).forEach(function (k) {
         if (person.patch[k] !== undefined) patchData[k] = person.patch[k];
       });
-      if (Object.keys(patchData).length > 0 && clientId) {
-        return MallanAPI.clients.update(clientId, patchData).then(function () { return res; });
-      }
-      return res;
+      var patchPromise = (Object.keys(patchData).length > 0 && clientId)
+        ? MallanAPI.clients.update(clientId, patchData)
+        : Promise.resolve();
+
+      return patchPromise.then(function () {
+        // Create partner if present
+        if (person.partner && person.partner.name && clientId) {
+          return MallanAPI.clients.create(person.partner.create).then(function (partnerRes) {
+            var partnerId = partnerRes.id || (partnerRes.client && partnerRes.client.id);
+            Events.log('client_created', 'client', partnerId, { name: person.partner.name, source: 'email_import', linked_to: clientId });
+            // PATCH partner notes
+            var partnerPatch = {};
+            if (person.partner.patch && person.partner.patch.notes) partnerPatch.notes = person.partner.patch.notes;
+            var ppPromise = (Object.keys(partnerPatch).length > 0 && partnerId)
+              ? MallanAPI.clients.update(partnerId, partnerPatch)
+              : Promise.resolve();
+            return ppPromise.then(function () {
+              // Link as family members (both directions)
+              return MallanAPI._fetch('/api/crm/clients/' + clientId + '/family', {
+                method: 'POST',
+                body: JSON.stringify({ member_lead_id: partnerId, relationship: person.partner.relationship || 'spouse' }),
+              }).catch(function () { /* family link is best-effort */ });
+            });
+          });
+        }
+        return res;
+      });
     });
   }
 
@@ -2220,25 +2383,245 @@ var Panels = (function () {
     var labels = [];
 
     if (which === 'both' || which === 'a') {
-      var a = _buildImportPersonA();
+      var a = _buildImportPerson('A');
       if (!a.create.email && !a.name) { CRM.toast('Person A needs at least a name or email', 'warning'); return; }
       promises.push(_importAndPatch(a));
-      labels.push('A');
+      labels.push('A' + (a.partner ? ' + partner' : ''));
     }
 
     if (which === 'both' || which === 'b') {
-      var b = _buildImportPersonB();
+      var b = _buildImportPerson('B');
       if (!b.create.email && !b.name) { CRM.toast('Person B needs at least a name or email', 'warning'); return; }
       promises.push(_importAndPatch(b));
-      labels.push('B');
+      labels.push('B' + (b.partner ? ' + partner' : ''));
     }
 
     if (promises.length === 0) return;
 
     Promise.all(promises).then(function () {
       CRM.toast('Imported ' + labels.join(' & '), 'success');
+      // Navigate to clients list after short delay
+      setTimeout(function () { Router.navigate('/ops/clients'); }, 1200);
     }).catch(function (err) {
       CRM.toast('Import error: ' + (err.message || 'Failed'), 'error');
+    });
+  }
+
+  // ─── Outlook Scanner ─────────────────────────────────────────────
+
+  function outlookScanner() {
+    CRM.setPanelTitle('Outlook Scanner');
+    var c = _container();
+    c.innerHTML = '<div class="flex items-center justify-center h-64"><i class="fas fa-spinner fa-spin text-2xl text-gold mr-3"></i><span class="text-gray-500">Checking Outlook connection...</span></div>';
+
+    MallanAPI._fetch('/api/crm/outlook/folders').then(function (data) {
+      if (!data.connected) {
+        _renderOutlookConnect(c);
+      } else {
+        _renderOutlookFolders(c, data);
+      }
+    }).catch(function () {
+      _renderOutlookConnect(c);
+    });
+  }
+
+  function _renderOutlookConnect(c) {
+    c.innerHTML = '<div class="max-w-xl mx-auto text-center py-16">' +
+      '<div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-5">' +
+        '<i class="fab fa-microsoft text-3xl text-blue-600"></i></div>' +
+      '<h3 class="text-lg font-bold text-gray-900 mb-2">Connect Outlook</h3>' +
+      '<p class="text-sm text-gray-500 mb-6">Sign in with your Microsoft 365 account to scan email folders and import contacts directly into the CRM.</p>' +
+      '<a href="/api/crm/outlook/auth" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition">' +
+        '<i class="fab fa-microsoft mr-2"></i> Sign in with Microsoft</a>' +
+      '<p class="text-xs text-gray-400 mt-4">Only reads email — cannot send, delete, or modify anything.</p>' +
+      '</div>';
+  }
+
+  var _outlookFolders = [];
+  var _outlookEmail = '';
+
+  function _renderOutlookFolders(c, data) {
+    _outlookFolders = data.folders || [];
+    _outlookEmail = data.email || '';
+
+    var html = '<div class="space-y-6 max-w-5xl">';
+
+    // Connected status
+    html += '<div class="bg-white rounded-xl border p-4 shadow-sm flex items-center justify-between">' +
+      '<div class="flex items-center gap-3">' +
+        '<div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center"><i class="fab fa-microsoft text-green-600"></i></div>' +
+        '<div><p class="text-sm font-bold text-gray-900">Connected to Outlook</p>' +
+          '<p class="text-xs text-gray-500">' + E(_outlookEmail) + '</p></div></div>' +
+      '<button onclick="Panels._disconnectOutlook()" class="text-xs text-red-500 hover:text-red-700">Disconnect</button></div>';
+
+    // Folder list
+    html += '<div class="bg-white rounded-xl border shadow-sm">' +
+      '<div class="p-4 border-b"><h3 class="text-sm font-bold text-gray-700"><i class="fas fa-folder-open mr-2 text-gold"></i>Select a Folder to Scan</h3>' +
+        '<p class="text-xs text-gray-500 mt-1">Choose a folder to extract contacts from all emails inside it.</p></div>' +
+      '<div class="divide-y">';
+
+    for (var i = 0; i < _outlookFolders.length; i++) {
+      var f = _outlookFolders[i];
+      html += '<button onclick="Panels._scanOutlookFolder(\'' + E(f.id) + '\',\'' + E(f.displayName) + '\')" ' +
+        'class="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition text-left">' +
+        '<div class="flex items-center gap-3">' +
+          '<i class="fas fa-folder text-gold"></i>' +
+          '<div><p class="text-sm font-semibold text-gray-900">' + E(f.displayName) + '</p>' +
+            '<p class="text-xs text-gray-500">' + f.totalItemCount + ' emails</p></div></div>' +
+        (f.childFolderCount > 0 ? '<span class="text-xs text-gray-400">' + f.childFolderCount + ' subfolders <i class="fas fa-chevron-right ml-1"></i></span>' : '') +
+        '</button>';
+    }
+
+    html += '</div></div></div>';
+    c.innerHTML = html;
+  }
+
+  function _scanOutlookFolder(folderId, folderName) {
+    var c = _container();
+    c.innerHTML = '<div class="flex items-center justify-center h-64"><i class="fas fa-spinner fa-spin text-2xl text-gold mr-3"></i>' +
+      '<span class="text-gray-500">Scanning ' + E(folderName) + '...</span></div>';
+
+    MallanAPI._fetch('/api/crm/outlook/scan?folder=' + encodeURIComponent(folderId) + '&top=100').then(function (data) {
+      _renderScanResults(c, data, folderName, folderId);
+    }).catch(function (err) {
+      c.innerHTML = '<div class="text-center py-16"><i class="fas fa-exclamation-circle text-3xl text-red-400 mb-3"></i>' +
+        '<p class="text-sm text-red-600">Scan failed: ' + E(err.message || 'Unknown error') + '</p>' +
+        '<button onclick="Panels.outlookScanner()" class="mt-4 text-sm text-gold hover:underline">Back to folders</button></div>';
+    });
+  }
+
+  function _renderScanResults(c, data, folderName, folderId) {
+    var contacts = data.contacts || [];
+    window._outlookContacts = contacts;
+
+    var html = '<div class="space-y-4 max-w-6xl">';
+
+    // Header
+    html += '<div class="flex items-center justify-between">' +
+      '<div><h3 class="text-sm font-bold text-gray-700"><i class="fas fa-address-book mr-2 text-gold"></i>Extracted Contacts from ' + E(folderName) + '</h3>' +
+        '<p class="text-xs text-gray-500">' + data.scanned + ' emails scanned, ' + contacts.length + ' contacts found' +
+          (data.skipped ? ' (' + data.skipped + ' broker/listing emails skipped)' : '') + '</p></div>' +
+      '<div class="flex gap-2">' +
+        '<button onclick="Panels.outlookScanner()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"><i class="fas fa-arrow-left mr-1"></i> Back</button>' +
+        '<button onclick="Panels._importSelectedOutlook()" class="px-4 py-1.5 text-sm bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800"><i class="fas fa-download mr-1"></i> Import Selected</button>' +
+      '</div></div>';
+
+    if (contacts.length === 0) {
+      html += '<div class="bg-white rounded-xl border p-12 text-center"><i class="fas fa-inbox text-3xl text-gray-300 mb-3"></i>' +
+        '<p class="text-sm text-gray-500">No contacts found in this folder.</p></div>';
+      c.innerHTML = html + '</div>';
+      return;
+    }
+
+    // Select all
+    html += '<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="outlookSelectAll" onchange="Panels._toggleAllOutlook()" checked class="rounded text-gold focus:ring-gold"> Select all (' + contacts.length + ')</label>';
+
+    // Contact table
+    html += '<div class="bg-white rounded-xl border shadow-sm overflow-x-auto"><table class="w-full text-sm">' +
+      '<thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr>' +
+        '<th class="p-3 w-8"></th>' +
+        '<th class="p-3 text-left">Name</th>' +
+        '<th class="p-3 text-left">Email</th>' +
+        '<th class="p-3 text-left">Phone</th>' +
+        '<th class="p-3 text-left">Type</th>' +
+        '<th class="p-3 text-left">Source Email</th>' +
+      '</tr></thead><tbody class="divide-y">';
+
+    for (var i = 0; i < contacts.length; i++) {
+      var ct = contacts[i];
+      var roleColors = { buyer: 'blue', renter: 'green', seller: 'amber', landlord: 'purple', unknown: 'gray' };
+      var rc = roleColors[ct.role] || 'gray';
+      html += '<tr class="hover:bg-gray-50">' +
+        '<td class="p-3"><input type="checkbox" data-outlook-idx="' + i + '" checked class="outlookContactCb rounded text-gold focus:ring-gold"></td>' +
+        '<td class="p-3 font-medium">' + E(ct.name || '—') + '</td>' +
+        '<td class="p-3 text-gray-600">' + E(ct.email || '—') + '</td>' +
+        '<td class="p-3 text-gray-600">' + E(ct.phone || '—') + '</td>' +
+        '<td class="p-3"><select data-outlook-role="' + i + '" class="text-xs border rounded px-2 py-1">' +
+          '<option value="buyer"' + (ct.role === 'buyer' ? ' selected' : '') + '>Buyer</option>' +
+          '<option value="renter"' + (ct.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
+          '<option value="seller"' + (ct.role === 'seller' ? ' selected' : '') + '>Seller</option>' +
+          '<option value="landlord"' + (ct.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
+          '<option value="unknown"' + (ct.role === 'unknown' ? ' selected' : '') + '>Unknown</option>' +
+          '</select></td>' +
+        '<td class="p-3 text-xs text-gray-400" title="' + E(ct.source_subject) + '">' + E(ct.source_subject || '').substring(0, 40) + '</td>' +
+        '</tr>';
+    }
+
+    html += '</tbody></table></div></div>';
+    c.innerHTML = html;
+  }
+
+  function _toggleAllOutlook() {
+    var all = document.getElementById('outlookSelectAll');
+    var cbs = document.querySelectorAll('.outlookContactCb');
+    for (var i = 0; i < cbs.length; i++) { cbs[i].checked = all ? all.checked : false; }
+  }
+
+  function _importSelectedOutlook() {
+    var contacts = window._outlookContacts || [];
+    var cbs = document.querySelectorAll('.outlookContactCb:checked');
+    if (cbs.length === 0) { CRM.toast('No contacts selected', 'warning'); return; }
+
+    var toImport = [];
+    for (var i = 0; i < cbs.length; i++) {
+      var idx = parseInt(cbs[i].getAttribute('data-outlook-idx'));
+      var ct = contacts[idx];
+      if (!ct) continue;
+
+      // Check for role override from dropdown
+      var roleSelect = document.querySelector('[data-outlook-role="' + idx + '"]');
+      var role = roleSelect ? roleSelect.value : ct.role;
+      if (role === 'unknown') role = 'buyer';
+
+      var nameParts = (ct.name || '').split(/\s+/);
+      toImport.push({
+        first_name: nameParts[0] || ct.email.split('@')[0] || 'Unknown',
+        last_name: nameParts.slice(1).join(' ') || '',
+        email: ct.email || (ct.name || '').replace(/\s/g, '.').toLowerCase() + '@placeholder.invalid',
+        phone: ct.phone || '-',
+        roles: [role],
+        portal_role: role,
+        source: 'outlook_import',
+      });
+    }
+
+    // Filter out contacts without email
+    toImport = toImport.filter(function (c) { return c.email && c.email.indexOf('placeholder') === -1; });
+
+    if (toImport.length === 0) { CRM.toast('No contacts with valid emails to import', 'warning'); return; }
+
+    CRM.toast('Importing ' + toImport.length + ' contacts...', 'info');
+
+    // Import sequentially to handle duplicates gracefully
+    var imported = 0;
+    var skipped = 0;
+    var chain = Promise.resolve();
+
+    toImport.forEach(function (person) {
+      chain = chain.then(function () {
+        return MallanAPI.clients.create(person).then(function (res) {
+          imported++;
+          Events.log('client_created', 'client', res.id, { name: person.first_name + ' ' + person.last_name, source: 'outlook_import' });
+        }).catch(function (err) {
+          // 409 = duplicate email, skip
+          skipped++;
+        });
+      });
+    });
+
+    chain.then(function () {
+      CRM.toast('Imported ' + imported + ' contacts' + (skipped > 0 ? ' (' + skipped + ' duplicates skipped)' : ''), 'success');
+      setTimeout(function () { Router.navigate('/ops/clients'); }, 1500);
+    });
+  }
+
+  function _disconnectOutlook() {
+    if (!confirm('Disconnect Outlook? You can reconnect anytime.')) return;
+    MallanAPI._fetch('/api/crm/outlook/disconnect', { method: 'POST' }).then(function () {
+      CRM.toast('Outlook disconnected', 'info');
+      outlookScanner();
+    }).catch(function () {
+      CRM.toast('Failed to disconnect', 'error');
     });
   }
 
@@ -11175,6 +11558,12 @@ var Panels = (function () {
     _deactivateAgent: _deactivateAgent,
     _extractEmailContacts: _extractEmailContacts,
     _submitEmailImport: _submitEmailImport,
+    _togglePartner: _togglePartner,
+    outlookScanner: outlookScanner,
+    _scanOutlookFolder: _scanOutlookFolder,
+    _toggleAllOutlook: _toggleAllOutlook,
+    _importSelectedOutlook: _importSelectedOutlook,
+    _disconnectOutlook: _disconnectOutlook,
     _switchQuickAddType: _switchQuickAddType,
     _submitQuickAddClient: _submitQuickAddClient,
     _filterCAB: _filterCAB,

@@ -4,8 +4,8 @@
  * Mallan Real Estate Inc. — Brokerage License #10991205323
  *
  * RULES:
- *   - All search logic lives HERE. Both SEARCH-STANDALONE.html and
- *     MALLAN-NYC-CRM-FINAL2.html load this file via <script src>.
+ *   - All search logic lives HERE. index-built.html inlines this
+ *     file via build.js.
  *   - No MLS/IDX data is fetched client-side — search operates on
  *     mock data or a server-fed JSON payload pre-filtered for opt-outs.
  *   - IDX display gates, REBNY attribution, Fair Housing disclaimers,
