@@ -785,34 +785,33 @@ var Panels = (function () {
           '</div>' +
         '</div>' +
         '<div class="flex items-center gap-3">' +
-          '<span class="px-2 py-0.5 border border-gray-300 text-gray-600 rounded text-[10px] font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
+          '<span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold hidden sm:inline-block">' + E(roleLabel) + '</span>' +
           (function () {
             var badges = '';
             var licExp = a.license_expiry || a.licenseExpiry;
             var licDays = licExp ? Utils.daysUntil(licExp) : null;
-            if (licDays !== null && licDays <= 90) badges += '<span class="px-1.5 py-0.5 border border-red-300 text-red-600 rounded text-[9px] font-semibold">License expiring</span>';
+            if (licDays !== null && licDays <= 90) badges += '<span class="text-[9px] text-gray-400 hidden sm:inline">&middot; License exp. soon</span>';
             var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
-            if (ceHrs < 22.5) badges += '<span class="px-1.5 py-0.5 border border-yellow-300 text-yellow-600 rounded text-[9px] font-semibold">CE incomplete</span>';
+            if (ceHrs < 22.5) badges += '<span class="text-[9px] text-gray-400 hidden sm:inline">&middot; CE incomplete</span>';
             var eoExp = a.eo_expiry || a.eoExpiry;
-            if (!eoExp || (new Date(eoExp) < new Date())) badges += '<span class="px-1.5 py-0.5 border border-red-300 text-red-600 rounded text-[9px] font-semibold">Missing E&amp;O</span>';
+            if (!eoExp || (new Date(eoExp) < new Date())) badges += '<span class="text-[9px] text-gray-400 hidden sm:inline">&middot; No E&amp;O</span>';
             return badges;
           })() +
           (function () {
             var licExp = a.license_expiry || a.licenseExpiry;
-            var licDays = licExp ? Utils.daysUntil(licExp) : null;
             var licText = licExp ? D(licExp) : 'N/A';
-            var licColor = (licDays !== null && licDays <= 90) ? 'text-red-600' : 'text-gray-900';
             var ceHrs = a.ce_hours_completed || a.ceHoursCompleted || 0;
-            var ceColor = ceHrs < 22.5 ? 'text-red-600' : 'text-green-600';
+            var ceText = ceHrs >= 22.5 ? 'Complete' : 'Incomplete';
+            var ceColor = ceHrs >= 22.5 ? 'text-green-600' : 'text-gray-500';
             var splitPct = a.sale_split || a.saleSplit || 0;
             var splitDisplay = splitPct > 1 ? splitPct + '%' : (splitPct > 0 ? Math.round(splitPct * 100) + '%' : '-');
             var activeDeals = (a._allDeals || []).filter(function (d) { return d.stage !== 'closed' && d.status !== 'closed'; }).length;
             var refCount = (a._referrals || []).length;
-            return '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400 font-medium">License</p><p class="text-xs font-semibold ' + licColor + '">' + licText + '</p></div>' +
-              '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400 font-medium">CE</p><p class="text-xs font-semibold ' + ceColor + '">' + ceHrs + '/22.5 hrs</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400 font-medium">Split</p><p class="text-xs font-semibold text-gray-700">' + splitDisplay + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400 font-medium">Active Deals</p><p class="text-xs font-semibold text-gray-700">' + activeDeals + '</p></div>' +
-              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400 font-medium">Referrals</p><p class="text-xs font-semibold text-gray-700">' + refCount + '</p></div>';
+            return '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400">License</p><p class="text-xs text-gray-600">' + licText + '</p></div>' +
+              '<div class="text-right hidden lg:block"><p class="text-[10px] text-gray-400">CE</p><p class="text-xs ' + ceColor + '">' + ceText + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400">Split</p><p class="text-xs text-gray-600">' + splitDisplay + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400">Active Deals</p><p class="text-xs text-gray-600">' + activeDeals + '</p></div>' +
+              '<div class="text-right hidden md:block"><p class="text-[10px] text-gray-400">Referrals</p><p class="text-xs text-gray-600">' + refCount + '</p></div>';
           })() +
           '<i class="fas fa-chevron-down text-gray-400 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
         '</div>' +
@@ -822,7 +821,7 @@ var Panels = (function () {
         '<div class="px-4 py-3 border-t bg-white">' +
           // Quick actions
           '<div class="flex items-center justify-between mb-3">' +
-            '<div class="sm:hidden"><span class="px-2 py-0.5 border border-gray-300 text-gray-600 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span></div>' +
+            '<div class="sm:hidden"><span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span></div>' +
             '<div class="flex items-center gap-2">' +
               '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
               '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
@@ -1390,11 +1389,21 @@ var Panels = (function () {
 
         // ── Section 1: Personal Information ──
         '<div>' +
-          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-user text-gold"></i> Personal Information</h3>' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Personal Information</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
             '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" value="' + E(firstName) + '" required></div>' +
             '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" value="' + E(middleName) + '" placeholder="Middle name"></div>' +
             '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
+          '</div>' +
+          '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
+            '<div class="form-group"><label class="form-label">Title / Tagline</label><input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
+            '<div class="form-group"><label class="form-label">Status</label>' +
+              '<select class="form-input form-select" name="status">' +
+                '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
+                '<option value="inactive"' + (a.status === 'inactive' ? ' selected' : '') + '>Inactive</option>' +
+                '<option value="suspended"' + (a.status === 'suspended' ? ' selected' : '') + '>Suspended</option>' +
+              '</select></div>' +
+            '<div></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
             '<div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" name="email" value="' + E(a.email || '') + '" readonly class="bg-gray-50 text-gray-500 cursor-not-allowed"></div>' +
@@ -1407,14 +1416,23 @@ var Panels = (function () {
             '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" placeholder="State"></div>' +
             '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
           '</div>' +
-          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Photo URL</label><input class="form-input" name="photo" value="' + E(a.photo || '') + '" placeholder="https://..."></div>' +
+          '<div class="mt-3">' +
+            '<label class="form-label">Photo</label>' +
+            '<div class="flex items-center gap-4">' +
+              (a.photo ? '<img id="editAgentPhotoPreview" src="' + E(a.photo) + '" class="w-16 h-16 rounded-full object-cover border border-gray-200" onerror="this.style.display=\'none\'">' : '<div id="editAgentPhotoPreview" class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs border border-gray-200">No photo</div>') +
+              '<div>' +
+                '<input type="file" id="editAgentPhotoFile" name="photo_file" accept="image/jpeg,image/png,image/webp" class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-white file:text-gray-700 hover:file:bg-gray-50" onchange="(function(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){var prev=document.getElementById(\'editAgentPhotoPreview\');if(prev.tagName===\'IMG\'){prev.src=e.target.result;}else{var img=document.createElement(\'img\');img.id=\'editAgentPhotoPreview\';img.src=e.target.result;img.className=\'w-16 h-16 rounded-full object-cover border border-gray-200\';prev.parentNode.replaceChild(img,prev);}};r.readAsDataURL(f);})(this)">' +
+                '<p class="text-xs text-gray-400 mt-1">JPG, PNG, or WebP. Max 5 MB.</p>' +
+              '</div>' +
+            '</div>' +
+            '<input type="hidden" name="photo" value="' + E(a.photo || '') + '">' +
+            (!a.photo && !a.bio ? '<p class="text-xs text-gray-400 mt-2 italic">Run sync to import profile data from mallan.nyc</p>' : '') +
           '</div>' +
         '</div>' +
 
         // ── Section 2: NY DOS License Information ──
         '<div class="border-t pt-5">' +
-          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-id-card text-gold"></i> NY DOS License Information</h3>' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">NY DOS License Information</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
             '<div class="form-group"><label class="form-label">License Type</label>' +
               '<select class="form-input form-select" name="license_type">' +
@@ -1463,7 +1481,7 @@ var Panels = (function () {
 
         // ── Section 3: Brokerage & Commission ──
         '<div class="border-t pt-5">' +
-          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-handshake text-gold"></i> Brokerage &amp; Commission</h3>' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Brokerage &amp; Commission</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
             '<div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" name="start_date" value="' + E(a.start_date ? String(a.start_date).substring(0, 10) : '') + '"></div>' +
             '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
@@ -1494,26 +1512,17 @@ var Panels = (function () {
 
         // ── Section 4: Public Profile (for mallan.nyc) ──
         '<div class="border-t pt-5">' +
-          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-globe text-gold"></i> Public Profile (for mallan.nyc)</h3>' +
-          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-            '<div class="form-group"><label class="form-label">Title / Tagline</label><input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
-            '<div class="form-group"><label class="form-label">Status</label>' +
-              '<select class="form-input form-select" name="status">' +
-                '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
-                '<option value="inactive"' + (a.status === 'inactive' ? ' selected' : '') + '>Inactive</option>' +
-                '<option value="suspended"' + (a.status === 'suspended' ? ' selected' : '') + '>Suspended</option>' +
-              '</select></div>' +
-          '</div>' +
-          '<div class="form-group mt-3"><label class="form-label">Bio</label>' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Public Profile (for mallan.nyc)</h3>' +
+          '<div class="form-group"><label class="form-label">Bio</label>' +
             '<textarea class="form-input" name="bio" rows="3" placeholder="Agent bio for public profile...">' + E(a.bio || '') + '</textarea></div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Photo URL</label><input class="form-input" name="photo_public" value="' + E(a.photo || '') + '" placeholder="https://..."></div>' +
             '<div class="form-group"><label class="form-label">Public Slug</label>' +
               '<div class="flex items-center">' +
                 '<span class="text-xs text-gray-400 mr-1 whitespace-nowrap">mallan.nyc/agents/</span>' +
                 '<input class="form-input" name="public_slug" value="' + E(a.public_slug || '') + '" placeholder="jane-doe">' +
               '</div>' +
             '</div>' +
+            '<div></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">' +
             '<div class="form-group"><label class="form-label">Specialties</label><input class="form-input" name="specialties" value="' + E(specialtiesStr) + '" placeholder="Luxury, Co-ops, New Development"></div>' +
@@ -1528,7 +1537,7 @@ var Panels = (function () {
 
         // ── Section 5: Internal Notes ──
         '<div class="border-t pt-5">' +
-          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-sticky-note text-gold"></i> Internal Notes</h3>' +
+          '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Internal Notes</h3>' +
           '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Internal notes about this agent (broker eyes only)...">' + E(a.internal_notes || '') + '</textarea></div>' +
         '</div>' +
 
@@ -1556,6 +1565,7 @@ var Panels = (function () {
     var agentId;
     new FormData(form).forEach(function (v, k) {
       if (k === 'id') { agentId = v; return; }
+      if (k === 'photo_file') return; // handled separately
       if (v !== '' && v !== null) raw[k] = v;
     });
 
@@ -1571,10 +1581,6 @@ var Panels = (function () {
     if (raw.bio) data.bio = raw.bio;
     if (raw.status) data.status = raw.status;
     if (raw.public_slug) data.public_slug = raw.public_slug;
-
-    // Photo — prefer photo_public (Section 4) over photo (Section 1)
-    var photoVal = raw.photo_public || raw.photo || '';
-    if (photoVal) data.photo = photoVal;
 
     // Featured checkbox — unchecked means not in FormData
     data.featured = form.querySelector('[name="featured"]') ? form.querySelector('[name="featured"]').checked : false;
@@ -1595,13 +1601,44 @@ var Panels = (function () {
     if (raw.sale_split) data.sale_split = Number(raw.sale_split) / 100;
     if (raw.rental_split) data.rental_split = Number(raw.rental_split) / 100;
 
-    MallanAPI.agents.update(agentId, data).then(function () {
-      CRM.closeModal();
-      CRM.toast('Agent updated', 'success');
-      agentRoster();
-    }).catch(function (err) {
-      CRM.toast('Failed to update: ' + (err.message || 'Unknown error'), 'error');
-    });
+    // Photo — upload file if selected, otherwise use existing hidden value
+    var fileInput = document.getElementById('editAgentPhotoFile');
+    var photoFile = fileInput && fileInput.files && fileInput.files[0];
+
+    function _doAgentUpdate(patchData) {
+      MallanAPI.agents.update(agentId, patchData).then(function () {
+        CRM.closeModal();
+        CRM.toast('Agent updated', 'success');
+        agentRoster();
+      }).catch(function (err) {
+        CRM.toast('Failed to update: ' + (err.message || 'Unknown error'), 'error');
+      });
+    }
+
+    if (photoFile) {
+      // Upload photo first, then PATCH agent with returned URL
+      var fd = new FormData();
+      fd.append('photo', photoFile);
+      MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(agentId) + '/photo', {
+        method: 'POST',
+        body: fd,
+        rawBody: true,
+      }).then(function (res) {
+        if (res && res.url) data.photo = res.url;
+        _doAgentUpdate(data);
+      }).catch(function (err) {
+        CRM.toast('Photo upload failed: ' + (err.message || 'Unknown error') + ' — saving other fields', 'error');
+        // Still save other fields even if photo upload fails
+        var existingPhoto = raw.photo || '';
+        if (existingPhoto) data.photo = existingPhoto;
+        _doAgentUpdate(data);
+      });
+    } else {
+      // No new file — keep existing photo URL from hidden input
+      var existingPhoto = raw.photo || '';
+      if (existingPhoto) data.photo = existingPhoto;
+      _doAgentUpdate(data);
+    }
   }
 
   // ─── Client Address Book ─────────────────────────────────────────────
