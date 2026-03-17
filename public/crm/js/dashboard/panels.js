@@ -2100,35 +2100,43 @@ var Panels = (function () {
   function _buildImportPersonA() {
     var name = _getImportVal('importA_name');
     var parts = name.split(/\s+/);
+    var role = _getImportVal('importA_type') || 'landlord';
     return {
       first_name: parts[0] || '',
       last_name: parts.slice(1).join(' ') || '',
       name: name,
       email: _getImportVal('importA_email'),
-      phone: _getImportVal('importA_phone'),
-      type: _getImportVal('importA_type') || 'landlord',
-      client_type: _getImportVal('importA_type') || 'landlord',
-      property_address: _getImportVal('importA_address'),
-      unit_number: _getImportVal('importA_unit'),
-      legal_ownership_name: _getImportVal('importA_legalName'),
-      lease_start_date: _getImportVal('importA_leaseStart') || undefined,
-      lease_end_date: _getImportVal('importA_leaseEnd') || undefined,
+      phone: _getImportVal('importA_phone') || '-',
+      roles: [role],
+      portal_role: role,
       source: 'email_import',
+      notes: [
+        _getImportVal('importA_address') ? 'Property: ' + _getImportVal('importA_address') : '',
+        _getImportVal('importA_unit') ? 'Unit: ' + _getImportVal('importA_unit') : '',
+        _getImportVal('importA_legalName') ? 'Legal Owner: ' + _getImportVal('importA_legalName') : '',
+        _getImportVal('importA_leaseStart') ? 'Lease Start: ' + _getImportVal('importA_leaseStart') : '',
+        _getImportVal('importA_leaseEnd') ? 'Lease End: ' + _getImportVal('importA_leaseEnd') : '',
+      ].filter(Boolean).join('\n'),
     };
   }
 
   function _buildImportPersonB() {
     var name = _getImportVal('importB_name');
     var parts = name.split(/\s+/);
+    var role = _getImportVal('importB_type') || 'renter';
     return {
       first_name: parts[0] || '',
       last_name: parts.slice(1).join(' ') || '',
       name: name,
       email: _getImportVal('importB_email'),
-      phone: _getImportVal('importB_phone'),
-      type: _getImportVal('importB_type') || 'renter',
-      client_type: _getImportVal('importB_type') || 'renter',
+      phone: _getImportVal('importB_phone') || '-',
+      roles: [role],
+      portal_role: role,
       source: 'email_import',
+      notes: [
+        _getImportVal('importB_address') ? 'Rental Address: ' + _getImportVal('importB_address') : '',
+        _getImportVal('importB_unit') ? 'Unit: ' + _getImportVal('importB_unit') : '',
+      ].filter(Boolean).join('\n'),
     };
   }
 
