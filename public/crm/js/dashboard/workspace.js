@@ -785,6 +785,45 @@ var Workspace = (function () {
       if (prefs.maxPrice) searchParams.maxPrice = prefs.maxPrice;
       if (prefs.minBeds) searchParams.minBeds = prefs.minBeds;
 
+      // For renters: compute max budget from financial data in notes
+      var isRenter = (cl.type || cl.client_type || cl.portal_role || '').toLowerCase() === 'renter';
+      if (isRenter && !searchParams.maxPrice) {
+        var notes = cl.notes || '';
+        var incomeMatch = notes.match(/Annual Income:\s*\$?([\d,]+)/i);
+        var debtMatch = notes.match(/Monthly Debt:\s*\$?([\d,]+)/i);
+        var rentMatch = notes.match(/Monthly Rent:\s*\$?([\d,]+)/i);
+        var addressMatch = notes.match(/Rental Address:\s*(.+)/i);
+
+        if (incomeMatch) {
+          var annualIncome = Number(incomeMatch[1].replace(/,/g, ''));
+          var monthlyDebt = debtMatch ? Number(debtMatch[1].replace(/,/g, '')) : 0;
+          var monthlyRent = rentMatch ? Number(rentMatch[1].replace(/,/g, '')) : 0;
+          var maxMonthly = (annualIncome / 12) * 0.28 - monthlyDebt;
+          if (maxMonthly > 0) {
+            var r = 0.065 / 12;
+            var n = 360;
+            var maxPrice = Math.round(maxMonthly * ((Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n))));
+            searchParams.maxPrice = maxPrice;
+            if (!searchParams.minPrice) searchParams.minPrice = Math.round(maxPrice * 0.6);
+          }
+          // Try to get neighborhood from rental address
+          if (addressMatch && !searchParams.neighborhood) {
+            var addr = addressMatch[1].trim();
+            // Extract neighborhood hint from address (e.g. "East 51st" → search nearby)
+            searchParams.address = addr.split(',')[0];
+          }
+        }
+
+        // Show buyer conversion banner
+        if (searchParams.maxPrice) {
+          findEl.innerHTML = '<div class="p-3 mb-3 bg-green-50 border border-green-200 rounded-lg">' +
+            '<p class="text-sm font-semibold text-green-800"><i class="fas fa-exchange-alt mr-1"></i> Renter → Buyer: Showing listings this client could afford</p>' +
+            '<p class="text-xs text-green-700 mt-1">Budget range: ' + $(searchParams.minPrice) + ' – ' + $(searchParams.maxPrice) +
+            (monthlyRent ? ' · Current rent: ' + $(monthlyRent) + '/mo' : '') + '</p>' +
+          '</div>' + UI.loading();
+        }
+      }
+
       if (Object.keys(searchParams).length === 0) {
         findEl.innerHTML = '<p class="text-sm text-gray-500">Set client preferences to see smart matches, or search manually above.</p>';
       } else {
