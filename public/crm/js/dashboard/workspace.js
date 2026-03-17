@@ -465,6 +465,7 @@ var Workspace = (function () {
           '<button class="btn btn-xs btn-outline" onclick="Workspace._editFinancials()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
         '</div>' +
         _infoRow('Annual Income', _extractNote('Annual Income') ? '$' + Number(_extractNote('Annual Income')).toLocaleString() : '-') +
+        _infoRow('Bonuses', _extractNote('Bonus') || _extractNote('Bonuses') ? '$' + Number(_extractNote('Bonus') || _extractNote('Bonuses')).toLocaleString() : '-') +
         _infoRow('Down Payment', _extractNote('Down Payment') ? '$' + Number(_extractNote('Down Payment')).toLocaleString() : '-') +
         _infoRow('Deposit / Liquid', _extractNote('Deposit') || _extractNote('Available Funds') ? '$' + Number(_extractNote('Deposit') || _extractNote('Available Funds')).toLocaleString() : '-') +
         _infoRow('Employer', _extractNoteText('Employer') || '-') +
@@ -648,6 +649,9 @@ var Workspace = (function () {
       '<form id="editFinancialsForm" class="space-y-4">' +
         '<div class="grid grid-cols-2 gap-4">' +
           '<div class="form-group"><label class="form-label">Annual Income</label><input class="form-input" name="income" type="number" value="' + E(_ext('Annual Income')) + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Bonuses (Annual)</label><input class="form-input" name="bonus" type="number" value="' + E(_ext('Bonus') || _ext('Bonuses')) + '" placeholder="$0"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
           '<div class="form-group"><label class="form-label">Down Payment</label><input class="form-input" name="downpayment" type="number" value="' + E(_ext('Down Payment')) + '" placeholder="$0"></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
@@ -683,6 +687,7 @@ var Workspace = (function () {
     // Build financial lines
     var lines = [];
     if (fd.get('income')) lines.push('Annual Income: $' + fd.get('income'));
+    if (fd.get('bonus')) lines.push('Bonuses: $' + fd.get('bonus'));
     if (fd.get('downpayment')) lines.push('Down Payment: $' + fd.get('downpayment'));
     if (fd.get('deposit')) lines.push('Deposit: $' + fd.get('deposit'));
     if (fd.get('debt')) lines.push('Monthly Debt: $' + fd.get('debt'));
@@ -692,7 +697,7 @@ var Workspace = (function () {
 
     // Merge with existing notes — replace financial lines, keep everything else
     var existingNotes = (_client.notes || '').split('\n');
-    var financialLabels = ['Annual Income', 'Down Payment', 'Deposit', 'Available Funds', 'Monthly Debt', 'Employer', 'Work Title', 'Job Title', 'Credit Score', 'BUYER CONVERSION'];
+    var financialLabels = ['Annual Income', 'Bonus', 'Bonuses', 'Down Payment', 'Deposit', 'Available Funds', 'Monthly Debt', 'Employer', 'Work Title', 'Job Title', 'Credit Score', 'BUYER CONVERSION'];
     var nonFinancialLines = existingNotes.filter(function (line) {
       return !financialLabels.some(function (label) { return line.indexOf(label) !== -1; });
     });
